@@ -1,0 +1,19 @@
+purpose: Software rasterization. Pixels in memory; nothing about windows or the web.
+
+allow: util
+
+public: Geometry.h Color.h Canvas.h DirtyRegion.h DisplayList.h
+
+# Empty on purpose, and load-bearing: this is what makes "gfx must not include
+# SDL" an enforced rule rather than a convention. FreeType and HarfBuzz join
+# this list in M1, when GlyphAtlas needs them -- and nothing else in gfx will be
+# able to name them.
+extern:
+
+max_tu_lines: 800
+
+budget: Color        header_lines=35 public_methods=14 members=1
+budget: IntRect      header_lines=85 public_methods=16 members=4
+budget: Canvas       header_lines=80 public_methods=20 members=4
+budget: DirtyRegion  header_lines=60 public_methods=10 members=1
+budget: DisplayList  header_lines=45 public_methods=10 members=1

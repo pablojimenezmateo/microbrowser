@@ -1,0 +1,13 @@
+purpose: The UI/Engine seam. A closed message vocabulary and a swappable transport.
+
+allow: util gfx
+
+public: ByteStream.h Message.h Transport.h InProcessTransport.h
+
+extern:
+
+max_tu_lines: 800
+
+budget: ByteWriter        header_lines=45 public_methods=10 members=1
+budget: ByteReader        header_lines=80 public_methods=14 members=3
+budget: InProcessChannel  header_lines=60 public_methods=6  members=4

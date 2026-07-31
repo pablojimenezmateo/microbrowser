@@ -1,0 +1,95 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "MICROBROWSER_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "microbrowser-debug",
+      "displayName": "Debug",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "microbrowser-asan",
+      "displayName": "AddressSanitizer",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/microbrowser-asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address"
+      }
+    },
+    {
+      "name": "microbrowser-ubsan",
+      "displayName": "UndefinedBehaviorSanitizer",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/microbrowser-ubsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined"
+      }
+    },
+    {
+      "name": "microbrowser-tsan",
+      "displayName": "ThreadSanitizer",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/microbrowser-tsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread"
+      }
+    },
+    {
+      "name": "microbrowser-perf",
+      "displayName": "Release + LTO, perf harness armed",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/microbrowser-perf",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "MICROBROWSER_PERF_HARNESS_BUILD": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "microbrowser-debug", "configurePreset": "microbrowser-debug" },
+    { "name": "microbrowser-asan", "configurePreset": "microbrowser-asan" },
+    { "name": "microbrowser-ubsan", "configurePreset": "microbrowser-ubsan" },
+    { "name": "microbrowser-tsan", "configurePreset": "microbrowser-tsan" },
+    { "name": "microbrowser-perf", "configurePreset": "microbrowser-perf" }
+  ],
+  "testPresets": [
+    {
+      "name": "microbrowser-debug",
+      "configurePreset": "microbrowser-debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "microbrowser-asan",
+      "configurePreset": "microbrowser-asan",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "microbrowser-ubsan",
+      "configurePreset": "microbrowser-ubsan",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "microbrowser-tsan",
+      "configurePreset": "microbrowser-tsan",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

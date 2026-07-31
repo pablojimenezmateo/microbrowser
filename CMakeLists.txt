@@ -192,6 +192,7 @@ add_executable(microbrowser_tests
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app)
+target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 

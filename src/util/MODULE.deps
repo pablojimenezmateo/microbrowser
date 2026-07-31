@@ -1,0 +1,23 @@
+# Module contract for src/util.
+#
+# Format is documented in guidelines/architecture.md. Every field is enforced by
+# tests/ArchitectureInvariantsTests.cpp; editing a budget upward is a reviewable
+# act, which is the entire point of writing them down.
+
+purpose: Dependency-free primitives. Parsing, strings, tracing, counters.
+
+# The bottom of the stack. util depends on nothing, which is what makes it safe
+# for every other module to depend on it.
+allow:
+
+public: Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h
+
+extern:
+
+max_tu_lines: 800
+
+budget: TraceChannel     header_lines=170 public_methods=20 members=10
+budget: TraceScope       header_lines=30  public_methods=4  members=7
+budget: PerformanceTrace header_lines=130 public_methods=16 members=0
+budget: StartupTrace     header_lines=50  public_methods=10 members=0
+budget: ScopeLabel       header_lines=45  public_methods=8  members=3
