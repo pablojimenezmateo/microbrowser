@@ -1,0 +1,31 @@
+/build/
+/build-*/
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
+# OS / editor / tooling cruft and Python bytecode.
+.DS_Store
+__pycache__/
+*.pyc
+*.orig
+
+# libFuzzer corpora accumulate auto-generated, hash-named inputs on every run and
+# clog the tree. Ignore those, but keep each target's directory (a tracked
+# .gitkeep) so the documented `./<Target>Fuzz tests/fuzz/corpora/<Target>`
+# commands still work (libFuzzer errors on a missing corpus dir), and keep any
+# hand-curated `seed_*` inputs.
+/tests/fuzz/corpora/*/*
+!/tests/fuzz/corpora/*/.gitkeep
+!/tests/fuzz/corpora/*/seed_*
+
+# Reference-test failure output: the actual/diff PPMs a failing run writes next
+# to the golden. Goldens themselves (tests/ref/**/*.ppm) are tracked.
+/tests/ref/**/*.actual.ppm
+/tests/ref/**/*.diff.ppm
+
+# clangd index (created whenever compile_commands.json is exported).
+/.cache/
+/compile_commands.json
