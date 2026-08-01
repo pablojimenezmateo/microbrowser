@@ -94,6 +94,10 @@ namespace microbrowser::util {
   X(NetCacheMisses, "net.cache_misses")                                          \
   X(NetCacheStale, "net.cache_stale")                                            \
   X(NetCacheStores, "net.cache_stores")                                          \
+  X(NetConnections, "net.connections")                                           \
+  X(NetConnectFailures, "net.connect_failures")                                  \
+  X(NetTlsHandshakes, "net.tls_handshakes")                                      \
+  X(NetTlsFailures, "net.tls_failures")                                          \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

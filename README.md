@@ -28,8 +28,8 @@ privacy, then speed, then CPU, then memory. Measured, not asserted.
 ## Building
 
 ```bash
-sudo apt install libsdl3-dev libfreetype-dev libharfbuzz-dev
-# later milestones add: libssl-dev libbrotli-dev
+sudo apt install libsdl3-dev libfreetype-dev libharfbuzz-dev libssl-dev
+# later milestones add: libbrotli-dev
 
 cmake -S . -B build -G Ninja
 cmake --build build -j$(nproc)
@@ -117,7 +117,7 @@ the two designs that give it teeth are decided in ADRs.
 |---|---|---|
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
 | M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **done** |
-| M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — URL, privacy, HTTP/1.1 parsing and cookies done; sockets, TLS and DNS not |
+| M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — URL, privacy, HTTP/1.1, cookies, cache, sockets and TLS done; connection pooling and a partitioned DNS cache not |
 | M3 | HTML parsing + DOM | |
 | M4 | CSS: parsing, selectors, cascade, computed style | |
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | |

@@ -11,6 +11,7 @@
 
 #include "TestSupport.h"
 #include "net/Fetch.h"
+#include "net/SocketTransport.h"
 #include "net/Transport.h"
 #include "privacy/PrivacyPolicy.h"
 #include "url/PartitionKey.h"
@@ -360,6 +361,24 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     HttpCache cache;
     const FetchResult result = Run(policy, factory, cookies, cache, "https://example.com/x");
     Expect(!result.ok, "an ambiguously framed response is refused, not interpreted");
+  });
+
+  // The real transport is not exercised against a network here — a test that
+  // needs the internet is a test that fails on a train. What is asserted is
+  // that it exists, that TLS was actually compiled in, and that a connection to
+  // an address nothing listens on fails rather than hanging or crashing.
+  AddTest(tests, "Fetch/TheRealTransportIsPresentAndTlsIsCompiledIn", [] {
+    Expect(net::TlsIsAvailable(),
+           "a build that silently lost OpenSSL would refuse every https URL at runtime while "
+           "passing every test that uses the scripted transport");
+
+    net::SocketTransportFactory factory;
+    const std::unique_ptr<Transport> connection = factory.Create();
+    Expect(connection != nullptr, "the factory produces a transport");
+    // 127.0.0.1 on a port nothing is bound to: refused immediately, no network
+    // required and no timeout waited on.
+    Expect(!connection->Connect("127.0.0.1", 9, false),
+           "connecting to a closed port fails cleanly");
   });
 
   AddTest(tests, "Fetch/SendsNoFragmentToTheServer", [] {

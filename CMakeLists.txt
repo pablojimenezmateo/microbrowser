@@ -79,6 +79,7 @@ find_package(SDL3 CONFIG QUIET)
 # sanctioned in docs/adr/0001-third-party-dependencies.md and both are visible
 # only to src/gfx, which is what its MODULE.deps `extern:` line enforces.
 find_package(Freetype REQUIRED)
+find_package(OpenSSL REQUIRED)
 set(MICROBROWSER_HARFBUZZ_TARGET "")
 if(PkgConfig_FOUND)
   pkg_check_modules(HARFBUZZ QUIET IMPORTED_TARGET harfbuzz)
@@ -195,7 +196,9 @@ microbrowser_module(net
     src/net/Fetch.cpp
     src/net/HttpCache.cpp
     src/net/HttpMessage.cpp
-  DEPS microbrowser_util microbrowser_url microbrowser_privacy)
+    src/net/SocketTransport.cpp
+  DEPS microbrowser_util microbrowser_url microbrowser_privacy
+  EXTERN OpenSSL::SSL OpenSSL::Crypto)
 
 microbrowser_module(gfx
   SOURCES
