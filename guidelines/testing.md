@@ -153,9 +153,20 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-87 tests. Honest about what they do and do not cover:
+183 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
+- `Path`, `PathFlattener`, `Rasterizer`, `Stroker`, `AffineTransform` — the strongest assertions in
+  the tree are here, and they are analytic rather than pictorial: a triangle and a circle must cover
+  their closed-form area, a half-covered pixel must read exactly 128, a butt-capped line must cover
+  length times width, a mitered rectangle outline must equal the difference of two rectangles.
+  Shapes are also checked where the two fill rules disagree, which only happens where a path
+  overlaps itself — a suite that draws only rectangles passes with the rule ignored entirely.
+- `Blitter` — the vector path is compared against the scalar reference across all 256 source alphas,
+  every tail length, and eight start offsets, plus an assertion that a vector path is compiled in at
+  all, without which the comparison would be scalar against itself.
+- `PaintPipeline` — engine to display list to wire to pixels, with a golden. Every link in that
+  chain is unit-tested; a chain of tested links is not a tested chain.
 - `Ipc` — every message round-trips; truncation, trailing bytes, unknown tags, version mismatch, and
   a hostile length prefix are all rejected.
 - `IdleWaitStrategy`, `DirtyRegionPolicy` — the policy functions are pure, so coverage is thorough.
@@ -168,8 +179,9 @@ memory-safety bug and a shipped exploit until the sandbox exists.
   without the check would pass while matching nothing.
 - `Env` — the flag parser, including that unset and empty mean the same thing.
 - `AppDirectories` — profile relocation and permissions. First coverage of `src/platform`.
-- `ReferenceImage` — the harness is tested; there are no goldens yet, because there is nothing
-  interesting to render until M1.
+- `ReferenceImage` — the harness, plus five goldens: a circle, a rounded rectangle with four
+  different radii, a star rendered under both fill rules, a sheet of joins and caps, and a frame the
+  engine actually produced.
 
 Not covered: `Application`'s loop body, `SdlWindow`, and `SdlPresenter` have no automated tests —
 they need a window system. `AppDirectories` is now covered because it deliberately takes its paths

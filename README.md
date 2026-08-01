@@ -5,9 +5,10 @@ A native, low-footprint web browser written from scratch in C++20.
 Own HTML parser, own CSS engine, own layout, own software rasterizer, own HTTP client, own
 JavaScript engine. No GPU requirement. Privacy-respecting by construction.
 
-**Status: early. Milestone M0 (foundation) is complete — it opens a window and paints a placeholder
-page. There is no HTML parser, no CSS, no network, and no JavaScript yet.** See the roadmap below
-for what exists and what does not.
+**Status: early. M0 (foundation) is complete and M1 (rasterizer) is under way — it opens a window
+and paints a placeholder page with antialiased paths and strokes. There is no text, no HTML parser,
+no CSS, no network, and no JavaScript yet.** See the roadmap below for what exists and what does
+not.
 
 ## Why
 
@@ -115,7 +116,7 @@ the two designs that give it teeth are decided in ADRs.
 | | | |
 |---|---|---|
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
-| M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | |
+| M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **in progress** — paths, analytic AA, stroking, affine transforms, and SSE2 blitters done; text and images not |
 | M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | |
 | M3 | HTML parsing + DOM | |
 | M4 | CSS: parsing, selectors, cascade, computed style | |
@@ -128,7 +129,9 @@ the two designs that give it teeth are decided in ADRs.
 ## Performance and Benchmark Methodology
 
 There are internal regression baselines but no comparative benchmarks against other browsers, and
-none are claimed. What is actually measured is in `docs/performance/m0-baseline.md`.
+none are claimed. What is actually measured is in `docs/performance/m0-baseline.md` and
+`docs/performance/m1-rasterizer.md`. The second of those records two wrong measurements alongside
+the right one, because how a number was produced matters as much as the number.
 
 The one property tracked from day one is **idle CPU**, currently 0.017% over 60 seconds — the
 process sleeps in exactly one place and is not woken by timers, vsync, or polling. Note also that
