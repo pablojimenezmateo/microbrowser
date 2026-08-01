@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gfx/AffineTransform.h"
 #include "gfx/Canvas.h"
 #include "gfx/Color.h"
 #include "gfx/Geometry.h"
@@ -24,6 +25,13 @@ class Painter {
   explicit Painter(Canvas& canvas) : canvas_(&canvas) {}
 
   Canvas& Target() const { return *canvas_; }
+
+  // Maps layout space to device space for everything drawn afterwards. One
+  // current transform rather than a stack: nesting belongs to whatever is
+  // building the drawing (a stacking context, a display list), and a stack here
+  // would be a second place to get save/restore balance wrong.
+  void SetTransform(const AffineTransform& transform) { transform_ = transform; }
+  const AffineTransform& Transform() const { return transform_; }
 
   // Fills the interior of `path` under `rule`, honoring the canvas clip.
   void FillPath(const Path& path, Color color, FillRule rule = FillRule::NonZero);
@@ -53,6 +61,7 @@ class Painter {
   // allocates a path several times the size of its input, and a frame contains
   // many.
   Path stroke_scratch_;
+  AffineTransform transform_;
 };
 
 }  // namespace microbrowser::gfx

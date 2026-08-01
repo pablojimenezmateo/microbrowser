@@ -139,6 +139,7 @@ microbrowser_module(util
 
 microbrowser_module(gfx
   SOURCES
+    src/gfx/AffineTransform.cpp
     src/gfx/Canvas.cpp
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
@@ -184,6 +185,7 @@ target_link_libraries(microbrowser PRIVATE microbrowser_app)
 add_executable(microbrowser_tests
   tests/TestMain.cpp
   tests/TestSupport.cpp
+  tests/AffineTransformTests.cpp
   tests/AppDirectoriesTests.cpp
   tests/ArchitectureInvariantsTests.cpp
   tests/architecture/ModuleManifest.cpp

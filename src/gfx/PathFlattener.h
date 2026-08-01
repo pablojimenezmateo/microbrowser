@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 
+#include "gfx/AffineTransform.h"
 #include "gfx/Path.h"
 
 namespace microbrowser::gfx {
@@ -103,8 +104,18 @@ inline FloatPoint CubicAt(FloatPoint p0, FloatPoint p1, FloatPoint p2, FloatPoin
 
 }  // namespace detail
 
+// Points are transformed on the way in, not on the way out, and that ordering
+// is the whole reason the transform is a parameter here rather than something
+// the caller bakes into the path.
+//
+// The tolerance is a *device-space* distance. Flattening in user space and
+// transforming the polyline afterwards would measure the error before a scale
+// was applied, so a curve under `transform: scale(10)` would come out ten times
+// too coarse — visibly faceted, at exactly the zoom level where somebody is
+// looking closely.
 template <typename LineSink>
-void FlattenPath(const Path& path, float tolerance, LineSink& sink) {
+void FlattenPath(const Path& path, const AffineTransform& transform, float tolerance,
+                 LineSink& sink) {
   const std::span<const PathVerb> verbs = path.Verbs();
   const std::span<const FloatPoint> points = path.Points();
 
@@ -112,25 +123,29 @@ void FlattenPath(const Path& path, float tolerance, LineSink& sink) {
   FloatPoint current{};
   bool open = false;
 
+  const auto next_point = [&](std::size_t& index) {
+    return transform.MapPoint(points[index++]);
+  };
+
   for (const PathVerb verb : verbs) {
     switch (verb) {
       case PathVerb::Move: {
         if (open) {
           sink.EndContour(false);
         }
-        current = points[point_index++];
+        current = next_point(point_index);
         sink.BeginContour(current);
         open = true;
         break;
       }
       case PathVerb::Line: {
-        current = points[point_index++];
+        current = next_point(point_index);
         sink.LineTo(current);
         break;
       }
       case PathVerb::Quad: {
-        const FloatPoint control = points[point_index++];
-        const FloatPoint end = points[point_index++];
+        const FloatPoint control = next_point(point_index);
+        const FloatPoint end = next_point(point_index);
         const std::size_t steps = detail::QuadSegments(current, control, end, tolerance);
         for (std::size_t i = 1; i < steps; ++i) {
           const float t = static_cast<float>(i) / static_cast<float>(steps);
@@ -141,9 +156,9 @@ void FlattenPath(const Path& path, float tolerance, LineSink& sink) {
         break;
       }
       case PathVerb::Cubic: {
-        const FloatPoint c1 = points[point_index++];
-        const FloatPoint c2 = points[point_index++];
-        const FloatPoint end = points[point_index++];
+        const FloatPoint c1 = next_point(point_index);
+        const FloatPoint c2 = next_point(point_index);
+        const FloatPoint end = next_point(point_index);
         const std::size_t steps = detail::CubicSegments(current, c1, c2, end, tolerance);
         for (std::size_t i = 1; i < steps; ++i) {
           const float t = static_cast<float>(i) / static_cast<float>(steps);
@@ -166,6 +181,11 @@ void FlattenPath(const Path& path, float tolerance, LineSink& sink) {
   if (open) {
     sink.EndContour(false);
   }
+}
+
+template <typename LineSink>
+void FlattenPath(const Path& path, float tolerance, LineSink& sink) {
+  FlattenPath(path, AffineTransform{}, tolerance, sink);
 }
 
 }  // namespace microbrowser::gfx

@@ -13,6 +13,7 @@
 // link cannot silently drop a suite whose only reference is a global
 // constructor, and finding every test is a grep for this list.
 namespace microbrowser::tests {
+void RegisterAffineTransformTests(std::vector<TestCase>& tests);
 void RegisterAppDirectoriesTests(std::vector<TestCase>& tests);
 void RegisterArchitectureInvariantsTests(std::vector<TestCase>& tests);
 void RegisterCanvasTests(std::vector<TestCase>& tests);
@@ -106,6 +107,7 @@ bool MatchesAnyFilter(const std::string& name, const std::vector<std::string>& f
 
 std::vector<TestCase> CollectTests() {
   std::vector<TestCase> tests;
+  microbrowser::tests::RegisterAffineTransformTests(tests);
   microbrowser::tests::RegisterAppDirectoriesTests(tests);
   microbrowser::tests::RegisterArchitectureInvariantsTests(tests);
   microbrowser::tests::RegisterCanvasTests(tests);

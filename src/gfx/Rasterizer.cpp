@@ -294,7 +294,9 @@ std::uint8_t CoverageOf(std::int64_t area, FillRule rule) {
 }  // namespace
 
 const std::vector<CoverageSpan>& PathRasterizer::Rasterize(const Path& path, FillRule rule,
-                                                           const IntRect& clip, float tolerance) {
+                                                           const IntRect& clip,
+                                                           const AffineTransform& transform,
+                                                           float tolerance) {
   AddPerformanceCounter(PerfCounterId::GfxPathFills);
   spans_.clear();
   cells_.clear();
@@ -303,7 +305,7 @@ const std::vector<CoverageSpan>& PathRasterizer::Rasterize(const Path& path, Fil
   }
 
   CellAccumulator accumulator(cells_, clip);
-  FlattenPath(path, tolerance, accumulator);
+  FlattenPath(path, transform, tolerance, accumulator);
   AddPerformanceCounter(PerfCounterId::GfxPathSegments, accumulator.Segments());
   AddPerformanceCounter(PerfCounterId::GfxPathCells, cells_.size());
   if (cells_.empty()) {

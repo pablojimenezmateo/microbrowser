@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "gfx/AffineTransform.h"
 #include "gfx/Geometry.h"
 #include "gfx/Path.h"
 #include "gfx/PathFlattener.h"
@@ -74,8 +75,18 @@ class PathRasterizer {
   // running off the left edge still contributes its winding to the pixels that
   // remain visible, which is what keeps a scrolled-in shape from developing a
   // hole. Returned spans are always inside `clip`.
+  //
+  // `transform` maps the path into device space. It is applied during
+  // flattening rather than to the path beforehand, so curve subdivision is
+  // measured against the tolerance in the space the pixels are in.
   const std::vector<CoverageSpan>& Rasterize(const Path& path, FillRule rule, const IntRect& clip,
+                                             const AffineTransform& transform,
                                              float tolerance = kFlattenTolerance);
+
+  const std::vector<CoverageSpan>& Rasterize(const Path& path, FillRule rule, const IntRect& clip,
+                                             float tolerance = kFlattenTolerance) {
+    return Rasterize(path, rule, clip, AffineTransform{}, tolerance);
+  }
 
   const std::vector<CoverageSpan>& Spans() const { return spans_; }
 
