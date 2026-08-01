@@ -124,13 +124,16 @@ environment, not a bug.
 lands.** Seven exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`, `http_fuzzer`, `cookie_fuzzer`,
 `url_fuzzer`, `html_fuzzer`. Still to come as their parsers do: CSS parser, filter-list parser.
 
+Three check a *property* rather than the absence of a crash, and those are the valuable ones.
+
 Two of them check a *property*, not just the absence of a crash, and those are the valuable ones.
 `url_fuzzer` requires that serializing a parsed URL and reparsing it yields the same string — a
 parser whose output does not reparse to itself is one two components can disagree about, which is
 where origin-confusion bugs come from. `cookie_fuzzer` requires that no storable cookie can produce
 a `Cookie:` header containing CR or LF. `html_fuzzer` requires that tokenizing *any* input
-terminates and reaches EOF, and traps if it ever emits more tokens than the input had bytes — HTML
-has no failure mode, so a state machine that can loop on malformed markup is a denial of service
+terminates and reaches EOF, traps if it ever emits more tokens than the input had bytes, and
+requires that tree construction yields a document with an html element for every input — HTML has
+no failure mode, so a state machine that can loop on malformed markup is a denial of service
 reachable by anyone who can serve a page.
 
 ```bash
@@ -192,7 +195,7 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-320 tests. Honest about what they do and do not cover:
+370 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Path`, `PathFlattener`, `Rasterizer`, `Stroker`, `AffineTransform` — the strongest assertions in
@@ -219,6 +222,12 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 - `Http`, `Cookie` — framing ambiguity is the theme: `Content-Length` with `Transfer-Encoding`,
   duplicate lengths, obsolete line folding. Cookie tests cover the label-boundary rule that stops
   `notevil.com` matching `evil.com`, and partitioning at the storage layer.
+- `Tokenizer`, `TreeBuilder` — the HTML suites. The tokenizer's cases are the ones that are
+  normative rather than tidy: first-of-a-duplicate-attribute wins, an unterminated reference inside
+  an attribute is not expanded (`?x&copy=1` must survive), RCDATA ends only on its own end tag. The
+  tree builder's are the four behaviours that separate a parser from a tree builder — implied
+  elements, implied end tags, void elements never entering the open-element stack, and an end tag
+  for something not open being dropped.
 - `Inflate`, `PngDecoder` — the hostile-input suites. Reference streams produced by zlib itself
   rather than by this project, so the decoder is checked against an independent implementation of
   the format; then truncation at every length, a flipped byte at every third offset, and every way
