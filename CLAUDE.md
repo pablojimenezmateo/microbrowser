@@ -22,7 +22,7 @@ First-stop operating guide for agents working in this repository.
 
 | Module | State |
 |---|---|
-| `src/util` | Parse, StringUtil, tracing, counters — ported from `../microide` |
+| `src/util` | Parse, StringUtil, Env, tracing, counters — ported from `../microide` |
 | `src/gfx` | Geometry, Color, Canvas, DirtyRegion, DisplayList. Solid fills only. SDL-free. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
 | `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |
@@ -121,6 +121,7 @@ limit. Run it before a refactor to see what is about to blow.
 ## Related Docs
 
 - `AGENTS.md` — repo policy, priority order, invariants
+- `SECURITY.md` — vulnerability reporting, scope, disclosure
 - `guidelines/architecture.md` — the module contract, layering, separation of concerns
 - `guidelines/security.md` — trust boundaries, the process model, hostile input, memory safety
 - `guidelines/privacy.md` — the privacy contract every feature is held to

@@ -153,20 +153,27 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-78 tests. Honest about what they do and do not cover:
+87 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Ipc` — every message round-trips; truncation, trailing bytes, unknown tags, version mismatch, and
   a hostile length prefix are all rejected.
 - `IdleWaitStrategy`, `DirtyRegionPolicy` — the policy functions are pure, so coverage is thorough.
-- `ArchitectureInvariants` — eleven rules, each with controls. The two newest (`NoBannedCFunctions`,
-  `NoManualHeapOwnership`) carry clean fixtures built out of near misses rather than obviously-fine
-  code: `snprintf`, `pool_.Free()`, `= delete`, placement new. A banned-name lint dies from false
-  positives, so the cases that would produce them are the ones worth pinning.
+- `ArchitectureInvariants` — twelve rules, each with controls. The newest three
+  (`NoBannedCFunctions`, `NoManualHeapOwnership`, `EnvironmentReadsAreCentralized`) carry clean
+  fixtures built out of near misses rather than obviously-fine code: `snprintf`, `pool_.Free()`,
+  `= delete`, placement new. A banned-name lint dies from false positives, so the cases that would
+  produce them are the ones worth pinning. `EnvironmentReadsAreCentralized` additionally has a
+  fixture for its own vacuity — a tree where the file it exempts has been renamed away, which
+  without the check would pass while matching nothing.
+- `Env` — the flag parser, including that unset and empty mean the same thing.
+- `AppDirectories` — profile relocation and permissions. First coverage of `src/platform`.
 - `ReferenceImage` — the harness is tested; there are no goldens yet, because there is nothing
   interesting to render until M1.
 
 Not covered: `Application`'s loop body, `SdlWindow`, and `SdlPresenter` have no automated tests —
-they need a window system. The pure policy was deliberately extracted out of them so that what
+they need a window system. `AppDirectories` is now covered because it deliberately takes its paths
+from the environment, which is the general shape of the fix: the part of a platform class that has
+no window in it can usually be reached if it was written to be given its inputs. The pure policy was deliberately extracted out of them so that what
 remains is thin glue, but "thin" is not "zero", and this is a real gap. A headless present path
 would close it and is worth doing before the loop grows.

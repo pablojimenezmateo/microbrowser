@@ -289,6 +289,8 @@ Honest status, so nothing here reads as shipped when it is not:
 | Banned C functions | **linted** (`NoBannedCFunctions`) |
 | No manual heap ownership | **linted** (`NoManualHeapOwnership`) |
 | No mutable state at namespace scope | **linted** |
+| Environment reads centralized in one file | **linted** (`EnvironmentReadsAreCentralized`) |
+| Profile directories created owner-only, atomically | **shipped** (`platform::AppDirectories`) |
 | Non-throwing, locale-independent parses | **linted** |
 | IPC wire format is hostile-input hardened | **shipped** (`ipc::ByteReader`, round-tripped every build) |
 | Module boundaries keep the engine free of window/OS handles | **linted** |

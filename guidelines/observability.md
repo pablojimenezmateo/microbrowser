@@ -65,8 +65,13 @@ Two independent output modes:
 MICROBROWSER_TRACE_REDRAW=1   # [redraw] full  rects=1 coverage=100.0% surface=1280x800 commands=29
 ```
 
-Read through `util::PerformanceTrace::FlagEnabled`, cached in a function-local static so the env
-read happens once and the class does not grow a member for a debugging flag.
+Read through `util::PerformanceTrace::FlagEnabled`, which is a thin wrapper over `util::EnvValue`
+in `util/Env.h` — the one translation unit in the tree permitted to call `getenv`, enforced by the
+`EnvironmentReadsAreCentralized` lint. The environment is input, and a debug switch read ad hoc is a
+configuration surface nobody can enumerate.
+
+Cache the result in a function-local static at the call site, so the env read happens once and the
+class does not grow a member for a debugging flag.
 
 ## Reading A Summary
 
