@@ -5,6 +5,7 @@
 #include "gfx/Geometry.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
+#include "gfx/Stroker.h"
 
 namespace microbrowser::gfx {
 
@@ -33,6 +34,11 @@ class Painter {
   // one-pixel-heavier-on-one-side artifact.
   void FillRect(const FloatRect& rect, Color color);
 
+  // Strokes `path`. The stroke is converted to a fill and rasterized in one
+  // pass, so a translucent stroke does not darken where it overlaps itself.
+  void StrokePath(const Path& path, const StrokeStyle& style, Color color);
+  void StrokeLine(FloatPoint from, FloatPoint to, const StrokeStyle& style, Color color);
+
   // Blends a rasterized coverage span set. Public because a glyph mask and an
   // image alpha channel produce the same thing and must not each grow their own
   // blitter.
@@ -43,6 +49,10 @@ class Painter {
  private:
   Canvas* canvas_;
   PathRasterizer rasterizer_;
+  // Reused across strokes for the same reason the rasterizer arena is: a stroke
+  // allocates a path several times the size of its input, and a frame contains
+  // many.
+  Path stroke_scratch_;
 };
 
 }  // namespace microbrowser::gfx

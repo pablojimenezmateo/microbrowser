@@ -33,6 +33,23 @@ void Painter::FillRect(const FloatRect& rect, Color color) {
   FillPath(path, color, FillRule::NonZero);
 }
 
+void Painter::StrokePath(const Path& path, const StrokeStyle& style, Color color) {
+  if (color.IsFullyTransparent() || path.IsEmpty()) {
+    return;
+  }
+  StrokeToPath(path, style, stroke_scratch_);
+  // Always nonzero: the stroke is a union of overlapping pieces, and even-odd
+  // would punch every overlap back out.
+  FillPath(stroke_scratch_, color, FillRule::NonZero);
+}
+
+void Painter::StrokeLine(FloatPoint from, FloatPoint to, const StrokeStyle& style, Color color) {
+  Path path;
+  path.MoveTo(from);
+  path.LineTo(to);
+  StrokePath(path, style, color);
+}
+
 void Painter::FillSpans(const std::vector<CoverageSpan>& spans, Color color) {
   const std::uint32_t source_alpha = color.Alpha();
   for (const CoverageSpan& span : spans) {

@@ -146,6 +146,7 @@ microbrowser_module(gfx
     src/gfx/Painter.cpp
     src/gfx/Path.cpp
     src/gfx/Rasterizer.cpp
+    src/gfx/Stroker.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(ipc
@@ -198,6 +199,7 @@ add_executable(microbrowser_tests
   tests/PainterTests.cpp
   tests/PathTests.cpp
   tests/RasterizerTests.cpp
+  tests/StrokerTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app)

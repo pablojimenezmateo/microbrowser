@@ -51,6 +51,9 @@ namespace microbrowser::util {
   X(GfxPathSpans, "gfx.path_spans")                                              \
   X(GfxPathSpanPixels, "gfx.path_span_pixels")                                   \
   X(GfxPathNonFiniteRejections, "gfx.path_non_finite_rejections")                \
+  X(GfxStrokes, "gfx.strokes")                                                   \
+  X(GfxStrokePieces, "gfx.stroke_pieces")                                        \
+  X(GfxStrokeMiterFallbacks, "gfx.stroke_miter_fallbacks")                       \
   /* --- display list ------------------------------------------------------- */ \
   X(DisplayListBuilds, "display_list.builds")                                    \
   X(DisplayListCommands, "display_list.commands")                                \
