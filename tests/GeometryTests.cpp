@@ -118,6 +118,34 @@ void RegisterGeometryTests(std::vector<TestCase>& tests) {
              "every rect this produces must satisfy the range the decoder checks for");
     }
   });
+
+  AddTest(tests, "Geometry/InflatingByAHugeAmountDoesNotOverflow", [] {
+    // Found by the IPC fuzzer. DisplayList::Bounds inflates by a stroke's
+    // outset, and a stroke width arrives from a renderer that may be
+    // compromised, so `width + 2 * amount` in int is a signed overflow with an
+    // attacker's hand on it.
+    const gfx::IntRect wide{-gfx::kMaxDeviceCoordinate, -gfx::kMaxDeviceCoordinate,
+                            gfx::kMaxDeviceCoordinate, gfx::kMaxDeviceCoordinate};
+    for (const int amount : {1, 1000, gfx::kMaxDeviceCoordinate,
+                             std::numeric_limits<int>::max()}) {
+      const gfx::IntRect grown = wide.Inflated(amount);
+      Expect(gfx::IsWithinDeviceRange(grown),
+             "the result stays inside the range that makes rect arithmetic total");
+    }
+  });
+
+  AddTest(tests, "Geometry/InflatingStillGrowsAndShrinks", [] {
+    // The overflow fix must not have turned Inflated into a clamp that ignores
+    // small amounts, which is the way a bounds check quietly breaks the thing
+    // it was protecting.
+    const gfx::IntRect rect{10, 20, 30, 40};
+    const gfx::IntRect grown = rect.Inflated(5);
+    Expect(grown == gfx::IntRect{5, 15, 40, 50}, "growing by five on every side");
+    const gfx::IntRect shrunk = rect.Inflated(-5);
+    Expect(shrunk == gfx::IntRect{15, 25, 20, 30}, "and shrinking by five");
+    Expect(rect.Inflated(-100).IsEmpty(),
+           "an inset past the extent collapses to empty rather than inverting");
+  });
 }
 
 }  // namespace microbrowser::tests

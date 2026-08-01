@@ -17,7 +17,10 @@ max_tu_lines: 800
 
 budget: Color        header_lines=35 public_methods=14 members=1
 budget: FloatRect    header_lines=40 public_methods=8  members=4
-budget: IntRect      header_lines=85 public_methods=16 members=4
+# Inflated() computes in 64 bits and clamps, with the reasoning next to it:
+# the amount can be a stroke outset derived from an attacker's stroke width,
+# so the int form of the arithmetic is a signed overflow. Found by fuzzing.
+budget: IntRect      header_lines=100 public_methods=16 members=4
 budget: Canvas       header_lines=80 public_methods=20 members=4
 budget: DirtyRegion  header_lines=60 public_methods=10 members=1
 # Raised for text, then for images. Each needs a side table the shape commands

@@ -45,6 +45,20 @@ struct IntSize {
   friend constexpr bool operator==(IntSize, IntSize) = default;
 };
 
+// The device-coordinate range every IntRect is required to stay inside.
+//
+// Not a screen size — it is the bound that makes rect arithmetic total. With
+// every edge inside +/- 1e9, `x + width` and `y + height` cannot overflow an
+// int, so Right(), Bottom(), Intersected() and United() need no saturation in
+// their inner loops. Everything that produces an IntRect from something
+// unbounded is responsible for landing inside it: EnclosingIntRect saturates
+// there, and the IPC decoder rejects a rect that does not.
+//
+// The value is a round number rather than a power of two because it is a
+// contract stated in the two places that enforce it, and 1e9 is the largest
+// float that survives `static_cast<int>` exactly.
+inline constexpr int kMaxDeviceCoordinate = 1000000000;
+
 // Half-open rectangle: covers x in [x, x + width), y in [y, y + height).
 // Half-open is what makes Intersect/Union/adjacency arithmetic total — a closed
 // rect needs a special case for zero extent everywhere.
@@ -115,13 +129,25 @@ struct IntRect {
 
   // Grow (positive) or shrink (negative) on every side. Collapses to empty
   // rather than inverting when the inset exceeds the extent.
+  //
+  // Computed in 64 bits and clamped to the device range. The amount is not
+  // always a small number a caller chose: DisplayList::Bounds inflates by a
+  // stroke's outset, and a stroke width can arrive from a compromised
+  // renderer, so `width + 2 * amount` in int is a signed overflow with an
+  // attacker's hand on it. Found by the IPC fuzzer.
   constexpr IntRect Inflated(int amount) const {
-    const int w = width + 2 * amount;
-    const int h = height + 2 * amount;
+    const std::int64_t grow = amount;
+    const std::int64_t w = std::int64_t{width} + 2 * grow;
+    const std::int64_t h = std::int64_t{height} + 2 * grow;
     if (w <= 0 || h <= 0) {
       return IntRect{};
     }
-    return IntRect{x - amount, y - amount, w, h};
+    const std::int64_t limit = kMaxDeviceCoordinate;
+    const std::int64_t left = std::clamp(std::int64_t{x} - grow, -limit, limit);
+    const std::int64_t top = std::clamp(std::int64_t{y} - grow, -limit, limit);
+    return IntRect{static_cast<int>(left), static_cast<int>(top),
+                   static_cast<int>(std::min(w, limit - left)),
+                   static_cast<int>(std::min(h, limit - top))};
   }
 
   friend constexpr bool operator==(const IntRect&, const IntRect&) = default;
@@ -157,19 +183,6 @@ struct FloatRect {
   friend constexpr bool operator==(const FloatRect&, const FloatRect&) = default;
 };
 
-// The device-coordinate range every IntRect is required to stay inside.
-//
-// Not a screen size — it is the bound that makes rect arithmetic total. With
-// every edge inside +/- 1e9, `x + width` and `y + height` cannot overflow an
-// int, so Right(), Bottom(), Intersected() and United() need no saturation in
-// their inner loops. Everything that produces an IntRect from something
-// unbounded is responsible for landing inside it: EnclosingIntRect saturates
-// there, and the IPC decoder rejects a rect that does not.
-//
-// The value is a round number rather than a power of two because it is a
-// contract stated in the two places that enforce it, and 1e9 is the largest
-// float that survives `static_cast<int>` exactly.
-inline constexpr int kMaxDeviceCoordinate = 1000000000;
 
 // Saturating float-to-int, the one sanctioned narrowing in the project.
 //

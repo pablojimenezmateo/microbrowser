@@ -85,6 +85,11 @@ constexpr std::size_t kMinBytesPerCommand = 1;
 // legitimate page reaches it -- a 4096px heading is already absurd.
 constexpr float kMaxFontSize = 16384.0f;
 
+// A stroke width, and a miter limit. Twice the device range: a stroke wider
+// than the coordinate space it lives in has no geometry left to express, and
+// the bound keeps the outset that Bounds() derives from it inside an int.
+constexpr float kMaxStrokeWidth = 2.0f * static_cast<float>(gfx::kMaxDeviceCoordinate);
+
 // A viewport edge, and the physical-pixels-per-CSS-pixel scale. Both are far
 // past anything real -- no display is 65536 pixels wide, and no device has a
 // scale factor of 64 -- and both keep the products they feed inside their
@@ -216,6 +221,15 @@ bool ReadStrokeStyle(ByteReader& reader, gfx::StrokeStyle& out) {
   // decodable input, and accepting it would mean the wire format has values the
   // encoder can never produce.
   if (!std::isfinite(out.width) || !std::isfinite(out.miter_limit)) {
+    return false;
+  }
+  // And bounded, not merely finite. A stroke width of 1e30 is finite, and
+  // DisplayList::Bounds inflates a damage rect by half of it -- which the
+  // fuzzer turned into a signed overflow before IntRect::Inflated was made
+  // total. Both ends of that are fixed now; this one keeps the wire format
+  // free of values no encoder produces.
+  if (out.width < 0.0f || out.width > kMaxStrokeWidth || out.miter_limit < 0.0f ||
+      out.miter_limit > kMaxStrokeWidth) {
     return false;
   }
   out.cap = static_cast<gfx::LineCap>(cap);
