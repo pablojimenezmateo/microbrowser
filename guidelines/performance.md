@@ -8,6 +8,9 @@
 - **Idle CPU is zero.** This is the single most fragile property in the project.
 - Measure before and after. The counters and scopes exist so you do not have to guess.
 - Prefer deleting redundant work over adding speculative caching.
+- **Microbenchmarks go in `bench/`, run under the perf preset, and report the minimum of several
+  rounds.** A scratch program that means fifty iterations of a debug build is not a measurement, and
+  `docs/performance/m1-rasterizer.md` records what that cost the first time.
 
 ## The Zero-Idle-CPU Invariant
 
@@ -48,6 +51,32 @@ Collect evidence when work touches:
 - anything that adds a thread, a timer, or a background task
 
 ## Tools
+
+### Microbenchmarks
+
+```bash
+cmake --preset microbrowser-perf
+cmake --build --preset microbrowser-perf --target microbrowser_bench
+./build/microbrowser-perf/microbrowser/microbrowser_bench          # or a substring filter
+```
+
+Two rules the harness enforces rather than documents, both learned from getting them wrong while
+measuring the span blitter:
+
+- **It refuses to print timings from a build without `NDEBUG`.** The default build directory has no
+  `CMAKE_BUILD_TYPE`, so it has no optimization flags; timings from it were forty times too slow and
+  the ratio they implied was wrong. A printed warning gets pasted into a document without the
+  warning, so this is an exit code instead.
+- **It reports the minimum of several rounds after a warm-up, not the mean.** Every source of noise
+  on a shared machine makes a run slower and none makes it faster, so the minimum is the closest
+  available estimate of the work itself. The same code measured by mean-of-fifty and by
+  minimum-of-five differed by 60% in the reported speedup.
+
+When a benchmark's point is a comparison, register *both* implementations, run them against the same
+fixture in the same process, and keep the loser in the report. A ratio between two numbers produced
+by two different harnesses on two different days is not a ratio.
+
+### Live instrumentation
 
 All off by default:
 

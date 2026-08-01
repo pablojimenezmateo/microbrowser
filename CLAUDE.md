@@ -48,6 +48,11 @@ cmake --build build --target microbrowser_tests -j$(nproc)
 # Full suite, sharded across cores.
 ctest --test-dir build --output-on-failure -j$(nproc)
 
+# Benchmarks. Only built under the perf preset, and the binary refuses to print
+# timings from a build without NDEBUG.
+cmake --preset microbrowser-perf && cmake --build --preset microbrowser-perf --target microbrowser_bench
+./build/microbrowser-perf/microbrowser/microbrowser_bench blit
+
 # Focused, by substring.
 ./build/microbrowser/microbrowser_tests Canvas
 ./build/microbrowser/microbrowser_tests ArchitectureInvariants

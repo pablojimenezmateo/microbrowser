@@ -212,6 +212,21 @@ target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
+# --- Benchmarks --------------------------------------------------------------
+# Built only under the perf preset. A benchmark binary that can be produced by
+# the default build is a benchmark binary somebody will run from the default
+# build, and a debug-build timing is not a slow number, it is a wrong one --
+# see docs/performance/m1-rasterizer.md, where that mistake is recorded.
+
+if(MICROBROWSER_PERF_HARNESS_BUILD)
+  add_executable(microbrowser_bench
+    bench/BenchMain.cpp
+    bench/BenchSupport.cpp
+    bench/GfxBenchmarks.cpp)
+  target_link_libraries(microbrowser_bench PRIVATE microbrowser_gfx)
+  target_include_directories(microbrowser_bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bench")
+endif()
+
 # The suite is registered as N ctest tests, each running a deterministic
 # round-robin slice, so `ctest -jN` uses every core instead of running the whole
 # suite in one serial process. This is the dominant win under the sanitizers.
