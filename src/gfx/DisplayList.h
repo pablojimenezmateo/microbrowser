@@ -5,10 +5,12 @@
 #include <variant>
 #include <vector>
 
+#include <memory>
 #include <string>
 
 #include "gfx/Color.h"
 #include "gfx/Font.h"
+#include "gfx/Image.h"
 #include "gfx/Geometry.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
@@ -100,8 +102,26 @@ struct DrawTextCommand {
   friend bool operator==(const DrawTextCommand&, const DrawTextCommand&) = default;
 };
 
-using DisplayCommand = std::variant<FillRectCommand, PushClipCommand, PopClipCommand,
-                                    FillPathCommand, StrokePathCommand, DrawTextCommand>;
+// An image is named by index into the list's image table, and the table holds
+// shared_ptrs rather than pixels. Copying a display list happens every frame;
+// copying a page's worth of decoded bitmaps every frame does not, and the
+// distinction between "the list is a value" and "the pixels are shared" is
+// what lets both be true.
+//
+// `destination` is where the pixels go, in device pixels, and it is a rect
+// rather than a point because `<img width=40>` on a 400-pixel image is the
+// common case on the web. The painter resamples when the rect is not the
+// image's own size and takes the copy path when it is.
+struct DrawImageCommand {
+  std::uint32_t image = 0;
+  IntRect destination;
+
+  friend bool operator==(const DrawImageCommand&, const DrawImageCommand&) = default;
+};
+
+using DisplayCommand =
+    std::variant<FillRectCommand, PushClipCommand, PopClipCommand, FillPathCommand,
+                 StrokePathCommand, DrawTextCommand, DrawImageCommand>;
 
 class DisplayList {
  public:
@@ -138,6 +158,11 @@ class DisplayList {
     return index < fonts_.size() ? &fonts_[index] : nullptr;
   }
 
+  const std::vector<std::shared_ptr<const Image>>& Images() const { return images_; }
+  const Image* ImageAt(std::uint32_t index) const {
+    return index < images_.size() ? images_[index].get() : nullptr;
+  }
+
   void FillRect(const IntRect& rect, Color color);
   void PushClip(const IntRect& rect);
   void PopClip();
@@ -150,6 +175,10 @@ class DisplayList {
   // has a display list and nothing else.
   void DrawText(std::string_view text, float advance, const FontRequest& font, FloatPoint origin,
                 Color color);
+
+  // Shares the image rather than copying it. Null and invalid images record
+  // nothing, which is what a page whose <img> has not loaded should paint.
+  void DrawImage(std::shared_ptr<const Image> image, const IntRect& destination);
 
   // Union of the device pixels this list can touch. Used to seed damage when
   // there is no previous list to diff against.
@@ -166,6 +195,9 @@ class DisplayList {
   // Deduplicated: a page has a handful of fonts and thousands of runs, and a
   // FontRequest holds a std::string.
   std::vector<FontRequest> fonts_;
+  // Deduplicated by pointer: a page that repeats one image draws it many times
+  // and decodes it once.
+  std::vector<std::shared_ptr<const Image>> images_;
 };
 
 // Execute `list` through `painter`, restricted to `damage`. Commands whose

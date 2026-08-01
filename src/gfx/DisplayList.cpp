@@ -60,6 +60,7 @@ void DisplayList::Clear() {
   paths_.clear();
   texts_.clear();
   fonts_.clear();
+  images_.clear();
 }
 
 void DisplayList::FillRect(const IntRect& rect, Color color) {
@@ -120,6 +121,22 @@ void DisplayList::DrawText(std::string_view text, float advance, const FontReque
   AddPerformanceCounter(PerfCounterId::DisplayListCommands);
 }
 
+void DisplayList::DrawImage(std::shared_ptr<const Image> image, const IntRect& destination) {
+  if (image == nullptr || !image->IsValid() || destination.IsEmpty() ||
+      !IsWithinDeviceRange(destination)) {
+    return;
+  }
+  std::uint32_t index = 0;
+  while (index < images_.size() && images_[index] != image) {
+    ++index;
+  }
+  if (index == images_.size()) {
+    images_.push_back(std::move(image));
+  }
+  commands_.emplace_back(DrawImageCommand{index, destination});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
 IntRect DisplayList::Bounds() const {
   IntRect bounds;
   for (const DisplayCommand& command : commands_) {
@@ -143,6 +160,8 @@ IntRect DisplayList::Bounds() const {
       if (run != nullptr && font != nullptr) {
         bounds = bounds.United(TextInkBounds(*run, *font, text->origin));
       }
+    } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
+      bounds = bounds.United(image->destination);
     }
   }
   return bounds;
@@ -179,6 +198,10 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
       const FontRequest* font = list.FontAt(text->font);
       if (text_renderer != nullptr && run != nullptr && font != nullptr) {
         text_renderer->DrawRun(painter, run->text, *font, text->origin, text->color);
+      }
+    } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
+      if (const Image* pixels = list.ImageAt(image->image)) {
+        painter.DrawImage(*pixels, image->destination);
       }
     } else {
       // PopClip. Refuse to pop past our own damage clip: an unbalanced list

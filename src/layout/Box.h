@@ -9,6 +9,7 @@
 #include "css/ComputedStyle.h"
 #include "dom/Node.h"
 #include "gfx/Font.h"
+#include "gfx/Image.h"
 #include "gfx/Geometry.h"
 
 namespace microbrowser::layout {
@@ -75,6 +76,11 @@ class Box {
     // children. Without it, "block and inline siblings" has no representation
     // and the tree cannot be laid out.
     AnonymousBlock,
+    // An element whose content comes from outside CSS -- an image, and later a
+    // video or a form control. It sits on a line as a single unbreakable
+    // rectangle rather than as text, which is why it is a kind rather than an
+    // Inline box with a picture in it.
+    Replaced,
   };
 
   Box(Kind kind, css::ComputedStyle style) : kind_(kind), style_(std::move(style)) {}
@@ -95,6 +101,15 @@ class Box {
   void SetText(std::string text) { text_ = std::move(text); }
 
   bool IsBlockLevel() const { return kind_ == Kind::Block || kind_ == Kind::AnonymousBlock; }
+  // Placed on a line as one unbreakable rectangle: text and replaced content.
+  bool IsInlineLevel() const { return kind_ == Kind::Text || kind_ == Kind::Replaced; }
+
+  // The pixels a replaced box shows. Null until the resource loads, and a
+  // replaced box with no image still occupies its intrinsic size -- otherwise
+  // the page reflows when the image arrives, which is the layout shift every
+  // user has learned to hate.
+  const std::shared_ptr<const gfx::Image>& Image() const { return image_; }
+  void SetImage(std::shared_ptr<const gfx::Image> image) { image_ = std::move(image); }
 
   const std::vector<TextFragment>& Fragments() const { return fragments_; }
   void AddFragment(const TextFragment& fragment) { fragments_.push_back(fragment); }
@@ -116,6 +131,24 @@ class Box {
   const dom::Element* origin_ = nullptr;
   std::string text_;
   std::vector<TextFragment> fragments_;
+  std::shared_ptr<const gfx::Image> image_;
+};
+
+// Supplies the pixels for a replaced element.
+//
+// An interface for the same reason TextMeasurer is one: layout must be
+// testable without a network and without a decoder, and what an `src` resolves
+// to is the engine's problem rather than layout's.
+class ImageProvider {
+ public:
+  virtual ~ImageProvider() = default;
+  // Null when the resource has not loaded, failed, or is not an image. All
+  // three render the same way -- a box of the element's declared size with
+  // nothing in it -- which is why they are one return value.
+  virtual std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const = 0;
+
+ protected:
+  ImageProvider() = default;
 };
 
 // Measures text. An interface because layout must be testable without a font:

@@ -72,6 +72,20 @@ class Painter {
   // arrive with layout.
   void DrawImage(const Image& image, IntPoint at);
 
+  // Scales `image` into `destination`, honoring the canvas clip.
+  //
+  // Bilinear, and the choice is a use case rather than a taste: `<img
+  // width=40>` on a 400px image is the common case on the web, and nearest
+  // neighbour on a photograph downscaled tenfold is visibly wrong in a way
+  // that no amount of speed makes up for. A destination the same size as the
+  // image takes the unscaled path, so the resampler costs nothing when nothing
+  // is being resampled.
+  //
+  // Still unrotated: the transform's translation is applied and the rest is
+  // ignored. A rotated image needs the same resampler run over an inverse
+  // transform, which arrives with CSS transforms.
+  void DrawImage(const Image& image, const IntRect& destination);
+
   // Blends a rasterized coverage span set. Public because a glyph mask and an
   // image alpha channel produce the same thing and must not each grow their own
   // blitter.

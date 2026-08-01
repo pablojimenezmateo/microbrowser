@@ -417,6 +417,113 @@ void RegisterPngDecoderTests(std::vector<TestCase>& tests) {
                 "half-transparent black over white leaves 127, the same answer the span "
                 "blitter gives");
   });
+
+  // --- Scaling --------------------------------------------------------------
+
+  AddTest(tests, "Image/DrawingAtTheImagesOwnSizeIsExact", [] {
+    // The identity must be the identity. A general resampler that reproduces
+    // its input only approximately turns every unscaled image on a page into a
+    // slightly blurred one.
+    gfx::Image image;
+    std::vector<std::uint32_t> pixels(16);
+    for (std::size_t i = 0; i < pixels.size(); ++i) {
+      pixels[i] = 0xFF000000u | static_cast<std::uint32_t>(i * 0x0F0F0F);
+    }
+    Expect(image.Adopt(4, 4, pixels), "built");
+
+    gfx::Canvas canvas(4, 4);
+    canvas.Clear(gfx::Color::Rgb(0, 0, 0));
+    gfx::Painter painter(canvas);
+    painter.DrawImage(image, gfx::IntRect{0, 0, 4, 4});
+
+    for (int y = 0; y < 4; ++y) {
+      for (int x = 0; x < 4; ++x) {
+        ExpectEqInt(static_cast<long long>(canvas.Row(y)[x]),
+                    static_cast<long long>(image.Row(y)[x]),
+                    "an unscaled draw reproduces the image exactly");
+      }
+    }
+  });
+
+  AddTest(tests, "Image/ScalingUpKeepsTheCornersAndInterpolatesBetween", [] {
+    // Two pixels, black then white, blown up to eight across. The corners must
+    // still be the source pixels -- sampling by corner instead of by pixel
+    // centre is the classic half-pixel shift, and it shows up exactly here.
+    gfx::Image image;
+    Expect(image.Adopt(2, 1, {0xFF000000u, 0xFFFFFFFFu}), "built");
+
+    gfx::Canvas canvas(8, 1);
+    canvas.Clear(gfx::Color::Rgb(0xFF, 0, 0));
+    gfx::Painter painter(canvas);
+    painter.DrawImage(image, gfx::IntRect{0, 0, 8, 1});
+
+    ExpectEqInt(static_cast<long long>(gfx::Color{canvas.Row(0)[0]}.Red()), 0,
+                "the left edge is still the left source pixel");
+    ExpectEqInt(static_cast<long long>(gfx::Color{canvas.Row(0)[7]}.Red()), 255,
+                "and the right edge the right one");
+    for (int x = 1; x < 8; ++x) {
+      Expect(gfx::Color{canvas.Row(0)[x]}.Red() >= gfx::Color{canvas.Row(0)[x - 1]}.Red(),
+             "and the ramp between them never goes backwards");
+    }
+    Expect(gfx::Color{canvas.Row(0)[3]}.Red() > 0 && gfx::Color{canvas.Row(0)[3]}.Red() < 255,
+           "the middle is interpolated rather than snapped to a source pixel");
+  });
+
+  AddTest(tests, "Image/ScalingDownAveragesRatherThanPickingOnePixel", [] {
+    // A checkerboard halved must go grey. Nearest neighbour would return a
+    // checkerboard of half the size, or a solid colour, depending on parity --
+    // which is the artefact bilinear exists to avoid.
+    gfx::Image image;
+    std::vector<std::uint32_t> pixels(64);
+    for (int y = 0; y < 8; ++y) {
+      for (int x = 0; x < 8; ++x) {
+        pixels[static_cast<std::size_t>(y * 8 + x)] =
+            ((x + y) % 2 == 0) ? 0xFF000000u : 0xFFFFFFFFu;
+      }
+    }
+    Expect(image.Adopt(8, 8, pixels), "built");
+
+    gfx::Canvas canvas(4, 4);
+    canvas.Clear(gfx::Color::Rgb(0xFF, 0, 0));
+    gfx::Painter painter(canvas);
+    painter.DrawImage(image, gfx::IntRect{0, 0, 4, 4});
+
+    for (int y = 0; y < 4; ++y) {
+      for (int x = 0; x < 4; ++x) {
+        const gfx::Color sampled{canvas.Row(y)[x]};
+        Expect(sampled.Red() > 0 && sampled.Red() < 255,
+               "every destination pixel mixes both source colours");
+      }
+    }
+  });
+
+  AddTest(tests, "Image/ScalingIsClippedAndDoesNotWriteOutsideTheCanvas", [] {
+    // Under ASan this is the test that catches a resampler indexing its source
+    // by an unclamped coordinate.
+    gfx::Image image;
+    Expect(image.Adopt(2, 2, {0xFF102030u, 0xFF405060u, 0xFF708090u, 0xFFA0B0C0u}), "built");
+
+    gfx::Canvas canvas(8, 8);
+    canvas.Clear(gfx::Color::Rgb(0, 0, 0));
+    gfx::Painter painter(canvas);
+    painter.DrawImage(image, gfx::IntRect{-20, -20, 60, 60});
+    painter.DrawImage(image, gfx::IntRect{6, 6, 1000, 1000});
+    Expect(true, "no write landed outside the canvas");
+  });
+
+  AddTest(tests, "Image/ADegenerateDestinationDrawsNothing", [] {
+    gfx::Image image;
+    Expect(image.Adopt(2, 2, {1, 2, 3, 4}), "built");
+    gfx::Canvas canvas(4, 4);
+    canvas.Clear(gfx::Color::Rgb(0, 0, 0));
+    gfx::Painter painter(canvas);
+    painter.DrawImage(image, gfx::IntRect{0, 0, 0, 4});
+    painter.DrawImage(image, gfx::IntRect{0, 0, 4, -3});
+    for (const std::uint32_t pixel : canvas.Pixels()) {
+      ExpectEqInt(static_cast<long long>(gfx::Color{pixel}.Red()), 0,
+                  "a zero or negative destination is not a draw");
+    }
+  });
 }
 
 }  // namespace microbrowser::tests

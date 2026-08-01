@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -14,6 +16,7 @@
 #include "ipc/Message.h"
 #include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
+#include "support/SyntheticPng.h"
 
 namespace microbrowser::tests {
 
@@ -292,6 +295,144 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(frame != nullptr && TextRunCount(frame->display_list) > 0,
            "a stylesheet that does not load is a page rendered without it, which is what "
            "every browser does -- not an error page");
+  });
+
+  // --- Images ---------------------------------------------------------------
+
+  AddTest(tests, "Page/CollectsImageSourcesOnceEach", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<img src='a.png'><img src='b.png'><img src='a.png'><img>", "https://example.org/");
+    const std::vector<std::string>& images = page.PendingImages();
+    ExpectEqInt(static_cast<long long>(images.size()), 2,
+                "a page that shows one icon forty times fetches and decodes it once, and an "
+                "<img> with no src points nowhere");
+    ExpectEqString(images.at(0), "a.png", "in document order");
+  });
+
+  AddTest(tests, "Layout/AnImageTakesItsSizeFromThePixelsWhenNothingElseSaysOtherwise", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><img src='x.png'></body>", "https://example.org/");
+
+    auto image = std::make_shared<gfx::Image>();
+    Expect(image->Adopt(24, 12, std::vector<std::uint32_t>(24 * 12, 0xFF00FF00u)), "built");
+    page.AddImage("x.png", image);
+    page.Layout(400.0f);
+
+    gfx::DisplayList list;
+    page.Paint(list, 0.0f);
+    const gfx::IntRect bounds = list.Bounds();
+    Expect(bounds.width >= 24 && bounds.height >= 12,
+           "the intrinsic size of the decoded image is the used size");
+  });
+
+  AddTest(tests, "Layout/AnImagesDeclaredSizeBeatsItsIntrinsicOne", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><img src='x.png' width='40' height='30'></body>",
+              "https://example.org/");
+    auto image = std::make_shared<gfx::Image>();
+    Expect(image->Adopt(8, 8, std::vector<std::uint32_t>(64, 0xFFFF0000u)), "built");
+    page.AddImage("x.png", image);
+    page.Layout(400.0f);
+
+    gfx::DisplayList list;
+    page.Paint(list, 0.0f);
+    Expect(list.Bounds().width >= 40 && list.Bounds().height >= 30,
+           "the width and height attributes are where most of the web still puts an image's "
+           "size, and the cascade never sees them");
+  });
+
+  AddTest(tests, "Layout/AnImageThatNeverArrivesStillOccupiesItsDeclaredSize", [] {
+    // Otherwise the page reflows when the image lands, which is the layout
+    // shift every user has learned to hate.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><img src='missing.png' width='50' height='60'></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.ContentHeight() >= 60.0f, "the box is there before the pixels are");
+  });
+
+  AddTest(tests, "Engine/FetchesDecodesAndDrawsAnImage", [] {
+    Session session;
+    ScriptedFactory factory;
+    const std::vector<std::byte> png = BuildPng(PngSpec{
+        16, 8, 8, 6, false, {}, {}, SolidRgbaRows(16, 8, 0x20, 0x80, 0xC0, 0xFF), 0});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<body style='margin:0'><img src='/pic.png'></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("image/png", std::string(reinterpret_cast<const char*>(png.data()),
+                                            png.size()))});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{200, 100}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "the document and the image were both fetched");
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr, "a frame was painted");
+    ExpectEqInt(static_cast<long long>(frame->display_list.Images().size()), 1,
+                "with the decoded image on it");
+    Expect(frame->display_list.Images().at(0)->Width() == 16 &&
+               frame->display_list.Images().at(0)->Height() == 8,
+           "at the size the PNG declared");
+  });
+
+  AddTest(tests, "Engine/BytesThatAreNotAnImageDoNotBreakThePage", [] {
+    // Image bytes are attacker-controlled. A decoder failure is an image that
+    // does not draw, not a page that does not render.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<body><img src='/bad.png'><p>ABC</p></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("image/png", "not a png at all")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{200, 100}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr, "the page still painted");
+    Expect(frame->display_list.Images().empty(), "with no image");
+    Expect(TextRunCount(frame->display_list) > 0, "and its text intact");
+  });
+
+  AddTest(tests, "Engine/AnImageSurvivesTheWireFormat", [] {
+    Session session;
+    ScriptedFactory factory;
+    const std::vector<std::byte> png = BuildPng(PngSpec{
+        4, 4, 8, 6, false, {}, {}, SolidRgbaRows(4, 4, 0x11, 0x22, 0x33, 0xFF), 0});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<body><img src='/p.png'></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("image/png",
+                   std::string(reinterpret_cast<const char*>(png.data()), png.size()))});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{200, 100}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr, "a frame was painted");
+    const auto decoded = ipc::DeserializeEngineToUi(ipc::Serialize(ipc::EngineToUi{*frame}));
+    Expect(decoded.has_value(), "and it survived its own wire format");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    ExpectEqInt(static_cast<long long>(list.Images().size()), 1, "the image crossed");
+    Expect(list.Images().at(0)->Width() == 4 && list.Images().at(0)->Height() == 4,
+           "at its own size");
+    Expect(std::equal(list.Images().at(0)->Pixels().begin(), list.Images().at(0)->Pixels().end(),
+                      frame->display_list.Images().at(0)->Pixels().begin()),
+           "pixel for pixel -- the wire carries the bitmap, since a display list that named a "
+           "resource by id would need the receiver's cache to be part of the contract");
   });
 
   // --- The engine -----------------------------------------------------------

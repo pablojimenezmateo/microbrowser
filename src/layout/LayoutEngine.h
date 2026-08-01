@@ -19,8 +19,12 @@ namespace microbrowser::layout {
 // makes incremental layout impossible later.
 class LayoutEngine {
  public:
-  LayoutEngine(const css::StyleResolver& resolver, const TextMeasurer& measurer)
-      : resolver_(&resolver), measurer_(&measurer) {}
+  // `images` may be null, in which case every replaced element renders as an
+  // empty box of its declared size. That is what a page looks like before its
+  // images arrive, so it is a state layout has to be able to express anyway.
+  LayoutEngine(const css::StyleResolver& resolver, const TextMeasurer& measurer,
+               const ImageProvider* images = nullptr)
+      : resolver_(&resolver), measurer_(&measurer), images_(images) {}
 
   // Builds the box tree for a document. Never null: a document with nothing
   // visible still has a root box, because "nothing to paint" and "no layout"
@@ -40,6 +44,7 @@ class LayoutEngine {
 
   const css::StyleResolver* resolver_;
   const TextMeasurer* measurer_;
+  const ImageProvider* images_;
 };
 
 // Turns a laid-out box tree into a display list.

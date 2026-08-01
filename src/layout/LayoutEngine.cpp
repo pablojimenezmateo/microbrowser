@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include "util/Parse.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::layout {
 
@@ -50,6 +52,39 @@ std::string CollapseWhitespace(std::string_view text) {
 bool IsAllWhitespace(std::string_view text) {
   return std::all_of(text.begin(), text.end(), IsSpace);
 }
+
+// The used size of a replaced element.
+//
+// CSS width/height win, then the element's width/height attributes, then the
+// image's own size. An <img> with no image and no declared size is 0x0 rather
+// than a placeholder box: a browser that reserved space for something it may
+// never receive would jump when it learned better.
+float ReplacedIntrinsic(const Box& box, bool horizontal) {
+  const css::ComputedStyle& style = box.Style();
+  const css::Length& declared = horizontal ? style.width : style.height;
+  if (!declared.IsAuto() && !declared.IsPercent()) {
+    return std::max(0.0f, declared.Resolve(style.font_size, 0.0f));
+  }
+  if (box.Origin() != nullptr) {
+    // The presentational attribute, which is where most of the web still puts
+    // an image's size and which the cascade does not see.
+    const std::string* attribute = box.Origin()->GetAttribute(horizontal ? "width" : "height");
+    if (attribute != nullptr) {
+      if (const std::optional<double> value = util::ParseDouble(*attribute)) {
+        if (*value >= 0.0 && *value < 1e6) {
+          return static_cast<float>(*value);
+        }
+      }
+    }
+  }
+  if (box.Image() != nullptr && box.Image()->IsValid()) {
+    return static_cast<float>(horizontal ? box.Image()->Width() : box.Image()->Height());
+  }
+  return 0.0f;
+}
+
+float ReplacedWidth(const Box& box) { return ReplacedIntrinsic(box, true); }
+float ReplacedHeight(const Box& box) { return ReplacedIntrinsic(box, false); }
 
 // A text box that is nothing but collapsible whitespace.
 bool IsCollapsibleSpace(const Box& box) {
@@ -159,6 +194,21 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     return nullptr;
   }
 
+  // A replaced element's children generate no boxes: whatever is inside an
+  // <img> is fallback content the element replaces.
+  if (util::EqualsAsciiCaseInsensitive(element.TagName(), "img")) {
+    auto box = std::make_unique<Box>(Box::Kind::Replaced, style);
+    box->SetOrigin(&element);
+    if (images_ != nullptr) {
+      if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
+        box->SetImage(images_->ImageFor(*src));
+      }
+    }
+    box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};
+    produced_inline = true;
+    return box;
+  }
+
   const bool inline_level = style.IsInlineLevel();
   auto box = std::make_unique<Box>(inline_level ? Box::Kind::Inline : Box::Kind::Block, style);
   box->SetOrigin(&element);
@@ -260,7 +310,14 @@ std::unique_ptr<Box> LayoutEngine::BuildBoxTree(const dom::Document& document) c
   return root;
 }
 
-// Lays out the inline children of `box` into lines. Returns the height used.
+// Lays out the inline children of `box` into line boxes. Returns the height used.
+//
+// Two passes per line, and the reason is baselines. A line's items do not sit at
+// its top: they sit on a shared baseline, and where that baseline falls depends
+// on the tallest thing above it -- which is not known until every item on the
+// line has been measured. Placing items as they are encountered puts short text
+// next to a tall image at the top of the line instead of along its bottom,
+// which is exactly what it looks like: text floating beside a picture.
 //
 // Line breaking is at spaces only. That is deliberate rather than a stub: the
 // correct rule is UAX #14, which needs the line-breaking property of every code
@@ -269,18 +326,61 @@ std::unique_ptr<Box> LayoutEngine::BuildBoxTree(const dom::Document& document) c
 // direction.
 float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float content_width,
                                          float start_y) const {
+  // One item on the current line: a slice of a text box, or a whole replaced
+  // box. Both are rectangles hung from a baseline; that is the only thing line
+  // layout needs to know about either.
+  struct LineItem {
+    Box* box = nullptr;
+    bool is_text = false;
+    std::uint32_t begin = 0;
+    std::uint32_t length = 0;
+    float x = 0.0f;
+    float width = 0.0f;
+    float above = 0.0f;  // from the baseline up
+    float below = 0.0f;  // from the baseline down
+  };
+
+  std::vector<LineItem> line;
   float x = content_left;
   float y = start_y;
-  float line_height = 0.0f;
-  bool line_has_content = false;
 
   const auto finish_line = [&] {
-    if (line_has_content) {
-      y += line_height;
+    if (line.empty()) {
+      x = content_left;
+      return;
     }
+    float above = 0.0f;
+    float below = 0.0f;
+    for (const LineItem& item : line) {
+      above = std::max(above, item.above);
+      below = std::max(below, item.below);
+    }
+    const float height = above + below;
+    const float baseline = y + above;
+
+    for (const LineItem& item : line) {
+      if (item.is_text) {
+        TextFragment fragment;
+        fragment.begin = item.begin;
+        fragment.length = item.length;
+        fragment.rect = gfx::FloatRect{item.x, y, item.width, height};
+        fragment.baseline = baseline;
+        item.box->AddFragment(fragment);
+        item.box->Geometry().content = item.box->Fragments().size() == 1
+                                           ? fragment.rect
+                                           : item.box->Geometry().content.United(fragment.rect);
+      } else {
+        // A replaced element's baseline is its bottom edge, per CSS 2.1
+        // §10.8.1. That is why an image on a line of text sits *on* the text
+        // rather than beside it.
+        item.box->Geometry().content =
+            gfx::FloatRect{item.x, baseline - item.above, item.width, item.above + item.below};
+      }
+    }
+
+    y += height;
     x = content_left;
-    line_height = 0.0f;
-    line_has_content = false;
+    line.clear();
   };
 
   // Flattened: an inline box's own children participate in the same line
@@ -288,7 +388,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   std::vector<Box*> run;
   const auto collect = [&run](Box& node, auto& self) -> void {
     for (const std::unique_ptr<Box>& child : node.Children()) {
-      if (child->GetKind() == Box::Kind::Text) {
+      if (child->IsInlineLevel()) {
         run.push_back(child.get());
       } else {
         self(*child, self);
@@ -297,10 +397,25 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   };
   collect(box, collect);
 
-  for (Box* text_box : run) {
+  for (Box* item : run) {
+    if (item->GetKind() == Box::Kind::Replaced) {
+      // An atomic inline: one unbreakable rectangle. It wraps to the next line
+      // if it does not fit and the line already has something on it, and
+      // otherwise overflows -- which is what a too-wide image does.
+      const float width = item->Geometry().content.width;
+      const float height = item->Geometry().content.height;
+      if (!line.empty() && x + width > content_left + content_width) {
+        finish_line();
+      }
+      line.push_back(LineItem{item, false, 0, 0, x, width, height, 0.0f});
+      x += width;
+      continue;
+    }
+
+    Box* text_box = item;
     const css::ComputedStyle& style = text_box->Style();
-    const float height = measurer_->LineHeight(style);
     const float ascent = measurer_->Ascent(style);
+    const float descent = std::max(0.0f, measurer_->LineHeight(style) - ascent);
     // Relayout must not append to the last one's fragments. A box laid out at
     // one width and then another would otherwise paint both.
     text_box->ClearFragments();
@@ -312,7 +427,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       // CollapseWhitespace keeping leading spaces: they matter between two
       // inlines, and only here is it known whether this one landed at the start
       // of a line.
-      while (offset < text.size() && text[offset] == ' ' && !line_has_content) {
+      while (offset < text.size() && text[offset] == ' ' && line.empty()) {
         ++offset;
       }
       if (offset >= text.size()) {
@@ -322,7 +437,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       const float available = content_left + content_width - x;
       const float full_width = measurer_->MeasureWidth(remaining, style);
 
-      if (full_width > available && line_has_content) {
+      if (full_width > available && !line.empty()) {
         // Does not fit and the line already has something on it: wrap and retry
         // against a full-width line.
         finish_line();
@@ -332,7 +447,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       std::string_view piece = remaining;
       if (full_width > available) {
         // Break at the last space that fits. When nothing fits, the whole
-        // remainder goes on this line anyway — the line is empty, and a piece
+        // remainder goes on this line anyway -- the line is empty, and a piece
         // that never shrinks is how a line-breaking loop spins forever.
         std::size_t best = std::string_view::npos;
         for (std::size_t at = 0; at < remaining.size(); ++at) {
@@ -351,21 +466,10 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       }
 
       const float advance = measurer_->MeasureWidth(piece, style);
-      TextFragment fragment;
-      fragment.begin = static_cast<std::uint32_t>(offset);
-      fragment.length = static_cast<std::uint32_t>(piece.size());
-      fragment.rect = gfx::FloatRect{x, y, advance, height};
-      fragment.baseline = y + ascent;
-      text_box->AddFragment(fragment);
-      // The box's own geometry is the union of its fragments, so a caller that
-      // only wants "where is this text" gets an answer without walking them.
-      text_box->Geometry().content = text_box->Fragments().size() == 1
-                                         ? fragment.rect
-                                         : text_box->Geometry().content.United(fragment.rect);
-
+      line.push_back(LineItem{text_box, true, static_cast<std::uint32_t>(offset),
+                              static_cast<std::uint32_t>(piece.size()), x, advance, ascent,
+                              descent});
       x += advance;
-      line_height = std::max(line_height, height);
-      line_has_content = true;
 
       offset += piece.size();
       while (offset < text.size() && text[offset] == ' ') {
@@ -377,9 +481,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     }
   }
 
-  if (line_has_content) {
-    y += line_height;
-  }
+  finish_line();
   return y - start_y;
 }
 
@@ -459,6 +561,18 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
     // A text box has no background and no border by construction, but the
     // painter says so too: this is the kind of invariant that is cheap to
     // assert here and expensive to rediscover from a screenshot.
+    if (box.GetKind() == Box::Kind::Replaced) {
+      const gfx::FloatRect content = box.Geometry().content;
+      if (box.Image() != nullptr && box.Image()->IsValid()) {
+        // The used size, not the intrinsic one: a declared width scales the
+        // image, which is what an <img width=40> on a 400px file means.
+        out.DrawImage(box.Image(),
+                      gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
+                                                           content.y + offset.y, content.width,
+                                                           content.height}));
+      }
+      return;
+    }
     if (box.GetKind() == Box::Kind::Text) {
       const gfx::FontRequest font = FontRequestFor(style);
       for (const TextFragment& fragment : box.Fragments()) {

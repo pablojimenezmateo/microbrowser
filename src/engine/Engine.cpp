@@ -2,10 +2,13 @@
 
 #include <algorithm>
 #include <chrono>
+#include <memory>
+#include <span>
 #include <string>
 #include <utility>
 
 #include "gfx/DisplayListDiff.h"
+#include "gfx/PngDecoder.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
 
@@ -113,25 +116,27 @@ void Engine::Navigate(const std::string& url) {
     page_.Load(loaded.body, loaded.final_url.empty() ? url : loaded.final_url);
   }
 
-  LoadStyleSheets();
+  LoadSubresources();
   endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
 }
 
-void Engine::LoadStyleSheets() {
-  // Synchronously, in document order, before the first layout. That is not how
-  // a browser should do it -- a slow sheet blocks the page -- but a stylesheet
-  // *is* render-blocking, so the ordering is right even though the blocking is
-  // crude. What must not happen is laying out without them and reflowing after,
-  // which is the flash of unstyled content.
+void Engine::LoadSubresources() {
+  // Synchronously, before the first layout. That is not how a browser should do
+  // it -- a slow subresource blocks the page -- but a stylesheet *is*
+  // render-blocking and an image's size changes layout, so the ordering is
+  // right even though the blocking is crude. What must not happen is laying out
+  // without them and reflowing after: that is the flash of unstyled content and
+  // the layout shift, and both are hard to retrofit away.
   const std::optional<url::Url> document = url::Url::Parse(page_.Url());
   if (!document.has_value()) {
     // A data: or about: document has no base to resolve against, so a relative
     // href in one has nowhere to point.
     return;
   }
+
   for (const std::string& href : page_.PendingStyleSheets()) {
     const Loader::Result sheet =
         loader_.LoadSubresource(href, *document, privacy::ResourceType::Stylesheet, NowSeconds());
@@ -143,6 +148,26 @@ void Engine::LoadStyleSheets() {
       // what every browser does. It is not a navigation failure.
       AddPerformanceCounter(PerfCounterId::EngineStyleSheetsFailed);
     }
+  }
+
+  for (const std::string& src : page_.PendingImages()) {
+    const Loader::Result fetched =
+        loader_.LoadSubresource(src, *document, privacy::ResourceType::Image, NowSeconds());
+    if (!fetched.ok) {
+      AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
+      continue;
+    }
+    // The bytes are attacker-controlled and the decoder says so: a failure here
+    // is an image that does not draw, not a page that does not render.
+    const std::span<const std::byte> bytes(
+        reinterpret_cast<const std::byte*>(fetched.body.data()), fetched.body.size());
+    gfx::PngDecodeResult decoded = gfx::DecodePng(bytes);
+    if (!decoded.Ok()) {
+      AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
+      continue;
+    }
+    page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(decoded.image)));
+    AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
   }
 }
 

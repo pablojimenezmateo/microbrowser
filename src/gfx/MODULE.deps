@@ -20,18 +20,22 @@ budget: FloatRect    header_lines=40 public_methods=8  members=4
 budget: IntRect      header_lines=85 public_methods=16 members=4
 budget: Canvas       header_lines=80 public_methods=20 members=4
 budget: DirtyRegion  header_lines=60 public_methods=10 members=1
-# Raised for text. A text command needs two side tables the shape commands do
-# not -- the runs and the deduplicated font requests -- because a command must
-# stay 24 bytes and a std::string does not fit in one. The alternative was a
-# command that carries a font handle, which would make the list unserializable
-# and so unable to cross the process boundary it exists to cross.
-budget: DisplayList  header_lines=70 public_methods=18 members=4
+# Raised for text, then for images. Each needs a side table the shape commands
+# do not: a command must stay 24 bytes, and neither a std::string nor a bitmap
+# fits in one. The alternative for text was a command carrying a font handle,
+# which would make the list unserializable and so unable to cross the process
+# boundary it exists to cross. For images the table holds shared_ptrs, so
+# copying a list per frame copies pointers rather than a page of bitmaps.
+budget: DisplayList  header_lines=95 public_methods=22 members=5
 budget: Path           header_lines=50 public_methods=20 members=4
 # Raised from 30 when Rasterize gained a transform parameter: the transform is
 # applied during flattening rather than by the caller, so the tolerance is
 # measured in the space the pixels are in.
 budget: PathRasterizer header_lines=40 public_methods=8  members=2
-budget: Painter        header_lines=80 public_methods=18 members=6
+# The scaled DrawImage overload and the reasoning for choosing bilinear. Both
+# image entry points are here rather than one taking an optional rect, so that
+# "this call resamples" is visible at the call site.
+budget: Painter        header_lines=100 public_methods=20 members=6
 budget: GlyphCache     header_lines=60 public_methods=14 members=8
 budget: Image          header_lines=45 public_methods=16 members=4
 budget: FontLibrary    header_lines=30 public_methods=8  members=1

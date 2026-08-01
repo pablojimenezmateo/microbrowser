@@ -110,7 +110,10 @@ namespace microbrowser::util {
   X(CssStylesResolved, "css.styles_resolved")                                    \
   X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \
   X(EngineStyleSheetsFailed, "engine.stylesheets_failed")                          \
+  X(EngineImagesLoaded, "engine.images_loaded")                                    \
+  X(EngineImagesFailed, "engine.images_failed")                                    \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
+  X(GfxImagesScaled, "gfx.images_scaled")                                         \
   X(DamageDiffs, "paint.damage_diffs")                                           \
   X(DamageDiffsIdentical, "paint.damage_diffs_identical")                        \
   X(DamageDiffsFullRepaint, "paint.damage_diffs_full_repaint")                   \

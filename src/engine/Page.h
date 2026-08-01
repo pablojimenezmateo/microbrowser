@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -25,7 +26,7 @@ namespace microbrowser::engine {
 // display list and stops there. Fonts arrive as a gfx::FontProvider from the
 // caller, because *which* fonts exist is a property of the machine and the
 // engine is the half of the seam that does not know what machine it is on.
-class Page {
+class Page : private layout::ImageProvider {
  public:
   explicit Page(gfx::FontProvider& fonts);
 
@@ -56,6 +57,15 @@ class Page {
   // when two rules of equal specificity disagree.
   void AddStyleSheet(std::string_view css);
 
+  // Image URLs the document referenced, in document order, exactly as written.
+  const std::vector<std::string>& PendingImages() const { return pending_images_; }
+
+  // Records a decoded image under the `src` the document wrote. Keyed by the
+  // written form rather than the resolved one because that is what the element
+  // says and what layout has to look up -- resolving is the loader's job, and
+  // doing it twice in two places is how the two disagree.
+  void AddImage(std::string src, std::shared_ptr<const gfx::Image> image);
+
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.
@@ -67,11 +77,16 @@ class Page {
   css::StyleResolver& Styles() { return resolver_; }
 
  private:
+  // layout::ImageProvider. Private inheritance: layout asks the page for an
+  // image, and nobody else has business calling this.
+  std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
+
   void ExtractTitle();
   // Collects <style> element text into the resolver. Called on load, before
   // any style is resolved, because a resolver consulted first would cache a
   // cascade that the sheet then changes.
   void CollectStyleSheets();
+  void CollectImages();
 
   gfx::TextRenderer text_;
   layout::FontTextMeasurer measurer_;
@@ -81,6 +96,10 @@ class Page {
   std::string url_;
   std::string title_;
   std::vector<std::string> pending_sheets_;
+  std::vector<std::string> pending_images_;
+  // Owns the decoded pixels for this document, and hands out shared_ptrs so
+  // that a display list can outlive a relayout without copying a bitmap.
+  std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images_;
   float content_height_ = 0.0f;
 };
 

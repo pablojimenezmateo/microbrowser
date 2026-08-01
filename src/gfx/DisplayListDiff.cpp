@@ -54,6 +54,10 @@ IntRect CommandBounds(const DisplayList& list, const DisplayCommand& command) {
     if (run != nullptr && font != nullptr) {
       single.DrawText(run->text, run->advance, *font, text->origin, text->color);
     }
+  } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
+    if (image->image < list.Images().size()) {
+      single.DrawImage(list.Images()[image->image], image->destination);
+    }
   }
   return single.Bounds();
 }
@@ -84,6 +88,22 @@ bool CommandsPaintTheSame(const DisplayList& list_a, const DisplayCommand& a,
     }
     return text->color == other.color && text->origin == other.origin && *run_a == *run_b &&
            *font_a == *font_b;
+  }
+  if (const auto* image = std::get_if<DrawImageCommand>(&a)) {
+    const auto& other = std::get<DrawImageCommand>(b);
+    if (!(image->destination == other.destination)) {
+      return false;
+    }
+    const std::size_t index_a = image->image;
+    const std::size_t index_b = other.image;
+    if (index_a >= list_a.Images().size() || index_b >= list_b.Images().size()) {
+      return false;
+    }
+    // By pointer, not by pixels. Two decodes of the same file are two images,
+    // and comparing a megabyte of pixels per command per frame would cost more
+    // than the repaint it avoids. Different pointers therefore mean "assume it
+    // changed", which is the conservative direction.
+    return list_a.Images()[index_a] == list_b.Images()[index_b];
   }
   // FillRect, PushClip and PopClip carry no indices, so their own equality is
   // the whole answer.

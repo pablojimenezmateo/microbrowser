@@ -134,6 +134,34 @@ void Painter::DrawGlyphs(const Font& font, const ShapedRun& run, FloatPoint orig
   transform_ = saved;
 }
 
+namespace {
+
+// One bilinear sample from four neighbours.
+//
+// Interpolated per channel in *non-premultiplied* space, which is wrong at a
+// hard edge between an opaque pixel and a fully transparent one -- the
+// transparent pixel's colour bleeds in. Premultiplying before interpolating is
+// the fix, and it is the same argument Color.h makes for the opposite
+// direction; doing it here would mean premultiplying and unpremultiplying per
+// sample. Left as it is until an image with a hard alpha edge is scaled and
+// someone sees the fringe, which is a measurement rather than a guess.
+Color BilinearSample(Color c00, Color c10, Color c01, Color c11, float fx, float fy) {
+  const auto channel = [&](auto get) {
+    const float top = static_cast<float>(get(c00)) * (1.0f - fx) +
+                      static_cast<float>(get(c10)) * fx;
+    const float bottom = static_cast<float>(get(c01)) * (1.0f - fx) +
+                         static_cast<float>(get(c11)) * fx;
+    const float value = top * (1.0f - fy) + bottom * fy;
+    return static_cast<std::uint8_t>(std::clamp(value + 0.5f, 0.0f, 255.0f));
+  };
+  return Color::Rgba(channel([](Color c) { return c.Red(); }),
+                     channel([](Color c) { return c.Green(); }),
+                     channel([](Color c) { return c.Blue(); }),
+                     channel([](Color c) { return c.Alpha(); }));
+}
+
+}  // namespace
+
 void Painter::DrawImage(const Image& image, IntPoint at) {
   if (!image.IsValid()) {
     return;
@@ -169,6 +197,69 @@ void Painter::DrawImage(const Image& image, IntPoint at) {
     }
     for (int i = 0; i < target.width; ++i) {
       destination[i] = BlendSrcOver(destination[i], Color{source[i]});
+    }
+  }
+}
+
+void Painter::DrawImage(const Image& image, const IntRect& destination) {
+  if (!image.IsValid() || destination.IsEmpty()) {
+    return;
+  }
+  if (destination.width == image.Width() && destination.height == image.Height()) {
+    // Nothing to resample. Worth checking rather than letting the general path
+    // reproduce the identity at four times the cost and with rounding.
+    DrawImage(image, IntPoint{destination.x, destination.y});
+    return;
+  }
+
+  const IntRect clip = canvas_->Clip().Intersected(canvas_->Bounds());
+  const int left = destination.x + SaturateFloatToInt(transform_.E());
+  const int top = destination.y + SaturateFloatToInt(transform_.F());
+  const IntRect placed{std::clamp(left, -kMaxDeviceCoordinate / 2, kMaxDeviceCoordinate / 2),
+                       std::clamp(top, -kMaxDeviceCoordinate / 2, kMaxDeviceCoordinate / 2),
+                       destination.width, destination.height};
+  const IntRect target = placed.Intersected(clip);
+  if (target.IsEmpty()) {
+    return;
+  }
+
+  AddPerformanceCounter(PerfCounterId::GfxImagesScaled);
+
+  // Source pixel centres, so that scaling by one is the identity and scaling a
+  // 2x2 up does not sample outside the image at the far edge. Sampling by
+  // corner instead is the classic half-pixel shift.
+  const float scale_x = static_cast<float>(image.Width()) / static_cast<float>(placed.width);
+  const float scale_y = static_cast<float>(image.Height()) / static_cast<float>(placed.height);
+  const int max_x = image.Width() - 1;
+  const int max_y = image.Height() - 1;
+
+  for (int y = target.Top(); y < target.Bottom(); ++y) {
+    std::uint32_t* row = canvas_->Row(y);
+    if (row == nullptr) {
+      continue;
+    }
+    const float source_y =
+        (static_cast<float>(y - placed.y) + 0.5f) * scale_y - 0.5f;
+    const int y0 = std::clamp(static_cast<int>(std::floor(source_y)), 0, max_y);
+    const int y1 = std::clamp(y0 + 1, 0, max_y);
+    const float fy = std::clamp(source_y - static_cast<float>(y0), 0.0f, 1.0f);
+
+    const std::uint32_t* top_row = image.Row(y0);
+    const std::uint32_t* bottom_row = image.Row(y1);
+    if (top_row == nullptr || bottom_row == nullptr) {
+      continue;
+    }
+
+    for (int x = target.Left(); x < target.Right(); ++x) {
+      const float source_x =
+          (static_cast<float>(x - placed.x) + 0.5f) * scale_x - 0.5f;
+      const int x0 = std::clamp(static_cast<int>(std::floor(source_x)), 0, max_x);
+      const int x1 = std::clamp(x0 + 1, 0, max_x);
+      const float fx = std::clamp(source_x - static_cast<float>(x0), 0.0f, 1.0f);
+
+      const Color sample = BilinearSample(Color{top_row[x0]}, Color{top_row[x1]},
+                                          Color{bottom_row[x0]}, Color{bottom_row[x1]}, fx, fy);
+      row[x] = image.IsOpaque() ? sample.argb : BlendSrcOver(row[x], sample);
     }
   }
 }

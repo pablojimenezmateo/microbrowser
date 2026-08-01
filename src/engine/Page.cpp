@@ -1,8 +1,10 @@
 #include "engine/Page.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "css/StyleSheet.h"
+#include "gfx/PngDecoder.h"
 #include "html/TreeBuilder.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
@@ -64,8 +66,10 @@ void Page::Load(std::string_view html, std::string url) {
   document_ = html::ParseDocument(html);
   boxes_.reset();
   content_height_ = 0.0f;
+  images_.clear();
 
   CollectStyleSheets();
+  CollectImages();
   ExtractTitle();
 }
 
@@ -98,6 +102,37 @@ void Page::CollectStyleSheets() {
   }
 }
 
+void Page::CollectImages() {
+  pending_images_.clear();
+  if (document_ == nullptr) {
+    return;
+  }
+  for (const dom::Element* image : document_->ElementsByTagName("img")) {
+    const std::string* src = image->GetAttribute("src");
+    if (src != nullptr && !src->empty() &&
+        std::find(pending_images_.begin(), pending_images_.end(), *src) ==
+            pending_images_.end()) {
+      // Deduplicated: a page that shows one icon forty times fetches and
+      // decodes it once.
+      pending_images_.push_back(*src);
+    }
+  }
+}
+
+void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
+  if (image == nullptr || !image->IsValid()) {
+    return;
+  }
+  images_[std::move(src)] = std::move(image);
+  // The box tree sized its replaced boxes against what was available then.
+  boxes_.reset();
+}
+
+std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {
+  const auto found = images_.find(src);
+  return found == images_.end() ? nullptr : found->second;
+}
+
 void Page::AddStyleSheet(std::string_view css) {
   resolver_.AddStyleSheet(css::ParseStyleSheet(css), css::Origin::Author);
   // The box tree was built against the old cascade, if it was built at all.
@@ -124,7 +159,7 @@ float Page::Layout(float width) {
     content_height_ = 0.0f;
     return 0.0f;
   }
-  const layout::LayoutEngine engine(resolver_, measurer_);
+  const layout::LayoutEngine engine(resolver_, measurer_, this);
   // The box tree is rebuilt per layout for now. It depends only on the document
   // and the cascade, neither of which changes here, so this is the obvious
   // thing to cache -- and the split between BuildBoxTree and Layout is what

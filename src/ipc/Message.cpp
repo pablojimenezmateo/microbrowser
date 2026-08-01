@@ -40,6 +40,7 @@ enum class CommandTag : std::uint8_t {
   FillPath = 4,
   StrokePath = 5,
   DrawText = 6,
+  DrawImage = 7,
 };
 
 void WriteRect(ByteWriter& writer, const gfx::IntRect& rect) {
@@ -89,6 +90,12 @@ constexpr float kMaxFontSize = 16384.0f;
 // scale factor of 64 -- and both keep the products they feed inside their
 // types.
 constexpr int kMaxViewportEdge = 65536;
+
+// An image edge on the wire. The product of two of these is the pixel count,
+// and 16384 * 16384 * 4 bytes is a gigabyte -- already far past anything a page
+// can legitimately hand over, and small enough that the multiplication cannot
+// overflow the size_t it is checked against.
+constexpr std::int64_t kMaxImageEdge = 16384;
 constexpr float kMaxDeviceScale = 64.0f;
 constexpr std::size_t kBytesPerRect = 16;
 // A Close verb is one tag byte with no points; every other verb costs more.
@@ -249,6 +256,45 @@ bool ReadFontRequest(ByteReader& reader, gfx::FontRequest& out) {
   return true;
 }
 
+// Pixels inline, once per command.
+//
+// A stateful resource table -- send the bitmap once, name it by id afterwards
+// -- is what this wants to become, and it is a protocol change rather than an
+// encoding one: it needs the receiver's cache to be part of the contract. Until
+// then, a frame with a large image on it is a large frame, which is a cost the
+// in-process channel does not pay because nothing serializes there.
+void WriteImage(ByteWriter& writer, const gfx::Image& image) {
+  writer.WriteI32(image.Width());
+  writer.WriteI32(image.Height());
+  for (const std::uint32_t pixel : image.Pixels()) {
+    writer.WriteU32(pixel);
+  }
+}
+
+bool ReadImage(ByteReader& reader, gfx::Image& out) {
+  const std::int64_t width = reader.ReadI32();
+  const std::int64_t height = reader.ReadI32();
+  if (!reader.Ok() || width <= 0 || height <= 0 || width > kMaxImageEdge ||
+      height > kMaxImageEdge) {
+    return false;
+  }
+  const std::int64_t count = width * height;
+  // Checked against the bytes that are actually left before the allocation, not
+  // after: a frame claiming a 16384x16384 image must not cause a gigabyte
+  // reserve on its way to being rejected.
+  if (static_cast<std::uint64_t>(count) * sizeof(std::uint32_t) > reader.Remaining()) {
+    return false;
+  }
+  std::vector<std::uint32_t> pixels(static_cast<std::size_t>(count));
+  for (std::uint32_t& pixel : pixels) {
+    pixel = reader.ReadU32();
+  }
+  if (!reader.Ok()) {
+    return false;
+  }
+  return out.Adopt(static_cast<int>(width), static_cast<int>(height), std::move(pixels));
+}
+
 void WriteDisplayList(ByteWriter& writer, const gfx::DisplayList& list) {
   const std::vector<gfx::Path>& paths = list.Paths();
   writer.WriteU32(static_cast<std::uint32_t>(list.Size()));
@@ -288,6 +334,15 @@ void WriteDisplayList(ByteWriter& writer, const gfx::DisplayList& list) {
       writer.WriteF32(run->advance);
       WriteFontRequest(writer, *font);
       writer.WriteString(run->text);
+    } else if (const auto* image = std::get_if<gfx::DrawImageCommand>(&command)) {
+      const gfx::Image* pixels = list.ImageAt(image->image);
+      if (pixels == nullptr) {
+        writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PopClip));
+        continue;
+      }
+      writer.WriteU8(static_cast<std::uint8_t>(CommandTag::DrawImage));
+      WriteRect(writer, image->destination);
+      WriteImage(writer, *pixels);
     } else {
       writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PopClip));
     }
@@ -378,6 +433,18 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
           return false;
         }
         out.DrawText(run, advance, font, gfx::FloatPoint{x, y}, color);
+        break;
+      }
+      case CommandTag::DrawImage: {
+        gfx::IntRect destination;
+        if (!ReadRect(reader, destination)) {
+          return false;
+        }
+        auto image = std::make_shared<gfx::Image>();
+        if (!ReadImage(reader, *image)) {
+          return false;
+        }
+        out.DrawImage(std::move(image), destination);
         break;
       }
       default:

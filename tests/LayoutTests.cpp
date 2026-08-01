@@ -1,3 +1,4 @@
+#include <cmath>
 #include <memory>
 #include <variant>
 #include <string>
@@ -278,6 +279,50 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
              std::string("no box tree for: ") + std::string(html));
       Expect(result.height >= 0.0f, "and a non-negative height");
     }
+  });
+
+  AddTest(tests, "Layout/EverythingOnALineSharesOneBaseline", [] {
+    // Found by rendering a page: short text next to a tall image sat at the
+    // top of the line instead of along its bottom. A line's items hang from a
+    // shared baseline, and where that baseline falls is not known until every
+    // item on the line has been measured -- which is why line layout is two
+    // passes rather than placement as it goes.
+    const LaidOut result = Run(
+        "<body style='margin:0'><img src='x' width='60' height='60'>text</body>",
+        "body { margin: 0 } img { margin: 0 }", 400.0f);
+
+    const Box* image = FindBox(*result.root, "img");
+    Expect(image != nullptr, "the image has a box");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(!texts.empty() && !texts.at(0)->Fragments().empty(), "and the text has a fragment");
+
+    const layout::TextFragment& fragment = texts.at(0)->Fragments().at(0);
+    // A replaced element's baseline is its bottom edge, per CSS 2.1 s10.8.1.
+    Expect(std::abs(image->Geometry().content.Bottom() - fragment.baseline) < 0.01f,
+           "the image's bottom edge is the text's baseline, which is what makes an image on a "
+           "line of text sit on the text rather than beside it");
+    Expect(image->Geometry().content.height == 60.0f, "at its declared size");
+  });
+
+  AddTest(tests, "Layout/ATallLineItemMakesTheWholeLineTall", [] {
+    const LaidOut short_line =
+        Run("<body style='margin:0'>text</body>", "body { margin: 0 }", 400.0f);
+    const LaidOut tall_line =
+        Run("<body style='margin:0'><img src='x' width='10' height='90'>text</body>",
+            "body { margin: 0 } img { margin: 0 }", 400.0f);
+    Expect(tall_line.height >= short_line.height + 60.0f,
+           "the line box grows to hold its tallest item rather than clipping it");
+  });
+
+  AddTest(tests, "Layout/AnImageTooWideForTheLineWrapsRatherThanOverlapping", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'>text<img src='x' width='300' height='20'></body>",
+            "body { margin: 0 } img { margin: 0 }", 200.0f);
+    const Box* image = FindBox(*result.root, "img");
+    Expect(image != nullptr, "the image has a box");
+    Expect(image->Geometry().content.x == 0.0f,
+           "an atomic inline that does not fit starts a new line rather than overlapping the "
+           "text before it");
   });
 
   // --- Painting -------------------------------------------------------------
