@@ -1,0 +1,15 @@
+purpose: JavaScript. Lexing, parsing, and execution. Knows nothing about the DOM.
+
+# Notably absent: dom. A JS engine that could reach into the DOM directly would
+# make the binding layer optional, and the binding layer is where every
+# same-origin check will live. Bindings arrive in M9 as a separate seam.
+allow: util
+
+public: Token.h Lexer.h
+
+extern:
+
+max_tu_lines: 1200
+
+budget: Token  header_lines=40 public_methods=8  members=9
+budget: Lexer  header_lines=60 public_methods=12 members=3

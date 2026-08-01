@@ -272,6 +272,11 @@ microbrowser_module(platform
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc
   EXTERN ${MICROBROWSER_SDL3_TARGET})
 
+microbrowser_module(js
+  SOURCES
+    src/js/Lexer.cpp
+  DEPS microbrowser_util)
+
 microbrowser_module(ui
   SOURCES
     src/ui/BrowserChrome.cpp
@@ -320,6 +325,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
+  tests/JsLexerTests.cpp
   tests/LayoutTests.cpp
   tests/NetTests.cpp
   tests/PaintPipelineTests.cpp
@@ -346,7 +352,8 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_u
                                                 microbrowser_dom
                                                 microbrowser_css
                                                 microbrowser_layout
-                                                microbrowser_ui)
+                                                microbrowser_ui
+                                                microbrowser_js)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -383,6 +390,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
   microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
+  microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------
