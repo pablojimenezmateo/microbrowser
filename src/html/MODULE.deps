@@ -1,0 +1,17 @@
+purpose: HTML tokenizing and tree construction. Spec-literal, because HTML's error handling is normative.
+
+allow: util url dom
+
+public: Token.h Tokenizer.h
+
+extern:
+
+max_tu_lines: 1400
+
+# The scanner counts an `enum class` as a class, and here that is useful rather
+# than a false positive: this enum is the spec's state list, it is currently a
+# subset, and every state added to reach full coverage should be visible in a
+# diff. 80 leaves room for the remaining script-data and foreign-content states.
+budget: TokenizerState header_lines=80 public_methods=0  members=0
+budget: Token          header_lines=45 public_methods=6  members=10
+budget: Tokenizer      header_lines=60 public_methods=12 members=18

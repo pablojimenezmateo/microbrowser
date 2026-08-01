@@ -98,6 +98,8 @@ namespace microbrowser::util {
   X(NetConnectFailures, "net.connect_failures")                                  \
   X(NetTlsHandshakes, "net.tls_handshakes")                                      \
   X(NetTlsFailures, "net.tls_failures")                                          \
+  /* --- html ---------------------------------------------------------------- */ \
+  X(HtmlTokens, "html.tokens")                                                   \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

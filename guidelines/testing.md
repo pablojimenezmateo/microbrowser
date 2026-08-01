@@ -121,14 +121,17 @@ environment, not a bug.
 ## Fuzzing
 
 **Every parser that touches bytes written by a stranger gets a libFuzzer target on the commit it
-lands.** Six exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`, `http_fuzzer`, `cookie_fuzzer`,
-`url_fuzzer`. Still to come as their parsers do: HTML tokenizer, CSS parser, filter-list parser.
+lands.** Seven exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`, `http_fuzzer`, `cookie_fuzzer`,
+`url_fuzzer`, `html_fuzzer`. Still to come as their parsers do: CSS parser, filter-list parser.
 
 Two of them check a *property*, not just the absence of a crash, and those are the valuable ones.
 `url_fuzzer` requires that serializing a parsed URL and reparsing it yields the same string — a
 parser whose output does not reparse to itself is one two components can disagree about, which is
 where origin-confusion bugs come from. `cookie_fuzzer` requires that no storable cookie can produce
-a `Cookie:` header containing CR or LF.
+a `Cookie:` header containing CR or LF. `html_fuzzer` requires that tokenizing *any* input
+terminates and reaches EOF, and traps if it ever emits more tokens than the input had bytes — HTML
+has no failure mode, so a state machine that can loop on malformed markup is a denial of service
+reachable by anyone who can serve a page.
 
 ```bash
 cmake -S . -B build/fuzz -G Ninja -DMICROBROWSER_FUZZ=ON \

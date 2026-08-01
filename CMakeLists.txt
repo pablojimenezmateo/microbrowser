@@ -190,6 +190,11 @@ microbrowser_module(privacy
     src/privacy/Verdict.cpp
   DEPS microbrowser_util microbrowser_url)
 
+microbrowser_module(html
+  SOURCES
+    src/html/Tokenizer.cpp
+  DEPS microbrowser_util microbrowser_url)
+
 microbrowser_module(net
   SOURCES
     src/net/CookieJar.cpp
@@ -282,6 +287,7 @@ add_executable(microbrowser_tests
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
   tests/TextShaperTests.cpp
+  tests/TokenizerTests.cpp
   tests/UrlTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp
@@ -289,7 +295,8 @@ add_executable(microbrowser_tests
   tests/support/SyntheticPng.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url
                                                 microbrowser_privacy
-                                                microbrowser_net)
+                                                microbrowser_net
+                                                microbrowser_html)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -323,6 +330,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
+  microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------

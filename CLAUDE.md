@@ -27,6 +27,7 @@ First-stop operating guide for agents working in this repository.
 | `src/url` | WHATWG URL parser, Host, Origin, baked-in PSL, Site, ContainerId, PartitionKey |
 | `src/privacy` | Blocking engine, URL sanitization, HTTPS-only, referrer trimming, `Verdict` |
 | `src/net` | HTTP/1.1, partitioned cookie jar and cache, `Fetch` gated on a `Verdict`, TCP+TLS transport |
+| `src/html` | Spec-literal HTML tokenizer. No tree construction or DOM yet. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
 | `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |
 | `src/platform` | The only module that knows what a window is. SDL lives here. |
