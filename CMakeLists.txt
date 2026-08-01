@@ -195,6 +195,12 @@ microbrowser_module(dom
     src/dom/Node.cpp
   DEPS microbrowser_util)
 
+microbrowser_module(css
+  SOURCES
+    src/css/StyleSheet.cpp
+    src/css/Tokenizer.cpp
+  DEPS microbrowser_util microbrowser_dom)
+
 microbrowser_module(html
   SOURCES
     src/html/Tokenizer.cpp
@@ -273,6 +279,7 @@ add_executable(microbrowser_tests
   tests/architecture/SourceScan.cpp
   tests/BlitterTests.cpp
   tests/CanvasTests.cpp
+  tests/CssTests.cpp
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
@@ -304,7 +311,8 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_u
                                                 microbrowser_privacy
                                                 microbrowser_net
                                                 microbrowser_html
-                                                microbrowser_dom)
+                                                microbrowser_dom
+                                                microbrowser_css)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -339,6 +347,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
+  microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------

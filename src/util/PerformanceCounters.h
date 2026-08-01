@@ -103,6 +103,10 @@ namespace microbrowser::util {
   X(HtmlDocumentsParsed, "html.documents_parsed")                                \
   X(HtmlUnsupportedInsertionMode, "html.unsupported_insertion_mode")             \
   X(DomNodesCreated, "dom.nodes_created")                                        \
+  /* --- css ----------------------------------------------------------------- */ \
+  X(CssTokens, "css.tokens")                                                     \
+  X(CssSheetsParsed, "css.sheets_parsed")                                        \
+  X(CssRulesParsed, "css.rules_parsed")                                          \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

@@ -18,6 +18,7 @@ void RegisterAppDirectoriesTests(std::vector<TestCase>& tests);
 void RegisterArchitectureInvariantsTests(std::vector<TestCase>& tests);
 void RegisterBlitterTests(std::vector<TestCase>& tests);
 void RegisterCanvasTests(std::vector<TestCase>& tests);
+void RegisterCssTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionPolicyTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionTests(std::vector<TestCase>& tests);
 void RegisterDisplayListTests(std::vector<TestCase>& tests);
@@ -124,6 +125,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterArchitectureInvariantsTests(tests);
   microbrowser::tests::RegisterBlitterTests(tests);
   microbrowser::tests::RegisterCanvasTests(tests);
+  microbrowser::tests::RegisterCssTests(tests);
   microbrowser::tests::RegisterDirtyRegionPolicyTests(tests);
   microbrowser::tests::RegisterDirtyRegionTests(tests);
   microbrowser::tests::RegisterDisplayListTests(tests);

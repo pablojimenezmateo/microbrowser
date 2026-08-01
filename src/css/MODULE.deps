@@ -1,0 +1,19 @@
+purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error recovery is normative.
+
+allow: util dom
+
+public: Token.h Tokenizer.h StyleSheet.h
+
+extern:
+
+max_tu_lines: 900
+
+# The scanner counts the nested `enum class Kind` as a class of its own. Useful
+# rather than a false positive: it is the spec's token list, and a token kind
+# added without a parser branch for it is a silent gap.
+budget: Kind             header_lines=35 public_methods=0  members=0
+budget: Token            header_lines=50 public_methods=2  members=5
+budget: SelectorPart     header_lines=45 public_methods=2  members=4
+budget: CompoundSelector header_lines=25 public_methods=2  members=2
+budget: Specificity      header_lines=30 public_methods=4  members=3
+budget: Selector         header_lines=25 public_methods=6  members=1

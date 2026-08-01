@@ -121,8 +121,8 @@ environment, not a bug.
 ## Fuzzing
 
 **Every parser that touches bytes written by a stranger gets a libFuzzer target on the commit it
-lands.** Seven exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`, `http_fuzzer`, `cookie_fuzzer`,
-`url_fuzzer`, `html_fuzzer`. Still to come as their parsers do: CSS parser, filter-list parser.
+lands.** Eight exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`, `http_fuzzer`, `cookie_fuzzer`,
+`url_fuzzer`, `html_fuzzer`, `css_fuzzer`. Still to come: the filter-list parser.
 
 Three check a *property* rather than the absence of a crash, and those are the valuable ones.
 
@@ -195,7 +195,7 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-370 tests. Honest about what they do and do not cover:
+390 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Path`, `PathFlattener`, `Rasterizer`, `Stroker`, `AffineTransform` — the strongest assertions in
