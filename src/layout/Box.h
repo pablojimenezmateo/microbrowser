@@ -101,8 +101,22 @@ class Box {
   void SetText(std::string text) { text_ = std::move(text); }
 
   bool IsBlockLevel() const { return kind_ == Kind::Block || kind_ == Kind::AnonymousBlock; }
-  // Placed on a line as one unbreakable rectangle: text and replaced content.
-  bool IsInlineLevel() const { return kind_ == Kind::Text || kind_ == Kind::Replaced; }
+
+  // Taken out of the normal flow. Asked of the box rather than of its style at
+  // each call site, because a float is out of flow whatever kind it is -- a
+  // floated <img> is a replaced box that is *not* placed on a line, and every
+  // place that forgets to check produces a picture stacked above the text
+  // instead of beside it.
+  bool IsFloating() const { return style_.IsFloating(); }
+
+  // Placed on a line as one unbreakable rectangle: text and replaced content
+  // that is still in flow.
+  bool IsInlineLevel() const {
+    return !IsFloating() && (kind_ == Kind::Text || kind_ == Kind::Replaced);
+  }
+
+  // Participates in the block layout pass: stacked, or placed as a float.
+  bool IsOutOfLineFlow() const { return IsBlockLevel() || IsFloating(); }
 
   // The pixels a replaced box shows. Null until the resource loads, and a
   // replaced box with no image still occupies its intrinsic size -- otherwise

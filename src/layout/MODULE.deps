@@ -2,7 +2,7 @@ purpose: The box tree and its geometry. Turns a styled document into positioned 
 
 allow: util dom css gfx
 
-public: Box.h FontTextMeasurer.h LayoutEngine.h
+public: Box.h FloatContext.h FontTextMeasurer.h LayoutEngine.h
 
 extern:
 
@@ -17,4 +17,8 @@ budget: ImageProvider   header_lines=25 public_methods=6  members=0
 budget: TextFragment    header_lines=25 public_methods=4  members=4
 budget: TextMeasurer    header_lines=30 public_methods=8  members=0
 budget: FontTextMeasurer header_lines=35 public_methods=8 members=1
-budget: LayoutEngine    header_lines=55 public_methods=8  members=3
+budget: LayoutEngine    header_lines=65 public_methods=8  members=3
+# The floats in one block formatting context. Separate from Box because it
+# belongs to the context rather than to any box in it: a float shortens line
+# boxes that belong to boxes which know nothing about it.
+budget: FloatContext    header_lines=70 public_methods=14 members=1

@@ -7,6 +7,7 @@
 #include "dom/Node.h"
 #include "gfx/DisplayList.h"
 #include "layout/Box.h"
+#include "layout/FloatContext.h"
 
 namespace microbrowser::layout {
 
@@ -38,10 +39,19 @@ class LayoutEngine {
  private:
   std::unique_ptr<Box> BuildFor(const dom::Node& node, const css::ComputedStyle& parent_style,
                                 bool& produced_inline) const;
-  void LayoutBlock(Box& box, float container_left, float available_width,
-                   float& cursor_y) const;
-  float LayoutInlineChildren(Box& box, float content_left, float content_width,
-                             float start_y) const;
+  // `floats` is the formatting context this box participates in. A box that
+  // establishes its own -- the root, and every float -- passes a fresh one to
+  // its children, which is what keeps a float inside a sidebar from shortening
+  // the lines of the article next to it.
+  void LayoutBlock(Box& box, float container_left, float available_width, float& cursor_y,
+                   FloatContext& floats) const;
+  float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
+                             FloatContext& floats) const;
+  // Widest this box would be if it never wrapped. Needed for shrink-to-fit,
+  // which is what `float: left` with no declared width means.
+  float MaxContentWidth(const Box& box) const;
+  void PlaceFloat(Box& child, float content_left, float content_width, float cursor_y,
+                  FloatContext& floats) const;
 
   const css::StyleResolver* resolver_;
   const TextMeasurer* measurer_;

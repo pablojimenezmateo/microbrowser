@@ -359,6 +359,28 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     }
     return;
   }
+  if (property == "float") {
+    if (value == "left") {
+      style.css_float = Float::Left;
+    } else if (value == "right") {
+      style.css_float = Float::Right;
+    } else if (value == "none") {
+      style.css_float = Float::None;
+    }
+    return;
+  }
+  if (property == "clear") {
+    if (value == "left") {
+      style.clear = Clear::Left;
+    } else if (value == "right") {
+      style.clear = Clear::Right;
+    } else if (value == "both") {
+      style.clear = Clear::Both;
+    } else if (value == "none") {
+      style.clear = Clear::None;
+    }
+    return;
+  }
   if (property == "font-style") {
     style.font_style = value == "italic" || value == "oblique" ? FontStyle::Italic
                                                                : FontStyle::Normal;

@@ -14,6 +14,17 @@ enum class FontStyle : std::uint8_t { Normal, Italic };
 enum class TextAlign : std::uint8_t { Left, Right, Center, Justify };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
 
+// Taken out of the normal flow and shifted to one side, with the following
+// line boxes shortened around it. Not a display value: a float is a
+// block-level box wherever it came from, which is why `float: left` on a span
+// makes it a block.
+enum class Float : std::uint8_t { None, Left, Right };
+
+// Moves a box below the floats on the named side. `Both` is not the union of
+// two decisions -- it is one decision about the lowest of them -- which is why
+// it is a value here rather than two booleans.
+enum class Clear : std::uint8_t { None, Left, Right, Both };
+
 // A CSS length, resolved as far as it can be without a layout context.
 //
 // Percentages cannot be resolved here — they need a containing block, which
@@ -73,6 +84,8 @@ struct ComputedStyle {
 
   TextAlign text_align = TextAlign::Left;
   WhiteSpace white_space = WhiteSpace::Normal;
+  Float css_float = Float::None;
+  Clear clear = Clear::None;
 
   Edges margin;
   Edges padding;
@@ -83,8 +96,14 @@ struct ComputedStyle {
   Length width = Length::Auto();
   Length height = Length::Auto();
 
+  bool IsFloating() const { return css_float != Float::None; }
+
   bool IsInlineLevel() const {
-    return display == Display::Inline || display == Display::InlineBlock;
+    // A float is block-level whatever it was declared as: `float: left` on a
+    // span makes it a block, per CSS 2.1 s9.7. Answering that here rather than
+    // at each call site is what keeps the rule from being applied in three
+    // places and forgotten in a fourth.
+    return !IsFloating() && (display == Display::Inline || display == Display::InlineBlock);
   }
   bool GeneratesBox() const { return display != Display::None; }
 

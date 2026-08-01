@@ -249,9 +249,9 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       // with a collapsible space.
       // The previous sibling is read from `kept`, not from `children`: the ones
       // already kept were moved out and left null behind them.
-      const bool inline_before = !kept.empty() && !kept.back()->IsBlockLevel();
+      const bool inline_before = !kept.empty() && !kept.back()->IsOutOfLineFlow();
       const bool inline_after =
-          i + 1 < children.size() && !children[i + 1]->IsBlockLevel();
+          i + 1 < children.size() && !children[i + 1]->IsOutOfLineFlow();
       if (inline_before && inline_after) {
         kept.push_back(std::move(children[i]));
       }
@@ -260,8 +260,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     any_inline = false;
     any_block = false;
     for (const std::unique_ptr<Box>& child : children) {
-      any_inline = any_inline || !child->IsBlockLevel();
-      any_block = any_block || child->IsBlockLevel();
+      any_inline = any_inline || !child->IsOutOfLineFlow();
+      any_block = any_block || child->IsOutOfLineFlow();
     }
   }
 
@@ -272,7 +272,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     // own.
     std::unique_ptr<Box> pending;
     for (std::unique_ptr<Box>& child : children) {
-      if (child->IsBlockLevel()) {
+      if (child->IsOutOfLineFlow()) {
         if (pending != nullptr) {
           box->Append(std::move(pending));
         }
@@ -325,7 +325,7 @@ std::unique_ptr<Box> LayoutEngine::BuildBoxTree(const dom::Document& document) c
 // opportunity. Breaking only where the text says it may is the conservative
 // direction.
 float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float content_width,
-                                         float start_y) const {
+                                         float start_y, FloatContext& floats) const {
   // One item on the current line: a slice of a text box, or a whole replaced
   // box. Both are rectangles hung from a baseline; that is the only thing line
   // layout needs to know about either.
@@ -341,12 +341,45 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   };
 
   std::vector<LineItem> line;
-  float x = content_left;
   float y = start_y;
+  // The band a line may use, narrowed by any float it runs alongside. Computed
+  // per line rather than once, because a float ends partway down a paragraph
+  // and the lines below it get their full width back.
+  float line_left = content_left;
+  float line_right = content_left + content_width;
+  float x = line_left;
+
+  // Height guess for the band query. A line's real height is not known until it
+  // is finished, and the band depends on the height; using the largest text
+  // height in the box over-narrows nothing in the common case where every line
+  // is the same height, and errs toward *more* clearance when it is wrong.
+  float probe_height = 0.0f;
+  {
+    const auto measure = [&](const Box& node, auto& self) -> void {
+      if (node.GetKind() == Box::Kind::Text) {
+        probe_height = std::max(probe_height, measurer_->LineHeight(node.Style()));
+      } else if (node.GetKind() == Box::Kind::Replaced) {
+        probe_height = std::max(probe_height, node.Geometry().content.height);
+      }
+      for (const std::unique_ptr<Box>& child : node.Children()) {
+        self(*child, self);
+      }
+    };
+    measure(box, measure);
+  }
+
+  const auto refresh_band = [&] {
+    const FloatContext::Band band =
+        floats.BandAt(y, probe_height, content_left, content_left + content_width);
+    line_left = band.left;
+    line_right = band.right;
+    x = line_left;
+  };
+  refresh_band();
 
   const auto finish_line = [&] {
     if (line.empty()) {
-      x = content_left;
+      refresh_band();
       return;
     }
     float above = 0.0f;
@@ -379,8 +412,8 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     }
 
     y += height;
-    x = content_left;
     line.clear();
+    refresh_band();
   };
 
   // Flattened: an inline box's own children participate in the same line
@@ -388,6 +421,9 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   std::vector<Box*> run;
   const auto collect = [&run](Box& node, auto& self) -> void {
     for (const std::unique_ptr<Box>& child : node.Children()) {
+      if (child->IsFloating()) {
+        continue;  // out of flow; placed by the block pass
+      }
       if (child->IsInlineLevel()) {
         run.push_back(child.get());
       } else {
@@ -404,7 +440,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       // otherwise overflows -- which is what a too-wide image does.
       const float width = item->Geometry().content.width;
       const float height = item->Geometry().content.height;
-      if (!line.empty() && x + width > content_left + content_width) {
+      if (!line.empty() && x + width > line_right) {
         finish_line();
       }
       line.push_back(LineItem{item, false, 0, 0, x, width, height, 0.0f});
@@ -434,7 +470,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         break;
       }
       const std::string_view remaining(text.data() + offset, text.size() - offset);
-      const float available = content_left + content_width - x;
+      const float available = line_right - x;
       const float full_width = measurer_->MeasureWidth(remaining, style);
 
       if (full_width > available && !line.empty()) {
@@ -485,8 +521,50 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   return y - start_y;
 }
 
+// Places one float and lays out its contents where it landed.
+//
+// Two passes over the child, and the reason is circular: a float's position
+// depends on how wide it is, and its width depends on its content. So it is
+// laid out once against a detached context to learn its size, placed, then laid
+// out again at the position it got. Re-laid out rather than translated,
+// because a box tree of absolute coordinates has no translate operation and
+// inventing one here would be a second way to position a subtree.
+void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_width, float cursor_y,
+                              FloatContext& floats) const {
+  const css::ComputedStyle& style = child.Style();
+
+  if (child.GetKind() == Box::Kind::Replaced) {
+    // A replaced float already knows its size; there is no content to lay out.
+    child.Geometry().margin = style.margin;
+    const float margin_left = style.margin.left.Resolve(style.font_size);
+    const float margin_right = style.margin.right.Resolve(style.font_size);
+    const float margin_top = style.margin.top.Resolve(style.font_size);
+    const float margin_bottom = style.margin.bottom.Resolve(style.font_size);
+    const gfx::FloatRect content = child.Geometry().content;
+    const gfx::FloatRect placed = floats.Place(
+        style.css_float, content.width + margin_left + margin_right,
+        content.height + margin_top + margin_bottom, cursor_y, content_left,
+        content_left + content_width);
+    child.Geometry().content = gfx::FloatRect{placed.x + margin_left, placed.y + margin_top,
+                                              content.width, content.height};
+    return;
+  }
+
+  float probe = cursor_y;
+  FloatContext detached;
+  LayoutBlock(child, content_left, content_width, probe, detached);
+  const gfx::FloatRect margin_box = child.Geometry().MarginBox();
+  const gfx::FloatRect placed =
+      floats.Place(style.css_float, margin_box.width, margin_box.height, cursor_y, content_left,
+                   content_left + content_width);
+
+  float final_cursor = placed.y;
+  FloatContext inner;
+  LayoutBlock(child, placed.x, content_width, final_cursor, inner);
+}
+
 void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_width,
-                               float& cursor_y) const {
+                               float& cursor_y, FloatContext& floats) const {
   const css::ComputedStyle& style = box.Style();
   BoxGeometry& geometry = box.Geometry();
   geometry.margin = style.margin;
@@ -511,6 +589,12 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
                         ? available_width * style.width.value / 100.0f
                         : style.width.Resolve(style.font_size, content_width);
   }
+  if (style.IsFloating() && style.width.IsAuto()) {
+    // Shrink-to-fit: as wide as its content wants, but never wider than what is
+    // left. A float that filled its containing block would leave nothing to
+    // flow beside it, which is the one thing a float is for.
+    content_width = std::clamp(MaxContentWidth(box) - horizontal, 0.0f, content_width);
+  }
   content_width = std::max(0.0f, content_width);
 
   // Relative to the containing block, not to the viewport. Geometry is stored
@@ -524,25 +608,48 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
       cursor_y + style.margin.top.Resolve(style.font_size) +
       geometry.border.top.Resolve(style.font_size) + style.padding.top.Resolve(style.font_size);
 
+  // A float establishes a formatting context of its own, so a float inside a
+  // sidebar does not shorten the lines of the article beside it.
+  FloatContext own_floats;
+  FloatContext& child_floats = style.IsFloating() ? own_floats : floats;
+
   // Inline children are laid out as lines; block children stack.
   bool has_block_child = false;
   for (const std::unique_ptr<Box>& child : box.Children()) {
-    has_block_child = has_block_child || child->IsBlockLevel();
+    has_block_child = has_block_child || child->IsOutOfLineFlow();
   }
 
   float content_height = 0.0f;
   if (!has_block_child && !box.Children().empty()) {
-    content_height = LayoutInlineChildren(box, content_left, content_width, content_top);
+    content_height =
+        LayoutInlineChildren(box, content_left, content_width, content_top, child_floats);
   } else {
     float child_cursor = content_top;
     for (const std::unique_ptr<Box>& child : box.Children()) {
-      if (child->IsBlockLevel()) {
-        LayoutBlock(*child, content_left, content_width, child_cursor);
+      if (!child->IsOutOfLineFlow()) {
+        continue;
       }
+      const css::ComputedStyle& child_style = child->Style();
+      // `clear` first: it moves the box down before anything else decides where
+      // it goes, including before a float on it is placed.
+      child_cursor = child_floats.ClearanceBelow(child_style.clear, child_cursor);
+
+      if (child->IsFloating()) {
+        PlaceFloat(*child, content_left, content_width, child_cursor, child_floats);
+        continue;
+      }
+
+      LayoutBlock(*child, content_left, content_width, child_cursor, child_floats);
     }
     content_height = child_cursor - content_top;
   }
 
+  if (style.IsFloating()) {
+    // A float contains its own floats: it establishes a formatting context, and
+    // a context that did not contain them would let them escape a box that has
+    // no other relationship to the page.
+    content_height = std::max(content_height, own_floats.LowestBottom() - content_top);
+  }
   if (!style.height.IsAuto() && !style.height.IsPercent()) {
     content_height = style.height.Resolve(style.font_size, content_height);
   }
@@ -556,8 +663,49 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
 float LayoutEngine::Layout(Box& root, float width) const {
   AddPerformanceCounter(PerfCounterId::LayoutRuns);
   float cursor = 0.0f;
-  LayoutBlock(root, 0.0f, width, cursor);
-  return cursor;
+  // The root establishes the initial block formatting context.
+  FloatContext floats;
+  LayoutBlock(root, 0.0f, width, cursor, floats);
+  // The document is as tall as the lower of its flow content and its floats: a
+  // page that is nothing but a tall float still scrolls.
+  return std::max(cursor, floats.LowestBottom());
+}
+
+// The width this box wants if nothing ever wrapped.
+//
+// Text contributes its whole run, a replaced box its used width, a block the
+// widest of its children, and an inline sequence the sum of them -- which is
+// the definition of max-content, applied to the box kinds that exist.
+float LayoutEngine::MaxContentWidth(const Box& box) const {
+  const css::ComputedStyle& style = box.Style();
+  if (box.GetKind() == Box::Kind::Text) {
+    return measurer_->MeasureWidth(box.Text(), style);
+  }
+  if (box.GetKind() == Box::Kind::Replaced) {
+    return box.Geometry().content.width;
+  }
+
+  float widest = 0.0f;
+  float inline_run = 0.0f;
+  for (const std::unique_ptr<Box>& child : box.Children()) {
+    const float child_width = MaxContentWidth(*child);
+    if (child->IsBlockLevel()) {
+      widest = std::max(widest, child_width);
+      inline_run = 0.0f;
+    } else {
+      inline_run += child_width;
+      widest = std::max(widest, inline_run);
+    }
+  }
+
+  const float edges = style.margin.left.Resolve(style.font_size) +
+                      style.margin.right.Resolve(style.font_size) +
+                      style.padding.left.Resolve(style.font_size) +
+                      style.padding.right.Resolve(style.font_size) +
+                      (style.has_border ? style.border_width.left.Resolve(style.font_size) +
+                                              style.border_width.right.Resolve(style.font_size)
+                                        : 0.0f);
+  return widest + edges;
 }
 
 void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset) {

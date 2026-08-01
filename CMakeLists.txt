@@ -204,6 +204,7 @@ microbrowser_module(css
 
 microbrowser_module(layout
   SOURCES
+    src/layout/FloatContext.cpp
     src/layout/FontTextMeasurer.cpp
     src/layout/LayoutEngine.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_css microbrowser_gfx)
@@ -302,6 +303,7 @@ add_executable(microbrowser_tests
   tests/FetchTests.cpp
   tests/DisplayListDiffTests.cpp
   tests/EngineTests.cpp
+  tests/FloatTests.cpp
   tests/FontCatalogTests.cpp
   tests/FontTests.cpp
   tests/GeometryTests.cpp
