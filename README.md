@@ -5,10 +5,10 @@ A native, low-footprint web browser written from scratch in C++20.
 Own HTML parser, own CSS engine, own layout, own software rasterizer, own HTTP client, own
 JavaScript engine. No GPU requirement. Privacy-respecting by construction.
 
-**Status: early. M0 (foundation) is complete and M1 (rasterizer) is under way — it opens a window
-and paints a placeholder page with antialiased paths and strokes. There is no text, no HTML parser,
-no CSS, no network, and no JavaScript yet.** See the roadmap below for what exists and what does
-not.
+**Status: early. M0 (foundation) and M1 (rasterizer) are complete — it opens a window, paints
+antialiased paths and strokes, shapes and renders text, and decodes PNG. There is no HTML parser,
+no CSS, no layout, no network, and no JavaScript yet.** See the roadmap below for what exists and
+what does not.
 
 ## Why
 
@@ -28,8 +28,8 @@ privacy, then speed, then CPU, then memory. Measured, not asserted.
 ## Building
 
 ```bash
-sudo apt install libsdl3-dev            # M0 needs only SDL3
-# later milestones add: libfreetype-dev libharfbuzz-dev libssl-dev zlib1g-dev libbrotli-dev
+sudo apt install libsdl3-dev libfreetype-dev libharfbuzz-dev
+# later milestones add: libssl-dev libbrotli-dev
 
 cmake -S . -B build -G Ninja
 cmake --build build -j$(nproc)
@@ -116,7 +116,7 @@ the two designs that give it teeth are decided in ADRs.
 | | | |
 |---|---|---|
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
-| M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **in progress** — paths, analytic AA, stroking, affine transforms, and SSE2 blitters done; text and images not |
+| M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **done** |
 | M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | |
 | M3 | HTML parsing + DOM | |
 | M4 | CSS: parsing, selectors, cascade, computed style | |

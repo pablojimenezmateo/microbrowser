@@ -18,23 +18,23 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**Milestone M0 (foundation) is complete.** What exists:
+**Milestones M0 (foundation) and M1 (rasterizer) are complete.** What exists:
 
 | Module | State |
 |---|---|
-| `src/util` | Parse, StringUtil, Env, tracing, counters — ported from `../microide` |
-| `src/gfx` | Geometry, AffineTransform, Color, Canvas, DirtyRegion, DisplayList, Path, analytic-AA rasterizer, stroker, Painter. SDL-free. |
+| `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE/zlib inflate |
+| `src/gfx` | Geometry, AffineTransform, Color, Canvas, DisplayList, Path, analytic-AA rasterizer, stroker, SSE2 blitters, FreeType+HarfBuzz text, glyph cache, PNG decoder, Painter. SDL-free. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
 | `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |
 | `src/platform` | The only module that knows what a window is. SDL lives here. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, present |
 
-**Milestone M1 (rasterizer) is in progress.** Path filling with analytic anti-aliasing, stroking,
-and affine transforms exist, and reach pixels through the display list and the IPC seam. Text
-(FreeType + HarfBuzz) and image decoding do not.
+**Milestone M1 (rasterizer) is complete.** Path fill and stroke with analytic anti-aliasing, affine
+transforms, SSE2 span blitters, text (FreeType outlines + HarfBuzz shaping + a glyph cache), and a
+from-scratch PNG decoder with its own DEFLATE. Three libFuzzer targets cover the parsers.
 
-Not yet started: `gfx` text/images (rest of M1), `net`/`privacy` (M2), `html`/`dom` (M3), `css` (M4),
-`layout` (M5), `paint` (M6), `ui` (M7), `js` (M8). Roadmap in `README.md` and `AGENTS.md`.
+Not yet started: `net`/`privacy` (M2), `html`/`dom` (M3), `css` (M4), `layout` (M5), `paint` (M6),
+`ui` (M7), `js` (M8). Roadmap in `README.md` and `AGENTS.md`.
 
 ## Development Workflow
 

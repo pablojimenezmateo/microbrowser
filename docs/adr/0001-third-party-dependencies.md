@@ -32,8 +32,7 @@ A dependency is sanctioned only if it meets all four:
 | **FreeType** | Glyph outline rasterization | `gfx` | Hinting and the outline formats are decades of accumulated correctness. Getting them wrong is visible on every character. |
 | **HarfBuzz** | Text shaping | `gfx` | Arabic joining, Indic reordering, and OpenType feature application are a specialty. Ladybird uses it too. |
 | **OpenSSL** | TLS record layer only | `net` | Writing your own TLS is the canonical example of what not to do. We still own HTTP entirely. |
-| **zlib**, **brotli** | Content decoding | `net` | Format-defined, ubiquitous, small. |
-| **stb_image** | PNG/JPEG decode, temporarily | `gfx` | Placeholder so images render before M6. Replaced by our own decoders — image decoding *is* browser work, and it is a fuzzing surface we want to own. |
+| **brotli** | Content decoding | `net` | Format-defined, ubiquitous, small. |
 
 ### Rejected
 
@@ -57,12 +56,32 @@ rendering model.
 **vcpkg / Conan** — the dependency list is short enough to install from the system package manager.
 A package manager is infrastructure for a problem we have chosen not to have.
 
+### Removed after the fact
+
+**stb_image** was sanctioned as a temporary placeholder so that images could render before our own
+decoders existed. They now exist, so it never shipped: `gfx/PngDecoder` reads PNG and
+`util/Inflate` reads DEFLATE. The reasoning that made it a placeholder is the reasoning that
+retired it — image decoding is browser work, and an image decoder is the single most productive
+source of browser remote code execution, so it is a surface to own and fuzz rather than inherit.
+
+**zlib** followed it out for the same reason. It was sanctioned for `net`'s Content-Encoding, but
+DEFLATE is also what PNG image data is compressed with, so a dependency there would have put the
+decompressor on two different streams of hostile bytes with our fuzzing covering neither. Ours
+lives in `util`, where both `gfx` and `net` reach it — a copy in `gfx` would have made the network
+stack depend on the rasterizer to read a gzip response. It is deliberately the slow, auditable
+structure of zlib's own `puff.c` reference decoder rather than production zlib's table-driven one;
+the first requirement of a decoder fed hostile input is that a reader can check it.
+
+This is the ADR working rather than being overridden: both were admitted as placeholders with a
+stated exit condition, and both left when the condition was met.
+
 ## Consequences
 
 - We write: HTTP/1.1, cookies, cache, URL parsing, HTML parsing, DOM, CSS parsing, cascade, layout,
-  paint, compositing, the rasterizer, image decoders, JavaScript, and the GC. This is the project.
+  paint, compositing, the rasterizer, DEFLATE, image decoders, JavaScript, and the GC. This is the
+  project.
 - The build needs only `libsdl3-dev`, `libfreetype-dev`, `libharfbuzz-dev`, `libssl-dev`,
-  `zlib1g-dev`, `libbrotli-dev`.
+  `libbrotli-dev`.
 - Adding a dependency requires a new ADR and an `extern:` declaration. The lint rejects an
   undeclared third-party include, so this cannot be done by accident.
 - We will be slower to first useful page than a project that vendors an engine, and we accept that.

@@ -120,13 +120,43 @@ environment, not a bug.
 
 ## Fuzzing
 
-Not yet wired (`-DMICROBROWSER_FUZZ=ON` exists; there are no targets, because there are no parsers).
-The rule for when there are: **every parser that touches network bytes gets a libFuzzer target on
-the same commit it lands.** HTML tokenizer, CSS parser, URL parser, HTTP response reader, content
-decoders, image decoders, filter-list parser. Corpora under `tests/fuzz/corpora/`.
+**Every parser that touches bytes written by a stranger gets a libFuzzer target on the commit it
+lands.** Three exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`. Still to come as their parsers
+do: HTML tokenizer, CSS parser, URL parser, HTTP response reader, filter-list parser.
 
-Fuzz-target link breaks are silent — no default build flow compiles them — so check the fuzz build
-after touching shared code.
+```bash
+cmake -S . -B build/fuzz -G Ninja -DMICROBROWSER_FUZZ=ON \
+      -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build/fuzz
+./build/fuzz/microbrowser/png_fuzzer tests/fuzz/corpora/png -print_funcs=0
+```
+
+`-print_funcs=0` is not optional on a machine without `llvm-symbolizer`: without it libFuzzer stalls
+trying to symbolize the first newly-covered function, and the run looks like a hang in the decoder.
+
+**Check the counter count on the first line of output.** It reads like noise and it is the single
+most important line:
+
+```
+INFO: Loaded 1 modules   (1352 inline 8-bit counters)
+```
+
+That number must be in the hundreds or thousands. The first version of this build instrumented only
+the fuzz harness and not the libraries it linked, so it reported **8** counters — libFuzzer spent
+thirteen million executions exploring the eight branches of its own entry point and reported a clean
+run, having never once executed an instrumented parser. It is the same failure the control fixtures
+exist to prevent, in a place where nothing was watching for it. `MICROBROWSER_FUZZ` now puts
+`-fsanitize=fuzzer-no-link` on `microbrowser_settings`, so instrumentation reaches every module.
+
+It paid for itself immediately: eight seconds into the first correctly instrumented run, the inflate
+fuzzer found a stack buffer overflow in the Huffman table builder — the fixed-Huffman alphabet has
+288 symbols and the table was sized for the 286 a dynamic block can name. Twelve unit tests covered
+that code path and none of them noticed, because the two-byte write landed in stack padding. (An
+ASan run of the suite would have caught it too; nobody had run one since the decoder landed, which
+is its own lesson.)
+
+Corpora live under `tests/fuzz/corpora/`, minimized with `-merge=1`. Fuzz-target link breaks are
+silent — no default build flow compiles them — so check the fuzz build after touching shared code.
 
 ## Security Tests
 
@@ -153,7 +183,7 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-183 tests. Honest about what they do and do not cover:
+256 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Path`, `PathFlattener`, `Rasterizer`, `Stroker`, `AffineTransform` — the strongest assertions in
@@ -167,6 +197,15 @@ memory-safety bug and a shipped exploit until the sandbox exists.
   all, without which the comparison would be scalar against itself.
 - `PaintPipeline` — engine to display list to wire to pixels, with a golden. Every link in that
   chain is unit-tested; a chain of tested links is not a tested chain.
+- `Font`, `TextShaper`, `GlyphCache` — against a TrueType font the harness builds in memory, whose
+  glyphs have closed-form areas. Covers the y-flip out of font space, the cmap, contour direction
+  (one glyph is a square with a reversed inner square, so a decoder that ignored winding would come
+  back with the wrong area), quadratic contours, and clusters through multi-byte UTF-8.
+- `Inflate`, `PngDecoder` — the hostile-input suites. Reference streams produced by zlib itself
+  rather than by this project, so the decoder is checked against an independent implementation of
+  the format; then truncation at every length, a flipped byte at every third offset, and every way
+  a header can lie about its own dimensions. PNG fixtures use *stored* DEFLATE blocks so a failure
+  points at one decoder rather than two.
 - `Ipc` — every message round-trips; truncation, trailing bytes, unknown tags, version mismatch, and
   a hostile length prefix are all rejected.
 - `IdleWaitStrategy`, `DirtyRegionPolicy` — the policy functions are pure, so coverage is thorough.

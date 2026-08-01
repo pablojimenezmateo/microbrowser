@@ -134,6 +134,45 @@ void Painter::DrawGlyphs(const Font& font, const ShapedRun& run, FloatPoint orig
   transform_ = saved;
 }
 
+void Painter::DrawImage(const Image& image, IntPoint at) {
+  if (!image.IsValid()) {
+    return;
+  }
+  const IntRect clip = canvas_->Clip().Intersected(canvas_->Bounds());
+  // Only the translation is honored, so it is folded in here rather than
+  // pretending the rest of the transform was applied.
+  const int left = at.x + SaturateFloatToInt(transform_.E());
+  const int top = at.y + SaturateFloatToInt(transform_.F());
+  const IntRect placed{std::clamp(left, -kMaxDeviceCoordinate / 2, kMaxDeviceCoordinate / 2),
+                       std::clamp(top, -kMaxDeviceCoordinate / 2, kMaxDeviceCoordinate / 2),
+                       image.Width(), image.Height()};
+  const IntRect target = placed.Intersected(clip);
+  if (target.IsEmpty()) {
+    return;
+  }
+
+  AddPerformanceCounter(PerfCounterId::GfxImagesDrawn);
+  for (int y = target.Top(); y < target.Bottom(); ++y) {
+    std::uint32_t* destination = canvas_->Row(y);
+    const std::uint32_t* source = image.Row(y - placed.y);
+    if (destination == nullptr || source == nullptr) {
+      continue;
+    }
+    destination += target.Left();
+    source += target.Left() - placed.x;
+
+    if (image.IsOpaque()) {
+      // An opaque image is a copy. Knowing that once at decode time is worth
+      // about as much as the vector blitter was.
+      std::copy(source, source + target.width, destination);
+      continue;
+    }
+    for (int i = 0; i < target.width; ++i) {
+      destination[i] = BlendSrcOver(destination[i], Color{source[i]});
+    }
+  }
+}
+
 void Painter::FillSpans(const std::vector<CoverageSpan>& spans, Color color) {
   const std::uint32_t source_alpha = color.Alpha();
   for (const CoverageSpan& span : spans) {

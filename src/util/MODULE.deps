@@ -10,7 +10,7 @@ purpose: Dependency-free primitives. Parsing, strings, tracing, counters.
 # for every other module to depend on it.
 allow:
 
-public: Env.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h
+public: Env.h Inflate.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h
 
 extern:
 

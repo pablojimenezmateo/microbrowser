@@ -67,6 +67,14 @@ namespace microbrowser::util {
   X(GfxGlyphCacheHits, "gfx.glyph_cache_hits")                                   \
   X(GfxGlyphCacheMisses, "gfx.glyph_cache_misses")                               \
   X(GfxGlyphCacheEvictions, "gfx.glyph_cache_evictions")                         \
+  X(GfxPngDecodes, "gfx.png_decodes")                                            \
+  X(GfxPngDecodeFailures, "gfx.png_decode_failures")                             \
+  X(GfxPngPixelsDecoded, "gfx.png_pixels_decoded")                               \
+  X(GfxImagesDrawn, "gfx.images_drawn")                                          \
+  /* --- compression --------------------------------------------------------- */ \
+  X(UtilInflateCalls, "util.inflate_calls")                                      \
+  X(UtilInflateBytes, "util.inflate_bytes")                                      \
+  X(UtilInflateChecksumFailures, "util.inflate_checksum_failures")               \
   /* --- display list ------------------------------------------------------- */ \
   X(DisplayListBuilds, "display_list.builds")                                    \
   X(DisplayListCommands, "display_list.commands")                                \

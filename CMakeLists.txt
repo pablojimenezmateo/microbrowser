@@ -5,6 +5,11 @@ project(microbrowser VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+# No C++20 modules anywhere in the tree. Left on, CMake runs clang-scan-deps
+# over every translation unit, which costs build time for nothing and fails
+# outright on a Clang install that ships without it -- which is how the fuzz
+# build first broke.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(GNUInstallDirs)
@@ -131,6 +136,18 @@ endif()
 target_compile_definitions(microbrowser_settings INTERFACE
   $<$<BOOL:${MICROBROWSER_PERF_HARNESS_BUILD}>:MICROBROWSER_PERF_HARNESS_BUILD=1>)
 
+# Coverage instrumentation has to reach the *libraries*, not only the fuzz
+# harnesses that link them. Without this the fuzzer explores the eight branches
+# of its own entry point and reports a clean run forever, having never executed
+# an instrumented parser -- which is precisely the shape of a test that passes
+# while checking nothing. `fuzzer-no-link` gives the libraries the coverage
+# callbacks without the libFuzzer main; the executables add `fuzzer` for that.
+if(MICROBROWSER_FUZZ)
+  target_compile_options(microbrowser_settings INTERFACE
+    -fsanitize=fuzzer-no-link,address,undefined -fno-omit-frame-pointer)
+  target_link_options(microbrowser_settings INTERFACE -fsanitize=address,undefined)
+endif()
+
 # --- Modules -----------------------------------------------------------------
 # One static library per module, with dependencies declared explicitly. The
 # authoritative dependency contract is each module's src/<module>/MODULE.deps,
@@ -148,6 +165,7 @@ endfunction()
 microbrowser_module(util
   SOURCES
     src/util/Env.cpp
+    src/util/Inflate.cpp
     src/util/Parse.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
@@ -164,8 +182,10 @@ microbrowser_module(gfx
     src/gfx/Font.cpp
     src/gfx/Geometry.cpp
     src/gfx/GlyphCache.cpp
+    src/gfx/Image.cpp
     src/gfx/Painter.cpp
     src/gfx/Path.cpp
+    src/gfx/PngDecoder.cpp
     src/gfx/Rasterizer.cpp
     src/gfx/Stroker.cpp
     src/gfx/TextShaper.cpp
@@ -222,20 +242,51 @@ add_executable(microbrowser_tests
   tests/GeometryTests.cpp
   tests/GlyphCacheTests.cpp
   tests/IdleWaitStrategyTests.cpp
+  tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
   tests/PaintPipelineTests.cpp
   tests/PainterTests.cpp
   tests/PathTests.cpp
+  tests/PngDecoderTests.cpp
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
   tests/TextShaperTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp
-  tests/support/SyntheticFont.cpp)
+  tests/support/SyntheticFont.cpp
+  tests/support/SyntheticPng.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# --- Fuzz targets ------------------------------------------------------------
+# Every parser that touches bytes written by a stranger gets one, on the commit
+# it lands. Built only with -DMICROBROWSER_FUZZ=ON and a Clang toolchain:
+#
+#   cmake -S . -B build/fuzz -G Ninja -DMICROBROWSER_FUZZ=ON \
+#         -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+#   cmake --build build/fuzz
+#   ./build/fuzz/microbrowser/png_fuzzer tests/fuzz/corpora/png
+#
+# Fuzz-target link breaks are silent, because no default build compiles them.
+# Check this configures after touching anything they reach.
+
+if(MICROBROWSER_FUZZ)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "MICROBROWSER_FUZZ requires Clang for libFuzzer.")
+  endif()
+  function(microbrowser_fuzzer name source)
+    add_executable(${name} ${source})
+    target_link_libraries(${name} PRIVATE ${ARGN})
+    target_compile_options(${name} PRIVATE -fsanitize=fuzzer -g)
+    target_link_options(${name} PRIVATE -fsanitize=fuzzer,address,undefined)
+  endfunction()
+
+  microbrowser_fuzzer(inflate_fuzzer fuzz/InflateFuzzer.cpp microbrowser_util)
+  microbrowser_fuzzer(png_fuzzer fuzz/PngFuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
+endif()
 
 # --- Benchmarks --------------------------------------------------------------
 # Built only under the perf preset. A benchmark binary that can be produced by
@@ -248,7 +299,8 @@ if(MICROBROWSER_PERF_HARNESS_BUILD)
     bench/BenchMain.cpp
     bench/BenchSupport.cpp
     bench/GfxBenchmarks.cpp
-    tests/support/SyntheticFont.cpp)
+    tests/support/SyntheticFont.cpp
+  tests/support/SyntheticPng.cpp)
   target_link_libraries(microbrowser_bench PRIVATE microbrowser_gfx)
   target_include_directories(microbrowser_bench PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/bench" "${CMAKE_CURRENT_SOURCE_DIR}/tests")

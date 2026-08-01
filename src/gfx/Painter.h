@@ -5,6 +5,7 @@
 #include "gfx/Color.h"
 #include "gfx/Geometry.h"
 #include "gfx/GlyphCache.h"
+#include "gfx/Image.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
 #include "gfx/Stroker.h"
@@ -61,6 +62,15 @@ class Painter {
   // hit rates and a caller can bound its memory, not so anyone can reach past
   // DrawGlyphs.
   GlyphCache& Glyphs() { return glyphs_; }
+
+  // Draws `image` with its top-left corner at `at`, honoring the canvas clip.
+  //
+  // Unscaled and unrotated: the transform's translation is applied and anything
+  // else is ignored. Scaled image drawing needs a resampler, and a resampler
+  // chosen without a use case is a resampler chosen wrong — CSS
+  // `image-rendering` and device-pixel-ratio scaling both have opinions that
+  // arrive with layout.
+  void DrawImage(const Image& image, IntPoint at);
 
   // Blends a rasterized coverage span set. Public because a glyph mask and an
   // image alpha channel produce the same thing and must not each grow their own
