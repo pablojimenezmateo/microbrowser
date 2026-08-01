@@ -4,7 +4,7 @@
 
 Build `microbrowser` as a native, low-footprint web browser from scratch in C++20: own HTML parser,
 own CSS engine, own layout, own software rasterizer, own HTTP client, own JavaScript engine. No GPU
-requirement. Privacy-respecting by construction rather than by preference.
+requirement. Privacy-respecting and site-isolated by construction rather than by preference.
 
 Ladybird is the reference for *engine shape* — library separation, spec-literal parsers, pixel
 reference tests, and the process split (`WebContent`, network, image decoder). LibreWolf is the

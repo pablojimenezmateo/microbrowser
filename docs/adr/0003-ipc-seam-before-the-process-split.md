@@ -21,6 +21,10 @@ sandboxing. At M0 there is no HTML parser to contain.
 
 Ship one process. Define the boundary as if there were two.
 
+*What the processes actually are — how many, what each contains, and what the sandbox denies — is
+`docs/adr/0004-process-model-and-site-isolation.md`. This ADR decides only that the boundary exists
+and what shape it has.*
+
 - `src/ipc/Message.h` holds the complete vocabulary crossing the boundary: a closed set of typed
   messages, versioned, each with `Serialize`/`Deserialize`.
 - `src/ipc/Transport.h` is a non-blocking interface. `InProcessTransport` (two queues) is what ships;
