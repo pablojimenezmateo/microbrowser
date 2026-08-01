@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -133,8 +134,13 @@ class TraceChannel {
   // Index into the thread-local active-scope table. Assigned at construction.
   std::size_t slot_ = 0;
 
+  // Pimpl so the mutex and the aggregate map do not appear in every translation
+  // unit that only wants to open a scope. Held by unique_ptr rather than a raw
+  // pointer: the ownership rule in guidelines/cpp.md has no exemption for
+  // "it is only one delete, in one destructor", and the architecture lint
+  // enforces that (NoManualHeapOwnership).
   struct Impl;
-  Impl* impl_ = nullptr;
+  std::unique_ptr<Impl> impl_;
 };
 
 // RAII timer for one region on one channel. Costs a single predictable branch

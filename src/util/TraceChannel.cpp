@@ -147,13 +147,22 @@ TraceChannel::TraceChannel(const char* prefix,
                  kMaxChannels);
     return;
   }
-  impl_ = new Impl();
+  impl_ = std::make_unique<Impl>();
 }
 
 TraceChannel::~TraceChannel() {
   // Channels are function-local statics, so this runs at exit. Disarm before
   // freeing: any TraceScope constructed after this point (from a later static
   // destructor) must take the disabled fast path rather than touch `impl_`.
+  //
+  // The disarm orders this thread against itself; it is not a synchronization
+  // mechanism. A worker thread still running when static destruction begins
+  // could read `aggregate_enabled_` as true one instruction before the store
+  // and then touch a freed `Impl`. The invariant that closes that window is
+  // "every worker is joined before main() returns", which belongs to whoever
+  // spawns the worker -- see guidelines/security.md on shutdown ordering. It is
+  // stated here rather than papered over with a null check, which would move
+  // the window without closing it.
   stream_enabled_.store(false, std::memory_order_relaxed);
   aggregate_enabled_.store(false, std::memory_order_relaxed);
   if (slot_ != kNoSlot) {
@@ -161,8 +170,7 @@ TraceChannel::~TraceChannel() {
     ReleaseSlot(slot_);
     slot_ = kNoSlot;
   }
-  delete impl_;
-  impl_ = nullptr;
+  impl_.reset();
 }
 
 void TraceChannel::Reset() {
