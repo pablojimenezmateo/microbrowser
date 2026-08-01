@@ -38,6 +38,7 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests);
 void RegisterPathTests(std::vector<TestCase>& tests);
 void RegisterRasterizerTests(std::vector<TestCase>& tests);
 void RegisterStrokerTests(std::vector<TestCase>& tests);
+void RegisterStyleResolverTests(std::vector<TestCase>& tests);
 void RegisterTextShaperTests(std::vector<TestCase>& tests);
 void RegisterTokenizerTests(std::vector<TestCase>& tests);
 void RegisterTreeBuilderTests(std::vector<TestCase>& tests);
@@ -145,6 +146,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterPathTests(tests);
   microbrowser::tests::RegisterRasterizerTests(tests);
   microbrowser::tests::RegisterStrokerTests(tests);
+  microbrowser::tests::RegisterStyleResolverTests(tests);
   microbrowser::tests::RegisterTextShaperTests(tests);
   microbrowser::tests::RegisterTokenizerTests(tests);
   microbrowser::tests::RegisterTreeBuilderTests(tests);

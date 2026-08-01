@@ -195,7 +195,7 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-390 tests. Honest about what they do and do not cover:
+405 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Path`, `PathFlattener`, `Rasterizer`, `Stroker`, `AffineTransform` — the strongest assertions in

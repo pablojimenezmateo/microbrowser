@@ -197,9 +197,10 @@ microbrowser_module(dom
 
 microbrowser_module(css
   SOURCES
+    src/css/StyleResolver.cpp
     src/css/StyleSheet.cpp
     src/css/Tokenizer.cpp
-  DEPS microbrowser_util microbrowser_dom)
+  DEPS microbrowser_util microbrowser_dom microbrowser_gfx)
 
 microbrowser_module(html
   SOURCES
@@ -299,6 +300,7 @@ add_executable(microbrowser_tests
   tests/PrivacyTests.cpp
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
+  tests/StyleResolverTests.cpp
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp
   tests/TreeBuilderTests.cpp

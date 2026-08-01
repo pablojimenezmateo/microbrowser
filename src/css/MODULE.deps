@@ -1,8 +1,8 @@
 purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error recovery is normative.
 
-allow: util dom
+allow: util dom gfx
 
-public: Token.h Tokenizer.h StyleSheet.h
+public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h StyleResolver.h
 
 extern:
 
@@ -17,3 +17,6 @@ budget: SelectorPart     header_lines=45 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
 budget: Selector         header_lines=25 public_methods=6  members=1
+budget: Length           header_lines=35 public_methods=10 members=2
+budget: ComputedStyle    header_lines=60 public_methods=10 members=22
+budget: StyleResolver    header_lines=60 public_methods=12 members=2

@@ -28,7 +28,7 @@ First-stop operating guide for agents working in this repository.
 | `src/privacy` | Blocking engine, URL sanitization, HTTPS-only, referrer trimming, `Verdict` |
 | `src/net` | HTTP/1.1, partitioned cookie jar and cache, `Fetch` gated on a `Verdict`, TCP+TLS transport |
 | `src/dom` | Node tree: Document, Element, Text, Comment, DocumentType |
-| `src/css` | Spec-literal CSS tokenizer, parser, selector matching, specificity. No cascade yet. |
+| `src/css` | CSS tokenizer, parser, selectors, cascade, computed style, user-agent stylesheet |
 | `src/html` | Spec-literal tokenizer and tree builder. No tables, foreign content or templates. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
 | `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |

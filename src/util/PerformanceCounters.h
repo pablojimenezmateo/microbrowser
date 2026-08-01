@@ -107,6 +107,7 @@ namespace microbrowser::util {
   X(CssTokens, "css.tokens")                                                     \
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
+  X(CssStylesResolved, "css.styles_resolved")                                    \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \
