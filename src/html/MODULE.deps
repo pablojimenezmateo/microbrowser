@@ -2,7 +2,7 @@ purpose: HTML tokenizing and tree construction. Spec-literal, because HTML's err
 
 allow: util url dom
 
-public: Token.h Tokenizer.h
+public: Token.h Tokenizer.h TreeBuilder.h
 
 extern:
 
@@ -15,3 +15,4 @@ max_tu_lines: 1400
 budget: TokenizerState header_lines=80 public_methods=0  members=0
 budget: Token          header_lines=45 public_methods=6  members=10
 budget: Tokenizer      header_lines=60 public_methods=12 members=18
+budget: TreeBuilder    header_lines=45 public_methods=8  members=10

@@ -1,0 +1,18 @@
+purpose: The document tree. Nodes, elements, text; ownership and traversal.
+
+# dom depends on util only. Style, layout and script all depend on dom, so a
+# dependency the other way would put the whole engine below the tree.
+allow: util
+
+public: Node.h
+
+extern:
+
+max_tu_lines: 800
+
+budget: Node         header_lines=70 public_methods=20 members=3
+budget: Element      header_lines=30 public_methods=10 members=2
+budget: Text         header_lines=25 public_methods=8  members=1
+budget: Comment      header_lines=25 public_methods=6  members=1
+budget: DocumentType header_lines=25 public_methods=6  members=1
+budget: Document     header_lines=40 public_methods=12 members=1

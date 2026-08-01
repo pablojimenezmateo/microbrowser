@@ -1,8 +1,12 @@
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <string_view>
 
+#include "dom/Node.h"
 #include "html/Tokenizer.h"
+#include "html/TreeBuilder.h"
 
 // The HTML tokenizer, fed arbitrary bytes.
 //
@@ -30,6 +34,29 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   }
   if (!saw_eof) {
     __builtin_trap();  // finished without an EOF token
+  }
+
+  // Tree construction over the same bytes. HTML has no failure mode, so the
+  // property is that *every* input produces a document with an html element —
+  // not that well-formed input does.
+  //
+  // Bounded because a page can nest ten thousand elements, and both building
+  // and destroying such a tree recurse. A stack overflow here is reachable by
+  // anyone who can serve a page.
+  if (size <= 64 * 1024) {
+    const std::unique_ptr<microbrowser::dom::Document> document =
+        microbrowser::html::ParseDocument(input);
+    if (document == nullptr || document->DocumentElement() == nullptr) {
+      __builtin_trap();
+    }
+    // Walking and serializing exercise the tree the builder actually made,
+    // rather than only the code that made it.
+    std::size_t nodes = 0;
+    document->ForEachDescendant([&nodes](const microbrowser::dom::Node&) { ++nodes; });
+    const std::string serialized = document->SerializeChildren();
+    if (serialized.empty()) {
+      __builtin_trap();  // every document serializes to at least <html>...
+    }
   }
   return 0;
 }

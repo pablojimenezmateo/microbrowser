@@ -100,6 +100,9 @@ namespace microbrowser::util {
   X(NetTlsFailures, "net.tls_failures")                                          \
   /* --- html ---------------------------------------------------------------- */ \
   X(HtmlTokens, "html.tokens")                                                   \
+  X(HtmlDocumentsParsed, "html.documents_parsed")                                \
+  X(HtmlUnsupportedInsertionMode, "html.unsupported_insertion_mode")             \
+  X(DomNodesCreated, "dom.nodes_created")                                        \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \
