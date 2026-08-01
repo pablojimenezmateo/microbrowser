@@ -39,6 +39,7 @@ enum class CommandTag : std::uint8_t {
   PopClip = 3,
   FillPath = 4,
   StrokePath = 5,
+  DrawText = 6,
 };
 
 void WriteRect(ByteWriter& writer, const gfx::IntRect& rect) {
@@ -75,6 +76,20 @@ bool ReadRect(ByteReader& reader, gfx::IntRect& out) {
 }
 
 constexpr std::size_t kMinBytesPerCommand = 1;
+
+// A font size beyond this is not a font size. FreeType converts to 26.6 fixed
+// point internally, so a size near the float maximum overflows there rather
+// than producing very large text, and a glyph outline scaled by it leaves the
+// rasterizer's coordinate range anyway. The bound is generous enough that no
+// legitimate page reaches it -- a 4096px heading is already absurd.
+constexpr float kMaxFontSize = 16384.0f;
+
+// A viewport edge, and the physical-pixels-per-CSS-pixel scale. Both are far
+// past anything real -- no display is 65536 pixels wide, and no device has a
+// scale factor of 64 -- and both keep the products they feed inside their
+// types.
+constexpr int kMaxViewportEdge = 65536;
+constexpr float kMaxDeviceScale = 64.0f;
 constexpr std::size_t kBytesPerRect = 16;
 // A Close verb is one tag byte with no points; every other verb costs more.
 constexpr std::size_t kMinBytesPerVerb = 1;
@@ -201,6 +216,39 @@ bool ReadStrokeStyle(ByteReader& reader, gfx::StrokeStyle& out) {
   return true;
 }
 
+// Text goes on the wire as the run and the font it asks for, inline, the same
+// way a path does -- see the note in gfx/DisplayList.h about why the in-memory
+// index must not cross a trust boundary. A renderer naming a run that is not
+// there would be an out-of-bounds read waiting to happen.
+void WriteFontRequest(ByteWriter& writer, const gfx::FontRequest& font) {
+  writer.WriteString(font.family);
+  writer.WriteF32(font.size);
+  writer.WriteI32(font.weight);
+  writer.WriteU8(font.italic ? 1 : 0);
+}
+
+bool ReadFontRequest(ByteReader& reader, gfx::FontRequest& out) {
+  out.family = reader.ReadString();
+  out.size = reader.ReadF32();
+  out.weight = reader.ReadI32();
+  const std::uint8_t italic = reader.ReadU8();
+  if (!reader.Ok() || italic > 1) {
+    return false;
+  }
+  // A size that is not a positive finite number reaches FreeType's fixed-point
+  // conversion, and a weight outside the CSS range makes the nearest-weight
+  // search meaningless. Both are values the encoder cannot produce, so the
+  // wire format does not have them either.
+  if (!std::isfinite(out.size) || out.size <= 0.0f || out.size > kMaxFontSize) {
+    return false;
+  }
+  if (out.weight < 1 || out.weight > 1000) {
+    return false;
+  }
+  out.italic = italic != 0;
+  return true;
+}
+
 void WriteDisplayList(ByteWriter& writer, const gfx::DisplayList& list) {
   const std::vector<gfx::Path>& paths = list.Paths();
   writer.WriteU32(static_cast<std::uint32_t>(list.Size()));
@@ -222,6 +270,24 @@ void WriteDisplayList(ByteWriter& writer, const gfx::DisplayList& list) {
       writer.WriteU32(stroke->color.argb);
       WriteStrokeStyle(writer, stroke->style);
       WritePath(writer, paths[stroke->path]);
+    } else if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+      const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+      const gfx::FontRequest* font = list.FontAt(text->font);
+      if (run == nullptr || font == nullptr) {
+        // Not reachable through the builder, which is why this writes a PopClip
+        // rather than skipping: the command count was already written, and a
+        // list that is one command short of its own header is a decode failure
+        // on the other side.
+        writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PopClip));
+        continue;
+      }
+      writer.WriteU8(static_cast<std::uint8_t>(CommandTag::DrawText));
+      writer.WriteU32(text->color.argb);
+      writer.WriteF32(text->origin.x);
+      writer.WriteF32(text->origin.y);
+      writer.WriteF32(run->advance);
+      WriteFontRequest(writer, *font);
+      writer.WriteString(run->text);
     } else {
       writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PopClip));
     }
@@ -292,6 +358,26 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
           return false;
         }
         out.StrokePath(path, style, color);
+        break;
+      }
+      case CommandTag::DrawText: {
+        const gfx::Color color{reader.ReadU32()};
+        const float x = reader.ReadF32();
+        const float y = reader.ReadF32();
+        const float advance = reader.ReadF32();
+        if (!reader.Ok() || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(advance) ||
+            advance < 0.0f) {
+          return false;
+        }
+        gfx::FontRequest font;
+        if (!ReadFontRequest(reader, font)) {
+          return false;
+        }
+        const std::string run = reader.ReadString();
+        if (!reader.Ok()) {
+          return false;
+        }
+        out.DrawText(run, advance, font, gfx::FloatPoint{x, y}, color);
         break;
       }
       default:
@@ -419,6 +505,24 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
       value.size.width = reader.ReadI32();
       value.size.height = reader.ReadI32();
       value.device_scale = reader.ReadF32();
+      if (!reader.Ok()) {
+        return std::nullopt;
+      }
+      // A viewport size becomes a canvas allocation of width * height * 4, so
+      // a negative or enormous edge is an overflow with an attacker's hand on
+      // it. kMaxViewportEdge is far past any real display and still leaves the
+      // product inside a 64-bit size_t with room to spare.
+      if (value.size.width < 0 || value.size.height < 0 ||
+          value.size.width > kMaxViewportEdge || value.size.height > kMaxViewportEdge) {
+        return std::nullopt;
+      }
+      // A NaN scale multiplies into every layout coordinate and compares false
+      // against every bound it is checked with, which is how a NaN gets past
+      // range checks and into the rasterizer.
+      if (!std::isfinite(value.device_scale) || value.device_scale <= 0.0f ||
+          value.device_scale > kMaxDeviceScale) {
+        return std::nullopt;
+      }
       message = value;
       break;
     }
@@ -439,6 +543,14 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
       value.position.x = reader.ReadI32();
       value.position.y = reader.ReadI32();
       value.button = reader.ReadU8();
+      if (!reader.Ok()) {
+        return std::nullopt;
+      }
+      // A pointer position is hit-tested against layout geometry, which is the
+      // same coordinate range every rect is required to stay inside.
+      if (!gfx::IsWithinDeviceRange(gfx::IntRect{value.position.x, value.position.y, 0, 0})) {
+        return std::nullopt;
+      }
       message = value;
       break;
     }
@@ -492,6 +604,13 @@ std::optional<EngineToUi> DeserializeEngineToUi(std::span<const std::byte> bytes
     case EngineTag::LoadProgress: {
       LoadProgressMessage value;
       value.fraction = reader.ReadF32();
+      if (!reader.Ok() || !std::isfinite(value.fraction) || value.fraction < 0.0f ||
+          value.fraction > 1.0f) {
+        // A fraction is a fraction. Out of range it drives a progress bar's
+        // width, and NaN makes every clamp that would have caught it compare
+        // false.
+        return std::nullopt;
+      }
       message = value;
       break;
     }

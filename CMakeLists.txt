@@ -362,6 +362,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
+  microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------

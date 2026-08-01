@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "TestSupport.h"
@@ -166,6 +168,136 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
                                 gfx::FillRule::EvenOdd);
     paint.display_list.StrokePath(shape, style, Color::Rgb(9, 9, 9));
     RoundTrip(ipc::EngineToUi{paint}, ipc::DeserializeEngineToUi, "PaintFrame(paths)");
+  });
+
+  AddTest(tests, "Ipc/TextCommandsRoundTrip", [] {
+    ipc::PaintFrameMessage paint;
+    paint.display_list.DrawText("Hello, world", 84.5f,
+                                gfx::FontRequest{"DejaVu Sans", 16.0f, 400, false},
+                                gfx::FloatPoint{12.0f, 30.5f}, Color::Rgb(0x11, 0x22, 0x33));
+    paint.display_list.DrawText("italic", 30.0f, gfx::FontRequest{"Serif", 24.0f, 700, true},
+                                gfx::FloatPoint{0.0f, 60.0f}, Color::Rgba(1, 2, 3, 4));
+    RoundTrip(ipc::EngineToUi{paint}, ipc::DeserializeEngineToUi, "PaintFrame(text)");
+
+    const auto decoded = ipc::DeserializeEngineToUi(ipc::Serialize(ipc::EngineToUi{paint}));
+    Expect(decoded.has_value(), "the frame must decode");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    ExpectEqInt(static_cast<long long>(list.Texts().size()), 2, "both runs crossed");
+    ExpectEqString(list.TextAt(0)->text, "Hello, world", "with their text");
+    ExpectEqString(list.FontAt(0)->family, "DejaVu Sans",
+                   "and the family they asked for -- a font handle could not cross a process "
+                   "boundary, which is why the command names a family");
+    Expect(list.FontAt(1)->italic && list.FontAt(1)->weight == 700, "and its slant and weight");
+  });
+
+  AddTest(tests, "Ipc/AHostileTextFrameIsRejected", [] {
+    // Each of these is a value the encoder cannot produce. A font size near the
+    // float maximum overflows FreeType's 26.6 conversion rather than producing
+    // very large text, and a weight outside the CSS range makes the
+    // nearest-weight search meaningless.
+    const auto text_frame = [](float size, int weight, std::uint8_t italic, float advance,
+                               float x) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(1);   // PaintFrame
+      writer.WriteU32(1);  // one command
+      writer.WriteU8(6);   // DrawText
+      writer.WriteU32(0xFF000000);
+      writer.WriteF32(x);
+      writer.WriteF32(0.0f);
+      writer.WriteF32(advance);
+      writer.WriteString("Family");
+      writer.WriteF32(size);
+      writer.WriteI32(weight);
+      writer.WriteU8(italic);
+      writer.WriteString("run");
+      writer.WriteU32(0);  // damage rect count
+      return writer.Take();
+    };
+
+    Expect(ipc::DeserializeEngineToUi(text_frame(16.0f, 400, 0, 10.0f, 1.0f)).has_value(),
+           "the control frame decodes, or this test proves nothing");
+    for (const auto& [bytes, why] : std::vector<std::pair<std::vector<std::byte>, const char*>>{
+             {text_frame(0.0f, 400, 0, 10.0f, 1.0f), "a zero font size"},
+             {text_frame(-16.0f, 400, 0, 10.0f, 1.0f), "a negative font size"},
+             {text_frame(1e30f, 400, 0, 10.0f, 1.0f), "a font size past the bound"},
+             {text_frame(std::numeric_limits<float>::infinity(), 400, 0, 10.0f, 1.0f),
+              "an infinite font size"},
+             {text_frame(std::numeric_limits<float>::quiet_NaN(), 400, 0, 10.0f, 1.0f),
+              "a NaN font size"},
+             {text_frame(16.0f, 0, 0, 10.0f, 1.0f), "a zero weight"},
+             {text_frame(16.0f, 2000, 0, 10.0f, 1.0f), "a weight past 1000"},
+             {text_frame(16.0f, -400, 0, 10.0f, 1.0f), "a negative weight"},
+             {text_frame(16.0f, 400, 2, 10.0f, 1.0f), "a slant that is neither 0 nor 1"},
+             {text_frame(16.0f, 400, 0, -1.0f, 1.0f), "a negative advance"},
+             {text_frame(16.0f, 400, 0, std::numeric_limits<float>::infinity(), 1.0f),
+              "an infinite advance"},
+             {text_frame(16.0f, 400, 0, 10.0f, std::numeric_limits<float>::quiet_NaN()),
+              "a NaN origin"},
+         }) {
+      Expect(!ipc::DeserializeEngineToUi(bytes).has_value(),
+             std::string("the decoder accepted ") + why);
+    }
+  });
+
+  AddTest(tests, "Ipc/ScalarFieldsAreRangeCheckedLikeEveryOtherField", [] {
+    // Found by the IPC fuzzer, as a frame that decoded but did not survive a
+    // re-encode: a NaN device scale. Decoding must be a fixed point of
+    // encoding, or the wire format is whatever the current decoder happens to
+    // accept rather than a format.
+    const auto resize = [](int width, int height, float scale) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(4);  // ResizeViewport
+      writer.WriteI32(width);
+      writer.WriteI32(height);
+      writer.WriteF32(scale);
+      return writer.Take();
+    };
+    Expect(ipc::DeserializeUiToEngine(resize(1280, 800, 2.0f)).has_value(),
+           "the control frame decodes, or this test proves nothing");
+    for (const auto& [bytes, why] : std::vector<std::pair<std::vector<std::byte>, const char*>>{
+             {resize(-1, 800, 1.0f), "a negative width"},
+             {resize(1280, -1, 1.0f), "a negative height"},
+             {resize(1 << 20, 800, 1.0f), "a width past any real display"},
+             {resize(1280, 800, std::numeric_limits<float>::quiet_NaN()), "a NaN device scale"},
+             {resize(1280, 800, std::numeric_limits<float>::infinity()), "an infinite scale"},
+             {resize(1280, 800, 0.0f), "a zero scale"},
+             {resize(1280, 800, -2.0f), "a negative scale"},
+         }) {
+      Expect(!ipc::DeserializeUiToEngine(bytes).has_value(),
+             std::string("the decoder accepted ") + why);
+    }
+
+    const auto progress = [](float fraction) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(3);  // LoadProgress
+      writer.WriteF32(fraction);
+      return writer.Take();
+    };
+    Expect(ipc::DeserializeEngineToUi(progress(0.5f)).has_value(), "a real fraction decodes");
+    for (const float fraction : {-0.1f, 1.5f, std::numeric_limits<float>::quiet_NaN(),
+                                 std::numeric_limits<float>::infinity()}) {
+      Expect(!ipc::DeserializeEngineToUi(progress(fraction)).has_value(),
+             "a fraction is a fraction; NaN makes every clamp that would catch it compare "
+             "false");
+    }
+
+    const auto pointer = [](int x, int y) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(6);  // Pointer
+      writer.WriteU8(0);  // Down
+      writer.WriteI32(x);
+      writer.WriteI32(y);
+      writer.WriteU8(1);  // button
+      return writer.Take();
+    };
+    Expect(ipc::DeserializeUiToEngine(pointer(10, 10)).has_value(), "a real position decodes");
+    Expect(!ipc::DeserializeUiToEngine(pointer(2000000000, 10)).has_value(),
+           "a pointer position is hit-tested against layout geometry, so it lives in the same "
+           "coordinate range every rect does");
   });
 
   AddTest(tests, "Ipc/APathIsSerializedAsGeometryRatherThanAnIndex", [] {
