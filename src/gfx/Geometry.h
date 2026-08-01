@@ -137,6 +137,23 @@ struct FloatRect {
   constexpr float Bottom() const { return y + height; }
   constexpr bool IsEmpty() const { return width <= 0.0f || height <= 0.0f; }
 
+  // Smallest rect containing both. An empty rect contributes nothing rather
+  // than dragging the union to the origin, which is what makes a running union
+  // over a list that starts empty come out right.
+  constexpr FloatRect United(const FloatRect& other) const {
+    if (IsEmpty()) {
+      return other;
+    }
+    if (other.IsEmpty()) {
+      return *this;
+    }
+    const float left = x < other.x ? x : other.x;
+    const float top = y < other.y ? y : other.y;
+    const float right = Right() > other.Right() ? Right() : other.Right();
+    const float bottom = Bottom() > other.Bottom() ? Bottom() : other.Bottom();
+    return FloatRect{left, top, right - left, bottom - top};
+  }
+
   friend constexpr bool operator==(const FloatRect&, const FloatRect&) = default;
 };
 

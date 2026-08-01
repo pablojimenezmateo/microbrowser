@@ -2,7 +2,7 @@ purpose: The only module that knows what a window is. SDL lives here and nowhere
 
 allow: util gfx
 
-public: InputEvent.h SdlWindow.h SdlPresenter.h AppDirectories.h
+public: InputEvent.h SdlWindow.h SdlPresenter.h AppDirectories.h SystemFonts.h
 
 extern: SDL3
 
@@ -11,3 +11,8 @@ max_tu_lines: 800
 budget: SdlWindow      header_lines=70 public_methods=14 members=3
 budget: SdlPresenter   header_lines=60 public_methods=6  members=3
 budget: AppDirectories header_lines=50 public_methods=6  members=3
+# Owns a catalog, an index of what is installed, and the fallback family. The
+# index is the reason this is not just a gfx::FontCatalog: it holds paths, not
+# faces, so a desktop's worth of fonts costs a list of strings rather than
+# hundreds of megabytes.
+budget: SystemFontProvider header_lines=60 public_methods=12 members=3

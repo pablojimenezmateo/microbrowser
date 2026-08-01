@@ -1,0 +1,73 @@
+#pragma once
+
+#include <cstddef>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include "gfx/FontCatalog.h"
+
+namespace microbrowser::platform {
+
+// The fonts installed on this machine, resolved on demand.
+//
+// Two phases, and the split is the point. Scanning parses each font file once
+// to learn the family, weight and slant it claims, then throws the bytes away —
+// a desktop has hundreds of font files and holding them all would cost hundreds
+// of megabytes to answer questions about a handful. Loading happens on the
+// first request that actually selects a face.
+//
+// Lives in platform rather than gfx because it reads the filesystem, and gfx is
+// the module that does not know what an operating system is. gfx defines the
+// seam (gfx::FontProvider); this is the implementation that knows where Linux
+// keeps its fonts.
+class SystemFontProvider : public gfx::FontProvider {
+ public:
+  explicit SystemFontProvider(gfx::FontLibrary& library) : catalog_(library) {}
+
+  // Indexes every font file under the standard directories. Returns how many
+  // faces were indexed. Safe to call more than once; already-indexed paths are
+  // skipped.
+  std::size_t Scan();
+
+  // Indexes one directory tree. Exposed so a test can point at a fixture
+  // directory instead of at whatever the machine happens to have installed.
+  std::size_t ScanDirectory(const std::filesystem::path& directory);
+
+  // The family a request falls back to. Set to the first sans-serif-looking
+  // family found unless a caller overrides it: a page that names a family this
+  // machine does not have must still render text.
+  void SetDefaultFamily(std::string family);
+  const std::string& DefaultFamily() const { return default_family_; }
+
+  gfx::Font* FontFor(const gfx::FontRequest& request) override;
+
+  std::size_t IndexedFaces() const { return index_.size(); }
+  std::size_t LoadedFaces() const { return catalog_.FaceCount(); }
+
+ private:
+  struct Indexed {
+    std::filesystem::path path;
+    std::string family;  // as the face reports it
+    int weight = 400;
+    bool italic = false;
+    bool loaded = false;
+  };
+
+  // Index of the best unloaded match, or npos.
+  std::size_t BestUnloaded(const gfx::FontRequest& request, int& distance_out) const;
+  bool Load(Indexed& entry);
+
+  gfx::FontCatalog catalog_;
+  std::vector<Indexed> index_;
+  std::string default_family_;
+};
+
+// Reads a whole file. Empty on any failure, including a file too large to be a
+// font: a font file arrives from the filesystem rather than the network here,
+// but a bound that only holds for trusted input is a bound that will be wrong
+// the first time @font-face reuses this.
+std::vector<std::byte> ReadFileBytes(const std::filesystem::path& path,
+                                     std::size_t max_bytes = 64u * 1024u * 1024u);
+
+}  // namespace microbrowser::platform

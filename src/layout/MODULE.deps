@@ -2,13 +2,18 @@ purpose: The box tree and its geometry. Turns a styled document into positioned 
 
 allow: util dom css gfx
 
-public: Box.h LayoutEngine.h
+public: Box.h FontTextMeasurer.h LayoutEngine.h
 
 extern:
 
 max_tu_lines: 900
 
 budget: BoxGeometry     header_lines=30 public_methods=6  members=4
-budget: Box             header_lines=60 public_methods=20 members=6
-budget: TextMeasurer    header_lines=25 public_methods=6  members=0
+# Fragments are the seventh member. A wrapped text box occupies one rectangle
+# per line and there is nowhere else to put them; a single geometry meant the
+# last line overwrote every earlier one.
+budget: Box             header_lines=80 public_methods=24 members=7
+budget: TextFragment    header_lines=25 public_methods=4  members=4
+budget: TextMeasurer    header_lines=30 public_methods=8  members=0
+budget: FontTextMeasurer header_lines=35 public_methods=8 members=1
 budget: LayoutEngine    header_lines=45 public_methods=8  members=2

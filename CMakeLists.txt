@@ -204,6 +204,7 @@ microbrowser_module(css
 
 microbrowser_module(layout
   SOURCES
+    src/layout/FontTextMeasurer.cpp
     src/layout/LayoutEngine.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_css microbrowser_gfx)
 
@@ -231,6 +232,8 @@ microbrowser_module(gfx
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
     src/gfx/Font.cpp
+    src/gfx/FontCatalog.cpp
+    src/gfx/TextRenderer.cpp
     src/gfx/Geometry.cpp
     src/gfx/GlyphCache.cpp
     src/gfx/Image.cpp
@@ -257,6 +260,7 @@ microbrowser_module(engine
 microbrowser_module(platform
   SOURCES
     src/platform/AppDirectories.cpp
+    src/platform/SystemFonts.cpp
     src/platform/SdlPresenter.cpp
     src/platform/SdlWindow.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc
@@ -291,6 +295,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/FetchTests.cpp
+  tests/FontCatalogTests.cpp
   tests/FontTests.cpp
   tests/GeometryTests.cpp
   tests/GlyphCacheTests.cpp

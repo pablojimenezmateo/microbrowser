@@ -173,6 +173,71 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
                    "white-space: pre keeps the run, which the built-in sheet sets on <pre>");
   });
 
+  // Whitespace across an element boundary is the case that renders as
+  // "boldand italic" when it is got wrong, and it is got wrong by collapsing
+  // per text node instead of per inline formatting context.
+  AddTest(tests, "Layout/KeepsTheSpaceBetweenTwoInlineElements", [] {
+    const LaidOut result = Run("<p><b>bold</b> and <i>italic</i> after</p>", "");
+    std::string line;
+    for (const Box* text : TextBoxes(*result.root)) {
+      line += text->Text();
+    }
+    ExpectEqString(line, "bold and italic after",
+                   "the space between two inlines lives at the edge of the text node between "
+                   "them, and dropping it renders 'boldand italic'");
+  });
+
+  AddTest(tests, "Layout/DropsACollapsibleSpaceAtTheStartOfALine", [] {
+    // The other half: a leading space that survives box building must not
+    // indent the line it lands on.
+    const LaidOut result =
+        Run("<div> leading</div>", "body { margin: 0 } div { margin: 0; font-size: 20px }", 400.0f);
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(!texts.empty(), "there is text");
+    Expect(!texts.at(0)->Fragments().empty(), "and a fragment");
+    Expect(texts.at(0)->Fragments().at(0).rect.x == 0.0f,
+           "a line never begins with a collapsible space");
+    ExpectEqInt(static_cast<long long>(texts.at(0)->Fragments().at(0).begin), 1,
+                "the fragment starts after the space rather than the text losing it");
+  });
+
+  AddTest(tests, "Layout/AWrappedTextBoxGetsOneFragmentPerLine", [] {
+    // A single geometry per text box meant the last line overwrote every
+    // earlier one, and every line but the last painted in the wrong place.
+    const LaidOut result = Run("<div>aaaa bbbb cccc</div>",
+                               "body { margin: 0 } div { margin: 0; width: 100px; font-size: 20px }",
+                               400.0f);
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(!texts.empty(), "there is text");
+    const std::vector<layout::TextFragment>& fragments = texts.at(0)->Fragments();
+    Expect(fragments.size() >= 2, "the run wrapped onto more than one line");
+    Expect(fragments.at(1).rect.y > fragments.at(0).rect.y, "and the second line is below the first");
+    for (const layout::TextFragment& fragment : fragments) {
+      Expect(fragment.baseline > fragment.rect.y && fragment.baseline <= fragment.rect.Bottom(),
+             "the baseline sits inside the line box, below its top");
+    }
+    std::size_t covered = 0;
+    for (const layout::TextFragment& fragment : fragments) {
+      covered += fragment.length;
+    }
+    Expect(covered <= texts.at(0)->Text().size(),
+           "fragments index the box's own text and cannot run past it");
+  });
+
+  AddTest(tests, "Layout/RelayoutDoesNotAccumulateFragments", [] {
+    LaidOut result = Run("<div>aaaa bbbb cccc</div>",
+                         "body { margin: 0 } div { margin: 0; font-size: 20px }", 400.0f);
+    const FixedTextMeasurer measurer(kAdvanceRatio);
+    const LayoutEngine engine(*result.resolver, measurer);
+    engine.Layout(*result.root, 100.0f);
+    const std::size_t narrow = TextBoxes(*result.root).at(0)->Fragments().size();
+    engine.Layout(*result.root, 400.0f);
+    const std::size_t wide = TextBoxes(*result.root).at(0)->Fragments().size();
+    Expect(narrow > wide, "a narrower viewport wraps onto more lines");
+    ExpectEqInt(static_cast<long long>(wide), 1,
+                "and laying out again replaces the fragments rather than appending to them");
+  });
+
   // Mixed block and inline children is the case that needs anonymous boxes.
   AddTest(tests, "Layout/WrapsInlineSiblingsOfBlocksInAnonymousBoxes", [] {
     const LaidOut result = Run("<div>text<p>para</p>more</div>", "");
@@ -234,6 +299,55 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     }
     Expect(saw_fill, "the background is a fill");
     Expect(saw_stroke, "and the border is a stroke");
+  });
+
+  AddTest(tests, "Layout/PaintsTextAtItsBaselineWithTheStylesFont", [] {
+    const LaidOut result =
+        Run("<div>hi</div>",
+            "body { margin: 0 } div { margin: 0; font-size: 20px; font-weight: bold; "
+            "font-family: Fictional; color: red }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+
+    const gfx::DrawTextCommand* drawn = nullptr;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        drawn = text;
+      }
+    }
+    Expect(drawn != nullptr, "the text was recorded");
+    Expect(list.TextAt(drawn->text) != nullptr, "with a run");
+    ExpectEqString(list.TextAt(drawn->text)->text, "hi", "and the run is the text");
+    Expect(drawn->color == gfx::Color::Rgb(0xFF, 0, 0), "in the style's color");
+
+    const gfx::FontRequest* font = list.FontAt(drawn->font);
+    Expect(font != nullptr, "and a font request");
+    ExpectEqString(font->family, "Fictional",
+                   "which names a family rather than carrying a font handle -- a handle could "
+                   "not cross a process boundary");
+    Expect(font->size == 20.0f && font->weight == 700, "at the style's size and weight");
+
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(drawn->origin.y == texts.at(0)->Fragments().at(0).baseline,
+           "text is drawn at the baseline, not at the top of the line box");
+  });
+
+  AddTest(tests, "Layout/TextBoundsCoverTheGlyphsWithoutAFont", [] {
+    // Damage is computed from a display list alone: the compositor side has no
+    // font stack, and after the process split it is on the other side of the
+    // sandbox from one.
+    const LaidOut result =
+        Run("<div>hi</div>", "body { margin: 0 } div { margin: 0; font-size: 20px }", 400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    const gfx::IntRect bounds = list.Bounds();
+
+    const layout::TextFragment& fragment = TextBoxes(*result.root).at(0)->Fragments().at(0);
+    Expect(bounds.y <= static_cast<int>(fragment.baseline) - 20,
+           "the bound reaches an em above the baseline, which is above any ascent");
+    Expect(bounds.Right() >= static_cast<int>(fragment.rect.Right()),
+           "and past the end of the advance, where a diacritic can sit");
   });
 
   AddTest(tests, "Layout/PaintsParentsBeforeChildren", [] {

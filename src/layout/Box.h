@@ -1,12 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "css/ComputedStyle.h"
 #include "dom/Node.h"
+#include "gfx/Font.h"
 #include "gfx/Geometry.h"
 
 namespace microbrowser::layout {
@@ -26,6 +28,35 @@ struct BoxGeometry {
   gfx::FloatRect PaddingBox() const;
   gfx::FloatRect BorderBox() const;
   gfx::FloatRect MarginBox() const;
+};
+
+// The font a computed style asks for.
+//
+// One implementation, used by both the measurer and the painter. Two would let
+// text be measured with one face and drawn with another, which shows up as
+// lines that overflow their boxes by a few pixels and is very hard to trace
+// back to a duplicated four-line function.
+gfx::FontRequest FontRequestFor(const css::ComputedStyle& style);
+
+// One piece of a text box, on one line.
+//
+// A text box that wraps occupies several rectangles, and the box cannot hold
+// just one: the last one would win and the earlier lines would paint at the
+// wrong place, or not at all. Fragments are also the only structure that makes
+// selection and hit testing expressible later — a caret lands in a fragment at
+// a byte offset, and both numbers are here.
+struct TextFragment {
+  // Byte range within the box's text.
+  std::uint32_t begin = 0;
+  std::uint32_t length = 0;
+  // The line box this fragment occupies. Its width is the run's advance.
+  gfx::FloatRect rect;
+  // Where the glyphs actually sit. Distinct from rect.y by the ascent, which
+  // only the font knows: mixing the two is the classic reason text renders one
+  // line too low.
+  float baseline = 0.0f;
+
+  friend bool operator==(const TextFragment&, const TextFragment&) = default;
 };
 
 // One box in the layout tree.
@@ -65,6 +96,10 @@ class Box {
 
   bool IsBlockLevel() const { return kind_ == Kind::Block || kind_ == Kind::AnonymousBlock; }
 
+  const std::vector<TextFragment>& Fragments() const { return fragments_; }
+  void AddFragment(const TextFragment& fragment) { fragments_.push_back(fragment); }
+  void ClearFragments() { fragments_.clear(); }
+
   template <typename Visitor>
   void ForEachDescendant(Visitor&& visit) const {
     for (const std::unique_ptr<Box>& child : children_) {
@@ -80,6 +115,7 @@ class Box {
   std::vector<std::unique_ptr<Box>> children_;
   const dom::Element* origin_ = nullptr;
   std::string text_;
+  std::vector<TextFragment> fragments_;
 };
 
 // Measures text. An interface because layout must be testable without a font:
@@ -94,6 +130,8 @@ class TextMeasurer {
   virtual ~TextMeasurer() = default;
   virtual float MeasureWidth(std::string_view text, const css::ComputedStyle& style) const = 0;
   virtual float LineHeight(const css::ComputedStyle& style) const = 0;
+  // Distance from the top of the line box to the baseline. Positive.
+  virtual float Ascent(const css::ComputedStyle& style) const = 0;
 
  protected:
   TextMeasurer() = default;
@@ -108,6 +146,7 @@ class FixedTextMeasurer : public TextMeasurer {
 
   float MeasureWidth(std::string_view text, const css::ComputedStyle& style) const override;
   float LineHeight(const css::ComputedStyle& style) const override;
+  float Ascent(const css::ComputedStyle& style) const override;
 
  private:
   float ratio_;

@@ -5,7 +5,10 @@
 #include <variant>
 #include <vector>
 
+#include <string>
+
 #include "gfx/Color.h"
+#include "gfx/Font.h"
 #include "gfx/Geometry.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
@@ -14,6 +17,7 @@
 namespace microbrowser::gfx {
 
 class Painter;
+class TextRenderer;
 
 // An immutable, comparable, serializable recording of what to paint.
 //
@@ -78,8 +82,26 @@ struct StrokePathCommand {
   friend bool operator==(const StrokePathCommand&, const StrokePathCommand&) = default;
 };
 
+// Text names its run by index into the list's own table, for the same reason a
+// path does. `origin` is the *baseline* start, not a corner: a box's top is a
+// layout coordinate and the baseline is where glyphs actually sit, and the two
+// differ by an ascent that only the font knows.
+//
+// The font is a FontRequest, not a Font*, and that is the load-bearing part: a
+// display list carrying a live font handle could not be serialized, could not
+// cross a process boundary, and could not be compared between frames. It names
+// a family and a size; resolution happens once, at paint time.
+struct DrawTextCommand {
+  std::uint32_t text = 0;
+  std::uint32_t font = 0;
+  FloatPoint origin;
+  Color color;
+
+  friend bool operator==(const DrawTextCommand&, const DrawTextCommand&) = default;
+};
+
 using DisplayCommand = std::variant<FillRectCommand, PushClipCommand, PopClipCommand,
-                                    FillPathCommand, StrokePathCommand>;
+                                    FillPathCommand, StrokePathCommand, DrawTextCommand>;
 
 class DisplayList {
  public:
@@ -97,11 +119,37 @@ class DisplayList {
     return index < paths_.size() ? &paths_[index] : nullptr;
   }
 
+  // One text run: the string, and the advance width measured when it was
+  // recorded.
+  struct TextRun {
+    std::string text;
+    float advance = 0.0f;
+
+    friend bool operator==(const TextRun&, const TextRun&) = default;
+  };
+
+  const std::vector<TextRun>& Texts() const { return texts_; }
+  const std::vector<FontRequest>& Fonts() const { return fonts_; }
+
+  const TextRun* TextAt(std::uint32_t index) const {
+    return index < texts_.size() ? &texts_[index] : nullptr;
+  }
+  const FontRequest* FontAt(std::uint32_t index) const {
+    return index < fonts_.size() ? &fonts_[index] : nullptr;
+  }
+
   void FillRect(const IntRect& rect, Color color);
   void PushClip(const IntRect& rect);
   void PopClip();
   void FillPath(const Path& path, Color color, FillRule rule = FillRule::NonZero);
   void StrokePath(const Path& path, const StrokeStyle& style, Color color);
+
+  // `advance` is the run's total advance width, which the caller has already
+  // measured to lay the run out. Stored rather than recomputed because Bounds()
+  // must work without a font — damage is computed by the compositor side, which
+  // has a display list and nothing else.
+  void DrawText(std::string_view text, float advance, const FontRequest& font, FloatPoint origin,
+                Color color);
 
   // Union of the device pixels this list can touch. Used to seed damage when
   // there is no previous list to diff against.
@@ -114,6 +162,10 @@ class DisplayList {
  private:
   std::vector<DisplayCommand> commands_;
   std::vector<Path> paths_;
+  std::vector<TextRun> texts_;
+  // Deduplicated: a page has a handful of fonts and thousands of runs, and a
+  // FontRequest holds a std::string.
+  std::vector<FontRequest> fonts_;
 };
 
 // Execute `list` through `painter`, restricted to `damage`. Commands whose
@@ -126,7 +178,12 @@ class DisplayList {
 //
 // The canvas clip stack is left as it was found even if the list is unbalanced
 // (a malformed list must not corrupt the next frame).
-void Execute(const DisplayList& list, Painter& painter, const IntRect& damage);
+// `text` may be null, in which case text commands are skipped. That is the
+// right default rather than an oversight: a list with no text executes without
+// a font stack, and every reference test that draws only shapes says so by
+// passing nothing.
+void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
+             TextRenderer* text = nullptr);
 
 // A command is copied into a vector per paint; keeping it small keeps a
 // complex page's display list in cache. See docs/adr/0002-growth-budgets.md.

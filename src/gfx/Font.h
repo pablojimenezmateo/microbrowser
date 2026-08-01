@@ -40,6 +40,25 @@ struct FontMetrics {
 // legibility on a 96 DPI panel and decides otherwise.
 enum class Hinting : std::uint8_t { None, Normal };
 
+// What text asks for, before anything has decided which file answers.
+//
+// A request rather than a Font, because the thing that knows the text (layout,
+// a display list, another process) must not need a live FreeType face to
+// describe it. Resolution happens once, at paint time, through a FontProvider.
+// This is also what lets a display list carrying text cross a process boundary:
+// it names a family, not a handle.
+struct FontRequest {
+  // Empty means "whatever the provider's default is". Generic families
+  // ("serif", "sans-serif", "monospace") are spelled as themselves.
+  std::string family;
+  float size = 16.0f;
+  // CSS numeric weights: 400 is normal, 700 is bold.
+  int weight = 400;
+  bool italic = false;
+
+  friend bool operator==(const FontRequest&, const FontRequest&) = default;
+};
+
 // Owns the FreeType library handle.
 //
 // An object rather than a process-wide singleton: the repo bans global service
@@ -91,6 +110,12 @@ class FontFace {
   int UnitsPerEm() const;
   std::size_t GlyphCount() const;
   std::string FamilyName() const;
+
+  // What the face says about itself, for building a font database without a
+  // filename heuristic. A filename says "Bold" only by convention, and the
+  // convention is not universal; OS/2 says it in a number.
+  int Weight() const;
+  bool IsItalic() const;
 
   // Zero (.notdef) for an unmapped codepoint, which is what the font itself
   // says and what shaping expects to see.

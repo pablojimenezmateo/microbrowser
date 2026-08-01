@@ -6,6 +6,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
+#include FT_TRUETYPE_TABLES_H
 
 #include "util/PerformanceCounters.h"
 
@@ -174,6 +175,28 @@ std::string FontFace::FamilyName() const {
     return {};
   }
   return std::string(AsFace(face_)->family_name);
+}
+
+int FontFace::Weight() const {
+  if (face_ == nullptr) {
+    return 400;
+  }
+  // OS/2 is the authority and is present in every font a browser will meet, but
+  // it is optional in the format, so the bold style flag is the fallback and
+  // 400 is the fallback to that.
+  const auto* os2 = static_cast<const TT_OS2*>(FT_Get_Sfnt_Table(AsFace(face_), FT_SFNT_OS2));
+  if (os2 != nullptr && os2->version != 0xFFFF && os2->usWeightClass >= 1 &&
+      os2->usWeightClass <= 1000) {
+    return static_cast<int>(os2->usWeightClass);
+  }
+  return (AsFace(face_)->style_flags & FT_STYLE_FLAG_BOLD) != 0 ? 700 : 400;
+}
+
+bool FontFace::IsItalic() const {
+  if (face_ == nullptr) {
+    return false;
+  }
+  return (AsFace(face_)->style_flags & FT_STYLE_FLAG_ITALIC) != 0;
 }
 
 GlyphId FontFace::GlyphForCodepoint(char32_t codepoint) const {

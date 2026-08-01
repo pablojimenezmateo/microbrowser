@@ -108,6 +108,13 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  /* --- text ---------------------------------------------------------------- */ \
+  X(FontFacesRegistered, "font.faces_registered")                                \
+  X(FontLookupHits, "font.lookup_hits")                                          \
+  X(FontLookupMisses, "font.lookup_misses")                                      \
+  X(ShapedRunCacheHits, "text.shaped_run_cache_hits")                            \
+  X(ShapedRunCacheMisses, "text.shaped_run_cache_misses")                        \
+  X(TextRunsPainted, "text.runs_painted")                                        \
   /* --- layout -------------------------------------------------------------- */ \
   X(LayoutTreeBuilds, "layout.tree_builds")                                      \
   X(LayoutBoxesCreated, "layout.boxes_created")                                  \

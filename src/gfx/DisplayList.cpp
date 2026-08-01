@@ -5,6 +5,7 @@
 
 #include "gfx/Canvas.h"
 #include "gfx/Painter.h"
+#include "gfx/TextRenderer.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::gfx {
@@ -33,6 +34,23 @@ IntRect BoundsOfPath(const Path& path) {
   return EnclosingIntRect(path.ControlBounds());
 }
 
+// Where a text run can put ink, without asking a font.
+//
+// Damage is computed from a display list alone — the compositor side has no
+// font stack, and in the process-split future it is on the other side of the
+// sandbox from one. So this over-estimates deliberately: a font's ink can climb
+// well above its ascent (accents, a tall integral sign) and drop below its
+// descent, and a diacritic can sit outside the advance at either end.
+// Over-estimating costs a wider damage rect; under-estimating leaves stale
+// pixels on screen, so the rounding goes one way only.
+IntRect TextInkBounds(const DisplayList::TextRun& run, const FontRequest& font,
+                      FloatPoint origin) {
+  const float size = std::isfinite(font.size) && font.size > 0.0f ? font.size : 0.0f;
+  const float advance = std::max(run.advance, 0.0f);
+  return EnclosingIntRect(FloatRect{origin.x - size, origin.y - size * 2.0f,
+                                    advance + size * 2.0f, size * 3.0f});
+}
+
 }  // namespace
 
 void DisplayList::Clear() {
@@ -40,6 +58,8 @@ void DisplayList::Clear() {
   // reusing the capacity is what keeps painting off the allocator.
   commands_.clear();
   paths_.clear();
+  texts_.clear();
+  fonts_.clear();
 }
 
 void DisplayList::FillRect(const IntRect& rect, Color color) {
@@ -81,6 +101,25 @@ void DisplayList::StrokePath(const Path& path, const StrokeStyle& style, Color c
   AddPerformanceCounter(PerfCounterId::DisplayListCommands);
 }
 
+void DisplayList::DrawText(std::string_view text, float advance, const FontRequest& font,
+                           FloatPoint origin, Color color) {
+  if (text.empty() || color.IsFullyTransparent() || !std::isfinite(advance) ||
+      !std::isfinite(origin.x) || !std::isfinite(origin.y)) {
+    return;
+  }
+  std::uint32_t font_index = 0;
+  while (font_index < fonts_.size() && !(fonts_[font_index] == font)) {
+    ++font_index;
+  }
+  if (font_index == fonts_.size()) {
+    fonts_.push_back(font);
+  }
+  texts_.push_back(TextRun{std::string(text), advance});
+  commands_.emplace_back(DrawTextCommand{static_cast<std::uint32_t>(texts_.size() - 1), font_index,
+                                         origin, color});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
 IntRect DisplayList::Bounds() const {
   IntRect bounds;
   for (const DisplayCommand& command : commands_) {
@@ -98,12 +137,19 @@ IntRect DisplayList::Bounds() const {
         const int outset = SaturateFloatToInt(std::ceil(StrokeOutset(stroke->style)));
         bounds = bounds.United(BoundsOfPath(*geometry).Inflated(outset));
       }
+    } else if (const auto* text = std::get_if<DrawTextCommand>(&command)) {
+      const TextRun* run = TextAt(text->text);
+      const FontRequest* font = FontAt(text->font);
+      if (run != nullptr && font != nullptr) {
+        bounds = bounds.United(TextInkBounds(*run, *font, text->origin));
+      }
     }
   }
   return bounds;
 }
 
-void Execute(const DisplayList& list, Painter& painter, const IntRect& damage) {
+void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
+             TextRenderer* text_renderer) {
   AddPerformanceCounter(PerfCounterId::DisplayListExecutions);
 
   Canvas& canvas = painter.Target();
@@ -127,6 +173,12 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage) {
     } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
       if (const Path* geometry = list.PathAt(stroke->path)) {
         painter.StrokePath(*geometry, stroke->style, stroke->color);
+      }
+    } else if (const auto* text = std::get_if<DrawTextCommand>(&command)) {
+      const DisplayList::TextRun* run = list.TextAt(text->text);
+      const FontRequest* font = list.FontAt(text->font);
+      if (text_renderer != nullptr && run != nullptr && font != nullptr) {
+        text_renderer->DrawRun(painter, run->text, *font, text->origin, text->color);
       }
     } else {
       // PopClip. Refuse to pop past our own damage clip: an unbalanced list

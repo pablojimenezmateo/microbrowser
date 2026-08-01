@@ -19,6 +19,13 @@ bool IsSpace(char c) {
 // Collapses runs of whitespace to a single space, which is what `white-space:
 // normal` means. Done at box-building time rather than during line breaking,
 // because the collapsed text is what every later step measures.
+//
+// Leading and trailing spaces survive. They carry real information across an
+// element boundary: in `<b>bold</b> and <i>italic</i>`, the space between the
+// two inlines is the leading space of the middle text node, and dropping it
+// here renders "boldand italic". Dropping a space that turns out to be at the
+// start of a line is line breaking's job, because only line breaking knows
+// where a line starts.
 std::string CollapseWhitespace(std::string_view text) {
   std::string out;
   out.reserve(text.size());
@@ -28,15 +35,13 @@ std::string CollapseWhitespace(std::string_view text) {
       in_space = true;
       continue;
     }
-    if (in_space && !out.empty()) {
+    if (in_space) {
       out.push_back(' ');
     }
     in_space = false;
     out.push_back(c);
   }
-  // A trailing space is kept only if there was text before it, so that
-  // `<span>a </span><span>b</span>` renders "a b" rather than "ab".
-  if (in_space && !out.empty()) {
+  if (in_space) {
     out.push_back(' ');
   }
   return out;
@@ -44,6 +49,12 @@ std::string CollapseWhitespace(std::string_view text) {
 
 bool IsAllWhitespace(std::string_view text) {
   return std::all_of(text.begin(), text.end(), IsSpace);
+}
+
+// A text box that is nothing but collapsible whitespace.
+bool IsCollapsibleSpace(const Box& box) {
+  return box.GetKind() == Box::Kind::Text &&
+         box.Style().white_space == css::WhiteSpace::Normal && IsAllWhitespace(box.Text());
 }
 
 }  // namespace
@@ -74,6 +85,17 @@ gfx::FloatRect BoxGeometry::MarginBox() const {
                         inner.height + top + margin.bottom.Resolve(0.0f)};
 }
 
+// A request rather than a Font: the display list must be describable without a
+// live face -- see gfx/DisplayList.h.
+gfx::FontRequest FontRequestFor(const css::ComputedStyle& style) {
+  gfx::FontRequest request;
+  request.family = style.font_family;
+  request.size = style.font_size;
+  request.weight = static_cast<int>(style.font_weight);
+  request.italic = style.font_style == css::FontStyle::Italic;
+  return request;
+}
+
 Box& Box::Append(std::unique_ptr<Box> child) {
   children_.push_back(std::move(child));
   AddPerformanceCounter(PerfCounterId::LayoutBoxesCreated);
@@ -89,6 +111,12 @@ float FixedTextMeasurer::LineHeight(const css::ComputedStyle& style) const {
   return style.line_height > 0.0f ? style.line_height : style.font_size * 1.2f;
 }
 
+float FixedTextMeasurer::Ascent(const css::ComputedStyle& style) const {
+  // 0.8 em, which is close enough to a typical face that a test asserting a
+  // baseline position states a number rather than a font's opinion.
+  return style.font_size * 0.8f;
+}
+
 std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
                                             const css::ComputedStyle& parent_style,
                                             bool& produced_inline) const {
@@ -98,10 +126,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
                                parent_style.white_space == css::WhiteSpace::PreWrap
                            ? text_node.Data()
                            : CollapseWhitespace(text_node.Data());
-    if (text.empty() ||
-        (IsAllWhitespace(text) && parent_style.white_space == css::WhiteSpace::Normal)) {
-      // Whitespace between blocks generates no box. Keeping it would put a
-      // blank line between every pair of paragraphs.
+    if (text.empty()) {
       return nullptr;
     }
     // A text box carries only the *inherited* properties of its parent. Copying
@@ -155,6 +180,39 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     any_inline = any_inline || child_inline;
     any_block = any_block || child_box->IsBlockLevel();
     children.push_back(std::move(child_box));
+  }
+
+  // Whitespace between two blocks generates no box -- keeping it would put a
+  // blank line between every pair of paragraphs -- but whitespace between two
+  // *inlines* is the space between two words, and dropping it renders
+  // "boldand italic". The difference is what the neighbours are, which is only
+  // knowable here, after they have all been built.
+  if (style.white_space == css::WhiteSpace::Normal) {
+    std::vector<std::unique_ptr<Box>> kept;
+    kept.reserve(children.size());
+    for (std::size_t i = 0; i < children.size(); ++i) {
+      if (!IsCollapsibleSpace(*children[i])) {
+        kept.push_back(std::move(children[i]));
+        continue;
+      }
+      // Dropped at the edges of the block too: a line never begins or ends
+      // with a collapsible space.
+      // The previous sibling is read from `kept`, not from `children`: the ones
+      // already kept were moved out and left null behind them.
+      const bool inline_before = !kept.empty() && !kept.back()->IsBlockLevel();
+      const bool inline_after =
+          i + 1 < children.size() && !children[i + 1]->IsBlockLevel();
+      if (inline_before && inline_after) {
+        kept.push_back(std::move(children[i]));
+      }
+    }
+    children = std::move(kept);
+    any_inline = false;
+    any_block = false;
+    for (const std::unique_ptr<Box>& child : children) {
+      any_inline = any_inline || !child->IsBlockLevel();
+      any_block = any_block || child->IsBlockLevel();
+    }
   }
 
   if (!inline_level && any_inline && any_block) {
@@ -242,59 +300,81 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   for (Box* text_box : run) {
     const css::ComputedStyle& style = text_box->Style();
     const float height = measurer_->LineHeight(style);
-    std::string_view remaining = text_box->Text();
-    bool placed_any = false;
+    const float ascent = measurer_->Ascent(style);
+    // Relayout must not append to the last one's fragments. A box laid out at
+    // one width and then another would otherwise paint both.
+    text_box->ClearFragments();
 
-    while (!remaining.empty()) {
+    const std::string& text = text_box->Text();
+    std::size_t offset = 0;
+    while (offset < text.size()) {
+      // A line never begins with a collapsible space. This is the other half of
+      // CollapseWhitespace keeping leading spaces: they matter between two
+      // inlines, and only here is it known whether this one landed at the start
+      // of a line.
+      while (offset < text.size() && text[offset] == ' ' && !line_has_content) {
+        ++offset;
+      }
+      if (offset >= text.size()) {
+        break;
+      }
+      const std::string_view remaining(text.data() + offset, text.size() - offset);
       const float available = content_left + content_width - x;
       const float full_width = measurer_->MeasureWidth(remaining, style);
 
-      if (full_width <= available || (!line_has_content && x == content_left)) {
-        // Fits, or the line is empty and something must go on it regardless —
-        // otherwise a single unbreakable word narrower than nothing loops
-        // forever.
-        std::string_view piece = remaining;
-        if (full_width > available && line_has_content) {
-          piece = remaining;
-        }
-        if (full_width > available) {
-          // Break at the last space that fits.
-          std::size_t best = std::string_view::npos;
-          for (std::size_t at = 0; at < remaining.size(); ++at) {
-            if (remaining[at] != ' ') {
-              continue;
-            }
-            if (measurer_->MeasureWidth(remaining.substr(0, at), style) <= available) {
-              best = at;
-            } else {
-              break;
-            }
-          }
-          if (best != std::string_view::npos && best > 0) {
-            piece = remaining.substr(0, best);
-          }
-        }
-        text_box->Geometry().content =
-            gfx::FloatRect{x, y, measurer_->MeasureWidth(piece, style), height};
-        x += measurer_->MeasureWidth(piece, style);
-        line_height = std::max(line_height, height);
-        line_has_content = true;
-        placed_any = true;
-
-        remaining.remove_prefix(piece.size());
-        while (!remaining.empty() && remaining.front() == ' ') {
-          remaining.remove_prefix(1);
-        }
-        if (!remaining.empty()) {
-          finish_line();
-        }
+      if (full_width > available && line_has_content) {
+        // Does not fit and the line already has something on it: wrap and retry
+        // against a full-width line.
+        finish_line();
         continue;
       }
 
-      // Does not fit and the line already has content: wrap and retry.
-      finish_line();
+      std::string_view piece = remaining;
+      if (full_width > available) {
+        // Break at the last space that fits. When nothing fits, the whole
+        // remainder goes on this line anyway — the line is empty, and a piece
+        // that never shrinks is how a line-breaking loop spins forever.
+        std::size_t best = std::string_view::npos;
+        for (std::size_t at = 0; at < remaining.size(); ++at) {
+          if (remaining[at] != ' ') {
+            continue;
+          }
+          if (measurer_->MeasureWidth(remaining.substr(0, at), style) <= available) {
+            best = at;
+          } else {
+            break;
+          }
+        }
+        if (best != std::string_view::npos && best > 0) {
+          piece = remaining.substr(0, best);
+        }
+      }
+
+      const float advance = measurer_->MeasureWidth(piece, style);
+      TextFragment fragment;
+      fragment.begin = static_cast<std::uint32_t>(offset);
+      fragment.length = static_cast<std::uint32_t>(piece.size());
+      fragment.rect = gfx::FloatRect{x, y, advance, height};
+      fragment.baseline = y + ascent;
+      text_box->AddFragment(fragment);
+      // The box's own geometry is the union of its fragments, so a caller that
+      // only wants "where is this text" gets an answer without walking them.
+      text_box->Geometry().content = text_box->Fragments().size() == 1
+                                         ? fragment.rect
+                                         : text_box->Geometry().content.United(fragment.rect);
+
+      x += advance;
+      line_height = std::max(line_height, height);
+      line_has_content = true;
+
+      offset += piece.size();
+      while (offset < text.size() && text[offset] == ' ') {
+        ++offset;
+      }
+      if (offset < text.size()) {
+        finish_line();
+      }
     }
-    (void)placed_any;
   }
 
   if (line_has_content) {
@@ -380,6 +460,14 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out) {
     // painter says so too: this is the kind of invariant that is cheap to
     // assert here and expensive to rediscover from a screenshot.
     if (box.GetKind() == Box::Kind::Text) {
+      const gfx::FontRequest font = FontRequestFor(style);
+      for (const TextFragment& fragment : box.Fragments()) {
+        const std::string_view piece(box.Text().data() + fragment.begin, fragment.length);
+        // The baseline, not the top of the line box. They differ by an ascent,
+        // and using the wrong one puts every line of text a line too low.
+        out.DrawText(piece, fragment.rect.width, font,
+                     gfx::FloatPoint{fragment.rect.x, fragment.baseline}, style.color);
+      }
       return;
     }
     const gfx::FloatRect border_box = box.Geometry().BorderBox();
