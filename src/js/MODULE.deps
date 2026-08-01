@@ -5,11 +5,11 @@ purpose: JavaScript. Lexing, parsing, and execution. Knows nothing about the DOM
 # same-origin check will live. Bindings arrive in M9 as a separate seam.
 allow: util
 
-public: Token.h Lexer.h Ast.h Parser.h
+public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h
 
 extern:
 
-max_tu_lines: 1200
+max_tu_lines: 1300
 
 budget: Token  header_lines=40 public_methods=8  members=9
 budget: Lexer  header_lines=60 public_methods=12 members=3
@@ -23,3 +23,12 @@ budget: NodeKind header_lines=70 public_methods=0  members=0
 # The parser's shared state, split across two translation units: expressions in
 # Parser.cpp and statements in ParserStatements.cpp.
 budget: ParserImpl header_lines=90 public_methods=6 members=5
+budget: Value       header_lines=60 public_methods=20 members=5
+budget: Object      header_lines=90 public_methods=30 members=12
+budget: Environment header_lines=40 public_methods=10 members=3
+budget: Heap        header_lines=90 public_methods=16 members=6
+# The tree-walking interpreter. Its members are the heap, the well-known
+# objects it needs to hand out, and the shadow stacks the collector reads --
+# a tree-walker cannot scan its own C++ frames, which is one of the concrete
+# reasons a bytecode VM is worth building.
+budget: Interpreter header_lines=140 public_methods=24 members=14

@@ -278,6 +278,12 @@ microbrowser_module(js
     src/js/Lexer.cpp
     src/js/Parser.cpp
     src/js/ParserStatements.cpp
+    src/js/Value.cpp
+    src/js/Heap.cpp
+    src/js/Interpreter.cpp
+    src/js/Evaluator.cpp
+    src/js/Statements.cpp
+    src/js/Builtins.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(ui
@@ -328,6 +334,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
+  tests/JsInterpreterTests.cpp
   tests/JsLexerTests.cpp
   tests/JsParserTests.cpp
   tests/LayoutTests.cpp
@@ -396,6 +403,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
   microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
   microbrowser_fuzzer(js_parser_fuzzer fuzz/JsParserFuzzer.cpp microbrowser_js)
+  microbrowser_fuzzer(js_interpreter_fuzzer fuzz/JsInterpreterFuzzer.cpp microbrowser_js)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------
