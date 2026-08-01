@@ -25,6 +25,7 @@ First-stop operating guide for agents working in this repository.
 | `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE/zlib inflate |
 | `src/gfx` | Geometry, AffineTransform, Color, Canvas, DisplayList, Path, analytic-AA rasterizer, stroker, SSE2 blitters, FreeType+HarfBuzz text, glyph cache, PNG decoder, Painter. SDL-free. |
 | `src/url` | WHATWG URL parser, Host, Origin, baked-in PSL, Site, ContainerId, PartitionKey |
+| `src/privacy` | Blocking engine, URL sanitization, HTTPS-only, referrer trimming, `Verdict` |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
 | `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |
 | `src/platform` | The only module that knows what a window is. SDL lives here. |

@@ -251,8 +251,16 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
   AddTest(tests, "PublicSuffix/AddressesAndUnknownSuffixesHaveNoRegistrableDomain", [] {
     ExpectEqString(url::RegistrableDomain("127.0.0.1"), "", "an address is not a name");
     ExpectEqString(url::RegistrableDomain("[::1]"), "", "nor is an IPv6 address");
-    ExpectEqString(url::RegistrableDomain("example.invalidtld"), "",
-                   "a suffix not on the list yields nothing, which is the conservative answer");
+    // "If no rules match, the prevailing rule is `*`" — part of the algorithm,
+    // not a fallback. An unlisted TLD gets a one-label suffix, so a host under
+    // it has exactly one registrable domain rather than none.
+    ExpectEqString(url::RegistrableDomain("example.invalidtld"), "example.invalidtld",
+                   "an unlisted TLD still yields a registrable domain, per the implicit "
+                   "wildcard rule");
+    ExpectEqString(url::RegistrableDomain("a.b.example.invalidtld"), "example.invalidtld",
+                   "and subdomains still collapse onto it");
+    ExpectEqString(url::RegistrableDomain("invalidtld"), "",
+                   "but a bare unlisted TLD has nothing registrable under it");
     Expect(url::PublicSuffixListSize() > 0, "the list is compiled in, not fetched");
   });
 

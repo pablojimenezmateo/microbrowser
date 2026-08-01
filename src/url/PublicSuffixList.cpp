@@ -118,7 +118,12 @@ std::size_t PublicSuffixLabelCount(std::string_view host) {
   const std::vector<std::string_view> labels = SplitLabels(host);
   const Match match = FindRule(labels);
   if (!match.found) {
-    return 0;
+    // "If no rules match, the prevailing rule is `*`." That line of the
+    // algorithm is what makes an unlisted TLD behave sensibly: `widget.example`
+    // is one registrable domain rather than nothing at all. Returning zero here
+    // instead would make every host under an unlisted TLD its own site *and*
+    // no site, depending on which caller asked.
+    return 1;
   }
   // An exception rule removes its own leftmost label from the suffix, which is
   // what makes `www.ck` a registrable domain rather than a registry.

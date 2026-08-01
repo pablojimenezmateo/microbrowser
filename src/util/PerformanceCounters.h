@@ -74,6 +74,13 @@ namespace microbrowser::util {
   /* --- url ----------------------------------------------------------------- */ \
   X(UrlParses, "url.parses")                                                     \
   X(UrlParseFailures, "url.parse_failures")                                      \
+  /* --- privacy ------------------------------------------------------------- */ \
+  X(PrivacyDecisions, "privacy.decisions")                                       \
+  X(PrivacyRequestsMatched, "privacy.requests_matched")                          \
+  X(PrivacyRequestsBlocked, "privacy.requests_blocked")                          \
+  X(PrivacyRulesProbed, "privacy.rules_probed")                                  \
+  X(PrivacyHttpsUpgrades, "privacy.https_upgrades")                              \
+  X(PrivacyUrlsSanitized, "privacy.urls_sanitized")                              \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

@@ -182,6 +182,13 @@ microbrowser_module(url
     src/url/Url.cpp
   DEPS microbrowser_util)
 
+microbrowser_module(privacy
+  SOURCES
+    src/privacy/BlockingEngine.cpp
+    src/privacy/PrivacyPolicy.cpp
+    src/privacy/Verdict.cpp
+  DEPS microbrowser_util microbrowser_url)
+
 microbrowser_module(gfx
   SOURCES
     src/gfx/AffineTransform.cpp
@@ -258,6 +265,7 @@ add_executable(microbrowser_tests
   tests/PainterTests.cpp
   tests/PathTests.cpp
   tests/PngDecoderTests.cpp
+  tests/PrivacyTests.cpp
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
   tests/TextShaperTests.cpp
@@ -266,7 +274,8 @@ add_executable(microbrowser_tests
   tests/support/ReferenceImage.cpp
   tests/support/SyntheticFont.cpp
   tests/support/SyntheticPng.cpp)
-target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url)
+target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url
+                                                microbrowser_privacy)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

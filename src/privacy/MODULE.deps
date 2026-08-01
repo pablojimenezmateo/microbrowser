@@ -1,0 +1,18 @@
+purpose: The gate every request passes before net sees it. Blocking, sanitization, partitioning.
+
+# privacy sits above url and below net: guidelines/privacy.md requires every
+# request to pass here first, and ADR 0005 puts the identity types in url so
+# that requirement does not create a cycle. A dependency on net would recreate
+# exactly the cycle url exists to break.
+allow: util url
+
+public: Request.h Verdict.h BlockingEngine.h PrivacyPolicy.h
+
+extern:
+
+max_tu_lines: 800
+
+budget: Verdict         header_lines=55 public_methods=20 members=7
+budget: BlockingEngine  header_lines=60 public_methods=10 members=6
+budget: PrivacyPolicy   header_lines=45 public_methods=14 members=3
+budget: CompiledRule    header_lines=45 public_methods=4  members=9
