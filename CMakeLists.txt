@@ -272,13 +272,21 @@ microbrowser_module(platform
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc
   EXTERN ${MICROBROWSER_SDL3_TARGET})
 
+microbrowser_module(ui
+  SOURCES
+    src/ui/BrowserChrome.cpp
+    src/ui/NavigationHistory.cpp
+    src/ui/TextField.cpp
+    src/ui/Toolbar.cpp
+  DEPS microbrowser_util microbrowser_gfx microbrowser_platform)
+
 microbrowser_module(app
   SOURCES
     src/app/Application.cpp
     src/app/AppStartupOptions.cpp
     src/app/DirtyRegionPolicy.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc
-       microbrowser_engine microbrowser_platform)
+       microbrowser_engine microbrowser_platform microbrowser_ui)
 
 # --- Binaries ----------------------------------------------------------------
 
@@ -301,6 +309,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/FetchTests.cpp
+  tests/BrowserChromeTests.cpp
   tests/DisplayListDiffTests.cpp
   tests/EngineTests.cpp
   tests/FloatTests.cpp
@@ -336,7 +345,8 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_u
                                                 microbrowser_html
                                                 microbrowser_dom
                                                 microbrowser_css
-                                                microbrowser_layout)
+                                                microbrowser_layout
+                                                microbrowser_ui)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

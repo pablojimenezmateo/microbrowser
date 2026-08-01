@@ -13,6 +13,7 @@
 #include "platform/SdlPresenter.h"
 #include "platform/SdlWindow.h"
 #include "platform/SystemFonts.h"
+#include "ui/BrowserChrome.h"
 
 namespace microbrowser::app {
 
@@ -56,6 +57,15 @@ class Application {
   void SyncViewportToWindow();
   void InvalidateAll();
 
+  // Acts on what the chrome decided, and marks the chrome for repaint. Kept
+  // apart from event handling so that "what the click meant" and "what the
+  // browser does about it" are separately testable.
+  void ApplyChromeResponse(const ui::BrowserChrome::Response& response);
+  void InvalidateChrome();
+  // Where the page's pixels start, which is below the toolbar.
+  gfx::IntPoint PageOrigin() const;
+  ui::Toolbar::OmniboxMetrics MeasureOmnibox();
+
   platform::SdlWindow window_;
   platform::SdlPresenter presenter_;
   platform::AppDirectories directories_;
@@ -77,6 +87,12 @@ class Application {
 
   ipc::InProcessChannel channel_;
   engine::Engine engine_{channel_.Engine(), fonts_};
+
+  // The browser around the page. It gets every event first and the page gets
+  // what is left, which is the only ordering under which a page cannot steal
+  // ctrl+L.
+  ui::BrowserChrome chrome_;
+  gfx::DisplayList chrome_list_;
 
   bool running_ = true;
   bool repaint_pending_ = false;

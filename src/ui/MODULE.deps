@@ -1,0 +1,22 @@
+purpose: Browser chrome. Tabs, the omnibox, history — the parts of a browser that are not the page.
+
+# Notably absent: dom, css, layout, html. The chrome is not a web page, and the
+# day it is rendered by the engine is the day a hostile page can style it.
+# Also absent: platform, except for its input vocabulary — the chrome must be
+# drivable from a test with no window.
+allow: util gfx platform
+
+public: NavigationHistory.h TextField.h Toolbar.h BrowserChrome.h
+
+extern:
+
+max_tu_lines: 800
+
+# A list plus a cursor, which is what makes "what is two entries back" a
+# question this type can answer at all.
+budget: NavigationHistory header_lines=45 public_methods=16 members=2
+# Pure state and pure transitions: no painting, no font, no window. That is
+# what makes "does ctrl+A then typing replace everything" a unit test.
+budget: TextField         header_lines=45 public_methods=20 members=3
+budget: Toolbar           header_lines=70 public_methods=20 members=9
+budget: BrowserChrome     header_lines=70 public_methods=18 members=6

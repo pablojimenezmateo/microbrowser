@@ -1,6 +1,6 @@
 purpose: Host process. Owns the window, the canvas, the transport, and the loop.
 
-allow: util gfx ipc engine platform
+allow: util gfx ipc engine platform ui
 
 public: AppStartupOptions.h Application.h IdleWaitStrategy.h EventDrainBudget.h DirtyRegionPolicy.h
 
@@ -18,4 +18,4 @@ max_tu_lines: 800
 # database, and the shaped-run cache. They are here because the engine takes a
 # gfx::FontProvider rather than finding one -- which is what keeps "the engine
 # does not know what machine it is on" true.
-budget: Application header_lines=95 public_methods=6 members=16
+budget: Application header_lines=115 public_methods=6 members=18

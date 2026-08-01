@@ -67,6 +67,8 @@ int Application::Run(const AppStartupOptions& options) {
   }
 
   SyncViewportToWindow();
+  chrome_.GetToolbar().Omnibox().SetText(options.url);
+  InvalidateChrome();
   channel_.Ui().Send(ipc::NavigateMessage{options.url});
 
   while (running_) {
@@ -177,15 +179,29 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
   }
 
   if (const auto* pointer = std::get_if<platform::PointerEvent>(&event)) {
+    const ui::BrowserChrome::Response response = chrome_.HandlePointer(*pointer);
+    ApplyChromeResponse(response);
+    if (response.handled) {
+      return;
+    }
     ipc::PointerMessage message;
     message.kind = static_cast<ipc::PointerMessage::Kind>(pointer->kind);
-    message.position = pointer->position;
+    // In page coordinates. The page's idea of where the pointer is has to match
+    // where its own pixels are, or every hit test is off by the toolbar.
+    const gfx::IntPoint origin = PageOrigin();
+    message.position = gfx::IntPoint{pointer->position.x - origin.x,
+                                     pointer->position.y - origin.y};
     message.button = pointer->button;
     channel_.Ui().Send(message);
     return;
   }
 
-  // KeyEvent has no consumer until there is an omnibox to type into.
+  if (const auto* key = std::get_if<platform::KeyEvent>(&event)) {
+    // The chrome first, always. A page that could see ctrl+L before the browser
+    // did could stop the user leaving it.
+    ApplyChromeResponse(chrome_.HandleKey(*key));
+    return;
+  }
 }
 
 void Application::ConsumeEngineMessages() {
@@ -197,16 +213,24 @@ void Application::ConsumeEngineMessages() {
         // than inventing a region.
         InvalidateAll();
       } else {
+        // Translated into window coordinates: the engine reports damage in the
+        // page's space, which starts below the toolbar.
+        const gfx::IntPoint origin = PageOrigin();
         for (const gfx::IntRect& rect : paint->damage) {
-          dirty_.Add(rect);
+          dirty_.Add(rect.Translated(origin.x, origin.y));
         }
         repaint_pending_ = true;
       }
     } else if (const auto* title = std::get_if<ipc::TitleChangedMessage>(&*message)) {
-      window_.SetTitle(title->title);
+      chrome_.OnTitleChanged(title->title);
+      window_.SetTitle(chrome_.WindowTitle());
+    } else if (const auto* committed =
+                   std::get_if<ipc::NavigationCommittedMessage>(&*message)) {
+      chrome_.OnNavigationCommitted(committed->url);
+      InvalidateChrome();
     }
-    // LoadProgress and NavigationCommitted have no surface to display them
-    // until the UI chrome exists in M7.
+    // LoadProgress has no surface to display it: a progress bar needs a load
+    // that takes long enough to see, and loading is synchronous today.
   }
 }
 
@@ -223,11 +247,25 @@ void Application::PaintAndPresent() {
   const DirtyRegionAnalysis analysis = AnalyzeDirtyRegion(dirty_, canvas_.Bounds());
   const bool full = full_repaint_pending_ || ShouldPromoteToFullRepaint(analysis);
 
+  // The chrome at the origin, the page below it. Two lists rather than one
+  // because they come from different places -- one from this process, one
+  // across the IPC seam -- and merging them would mean the engine's list could
+  // name coordinates inside the chrome.
+  const gfx::IntPoint origin = PageOrigin();
+  const auto execute_all = [this, origin](const gfx::IntRect& region) {
+    painter_.SetTransform(gfx::AffineTransform{});
+    gfx::Execute(chrome_list_, painter_, region, &text_);
+    painter_.SetTransform(gfx::AffineTransform::Translation(static_cast<float>(origin.x),
+                                                            static_cast<float>(origin.y)));
+    gfx::Execute(display_list_, painter_, region, &text_);
+    painter_.SetTransform(gfx::AffineTransform{});
+  };
+
   if (full) {
-    gfx::Execute(display_list_, painter_, canvas_.Bounds(), &text_);
+    execute_all(canvas_.Bounds());
   } else {
     for (const gfx::IntRect& rect : dirty_.Rects()) {
-      gfx::Execute(display_list_, painter_, rect, &text_);
+      execute_all(rect);
     }
   }
 
@@ -251,6 +289,26 @@ void Application::PaintAndPresent() {
   full_repaint_pending_ = false;
 }
 
+// Where the caret and selection edges fall, measured with the same font the
+// toolbar draws with. Measuring with a different one puts the caret in the
+// wrong place, which is why the toolbar exposes its font rather than the app
+// choosing one.
+ui::Toolbar::OmniboxMetrics Application::MeasureOmnibox() {
+  const ui::TextField& field = chrome_.GetToolbar().Omnibox();
+  const gfx::FontRequest font = ui::Toolbar::OmniboxFont();
+  const std::string_view text = field.Text();
+  const auto advance = [&](std::size_t bytes) {
+    return text_.MeasureRun(text.substr(0, std::min(bytes, text.size())), font);
+  };
+  return ui::Toolbar::OmniboxMetrics{advance(field.Caret()), advance(field.SelectionBegin()),
+                                     advance(field.SelectionEnd())};
+}
+
+gfx::IntPoint Application::PageOrigin() const {
+  const gfx::IntRect page = chrome_.PageBounds(gfx::IntSize{canvas_.Width(), canvas_.Height()});
+  return gfx::IntPoint{page.x, page.y};
+}
+
 void Application::SyncViewportToWindow() {
   const gfx::IntSize size = window_.PixelSize();
   if (size.IsEmpty()) {
@@ -263,7 +321,42 @@ void Application::SyncViewportToWindow() {
     InvalidateAll();
   }
 
-  channel_.Ui().Send(ipc::ResizeViewportMessage{size, window_.DeviceScale()});
+  chrome_.SetViewportWidth(size.width);
+  InvalidateChrome();
+
+  // The engine is told the *page's* size, not the window's. That is what makes
+  // it impossible for a page to paint over the chrome: it is never given those
+  // pixels, rather than being trusted not to use them.
+  const gfx::IntRect page = chrome_.PageBounds(size);
+  channel_.Ui().Send(
+      ipc::ResizeViewportMessage{gfx::IntSize{page.width, page.height}, window_.DeviceScale()});
+}
+
+void Application::InvalidateChrome() {
+  chrome_list_.Clear();
+  chrome_.GetToolbar().Paint(chrome_list_, MeasureOmnibox());
+  dirty_.Add(chrome_.GetToolbar().Bounds());
+  repaint_pending_ = true;
+}
+
+void Application::ApplyChromeResponse(const ui::BrowserChrome::Response& response) {
+  if (response.needs_repaint) {
+    InvalidateChrome();
+  }
+  if (!response.intent.has_value()) {
+    return;
+  }
+  switch (response.intent->kind) {
+    case ui::BrowserChrome::Intent::Kind::Navigate:
+      channel_.Ui().Send(ipc::NavigateMessage{response.intent->url});
+      break;
+    case ui::BrowserChrome::Intent::Kind::Reload:
+      channel_.Ui().Send(ipc::ReloadMessage{false});
+      break;
+    case ui::BrowserChrome::Intent::Kind::ScrollPage:
+      channel_.Ui().Send(ipc::ScrollMessage{0, response.intent->scroll_delta});
+      break;
+  }
 }
 
 void Application::InvalidateAll() {

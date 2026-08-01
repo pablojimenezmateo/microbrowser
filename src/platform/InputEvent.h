@@ -40,11 +40,53 @@ struct WheelEvent {
   int delta_y = 0;
 };
 
+// Keys that produce no character but mean something.
+//
+// Deliberately small. Every entry here is one the UI acts on today; a table
+// mirroring every key a keyboard has would be a translation layer with no
+// consumer, and the missing ones arrive as Key::None with a codepoint, which
+// is what typing is.
+enum class Key : std::uint8_t {
+  None,
+  Enter,
+  Escape,
+  Backspace,
+  Delete,
+  Tab,
+  Left,
+  Right,
+  Up,
+  Down,
+  Home,
+  End,
+  PageUp,
+  PageDown,
+};
+
+// Modifiers as a set rather than three bools: "control and shift" is one state
+// and the combinations are what shortcuts are made of.
+struct Modifiers {
+  bool control = false;
+  bool shift = false;
+  bool alt = false;
+  bool meta = false;
+
+  bool Any() const { return control || shift || alt || meta; }
+  // True when no modifier that would change a key's meaning is held. Shift is
+  // excluded on purpose: shift produces capitals, it does not make a shortcut.
+  bool PlainTyping() const { return !control && !alt && !meta; }
+
+  friend bool operator==(const Modifiers&, const Modifiers&) = default;
+};
+
 struct KeyEvent {
-  // A Unicode codepoint when the key produced one, else 0. Raw keycodes and a
-  // full modifier model arrive with the UI layer in M7; M0 needs only enough to
-  // prove the event path is wired.
+  // A Unicode codepoint when the key produced one, else 0.
   char32_t codepoint = 0;
+  // A named key when the key was one, else Key::None. A key can be both --
+  // Enter has a codepoint on some platforms -- so a consumer checks the named
+  // key first.
+  Key key = Key::None;
+  Modifiers modifiers;
   bool pressed = false;
 };
 

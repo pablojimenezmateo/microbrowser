@@ -11,6 +11,43 @@ namespace microbrowser::platform {
 
 namespace {
 
+// SDL keycode to the project's small named-key set. Everything not here is a
+// character, and characters arrive through SDL_EVENT_TEXT_INPUT, which is the
+// event that understands keyboard layouts and dead keys.
+Key NamedKey(SDL_Keycode code) {
+  switch (code) {
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER:
+      return Key::Enter;
+    case SDLK_ESCAPE:
+      return Key::Escape;
+    case SDLK_BACKSPACE:
+      return Key::Backspace;
+    case SDLK_DELETE:
+      return Key::Delete;
+    case SDLK_TAB:
+      return Key::Tab;
+    case SDLK_LEFT:
+      return Key::Left;
+    case SDLK_RIGHT:
+      return Key::Right;
+    case SDLK_UP:
+      return Key::Up;
+    case SDLK_DOWN:
+      return Key::Down;
+    case SDLK_HOME:
+      return Key::Home;
+    case SDLK_END:
+      return Key::End;
+    case SDLK_PAGEUP:
+      return Key::PageUp;
+    case SDLK_PAGEDOWN:
+      return Key::PageDown;
+    default:
+      return Key::None;
+  }
+}
+
 // SDL reports pointer positions in logical (window) coordinates as floats. The
 // canvas is in physical pixels, so scaling happens here, once, at the boundary
 // — not scattered across whoever consumes the event.
@@ -173,6 +210,34 @@ std::optional<InputEvent> Translate(const SDL_Event& event) {
       // reports its first byte rather than a wrong codepoint.
       key.codepoint = static_cast<char32_t>(static_cast<unsigned char>(event.text.text[0]));
       key.pressed = true;
+      return key;
+    }
+
+    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_UP: {
+      const Key named = NamedKey(event.key.key);
+      const SDL_Keymod mods = event.key.mod;
+      Modifiers modifiers;
+      modifiers.control = (mods & SDL_KMOD_CTRL) != 0;
+      modifiers.shift = (mods & SDL_KMOD_SHIFT) != 0;
+      modifiers.alt = (mods & SDL_KMOD_ALT) != 0;
+      modifiers.meta = (mods & SDL_KMOD_GUI) != 0;
+
+      // A printable key with no modifier arrives again as TEXT_INPUT, which is
+      // the event that knows about layouts and dead keys. Reporting it here too
+      // would type every character twice.
+      if (named == Key::None && !modifiers.control && !modifiers.alt && !modifiers.meta) {
+        return std::nullopt;
+      }
+      KeyEvent key;
+      key.key = named;
+      key.modifiers = modifiers;
+      key.pressed = event.type == SDL_EVENT_KEY_DOWN;
+      // Carried for shortcuts, where the character is the thing bound: ctrl+L
+      // is a codepoint plus a modifier, not a named key.
+      if (named == Key::None && event.key.key < 0x80) {
+        key.codepoint = static_cast<char32_t>(event.key.key);
+      }
       return key;
     }
 

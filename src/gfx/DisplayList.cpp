@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "gfx/Canvas.h"
 #include "gfx/Painter.h"
@@ -139,12 +140,38 @@ void DisplayList::DrawImage(std::shared_ptr<const Image> image, const IntRect& d
 
 IntRect DisplayList::Bounds() const {
   IntRect bounds;
+  // A clipped command cannot paint outside its clip, so the bound must not
+  // claim it can. Without this, a text run drawn inside a small field reports
+  // damage for the ink box its font *could* need -- which is deliberately
+  // generous -- and that box escapes the widget it was clipped to.
+  std::vector<IntRect> clips;
+  const auto current_clip = [&clips]() -> const IntRect* {
+    return clips.empty() ? nullptr : &clips.back();
+  };
+  const auto add = [&bounds, &current_clip](IntRect rect) {
+    if (const IntRect* clip = current_clip()) {
+      rect = rect.Intersected(*clip);
+    }
+    bounds = bounds.United(rect);
+  };
+
   for (const DisplayCommand& command : commands_) {
+    if (const auto* push = std::get_if<PushClipCommand>(&command)) {
+      // Nested clips intersect: a clip can only ever narrow.
+      clips.push_back(clips.empty() ? push->rect : clips.back().Intersected(push->rect));
+      continue;
+    }
+    if (std::holds_alternative<PopClipCommand>(command)) {
+      if (!clips.empty()) {
+        clips.pop_back();
+      }
+      continue;
+    }
     if (const auto* fill = std::get_if<FillRectCommand>(&command)) {
-      bounds = bounds.United(fill->rect);
+      add(fill->rect);
     } else if (const auto* fill_path = std::get_if<FillPathCommand>(&command)) {
       if (const Path* geometry = PathAt(fill_path->path)) {
-        bounds = bounds.United(BoundsOfPath(*geometry));
+        add(BoundsOfPath(*geometry));
       }
     } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
       if (const Path* geometry = PathAt(stroke->path)) {
@@ -152,16 +179,16 @@ IntRect DisplayList::Bounds() const {
         // compromised renderer, and ceil(1e38) reaching a raw cast is undefined
         // behavior rather than a very wide damage rect.
         const int outset = SaturateFloatToInt(std::ceil(StrokeOutset(stroke->style)));
-        bounds = bounds.United(BoundsOfPath(*geometry).Inflated(outset));
+        add(BoundsOfPath(*geometry).Inflated(outset));
       }
     } else if (const auto* text = std::get_if<DrawTextCommand>(&command)) {
       const TextRun* run = TextAt(text->text);
       const FontRequest* font = FontAt(text->font);
       if (run != nullptr && font != nullptr) {
-        bounds = bounds.United(TextInkBounds(*run, *font, text->origin));
+        add(TextInkBounds(*run, *font, text->origin));
       }
     } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
-      bounds = bounds.United(image->destination);
+      add(image->destination);
     }
   }
   return bounds;
@@ -170,6 +197,20 @@ IntRect DisplayList::Bounds() const {
 void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
              TextRenderer* text_renderer) {
   AddPerformanceCounter(PerfCounterId::DisplayListExecutions);
+
+  // Rect commands go through the canvas directly, which knows nothing about the
+  // painter's transform -- so the translation is applied here. Only the
+  // translation: a rotated FillRect is not a rect, and pretending otherwise
+  // would silently drop the rotation rather than refusing it.
+  //
+  // Without this, a list executed under a translation would draw its paths and
+  // text in one place and its rects and clips in another, which is exactly what
+  // compositing the page below the browser chrome does.
+  const int offset_x = SaturateFloatToInt(painter.Transform().E());
+  const int offset_y = SaturateFloatToInt(painter.Transform().F());
+  const auto placed = [offset_x, offset_y](const IntRect& rect) {
+    return rect.Translated(offset_x, offset_y);
+  };
 
   Canvas& canvas = painter.Target();
   const IntRect region = damage.Intersected(canvas.Bounds());
@@ -182,9 +223,9 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
 
   for (const DisplayCommand& command : list.Commands()) {
     if (const auto* fill = std::get_if<FillRectCommand>(&command)) {
-      canvas.FillRect(fill->rect, fill->color);
+      canvas.FillRect(placed(fill->rect), fill->color);
     } else if (const auto* push = std::get_if<PushClipCommand>(&command)) {
-      canvas.PushClip(push->rect);
+      canvas.PushClip(placed(push->rect));
     } else if (const auto* fill_path = std::get_if<FillPathCommand>(&command)) {
       if (const Path* geometry = list.PathAt(fill_path->path)) {
         painter.FillPath(*geometry, fill_path->color, fill_path->rule);
