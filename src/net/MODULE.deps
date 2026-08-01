@@ -4,7 +4,7 @@ purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
 # have passed privacy first, which net enforces by taking a privacy::Verdict.
 allow: util url privacy
 
-public: HttpMessage.h CookieJar.h
+public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h
 
 extern:
 
@@ -14,3 +14,5 @@ budget: HttpHeaders    header_lines=40 public_methods=16 members=1
 budget: ResponseParser header_lines=60 public_methods=16 members=10
 budget: Cookie         header_lines=50 public_methods=10 members=10
 budget: CookieJar      header_lines=50 public_methods=14 members=2
+budget: HttpCache      header_lines=45 public_methods=14 members=3
+budget: Transport      header_lines=30 public_methods=10 members=0

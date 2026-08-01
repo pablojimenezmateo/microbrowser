@@ -112,6 +112,15 @@ Why that check exists, and what it caught on its first run, is in `guidelines/te
   becomes a use-after-free the first time an early return is added above it, and in a browser a
   use-after-free is an RCE primitive rather than a crash. Placement new and `operator new` are
   outside the rule; `= delete` is not affected.
+- **No network request without a `privacy::Verdict`.** `net::Fetch` takes one *by value* — by
+  reference would let a caller keep a verdict and reuse it for a request it was never issued for.
+  The lint also fails if `src/net` exists with no verdict-taking `Fetch` at all, so the rule cannot
+  be defeated by deleting the parameter.
+- **Every storage-like lookup takes a `PartitionKey`**, with no overload without one. Enforced on
+  `CookieJar` and `HttpCache` today, and on each per-site store as it lands.
+- **Descriptor creation is close-on-exec** — `SOCK_CLOEXEC` / `O_CLOEXEC` on the creating call
+  itself. A follow-up `fcntl` is a separate violation rather than an accepted alternative: between
+  the two calls, a fork inherits the descriptor.
 - **No mutable state at namespace scope.** Function-local statics are fine.
 - **Headers use `#pragma once`.**
 - **Object-size budgets** (`static_assert(sizeof(T) <= N)`) still exist on the types that are
@@ -121,26 +130,17 @@ Why that check exists, and what it caught on its first run, is in `guidelines/te
 
 Written down now so they are not rediscovered later. Each becomes a lint when the code it governs
 exists.
-
-- **Descriptor creation is close-on-exec** — `SOCK_CLOEXEC` / `O_CLOEXEC` on the creating call
-  itself, never a follow-up `fcntl`. A browser spawns helper processes; an unflagged descriptor is
-  inherited by all of them. Lands with `src/net` in M2. *(Deliberately not written as a vacuous
-  rule today: with zero call sites it would pass while checking nothing, which is the exact failure
-  the control fixtures exist to prevent.)*
-- **No network request without a `privacy::Verdict`** — `net::Fetch` takes one by value and there is
-  no overload without it. Lands with `src/privacy` in M2.
 - **Spec-literal parsers stay spec-literal** — `src/html` and `src/css` name their states exactly as
   the specs do and carry the spec section in a comment. Divergence from the spec text is a bug, not
   a style choice. Lands with M3.
 - **Paint TUs do not materialize strings** in hot paths. Lands with M6.
-- **Every storage-like lookup takes a `PartitionKey`**, with no overload without one — same
-  technique as `net::Fetch` taking a `privacy::Verdict`. Lands with `src/url` in M2.
 - **A filter list may never supply code.** Scriptlets and redirect resources are looked up by name
   in a table compiled into the binary; the list contributes a name and arguments. Lands with the
   blocking engine in M2.
 - **Site keys are computed against the baked-in Public Suffix List**, never a runtime-fetched one:
   a list downloaded at startup is both a request the user did not cause and a remote input to a
-  security decision. Lands with `src/privacy` in M2.
+  security decision. *(The list is baked in as of M2; the lint that would forbid fetching one is
+  not written, because there is no network-fetch call site to forbid it at yet.)*
 
 The full enforced-versus-scheduled table for security is at the end of `guidelines/security.md`.
 

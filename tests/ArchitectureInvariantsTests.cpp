@@ -506,6 +506,167 @@ std::vector<Violation> CheckObjectSizeBudgetsArePresent(const SourceSet& files,
   return violations;
 }
 
+
+// --- M2 rules ----------------------------------------------------------------
+//
+// AGENTS.md scheduled these three for M2 and said plainly why they were not
+// written earlier: "with zero call sites it would pass while checking nothing,
+// which is the exact failure the control fixtures exist to prevent." The call
+// sites now exist.
+
+// Every network request carries a privacy::Verdict.
+//
+// The rule is not "somebody remembered to call the privacy layer" — it is that
+// there is no way not to. `net::Fetch` takes a Verdict by value, and a second
+// entry point that did not would silently become the one people used.
+std::vector<Violation> CheckFetchRequiresAVerdict(const SourceSet& files,
+                                                  const ModuleManifests&) {
+  std::vector<Violation> violations;
+  bool found_declaration = false;
+
+  for (const SourceFile& file : files) {
+    if (architecture::ModuleOf(file.path) != "net") {
+      continue;
+    }
+    const std::string masked = architecture::MaskCommentsAndStrings(file.text);
+    for (const std::size_t at : architecture::FindCallSites(masked, "Fetch")) {
+      // Only declarations, which in this codebase are the lines that name a
+      // return type before the identifier.
+      const std::size_t line_start = masked.rfind('\n', at);
+      const std::string_view line(masked.data() + (line_start == std::string::npos ? 0 : line_start + 1),
+                                  0);
+      (void)line;
+      const std::size_t open = masked.find('(', at);
+      if (open == std::string::npos) {
+        continue;
+      }
+      const std::size_t close = masked.find(')', open);
+      const std::string parameters =
+          masked.substr(open + 1, close == std::string::npos ? 0 : close - open - 1);
+      if (parameters.find("Verdict") == std::string::npos) {
+        continue;
+      }
+      found_declaration = true;
+      // A Verdict passed by const reference is a Verdict a caller can keep and
+      // reuse for a different request. By value, it is consumed.
+      if (parameters.find("const privacy::Verdict&") != std::string::npos ||
+          parameters.find("const Verdict&") != std::string::npos) {
+        violations.push_back(Violation{
+            file.path, architecture::LineAtOffset(file.text, at),
+            "net::Fetch must take privacy::Verdict by value, not by const reference: a "
+            "borrowed verdict can be reused for a request it was not issued for"});
+      }
+    }
+  }
+
+  const bool net_module_exists =
+      std::any_of(files.begin(), files.end(),
+                  [](const SourceFile& file) { return architecture::ModuleOf(file.path) == "net"; });
+  if (net_module_exists && !found_declaration) {
+    violations.push_back(Violation{
+        "src/net", 0,
+        "src/net exists but declares no Fetch taking a privacy::Verdict; the rule that every "
+        "request passes the privacy layer is enforced by that signature and nothing else"});
+  }
+  return violations;
+}
+
+// Every storage-like lookup takes a PartitionKey.
+//
+// The cookie jar, the HTTP cache, and everything per-site that follows. A
+// lookup keyed on a URL alone is one that shares state across partitions, which
+// is the failure Total Cookie Protection exists to prevent.
+std::vector<Violation> CheckStorageLookupsArePartitioned(const SourceSet& files,
+                                                         const ModuleManifests&) {
+  std::vector<Violation> violations;
+  static constexpr std::string_view kPartitionedTypes[] = {"CookieJar", "HttpCache"};
+
+  for (const SourceFile& file : files) {
+    if (!file.IsHeader()) {
+      continue;
+    }
+    const std::string masked = architecture::MaskCommentsAndStrings(file.text);
+    for (const ClassInfo& info : architecture::ExtractClasses(file.text)) {
+      const bool partitioned =
+          std::any_of(std::begin(kPartitionedTypes), std::end(kPartitionedTypes),
+                      [&info](std::string_view name) { return info.name == name; });
+      if (!partitioned) {
+        continue;
+      }
+      // Every public method that looks like a lookup or a store must name a
+      // PartitionKey in its parameter list.
+      static constexpr std::string_view kLookupNames[] = {"Lookup", "Store", "CookiesFor",
+                                                          "HeaderFor", "StoreFromHeader"};
+      for (const std::string_view name : kLookupNames) {
+        for (const std::size_t at : architecture::FindCallSites(masked, name)) {
+          if (architecture::LineAtOffset(file.text, at) < info.start_line) {
+            continue;
+          }
+          const std::size_t open = masked.find('(', at);
+          const std::size_t close = open == std::string::npos ? std::string::npos
+                                                              : masked.find(')', open);
+          if (open == std::string::npos || close == std::string::npos) {
+            continue;
+          }
+          const std::string parameters = masked.substr(open + 1, close - open - 1);
+          if (parameters.find("PartitionKey") == std::string::npos) {
+            violations.push_back(Violation{
+                file.path, architecture::LineAtOffset(file.text, at),
+                std::string(info.name) + "::" + std::string(name) +
+                    " must take a url::PartitionKey; a lookup that does not is state shared "
+                    "across partitions"});
+          }
+        }
+      }
+    }
+  }
+  return violations;
+}
+
+// Descriptor creation is close-on-exec on the creating call.
+//
+// A browser spawns helper processes. A descriptor without O_CLOEXEC or
+// SOCK_CLOEXEC is inherited by all of them, and a follow-up fcntl leaves a
+// window between the two calls in which a fork inherits it anyway.
+std::vector<Violation> CheckDescriptorsAreCloseOnExec(const SourceSet& files,
+                                                      const ModuleManifests&) {
+  std::vector<Violation> violations;
+  for (const SourceFile& file : files) {
+    const std::string masked = architecture::MaskCommentsAndStrings(file.text);
+
+    for (const std::size_t at : architecture::FindCallSites(masked, "socket")) {
+      const std::size_t close = masked.find(')', at);
+      const std::string call = masked.substr(at, close == std::string::npos ? 0 : close - at);
+      if (call.find("SOCK_CLOEXEC") == std::string::npos) {
+        violations.push_back(Violation{file.path, architecture::LineAtOffset(file.text, at),
+                                       "socket() must pass SOCK_CLOEXEC on the creating call"});
+      }
+    }
+    for (const std::string_view name : {"open", "openat"}) {
+      for (const std::size_t at : architecture::FindCallSites(masked, name)) {
+        const std::size_t close = masked.find(')', at);
+        const std::string call = masked.substr(at, close == std::string::npos ? 0 : close - at);
+        if (call.find("O_CLOEXEC") == std::string::npos) {
+          violations.push_back(Violation{file.path, architecture::LineAtOffset(file.text, at),
+                                         "open() must pass O_CLOEXEC on the creating call"});
+        }
+      }
+    }
+    // The follow-up form, which is the bug this rule is really about.
+    for (const std::size_t at : architecture::FindCallSites(masked, "fcntl")) {
+      const std::size_t close = masked.find(')', at);
+      const std::string call = masked.substr(at, close == std::string::npos ? 0 : close - at);
+      if (call.find("FD_CLOEXEC") != std::string::npos) {
+        violations.push_back(Violation{
+            file.path, architecture::LineAtOffset(file.text, at),
+            "close-on-exec must be set on the creating call, not by a follow-up fcntl: "
+            "between the two, a fork inherits the descriptor"});
+      }
+    }
+  }
+  return violations;
+}
+
 const Rule kRules[] = {
     {"ModuleIncludeRules", CheckModuleIncludeRules},
     {"ExternIncludesAreDeclared", CheckExternIncludesAreDeclared},
@@ -519,6 +680,9 @@ const Rule kRules[] = {
     {"NoNamespaceScopeMutableState", CheckNoNamespaceScopeMutableState},
     {"HeadersUsePragmaOnce", CheckHeadersUsePragmaOnce},
     {"ObjectSizeBudgetsArePresent", CheckObjectSizeBudgetsArePresent},
+    {"FetchRequiresAVerdict", CheckFetchRequiresAVerdict},
+    {"StorageLookupsArePartitioned", CheckStorageLookupsArePartitioned},
+    {"DescriptorsAreCloseOnExec", CheckDescriptorsAreCloseOnExec},
 };
 
 // --- Fixtures ----------------------------------------------------------------
@@ -687,6 +851,63 @@ std::vector<RuleFixture> BuildFixtures() {
       "NoManualHeapOwnership",
       Fixture("src/gfx/Canvas.cpp", "pool_.Free(block);\n"),
       Fixture("src/gfx/Canvas.cpp", "void* p = std::malloc(length);\n")});
+
+  fixtures.push_back(RuleFixture{
+      "FetchRequiresAVerdict",
+      SourceSet{SourceFile{"src/net/Fetch.h",
+                           "FetchResult Fetch(privacy::Verdict verdict, CookieJar& jar);\n"}},
+      // By const reference, which lets a caller keep a verdict and reuse it for
+      // a request it was never issued for.
+      SourceSet{SourceFile{"src/net/Fetch.h",
+                           "FetchResult Fetch(const privacy::Verdict& v, CookieJar& jar);\n"}}});
+
+  fixtures.push_back(RuleFixture{
+      "FetchRequiresAVerdict",
+      SourceSet{SourceFile{"src/net/Fetch.h",
+                           "FetchResult Fetch(privacy::Verdict verdict, CookieJar& jar);\n"}},
+      // A net module with no verdict-taking Fetch at all. Without this fixture
+      // the rule would pass on a tree where somebody deleted the parameter.
+      SourceSet{SourceFile{"src/net/Fetch.h", "FetchResult Fetch(const Url& url);\n"}}});
+
+  fixtures.push_back(RuleFixture{
+      "StorageLookupsArePartitioned",
+      SourceSet{SourceFile{"src/net/CookieJar.h",
+                           "class CookieJar {\n"
+                           " public:\n"
+                           "  std::string HeaderFor(const url::PartitionKey& key,\n"
+                           "                        const url::Url& url) const;\n"
+                           "};\n"}},
+      SourceSet{SourceFile{"src/net/CookieJar.h",
+                           "class CookieJar {\n"
+                           " public:\n"
+                           "  std::string HeaderFor(const url::Url& url) const;\n"
+                           "};\n"}}});
+
+  fixtures.push_back(RuleFixture{
+      "StorageLookupsArePartitioned",
+      SourceSet{SourceFile{"src/net/HttpCache.h",
+                           "class HttpCache {\n"
+                           " public:\n"
+                           "  const Entry* Lookup(const url::PartitionKey& key,\n"
+                           "                      const url::Url& url) const;\n"
+                           "};\n"}},
+      SourceSet{SourceFile{"src/net/HttpCache.h",
+                           "class HttpCache {\n"
+                           " public:\n"
+                           "  const Entry* Lookup(const url::Url& url) const;\n"
+                           "};\n"}}});
+
+  fixtures.push_back(RuleFixture{
+      "DescriptorsAreCloseOnExec",
+      Fixture("src/net/Socket.cpp", "fd_ = ::socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);\n"),
+      Fixture("src/net/Socket.cpp", "fd_ = ::socket(AF_INET, SOCK_STREAM, 0);\n")});
+
+  fixtures.push_back(RuleFixture{
+      "DescriptorsAreCloseOnExec",
+      Fixture("src/platform/AppDirectories.cpp", "int fd = ::open(path, O_RDONLY | O_CLOEXEC);\n"),
+      // The follow-up form: correct-looking, and it leaves a window in which a
+      // fork inherits the descriptor.
+      Fixture("src/net/Socket.cpp", "::fcntl(fd, F_SETFD, FD_CLOEXEC);\n")});
 
   fixtures.push_back(RuleFixture{
       "EnvironmentReadsAreCentralized",

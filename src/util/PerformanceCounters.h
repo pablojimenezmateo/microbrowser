@@ -87,6 +87,13 @@ namespace microbrowser::util {
   X(NetHeaderRejections, "net.header_rejections")                                \
   X(NetCookiesStored, "net.cookies_stored")                                      \
   X(NetCookiesRejected, "net.cookies_rejected")                                  \
+  X(NetFetches, "net.fetches")                                                   \
+  X(NetFetchFailures, "net.fetch_failures")                                      \
+  X(NetRedirects, "net.redirects")                                               \
+  X(NetCacheHits, "net.cache_hits")                                              \
+  X(NetCacheMisses, "net.cache_misses")                                          \
+  X(NetCacheStale, "net.cache_stale")                                            \
+  X(NetCacheStores, "net.cache_stores")                                          \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

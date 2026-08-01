@@ -192,6 +192,8 @@ microbrowser_module(privacy
 microbrowser_module(net
   SOURCES
     src/net/CookieJar.cpp
+    src/net/Fetch.cpp
+    src/net/HttpCache.cpp
     src/net/HttpMessage.cpp
   DEPS microbrowser_util microbrowser_url microbrowser_privacy)
 
@@ -261,6 +263,7 @@ add_executable(microbrowser_tests
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
+  tests/FetchTests.cpp
   tests/FontTests.cpp
   tests/GeometryTests.cpp
   tests/GlyphCacheTests.cpp
