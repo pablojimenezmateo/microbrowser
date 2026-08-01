@@ -35,7 +35,7 @@ parses it, resolves its cascade, lays it out, and draws it — text included. Wh
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages) |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap. No bytecode VM, classes, Promises, async, generators or regex engine. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`. No bytecode VM, Promises, async, generators or regex engine. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
