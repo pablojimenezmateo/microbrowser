@@ -45,6 +45,7 @@ namespace microbrowser::util {
   X(GfxClipPushes, "gfx.clip_pushes")                                            \
   X(GfxOpaqueFills, "gfx.opaque_fills")                                          \
   X(GfxBlendedFills, "gfx.blended_fills")                                        \
+  X(GfxBlendedPixels, "gfx.blended_pixels")                                      \
   X(GfxPathFills, "gfx.path_fills")                                              \
   X(GfxPathSegments, "gfx.path_segments")                                        \
   X(GfxPathCells, "gfx.path_cells")                                              \

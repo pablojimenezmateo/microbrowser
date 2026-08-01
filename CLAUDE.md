@@ -135,3 +135,4 @@ limit. Run it before a refactor to see what is about to blow.
 - `guidelines/testing.md` — test strategy, reference tests, control fixtures
 - `docs/adr/` — durable decisions and their reasoning
 - `docs/performance/m0-baseline.md` — the measurements M0 established
+- `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot

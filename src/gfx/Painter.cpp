@@ -1,6 +1,9 @@
 #include "gfx/Painter.h"
 
 #include <algorithm>
+#include <cstddef>
+
+#include "gfx/Blitter.h"
 
 #include "util/PerformanceCounters.h"
 
@@ -82,9 +85,7 @@ void Painter::FillSpans(const std::vector<CoverageSpan>& spans, Color color) {
       continue;
     }
     AddPerformanceCounter(PerfCounterId::GfxBlendedFills);
-    for (std::int32_t i = 0; i < span.length; ++i) {
-      pixels[i] = BlendSrcOver(pixels[i], blended);
-    }
+    BlendSpanSrcOver(pixels, static_cast<std::size_t>(span.length), blended);
   }
 }
 

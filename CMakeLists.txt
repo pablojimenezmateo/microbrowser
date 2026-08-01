@@ -140,6 +140,7 @@ microbrowser_module(util
 microbrowser_module(gfx
   SOURCES
     src/gfx/AffineTransform.cpp
+    src/gfx/Blitter.cpp
     src/gfx/Canvas.cpp
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
@@ -190,6 +191,7 @@ add_executable(microbrowser_tests
   tests/ArchitectureInvariantsTests.cpp
   tests/architecture/ModuleManifest.cpp
   tests/architecture/SourceScan.cpp
+  tests/BlitterTests.cpp
   tests/CanvasTests.cpp
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp

@@ -2,7 +2,7 @@ purpose: Software rasterization. Pixels in memory; nothing about windows or the 
 
 allow: util
 
-public: Geometry.h AffineTransform.h Color.h Canvas.h DirtyRegion.h DisplayList.h Path.h PathFlattener.h Rasterizer.h Stroker.h Painter.h
+public: Geometry.h AffineTransform.h Color.h Blitter.h Canvas.h DirtyRegion.h DisplayList.h Path.h PathFlattener.h Rasterizer.h Stroker.h Painter.h
 
 # Empty on purpose, and load-bearing: this is what makes "gfx must not include
 # SDL" an enforced rule rather than a convention. FreeType and HarfBuzz join
