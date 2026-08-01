@@ -20,9 +20,15 @@ action that caused a packet, it must not be sent.
 `privacy::Verdict` by value, and there will be no overload without one. That is deliberately not a
 convention: it is a signature that cannot be bypassed without editing the signature.
 
-**Everything is partitioned by `(top-level site, origin)`.** Cookies, cache entries, storage keys,
-connection pool entries, DNS cache entries. Total Cookie Protection by construction rather than by
-policy flag, because a flag can be off and a data structure cannot.
+**Everything is partitioned by `(container, top-level site, origin)`.** Cookies, storage, cache
+entries, connection pool entries, DNS cache entries, TLS session tickets, HSTS state, permission
+grants. Total Cookie Protection by construction rather than by policy flag, because a flag can be
+off and a data structure cannot. The container component is the user's own chosen identity — see
+`docs/adr/0005-contextual-identities-and-the-partition-key.md`.
+
+The two rows people miss are **TLS session tickets** and **HSTS state**. Both are set by the
+*server*, both survive a cookie clear, and both have been used to track in the wild. If a piece of
+state is per-site and outlives a page load, it carries the key.
 
 **HTTPS-only by default.** Downgrading is an explicit per-site act with an interstitial, not a
 silent fallback.
@@ -38,11 +44,17 @@ world-readable on a shared machine.
 
 These are engine-level, not an extension:
 
-- **Content blocking** — Adblock Plus / uBO filter syntax compiled to a matcher (hostname trie,
-  tokenized substring index, regex fallback), plus cosmetic filters applied at style time. Ships
-  with EasyList, EasyPrivacy, and uBO's own lists.
+- **Content blocking** — uBO's architecture, not just its syntax: filters compiled once into a flat
+  arena indexed by hostname trie and selective token buckets, so a request probes a few buckets
+  instead of testing 300,000 patterns. Cosmetic filters at style time. Ships with EasyList,
+  EasyPrivacy, and uBO's own lists compiled into the binary. Design:
+  `docs/adr/0006-content-blocking-engine.md`.
+- **Contextual identities** — Firefox-style containers, as a component of the partition key rather
+  than a feature bolted beside it. Ephemeral containers are the same mechanism with persistence off,
+  which is also what a private window is.
 - **URL sanitization** — `utm_*`, `fbclid`, `gclid`, and the rest of a maintained parameter list,
-  stripped on navigation and on copy-link.
+  stripped on navigation and on copy-link. Implemented as `$removeparam` rules in the blocking
+  engine, not as a second thing that rewrites URLs.
 - **Referrer trimming** — cross-origin referrers trimmed to origin, always.
 - **Anti-fingerprinting** — standardized `navigator` surface, `Accept-Language: en-US` regardless of
   system locale, quantized timers, no WebGL, canvas readback gated.
@@ -54,7 +66,8 @@ Privacy failures in browsers are almost never a decision to violate privacy. The
 features whose network cost nobody costed:
 
 - A favicon fetched from a third-party service instead of the origin.
-- A "check for updates" call added for good reasons on a timer nobody remembers.
+- A "check for updates" call added for good reasons on a timer nobody remembers. **A filter list
+  update is this**, which is why it is opt-in, jittered, and never runs because the browser started.
 - A DNS prefetch on hover, which leaks every link you *considered* clicking.
 - A connection opened speculatively to "warm the pool", which announces the visit before the click.
 - An error page that fetches a stylesheet from a CDN.
@@ -72,8 +85,8 @@ tries to protect the *machine* from — is in `guidelines/security.md`, and mali
 belongs there rather than here.
 
 - **Cross-site tracking** — cookies, storage, cache timing, connection reuse, fingerprinting. The
-  structural defense is partitioning: a data structure keyed by `(top-level site, origin)` cannot be
-  switched off the way a policy flag can.
+  structural defense is partitioning: a data structure keyed by `(container, top-level site,
+  origin)` cannot be switched off the way a policy flag can.
 - **Passive network observation** — HTTPS-only, no plaintext fallback, no DNS leaks past a proxy.
 - **The browser vendor** — which is to say, us. Zero telemetry means the project cannot learn
   anything about a user even if it wanted to. This is why "we would only collect anonymous
@@ -89,7 +102,9 @@ best-effort by nature — it is an arms race, and saying otherwise oversells it.
 
 - Does it send a packet? What user action causes it?
 - Does it write to disk? Did the user opt in? Is it in `AppDirectories`?
-- Does it store per-site state? Is the key partitioned by top-level site?
+- Does it store per-site state? Does the key carry the container *and* the top-level site?
+- Does it survive a cookie clear and get set by the server? Then it is a cookie, whatever it is
+  called — session tickets and HSTS entries are the ones that get forgotten.
 - Does it add an observable difference between users — a font list, a timing signal, a screen
   metric, a locale? That is a fingerprinting surface.
 - Does it weaken a default to make something work? Then it does not work yet.

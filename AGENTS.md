@@ -133,6 +133,11 @@ exists.
   the specs do and carry the spec section in a comment. Divergence from the spec text is a bug, not
   a style choice. Lands with M3.
 - **Paint TUs do not materialize strings** in hot paths. Lands with M6.
+- **Every storage-like lookup takes a `PartitionKey`**, with no overload without one — same
+  technique as `net::Fetch` taking a `privacy::Verdict`. Lands with `src/url` in M2.
+- **A filter list may never supply code.** Scriptlets and redirect resources are looked up by name
+  in a table compiled into the binary; the list contributes a name and arguments. Lands with the
+  blocking engine in M2.
 - **Site keys are computed against the baked-in Public Suffix List**, never a runtime-fetched one:
   a list downloaded at startup is both a request the user did not cause and a remote input to a
   security decision. Lands with `src/privacy` in M2.
@@ -155,8 +160,13 @@ Not a feature area — a constraint on every other area. See `guidelines/privacy
 - No network request the user did not cause. No telemetry, no crash reporting, no remote config,
   no update pings, no prefetch, no search suggestions.
 - Every request passes `src/privacy` before `src/net` sees it.
-- Every cookie, cache entry, and storage key is partitioned by `(top-level site, origin)`.
-  Total Cookie Protection by construction, not by policy flag.
+- Every cookie, cache entry, storage key, connection, TLS session ticket, and HSTS entry is
+  partitioned by `(container, top-level site, origin)`. Total Cookie Protection by construction, not
+  by policy flag. Containers are the user's own identities and refine the site instance, so a
+  WebContent process serves one `(site, container)` pair — ADR 0005.
+- Content blocking is engine-level and runs in the network process. Scriptlets and redirect
+  resources are named entries in a table compiled into the binary; a filter list supplies a name and
+  arguments, never code — ADR 0006.
 - HTTPS-only by default; downgrading is an explicit per-site act.
 - Nothing persists to disk unless the user opted in. The HTTP cache is memory-only by default.
 - A feature that cannot be built without weakening one of these does not get built.

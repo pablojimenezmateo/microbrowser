@@ -67,7 +67,7 @@ Decided in `docs/adr/0004-process-model-and-site-isolation.md`. The short versio
 |---|---|---|---|
 | **Browser** | `app`, `ui`, `platform` — window, input, profile, policy | yes | none; it is the broker |
 | **WebContent** | `engine`, `html`, `dom`, `css`, `layout`, `paint`, `js` | **no** | maximal |
-| **Network** | `net`, `privacy` — DNS, TLS, HTTP, cookies, cache, filters | partially | restricted |
+| **Network** | `net`, `privacy`, `url` — DNS, TLS, HTTP, cookies, cache, filters | partially | restricted |
 | **ImageDecoder** | image format decoding only | **no** | maximal, and no filesystem at all |
 
 Today all four are one process, with the boundary between the first two already defined as a

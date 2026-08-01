@@ -47,8 +47,9 @@ src/ui/         tabs, omnibox, chrome, settings          (M7)
 src/ipc/        typed serializable messages + transport            ── THE SEAM
 src/engine/     navigation, lifecycle, page ownership              ── Engine side
   src/html/  src/dom/  src/css/  src/layout/  src/paint/  src/js/   (M3–M8)
-src/net/        URL, DNS, TLS, HTTP/1.1, cookies, cache  (M2)
-src/privacy/    filter engine, sanitizer, partitioning   (M2)
+src/net/        DNS, TLS, HTTP/1.1, cookies, cache       (M2)
+src/privacy/    filter engine, sanitizer, containers      (M2)
+src/url/        Url, Origin, Site, PartitionKey, PSL      (M2)
 src/gfx/        Canvas, Path, Rasterizer, GlyphAtlas, Color
 src/platform/   SDL window/input/present, app dirs
 src/util/       parse, strings, tracing, counters
@@ -83,13 +84,39 @@ see `docs/adr/0004-process-model-and-site-isolation.md` and `guidelines/security
   mutable namespace-scope state, non-throwing locale-independent parses, and ASan/UBSan/TSan clean.
   The full enforced-versus-scheduled table is at the end of `guidelines/security.md`.
 
+## Privacy
+
+Not a feature area — a constraint on every other one. `guidelines/privacy.md` is the contract;
+the two designs that give it teeth are decided in ADRs.
+
+- **One partition key, `(container, top-level site, origin)`,** on every piece of per-site state:
+  cookies, storage, HTTP cache, connection pool, DNS cache, TLS session tickets, HSTS entries,
+  permissions. Total Cookie Protection because a data structure cannot be switched off the way a
+  policy flag can. The two rows people forget are session tickets and HSTS — both are set by the
+  *server*, both survive a cookie clear, and both have been used to track in the wild.
+- **Contextual identities** — Firefox-style containers — are the first component of that key rather
+  than a feature bolted beside it, so a container is a real boundary at every layer: a WebContent
+  process serves one `(site, container)` pair, and consolidation under the process cap never crosses
+  a container. Ephemeral containers are the same mechanism with persistence off, which is also all a
+  private window is. See `docs/adr/0005-contextual-identities-and-the-partition-key.md`.
+- **Content blocking** takes uBlock Origin's architecture, not just its filter syntax: lists compile
+  once into a flat arena indexed by a hostname trie and selective token buckets, so a request probes
+  a handful of buckets instead of testing 300,000 patterns, and the match path allocates nothing.
+  Scriptlets and redirect resources are named entries in a table compiled into the binary — a filter
+  list supplies a name and arguments, never code, because a list is third-party text and script
+  execution on every site is a better position than most browser exploits achieve. See
+  `docs/adr/0006-content-blocking-engine.md`.
+- **Lists ship compiled in**, so a fresh install blocks with no network at all. Updating them is a
+  user action or an opt-in jittered schedule — never a default-on timer, which is the exact failure
+  the privacy guide warns about by name.
+
 ## Roadmap
 
 | | | |
 |---|---|---|
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
 | M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | |
-| M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, filter engine, HTTPS-only | |
+| M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | |
 | M3 | HTML parsing + DOM | |
 | M4 | CSS: parsing, selectors, cascade, computed style | |
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | |

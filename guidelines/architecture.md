@@ -15,17 +15,18 @@ How this codebase is structured, and the mechanisms that keep it that way.
 
 ```
 src/app/        main loop, idle-wait policy, dirty-region policy      ── UI side of the seam
-src/ui/         tabs, omnibox, chrome, settings, privacy dashboard        (M7)
+src/ui/         tabs, omnibox, chrome, settings, privacy dashboard          (M7)
 src/ipc/        typed serializable messages + swappable transport     ── THE SEAM
 src/engine/     per-tab engine: navigation, lifecycle, event loop     ── Engine side
-  src/html/     tokenizer, tree construction (WHATWG-literal)             (M3)
-  src/dom/      Node/Element/Document, ranges, events, bindings           (M3)
-  src/css/      tokenizer, parser, selectors, cascade, computed style     (M4)
-  src/layout/   box tree, BFC/IFC, line breaking, flex, grid              (M5)
-  src/paint/    display list building, stacking contexts, compositing     (M6)
-  src/js/       lexer, parser, bytecode, interpreter, GC, builtins        (M8)
-src/net/        URL, DNS, sockets, TLS, HTTP/1.1, pool, cookies, cache    (M2)
-src/privacy/    filter engine, URL sanitizer, HTTPS-only, partition keys  (M2)
+  src/html/     tokenizer, tree construction (WHATWG-literal)               (M3)
+  src/dom/      Node/Element/Document, ranges, events, bindings             (M3)
+  src/css/      tokenizer, parser, selectors, cascade, computed style       (M4)
+  src/layout/   box tree, BFC/IFC, line breaking, flex, grid                (M5)
+  src/paint/    display list building, stacking contexts, compositing       (M6)
+  src/js/       lexer, parser, bytecode, interpreter, GC, builtins          (M8)
+src/net/        DNS, sockets, TLS, HTTP/1.1, pool, cookies, cache           (M2)
+src/privacy/    filter engine, URL sanitizer, HTTPS-only, containers        (M2)
+src/url/        Url, Origin, Site, PartitionKey, Public Suffix List         (M2)
 src/gfx/        Canvas, Path, Rasterizer, Blit, GlyphAtlas, Font, Color
 src/platform/   SDL window/input/present, clipboard, app dirs, fs
 src/util/       parse, strings, tasks, tracing, counters
