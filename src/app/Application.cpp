@@ -49,6 +49,16 @@ int Application::Run(const AppStartupOptions& options) {
   // in this project it is arguably the more principled one.
   directories_.EnsureExist();
 
+  {
+    // Indexing the installed fonts, before the window opens. Each file is
+    // parsed for its metadata and the bytes are dropped; the files themselves
+    // load lazily, when a page selects one. A machine with no fonts still
+    // runs -- text simply does not draw, which is a legible failure rather
+    // than a crash on the first paragraph.
+    util::StartupTrace::Scope fonts_scope("Application::ScanFonts");
+    fonts_.Scan();
+  }
+
   platform::WindowOptions window_options;
   window_options.width = options.width;
   window_options.height = options.height;
