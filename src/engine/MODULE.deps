@@ -14,11 +14,14 @@ max_tu_lines: 800
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays
 # the thing that routes messages to them. This budget is the tripwire.
-budget: Engine header_lines=60 public_methods=8 members=8
+budget: Engine header_lines=75 public_methods=8 members=8
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
-budget: Loader header_lines=55 public_methods=10 members=6
+budget: Loader header_lines=80 public_methods=10 members=6
 # One document: DOM, styles, box tree, and the display list they produce. This
 # is the unit a second tab duplicates.
-budget: Page   header_lines=60 public_methods=12 members=8
+# The ninth member is the list of stylesheet URLs the document referenced.
+# Page collects them and the Loader fetches them, because resolving a relative
+# href against a base URL is the loader's job and parsing is this one's.
+budget: Page   header_lines=80 public_methods=16 members=9

@@ -113,10 +113,37 @@ void Engine::Navigate(const std::string& url) {
     page_.Load(loaded.body, loaded.final_url.empty() ? url : loaded.final_url);
   }
 
+  LoadStyleSheets();
   endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
+}
+
+void Engine::LoadStyleSheets() {
+  // Synchronously, in document order, before the first layout. That is not how
+  // a browser should do it -- a slow sheet blocks the page -- but a stylesheet
+  // *is* render-blocking, so the ordering is right even though the blocking is
+  // crude. What must not happen is laying out without them and reflowing after,
+  // which is the flash of unstyled content.
+  const std::optional<url::Url> document = url::Url::Parse(page_.Url());
+  if (!document.has_value()) {
+    // A data: or about: document has no base to resolve against, so a relative
+    // href in one has nowhere to point.
+    return;
+  }
+  for (const std::string& href : page_.PendingStyleSheets()) {
+    const Loader::Result sheet =
+        loader_.LoadSubresource(href, *document, privacy::ResourceType::Stylesheet, NowSeconds());
+    if (sheet.ok) {
+      page_.AddStyleSheet(sheet.body);
+      AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
+    } else {
+      // A stylesheet that does not load is a page rendered without it, which is
+      // what every browser does. It is not a navigation failure.
+      AddPerformanceCounter(PerfCounterId::EngineStyleSheetsFailed);
+    }
+  }
 }
 
 void Engine::ShowError(std::string_view url, std::string_view message) {

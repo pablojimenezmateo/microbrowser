@@ -325,6 +325,7 @@ add_executable(microbrowser_tests
   tests/UrlTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp
+  tests/support/ScriptedTransport.cpp
   tests/support/SyntheticFont.cpp
   tests/support/SyntheticPng.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "css/StyleResolver.h"
 #include "gfx/DisplayList.h"
@@ -43,6 +44,18 @@ class Page {
   // would make every damage rect depend on replaying it.
   void Paint(gfx::DisplayList& out, float scroll_y) const;
 
+  // Stylesheet URLs the document referenced, in document order, exactly as
+  // written. Resolving them against the document is the loader's job, because
+  // it is the loader that knows what a base URL is for.
+  const std::vector<std::string>& PendingStyleSheets() const { return pending_sheets_; }
+
+  // Adds a fetched stylesheet. Author origin, appended after the document's
+  // own <style> elements -- which is wrong for a sheet that appeared earlier
+  // in the document, and is the next thing to fix here. Document order within
+  // an origin is the last tiebreaker in the cascade, so this only shows up
+  // when two rules of equal specificity disagree.
+  void AddStyleSheet(std::string_view css);
+
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.
@@ -67,6 +80,7 @@ class Page {
   std::unique_ptr<layout::Box> boxes_;
   std::string url_;
   std::string title_;
+  std::vector<std::string> pending_sheets_;
   float content_height_ = 0.0f;
 };
 

@@ -108,6 +108,8 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \
+  X(EngineStyleSheetsFailed, "engine.stylesheets_failed")                          \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
   X(DamageDiffs, "paint.damage_diffs")                                           \
   X(DamageDiffsIdentical, "paint.damage_diffs_identical")                        \

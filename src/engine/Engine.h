@@ -52,6 +52,8 @@ class Engine {
   void Navigate(const std::string& url);
   void SetViewport(const gfx::IntSize& size, float device_scale);
   void ScrollBy(int delta_x, int delta_y);
+  // Fetches the stylesheets the document referenced, before the first layout.
+  void LoadStyleSheets();
 
   // Lays out at the current viewport width, then paints. Separate from
   // PaintAndSend because scrolling repaints without relaying out, and a

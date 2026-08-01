@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "support/ScriptedTransport.h"
 #include "net/Fetch.h"
 #include "net/SocketTransport.h"
 #include "net/Transport.h"
@@ -31,88 +32,6 @@ using url::ContainerId;
 using url::Url;
 
 namespace {
-
-// A scripted connection. This is the entire reason `Transport` is a virtual
-// boundary: without it none of the logic below — redirects, cookie round trips,
-// cache behavior, policy re-entry — could be tested without a network.
-class ScriptedTransport : public Transport {
- public:
-  struct Exchange {
-    std::string expected_host;
-    std::uint16_t expected_port = 0;
-    bool expected_secure = false;
-    std::string response;
-  };
-
-  struct Log {
-    std::vector<std::string> requests;
-    std::vector<std::string> hosts;
-    std::vector<bool> secure;
-  };
-
-  ScriptedTransport(std::vector<Exchange>& script, std::size_t& cursor, Log& log)
-      : script_(script), cursor_(cursor), log_(log) {}
-
-  bool Connect(std::string_view host, std::uint16_t port, bool secure) override {
-    if (cursor_ >= script_.size()) {
-      return false;
-    }
-    const Exchange& exchange = script_[cursor_];
-    if (!exchange.expected_host.empty() && exchange.expected_host != host) {
-      return false;
-    }
-    if (exchange.expected_port != 0 && exchange.expected_port != port) {
-      return false;
-    }
-    if (exchange.expected_secure != secure) {
-      return false;
-    }
-    log_.hosts.emplace_back(host);
-    log_.secure.push_back(secure);
-    pending_ = exchange.response;
-    return true;
-  }
-
-  bool Send(std::span<const std::byte> data) override {
-    request_.append(reinterpret_cast<const char*>(data.data()), data.size());
-    return true;
-  }
-
-  std::optional<std::size_t> Receive(std::span<std::byte> out) override {
-    if (!sent_) {
-      log_.requests.push_back(request_);
-      sent_ = true;
-    }
-    if (pending_.empty()) {
-      return std::size_t{0};  // peer closed
-    }
-    const std::size_t take = std::min(out.size(), pending_.size());
-    std::memcpy(out.data(), pending_.data(), take);
-    pending_.erase(0, take);
-    return take;
-  }
-
-  void Close() override { ++cursor_; }
-
- private:
-  std::vector<Exchange>& script_;
-  std::size_t& cursor_;
-  Log& log_;
-  std::string request_;
-  std::string pending_;
-  bool sent_ = false;
-};
-
-class ScriptedFactory : public TransportFactory {
- public:
-  std::unique_ptr<Transport> Create() override {
-    return std::make_unique<ScriptedTransport>(script, cursor, log);
-  }
-
-  std::vector<ScriptedTransport::Exchange> script;
-  std::size_t cursor = 0;
-  ScriptedTransport::Log log;
-};
 
 Url MustParse(std::string_view text) {
   const auto url = Url::Parse(text);

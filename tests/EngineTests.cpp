@@ -8,8 +8,11 @@
 #include "engine/Loader.h"
 #include "engine/Page.h"
 #include "gfx/FontCatalog.h"
+#include "privacy/PrivacyPolicy.h"
+#include "url/Url.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
 
 namespace microbrowser::tests {
@@ -174,6 +177,121 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Paint(scrolled, 40.0f);
     Expect(!(top == scrolled), "scrolling changed the recorded geometry");
     Expect(top.Bounds().y - scrolled.Bounds().y == 40, "by exactly the scroll offset");
+  });
+
+  // --- Subresources ---------------------------------------------------------
+
+  AddTest(tests, "Page/CollectsLinkedStyleSheetsButNotOtherLinks", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<head>"
+        "<link rel='stylesheet' href='a.css'>"
+        "<link rel='STYLESHEET' href='b.css'>"
+        "<link rel='alternate stylesheet' href='alt.css'>"
+        "<link rel='preload' href='p.css'>"
+        "<link rel='icon' href='favicon.png'>"
+        "<link rel='stylesheet'>"
+        "</head><body>x</body>",
+        "https://example.org/");
+
+    const std::vector<std::string>& sheets = page.PendingStyleSheets();
+    ExpectEqInt(static_cast<long long>(sheets.size()), 2,
+                "rel is a token set: an alternate sheet is not applied, a preload is not a "
+                "sheet, and a link with no href points nowhere");
+    ExpectEqString(sheets.at(0), "a.css", "in document order");
+    ExpectEqString(sheets.at(1), "b.css", "and rel matches case-insensitively");
+  });
+
+  AddTest(tests, "Loader/ASubresourceIsFetchedRelativeToItsDocument", [] {
+    engine::Loader loader;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("text/css", "p { color: red }")});
+    loader.SetTransport(factory);
+
+    const url::Url document = *url::Url::Parse("https://example.org/dir/page.html");
+    const engine::Loader::Result result = loader.LoadSubresource(
+        "../style.css", document, privacy::ResourceType::Stylesheet, 1000);
+
+    Expect(result.ok, "the sheet loaded");
+    ExpectEqString(result.body, "p { color: red }", "with its bytes");
+    Expect(!factory.log.requests.empty(), "a request was made");
+    Expect(factory.log.requests.at(0).find("GET /style.css ") != std::string::npos,
+           "resolved against the document, not against the root: every href in a page is "
+           "relative to where the page is");
+  });
+
+  AddTest(tests, "Loader/ABlockedSubresourceIsNotFetched", [] {
+    // The point of the privacy layer: a request that the policy refuses never
+    // reaches a socket. If it did, the block would be cosmetic.
+    engine::Loader loader;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        ScriptedTransport::Exchange{"", 0, false, OkResponse("text/css", "x{}")});
+    loader.SetTransport(factory);
+
+    // HTTPS-only is the default, and deliberately not settable downward.
+    const url::Url document = *url::Url::Parse("http://insecure.test/page.html");
+    const engine::Loader::Result result = loader.LoadSubresource(
+        "http://insecure.test/style.css", document, privacy::ResourceType::Stylesheet, 1000);
+    (void)result;
+    Expect(factory.log.hosts.empty() || result.ok,
+           "either the policy upgraded the request and it was made over TLS, or it refused "
+           "and no connection happened -- what must not happen is a plaintext fetch");
+    for (const bool secure : factory.log.secure) {
+      Expect(secure, "no request left this machine in plaintext under HTTPS-only");
+    }
+  });
+
+  AddTest(tests, "Engine/AppliesAStyleSheetTheDocumentLinked", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<html><head><link rel='stylesheet' href='/s.css'></head>"
+                   "<body><p>ABC</p></body></html>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("text/css", "p { height: 400px }")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "the document and its stylesheet were both fetched");
+    Expect(factory.log.requests.at(1).find("GET /s.css ") != std::string::npos,
+           "and the second request is the sheet");
+
+    // The sheet must have applied *before* the first layout: laying out
+    // without it and reflowing after is the flash of unstyled content.
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr, "a frame was painted");
+    Expect(frame->display_list.Bounds().height >= 300,
+           "the 400px paragraph from the linked sheet is in the geometry of the first frame");
+  });
+
+  AddTest(tests, "Engine/AStyleSheetThatFailsToLoadIsNotANavigationFailure", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<html><head><link rel='stylesheet' href='/missing.css'></head>"
+                   "<body><p>ABC</p></body></html>")});
+    // No second exchange: the sheet's connection fails.
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    ExpectEqString(session.LastTitle(), "https://example.org/page.html",
+                   "the document still committed");
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr && TextRunCount(frame->display_list) > 0,
+           "a stylesheet that does not load is a page rendered without it, which is what "
+           "every browser does -- not an error page");
   });
 
   // --- The engine -----------------------------------------------------------

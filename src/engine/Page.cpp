@@ -5,6 +5,7 @@
 #include "css/StyleSheet.h"
 #include "html/TreeBuilder.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
 
 namespace microbrowser::engine {
@@ -13,6 +14,28 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
+
+// Splits an attribute on ASCII whitespace, per the HTML spec's
+// "space-separated tokens".
+std::vector<std::string_view> SplitTokens(std::string_view value) {
+  std::vector<std::string_view> tokens;
+  std::size_t i = 0;
+  while (i < value.size()) {
+    while (i < value.size() && (value[i] == ' ' || value[i] == '\t' || value[i] == '\n' ||
+                                value[i] == '\r' || value[i] == '\f')) {
+      ++i;
+    }
+    const std::size_t start = i;
+    while (i < value.size() && value[i] != ' ' && value[i] != '\t' && value[i] != '\n' &&
+           value[i] != '\r' && value[i] != '\f') {
+      ++i;
+    }
+    if (i > start) {
+      tokens.push_back(value.substr(start, i - start));
+    }
+  }
+  return tokens;
+}
 
 // The text of an element's direct text children, concatenated. Enough for
 // <title>, which is a text-only element by definition.
@@ -47,12 +70,38 @@ void Page::Load(std::string_view html, std::string url) {
 }
 
 void Page::CollectStyleSheets() {
+  pending_sheets_.clear();
   if (document_ == nullptr) {
     return;
   }
   for (const dom::Element* style : document_->ElementsByTagName("style")) {
     resolver_.AddStyleSheet(css::ParseStyleSheet(DirectText(*style)), css::Origin::Author);
   }
+  for (const dom::Element* link : document_->ElementsByTagName("link")) {
+    // `rel` is a space-separated set of tokens, and a sheet is only a sheet
+    // when "stylesheet" is one of them: `rel="alternate stylesheet"` is not
+    // applied, and `rel="preload"` is not a stylesheet at all.
+    const std::string* rel = link->GetAttribute("rel");
+    const std::string* href = link->GetAttribute("href");
+    if (rel == nullptr || href == nullptr || href->empty()) {
+      continue;
+    }
+    bool is_stylesheet = false;
+    bool is_alternate = false;
+    for (const std::string_view token : SplitTokens(*rel)) {
+      is_stylesheet = is_stylesheet || util::EqualsAsciiCaseInsensitive(token, "stylesheet");
+      is_alternate = is_alternate || util::EqualsAsciiCaseInsensitive(token, "alternate");
+    }
+    if (is_stylesheet && !is_alternate) {
+      pending_sheets_.push_back(*href);
+    }
+  }
+}
+
+void Page::AddStyleSheet(std::string_view css) {
+  resolver_.AddStyleSheet(css::ParseStyleSheet(css), css::Origin::Author);
+  // The box tree was built against the old cascade, if it was built at all.
+  boxes_.reset();
 }
 
 void Page::ExtractTitle() {

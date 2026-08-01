@@ -116,6 +116,72 @@ DataUrl DecodeDataUrl(std::string_view url) {
   return result;
 }
 
+Loader::Result Loader::Fetch(const url::Url& target, const privacy::Request& request,
+                             bool top_level, std::int64_t now) {
+  Result result;
+
+  privacy::Verdict verdict = policy_.Decide(request);
+  if (!verdict.IsAllowed()) {
+    blocked_reason_ = verdict.Reason();
+    result.error = blocked_reason_.empty() ? "blocked" : blocked_reason_.c_str();
+    return result;
+  }
+
+  net::FetchOptions options;
+  options.is_top_level_navigation = top_level;
+
+  const net::FetchResult fetched =
+      net::Fetch(std::move(verdict), policy_, *transport_, cookies_, cache_, options, now);
+  if (!fetched.ok) {
+    result.error = fetched.error == nullptr ? "the load failed" : fetched.error;
+    return result;
+  }
+
+  result.ok = true;
+  result.status = fetched.response.status;
+  result.final_url = fetched.final_url.Serialize();
+  result.body = BodyAsString(fetched.response.body);
+  if (const std::optional<std::string_view> type = fetched.response.headers.Get("content-type")) {
+    result.content_type = std::string(*type);
+  }
+  (void)target;
+  return result;
+}
+
+Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& document,
+                                       privacy::ResourceType type, std::int64_t now) {
+  Result result;
+
+  if (DataUrl data = DecodeDataUrl(url); data.ok) {
+    result.ok = true;
+    result.body = std::move(data.body);
+    result.content_type = std::move(data.content_type);
+    result.final_url = std::string(url);
+    result.status = 200;
+    return result;
+  }
+
+  // Relative to the document, which is what every href in a page is.
+  const std::optional<url::Url> parsed = url::Url::Parse(url, document);
+  if (!parsed.has_value()) {
+    result.error = "that is not a URL";
+    return result;
+  }
+
+  privacy::Request request;
+  request.url = *parsed;
+  // The document that asked is the initiator and, with no frames, also the
+  // top-level site. Partitioning every piece of state this touches by that
+  // pair is the whole point of the privacy layer -- see ADR 0004.
+  request.initiator = url::Origin::FromUrl(document);
+  request.top_level_site = url::Site::FromUrl(document);
+  request.container = url::ContainerId::Default();
+  request.type = type;
+  request.is_subresource = true;
+
+  return Fetch(*parsed, request, false, now);
+}
+
 Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
   Result result;
 
@@ -145,31 +211,7 @@ Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
 
-  privacy::Verdict verdict = policy_.Decide(request);
-  if (!verdict.IsAllowed()) {
-    blocked_reason_ = verdict.Reason();
-    result.error = blocked_reason_.empty() ? "blocked" : blocked_reason_.c_str();
-    return result;
-  }
-
-  net::FetchOptions options;
-  options.is_top_level_navigation = true;
-
-  const net::FetchResult fetched =
-      net::Fetch(std::move(verdict), policy_, *transport_, cookies_, cache_, options, now);
-  if (!fetched.ok) {
-    result.error = fetched.error == nullptr ? "the load failed" : fetched.error;
-    return result;
-  }
-
-  result.ok = true;
-  result.status = fetched.response.status;
-  result.final_url = fetched.final_url.Serialize();
-  result.body = BodyAsString(fetched.response.body);
-  if (const std::optional<std::string_view> type = fetched.response.headers.Get("content-type")) {
-    result.content_type = std::string(*type);
-  }
-  return result;
+  return Fetch(*parsed, request, true, now);
 }
 
 }  // namespace microbrowser::engine

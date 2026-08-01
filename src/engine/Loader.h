@@ -43,6 +43,18 @@ class Loader {
   // decisions inside one load cannot disagree about what time it is.
   Result Load(std::string_view url, std::int64_t now);
 
+  // Loads something the document asked for, rather than something the user
+  // did. The distinction is not cosmetic: it decides which cookies travel,
+  // whether HTTPS-only may show an interstitial or must simply refuse, and
+  // what `$1p`/`$3p` filter rules mean -- so it is a parameter of the request
+  // rather than a flag on the transport.
+  //
+  // `url` is resolved against `document`, which is also the initiator and the
+  // top-level site: this browser has no frames, so the document that asked is
+  // always the top-level one.
+  Result LoadSubresource(std::string_view url, const url::Url& document,
+                         privacy::ResourceType type, std::int64_t now);
+
   privacy::PrivacyPolicy& Policy() { return policy_; }
   net::CookieJar& Cookies() { return cookies_; }
 
@@ -51,6 +63,12 @@ class Loader {
   void SetTransport(net::TransportFactory& transport) { transport_ = &transport; }
 
  private:
+  // The one place a request is actually made. Both entry points funnel through
+  // it so that "every request passed the policy" is true by construction
+  // rather than by two functions remembering to do the same thing.
+  Result Fetch(const url::Url& target, const privacy::Request& request, bool top_level,
+               std::int64_t now);
+
   privacy::PrivacyPolicy policy_;
   net::SocketTransportFactory sockets_;
   net::TransportFactory* transport_ = nullptr;
