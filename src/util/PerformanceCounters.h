@@ -71,6 +71,9 @@ namespace microbrowser::util {
   X(GfxPngDecodeFailures, "gfx.png_decode_failures")                             \
   X(GfxPngPixelsDecoded, "gfx.png_pixels_decoded")                               \
   X(GfxImagesDrawn, "gfx.images_drawn")                                          \
+  /* --- url ----------------------------------------------------------------- */ \
+  X(UrlParses, "url.parses")                                                     \
+  X(UrlParseFailures, "url.parse_failures")                                      \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

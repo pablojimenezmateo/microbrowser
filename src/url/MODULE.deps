@@ -1,0 +1,21 @@
+purpose: URL, origin, site, and the partition key. The bottom of the web stack.
+
+# util only, and that is the point. ADR 0005 puts this module below both net and
+# privacy specifically to break a cycle: privacy runs before net, but the
+# identity types are built out of URLs, which would otherwise be net's material.
+# A dependency on anything above would recreate the cycle this module exists to
+# remove.
+allow: util
+
+public: PercentEncoding.h Host.h Url.h Origin.h PublicSuffixList.h PartitionKey.h
+
+extern:
+
+max_tu_lines: 800
+
+budget: Host         header_lines=45 public_methods=14 members=3
+budget: Url          header_lines=70 public_methods=30 members=11
+budget: Origin       header_lines=45 public_methods=14 members=5
+budget: Site         header_lines=35 public_methods=12 members=4
+budget: ContainerId  header_lines=30 public_methods=10 members=2
+budget: PartitionKey header_lines=45 public_methods=14 members=3

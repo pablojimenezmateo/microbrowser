@@ -172,6 +172,16 @@ microbrowser_module(util
     src/util/StartupTrace.cpp
     src/util/TraceChannel.cpp)
 
+microbrowser_module(url
+  SOURCES
+    src/url/Host.cpp
+    src/url/Origin.cpp
+    src/url/PartitionKey.cpp
+    src/url/PercentEncoding.cpp
+    src/url/PublicSuffixList.cpp
+    src/url/Url.cpp
+  DEPS microbrowser_util)
+
 microbrowser_module(gfx
   SOURCES
     src/gfx/AffineTransform.cpp
@@ -251,11 +261,12 @@ add_executable(microbrowser_tests
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
   tests/TextShaperTests.cpp
+  tests/UrlTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp
   tests/support/SyntheticFont.cpp
   tests/support/SyntheticPng.cpp)
-target_link_libraries(microbrowser_tests PRIVATE microbrowser_app)
+target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
