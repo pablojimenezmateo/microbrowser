@@ -120,7 +120,7 @@ the two designs that give it teeth are decided in ADRs.
 | M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — URL, privacy, HTTP/1.1, cookies, cache, sockets and TLS done; connection pooling and a partitioned DNS cache not |
 | M3 | HTML parsing + DOM | **in progress** — tokenizer, DOM and tree construction done; tables, foreign content and templates not |
 | M4 | CSS: parsing, selectors, cascade, computed style | **done** — tokenizer, parser, selectors, cascade, computed style, user-agent sheet |
-| M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, inline layout with line breaking and text fragments done; floats, flexbox and grid not |
+| M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements done; floats, flexbox and grid not |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | **in progress** — display-list building and incremental repaint from a two-frame diff done; stacking contexts not |
 | M7 | Browser UI: tabs, omnibox, history, downloads, plus the process split and sandbox. **First usable browser.** | |
 | M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | |
