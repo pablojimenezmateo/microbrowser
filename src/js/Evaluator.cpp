@@ -127,6 +127,29 @@ Result Interpreter::EvaluateMember(const Node& node, Environment& scope, Value& 
   if (object_node == nullptr || property_node == nullptr) {
     return Throw("SyntaxError", "malformed member access");
   }
+
+  if (object_node->kind == NodeKind::Super) {
+    // `super.x` reads from the prototype of the object the *method* was
+    // defined on, while `this` stays the receiver. Reading from the receiver's
+    // prototype instead is what makes a three-level hierarchy call itself.
+    Value* home = scope.Lookup("__home__");
+    Value* self = scope.Lookup("this");
+    base_out = self == nullptr ? Value::Undefined() : *self;
+    if (home == nullptr || !home->IsObject() || home->object->Prototype() == nullptr) {
+      return Throw("SyntaxError", "'super' is only valid inside a method");
+    }
+    super_base_ = Value::Obj(home->object->Prototype());
+    if (node.number == 1.0) {
+      const Result key = Evaluate(*property_node, scope);
+      if (key.IsAbrupt()) {
+        return key;
+      }
+      return Result::Normal(Value::String(ToString(key.value)));
+    }
+    return Result::Normal(Value::String(property_node->string));
+  }
+  super_base_ = Value::Undefined();
+
   const Result base = Evaluate(*object_node, scope);
   if (base.IsAbrupt()) {
     return base;
@@ -350,6 +373,44 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     return Throw("SyntaxError", "malformed call");
   }
 
+  if (callee_node->kind == NodeKind::Super) {
+    // `super(...)` runs the parent constructor against the instance that is
+    // already being built, rather than making a second one.
+    Value* current_function = scope.Lookup("__function__");
+    Value* self_binding = scope.Lookup("this");
+    if (current_function == nullptr || !current_function->IsObject() ||
+        current_function->object->SuperConstructor() == nullptr) {
+      return Throw("SyntaxError", "'super' keyword unexpected here");
+    }
+    std::vector<Value> super_arguments;
+    for (std::size_t i = 1; i < node.children.size(); ++i) {
+      const Node* argument = node.Child(i);
+      if (argument == nullptr) {
+        continue;
+      }
+      const Result value = Evaluate(*argument, scope);
+      if (value.IsAbrupt()) {
+        return value;
+      }
+      super_arguments.push_back(value.value);
+    }
+    const Value instance = self_binding == nullptr ? Value::Undefined() : *self_binding;
+    const Result constructed = CallFunction(
+        Value::Obj(current_function->object->SuperConstructor()), instance, super_arguments);
+    if (constructed.IsAbrupt()) {
+      return constructed;
+    }
+    // Fields of *this* class initialize after the super call, which is the
+    // ordering that makes a derived field see a base one.
+    if (instance.IsObject()) {
+      const Result fields = InitializeFields(instance.object, current_function->object);
+      if (fields.IsAbrupt()) {
+        return fields;
+      }
+    }
+    return Result::Normal(Value::Undefined());
+  }
+
   Value self;
   Result callee;
   if (callee_node->kind == NodeKind::Member) {
@@ -364,7 +425,11 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
       return Result::Normal(Value::Undefined());  // optional chaining
     }
     self = base;
-    callee = Result::Normal(GetProperty(base, ToString(key.value)));
+    // For `super.m()`, the lookup happens on the parent prototype and `this`
+    // stays the receiver -- which is the whole point of the two being separate.
+    const Value lookup_base = super_base_.IsObject() ? super_base_ : base;
+    super_base_ = Value::Undefined();
+    callee = Result::Normal(GetProperty(lookup_base, ToString(key.value)));
   } else {
     callee = Evaluate(*callee_node, scope);
   }

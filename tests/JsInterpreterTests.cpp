@@ -233,7 +233,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // out. A kind arriving there is a gap between the parser and the
     // evaluator, and saying so is the only useful answer.
     for (const std::string_view source :
-         {"con^s={o}>funcn&", "class A {}", "tag`x`", "super", "...x"}) {
+         {"con^s={o}>funcn&", "tag`x`", "super", "...x"}) {
       const std::string result = Eval(source);
       Expect(result.rfind("throw", 0) == 0,
              std::string("expected a thrown value for: ") + std::string(source));
@@ -401,6 +401,88 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
   AddTest(tests, "JsInterpreter/ObjectKeysAndValues", [] {
     ExpectEval("Object.keys({ b: 1, a: 2 }).join(',')", "b,a");  // insertion order
     ExpectEval("Object.values({ a: 1, b: 2 }).join(',')", "1,2");
+  });
+
+  // --- Classes --------------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/ClassesAreFunctionsWithAPopulatedPrototype", [] {
+    // Saying so in one place is what keeps `new Foo()` from needing to know
+    // which of the two forms it was handed.
+    ExpectEval("class A { constructor(n){ this.n = n } get(){ return this.n } } new A(5).get()",
+               "5");
+    ExpectEval("class A {} typeof A", "function");
+    ExpectEval("class A { m(){} } typeof A.prototype.m", "function");
+    ExpectEval("const C = class { v(){ return 42 } }; new C().v()", "42");
+    ExpectEval("class A { static create(){ return new A() } } typeof A.create()", "object");
+  });
+
+  AddTest(tests, "JsInterpreter/FieldsInitializePerInstanceAndSeeThis", [] {
+    ExpectEval("class A { n = 7 } new A().n", "7");
+    ExpectEval("class A { a = 2; b = this.a * 3 } new A().b", "6");
+    ExpectEval("class A { n = 1 } const x = new A(); x.n = 9; new A().n", "1");
+    ExpectEval("class A { n } typeof new A().n", "undefined");
+    ExpectEval("class A { #secret = 4; reveal(){ return this.#secret } } new A().reveal()", "4");
+  });
+
+  AddTest(tests, "JsInterpreter/StaticMembersLiveOnTheClass", [] {
+    ExpectEval("class A { static k = 9 } A.k", "9");
+    ExpectEval("class A { static k = 9 } typeof new A().k", "undefined");
+    ExpectEval("class A { static m(){ return 's' } } A.m()", "s");
+  });
+
+  AddTest(tests, "JsInterpreter/AccessorsRunOnReadAndWrite", [] {
+    ExpectEval("class A { #n = 4; get value(){ return this.#n } } new A().value", "4");
+    ExpectEval("class A { set v(x){ this.stored = x * 2 } } const a = new A(); a.v = 5; a.stored",
+               "10");
+    // A getter with no setter: assigning is a silent no-op rather than an
+    // overwrite that removes the accessor.
+    ExpectEval("class A { get v(){ return 1 } } const a = new A(); a.v = 9; a.v", "1");
+    // Two halves of the same property, declared separately.
+    ExpectEval("class A { get v(){ return this._v } set v(x){ this._v = x + 1 } } "
+               "const a = new A(); a.v = 1; a.v",
+               "2");
+    // An accessor is inherited, and runs with `this` bound to the receiver.
+    ExpectEval("class A { get twice(){ return this.n * 2 } } class B extends A { n = 5 } "
+               "new B().twice",
+               "10");
+  });
+
+  AddTest(tests, "JsInterpreter/InheritanceAndSuper", [] {
+    ExpectEval("class A { constructor(n){ this.n = n } } "
+               "class B extends A { constructor(){ super(3) } } new B().n",
+               "3");
+    ExpectEval("class A { hi(){ return 'hi' } } class B extends A {} new B().hi()", "hi");
+    ExpectEval("class A { hi(){ return 'A' } } class B extends A { hi(){ return super.hi() + 'B' } } "
+               "new B().hi()",
+               "AB");
+    ExpectEval("class A{} class B extends A{} (new B()) instanceof A", "true");
+    ExpectEval("class A{} class B extends A{} (new B()) instanceof B", "true");
+  });
+
+  AddTest(tests, "JsInterpreter/SuperResolvesAgainstTheDefiningClassNotTheReceiver", [] {
+    // Three levels is the case that catches it: resolving against the
+    // receiver's prototype makes the middle class call itself forever.
+    ExpectEval("class A { m(){ return 'a' } } "
+               "class B extends A { m(){ return super.m() + 'b' } } "
+               "class C extends B { m(){ return super.m() + 'c' } } new C().m()",
+               "abc");
+  });
+
+  AddTest(tests, "JsInterpreter/DerivedFieldsInitializeAfterTheSuperCall", [] {
+    // Which is the ordering that lets a derived field read a base one. Doing
+    // it before instead leaves the field undefined in the constructor.
+    ExpectEval("class A { constructor(){ this.a = 1 } } "
+               "class B extends A { b = this.a + 1; constructor(){ super() } } new B().b",
+               "2");
+  });
+
+  AddTest(tests, "JsInterpreter/ExtendingSomethingThatIsNotAConstructorThrows", [] {
+    ExpectEval("class A extends 5 {}", "throw TypeError: class can only extend a constructor or null");
+    // `super.m` in a class with no `extends` resolves against Object.prototype,
+    // finds nothing, and fails as a call rather than as syntax -- which is what
+    // a real engine does too.
+    ExpectEval("class A { m(){ return super.m() } } new A().m()",
+               "throw TypeError: undefined is not a function");
   });
 
   // --- The collector --------------------------------------------------------

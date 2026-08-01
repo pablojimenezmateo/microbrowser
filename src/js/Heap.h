@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "js/Ast.h"
@@ -42,10 +43,31 @@ class Object {
   Object* Prototype() const { return prototype_; }
   void SetPrototype(Object* prototype) { prototype_ = prototype; }
 
+  // A property slot: either a value or a pair of accessors.
+  //
+  // One record rather than two maps, because `Object.keys` and `for...in` have
+  // to see both kinds in insertion order, and two maps means merging two
+  // orders at every enumeration.
+  struct Property {
+    Value value;
+    // Null unless this is an accessor. A getter-only property is legal and
+    // assigning to it is a silent no-op outside strict mode, so the two
+    // pointers are independent rather than a single flag.
+    Object* getter = nullptr;
+    Object* setter = nullptr;
+
+    bool IsAccessor() const { return getter != nullptr || setter != nullptr; }
+  };
+
   // Own properties only. Null when absent, which is distinct from a property
   // whose value is undefined -- `'x' in o` and `o.x === undefined` are
   // different questions.
   const Value* GetOwn(std::string_view key) const;
+  const Property* GetOwnProperty(std::string_view key) const;
+  // Walks the prototype chain, so an accessor inherited from a class body is
+  // found on an instance that does not have one of its own.
+  const Property* GetProperty(std::string_view key) const;
+  void DefineAccessor(std::string key, Object* getter, Object* setter);
   // Walks the prototype chain. The chain is bounded while walking rather than
   // on assignment: a cycle can be built with __proto__ or with Object.create,
   // and an unbounded walk is a hang reachable from a page.
@@ -72,6 +94,23 @@ class Object {
     kind_ = Kind::Native;
     native_ = std::move(native);
   }
+  // What `super.x` resolves against: the object the method was *defined* on,
+  // not the one it was called through. Using the receiver instead makes a
+  // three-level hierarchy recurse into itself.
+  Object* HomeObject() const { return home_object_; }
+  void SetHomeObject(Object* home) { home_object_ = home; }
+  // The class this one extends, for `super(...)`.
+  Object* SuperConstructor() const { return super_constructor_; }
+  void SetSuperConstructor(Object* parent) { super_constructor_ = parent; }
+
+  // Instance field initializers, in declaration order. The node is null for a
+  // field with no initializer, which is undefined rather than absent.
+  using InstanceField = std::pair<std::string, const Node*>;
+  const std::vector<InstanceField>& InstanceFields() const { return instance_fields_; }
+  void AddInstanceField(std::string name, const Node* initializer) {
+    instance_fields_.emplace_back(std::move(name), initializer);
+  }
+
   // `this` captured at creation, for an arrow function.
   const Value& BoundThis() const { return bound_this_; }
   void SetBoundThis(Value value) { bound_this_ = std::move(value); }
@@ -81,7 +120,7 @@ class Object {
 
   Kind kind_ = Kind::Plain;
   Object* prototype_ = nullptr;
-  std::unordered_map<std::string, Value> properties_;
+  std::unordered_map<std::string, Property> properties_;
   std::vector<std::string> key_order_;
   std::vector<Value> elements_;
 
@@ -91,6 +130,9 @@ class Object {
   bool arrow_ = false;
   Value bound_this_;
   NativeFunction native_;
+  Object* home_object_ = nullptr;
+  Object* super_constructor_ = nullptr;
+  std::vector<InstanceField> instance_fields_;
 
   bool marked_ = false;
 };

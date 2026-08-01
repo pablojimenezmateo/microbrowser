@@ -153,8 +153,21 @@ Value Interpreter::GetProperty(const Value& base, std::string_view key) {
       return index < object->Elements().size() ? object->Elements()[index] : Value::Undefined();
     }
   }
-  const Value* found = object->Get(key);
-  return found == nullptr ? Value::Undefined() : *found;
+  const Object::Property* property = object->GetProperty(key);
+  if (property == nullptr) {
+    return Value::Undefined();
+  }
+  if (property->getter != nullptr) {
+    // The getter runs with `this` bound to the object it was read *from*, not
+    // the one that owns it -- which is what makes an accessor inherited from a
+    // class body see the instance.
+    const Result got = CallFunction(Value::Obj(property->getter), base, {});
+    return got.IsAbrupt() ? Value::Undefined() : got.value;
+  }
+  if (property->setter != nullptr) {
+    return Value::Undefined();  // set-only: reading gives undefined
+  }
+  return property->value;
 }
 
 Result Interpreter::SetProperty(const Value& base, std::string_view key, const Value& value) {
@@ -192,6 +205,16 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
         object->Elements().resize(index + 1);
       }
       object->Elements()[index] = value;
+      return Result::Normal(value);
+    }
+  }
+  if (const Object::Property* property = object->GetProperty(key)) {
+    if (property->setter != nullptr) {
+      return CallFunction(Value::Obj(property->setter), base, {value});
+    }
+    if (property->getter != nullptr) {
+      // Getter-only. Assigning is a silent no-op outside strict mode, which is
+      // the mode this engine is in.
       return Result::Normal(value);
     }
   }
@@ -283,6 +306,13 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   // it was written. That is the whole difference between the two forms, and it
   // is why the binding is decided here rather than by the caller.
   scope->Declare("this", function->IsArrow() ? function->BoundThis() : self, true);
+  // What `super` needs: the object the method was defined on, and the function
+  // itself (for its superclass). Bound here rather than looked up later,
+  // because by the time super runs the C++ frame that knew them is gone.
+  if (function->HomeObject() != nullptr) {
+    scope->Declare("__home__", Value::Obj(function->HomeObject()), true);
+  }
+  scope->Declare("__function__", callee, true);
   if (Object* argument_list = NewArray(arguments)) {
     scope->Declare("arguments", Value::Obj(argument_list), false);
   }

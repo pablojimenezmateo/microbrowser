@@ -98,6 +98,11 @@ class Interpreter {
   Result EvaluateBinary(const Node& node, Environment& scope);
   Result EvaluateMember(const Node& node, Environment& scope, Value& base_out);
   Result EvaluateForIn(const Node& node, Environment& scope);
+  Result EvaluateClass(const Node& node, Environment& scope);
+  // Runs a class's instance field initializers against a fresh instance.
+  // Separate from the constructor because fields run *before* the constructor
+  // body and after any super() call, and folding them in loses that ordering.
+  Result InitializeFields(Object* instance, Object* constructor);
 
   // Declares the function declarations in a statement list before running it,
   // which is what makes a function callable above where it is written.
@@ -147,6 +152,10 @@ class Interpreter {
   // outer` continue the outer loop rather than leave it -- the label has to
   // reach the loop, and the loop is not the labelled statement.
   std::string pending_label_;
+  // Set by EvaluateMember when the base was `super`, so the call that follows
+  // knows to look the method up on the parent while keeping `this`. Cleared on
+  // every other member access, so it cannot leak into an unrelated call.
+  Value super_base_;
   std::size_t steps_ = 0;
   static constexpr std::size_t kMaxSteps = 20'000'000;
 

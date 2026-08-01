@@ -14,30 +14,62 @@ constexpr int kMaxPrototypeDepth = 1000;
 
 }  // namespace
 
-const Value* Object::GetOwn(std::string_view key) const {
+const Object::Property* Object::GetOwnProperty(std::string_view key) const {
   const auto found = properties_.find(std::string(key));
   return found == properties_.end() ? nullptr : &found->second;
 }
 
-const Value* Object::Get(std::string_view key) const {
+const Value* Object::GetOwn(std::string_view key) const {
+  const Property* property = GetOwnProperty(key);
+  // An accessor has no value to hand back. Callers that can invoke a getter go
+  // through GetProperty; the ones that cannot are asking about data.
+  return property == nullptr || property->IsAccessor() ? nullptr : &property->value;
+}
+
+const Object::Property* Object::GetProperty(std::string_view key) const {
   const Object* current = this;
   for (int depth = 0; current != nullptr && depth < kMaxPrototypeDepth; ++depth) {
-    if (const Value* value = current->GetOwn(key)) {
-      return value;
+    if (const Property* property = current->GetOwnProperty(key)) {
+      return property;
     }
     current = current->prototype_;
   }
   return nullptr;
 }
 
+const Value* Object::Get(std::string_view key) const {
+  const Property* property = GetProperty(key);
+  return property == nullptr || property->IsAccessor() ? nullptr : &property->value;
+}
+
 void Object::Set(std::string key, Value value) {
   const auto found = properties_.find(key);
   if (found != properties_.end()) {
-    found->second = std::move(value);
+    found->second.value = std::move(value);
+    found->second.getter = nullptr;
+    found->second.setter = nullptr;
     return;
   }
   key_order_.push_back(key);
-  properties_.emplace(std::move(key), std::move(value));
+  properties_.emplace(std::move(key), Property{std::move(value), nullptr, nullptr});
+}
+
+void Object::DefineAccessor(std::string key, Object* getter, Object* setter) {
+  const auto found = properties_.find(key);
+  if (found != properties_.end()) {
+    // A second `get`/`set` for the same name fills in the other half rather
+    // than replacing it, which is what `get x(){} set x(v){}` means.
+    if (getter != nullptr) {
+      found->second.getter = getter;
+    }
+    if (setter != nullptr) {
+      found->second.setter = setter;
+    }
+    found->second.value = Value::Undefined();
+    return;
+  }
+  key_order_.push_back(key);
+  properties_.emplace(std::move(key), Property{Value::Undefined(), getter, setter});
 }
 
 bool Object::Delete(std::string_view key) {
@@ -162,9 +194,13 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
       object_worklist_.pop_back();
       Mark(object->prototype_);
       Mark(object->closure_);
+      Mark(object->home_object_);
+      Mark(object->super_constructor_);
       MarkValue(object->bound_this_);
-      for (const auto& property : object->properties_) {
-        MarkValue(property.second);
+      for (const auto& entry : object->properties_) {
+        MarkValue(entry.second.value);
+        Mark(entry.second.getter);
+        Mark(entry.second.setter);
       }
       for (const Value& element : object->elements_) {
         MarkValue(element);

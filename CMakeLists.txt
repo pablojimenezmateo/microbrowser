@@ -284,6 +284,7 @@ microbrowser_module(js
     src/js/Evaluator.cpp
     src/js/Statements.cpp
     src/js/Builtins.cpp
+    src/js/Classes.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(ui

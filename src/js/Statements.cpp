@@ -364,6 +364,32 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       }
       const Value self = Value::Obj(instance);
       active_objects_.push_back(instance);
+      // A base class initializes its fields before the constructor body runs.
+      // A derived one does it after its super() call instead, which is the
+      // ordering that lets a derived field read a base one.
+      Object* parent = callee.value.object->SuperConstructor();
+      if (parent == nullptr) {
+        const Result fields = InitializeFields(instance, callee.value.object);
+        if (fields.IsAbrupt()) {
+          active_objects_.pop_back();
+          return fields;
+        }
+      } else if (callee.value.object->Body() == nullptr) {
+        // A derived class with no explicit constructor gets an implicit
+        // `constructor(...args){ super(...args) }`. Without it, `class B
+        // extends A { n = 5 }` runs no constructor at all and leaves both the
+        // base's state and its own fields unset.
+        const Result base = CallFunction(Value::Obj(parent), self, arguments);
+        if (base.IsAbrupt()) {
+          active_objects_.pop_back();
+          return base;
+        }
+        const Result fields = InitializeFields(instance, callee.value.object);
+        if (fields.IsAbrupt()) {
+          active_objects_.pop_back();
+          return fields;
+        }
+      }
       const Result constructed = CallFunction(callee.value, self, arguments);
       active_objects_.pop_back();
       if (constructed.IsAbrupt()) {
@@ -404,8 +430,17 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return last;
     }
 
+    case NodeKind::ClassExpression:
+      return EvaluateClass(node, scope);
+
+    case NodeKind::Super: {
+      // `super` on its own is only reachable as `super(...)` or `super.x`, and
+      // both are handled where the call and the member access are. Reaching
+      // here means it was used as a value, which it is not.
+      return Throw("SyntaxError", "'super' keyword unexpected here");
+    }
+
     case NodeKind::TaggedTemplate:
-    case NodeKind::Super:
     case NodeKind::Spread:
       return Throw("SyntaxError", "unsupported expression");
 
@@ -860,9 +895,14 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
       return result;
     }
 
-    case NodeKind::ClassDeclaration:
-    case NodeKind::ClassExpression:
-      return Throw("SyntaxError", "classes are not implemented yet");
+    case NodeKind::ClassDeclaration: {
+      const Result value = EvaluateClass(node, scope);
+      if (value.IsAbrupt()) {
+        return value;
+      }
+      scope.Declare(node.string, value.value, false);
+      return Result::Normal();
+    }
 
     default:
       // Does *not* fall back to Evaluate. Evaluate's own default sends

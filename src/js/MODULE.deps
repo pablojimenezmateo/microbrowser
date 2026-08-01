@@ -24,7 +24,11 @@ budget: NodeKind header_lines=70 public_methods=0  members=0
 # Parser.cpp and statements in ParserStatements.cpp.
 budget: ParserImpl header_lines=90 public_methods=6 members=5
 budget: Value       header_lines=60 public_methods=20 members=5
-budget: Object      header_lines=90 public_methods=30 members=12
+# Grew for classes: the home object `super` resolves against, the superclass,
+# and the instance field initializers. All three are per-function state that
+# has nowhere else to live -- a class *is* a function here, which is what keeps
+# `new` from having to know which of the two forms it was handed.
+budget: Object      header_lines=125 public_methods=40 members=15
 budget: Environment header_lines=40 public_methods=10 members=3
 budget: Heap        header_lines=90 public_methods=16 members=6
 # The tree-walking interpreter. Its members are the heap, the well-known
