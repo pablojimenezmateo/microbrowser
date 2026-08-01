@@ -35,11 +35,13 @@ parses it, resolves its cascade, lays it out, and draws it — text included. Wh
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages) |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
+| `src/js` | JavaScript lexer and parser. Knows nothing about the DOM — bindings are M9's seam. No VM yet. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: flexbox and grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
-the process split and the sandbox (rest of M7), `js` (M8), integration (M9). Loading is synchronous — the loop blocks
+the process split and the sandbox (rest of M7), the JS bytecode VM, GC and builtins (rest of M8),
+integration (M9). Loading is synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 

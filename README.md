@@ -123,7 +123,7 @@ the two designs that give it teeth are decided in ADRs.
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements, floats and clearance done; flexbox and grid not |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | **in progress** — display-list building and incremental repaint from a two-frame diff done; stacking contexts not |
 | M7 | Browser UI: tabs, omnibox, history, downloads, plus the process split and sandbox. **First usable browser.** | **in progress** — toolbar, omnibox with editing and keyboard shortcuts, back/forward history done; tabs, downloads, the process split and the sandbox not |
-| M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | |
+| M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | **in progress** — lexer and parser done, with ASI, the regex/division ambiguity and a bounded-recursion guard; the VM, GC and builtins not |
 | M9 | Integration: DOM bindings, events, forms, fetch, dynamic relayout | |
 
 ## Performance and Benchmark Methodology
