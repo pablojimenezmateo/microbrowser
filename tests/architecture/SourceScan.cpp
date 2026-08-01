@@ -35,6 +35,17 @@ std::size_t FindWord(std::string_view text, std::string_view word, std::size_t f
   return std::string_view::npos;
 }
 
+// Index of the first non-whitespace character at or after `from`, or npos.
+// Whitespace includes newlines: clang-format is free to break between `new`
+// and the type it allocates, and a rule that missed those would be a rule that
+// a reformat could silently switch off.
+std::size_t SkipWhitespace(std::string_view text, std::size_t from) {
+  while (from < text.size() && std::isspace(static_cast<unsigned char>(text[from])) != 0) {
+    ++from;
+  }
+  return from < text.size() ? from : std::string_view::npos;
+}
+
 int LineOfOffset(std::string_view text, std::size_t offset) {
   int line = 1;
   for (std::size_t i = 0; i < offset && i < text.size(); ++i) {
@@ -139,6 +150,71 @@ std::string FileNameOf(std::string_view repo_relative_path) {
   }
   return std::string(repo_relative_path.substr(slash + 1));
 }
+
+std::vector<std::size_t> FindCallSites(std::string_view masked, std::string_view name) {
+  std::vector<std::size_t> offsets;
+  for (std::size_t at = FindWord(masked, name, 0); at != std::string_view::npos;
+       at = FindWord(masked, name, at + 1)) {
+    // A member call on one of our own objects is not the C function. A
+    // qualified one is: `std::strcpy` is exactly what is being banned.
+    if (at > 0 && masked[at - 1] == '.') {
+      continue;
+    }
+    if (at > 1 && masked[at - 1] == '>' && masked[at - 2] == '-') {
+      continue;
+    }
+    const std::size_t open = SkipWhitespace(masked, at + name.size());
+    if (open != std::string_view::npos && masked[open] == '(') {
+      offsets.push_back(at);
+    }
+  }
+  return offsets;
+}
+
+std::vector<std::size_t> FindManualHeapExpressions(std::string_view masked) {
+  std::vector<std::size_t> offsets;
+
+  for (std::size_t at = FindWord(masked, "new", 0); at != std::string_view::npos;
+       at = FindWord(masked, "new", at + 1)) {
+    // `new` must be followed by the type being allocated. When the next token
+    // is `(` this is placement new or an `operator new` declaration, and
+    // neither takes ownership of anything.
+    const std::size_t next = SkipWhitespace(masked, at + 3);
+    if (next != std::string_view::npos && IsIdentifierChar(masked[next])) {
+      offsets.push_back(at);
+    }
+  }
+
+  for (std::size_t at = FindWord(masked, "delete", 0); at != std::string_view::npos;
+       at = FindWord(masked, "delete", at + 1)) {
+    std::size_t next = SkipWhitespace(masked, at + 6);
+    if (next == std::string_view::npos) {
+      continue;
+    }
+    // `delete[] p` -- step over the brackets and require an operand after them.
+    if (masked[next] == '[') {
+      const std::size_t close = SkipWhitespace(masked, next + 1);
+      if (close == std::string_view::npos || masked[close] != ']') {
+        continue;
+      }
+      next = SkipWhitespace(masked, close + 1);
+      if (next == std::string_view::npos) {
+        continue;
+      }
+    }
+    // Requiring an operand is what makes `= delete;` (a deleted function) and
+    // `operator delete(...)` fall out for free rather than needing a special
+    // case each.
+    if (IsIdentifierChar(masked[next]) || masked[next] == '*') {
+      offsets.push_back(at);
+    }
+  }
+
+  std::sort(offsets.begin(), offsets.end());
+  return offsets;
+}
+
+int LineAtOffset(std::string_view text, std::size_t offset) { return LineOfOffset(text, offset); }
 
 std::string MaskCommentsAndStrings(std::string_view text) {
   std::string masked(text);

@@ -62,6 +62,32 @@ std::string FileNameOf(std::string_view repo_relative_path);
 // this.
 std::string MaskCommentsAndStrings(std::string_view text);
 
+// Offsets of every call to `name` in `masked`, matched as a whole identifier
+// immediately followed by an open paren.
+//
+// Substring matching is why banned-function lints get abandoned: `snprintf`
+// matches `printf`, `RegionFree()` matches `free`, and after the third false
+// positive somebody deletes the rule. So the match requires an identifier
+// boundary on the left and a call on the right.
+//
+// A leading `.` or `->` disqualifies the match — `channel.system(...)` is our
+// own method — while a leading `::` does not, because `std::strcpy` is exactly
+// the thing being banned.
+std::vector<std::size_t> FindCallSites(std::string_view masked, std::string_view name);
+
+// Offsets of every `new` or `delete` expression that manages heap lifetime by
+// hand, in `masked`.
+//
+// Deliberately narrow, in the under-counting direction the rest of this scanner
+// commits to. It skips `= delete;` (a deleted function), `operator new` and
+// `operator delete` (the allocation-counting hook the perf harness will need),
+// and placement `new (buffer) T` (which owns nothing). What is left is the
+// owning form: `new T{...}` and `delete p`.
+std::vector<std::size_t> FindManualHeapExpressions(std::string_view masked);
+
+// 1-based line number containing byte `offset`.
+int LineAtOffset(std::string_view text, std::size_t offset);
+
 struct IncludeDirective {
   int line = 0;
   std::string target;   // the text between the delimiters

@@ -6,8 +6,10 @@ C++20. GCC 13 and Clang 18 both build the tree warning-free under `-Wall -Wextra
 
 ## Ownership
 
-- **RAII for everything.** No raw `new`/`delete`. `SdlWindow` owns its window, renderer, and SDL's
-  initialization as one unit, released in the destructor.
+- **RAII for everything.** No raw `new`/`delete`, no `malloc`/`free`. Linted
+  (`NoManualHeapOwnership`). `SdlWindow` owns its window, renderer, and SDL's initialization as one
+  unit, released in the destructor. Placement new and an eventual counting `operator new` are
+  outside the rule, because neither takes ownership of anything.
 - **Value semantics by default.** Prefer a plain struct passed by value or const reference over a
   polymorphic hierarchy. `gfx::IntRect` is 16 bytes and copies freely; making it a class with an
   interface would cost more than it could ever save.
@@ -53,7 +55,13 @@ or an HTTP header would stop parsing at the `.`. Linted.
 ## Hostile Input
 
 A browser's entire input surface is hostile. Code that parses bytes from the network is held to a
-different standard than code that parses a config file:
+different standard than code that parses a config file. The full threat model is in
+`guidelines/security.md`; these are the implementation rules it produces:
+
+- **The banned C functions are not available.** `strcpy`, `strcat`, `sprintf`, `strncpy`, `alloca`,
+  `strtok`, `atoi`, `rand`, `mktemp`, `system`, and friends, linted by `NoBannedCFunctions` with the
+  reason attached to each name. `strncpy` is on the list *because* it looks like the safe one: it
+  does not terminate on truncation, so the bug it creates is a read past the end rather than a write.
 
 - **Bounds-check every read; never trust a length prefix.** `ipc::ByteReader` validates a claimed
   length against the bytes that actually remain *before* allocating, so a frame claiming a 4 GiB

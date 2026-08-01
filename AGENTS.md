@@ -75,6 +75,13 @@ nothing.
   definition of a god object, and it is far easier to detect than to argue about.
 - **No throwing numeric parses** (`std::stoi` and friends). They throw *and* read the decimal
   separator from the process locale, which SDL changes behind our back. Use `util/Parse.h`.
+- **No banned C functions.** `strcpy`, `strcat`, `sprintf`, `strncpy`, `alloca`, `strtok`, `atoi`,
+  `rand`, `mktemp`, `system`, and the rest of the list in `CheckNoBannedCFunctions` — each has a
+  safe-looking call site and no safe behavior on attacker-influenced input.
+- **No manual heap ownership.** No owning `new`/`delete`, no `malloc`/`free`. A raw owning pointer
+  becomes a use-after-free the first time an early return is added above it, and in a browser a
+  use-after-free is an RCE primitive rather than a crash. Placement new and `operator new` are
+  outside the rule; `= delete` is not affected.
 - **No mutable state at namespace scope.** Function-local statics are fine.
 - **Headers use `#pragma once`.**
 - **Object-size budgets** (`static_assert(sizeof(T) <= N)`) still exist on the types that are

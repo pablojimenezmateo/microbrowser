@@ -268,6 +268,94 @@ std::vector<Violation> CheckNoThrowingNumericParse(const SourceSet& files,
   return violations;
 }
 
+// A browser's entire input surface is hostile, so the C functions that cannot
+// be called safely on attacker-influenced data are not available at all.
+//
+// The point of banning them by name rather than by review is that each one has
+// a safe-looking call site. `strcpy` into a buffer that is "obviously" big
+// enough is the single most common memory-corruption bug in the history of
+// browsers, and it is obviously big enough right up until a length field says
+// otherwise. See guidelines/security.md.
+std::vector<Violation> CheckNoBannedCFunctions(const SourceSet& files, const ModuleManifests&) {
+  struct Banned {
+    std::string_view name;
+    std::string_view reason;
+  };
+  static constexpr Banned kBanned[] = {
+      {"strcpy", "writes until a NUL the input controls; use std::string or a sized copy"},
+      {"strcat", "writes until a NUL the input controls; use std::string"},
+      {"stpcpy", "writes until a NUL the input controls; use std::string"},
+      {"sprintf", "has no output bound at all; use std::snprintf or std::format"},
+      {"vsprintf", "has no output bound at all; use std::vsnprintf"},
+      {"gets", "cannot be called safely under any circumstances"},
+      {"strncpy", "does not terminate on truncation, so the next read runs off the end"},
+      {"strncat", "takes the remaining space, not the buffer size; the off-by-one is the default"},
+      {"alloca", "puts an input-influenced length on the stack, past every heap guard"},
+      {"strtok", "mutates its input and keeps hidden static state shared across callers"},
+      {"atoi", "returns 0 for unparsable input and is undefined on overflow; use util/Parse.h"},
+      {"atol", "returns 0 for unparsable input and is undefined on overflow; use util/Parse.h"},
+      {"atoll", "returns 0 for unparsable input and is undefined on overflow; use util/Parse.h"},
+      {"atof", "returns 0 for unparsable input and reads the locale; use util/Parse.h"},
+      {"rand", "is not a CSPRNG; anything a page can observe needs unpredictable bytes"},
+      {"srand", "is not a CSPRNG; anything a page can observe needs unpredictable bytes"},
+      {"tmpnam", "names a file without creating it, which is a TOCTOU by construction"},
+      {"mktemp", "names a file without creating it, which is a TOCTOU by construction"},
+      {"system", "runs a shell; process spawning belongs behind the broker, never inline"},
+      {"popen", "runs a shell; process spawning belongs behind the broker, never inline"},
+  };
+
+  std::vector<Violation> violations;
+  for (const SourceFile& file : files) {
+    if (architecture::ModuleOf(file.path).empty()) {
+      continue;
+    }
+    const std::string masked = architecture::MaskCommentsAndStrings(file.text);
+    for (const Banned& banned : kBanned) {
+      for (const std::size_t offset : architecture::FindCallSites(masked, banned.name)) {
+        violations.push_back(At(file, architecture::LineAtOffset(file.text, offset),
+                                std::string(banned.name) + " is banned: " +
+                                    std::string(banned.reason)));
+      }
+    }
+  }
+  return violations;
+}
+
+// Ownership is RAII or it is not ownership. A raw owning pointer is a leak, a
+// double free, or a use-after-free waiting for an early return to be added
+// above it — and in a browser, a use-after-free is a remote code execution
+// primitive, not a crash.
+//
+// This rule covers the owning forms only. Placement new, `operator new`, and
+// `= delete` are all deliberately outside it; see FindManualHeapExpressions.
+std::vector<Violation> CheckNoManualHeapOwnership(const SourceSet& files, const ModuleManifests&) {
+  static constexpr std::string_view kBannedAllocators[] = {"malloc", "calloc", "realloc", "free"};
+
+  std::vector<Violation> violations;
+  for (const SourceFile& file : files) {
+    if (architecture::ModuleOf(file.path).empty()) {
+      continue;
+    }
+    const std::string masked = architecture::MaskCommentsAndStrings(file.text);
+
+    for (const std::size_t offset : architecture::FindManualHeapExpressions(masked)) {
+      violations.push_back(At(file, architecture::LineAtOffset(file.text, offset),
+                              "manual new/delete: heap lifetime belongs to a container, a "
+                              "unique_ptr, or a value member. A raw owning pointer becomes a "
+                              "use-after-free the first time an early return is added above it"));
+    }
+    for (const std::string_view allocator : kBannedAllocators) {
+      for (const std::size_t offset : architecture::FindCallSites(masked, allocator)) {
+        violations.push_back(At(file, architecture::LineAtOffset(file.text, offset),
+                                std::string(allocator) +
+                                    " is C memory management with no destructor behind it; use a "
+                                    "container or unique_ptr"));
+      }
+    }
+  }
+  return violations;
+}
+
 // Mutable state at namespace scope is invisible coupling: two modules that
 // never mention each other can still interfere. Function-local statics are
 // fine — they are initialized on first use and cannot be reached without
@@ -375,6 +463,8 @@ const Rule kRules[] = {
     {"ClassBudgets", CheckClassBudgets},
     {"ClassFanOut", CheckClassFanOut},
     {"NoThrowingNumericParse", CheckNoThrowingNumericParse},
+    {"NoBannedCFunctions", CheckNoBannedCFunctions},
+    {"NoManualHeapOwnership", CheckNoManualHeapOwnership},
     {"NoNamespaceScopeMutableState", CheckNoNamespaceScopeMutableState},
     {"HeadersUsePragmaOnce", CheckHeadersUsePragmaOnce},
     {"ObjectSizeBudgetsArePresent", CheckObjectSizeBudgetsArePresent},
@@ -506,6 +596,46 @@ std::vector<RuleFixture> BuildFixtures() {
       // A banned name inside a comment must not trip the rule.
       Fixture("src/gfx/Canvas.cpp", "// never call std::stoi here\n"),
       Fixture("src/gfx/Canvas.cpp", "long v = std::stoll(text);\n")});
+
+  fixtures.push_back(RuleFixture{
+      "NoBannedCFunctions",
+      // The near misses that make substring-matching versions of this rule
+      // useless: snprintf contains no banned name, srand must not be found
+      // inside it by a `rand` search, and a method of ours may be called
+      // anything at all.
+      Fixture("src/gfx/Canvas.cpp",
+              "std::snprintf(buffer, sizeof(buffer), \"%d\", n);\n"
+              "generator.rand();\n"
+              "channel_->system();\n"
+              "int v = util::ParseInt(text).value_or(0);\n"),
+      Fixture("src/gfx/Canvas.cpp", "std::strcpy(buffer, header_value);\n")});
+
+  fixtures.push_back(RuleFixture{
+      "NoBannedCFunctions",
+      Fixture("src/gfx/Canvas.cpp", "double v = std::strtod(text, &end);\n"),
+      // Qualification must not launder a banned call.
+      Fixture("src/gfx/Canvas.cpp", "int v = std::atoi(header_value);\n")});
+
+  fixtures.push_back(RuleFixture{
+      "NoManualHeapOwnership",
+      Fixture("src/gfx/Canvas.cpp",
+              "auto p = std::make_unique<Impl>();\n"
+              "Canvas(const Canvas&) = delete;\n"
+              "void* operator new(std::size_t bytes);\n"
+              "void operator delete(void* p) noexcept;\n"
+              "auto* q = new (storage) Impl();\n"
+              "int new_size = 0;\n"),
+      Fixture("src/gfx/Canvas.cpp", "impl_ = new Impl();\n")});
+
+  fixtures.push_back(RuleFixture{
+      "NoManualHeapOwnership",
+      Fixture("src/gfx/Canvas.cpp", "buffer_.resize(count);\n"),
+      Fixture("src/gfx/Canvas.cpp", "delete[] rows_;\n")});
+
+  fixtures.push_back(RuleFixture{
+      "NoManualHeapOwnership",
+      Fixture("src/gfx/Canvas.cpp", "pool_.Free(block);\n"),
+      Fixture("src/gfx/Canvas.cpp", "void* p = std::malloc(length);\n")});
 
   fixtures.push_back(RuleFixture{
       "NoNamespaceScopeMutableState",
