@@ -59,6 +59,9 @@ namespace microbrowser::util {
   X(GfxFontsLoaded, "gfx.fonts_loaded")                                          \
   X(GfxFontLoadFailures, "gfx.font_load_failures")                               \
   X(GfxGlyphOutlines, "gfx.glyph_outlines")                                      \
+  X(GfxTextShapes, "gfx.text_shapes")                                            \
+  X(GfxShapedGlyphs, "gfx.shaped_glyphs")                                        \
+  X(GfxGlyphsDrawn, "gfx.glyphs_drawn")                                          \
   /* --- display list ------------------------------------------------------- */ \
   X(DisplayListBuilds, "display_list.builds")                                    \
   X(DisplayListCommands, "display_list.commands")                                \

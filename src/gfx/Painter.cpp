@@ -59,6 +59,32 @@ void Painter::StrokeLine(FloatPoint from, FloatPoint to, const StrokeStyle& styl
   StrokePath(path, style, color);
 }
 
+void Painter::DrawGlyphs(const Font& font, const ShapedRun& run, FloatPoint origin, Color color) {
+  if (color.IsFullyTransparent() || run.glyphs.empty()) {
+    return;
+  }
+  const AffineTransform saved = transform_;
+  float pen_x = origin.x;
+  float pen_y = origin.y;
+
+  for (const PositionedGlyph& glyph : run.glyphs) {
+    // The outline comes back relative to the glyph origin, so the pen position
+    // is applied as a transform rather than by rewriting the path. That also
+    // keeps the caller's own transform composed correctly: a rotated line of
+    // text is the glyph transform *then* the painter's, not either alone.
+    if (font.GlyphOutline(glyph.glyph, glyph_scratch_)) {
+      transform_ = AffineTransform::Translation(pen_x + glyph.x_offset,
+                                                pen_y + glyph.y_offset)
+                       .Then(saved);
+      FillPath(glyph_scratch_, color, FillRule::NonZero);
+      AddPerformanceCounter(PerfCounterId::GfxGlyphsDrawn);
+    }
+    pen_x += glyph.x_advance;
+    pen_y += glyph.y_advance;
+  }
+  transform_ = saved;
+}
+
 void Painter::FillSpans(const std::vector<CoverageSpan>& spans, Color color) {
   const std::uint32_t source_alpha = color.Alpha();
   for (const CoverageSpan& span : spans) {

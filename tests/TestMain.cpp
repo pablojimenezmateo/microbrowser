@@ -31,6 +31,7 @@ void RegisterPainterTests(std::vector<TestCase>& tests);
 void RegisterPathTests(std::vector<TestCase>& tests);
 void RegisterRasterizerTests(std::vector<TestCase>& tests);
 void RegisterStrokerTests(std::vector<TestCase>& tests);
+void RegisterTextShaperTests(std::vector<TestCase>& tests);
 void RegisterReferenceImageTests(std::vector<TestCase>& tests);
 }  // namespace microbrowser::tests
 
@@ -127,6 +128,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterPathTests(tests);
   microbrowser::tests::RegisterRasterizerTests(tests);
   microbrowser::tests::RegisterStrokerTests(tests);
+  microbrowser::tests::RegisterTextShaperTests(tests);
   microbrowser::tests::RegisterReferenceImageTests(tests);
   return tests;
 }

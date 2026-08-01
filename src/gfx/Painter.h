@@ -7,6 +7,7 @@
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
 #include "gfx/Stroker.h"
+#include "gfx/TextShaper.h"
 
 namespace microbrowser::gfx {
 
@@ -47,6 +48,14 @@ class Painter {
   void StrokePath(const Path& path, const StrokeStyle& style, Color color);
   void StrokeLine(FloatPoint from, FloatPoint to, const StrokeStyle& style, Color color);
 
+  // Draws a shaped run with its baseline origin at `origin`.
+  //
+  // Takes a run rather than a string: shaping is a separate, cacheable step,
+  // and a DrawText(string) convenience would invite re-shaping the same text
+  // every frame — which is the single most expensive mistake a text stack can
+  // make. TextShaper produces the run; this consumes it.
+  void DrawGlyphs(const Font& font, const ShapedRun& run, FloatPoint origin, Color color);
+
   // Blends a rasterized coverage span set. Public because a glyph mask and an
   // image alpha channel produce the same thing and must not each grow their own
   // blitter.
@@ -61,6 +70,10 @@ class Painter {
   // allocates a path several times the size of its input, and a frame contains
   // many.
   Path stroke_scratch_;
+  // Glyph outlines land here on their way to the rasterizer. One buffer for the
+  // whole run: a page of text is tens of thousands of glyphs, and a fresh Path
+  // per glyph would be tens of thousands of allocations per frame.
+  Path glyph_scratch_;
   AffineTransform transform_;
 };
 

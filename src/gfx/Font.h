@@ -100,6 +100,10 @@ class FontFace {
 
  private:
   friend class Font;
+  // Shaping needs the native face to build an hb_font_t from. A friend rather
+  // than a public accessor: the whole point of the type erasure is that a
+  // FreeType handle is not part of this module's surface.
+  friend class TextShaper;
   void* face_ = nullptr;  // FT_Face
   std::vector<std::byte> bytes_;
 };
@@ -130,6 +134,7 @@ class Font {
   FloatRect GlyphBounds(GlyphId glyph) const;
 
  private:
+  friend class TextShaper;
   bool Activate() const;
 
   FontFace* face_;

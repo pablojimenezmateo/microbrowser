@@ -2,7 +2,7 @@ purpose: Software rasterization. Pixels in memory; nothing about windows or the 
 
 allow: util
 
-public: Geometry.h AffineTransform.h Color.h Blitter.h Font.h Canvas.h DirtyRegion.h DisplayList.h Path.h PathFlattener.h Rasterizer.h Stroker.h Painter.h
+public: Geometry.h AffineTransform.h Color.h Blitter.h Font.h Canvas.h DirtyRegion.h DisplayList.h Path.h PathFlattener.h Rasterizer.h Stroker.h TextShaper.h Painter.h
 
 # SDL is deliberately absent, and that absence is load-bearing: it is what makes
 # "gfx must not include SDL" an enforced rule rather than a convention.
@@ -25,8 +25,9 @@ budget: Path           header_lines=50 public_methods=20 members=4
 # applied during flattening rather than by the caller, so the tolerance is
 # measured in the space the pixels are in.
 budget: PathRasterizer header_lines=40 public_methods=8  members=2
-budget: Painter        header_lines=50 public_methods=12 members=4
+budget: Painter        header_lines=60 public_methods=14 members=5
 budget: FontLibrary    header_lines=30 public_methods=8  members=1
 budget: FontFace       header_lines=45 public_methods=16 members=2
-budget: Font           header_lines=35 public_methods=10 members=3
+budget: Font           header_lines=40 public_methods=10 members=3
+budget: TextShaper     header_lines=40 public_methods=10 members=6
 budget: AffineTransform header_lines=70 public_methods=22 members=6

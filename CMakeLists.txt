@@ -167,6 +167,7 @@ microbrowser_module(gfx
     src/gfx/Path.cpp
     src/gfx/Rasterizer.cpp
     src/gfx/Stroker.cpp
+    src/gfx/TextShaper.cpp
   DEPS microbrowser_util
   EXTERN Freetype::Freetype ${MICROBROWSER_HARFBUZZ_TARGET})
 
@@ -225,6 +226,7 @@ add_executable(microbrowser_tests
   tests/PathTests.cpp
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
+  tests/TextShaperTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp
   tests/support/SyntheticFont.cpp)
