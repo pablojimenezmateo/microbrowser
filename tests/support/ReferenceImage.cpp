@@ -116,6 +116,14 @@ ComparisonResult CompareAgainstGolden(const gfx::Canvas& canvas, const std::stri
   const std::filesystem::path actual_path = ReferenceDirectory() / (name + ".actual.ppm");
   const std::string actual = EncodePpm(canvas);
 
+  // Goldens are grouped into subdirectories by feature ("path/circle"), so the
+  // failure path has to be able to create one — otherwise the first test of a
+  // new group reports "cannot open file" instead of "here is what it drew".
+  if (actual_path.has_parent_path()) {
+    std::error_code create_error;
+    std::filesystem::create_directories(actual_path.parent_path(), create_error);
+  }
+
   if (!std::filesystem::exists(golden)) {
     WriteFile(actual_path, actual);
     ComparisonResult result;

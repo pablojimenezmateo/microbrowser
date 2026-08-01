@@ -143,6 +143,9 @@ microbrowser_module(gfx
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
     src/gfx/Geometry.cpp
+    src/gfx/Painter.cpp
+    src/gfx/Path.cpp
+    src/gfx/Rasterizer.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(ipc
@@ -192,6 +195,9 @@ add_executable(microbrowser_tests
   tests/GeometryTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/IpcMessageTests.cpp
+  tests/PainterTests.cpp
+  tests/PathTests.cpp
+  tests/RasterizerTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app)

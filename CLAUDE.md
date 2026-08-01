@@ -23,14 +23,17 @@ First-stop operating guide for agents working in this repository.
 | Module | State |
 |---|---|
 | `src/util` | Parse, StringUtil, Env, tracing, counters — ported from `../microide` |
-| `src/gfx` | Geometry, Color, Canvas, DirtyRegion, DisplayList. Solid fills only. SDL-free. |
+| `src/gfx` | Geometry, Color, Canvas, DirtyRegion, DisplayList, Path, analytic-AA rasterizer, Painter. SDL-free. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
 | `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |
 | `src/platform` | The only module that knows what a window is. SDL lives here. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, present |
 
-Not yet started: `gfx` paths/text/images (M1), `net`/`privacy` (M2), `html`/`dom` (M3), `css` (M4),
-`layout` (M5), `paint` (M6), `ui` (M7), `js` (M8). Roadmap in the plan file and `AGENTS.md`.
+**Milestone M1 (rasterizer) is in progress.** Path filling with analytic anti-aliasing exists;
+stroking, text (FreeType + HarfBuzz), and image decoding do not.
+
+Not yet started: `gfx` text/images (rest of M1), `net`/`privacy` (M2), `html`/`dom` (M3), `css` (M4),
+`layout` (M5), `paint` (M6), `ui` (M7), `js` (M8). Roadmap in `README.md` and `AGENTS.md`.
 
 ## Development Workflow
 

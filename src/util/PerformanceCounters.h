@@ -45,6 +45,12 @@ namespace microbrowser::util {
   X(GfxClipPushes, "gfx.clip_pushes")                                            \
   X(GfxOpaqueFills, "gfx.opaque_fills")                                          \
   X(GfxBlendedFills, "gfx.blended_fills")                                        \
+  X(GfxPathFills, "gfx.path_fills")                                              \
+  X(GfxPathSegments, "gfx.path_segments")                                        \
+  X(GfxPathCells, "gfx.path_cells")                                              \
+  X(GfxPathSpans, "gfx.path_spans")                                              \
+  X(GfxPathSpanPixels, "gfx.path_span_pixels")                                   \
+  X(GfxPathNonFiniteRejections, "gfx.path_non_finite_rejections")                \
   /* --- display list ------------------------------------------------------- */ \
   X(DisplayListBuilds, "display_list.builds")                                    \
   X(DisplayListCommands, "display_list.commands")                                \
