@@ -485,7 +485,8 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   return y - start_y;
 }
 
-void LayoutEngine::LayoutBlock(Box& box, float available_width, float& cursor_y) const {
+void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_width,
+                               float& cursor_y) const {
   const css::ComputedStyle& style = box.Style();
   BoxGeometry& geometry = box.Geometry();
   geometry.margin = style.margin;
@@ -512,7 +513,13 @@ void LayoutEngine::LayoutBlock(Box& box, float available_width, float& cursor_y)
   }
   content_width = std::max(0.0f, content_width);
 
-  const float content_left = margin_left + border_left + padding_left;
+  // Relative to the containing block, not to the viewport. Geometry is stored
+  // in absolute coordinates -- the painter walks the box tree without an
+  // ancestor stack and BuildDisplayList takes no offset per box -- so the
+  // container's own left edge has to be carried in. Vertical position was
+  // already threaded through `cursor_y`; horizontal was not, and every nested
+  // block painted at its parent's left margin instead of past it.
+  const float content_left = container_left + margin_left + border_left + padding_left;
   const float content_top =
       cursor_y + style.margin.top.Resolve(style.font_size) +
       geometry.border.top.Resolve(style.font_size) + style.padding.top.Resolve(style.font_size);
@@ -530,7 +537,7 @@ void LayoutEngine::LayoutBlock(Box& box, float available_width, float& cursor_y)
     float child_cursor = content_top;
     for (const std::unique_ptr<Box>& child : box.Children()) {
       if (child->IsBlockLevel()) {
-        LayoutBlock(*child, content_width, child_cursor);
+        LayoutBlock(*child, content_left, content_width, child_cursor);
       }
     }
     content_height = child_cursor - content_top;
@@ -549,7 +556,7 @@ void LayoutEngine::LayoutBlock(Box& box, float available_width, float& cursor_y)
 float LayoutEngine::Layout(Box& root, float width) const {
   AddPerformanceCounter(PerfCounterId::LayoutRuns);
   float cursor = 0.0f;
-  LayoutBlock(root, width, cursor);
+  LayoutBlock(root, 0.0f, width, cursor);
   return cursor;
 }
 

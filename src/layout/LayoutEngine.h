@@ -38,7 +38,8 @@ class LayoutEngine {
  private:
   std::unique_ptr<Box> BuildFor(const dom::Node& node, const css::ComputedStyle& parent_style,
                                 bool& produced_inline) const;
-  void LayoutBlock(Box& box, float available_width, float& cursor_y) const;
+  void LayoutBlock(Box& box, float container_left, float available_width,
+                   float& cursor_y) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width,
                              float start_y) const;
 

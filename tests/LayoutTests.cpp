@@ -100,6 +100,38 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "and the content starts inside all three: 10 margin + 2 border + 5 padding");
   });
 
+  AddTest(tests, "Layout/NestedBlocksAccumulateTheirAncestorsLeftEdges", [] {
+    // Geometry is absolute: the painter walks the box tree with no ancestor
+    // stack. Vertical position was threaded through the layout cursor from the
+    // start; horizontal was not, so every nested block painted at its parent's
+    // left margin instead of past it. A page with a padded container inside a
+    // padded body drew its content in the wrong place, and nothing noticed
+    // because the widths were right.
+    const LaidOut result =
+        Run("<div><p>x</p></div>",
+            "body { margin: 0; padding: 20px } div { margin: 0; padding: 10px } p { margin: 0 }",
+            400.0f);
+
+    const Box* div = FindBox(*result.root, "div");
+    const Box* paragraph = FindBox(*result.root, "p");
+    Expect(div != nullptr && paragraph != nullptr, "both boxes exist");
+    Expect(div->Geometry().content.x == 30.0f,
+           "20px of body padding plus 10px of the div's own");
+    Expect(paragraph->Geometry().content.x == 30.0f, "and the paragraph starts inside both");
+    Expect(paragraph->Geometry().content.width == 340.0f,
+           "while the widths, which were always right, stay right");
+  });
+
+  AddTest(tests, "Layout/TextInsideNestedBlocksStartsAtTheContentEdge", [] {
+    // The same bug seen from the side that a user would: the words, not the box.
+    const LaidOut result =
+        Run("<div>words</div>", "body { margin: 0; padding: 25px } div { margin: 0 }", 400.0f);
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(!texts.empty() && !texts.at(0)->Fragments().empty(), "the text has a fragment");
+    Expect(texts.at(0)->Fragments().at(0).rect.x == 25.0f,
+           "a line starts at its containing block's content edge, not at the viewport's");
+  });
+
   AddTest(tests, "Layout/ResolvesPercentageWidthAgainstTheContainingBlock", [] {
     // The cascade carried the percentage rather than guessing at a containing
     // block; this is the one place it can be resolved.
