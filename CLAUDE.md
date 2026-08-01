@@ -35,7 +35,7 @@ parses it, resolves its cascade, lays it out, and draws it — text included. Wh
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages) |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript lexer and parser. Knows nothing about the DOM — bindings are M9's seam. No VM yet. |
+| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap. No bytecode VM, classes, Promises, async, generators or regex engine. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
@@ -148,6 +148,7 @@ limit. Run it before a refactor to see what is about to blow.
 - `guidelines/observability.md` — counters, scopes, and how to read a summary
 - `guidelines/testing.md` — test strategy, reference tests, control fixtures
 - `docs/adr/` — durable decisions and their reasoning
+- `docs/adr/0005-compatibility-targets.md` — the five sites that must eventually work, and what they cost
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot
 - `docs/performance/m6-damage.md` — what incremental repaint saves, and what it does not

@@ -111,6 +111,25 @@ the two designs that give it teeth are decided in ADRs.
   user action or an opt-in jittered schedule — never a default-on timer, which is the exact failure
   the privacy guide warns about by name.
 
+## Compatibility Targets
+
+What should eventually *work*, which is a different question from what gets
+built. In order of what each demands — see `docs/adr/0005-compatibility-targets.md`
+for the per-site gap analysis.
+
+| | | |
+|---|---|---|
+| `news.ycombinator.com` | server-rendered, tables, almost no script | **the first target** — needs HTML tables, links, form controls |
+| `old.reddit.com` | server-rendered, moderate CSS | needs `position`, overflow scrolling, an event loop |
+| `google.com` | real script, UA-varied markup, HTTP/2 in practice | search results before the homepage |
+| Plex web | single-page application **and** media playback | needs the JS engine and the media stack |
+| `youtube.com` | web-components SPA, DASH over MSE, VP9/AV1 | the hardest; playing a *stream* is a far smaller problem than rendering the site |
+
+**These make the JavaScript engine the dominant cost of the project rather than
+a milestone within it**, and the 12–18 month estimate below does not survive
+that. The roadmap's ordering still holds; the schedule does not. ADR 0005 says
+so in detail rather than leaving it to be discovered at the end.
+
 ## Roadmap
 
 | | | |
