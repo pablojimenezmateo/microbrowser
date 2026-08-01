@@ -20,6 +20,19 @@ using util::PerfCounterId;
 constexpr int kPixelBits = 8;
 constexpr int kOnePixel = 1 << kPixelBits;
 
+// The largest device coordinate the fixed-point grid can hold.
+//
+// Coordinates become 24.8 fixed-point ints, so the grid runs out at 2^31 / 256
+// = 8.4M. Half of that leaves headroom for the cell arithmetic, and four
+// million pixels is beyond any surface that will ever exist. IntRect's own
+// device range is 1e9, which is two hundred times too large to convert, so the
+// clip is intersected with this before anything is converted — otherwise a
+// caller passing a legal-but-enormous clip would both wrap the fixed-point
+// conversion and walk a billion pixel columns looking for cells.
+constexpr int kMaxRasterCoordinate = 1 << 22;
+constexpr IntRect kRasterBounds{-kMaxRasterCoordinate, -kMaxRasterCoordinate,
+                                2 * kMaxRasterCoordinate, 2 * kMaxRasterCoordinate};
+
 int ToFixed(double v) {
   return static_cast<int>(std::lround(v * static_cast<double>(kOnePixel)));
 }
@@ -300,11 +313,12 @@ const std::vector<CoverageSpan>& PathRasterizer::Rasterize(const Path& path, Fil
   AddPerformanceCounter(PerfCounterId::GfxPathFills);
   spans_.clear();
   cells_.clear();
-  if (path.IsEmpty() || clip.IsEmpty()) {
+  const IntRect target = clip.Intersected(kRasterBounds);
+  if (path.IsEmpty() || target.IsEmpty()) {
     return spans_;
   }
 
-  CellAccumulator accumulator(cells_, clip);
+  CellAccumulator accumulator(cells_, target);
   FlattenPath(path, transform, tolerance, accumulator);
   AddPerformanceCounter(PerfCounterId::GfxPathSegments, accumulator.Segments());
   AddPerformanceCounter(PerfCounterId::GfxPathCells, cells_.size());
@@ -340,7 +354,7 @@ const std::vector<CoverageSpan>& PathRasterizer::Rasterize(const Path& path, Fil
   while (index < cell_count) {
     const std::int32_t y = cells_[index].y;
     std::int64_t winding = 0;
-    std::int32_t x = clip.Left();
+    std::int32_t x = target.Left();
 
     while (index < cell_count && cells_[index].y == y) {
       const std::int32_t cell_x = cells_[index].x;
@@ -362,8 +376,8 @@ const std::vector<CoverageSpan>& PathRasterizer::Rasterize(const Path& path, Fil
 
     // A shape whose right edge is outside the clip has no closing cell, so the
     // run to the clip edge is the whole visible remainder of the interior.
-    if (winding != 0 && x < clip.Right()) {
-      emit(x, y, clip.Right() - x, CoverageOf(winding * (kOnePixel * 2), rule));
+    if (winding != 0 && x < target.Right()) {
+      emit(x, y, target.Right() - x, CoverageOf(winding * (kOnePixel * 2), rule));
     }
   }
 

@@ -92,7 +92,10 @@ IntRect DisplayList::Bounds() const {
       }
     } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
       if (const Path* geometry = PathAt(stroke->path)) {
-        const int outset = static_cast<int>(std::ceil(StrokeOutset(stroke->style)));
+        // SaturateFloatToInt, not static_cast: the stroke width can arrive from a
+        // compromised renderer, and ceil(1e38) reaching a raw cast is undefined
+        // behavior rather than a very wide damage rect.
+        const int outset = SaturateFloatToInt(std::ceil(StrokeOutset(stroke->style)));
         bounds = bounds.United(BoundsOfPath(*geometry).Inflated(outset));
       }
     }

@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -302,6 +303,59 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     Expect(list.IsEmpty(),
            "every command in it collapsed to nothing, because a path that lost every "
            "coordinate is not a path");
+  });
+
+  // Regression: `IntRect::Right()` is `x + width`, so these values overflowed a
+  // signed int inside Execute — undefined behavior driven straight from a
+  // renderer the security model assumes is compromised. UBSan caught it on the
+  // first hostile frame anyone wrote by hand.
+  AddTest(tests, "Ipc/ARectWhoseCornerOverflowsIsRejected", [] {
+    const auto frame_with_rect = [](std::int32_t x, std::int32_t y, std::int32_t width,
+                                    std::int32_t height) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(1);   // PaintFrame
+      writer.WriteU32(1);  // one command
+      writer.WriteU8(1);   // FillRect
+      writer.WriteI32(x);
+      writer.WriteI32(y);
+      writer.WriteI32(width);
+      writer.WriteI32(height);
+      writer.WriteU32(0xFF000000);
+      writer.WriteU32(0);  // damage count
+      return writer.Bytes();
+    };
+
+    Expect(ipc::DeserializeEngineToUi(frame_with_rect(10, 20, 30, 40)).has_value(),
+           "an ordinary rect still decodes, or the rejections below prove nothing");
+
+    Expect(!ipc::DeserializeEngineToUi(frame_with_rect(2000000000, 0, 2000000000, 10)).has_value(),
+           "x + width past INT_MAX is signed overflow the moment anything intersects it");
+    Expect(!ipc::DeserializeEngineToUi(frame_with_rect(0, 2000000000, 10, 2000000000)).has_value(),
+           "and so is y + height");
+    Expect(!ipc::DeserializeEngineToUi(
+                frame_with_rect(-2000000000, 0, -2000000000, 10)).has_value(),
+           "underflow is the same bug with the sign flipped");
+    Expect(!ipc::DeserializeEngineToUi(frame_with_rect(1500000000, 0, 10, 10)).has_value(),
+           "a rect beyond the device range is one EnclosingIntRect could never have made, "
+           "so it is tampering rather than an unusual page");
+  });
+
+  AddTest(tests, "Ipc/DamageRectsAreCheckedLikeEveryOtherRect", [] {
+    // The damage list is read by a different code path from the display list,
+    // and a bounds check applied to one and not the other is the shape most
+    // input-validation bugs actually have.
+    ipc::ByteWriter writer;
+    writer.WriteU32(ipc::kProtocolVersion);
+    writer.WriteU8(1);
+    writer.WriteU32(0);  // no commands
+    writer.WriteU32(1);  // one damage rect
+    writer.WriteI32(2000000000);
+    writer.WriteI32(0);
+    writer.WriteI32(2000000000);
+    writer.WriteI32(10);
+    Expect(!ipc::DeserializeEngineToUi(writer.Bytes()).has_value(),
+           "a damage rect that overflows must be rejected too");
   });
 
   AddTest(tests, "Ipc/InProcessChannelDirectionsAreIndependent", [] {

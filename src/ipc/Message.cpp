@@ -48,13 +48,30 @@ void WriteRect(ByteWriter& writer, const gfx::IntRect& rect) {
   writer.WriteI32(rect.height);
 }
 
-gfx::IntRect ReadRect(ByteReader& reader) {
+// Four raw int32s become a rectangle only if they describe one.
+//
+// `IntRect::Right()` is `x + width`, so a frame naming a rect at x = 2e9 with
+// width 2e9 turns the very next intersection into signed overflow — undefined
+// behavior driven directly by a renderer that is assumed compromised. It was
+// reachable: a single FillRect command with those values overflowed inside
+// Execute, and UBSan caught it on the first hostile frame anyone wrote.
+//
+// The bound is not arbitrary. EnclosingIntRect, the only sanctioned way to
+// produce a device rect from layout, already saturates to the same range, so
+// this rejects exactly what the encoder cannot emit — and rejecting rather than
+// clamping means a tampered frame is reported instead of quietly repainted
+// somewhere else.
+bool ReadRect(ByteReader& reader, gfx::IntRect& out) {
   gfx::IntRect rect;
   rect.x = reader.ReadI32();
   rect.y = reader.ReadI32();
   rect.width = reader.ReadI32();
   rect.height = reader.ReadI32();
-  return rect;
+  if (!reader.Ok() || !gfx::IsWithinDeviceRange(rect)) {
+    return false;
+  }
+  out = rect;
+  return true;
 }
 
 constexpr std::size_t kMinBytesPerCommand = 1;
@@ -229,7 +246,10 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
     }
     switch (tag) {
       case CommandTag::FillRect: {
-        const gfx::IntRect rect = ReadRect(reader);
+        gfx::IntRect rect;
+        if (!ReadRect(reader, rect)) {
+          return false;
+        }
         const gfx::Color color{reader.ReadU32()};
         if (!reader.Ok()) {
           return false;
@@ -238,8 +258,8 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
         break;
       }
       case CommandTag::PushClip: {
-        const gfx::IntRect rect = ReadRect(reader);
-        if (!reader.Ok()) {
+        gfx::IntRect rect;
+        if (!ReadRect(reader, rect)) {
           return false;
         }
         out.PushClip(rect);
@@ -454,7 +474,11 @@ std::optional<EngineToUi> DeserializeEngineToUi(std::span<const std::byte> bytes
       }
       value.damage.reserve(*count);
       for (std::uint32_t i = 0; i < *count; ++i) {
-        value.damage.push_back(ReadRect(reader));
+        gfx::IntRect rect;
+        if (!ReadRect(reader, rect)) {
+          return std::nullopt;
+        }
+        value.damage.push_back(rect);
       }
       message = std::move(value);
       break;

@@ -181,6 +181,27 @@ void RegisterDisplayListTests(std::vector<TestCase>& tests) {
     ExpectEqInt(canvas.Row(0)[0], 0xFF000000, "and its exterior is not");
   });
 
+  // Regression: the outset went through a raw static_cast<int>, so a stroke
+  // width of 1e38 made `ceil(...)` infinite and the cast undefined behavior.
+  // The width is a wire field, so "nobody would set that" is not an argument.
+  AddTest(tests, "DisplayList/AnAbsurdStrokeWidthProducesABoundedDamageRect", [] {
+    gfx::Path line;
+    line.MoveTo(gfx::FloatPoint{0.0f, 0.0f});
+    line.LineTo(gfx::FloatPoint{10.0f, 0.0f});
+
+    for (const float width : {1e30f, 1e38f, 3.4e38f}) {
+      DisplayList list;
+      gfx::StrokeStyle style;
+      style.width = width;
+      style.miter_limit = 1e30f;
+      list.StrokePath(line, style, Color::Rgb(0, 0, 0));
+      const IntRect bounds = list.Bounds();
+      Expect(gfx::IsWithinDeviceRange(bounds),
+             "damage must stay inside the range that makes rect arithmetic total, however "
+             "large the stroke claims to be");
+    }
+  });
+
   AddTest(tests, "DisplayList/AnIndexNoCommandProducedResolvesToNothing", [] {
     // The builder cannot emit a dangling index, but Execute and Bounds both
     // index a vector with whatever a command carries, so the range check lives

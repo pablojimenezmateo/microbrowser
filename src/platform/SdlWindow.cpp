@@ -15,7 +15,8 @@ namespace {
 // canvas is in physical pixels, so scaling happens here, once, at the boundary
 // — not scattered across whoever consumes the event.
 gfx::IntPoint ToPixelPoint(float logical_x, float logical_y, float scale) {
-  return gfx::IntPoint{static_cast<int>(logical_x * scale), static_cast<int>(logical_y * scale)};
+  return gfx::IntPoint{gfx::SaturateFloatToInt(logical_x * scale),
+                       gfx::SaturateFloatToInt(logical_y * scale)};
 }
 
 std::uint8_t ToButton(Uint8 sdl_button) {

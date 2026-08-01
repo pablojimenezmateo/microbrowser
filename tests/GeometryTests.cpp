@@ -1,3 +1,5 @@
+#include <cmath>
+#include <limits>
 #include <vector>
 
 #include "TestSupport.h"
@@ -9,6 +11,9 @@ using gfx::EnclosingIntRect;
 using gfx::FloatRect;
 using gfx::IntPoint;
 using gfx::IntRect;
+using gfx::IsWithinDeviceRange;
+using gfx::kMaxDeviceCoordinate;
+using gfx::SaturateFloatToInt;
 
 void RegisterGeometryTests(std::vector<TestCase>& tests) {
   AddTest(tests, "Geometry/EmptyRectsAbsorbInUnion", [] {
@@ -59,12 +64,59 @@ void RegisterGeometryTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Geometry/EnclosingRejectsNonFinite", [] {
-    const float nan = 0.0f / 0.0f;
-    Expect(EnclosingIntRect(FloatRect{nan, nan, 10.0f, 10.0f}).IsEmpty() ||
-               !EnclosingIntRect(FloatRect{nan, nan, 10.0f, 10.0f}).IsEmpty(),
-           "NaN input must not be undefined behavior");
+    // This assertion used to read `X || !X`, which is true for every X and
+    // could not fail. It survived because the *call* was the point — a NaN
+    // reaching static_cast<int> is undefined behavior, so the test still meant
+    // something under UBSan and nothing at all otherwise.
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    const IntRect from_nan = EnclosingIntRect(FloatRect{nan, nan, 10.0f, 10.0f});
+    Expect(from_nan.IsEmpty(),
+           "a rect with no defined position encloses nothing; placing it at the origin would "
+           "put a repaint somewhere arbitrary rather than nowhere");
     Expect(EnclosingIntRect(FloatRect{0.0f, 0.0f, 0.0f, 0.0f}).IsEmpty(),
            "a zero-extent rect encloses nothing");
+  });
+
+  AddTest(tests, "Geometry/SaturatingConversionIsTotal", [] {
+    ExpectEqInt(SaturateFloatToInt(std::numeric_limits<float>::quiet_NaN()), 0,
+                "NaN has no position; zero is the only answer that does not move a shape");
+    ExpectEqInt(SaturateFloatToInt(std::numeric_limits<float>::infinity()),
+                kMaxDeviceCoordinate, "infinity clamps to the top of the device range");
+    ExpectEqInt(SaturateFloatToInt(-std::numeric_limits<float>::infinity()),
+                -kMaxDeviceCoordinate, "and negative infinity to the bottom");
+    ExpectEqInt(SaturateFloatToInt(3.4e38f), kMaxDeviceCoordinate, "so does any huge finite float");
+    ExpectEqInt(SaturateFloatToInt(-7.5f), -7, "an ordinary value truncates toward zero");
+  });
+
+  // The invariant the whole rect vocabulary rests on: inside this range,
+  // Right() and Bottom() cannot overflow, so no intersection or union needs
+  // saturating arithmetic in its inner loop.
+  AddTest(tests, "Geometry/DeviceRangeIsWhatMakesRectArithmeticTotal", [] {
+    Expect(IsWithinDeviceRange(IntRect{0, 0, 1280, 800}), "an ordinary rect is in range");
+    Expect(IsWithinDeviceRange(IntRect{}), "and so is an empty one");
+    Expect(IsWithinDeviceRange(IntRect{-kMaxDeviceCoordinate, -kMaxDeviceCoordinate,
+                                       2 * kMaxDeviceCoordinate, 2 * kMaxDeviceCoordinate}),
+           "the widest legal rect spans the whole range exactly");
+    Expect(!IsWithinDeviceRange(IntRect{2000000000, 0, 2000000000, 10}),
+           "a rect whose right edge overflows an int is not a rect");
+    Expect(!IsWithinDeviceRange(IntRect{0, 2000000000, 10, 2000000000}),
+           "on either axis");
+    Expect(!IsWithinDeviceRange(IntRect{kMaxDeviceCoordinate, 0, 1, 1}),
+           "one past the range is out of range");
+  });
+
+  AddTest(tests, "Geometry/EnclosingAlwaysProducesARectThatCanBeUsed", [] {
+    // The producer half of the contract the IPC decoder enforces on the other
+    // side: if this could emit an out-of-range rect, the decoder would be
+    // rejecting frames the engine legitimately sent.
+    const float huge = 3.0e38f;
+    for (const FloatRect& input : {FloatRect{-huge, -huge, huge, huge},
+                                   FloatRect{huge, huge, huge, huge},
+                                   FloatRect{-huge, 0.0f, huge * 2.0f, 10.0f},
+                                   FloatRect{0.0f, 0.0f, 1e9f, 1e9f}}) {
+      Expect(IsWithinDeviceRange(EnclosingIntRect(input)),
+             "every rect this produces must satisfy the range the decoder checks for");
+    }
   });
 }
 

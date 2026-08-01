@@ -315,6 +315,26 @@ void RegisterRasterizerTests(std::vector<TestCase>& tests) {
     }
   });
 
+  // Regression: the clip bounds the fixed-point conversion and the pixel walk.
+  // A clip that is legal for an IntRect (edges within 1e9) is two hundred times
+  // too large for a 24.8 grid, so without clamping this both wrapped the
+  // conversion and walked a billion columns per scanline.
+  AddTest(tests, "Rasterizer/AnEnormousClipIsBoundedByTheFixedPointGrid", [] {
+    PathRasterizer rasterizer;
+    Path square;
+    square.AddRect(FloatRect{10.0f, 10.0f, 20.0f, 20.0f});
+
+    const auto& spans =
+        rasterizer.Rasterize(square, FillRule::NonZero,
+                             IntRect{-900000000, -900000000, 1800000000, 1800000000});
+    Expect(std::abs(CoveredArea(spans) - 400.0) < 0.5,
+           "a clip larger than the fixed-point grid must still render the shape correctly");
+    for (const CoverageSpan& span : spans) {
+      Expect(span.length > 0 && span.length < 1000,
+             "and must not emit spans sized by the clip rather than by the shape");
+    }
+  });
+
   AddTest(tests, "Rasterizer/SubPixelShapesStillProduceCoverage", [] {
     // A hairline thinner than a pixel must not vanish: this is the case that
     // separates a coverage rasterizer from a scan-conversion one, and it is

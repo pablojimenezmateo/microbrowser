@@ -140,9 +140,47 @@ struct FloatRect {
   friend constexpr bool operator==(const FloatRect&, const FloatRect&) = default;
 };
 
+// The device-coordinate range every IntRect is required to stay inside.
+//
+// Not a screen size — it is the bound that makes rect arithmetic total. With
+// every edge inside +/- 1e9, `x + width` and `y + height` cannot overflow an
+// int, so Right(), Bottom(), Intersected() and United() need no saturation in
+// their inner loops. Everything that produces an IntRect from something
+// unbounded is responsible for landing inside it: EnclosingIntRect saturates
+// there, and the IPC decoder rejects a rect that does not.
+//
+// The value is a round number rather than a power of two because it is a
+// contract stated in the two places that enforce it, and 1e9 is the largest
+// float that survives `static_cast<int>` exactly.
+inline constexpr int kMaxDeviceCoordinate = 1000000000;
+
+// Saturating float-to-int, the one sanctioned narrowing in the project.
+//
+// A NaN or an out-of-range float reaching `static_cast<int>` is undefined
+// behavior, and layout arithmetic produces both: a percentage of an unresolved
+// width is a NaN, and a stroke width arriving from a compromised renderer is
+// whatever it wants to be. NaN maps to zero, which is the only answer that
+// keeps a shape from moving somewhere arbitrary.
+int SaturateFloatToInt(float value);
+
+// True when every edge of `r` is inside the device range, so that Right() and
+// Bottom() cannot overflow. Computed in 64 bits, because the whole point is
+// that the 32-bit form of the question may not be asked safely.
+constexpr bool IsWithinDeviceRange(const IntRect& r) {
+  const std::int64_t left = r.x;
+  const std::int64_t top = r.y;
+  const std::int64_t right = left + r.width;
+  const std::int64_t bottom = top + r.height;
+  const std::int64_t limit = kMaxDeviceCoordinate;
+  return left >= -limit && left <= limit && top >= -limit && top <= limit && right >= -limit &&
+         right <= limit && bottom >= -limit && bottom <= limit;
+}
+
 // The one sanctioned layout-space to device-space conversion: the smallest
 // pixel rect that fully covers `r`. Enclosing (not rounding) is what keeps a
 // repaint from leaving a one-pixel seam of stale content along an edge.
+//
+// The result always satisfies IsWithinDeviceRange.
 IntRect EnclosingIntRect(const FloatRect& r);
 
 // Object-size budgets. These types are copied per draw command, per layout box,
