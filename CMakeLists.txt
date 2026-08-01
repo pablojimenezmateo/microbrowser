@@ -274,7 +274,10 @@ microbrowser_module(platform
 
 microbrowser_module(js
   SOURCES
+    src/js/Ast.cpp
     src/js/Lexer.cpp
+    src/js/Parser.cpp
+    src/js/ParserStatements.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(ui
@@ -326,6 +329,7 @@ add_executable(microbrowser_tests
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
   tests/JsLexerTests.cpp
+  tests/JsParserTests.cpp
   tests/LayoutTests.cpp
   tests/NetTests.cpp
   tests/PaintPipelineTests.cpp
@@ -391,6 +395,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
   microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
   microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
+  microbrowser_fuzzer(js_parser_fuzzer fuzz/JsParserFuzzer.cpp microbrowser_js)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------

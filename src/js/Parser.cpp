@@ -1,0 +1,757 @@
+#include "js/ParserImpl.h"
+
+#include <algorithm>
+#include <array>
+#include <utility>
+
+namespace microbrowser::js {
+
+namespace {
+
+// Binary operator precedence, per the grammar. `**` is right-associative and
+// every other level is left-associative, which is the only irregularity here
+// and the reason the table carries associativity rather than assuming it.
+struct BinaryOp {
+  std::string_view text;
+  int precedence;
+  bool right_associative;
+};
+
+constexpr std::array<BinaryOp, 24> kBinaryOps = {{
+    {"??", 1, false},   {"||", 2, false},  {"&&", 3, false},  {"|", 4, false},
+    {"^", 5, false},    {"&", 6, false},   {"==", 7, false},  {"!=", 7, false},
+    {"===", 7, false},  {"!==", 7, false}, {"<", 8, false},   {">", 8, false},
+    {"<=", 8, false},   {">=", 8, false},  {"<<", 9, false},  {">>", 9, false},
+    {">>>", 9, false},  {"+", 10, false},  {"-", 10, false},  {"*", 11, false},
+    {"/", 11, false},   {"%", 11, false},  {"**", 12, true},  {"__unused", 0, false},
+}};
+
+constexpr std::array<std::string_view, 12> kAssignmentOps = {
+    "=", "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "|=", "^=",
+};
+
+// Logical assignment is spelled with escapes because `??=` is a trigraph in a
+// C++ source file.
+constexpr std::string_view kLogicalAssignOps[] = {"&&=", "||=", "?\?="};
+
+bool IsAssignmentOperator(std::string_view text) {
+  return std::find(kAssignmentOps.begin(), kAssignmentOps.end(), text) != kAssignmentOps.end() ||
+         std::find(std::begin(kLogicalAssignOps), std::end(kLogicalAssignOps), text) !=
+             std::end(kLogicalAssignOps);
+}
+
+const BinaryOp* FindBinaryOp(std::string_view text) {
+  for (const BinaryOp& op : kBinaryOps) {
+    if (op.text == text) {
+      return &op;
+    }
+  }
+  return nullptr;
+}
+
+}  // namespace
+
+void ParserImpl::Advance() {
+  current_ = lexer_.Next();
+  if (current_.type == TokenType::Invalid) {
+    Error("invalid token");
+  }
+}
+
+void ParserImpl::Error(std::string message) {
+  // Bounded: a parser that recovers badly can otherwise produce an error per
+  // token, and a megabyte of script becomes a megabyte of diagnostics.
+  constexpr std::size_t kMaxErrors = 32;
+  if (errors_.size() < kMaxErrors) {
+    errors_.push_back(ParseError{std::move(message), current_.start, current_.line});
+  }
+}
+
+bool ParserImpl::Eat(std::string_view punctuator) {
+  if (!At(punctuator)) {
+    return false;
+  }
+  Advance();
+  return true;
+}
+
+bool ParserImpl::EatKeyword(std::string_view keyword) {
+  if (!AtKeyword(keyword)) {
+    return false;
+  }
+  Advance();
+  return true;
+}
+
+bool ParserImpl::Expect(std::string_view punctuator, std::string_view context) {
+  if (Eat(punctuator)) {
+    return true;
+  }
+  Error("expected '" + std::string(punctuator) + "' " + std::string(context));
+  return false;
+}
+
+bool ParserImpl::ConsumeSemicolon() {
+  if (Eat(";")) {
+    return true;
+  }
+  // The three places a semicolon is inserted: before a `}`, at end of input,
+  // and before a token that began a new line. Written out rather than folded
+  // together because they are three separate rules in the spec and each has
+  // been got wrong by somebody.
+  if (At("}") || AtEnd() || current_.newline_before) {
+    return true;
+  }
+  Error("expected ';'");
+  return false;
+}
+
+NodePtr ParserImpl::Make(NodeKind kind) const {
+  auto node = std::make_unique<Node>();
+  node->kind = kind;
+  node->start = current_.start;
+  node->line = current_.line;
+  return node;
+}
+
+// --- Expressions -----------------------------------------------------------
+
+NodePtr ParserImpl::ParsePrimary() {
+  const Depth depth(*this);
+  if (depth.Exceeded()) {
+    Error("expression nests too deeply");
+    Advance();
+    return Make(NodeKind::Empty);
+  }
+
+  if (current_.type == TokenType::NumericLiteral) {
+    NodePtr node = Make(NodeKind::NumberLiteral);
+    node->number = current_.number;
+    Advance();
+    return node;
+  }
+  if (current_.type == TokenType::StringLiteral) {
+    NodePtr node = Make(NodeKind::StringLiteral);
+    node->string = current_.value;
+    Advance();
+    return node;
+  }
+  if (current_.type == TokenType::TemplateString) {
+    return ParseTemplate();
+  }
+  if (current_.type == TokenType::Identifier || current_.type == TokenType::PrivateIdentifier) {
+    NodePtr node = Make(NodeKind::Identifier);
+    node->string = std::string(current_.lexeme);
+    Advance();
+    return node;
+  }
+  if (AtKeyword("true") || AtKeyword("false")) {
+    NodePtr node = Make(NodeKind::BooleanLiteral);
+    node->number = current_.lexeme == "true" ? 1.0 : 0.0;
+    Advance();
+    return node;
+  }
+  if (EatKeyword("null")) {
+    auto node = std::make_unique<Node>();
+    node->kind = NodeKind::NullLiteral;
+    return node;
+  }
+  if (AtKeyword("this")) {
+    NodePtr node = Make(NodeKind::ThisExpression);
+    Advance();
+    return node;
+  }
+  if (AtKeyword("super")) {
+    // Whether a `super` is in a position that allows it is a scope question,
+    // not a syntax one, so the parser accepts it and the checker rejects it.
+    NodePtr node = Make(NodeKind::Super);
+    Advance();
+    return node;
+  }
+  if (AtKeyword("let")) {
+    // `let` is a reserved word only where a declaration could start. Everywhere
+    // else it is an identifier, and `let = 1` is a program people have written.
+    NodePtr node = Make(NodeKind::Identifier);
+    node->string = std::string(current_.lexeme);
+    Advance();
+    return node;
+  }
+  if (AtKeyword("function")) {
+    return ParseFunction(false);
+  }
+  if (AtKeyword("class")) {
+    return ParseClass(false);
+  }
+  if (At("[")) {
+    return ParseArrayLiteral();
+  }
+  if (At("{")) {
+    return ParseObjectLiteral();
+  }
+  if (At("(")) {
+    return ParseArrowFromParenthesised();
+  }
+  if (At("/") || At("/=")) {
+    // A value is expected here, so the slash begins a regular expression. This
+    // is the one place the lexer's ambiguity is resolved, and it is resolved by
+    // the grammar rather than by guessing from the previous token.
+    const Token regex = lexer_.RescanAsRegExp(current_);
+    if (regex.type != TokenType::RegExpLiteral) {
+      Error("unterminated regular expression");
+      Advance();
+      return Make(NodeKind::Empty);
+    }
+    NodePtr node = Make(NodeKind::RegExpLiteral);
+    node->string = std::string(regex.lexeme);
+    lexer_.SeekTo(regex.end, regex.line);
+    Advance();
+    return node;
+  }
+
+  Error("unexpected token '" + std::string(current_.lexeme) + "'");
+  Advance();
+  return Make(NodeKind::Empty);
+}
+
+NodePtr ParserImpl::ParseTemplate() {
+  NodePtr node = Make(NodeKind::TemplateLiteral);
+  node->string = std::string(current_.lexeme);
+  // Substitutions are re-parsed from the raw text, which keeps the nesting
+  // rules in one place: a template inside a substitution inside a template is
+  // handled by recursion rather than by a second brace counter.
+  const std::string_view raw = current_.lexeme;
+  for (std::size_t i = 1; i + 1 < raw.size(); ++i) {
+    if (raw[i] == '\\') {
+      ++i;
+      continue;
+    }
+    if (raw[i] != '$' || raw[i + 1] != '{') {
+      continue;
+    }
+    std::size_t depth = 1;
+    const std::size_t begin = i + 2;
+    std::size_t j = begin;
+    for (; j < raw.size() && depth > 0; ++j) {
+      if (raw[j] == '\\') {
+        ++j;
+      } else if (raw[j] == '{') {
+        ++depth;
+      } else if (raw[j] == '}') {
+        --depth;
+      }
+    }
+    if (depth == 0 && j > begin) {
+      ParseResult inner = Parse(raw.substr(begin, j - begin - 1));
+      if (inner.program != nullptr && !inner.program->children.empty()) {
+        node->children.push_back(std::move(inner.program->children.front()));
+      }
+      for (ParseError& error : inner.errors) {
+        Error(std::move(error.message));
+      }
+    }
+    i = j;
+  }
+  Advance();
+  return node;
+}
+
+NodePtr ParserImpl::ParseArrayLiteral() {
+  NodePtr node = Make(NodeKind::ArrayLiteral);
+  Expect("[", "to open an array literal");
+  while (!At("]") && !AtEnd()) {
+    if (At(",")) {
+      // A hole. Kept as a null child rather than skipped, because `[1,,3]` has
+      // three elements and dropping the middle one changes the length.
+      node->children.push_back(nullptr);
+      Advance();
+      continue;
+    }
+    if (At("...")) {
+      NodePtr spread = Make(NodeKind::Spread);
+      Advance();
+      spread->children.push_back(ParseAssignment());
+      node->children.push_back(std::move(spread));
+    } else {
+      node->children.push_back(ParseAssignment());
+    }
+    if (!At("]") && !Eat(",")) {
+      Error("expected ',' between array elements");
+      break;
+    }
+  }
+  Expect("]", "to close an array literal");
+  return node;
+}
+
+NodePtr ParserImpl::ParseObjectLiteral() {
+  NodePtr node = Make(NodeKind::ObjectLiteral);
+  Expect("{", "to open an object literal");
+  while (!At("}") && !AtEnd()) {
+    NodePtr property = Make(NodeKind::Property);
+    if (At("...")) {
+      NodePtr spread = Make(NodeKind::Spread);
+      Advance();
+      spread->children.push_back(ParseAssignment());
+      node->children.push_back(std::move(spread));
+      if (!At("}") && !Eat(",")) {
+        break;
+      }
+      continue;
+    }
+
+    bool computed = false;
+    NodePtr computed_key;
+    if (At("[")) {
+      computed = true;
+      Advance();
+      computed_key = ParseAssignment();
+      Expect("]", "to close a computed property name");
+    } else if (current_.type == TokenType::StringLiteral) {
+      property->string = current_.value;
+      Advance();
+    } else if (current_.type == TokenType::NumericLiteral) {
+      property->string = std::string(current_.lexeme);
+      Advance();
+    } else if (current_.type == TokenType::Identifier || current_.type == TokenType::Keyword) {
+      // A keyword is a legal property name: `{ if: 1 }` and `x.class` are both
+      // fine, which is why keywords are not filtered out here.
+      property->string = std::string(current_.lexeme);
+      Advance();
+    } else {
+      Error("expected a property name");
+      Advance();
+      continue;
+    }
+
+    if (Eat(":")) {
+      property->children.push_back(ParseAssignment());
+    } else if (At("(")) {
+      // A method. Represented as a plain property whose value is a function, so
+      // that a consumer walking an object literal has one shape to handle.
+      NodePtr function = Make(NodeKind::FunctionExpression);
+      function->string = property->string;
+      function->children.push_back(ParseParameters());
+      function->children.push_back(ParseBlock());
+      property->children.push_back(std::move(function));
+    } else {
+      // Shorthand: `{ x }`. Expanded here rather than in every consumer.
+      NodePtr identifier = Make(NodeKind::Identifier);
+      identifier->string = property->string;
+      if (Eat("=")) {
+        // `{ x = 1 }` is only legal as a destructuring pattern. Parsed so the
+        // shape survives; whether the position allows it is a later check.
+        NodePtr pattern = Make(NodeKind::AssignmentPattern);
+        pattern->children.push_back(std::move(identifier));
+        pattern->children.push_back(ParseAssignment());
+        property->children.push_back(std::move(pattern));
+      } else {
+        property->children.push_back(std::move(identifier));
+      }
+    }
+    if (computed) {
+      property->number = 1.0;
+      property->children.push_back(std::move(computed_key));
+    }
+    node->children.push_back(std::move(property));
+
+    if (!At("}") && !Eat(",")) {
+      Error("expected ',' between object properties");
+      break;
+    }
+  }
+  Expect("}", "to close an object literal");
+  return node;
+}
+
+// Reinterprets an already-parsed expression as an arrow function's parameter
+// list.
+//
+// `(a, b) => x` and `(a, b)` are the same tokens until the arrow, and the
+// obvious implementation -- parse as an expression, and if an arrow follows,
+// rewind and parse again as parameters -- is exponential: every nesting level
+// parses its contents twice, so `((((((x))))))` costs 2^n. A page serving a
+// hundred bytes of nested parentheses would hang the parser. Found by the
+// fuzzer as an out-of-memory.
+//
+// Converting the tree instead is linear. The conversion is total: anything that
+// cannot be a binding target becomes an error rather than a silently wrong
+// parameter.
+bool ParserImpl::ExpressionToParameters(NodePtr expression, Node& out) {
+  if (expression == nullptr) {
+    return false;
+  }
+  if (expression->kind == NodeKind::Sequence) {
+    for (NodePtr& element : expression->children) {
+      if (!ExpressionToParameters(std::move(element), out)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  switch (expression->kind) {
+    case NodeKind::Identifier:
+    case NodeKind::ArrayLiteral:   // an array destructuring pattern
+    case NodeKind::ObjectLiteral:  // an object destructuring pattern
+      out.children.push_back(std::move(expression));
+      return true;
+    case NodeKind::Assignment:
+      if (expression->string != "=") {
+        return false;  // `(a += 1) => x` is not a default value
+      }
+      expression->kind = NodeKind::AssignmentPattern;
+      expression->string.clear();
+      out.children.push_back(std::move(expression));
+      return true;
+    case NodeKind::Spread:
+      expression->kind = NodeKind::RestElement;
+      out.children.push_back(std::move(expression));
+      return true;
+    default:
+      return false;
+  }
+}
+
+NodePtr ParserImpl::ParseArrowFromParenthesised() {
+  Expect("(", "to open a parenthesised expression");
+
+  if (Eat(")")) {
+    // `()` is only legal as an empty parameter list.
+    if (At("=>") && !current_.newline_before) {
+      Advance();
+      NodePtr arrow = Make(NodeKind::ArrowFunction);
+      arrow->children.push_back(Make(NodeKind::Parameters));
+      arrow->children.push_back(At("{") ? ParseBlock() : ParseAssignment());
+      return arrow;
+    }
+    Error("expected an expression");
+    return Make(NodeKind::Empty);
+  }
+
+  // A trailing comma is legal in a parameter list and not in a parenthesised
+  // expression, and a rest element only in the first -- so both are parsed here
+  // and rejected below if no arrow follows.
+  NodePtr inner;
+  bool saw_rest = false;
+  bool saw_trailing_comma = false;
+  if (At("...")) {
+    NodePtr spread = Make(NodeKind::Spread);
+    Advance();
+    spread->children.push_back(ParseBindingTarget());
+    inner = std::move(spread);
+    saw_rest = true;
+  } else {
+    // A comma-separated list parsed here rather than through ParseExpression,
+    // because a trailing comma is legal in a parameter list and not in a
+    // parenthesised expression -- and ParseExpression would consume it and then
+    // demand an operand.
+    NodePtr first = ParseAssignment();
+    if (!At(",")) {
+      inner = std::move(first);
+    } else {
+      NodePtr sequence = Make(NodeKind::Sequence);
+      sequence->children.push_back(std::move(first));
+      while (Eat(",")) {
+        if (At(")")) {
+          saw_trailing_comma = true;
+          break;
+        }
+        if (At("...")) {
+          NodePtr spread = Make(NodeKind::Spread);
+          Advance();
+          spread->children.push_back(ParseBindingTarget());
+          sequence->children.push_back(std::move(spread));
+          saw_rest = true;
+          break;
+        }
+        sequence->children.push_back(ParseAssignment());
+      }
+      inner = std::move(sequence);
+    }
+  }
+  Expect(")", "to close a parenthesised expression");
+
+  // A line terminator before `=>` is a syntax error, and treating it as one
+  // here means the expression stands rather than silently becoming a function.
+  if (!At("=>") || current_.newline_before) {
+    if (saw_rest || saw_trailing_comma) {
+      Error("a rest element or trailing comma is only allowed in a parameter list");
+    }
+    return inner;
+  }
+
+  Advance();
+  NodePtr arrow = Make(NodeKind::ArrowFunction);
+  NodePtr parameters = Make(NodeKind::Parameters);
+  if (!ExpressionToParameters(std::move(inner), *parameters)) {
+    Error("this is not a valid parameter list");
+  }
+  arrow->children.push_back(std::move(parameters));
+  arrow->children.push_back(At("{") ? ParseBlock() : ParseAssignment());
+  return arrow;
+}
+
+void ParserImpl::ParseArguments(Node& call) {
+  Expect("(", "to open an argument list");
+  while (!At(")") && !AtEnd()) {
+    if (At("...")) {
+      NodePtr spread = Make(NodeKind::Spread);
+      Advance();
+      spread->children.push_back(ParseAssignment());
+      call.children.push_back(std::move(spread));
+    } else {
+      call.children.push_back(ParseAssignment());
+    }
+    if (!At(")") && !Eat(",")) {
+      Error("expected ',' between arguments");
+      break;
+    }
+  }
+  Expect(")", "to close an argument list");
+}
+
+NodePtr ParserImpl::ParseNew() {
+  NodePtr node = Make(NodeKind::New);
+  Advance();  // `new`
+  // The callee of `new` excludes calls: `new a.b()` constructs a.b, and
+  // `new a()()` calls the result of the construction.
+  NodePtr callee = ParseCallOrMember(ParsePrimary(), false);
+  node->children.push_back(std::move(callee));
+  if (At("(")) {
+    ParseArguments(*node);
+  }
+  return node;
+}
+
+NodePtr ParserImpl::ParseCallOrMember(NodePtr base, bool allow_call) {
+  const Depth depth(*this);
+  if (depth.Exceeded()) {
+    Error("expression nests too deeply");
+    return base;
+  }
+
+  while (!AtEnd()) {
+    if (At(".") || At("?.")) {
+      const bool optional = At("?.");
+      Advance();
+      if (optional && At("(")) {
+        if (!allow_call) {
+          break;
+        }
+        NodePtr call = Make(NodeKind::Call);
+        call->number = 1.0;
+        call->children.push_back(std::move(base));
+        ParseArguments(*call);
+        base = std::move(call);
+        continue;
+      }
+      NodePtr member = Make(NodeKind::Member);
+      member->number = optional ? 2.0 : 0.0;
+      member->children.push_back(std::move(base));
+      NodePtr property = Make(NodeKind::Identifier);
+      if (current_.type == TokenType::Identifier || current_.type == TokenType::Keyword ||
+          current_.type == TokenType::PrivateIdentifier) {
+        property->string = std::string(current_.lexeme);
+        Advance();
+      } else {
+        Error("expected a property name after '.'");
+      }
+      member->children.push_back(std::move(property));
+      base = std::move(member);
+      continue;
+    }
+    if (At("[")) {
+      Advance();
+      NodePtr member = Make(NodeKind::Member);
+      member->number = 1.0;
+      member->children.push_back(std::move(base));
+      member->children.push_back(ParseExpression());
+      Expect("]", "to close a computed member access");
+      base = std::move(member);
+      continue;
+    }
+    if (allow_call && At("(")) {
+      NodePtr call = Make(NodeKind::Call);
+      call->children.push_back(std::move(base));
+      ParseArguments(*call);
+      base = std::move(call);
+      continue;
+    }
+    if (current_.type == TokenType::TemplateString) {
+      NodePtr tagged = Make(NodeKind::TaggedTemplate);
+      tagged->children.push_back(std::move(base));
+      tagged->children.push_back(ParseTemplate());
+      base = std::move(tagged);
+      continue;
+    }
+    break;
+  }
+  return base;
+}
+
+NodePtr ParserImpl::ParsePostfix() {
+  // `new Foo(1).bar()` constructs, then accesses, then calls. ParseNew stops at
+  // the construction because the callee of `new` excludes calls; the rest of
+  // the chain is ordinary member and call syntax and has to continue here.
+  NodePtr expression = AtKeyword("new") ? ParseCallOrMember(ParseNew(), true)
+                                        : ParseCallOrMember(ParsePrimary(), true);
+  if ((At("++") || At("--")) && !current_.newline_before) {
+    // A line terminator before a postfix operator means it belongs to the next
+    // statement -- ASI again, and the reason `a\n++b` is two statements.
+    NodePtr update = Make(NodeKind::Update);
+    update->string = std::string(current_.lexeme);
+    update->number = 0.0;  // postfix
+    update->children.push_back(std::move(expression));
+    Advance();
+    return update;
+  }
+  return expression;
+}
+
+NodePtr ParserImpl::ParseUnary() {
+  const Depth depth(*this);
+  if (depth.Exceeded()) {
+    Error("expression nests too deeply");
+    Advance();
+    return Make(NodeKind::Empty);
+  }
+
+  if (At("!") || At("~") || At("+") || At("-") || AtKeyword("typeof") || AtKeyword("void") ||
+      AtKeyword("delete") || AtKeyword("await")) {
+    NodePtr node = Make(NodeKind::Unary);
+    node->string = std::string(current_.lexeme);
+    Advance();
+    node->children.push_back(ParseUnary());
+    return node;
+  }
+  if (At("++") || At("--")) {
+    NodePtr node = Make(NodeKind::Update);
+    node->string = std::string(current_.lexeme);
+    node->number = 1.0;  // prefix
+    Advance();
+    node->children.push_back(ParseUnary());
+    return node;
+  }
+  return ParsePostfix();
+}
+
+NodePtr ParserImpl::ParseBinary(int min_precedence) {
+  const Depth depth(*this);
+  if (depth.Exceeded()) {
+    Error("expression nests too deeply");
+    Advance();
+    return Make(NodeKind::Empty);
+  }
+
+  NodePtr left = ParseUnary();
+  while (!AtEnd()) {
+    std::string_view text = current_.lexeme;
+    // `in` and `instanceof` are keywords that behave as binary operators. They
+    // sit at the relational level, with `<` and friends.
+    const bool keyword_operator = AtKeyword("in") || AtKeyword("instanceof");
+    if (!keyword_operator && current_.type != TokenType::Punctuator) {
+      break;
+    }
+    int precedence = 0;
+    bool right_associative = false;
+    if (keyword_operator) {
+      precedence = 8;
+    } else if (const BinaryOp* op = FindBinaryOp(text)) {
+      precedence = op->precedence;
+      right_associative = op->right_associative;
+    } else {
+      break;
+    }
+    if (precedence < min_precedence) {
+      break;
+    }
+
+    NodePtr node = Make(text == "&&" || text == "||" || text == "?\?" ? NodeKind::Logical
+                                                                     : NodeKind::Binary);
+    node->string = std::string(text);
+    Advance();
+    node->children.push_back(std::move(left));
+    node->children.push_back(ParseBinary(right_associative ? precedence : precedence + 1));
+    left = std::move(node);
+  }
+  return left;
+}
+
+NodePtr ParserImpl::ParseConditional() {
+  NodePtr test = ParseBinary(1);
+  if (!At("?")) {
+    return test;
+  }
+  NodePtr node = Make(NodeKind::Conditional);
+  Advance();
+  node->children.push_back(std::move(test));
+  // The consequent is an AssignmentExpression, so `a ? b = 1 : c` works and the
+  // comma operator does not leak in.
+  node->children.push_back(ParseAssignment());
+  Expect(":", "in a conditional expression");
+  node->children.push_back(ParseAssignment());
+  return node;
+}
+
+NodePtr ParserImpl::ParseAssignment() {
+  const Depth depth(*this);
+  if (depth.Exceeded()) {
+    Error("expression nests too deeply");
+    Advance();
+    return Make(NodeKind::Empty);
+  }
+
+  // A single-identifier arrow: `x => x + 1`. Checked before the general path
+  // because the identifier would otherwise be consumed as an expression.
+  if (current_.type == TokenType::Identifier) {
+    const std::size_t offset = current_.start;
+    const std::size_t line = current_.line;
+    const std::string name(current_.lexeme);
+    Advance();
+    if (At("=>") && !current_.newline_before) {
+      Advance();
+      NodePtr arrow = Make(NodeKind::ArrowFunction);
+      NodePtr parameters = Make(NodeKind::Parameters);
+      NodePtr parameter = Make(NodeKind::Identifier);
+      parameter->string = name;
+      parameters->children.push_back(std::move(parameter));
+      arrow->children.push_back(std::move(parameters));
+      arrow->children.push_back(At("{") ? ParseBlock() : ParseAssignment());
+      return arrow;
+    }
+    lexer_.SeekTo(offset, line);
+    Advance();
+  }
+
+  NodePtr left = ParseConditional();
+  if (current_.type == TokenType::Punctuator && IsAssignmentOperator(current_.lexeme)) {
+    NodePtr node = Make(NodeKind::Assignment);
+    node->string = std::string(current_.lexeme);
+    Advance();
+    node->children.push_back(std::move(left));
+    node->children.push_back(ParseAssignment());  // right-associative
+    return node;
+  }
+  return left;
+}
+
+NodePtr ParserImpl::ParseExpression() {
+  NodePtr first = ParseAssignment();
+  if (!At(",")) {
+    return first;
+  }
+  NodePtr node = Make(NodeKind::Sequence);
+  node->children.push_back(std::move(first));
+  while (Eat(",")) {
+    node->children.push_back(ParseAssignment());
+  }
+  return node;
+}
+
+
+ParseResult Parse(std::string_view source) {
+  ParserImpl parser(source);
+  return parser.ParseProgram();
+}
+
+}  // namespace microbrowser::js

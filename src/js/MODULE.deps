@@ -5,7 +5,7 @@ purpose: JavaScript. Lexing, parsing, and execution. Knows nothing about the DOM
 # same-origin check will live. Bindings arrive in M9 as a separate seam.
 allow: util
 
-public: Token.h Lexer.h
+public: Token.h Lexer.h Ast.h Parser.h
 
 extern:
 
@@ -13,3 +13,13 @@ max_tu_lines: 1200
 
 budget: Token  header_lines=40 public_methods=8  members=9
 budget: Lexer  header_lines=60 public_methods=12 members=3
+# One tagged node rather than forty classes. The trade is written out at the
+# top of Ast.h: a uniform tree to walk, at the cost of "which fields does this
+# kind use" living in comments and in the parser rather than in types.
+budget: Node     header_lines=30 public_methods=4  members=6
+# One entry per production the grammar has, with the shape of each written next
+# to it. It grows with the language and nothing else.
+budget: NodeKind header_lines=70 public_methods=0  members=0
+# The parser's shared state, split across two translation units: expressions in
+# Parser.cpp and statements in ParserStatements.cpp.
+budget: ParserImpl header_lines=90 public_methods=6 members=5
