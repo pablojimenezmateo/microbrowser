@@ -1,5 +1,6 @@
 #include "app/Application.h"
 
+#include <cstdio>
 #include <utility>
 
 #include "app/DirtyRegionPolicy.h"
@@ -20,6 +21,19 @@ using util::PerfCounterId;
 // pixel count, so changing scroll feel is a one-line change here rather than a
 // hunt through the engine.
 constexpr int kPixelsPerWheelNotch = 53;
+
+// MICROBROWSER_TRACE_REDRAW=1 prints one line per presented frame: whether it
+// was full or partial, how many rects it covered, and what fraction of the
+// surface that was.
+//
+// A function-local static rather than an Application member on purpose: the
+// env read happens once, on first use, and the class does not grow a field for
+// a debugging flag. Application's member budget exists to make exactly that
+// kind of incremental widening visible.
+bool RedrawTraceEnabled() {
+  static const bool enabled = util::PerformanceTrace::FlagEnabled("MICROBROWSER_TRACE_REDRAW");
+  return enabled;
+}
 
 }  // namespace
 
@@ -205,6 +219,13 @@ void Application::PaintAndPresent() {
     for (const gfx::IntRect& rect : dirty_.Rects()) {
       gfx::Execute(display_list_, canvas_, rect);
     }
+  }
+
+  if (RedrawTraceEnabled()) {
+    std::fprintf(stderr, "[redraw] %-7s rects=%zu coverage=%5.1f%% surface=%dx%d commands=%zu\n",
+                 full ? "full" : "partial", analysis.rect_count,
+                 static_cast<double>(analysis.coverage) * 100.0, canvas_.Width(), canvas_.Height(),
+                 display_list_.Size());
   }
 
   if (!presenter_.Present(window_.Renderer(), canvas_, dirty_, full)) {

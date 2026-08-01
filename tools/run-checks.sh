@@ -27,9 +27,23 @@ CTEST_JOBS="${MICROBROWSER_CTEST_JOBS:-$JOBS}"
 # parallel is how a 24-core machine starts swapping.
 CTEST_SAN_JOBS="${MICROBROWSER_CTEST_SAN_JOBS:-6}"
 
+# ThreadSanitizer maps its shadow memory at fixed addresses and aborts with
+# "unexpected memory mapping" when the kernel's ASLR entropy is higher than it
+# expects — the default on recent Ubuntu. `setarch -R` clears ASLR for this
+# process tree only, so no sudo and no machine-wide sysctl change is needed.
+# (The machine-wide fallback, if personality() is ever blocked, is
+# `sudo sysctl vm.mmap_rnd_bits=28`.)
+ctest_launcher() {
+  if [[ "$1" == "tsan" ]] && command -v setarch >/dev/null 2>&1; then
+    echo "setarch -R"
+  fi
+}
+
 run_target() {
   local name="$1" preset="$2" ctest_jobs="$3"
   local log="/tmp/microbrowser-${name}.log"
+  local launcher
+  read -r -a launcher <<< "$(ctest_launcher "$name")"
 
   {
     echo "=== microbrowser: ${name} ==="
@@ -39,7 +53,7 @@ run_target() {
 
     cmake --preset "$preset" \
       && cmake --build --preset "$preset" -j "$JOBS" \
-      && ctest --preset "$preset" -j "$ctest_jobs"
+      && "${launcher[@]}" ctest --preset "$preset" -j "$ctest_jobs"
     local status=$?
 
     echo
