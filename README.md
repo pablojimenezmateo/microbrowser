@@ -11,15 +11,18 @@ for what exists and what does not.
 
 ## Why
 
-Two references, for two different things:
+Three references, for three different things:
 
 - **[Ladybird](https://github.com/LadybirdBrowser/ladybird)** for engine shape — clean library
-  separation, spec-literal parsers, pixel reference tests.
+  separation, spec-literal parsers, pixel reference tests, and the process split into a renderer, a
+  network service, and an isolated image decoder.
 - **[LibreWolf](https://librewolf.net/)** for defaults — content blocking, URL sanitization, storage
   partitioning, and zero telemetry as engine-level invariants rather than an extension.
+- **Chromium's site isolation** for containment — the unit of isolation is a site, not a tab,
+  because a tab hosts cross-origin iframes and those are the part an attacker controls.
 
-And one stance, inherited from [microide](../microide): correctness first, then privacy, then speed,
-then CPU, then memory. Measured, not asserted.
+And one stance, inherited from [microide](../microide): correctness first, then security, then
+privacy, then speed, then CPU, then memory. Measured, not asserted.
 
 ## Building
 
@@ -59,6 +62,27 @@ Every directory under `src/` carries a `MODULE.deps` contract — allowed depend
 surface, permitted third-party libraries, and per-class growth budgets — enforced by a lint in the
 test suite. See `guidelines/architecture.md` and `docs/adr/0002-growth-budgets.md`.
 
+## Security
+
+A browser downloads code written by strangers and runs it. The containment model is decided up front
+even though it does not ship until M7, because it constrains every interface written before then —
+see `docs/adr/0004-process-model-and-site-isolation.md` and `guidelines/security.md`.
+
+- **Four processes**: a trusted browser process; one sandboxed **WebContent** process per *site
+  instance*; a network process holding the sockets, TLS, cookies, and the privacy layer; and an
+  isolated image decoder, because image decoders are historically the most productive source of
+  browser RCE and their interface is small enough that isolating them is nearly free.
+- **Per site, not per tab.** A tab hosts cross-origin iframes. Per-tab isolation sounds like the
+  answer and leaves the attacker-controlled part in the same address space.
+- **The renderer is assumed compromised.** Policy runs where the attacker is not: CORS in the
+  network process, cookie access in the browser process, file access behind a browser-process dialog
+  that returns a descriptor rather than a path. A site identity is never a message field — the
+  browser process knows it from having created the connection.
+- **What ships today** is the enforcement that costs nothing now and a retrofit later: a
+  hostile-input-hardened IPC wire format, banned unsafe C functions, no manual heap ownership, no
+  mutable namespace-scope state, non-throwing locale-independent parses, and ASan/UBSan/TSan clean.
+  The full enforced-versus-scheduled table is at the end of `guidelines/security.md`.
+
 ## Roadmap
 
 | | | |
@@ -70,7 +94,7 @@ test suite. See `guidelines/architecture.md` and `docs/adr/0002-growth-budgets.m
 | M4 | CSS: parsing, selectors, cascade, computed style | |
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | |
-| M7 | Browser UI: tabs, omnibox, history, downloads. **First usable browser.** | |
+| M7 | Browser UI: tabs, omnibox, history, downloads, plus the process split and sandbox. **First usable browser.** | |
 | M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | |
 | M9 | Integration: DOM bindings, events, forms, fetch, dynamic relayout | |
 

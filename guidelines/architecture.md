@@ -139,7 +139,10 @@ because the command vocabulary is closed.
 
 **The engine is separate from the UI.** They share only `src/ipc`. The UI cannot name a `dom::`,
 `css::`, `layout::`, or `js::` type; the engine cannot name a window, a texture, or an SDL anything.
-This is what keeps sandboxing the engine a scheduling decision.
+This is what keeps sandboxing the engine a scheduling decision — and once it is sandboxed, this
+boundary stops being an architectural preference and becomes *the* trust boundary, with the engine
+side assumed to be running the attacker's code. `guidelines/security.md` and
+`docs/adr/0004-process-model-and-site-isolation.md` cover what that implies for anything crossing it.
 
 **Third-party code is separate from everything.** Each library is named by exactly one module and
 never crosses a boundary as a type. FreeType will be an implementation detail of `gfx::GlyphAtlas`,
@@ -174,6 +177,11 @@ after the seam carries renderer output is a security retrofit.
 
 `InProcessTransport` moves messages. `SocketTransport` will write frames over a `socketpair`.
 Nothing above the `Transport` interface changes.
+
+Adding a message is therefore a security review, not just an API change: the payload arrives from a
+process that is assumed compromised. Which field is a length, a path, an index, or an origin — and
+what happens when each one lies? Site identity in particular is never a message field; the browser
+process knows it from having created the connection.
 
 ## Adding a Module
 

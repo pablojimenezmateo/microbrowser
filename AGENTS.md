@@ -7,8 +7,10 @@ own CSS engine, own layout, own software rasterizer, own HTTP client, own JavaSc
 requirement. Privacy-respecting by construction rather than by preference.
 
 Ladybird is the reference for *engine shape* — library separation, spec-literal parsers, pixel
-reference tests. LibreWolf is the reference for *defaults* — blocking, sanitization, partitioning,
-and zero telemetry are engine-level invariants here, not an extension bolted on top.
+reference tests, and the process split (`WebContent`, network, image decoder). LibreWolf is the
+reference for *defaults* — blocking, sanitization, partitioning, and zero telemetry are engine-level
+invariants here, not an extension bolted on top. Chromium's site-isolation model is the reference
+for *containment*: the unit of isolation is a site, not a tab.
 
 Avoid marketing claims in code, commits, or docs. There are internal regression baselines but no
 comparative benchmarks against other browsers. Do not write "fastest" or "lighter than X" — say
@@ -22,12 +24,23 @@ many files, or requires a broader refactor, prefer the better design.
 When tradeoffs conflict, use this order:
 
 1. **correctness**
-2. **privacy & security defaults** — a browser that is fast and wrong about privacy has failed
-3. **speed**
-4. **low CPU usage** — especially idle CPU and the redraw path
-5. **low memory usage**
-6. **maintainability and simplicity**
-7. **compatibility**, only when explicitly required
+2. **security** — a browser downloads code written by strangers and runs it. See
+   `guidelines/security.md`.
+3. **privacy** — a browser that is fast and wrong about privacy has failed. See
+   `guidelines/privacy.md`.
+4. **speed** — the main optimization target once the three above hold
+5. **low CPU usage** — especially idle CPU and the redraw path
+6. **low memory usage**
+7. **maintainability and simplicity**
+8. **compatibility**, only when explicitly required
+
+Security and privacy are ranked separately because they fail differently and are defended
+differently. Privacy is about what leaves the machine; security is about what a page can reach. When
+they appear to conflict they usually do not — the case that actually happens is a convenience
+feature that costs both.
+
+Correctness stays first because in a browser most security bugs *are* correctness bugs. A
+mis-parsed length prefix is not a wrong pixel, it is a heap overflow.
 
 Compatibility is not a default constraint. Internal APIs, temporary abstractions, and stale call
 patterns can be broken or removed if that is the cleanest way to improve the system.
@@ -49,20 +62,37 @@ stay coherent for a year". Every directory under `src/` has a `MODULE.deps` mani
 `tests/ArchitectureInvariantsTests.cpp` enforces every field. `CMakeLists.txt` mirrors `allow:` as
 per-module static libraries so the build graph tells the same story (Ladybird's model).
 
-**Why budgets rather than review discipline:** a class does not become a god object in one commit.
-It grows three lines at a time, and every individual step looks reasonable. A declared budget makes
-the cumulative growth land in the diff — raising a limit is an edit to `MODULE.deps` that a reviewer
-sees, instead of drift nobody can point at. A class large enough to need a budget that has none is
-also a failure, so new god objects cannot appear un-budgeted.
+Budgets exist because a class does not become a god object in one commit, and a reviewer cannot see
+growth spread across nine of them. Raising a limit is a line in a diff; drift is not. The full
+argument, including why an unbudgeted large class must also fail, is in
+`docs/adr/0002-growth-budgets.md`; the how-to is `guidelines/architecture.md`.
 
-Full documentation: `guidelines/architecture.md`. Rationale: `docs/adr/0002-growth-budgets.md`.
+## Security Rules
+
+Not a feature area — a property of every line. See `guidelines/security.md`; the process model is
+`docs/adr/0004-process-model-and-site-isolation.md`.
+
+- **Every byte from the network is attacker-controlled, and so is every message from a renderer.**
+  A field naming an origin, a path, a length, or an index is a claim, not a fact.
+- **Isolation is per site, not per tab.** A tab hosts cross-origin iframes; a process hosts one
+  site. Per-tab isolation leaves the part the attacker controls unprotected.
+- **Policy runs where the attacker is not.** CORS in the network process, cookie access in the
+  browser process, file access behind a browser-process dialog that returns a descriptor rather than
+  a path. A check the renderer performs on itself is defense in depth, never the defense.
+- **Sandbox before content.** Privileges are dropped before the first byte of a page is parsed, and
+  nothing re-acquires them.
+- **Close-on-exec on the creating call**, never a follow-up `fcntl`.
+- **Every parser that touches network bytes gets a fuzz target on the commit it lands.**
+- **Sizes computed from input saturate.** `width * height * 4` in `int` is the canonical image
+  decoder heap overflow.
+- **Threads are joined before `main` returns.** A data race on a pointer is a use-after-free with
+  extra steps.
 
 ## Hard Invariants
 
 Enforced by the architecture lint. Each ships with a clean and a dirty control fixture, and the
 suite fails if any rule lacks them — **a rule that has never been observed to fail is not a rule.**
-That check earned its keep on its first run by catching a fan-out rule that was silently checking
-nothing.
+Why that check exists, and what it caught on its first run, is in `guidelines/testing.md`.
 
 - **Module include rules.** A project include must name a module in `allow:` and a header in that
   module's `public:`. This subsumes several rules that would otherwise be hand-written: "gfx must
@@ -103,6 +133,11 @@ exists.
   the specs do and carry the spec section in a comment. Divergence from the spec text is a bug, not
   a style choice. Lands with M3.
 - **Paint TUs do not materialize strings** in hot paths. Lands with M6.
+- **Site keys are computed against the baked-in Public Suffix List**, never a runtime-fetched one:
+  a list downloaded at startup is both a request the user did not cause and a remote input to a
+  security decision. Lands with `src/privacy` in M2.
+
+The full enforced-versus-scheduled table for security is at the end of `guidelines/security.md`.
 
 ## Default Engineering Stance
 
@@ -128,7 +163,7 @@ Not a feature area — a constraint on every other area. See `guidelines/privacy
 
 ## Performance Rules
 
-- Speed is the main optimization target after correctness and privacy.
+- Speed is the main optimization target once correctness, security, and privacy hold.
 - CPU before memory, especially idle CPU and the redraw path.
 - **Idle CPU is zero.** The process sleeps in exactly one place — the platform event wait. Any
   feature that wants a timer must justify it and must go through `IdleWaitState::next_deadline_ms`,

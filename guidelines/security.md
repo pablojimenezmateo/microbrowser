@@ -258,10 +258,12 @@ Stated so it is never implied otherwise:
 - A compromised operating system, or a user running the browser as root.
 - A malicious extension — there are none, which is the mitigation.
 - Physical access to an unlocked machine.
-- Traffic analysis, or a global passive adversary. Tor Browser solves a different problem.
 - A user who is convincingly told to type their password into an attacker's page. Phishing is a UI
   problem, and the UI answer is an omnibox that shows the origin accurately and cannot be occluded
   by page content.
+
+The information-disclosure side of the threat model — tracking, network observation, and what this
+project deliberately cannot learn about its users — is in `guidelines/privacy.md`.
 
 ## Reviewing A Change
 

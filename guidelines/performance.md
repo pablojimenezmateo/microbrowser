@@ -2,7 +2,8 @@
 
 ## Quick Scan
 
-- Correctness and privacy come first; speed is the main optimization target after them.
+- Correctness, security, and privacy come first; speed is the main optimization target after them.
+  A security fix that costs performance is right. Say so in the commit.
 - CPU before memory, especially idle CPU and the redraw path.
 - **Idle CPU is zero.** This is the single most fragile property in the project.
 - Measure before and after. The counters and scopes exist so you do not have to guess.

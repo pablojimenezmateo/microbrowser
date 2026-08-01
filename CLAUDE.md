@@ -5,7 +5,10 @@ First-stop operating guide for agents working in this repository.
 ## Quick Scan
 
 - `microbrowser` is a from-scratch native web browser in C++20, CMake, SDL3 for windowing only.
-- Priority order: correctness → privacy → speed → CPU → memory → simplicity.
+- Priority order: correctness → security → privacy → speed → CPU → memory → simplicity.
+- **Every byte from the network and every message from a renderer is attacker-controlled.**
+  Isolation is per *site*, not per tab. `guidelines/security.md` is the short version; ADR 0004 is
+  the model.
 - **Idle CPU is zero and must stay zero.** The process blocks in one place: the platform event wait.
 - Every `src/` directory has a `MODULE.deps` contract enforced by the architecture lint. Read the
   manifest before adding a file, an include, or a class member.
@@ -95,6 +98,10 @@ the user waits on, and the two routinely disagree. See `guidelines/observability
   route it through `IdleWaitState::next_deadline_ms`.
 - **A network request** — it must be user-caused and must pass the privacy layer. See
   `guidelines/privacy.md`.
+- **A parser, a decoder, or an IPC message** — the input is hostile. Bounds-check every read,
+  saturate every size computed from input, and land the fuzz target on the same commit. See
+  `guidelines/security.md`.
+- **A thread** — write down what it owns, what it borrows, and who joins it before `main` returns.
 
 `tools/budget-report.sh` prints headroom against every budget, sorted by how close each is to its
 limit. Run it before a refactor to see what is about to blow.
@@ -115,10 +122,11 @@ limit. Run it before a refactor to see what is about to blow.
 
 - `AGENTS.md` — repo policy, priority order, invariants
 - `guidelines/architecture.md` — the module contract, layering, separation of concerns
+- `guidelines/security.md` — trust boundaries, the process model, hostile input, memory safety
+- `guidelines/privacy.md` — the privacy contract every feature is held to
 - `guidelines/cpp.md` — ownership and implementation guidance
 - `guidelines/performance.md` — measurement workflow and the zero-idle-CPU rule
 - `guidelines/observability.md` — counters, scopes, and how to read a summary
-- `guidelines/privacy.md` — the privacy contract every feature is held to
 - `guidelines/testing.md` — test strategy, reference tests, control fixtures
 - `docs/adr/` — durable decisions and their reasoning
 - `docs/performance/m0-baseline.md` — the measurements M0 established

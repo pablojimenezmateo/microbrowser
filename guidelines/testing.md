@@ -128,15 +128,41 @@ decoders, image decoders, filter-list parser. Corpora under `tests/fuzz/corpora/
 Fuzz-target link breaks are silent — no default build flow compiles them — so check the fuzz build
 after touching shared code.
 
+## Security Tests
+
+`guidelines/security.md` is the model; these are the tests that hold it up.
+
+**A security fix ships with a test that fails without it.** Not a test that exercises the area — the
+specific malformed input, committed as a case or a corpus entry. Otherwise the only record of the
+bug is a commit message, and the next refactor reintroduces it.
+
+**Decoders are tested on the inputs that are hostile, not the inputs that are valid.** Truncation
+mid-field, a length prefix larger than the remaining bytes, a length prefix that overflows when
+multiplied, zero and negative dimensions, and trailing garbage. `IpcMessageTests` already does all
+five for the wire format; every parser that lands gets the same treatment, because a decoder tested
+only on well-formed input has been tested on the case the attacker will not send.
+
+**Allocation must be bounded before it happens.** The interesting assertion is not "the decode
+failed", it is "the decode failed *without* attempting a 4 GiB reserve". That needs the allocation
+counting that `MICROBROWSER_PERF_HARNESS_BUILD` does not yet arm; until it does, the bound is
+asserted by reading the code, and that is a real gap rather than a decision.
+
+**Sanitizers are a gate, not a chore.** ASan and UBSan for anything touching memory or untrusted
+input; TSan for anything touching threads. They are the only automated thing standing between a
+memory-safety bug and a shipped exploit until the sandbox exists.
+
 ## Current Coverage
 
-76 tests. Honest about what they do and do not cover:
+78 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Ipc` — every message round-trips; truncation, trailing bytes, unknown tags, version mismatch, and
   a hostile length prefix are all rejected.
 - `IdleWaitStrategy`, `DirtyRegionPolicy` — the policy functions are pure, so coverage is thorough.
-- `ArchitectureInvariants` — nine rules, each with controls.
+- `ArchitectureInvariants` — eleven rules, each with controls. The two newest (`NoBannedCFunctions`,
+  `NoManualHeapOwnership`) carry clean fixtures built out of near misses rather than obviously-fine
+  code: `snprintf`, `pool_.Free()`, `= delete`, placement new. A banned-name lint dies from false
+  positives, so the cases that would produce them are the ones worth pinning.
 - `ReferenceImage` — the harness is tested; there are no goldens yet, because there is nothing
   interesting to render until M1.
 

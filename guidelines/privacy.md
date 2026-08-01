@@ -1,6 +1,13 @@
 # Privacy Guide
 
-Privacy is priority two, above speed. It is a constraint on every feature, not a feature area.
+Privacy is priority three, below correctness and security and above speed. It is a constraint on
+every feature, not a feature area.
+
+**Privacy is about what leaves the machine. Security is about what a page can reach.** The two are
+defended differently and fail differently, which is why they are separate documents — see
+`guidelines/security.md`. They meet in one place worth remembering: a browser with perfect privacy
+defaults and a heap overflow in its image decoder has no privacy at all, because the attacker is
+running inside the process that was enforcing it.
 
 ## The Contract
 
@@ -60,21 +67,23 @@ ship.
 
 ## Threat Model
 
-What this browser tries to protect against:
+What this browser tries to protect a user's *information* from. The complementary list — what it
+tries to protect the *machine* from — is in `guidelines/security.md`, and malicious page content
+belongs there rather than here.
 
-- **Cross-site tracking** — cookies, storage, cache timing, connection reuse, fingerprinting.
+- **Cross-site tracking** — cookies, storage, cache timing, connection reuse, fingerprinting. The
+  structural defense is partitioning: a data structure keyed by `(top-level site, origin)` cannot be
+  switched off the way a policy flag can.
 - **Passive network observation** — HTTPS-only, no plaintext fallback, no DNS leaks past a proxy.
 - **The browser vendor** — which is to say, us. Zero telemetry means the project cannot learn
   anything about a user even if it wanted to. This is why "we would only collect anonymous
   aggregates" is not a conversation worth having: the guarantee is structural, and a structural
   guarantee with one exception is not a guarantee.
-- **Malicious page content** — parsers written to a hostile-input standard, fuzzed on the commit
-  they land. The eventual sandboxed renderer process is the containment layer; the IPC seam exists
-  now so that it stays possible.
 
-What it does not protect against, and should not claim to: a compromised OS, a malicious extension
-(there are none), traffic analysis, or a global passive adversary. Tor Browser solves a different
-problem; do not imply this one does.
+What it does not protect against, and should not claim to: **traffic analysis**, a **global passive
+adversary**, or a determined fingerprinter with a novel surface nobody has standardized yet. Tor
+Browser solves a different problem; do not imply this one does. Anti-fingerprinting here is
+best-effort by nature — it is an arms race, and saying otherwise oversells it.
 
 ## Reviewing A Change
 
