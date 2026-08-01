@@ -1,10 +1,15 @@
+#include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
 #include "TestSupport.h"
 #include "engine/Engine.h"
 #include "gfx/Canvas.h"
+#include "gfx/FontCatalog.h"
 #include "gfx/Painter.h"
+#include "gfx/TextRenderer.h"
+#include "support/SyntheticFont.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
 #include "support/ReferenceImage.h"
@@ -28,16 +33,38 @@ struct RenderedFrames {
   int frames = 0;
 };
 
+// A page with a background, a border and text on it: enough that a golden of
+// the result would notice any of the three going missing.
+//
+// A `data:` URL rather than a server, because this test is about the chain from
+// engine to pixels and a socket in the middle of it would be testing something
+// else.
+constexpr std::string_view kFixturePage =
+    "data:text/html,<html><body style='background-color:%23ffffff'>"
+    "<h1 style='background-color:%231f6feb;color:%23ffffff'>ABCD</h1>"
+    "<p style='border:2px solid %23333333'>ABC ABCD ABC</p></body></html>";
+
 RenderedFrames RenderEngineOutput(int width, int height) {
   RenderedFrames result;
   result.canvas.Resize(width, height);
   result.canvas.Clear(gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
   Painter painter(result.canvas);
 
+  // The synthetic font, not the system's. A golden rendered with whichever
+  // version of DejaVu the machine ships would be a golden of the machine.
+  gfx::FontLibrary library;
+  gfx::FontCatalog fonts(library);
+  Expect(fonts.Register("Test", 400, false, BuildSyntheticFont()), "the test font registered");
+  Expect(fonts.Register("Test", 700, false, BuildSyntheticFont()), "and a bold to match <h1>");
+  fonts.SetDefaultFamily("Test");
+  fonts.SetGenericFamily("sans-serif", "Test");
+  fonts.SetGenericFamily("monospace", "Test");
+  gfx::TextRenderer text(fonts);
+
   ipc::InProcessChannel channel;
-  engine::Engine engine(channel.Engine());
+  engine::Engine engine(channel.Engine(), fonts);
   channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{width, height}, 1.0f});
-  channel.Ui().Send(ipc::NavigateMessage{"about:blank"});
+  channel.Ui().Send(ipc::NavigateMessage{std::string(kFixturePage)});
   engine.HandlePendingMessages();
 
   while (const auto message = channel.Ui().TryReceive()) {
@@ -48,7 +75,7 @@ RenderedFrames RenderEngineOutput(int width, int height) {
     const auto decoded = ipc::DeserializeEngineToUi(ipc::Serialize(ipc::EngineToUi{*paint}));
     Expect(decoded.has_value(), "a frame the engine produced must survive its own wire format");
     gfx::Execute(std::get<ipc::PaintFrameMessage>(*decoded).display_list, painter,
-                 result.canvas.Bounds());
+                 result.canvas.Bounds(), &text);
     ++result.frames;
   }
   return result;

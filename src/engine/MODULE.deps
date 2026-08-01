@@ -3,9 +3,9 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # Notably absent: platform. The engine has no window, no renderer, and no way
 # to acquire one. That is what makes moving it into a sandboxed process a
 # scheduling decision rather than a rewrite.
-allow: util gfx ipc
+allow: util gfx ipc url privacy net dom html css layout
 
-public: Engine.h
+public: Engine.h Loader.h Page.h
 
 extern:
 
@@ -15,3 +15,10 @@ max_tu_lines: 800
 # navigation history, network, and script each get their own type; Engine stays
 # the thing that routes messages to them. This budget is the tripwire.
 budget: Engine header_lines=60 public_methods=8 members=8
+# The network half, kept off Engine on purpose: policy, sockets, cookies and
+# cache are four members that would otherwise be four more reasons for Engine
+# to become the browser.
+budget: Loader header_lines=55 public_methods=10 members=6
+# One document: DOM, styles, box tree, and the display list they produce. This
+# is the unit a second tab duplicates.
+budget: Page   header_lines=60 public_methods=12 members=8

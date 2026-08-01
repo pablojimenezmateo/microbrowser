@@ -451,10 +451,10 @@ float LayoutEngine::Layout(Box& root, float width) const {
   return cursor;
 }
 
-void BuildDisplayList(const Box& root, gfx::DisplayList& out) {
+void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset) {
   // Backgrounds and borders paint before content, which is what makes a child
   // draw on top of its parent's background rather than under it.
-  const auto paint = [&out](const Box& box, auto& self) -> void {
+  const auto paint = [&out, offset](const Box& box, auto& self) -> void {
     const css::ComputedStyle& style = box.Style();
     // A text box has no background and no border by construction, but the
     // painter says so too: this is the kind of invariant that is cheap to
@@ -466,11 +466,14 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out) {
         // The baseline, not the top of the line box. They differ by an ascent,
         // and using the wrong one puts every line of text a line too low.
         out.DrawText(piece, fragment.rect.width, font,
-                     gfx::FloatPoint{fragment.rect.x, fragment.baseline}, style.color);
+                     gfx::FloatPoint{fragment.rect.x + offset.x, fragment.baseline + offset.y},
+                     style.color);
       }
       return;
     }
-    const gfx::FloatRect border_box = box.Geometry().BorderBox();
+    const gfx::FloatRect unshifted = box.Geometry().BorderBox();
+    const gfx::FloatRect border_box{unshifted.x + offset.x, unshifted.y + offset.y,
+                                    unshifted.width, unshifted.height};
 
     if (!style.background_color.IsFullyTransparent() && !border_box.IsEmpty()) {
       gfx::Path background;

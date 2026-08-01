@@ -255,7 +255,11 @@ microbrowser_module(ipc
 microbrowser_module(engine
   SOURCES
     src/engine/Engine.cpp
-  DEPS microbrowser_util microbrowser_gfx microbrowser_ipc)
+    src/engine/Loader.cpp
+    src/engine/Page.cpp
+  DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
+       microbrowser_privacy microbrowser_net microbrowser_dom microbrowser_html
+       microbrowser_css microbrowser_layout)
 
 microbrowser_module(platform
   SOURCES
@@ -295,6 +299,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/FetchTests.cpp
+  tests/EngineTests.cpp
   tests/FontCatalogTests.cpp
   tests/FontTests.cpp
   tests/GeometryTests.cpp

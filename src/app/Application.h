@@ -6,11 +6,13 @@
 #include "gfx/DirtyRegion.h"
 #include "gfx/DisplayList.h"
 #include "gfx/Painter.h"
+#include "gfx/TextRenderer.h"
 #include "ipc/InProcessTransport.h"
 #include "platform/AppDirectories.h"
 #include "platform/InputEvent.h"
 #include "platform/SdlPresenter.h"
 #include "platform/SdlWindow.h"
+#include "platform/SystemFonts.h"
 
 namespace microbrowser::app {
 
@@ -65,8 +67,16 @@ class Application {
   // copy, so a resize that reallocates the pixel buffer leaves it valid.
   gfx::Painter painter_{canvas_};
 
+  // One font stack, shared by the engine that measures text and the painter
+  // that draws it. In process, that sharing is free and correct. After the
+  // process split each side gets its own -- which is why the engine takes a
+  // gfx::FontProvider rather than reaching for a global one.
+  gfx::FontLibrary font_library_;
+  platform::SystemFontProvider fonts_{font_library_};
+  gfx::TextRenderer text_{fonts_};
+
   ipc::InProcessChannel channel_;
-  engine::Engine engine_{channel_.Engine()};
+  engine::Engine engine_{channel_.Engine(), fonts_};
 
   bool running_ = true;
   bool repaint_pending_ = false;

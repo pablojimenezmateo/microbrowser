@@ -1,6 +1,8 @@
 #include "engine/Engine.h"
 
 #include <algorithm>
+#include <chrono>
+#include <string>
 #include <utility>
 
 #include "util/PerformanceCounters.h"
@@ -13,23 +15,56 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
-// Placeholder page chrome. These become style-resolved colors the moment there
-// is a stylesheet to resolve; until then they live here rather than in a
-// "theme" abstraction that would have exactly one caller.
-constexpr gfx::Color kPageBackground = gfx::Color::Rgb(0xFF, 0xFF, 0xFF);
-constexpr gfx::Color kBandColor = gfx::Color::Rgb(0x1F, 0x6F, 0xEB);
-constexpr gfx::Color kBlockColor = gfx::Color::Rgba(0x20, 0x20, 0x28, 0x30);
-constexpr gfx::Color kBlockOutline = gfx::Color::Rgba(0x20, 0x20, 0x28, 0x60);
-constexpr float kBlockRadius = 4.0f;
+// Escapes text for placement inside an HTML document.
+//
+// The error page is built by string concatenation, and the URL in it comes from
+// whoever asked for the navigation. Interpolating it raw would make a URL
+// containing markup a script injection into the browser's own error page --
+// the classic self-XSS in the one document a browser writes itself.
+std::string EscapeHtml(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  for (const char c : text) {
+    switch (c) {
+      case '&':
+        out += "&amp;";
+        break;
+      case '<':
+        out += "&lt;";
+        break;
+      case '>':
+        out += "&gt;";
+        break;
+      case '"':
+        out += "&quot;";
+        break;
+      case '\'':
+        out += "&#39;";
+        break;
+      default:
+        out.push_back(c);
+        break;
+    }
+  }
+  return out;
+}
 
-constexpr int kBandHeight = 48;
-constexpr int kBlockHeight = 18;
-constexpr int kBlockGap = 12;
-constexpr int kPageMargin = 32;
+std::int64_t NowSeconds() {
+  return std::chrono::duration_cast<std::chrono::seconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+
+// The blank document. Not an empty string: "" parses to a document with a body
+// too, but saying it here means about:blank is a real page rather than a
+// failure that happens to look like one.
+constexpr std::string_view kBlankDocument =
+    "<!DOCTYPE html><html><head><title>New Tab</title></head><body></body></html>";
 
 }  // namespace
 
-Engine::Engine(ipc::EngineEndpoint& endpoint) : endpoint_(endpoint) {}
+Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
+    : endpoint_(endpoint), page_(fonts) {}
 
 bool Engine::HandlePendingMessages() {
   bool produced_output = false;
@@ -45,12 +80,12 @@ bool Engine::HandlePendingMessages() {
       ScrollBy(scroll->delta_x, scroll->delta_y);
       produced_output = true;
     } else if (std::holds_alternative<ipc::ReloadMessage>(*message)) {
-      Navigate(url_);
+      Navigate(page_.Url());
       produced_output = true;
     }
-    // StopLoad and Pointer are accepted and ignored: there is nothing to stop
-    // and nothing to hit-test yet. They are in the vocabulary now so the UI can
-    // be written against the final shape.
+    // StopLoad and Pointer are accepted and ignored: loading is synchronous so
+    // there is nothing to stop, and nothing is hit-testable yet. They are in
+    // the vocabulary now so the UI can be written against the final shape.
   }
 
   return produced_output;
@@ -60,13 +95,46 @@ void Engine::Navigate(const std::string& url) {
   util::PerformanceTrace::Scope scope("engine::Navigate");
   AddPerformanceCounter(PerfCounterId::EngineNavigations);
 
-  url_ = url;
-  title_ = url.empty() ? std::string("New Tab") : url;
   scroll_y_ = 0;
 
-  endpoint_.Send(ipc::NavigationCommittedMessage{url_});
-  endpoint_.Send(ipc::TitleChangedMessage{title_});
-  PaintAndSend();
+  if (url.empty() || url == "about:blank") {
+    page_.Load(kBlankDocument, url.empty() ? std::string("about:blank") : url);
+  } else {
+    // Synchronous, and that is a stated limitation rather than a design: the
+    // loop blocks for the length of a load. Making it asynchronous is a change
+    // to this function and the message vocabulary, not to the seam -- which is
+    // why it can wait until there is something worth waiting on.
+    const Loader::Result loaded = loader_.Load(url, NowSeconds());
+    if (!loaded.ok) {
+      ShowError(url, loaded.error == nullptr ? "the load failed" : loaded.error);
+      return;
+    }
+    page_.Load(loaded.body, loaded.final_url.empty() ? url : loaded.final_url);
+  }
+
+  endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
+  endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
+  LayoutAndPaint();
+  endpoint_.Send(ipc::LoadProgressMessage{1.0f});
+}
+
+void Engine::ShowError(std::string_view url, std::string_view message) {
+  // A browser that shows nothing when a load fails is indistinguishable from a
+  // browser that has hung.
+  std::string html =
+      "<!DOCTYPE html><html><head><title>Cannot load page</title>"
+      "<style>body{margin:32px;font-family:sans-serif;color:#202028}"
+      "h1{font-size:1.5em;color:#8b1a1a}code{font-family:monospace;color:#404050}</style>"
+      "</head><body><h1>Cannot load this page</h1><p>";
+  html += EscapeHtml(message);
+  html += "</p><p><code>";
+  html += EscapeHtml(url);
+  html += "</code></p></body></html>";
+
+  page_.Load(html, std::string(url));
+  endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
+  endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
+  LayoutAndPaint();
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
 }
 
@@ -76,16 +144,32 @@ void Engine::SetViewport(const gfx::IntSize& size, float device_scale) {
   }
   viewport_size_ = size;
   device_scale_ = device_scale;
-  PaintAndSend();
+  // A resize changes the containing block, so it relays out. This is the one
+  // input that does.
+  LayoutAndPaint();
+}
+
+int Engine::MaxScroll() const {
+  return std::max(0, static_cast<int>(page_.ContentHeight()) - viewport_size_.height);
 }
 
 void Engine::ScrollBy(int delta_x, int delta_y) {
-  (void)delta_x;  // No horizontal overflow to scroll until there is layout.
+  (void)delta_x;  // No horizontal overflow yet: layout never exceeds the width.
   const int previous = scroll_y_;
-  scroll_y_ = std::max(0, scroll_y_ + delta_y);
+  scroll_y_ = std::clamp(scroll_y_ + delta_y, 0, MaxScroll());
   if (scroll_y_ != previous) {
+    // Paints without laying out. The geometry has not changed, and a scroll
+    // that relaid out is the classic reason scrolling is slow.
     PaintAndSend();
   }
+}
+
+void Engine::LayoutAndPaint() {
+  if (viewport_size_.width > 0) {
+    page_.Layout(static_cast<float>(viewport_size_.width) / device_scale_);
+    scroll_y_ = std::clamp(scroll_y_, 0, MaxScroll());
+  }
+  PaintAndSend();
 }
 
 void Engine::PaintAndSend() {
@@ -100,39 +184,17 @@ void Engine::PaintAndSend() {
     return;
   }
 
-  display_list_.FillRect(viewport, kPageBackground);
-  display_list_.FillRect(gfx::IntRect{0, -scroll_y_, viewport.width, kBandHeight}, kBandColor);
-
-  // Stand-in content blocks: enough structure that scrolling, clipping, and
-  // partial repaint are all visibly exercised before there is a real document.
-  //
-  // Rounded and outlined rather than plain rectangles so that the running
-  // application exercises the path rasterizer and the stroker, not only the
-  // tests. A pipeline that is only ever driven by its own test suite is a
-  // pipeline with an untested last mile.
-  display_list_.PushClip(gfx::IntRect{0, kBandHeight, viewport.width, viewport.height});
-  int y = kBandHeight + kBlockGap - scroll_y_;
-  while (y < viewport.height) {
-    const float width = static_cast<float>(viewport.width - 2 * kPageMargin);
-    const gfx::FloatRect block{static_cast<float>(kPageMargin), static_cast<float>(y), width,
-                               static_cast<float>(kBlockHeight)};
-    gfx::Path rounded;
-    rounded.AddRoundedRect(block, kBlockRadius, kBlockRadius, kBlockRadius, kBlockRadius);
-    display_list_.FillPath(rounded, kBlockColor);
-
-    gfx::StrokeStyle outline;
-    outline.width = 1.0f;
-    outline.join = gfx::LineJoin::Round;
-    display_list_.StrokePath(rounded, outline, kBlockOutline);
-    y += kBlockHeight + kBlockGap;
-  }
-  display_list_.PopClip();
+  // The canvas behind the document, painted here rather than by the page: a
+  // document shorter than the viewport still has a window under it, and the
+  // page has no opinion about pixels it does not cover.
+  display_list_.FillRect(viewport, gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
+  page_.Paint(display_list_, static_cast<float>(scroll_y_));
 
   ipc::PaintFrameMessage frame;
   frame.display_list = display_list_;
-  // Empty damage means "the whole viewport". Correct at M0: with no layout
-  // there is no way to know less, and claiming a narrower region would paint
-  // over stale pixels.
+  // Empty damage means "the whole viewport". Correct until paint can diff two
+  // display lists: with no diff there is no way to know less, and claiming a
+  // narrower region would leave stale pixels on screen.
   endpoint_.Send(std::move(frame));
 }
 

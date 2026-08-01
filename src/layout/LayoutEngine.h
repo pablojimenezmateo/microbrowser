@@ -48,6 +48,10 @@ class LayoutEngine {
 // output has to be a value that can be compared, serialized and diffed, and a
 // painter that walked the box tree directly would put device state back into
 // the middle of the engine.
-void BuildDisplayList(const Box& root, gfx::DisplayList& out);
+// `offset` translates everything recorded, which is how scrolling moves the
+// page. Baked into the geometry rather than expressed as a transform command:
+// the display list has no transform, and adding one would make every damage
+// rect depend on replaying it.
+void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset = {});
 
 }  // namespace microbrowser::layout
