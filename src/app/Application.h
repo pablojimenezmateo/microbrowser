@@ -5,6 +5,7 @@
 #include "gfx/Canvas.h"
 #include "gfx/DirtyRegion.h"
 #include "gfx/DisplayList.h"
+#include "gfx/Painter.h"
 #include "ipc/InProcessTransport.h"
 #include "platform/AppDirectories.h"
 #include "platform/InputEvent.h"
@@ -60,6 +61,9 @@ class Application {
   gfx::Canvas canvas_;
   gfx::DirtyRegion dirty_;
   gfx::DisplayList display_list_;
+  // Declared after the canvas it draws into, and holding a pointer rather than a
+  // copy, so a resize that reallocates the pixel buffer leaves it valid.
+  gfx::Painter painter_{canvas_};
 
   ipc::InProcessChannel channel_;
   engine::Engine engine_{channel_.Engine()};

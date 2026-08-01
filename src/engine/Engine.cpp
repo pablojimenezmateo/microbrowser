@@ -19,6 +19,8 @@ using util::PerfCounterId;
 constexpr gfx::Color kPageBackground = gfx::Color::Rgb(0xFF, 0xFF, 0xFF);
 constexpr gfx::Color kBandColor = gfx::Color::Rgb(0x1F, 0x6F, 0xEB);
 constexpr gfx::Color kBlockColor = gfx::Color::Rgba(0x20, 0x20, 0x28, 0x30);
+constexpr gfx::Color kBlockOutline = gfx::Color::Rgba(0x20, 0x20, 0x28, 0x60);
+constexpr float kBlockRadius = 4.0f;
 
 constexpr int kBandHeight = 48;
 constexpr int kBlockHeight = 18;
@@ -103,11 +105,25 @@ void Engine::PaintAndSend() {
 
   // Stand-in content blocks: enough structure that scrolling, clipping, and
   // partial repaint are all visibly exercised before there is a real document.
+  //
+  // Rounded and outlined rather than plain rectangles so that the running
+  // application exercises the path rasterizer and the stroker, not only the
+  // tests. A pipeline that is only ever driven by its own test suite is a
+  // pipeline with an untested last mile.
   display_list_.PushClip(gfx::IntRect{0, kBandHeight, viewport.width, viewport.height});
   int y = kBandHeight + kBlockGap - scroll_y_;
   while (y < viewport.height) {
-    const int width = viewport.width - 2 * kPageMargin;
-    display_list_.FillRect(gfx::IntRect{kPageMargin, y, width, kBlockHeight}, kBlockColor);
+    const float width = static_cast<float>(viewport.width - 2 * kPageMargin);
+    const gfx::FloatRect block{static_cast<float>(kPageMargin), static_cast<float>(y), width,
+                               static_cast<float>(kBlockHeight)};
+    gfx::Path rounded;
+    rounded.AddRoundedRect(block, kBlockRadius, kBlockRadius, kBlockRadius, kBlockRadius);
+    display_list_.FillPath(rounded, kBlockColor);
+
+    gfx::StrokeStyle outline;
+    outline.width = 1.0f;
+    outline.join = gfx::LineJoin::Round;
+    display_list_.StrokePath(rounded, outline, kBlockOutline);
     y += kBlockHeight + kBlockGap;
   }
   display_list_.PopClip();

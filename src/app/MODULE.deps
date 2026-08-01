@@ -14,4 +14,4 @@ max_tu_lines: 800
 # Application is this project's candidate god object -- the browser equivalent
 # of the UI shell that slowly absorbs everything. Tabs, omnibox, history, and
 # settings get their own types in src/ui when M7 arrives; Application routes.
-budget: Application header_lines=80 public_methods=6 members=12
+budget: Application header_lines=85 public_methods=6 members=13

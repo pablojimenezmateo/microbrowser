@@ -16,7 +16,7 @@ budget: Color        header_lines=35 public_methods=14 members=1
 budget: IntRect      header_lines=85 public_methods=16 members=4
 budget: Canvas       header_lines=80 public_methods=20 members=4
 budget: DirtyRegion  header_lines=60 public_methods=10 members=1
-budget: DisplayList  header_lines=45 public_methods=10 members=1
+budget: DisplayList  header_lines=55 public_methods=14 members=2
 budget: Path           header_lines=50 public_methods=20 members=4
 budget: PathRasterizer header_lines=30 public_methods=6  members=2
 budget: Painter        header_lines=40 public_methods=10 members=3

@@ -2,6 +2,7 @@
 
 #include "TestSupport.h"
 #include "gfx/Canvas.h"
+#include "gfx/Painter.h"
 #include "gfx/DisplayList.h"
 #include "support/ReferenceImage.h"
 
@@ -71,7 +72,8 @@ void RegisterReferenceImageTests(std::vector<TestCase>& tests) {
       list.PushClip(IntRect{2, 6, 12, 8});
       list.FillRect(IntRect{0, 6, 16, 3}, Color::Rgba(0x20, 0x20, 0x28, 0x80));
       list.PopClip();
-      gfx::Execute(list, canvas, canvas.Bounds());
+      gfx::Painter painter(canvas);
+    gfx::Execute(list, painter, canvas.Bounds());
       return EncodePpm(canvas);
     };
 

@@ -214,10 +214,10 @@ void Application::PaintAndPresent() {
   const bool full = full_repaint_pending_ || ShouldPromoteToFullRepaint(analysis);
 
   if (full) {
-    gfx::Execute(display_list_, canvas_, canvas_.Bounds());
+    gfx::Execute(display_list_, painter_, canvas_.Bounds());
   } else {
     for (const gfx::IntRect& rect : dirty_.Rects()) {
-      gfx::Execute(display_list_, canvas_, rect);
+      gfx::Execute(display_list_, painter_, rect);
     }
   }
 

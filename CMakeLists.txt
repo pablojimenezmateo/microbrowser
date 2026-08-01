@@ -196,6 +196,7 @@ add_executable(microbrowser_tests
   tests/GeometryTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/IpcMessageTests.cpp
+  tests/PaintPipelineTests.cpp
   tests/PainterTests.cpp
   tests/PathTests.cpp
   tests/RasterizerTests.cpp

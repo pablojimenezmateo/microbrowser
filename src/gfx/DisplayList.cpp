@@ -1,6 +1,10 @@
 #include "gfx/DisplayList.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "gfx/Canvas.h"
+#include "gfx/Painter.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::gfx {
@@ -10,12 +14,32 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
+// How far a stroke can reach beyond the geometry it follows. A miter tip sits
+// at half the width divided by the sine of the half angle, which the miter
+// limit caps at `miter_limit * width / 2`; a square cap reaches the corner of a
+// half-width square, which is sqrt(2)/2 of the width.
+//
+// Over-estimating here costs a slightly wider damage rect. Under-estimating
+// leaves stale pixels on screen, so the rounding goes one way only.
+float StrokeOutset(const StrokeStyle& style) {
+  if (!std::isfinite(style.width) || style.width <= 0.0f) {
+    return 0.0f;
+  }
+  const float miter = std::isfinite(style.miter_limit) ? std::max(style.miter_limit, 1.0f) : 1.0f;
+  return style.width * 0.5f * std::max(miter, 1.5f);
+}
+
+IntRect BoundsOfPath(const Path& path) {
+  return EnclosingIntRect(path.ControlBounds());
+}
+
 }  // namespace
 
 void DisplayList::Clear() {
   // clear(), not a fresh vector: display lists are rebuilt every frame, and
   // reusing the capacity is what keeps painting off the allocator.
   commands_.clear();
+  paths_.clear();
 }
 
 void DisplayList::FillRect(const IntRect& rect, Color color) {
@@ -36,19 +60,50 @@ void DisplayList::PopClip() {
   AddPerformanceCounter(PerfCounterId::DisplayListCommands);
 }
 
+void DisplayList::FillPath(const Path& path, Color color, FillRule rule) {
+  if (path.IsEmpty() || color.IsFullyTransparent()) {
+    return;
+  }
+  paths_.push_back(path);
+  commands_.emplace_back(
+      FillPathCommand{static_cast<std::uint32_t>(paths_.size() - 1), rule, color});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
+void DisplayList::StrokePath(const Path& path, const StrokeStyle& style, Color color) {
+  if (path.IsEmpty() || color.IsFullyTransparent() || !std::isfinite(style.width) ||
+      style.width <= 0.0f) {
+    return;
+  }
+  paths_.push_back(path);
+  commands_.emplace_back(
+      StrokePathCommand{static_cast<std::uint32_t>(paths_.size() - 1), color, style});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
 IntRect DisplayList::Bounds() const {
   IntRect bounds;
   for (const DisplayCommand& command : commands_) {
     if (const auto* fill = std::get_if<FillRectCommand>(&command)) {
       bounds = bounds.United(fill->rect);
+    } else if (const auto* fill_path = std::get_if<FillPathCommand>(&command)) {
+      if (const Path* geometry = PathAt(fill_path->path)) {
+        bounds = bounds.United(BoundsOfPath(*geometry));
+      }
+    } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
+      if (const Path* geometry = PathAt(stroke->path)) {
+        const int outset = static_cast<int>(std::ceil(StrokeOutset(stroke->style)));
+        bounds = bounds.United(BoundsOfPath(*geometry).Inflated(outset));
+      }
     }
   }
   return bounds;
 }
 
-void Execute(const DisplayList& list, Canvas& canvas, const IntRect& damage) {
+void Execute(const DisplayList& list, Painter& painter, const IntRect& damage) {
   AddPerformanceCounter(PerfCounterId::DisplayListExecutions);
 
+  Canvas& canvas = painter.Target();
   const IntRect region = damage.Intersected(canvas.Bounds());
   if (region.IsEmpty()) {
     return;
@@ -62,6 +117,14 @@ void Execute(const DisplayList& list, Canvas& canvas, const IntRect& damage) {
       canvas.FillRect(fill->rect, fill->color);
     } else if (const auto* push = std::get_if<PushClipCommand>(&command)) {
       canvas.PushClip(push->rect);
+    } else if (const auto* fill_path = std::get_if<FillPathCommand>(&command)) {
+      if (const Path* geometry = list.PathAt(fill_path->path)) {
+        painter.FillPath(*geometry, fill_path->color, fill_path->rule);
+      }
+    } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
+      if (const Path* geometry = list.PathAt(stroke->path)) {
+        painter.StrokePath(*geometry, stroke->style, stroke->color);
+      }
     } else {
       // PopClip. Refuse to pop past our own damage clip: an unbalanced list
       // would otherwise widen the clip beyond the damage region and paint

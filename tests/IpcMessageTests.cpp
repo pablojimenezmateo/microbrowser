@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 #include "TestSupport.h"
@@ -140,6 +141,167 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     ExpectEqString(std::get<ipc::NavigateMessage>(*a).url, "first", "FIFO order");
     ExpectEqString(std::get<ipc::NavigateMessage>(*b).url, "second", "FIFO order");
     Expect(!channel.Engine().TryReceive().has_value(), "an empty queue must yield nullopt");
+  });
+
+  // --- Path commands on the wire -------------------------------------------
+
+  AddTest(tests, "Ipc/PathCommandsRoundTrip", [] {
+    gfx::Path shape;
+    shape.MoveTo(gfx::FloatPoint{1.5f, 2.25f});
+    shape.LineTo(gfx::FloatPoint{40.0f, 2.25f});
+    shape.QuadTo(gfx::FloatPoint{50.0f, 12.0f}, gfx::FloatPoint{40.0f, 22.0f});
+    shape.CubicTo(gfx::FloatPoint{30.0f, 30.0f}, gfx::FloatPoint{10.0f, 30.0f},
+                  gfx::FloatPoint{1.5f, 22.0f});
+    shape.Close();
+
+    gfx::StrokeStyle style;
+    style.width = 3.25f;
+    style.cap = gfx::LineCap::Round;
+    style.join = gfx::LineJoin::Bevel;
+    style.miter_limit = 7.5f;
+
+    ipc::PaintFrameMessage paint;
+    paint.display_list.FillPath(shape, Color::Rgba(0x11, 0x22, 0x33, 0x44),
+                                gfx::FillRule::EvenOdd);
+    paint.display_list.StrokePath(shape, style, Color::Rgb(9, 9, 9));
+    RoundTrip(ipc::EngineToUi{paint}, ipc::DeserializeEngineToUi, "PaintFrame(paths)");
+  });
+
+  AddTest(tests, "Ipc/APathIsSerializedAsGeometryRatherThanAnIndex", [] {
+    // Two commands naming the same geometry must both survive independently.
+    // If the wire carried indices into a shared table, a hostile frame could
+    // name a path that is not there, and every consumer would need a range
+    // check it might forget.
+    gfx::Path square;
+    square.AddRect(gfx::FloatRect{0.0f, 0.0f, 4.0f, 4.0f});
+
+    ipc::PaintFrameMessage paint;
+    paint.display_list.FillPath(square, Color::Rgb(1, 1, 1));
+    paint.display_list.FillPath(square, Color::Rgb(2, 2, 2));
+
+    const auto decoded = ipc::DeserializeEngineToUi(ipc::Serialize(ipc::EngineToUi{paint}));
+    Expect(decoded.has_value(), "the frame must decode");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    ExpectEqInt(static_cast<long long>(list.Paths().size()), 2,
+                "each command brought its own geometry across");
+    Expect(list.PathAt(0) != nullptr && list.PathAt(1) != nullptr, "and both resolve");
+  });
+
+  AddTest(tests, "Ipc/AHostilePathFrameIsRejectedRatherThanDecodedPartially", [] {
+    // Every one of these is a frame no encoder can produce. The decoder must
+    // reject each, not build a half-populated display list from it.
+    const auto frame = [](auto&& fill_body) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(1);   // PaintFrame
+      writer.WriteU32(1);  // one command
+      fill_body(writer);
+      writer.WriteU32(0);  // damage rect count, which closes the message
+      return writer.Bytes();
+    };
+
+    // A well-formed frame built the same way must decode. Without this the
+    // rejections below would all pass for the wrong reason — a missing trailing
+    // field rather than the malformation each one is about.
+    Expect(ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(4);
+             w.WriteU32(0xFF000000);
+             w.WriteU8(0);
+             w.WriteU32(2);
+             w.WriteU8(0);  // Move
+             w.WriteF32(0.0f);
+             w.WriteF32(0.0f);
+             w.WriteU8(1);  // Line
+             w.WriteF32(4.0f);
+             w.WriteF32(4.0f);
+           })).has_value(),
+           "the control frame must decode, or every rejection below proves nothing");
+
+    Expect(!ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(4);           // FillPath
+             w.WriteU32(0xFF000000); // color
+             w.WriteU8(0);           // NonZero
+             w.WriteU32(0xFFFFFFFF); // verb count larger than the frame
+           })).has_value(),
+           "a verb count beyond the remaining bytes must be rejected before any allocation");
+
+    Expect(!ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(4);
+             w.WriteU32(0xFF000000);
+             w.WriteU8(0);
+             w.WriteU32(1);
+             w.WriteU8(200);  // not a verb
+           })).has_value(),
+           "an unknown path verb must be rejected, not skipped");
+
+    Expect(!ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(4);
+             w.WriteU32(0xFF000000);
+             w.WriteU8(0);
+             w.WriteU32(1);
+             w.WriteU8(2);        // Quad, which needs two points
+             w.WriteF32(1.0f);    // and gets half of one
+           })).has_value(),
+           "a verb truncated mid-point must be rejected");
+
+    Expect(!ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(4);
+             w.WriteU32(0xFF000000);
+             w.WriteU8(9);  // not a fill rule
+             w.WriteU32(0);
+           })).has_value(),
+           "an out-of-range fill rule must be rejected rather than cast into the enum");
+
+    Expect(!ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(5);  // StrokePath
+             w.WriteU32(0xFF000000);
+             w.WriteF32(2.0f);
+             w.WriteF32(4.0f);
+             w.WriteU8(77);  // not a line cap
+             w.WriteU8(0);
+             w.WriteU32(0);
+           })).has_value(),
+           "an out-of-range line cap must be rejected");
+
+    Expect(!ipc::DeserializeEngineToUi(frame([](ipc::ByteWriter& w) {
+             w.WriteU8(5);
+             w.WriteU32(0xFF000000);
+             w.WriteF32(std::numeric_limits<float>::quiet_NaN());
+             w.WriteF32(4.0f);
+             w.WriteU8(0);
+             w.WriteU8(0);
+             w.WriteU32(0);
+           })).has_value(),
+           "a non-finite stroke width is not a value the encoder can produce");
+  });
+
+  AddTest(tests, "Ipc/ANonFiniteCoordinateOnTheWireNeverReachesTheRasterizer", [] {
+    // Nothing rejects the frame — the coordinates are structurally valid
+    // floats. The Path builder the decoder replays through is what drops them,
+    // which is the point of decoding through the builder rather than into the
+    // vectors.
+    ipc::ByteWriter writer;
+    writer.WriteU32(ipc::kProtocolVersion);
+    writer.WriteU8(1);
+    writer.WriteU32(1);
+    writer.WriteU8(4);
+    writer.WriteU32(0xFF000000);
+    writer.WriteU8(0);
+    writer.WriteU32(2);
+    writer.WriteU8(0);  // Move
+    writer.WriteF32(std::numeric_limits<float>::infinity());
+    writer.WriteF32(0.0f);
+    writer.WriteU8(1);  // Line
+    writer.WriteF32(std::numeric_limits<float>::quiet_NaN());
+    writer.WriteF32(1.0f);
+    writer.WriteU32(0);  // damage rect count
+
+    const auto decoded = ipc::DeserializeEngineToUi(writer.Bytes());
+    Expect(decoded.has_value(), "the frame is well-formed, so it decodes");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    Expect(list.IsEmpty(),
+           "every command in it collapsed to nothing, because a path that lost every "
+           "coordinate is not a path");
   });
 
   AddTest(tests, "Ipc/InProcessChannelDirectionsAreIndependent", [] {

@@ -23,6 +23,7 @@ void RegisterEnvTests(std::vector<TestCase>& tests);
 void RegisterGeometryTests(std::vector<TestCase>& tests);
 void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
+void RegisterPaintPipelineTests(std::vector<TestCase>& tests);
 void RegisterPainterTests(std::vector<TestCase>& tests);
 void RegisterPathTests(std::vector<TestCase>& tests);
 void RegisterRasterizerTests(std::vector<TestCase>& tests);
@@ -115,6 +116,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterGeometryTests(tests);
   microbrowser::tests::RegisterIdleWaitStrategyTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);
+  microbrowser::tests::RegisterPaintPipelineTests(tests);
   microbrowser::tests::RegisterPainterTests(tests);
   microbrowser::tests::RegisterPathTests(tests);
   microbrowser::tests::RegisterRasterizerTests(tests);
