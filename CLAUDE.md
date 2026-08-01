@@ -45,6 +45,36 @@ integration (M9). Loading is synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 
+## Where To Pick Up
+
+Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
+reasoning; this is the queue.
+
+1. **Hacker News.** The first named compatibility target and the closest to working. Needs HTML
+   tables (the tree builder has no table insertion modes), navigation from a clicked link, and
+   form controls. Smallest path to a real page rendering correctly, and it will find gaps that
+   speculative work will not.
+2. **The JavaScript bytecode VM.** The largest single item and the project's dominant cost. It is
+   not only speed: the collector cannot run during evaluation today, because a tree-walker keeps
+   live values in C++ frames it cannot scan — so the heap has a ceiling that becomes a
+   `RangeError` instead of a collection. A VM's value stack is explicit and scannable, so precise
+   collection and the speed arrive together. See the note at the top of `src/js/Heap.h`.
+3. **Promises and a microtask queue, then async/await.** Not a language feature that bolts on: it
+   changes the host event loop, which is currently a blocking wait on window events. Check it
+   against the zero-idle-CPU invariant before writing any of it.
+4. **A regular expression engine.** A regex literal currently evaluates to its own source text,
+   which is a placeholder rather than a feature.
+5. **Flexbox, then grid.** Not optional for reddit, google, Plex or YouTube. `position:
+   absolute/fixed/sticky` and a real overflow/scrolling model are in the same bucket.
+6. **DOM bindings (M9).** The seam where every same-origin check will live. Nothing interactive
+   works without it, and `src/js/MODULE.deps` deliberately forbids `js` from reaching `dom`
+   directly so that this layer cannot be bypassed.
+
+Known-crude spots, each with the reasoning written where the code is: loading is synchronous (the
+loop blocks for a fetch); a display list carrying an image serializes the bitmap inline rather than
+naming it in a resource table; scrolling an overflowing document repaints in full because there is
+no scroll blit in the presenter.
+
 ## Development Workflow
 
 ```bash
@@ -148,7 +178,7 @@ limit. Run it before a refactor to see what is about to blow.
 - `guidelines/observability.md` — counters, scopes, and how to read a summary
 - `guidelines/testing.md` — test strategy, reference tests, control fixtures
 - `docs/adr/` — durable decisions and their reasoning
-- `docs/adr/0005-compatibility-targets.md` — the five sites that must eventually work, and what they cost
+- `docs/adr/0007-compatibility-targets.md` — the five sites that must eventually work, and what they cost
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot
 - `docs/performance/m6-damage.md` — what incremental repaint saves, and what it does not

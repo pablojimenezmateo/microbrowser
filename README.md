@@ -114,7 +114,7 @@ the two designs that give it teeth are decided in ADRs.
 ## Compatibility Targets
 
 What should eventually *work*, which is a different question from what gets
-built. In order of what each demands — see `docs/adr/0005-compatibility-targets.md`
+built. In order of what each demands — see `docs/adr/0007-compatibility-targets.md`
 for the per-site gap analysis.
 
 | | | |
@@ -127,7 +127,7 @@ for the per-site gap analysis.
 
 **These make the JavaScript engine the dominant cost of the project rather than
 a milestone within it**, and the 12–18 month estimate below does not survive
-that. The roadmap's ordering still holds; the schedule does not. ADR 0005 says
+that. The roadmap's ordering still holds; the schedule does not. ADR 0007 says
 so in detail rather than leaving it to be discovered at the end.
 
 ## Roadmap
@@ -142,7 +142,7 @@ so in detail rather than leaving it to be discovered at the end.
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements, floats and clearance done; flexbox and grid not |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | **in progress** — display-list building and incremental repaint from a two-frame diff done; stacking contexts not |
 | M7 | Browser UI: tabs, omnibox, history, downloads, plus the process split and sandbox. **First usable browser.** | **in progress** — toolbar, omnibox with editing and keyboard shortcuts, back/forward history done; tabs, downloads, the process split and the sandbox not |
-| M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | **in progress** — lexer, parser, tree-walking interpreter, mark-sweep GC, classes and a small standard library done; the bytecode VM, Promises, async/await, generators and a regex engine not. See ADR 0005 — this is now the project's dominant cost. |
+| M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | **in progress** — lexer, parser, tree-walking interpreter, mark-sweep GC, classes and a small standard library done; the bytecode VM, Promises, async/await, generators and a regex engine not. See ADR 0007 — this is now the project's dominant cost. |
 | M9 | Integration: DOM bindings, events, forms, fetch, dynamic relayout | |
 
 ## Performance and Benchmark Methodology

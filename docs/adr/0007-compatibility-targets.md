@@ -1,4 +1,4 @@
-# ADR 0005: Named compatibility targets, and what they cost
+# ADR 0007: Named compatibility targets, and what they cost
 
 ## Status
 
@@ -86,7 +86,10 @@ means, beyond what M8 has so far:
   tree-walker keeps live values in C++ frames it cannot scan. A VM's value stack
   is explicit and scannable, so precise collection and the speed arrive
   together. See the note in `src/js/Heap.h`.
-- **Classes**, including fields, private names, `super`, and accessors.
+- ~~**Classes**, including fields, private names, `super`, and accessors.~~
+  Done. Private names are ordinary properties under their `#` name, which is
+  not real privacy and is the right amount until something observes the
+  difference.
 - **Promises and a microtask queue**, then **async/await**. This is not a
   language feature that can be bolted on: it changes the host's event loop, and
   the loop is currently a blocking wait on window events.
