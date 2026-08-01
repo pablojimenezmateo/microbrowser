@@ -231,6 +231,7 @@ microbrowser_module(gfx
     src/gfx/Canvas.cpp
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
+    src/gfx/DisplayListDiff.cpp
     src/gfx/Font.cpp
     src/gfx/FontCatalog.cpp
     src/gfx/TextRenderer.cpp
@@ -299,6 +300,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/FetchTests.cpp
+  tests/DisplayListDiffTests.cpp
   tests/EngineTests.cpp
   tests/FontCatalogTests.cpp
   tests/FontTests.cpp

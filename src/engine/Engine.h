@@ -75,7 +75,13 @@ class Engine {
   ipc::EngineEndpoint& endpoint_;
   Loader loader_;
   Page page_;
+  // The frame most recently sent, kept so the next one can be diffed against
+  // it. This is what the display list being a comparable value buys: damage is
+  // computed from two frames rather than trusted from every call site that
+  // invalidated something.
   gfx::DisplayList display_list_;
+  // Reused rather than reallocated per frame; painting is the hot path.
+  gfx::DisplayList pending_;
   gfx::IntSize viewport_size_;
   float device_scale_ = 1.0f;
   int scroll_y_ = 0;

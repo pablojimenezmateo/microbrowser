@@ -108,6 +108,11 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  X(EnginePaintsSkipped, "engine.paints_skipped")                                \
+  X(DamageDiffs, "paint.damage_diffs")                                           \
+  X(DamageDiffsIdentical, "paint.damage_diffs_identical")                        \
+  X(DamageDiffsFullRepaint, "paint.damage_diffs_full_repaint")                   \
+  X(DamageRectsProduced, "paint.damage_rects_produced")                          \
   /* --- text ---------------------------------------------------------------- */ \
   X(FontFacesRegistered, "font.faces_registered")                                \
   X(FontLookupHits, "font.lookup_hits")                                          \

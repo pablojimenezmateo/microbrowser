@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "gfx/DisplayListDiff.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
 
@@ -177,24 +178,37 @@ void Engine::PaintAndSend() {
   AddPerformanceCounter(PerfCounterId::EnginePaintsProduced);
   AddPerformanceCounter(PerfCounterId::DisplayListBuilds);
 
-  display_list_.Clear();
-
   const gfx::IntRect viewport{0, 0, viewport_size_.width, viewport_size_.height};
   if (viewport.IsEmpty()) {
     return;
   }
 
+  pending_.Clear();
   // The canvas behind the document, painted here rather than by the page: a
   // document shorter than the viewport still has a window under it, and the
   // page has no opinion about pixels it does not cover.
-  display_list_.FillRect(viewport, gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
-  page_.Paint(display_list_, static_cast<float>(scroll_y_));
+  pending_.FillRect(viewport, gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
+  page_.Paint(pending_, static_cast<float>(scroll_y_));
+
+  gfx::DirtyRegion damage;
+  const bool bounded = gfx::ComputeDamage(display_list_, pending_, viewport, damage);
+  if (bounded && damage.IsEmpty()) {
+    // Nothing on screen would change. Sending the frame anyway would make the
+    // UI upload a texture to draw the same picture, which is most of what a
+    // browser wastes power on.
+    AddPerformanceCounter(PerfCounterId::EnginePaintsSkipped);
+    return;
+  }
 
   ipc::PaintFrameMessage frame;
-  frame.display_list = display_list_;
-  // Empty damage means "the whole viewport". Correct until paint can diff two
-  // display lists: with no diff there is no way to know less, and claiming a
-  // narrower region would leave stale pixels on screen.
+  frame.display_list = pending_;
+  // Empty damage means "the whole viewport", which is what the diff reports
+  // when it cannot bound the change -- a clip moved, and every command after a
+  // clip reads it as state.
+  if (bounded) {
+    frame.damage = damage.Rects();
+  }
+  display_list_ = pending_;
   endpoint_.Send(std::move(frame));
 }
 
