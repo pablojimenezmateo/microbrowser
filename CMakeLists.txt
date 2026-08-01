@@ -70,6 +70,23 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/microbrowser")
 find_package(PkgConfig QUIET)
 find_package(SDL3 CONFIG QUIET)
 
+# Text: FreeType supplies glyph outlines, HarfBuzz supplies shaping. Both are
+# sanctioned in docs/adr/0001-third-party-dependencies.md and both are visible
+# only to src/gfx, which is what its MODULE.deps `extern:` line enforces.
+find_package(Freetype REQUIRED)
+set(MICROBROWSER_HARFBUZZ_TARGET "")
+if(PkgConfig_FOUND)
+  pkg_check_modules(HARFBUZZ QUIET IMPORTED_TARGET harfbuzz)
+  if(TARGET PkgConfig::HARFBUZZ)
+    set(MICROBROWSER_HARFBUZZ_TARGET PkgConfig::HARFBUZZ)
+  endif()
+endif()
+if(MICROBROWSER_HARFBUZZ_TARGET STREQUAL "")
+  message(FATAL_ERROR
+    "HarfBuzz was not found. Install HarfBuzz development files and rerun CMake.\n"
+    "Expected a pkg-config entry named 'harfbuzz' (Debian/Ubuntu: libharfbuzz-dev).")
+endif()
+
 set(MICROBROWSER_SDL3_TARGET "")
 if(TARGET SDL3::SDL3)
   set(MICROBROWSER_SDL3_TARGET SDL3::SDL3)
@@ -144,12 +161,14 @@ microbrowser_module(gfx
     src/gfx/Canvas.cpp
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
+    src/gfx/Font.cpp
     src/gfx/Geometry.cpp
     src/gfx/Painter.cpp
     src/gfx/Path.cpp
     src/gfx/Rasterizer.cpp
     src/gfx/Stroker.cpp
-  DEPS microbrowser_util)
+  DEPS microbrowser_util
+  EXTERN Freetype::Freetype ${MICROBROWSER_HARFBUZZ_TARGET})
 
 microbrowser_module(ipc
   SOURCES
@@ -197,6 +216,7 @@ add_executable(microbrowser_tests
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
+  tests/FontTests.cpp
   tests/GeometryTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/IpcMessageTests.cpp
@@ -206,7 +226,8 @@ add_executable(microbrowser_tests
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
   tests/ReferenceImageTests.cpp
-  tests/support/ReferenceImage.cpp)
+  tests/support/ReferenceImage.cpp
+  tests/support/SyntheticFont.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE

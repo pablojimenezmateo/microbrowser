@@ -2,13 +2,16 @@ purpose: Software rasterization. Pixels in memory; nothing about windows or the 
 
 allow: util
 
-public: Geometry.h AffineTransform.h Color.h Blitter.h Canvas.h DirtyRegion.h DisplayList.h Path.h PathFlattener.h Rasterizer.h Stroker.h Painter.h
+public: Geometry.h AffineTransform.h Color.h Blitter.h Font.h Canvas.h DirtyRegion.h DisplayList.h Path.h PathFlattener.h Rasterizer.h Stroker.h Painter.h
 
-# Empty on purpose, and load-bearing: this is what makes "gfx must not include
-# SDL" an enforced rule rather than a convention. FreeType and HarfBuzz join
-# this list in M1, when GlyphAtlas needs them -- and nothing else in gfx will be
-# able to name them.
-extern:
+# SDL is deliberately absent, and that absence is load-bearing: it is what makes
+# "gfx must not include SDL" an enforced rule rather than a convention.
+#
+# FreeType and HarfBuzz are here because ADR 0001 sanctions them for exactly one
+# module, and this is it. Their types appear in no public header -- Font.h
+# type-erases FT_Library and FT_Face to void* for that reason -- so the seam is
+# real rather than declared.
+extern: freetype harfbuzz
 
 max_tu_lines: 800
 
@@ -23,4 +26,7 @@ budget: Path           header_lines=50 public_methods=20 members=4
 # measured in the space the pixels are in.
 budget: PathRasterizer header_lines=40 public_methods=8  members=2
 budget: Painter        header_lines=50 public_methods=12 members=4
+budget: FontLibrary    header_lines=30 public_methods=8  members=1
+budget: FontFace       header_lines=45 public_methods=16 members=2
+budget: Font           header_lines=35 public_methods=10 members=3
 budget: AffineTransform header_lines=70 public_methods=22 members=6

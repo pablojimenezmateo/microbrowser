@@ -55,6 +55,10 @@ namespace microbrowser::util {
   X(GfxStrokes, "gfx.strokes")                                                   \
   X(GfxStrokePieces, "gfx.stroke_pieces")                                        \
   X(GfxStrokeMiterFallbacks, "gfx.stroke_miter_fallbacks")                       \
+  /* --- text --------------------------------------------------------------- */ \
+  X(GfxFontsLoaded, "gfx.fonts_loaded")                                          \
+  X(GfxFontLoadFailures, "gfx.font_load_failures")                               \
+  X(GfxGlyphOutlines, "gfx.glyph_outlines")                                      \
   /* --- display list ------------------------------------------------------- */ \
   X(DisplayListBuilds, "display_list.builds")                                    \
   X(DisplayListCommands, "display_list.commands")                                \
