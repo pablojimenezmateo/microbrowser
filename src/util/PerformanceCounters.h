@@ -81,6 +81,12 @@ namespace microbrowser::util {
   X(PrivacyRulesProbed, "privacy.rules_probed")                                  \
   X(PrivacyHttpsUpgrades, "privacy.https_upgrades")                              \
   X(PrivacyUrlsSanitized, "privacy.urls_sanitized")                              \
+  /* --- net ----------------------------------------------------------------- */ \
+  X(NetResponsesParsed, "net.responses_parsed")                                  \
+  X(NetResponseParseFailures, "net.response_parse_failures")                     \
+  X(NetHeaderRejections, "net.header_rejections")                                \
+  X(NetCookiesStored, "net.cookies_stored")                                      \
+  X(NetCookiesRejected, "net.cookies_rejected")                                  \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

@@ -121,8 +121,14 @@ environment, not a bug.
 ## Fuzzing
 
 **Every parser that touches bytes written by a stranger gets a libFuzzer target on the commit it
-lands.** Three exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`. Still to come as their parsers
-do: HTML tokenizer, CSS parser, URL parser, HTTP response reader, filter-list parser.
+lands.** Six exist: `inflate_fuzzer`, `png_fuzzer`, `font_fuzzer`, `http_fuzzer`, `cookie_fuzzer`,
+`url_fuzzer`. Still to come as their parsers do: HTML tokenizer, CSS parser, filter-list parser.
+
+Two of them check a *property*, not just the absence of a crash, and those are the valuable ones.
+`url_fuzzer` requires that serializing a parsed URL and reparsing it yields the same string — a
+parser whose output does not reparse to itself is one two components can disagree about, which is
+where origin-confusion bugs come from. `cookie_fuzzer` requires that no storable cookie can produce
+a `Cookie:` header containing CR or LF.
 
 ```bash
 cmake -S . -B build/fuzz -G Ninja -DMICROBROWSER_FUZZ=ON \
@@ -183,7 +189,7 @@ memory-safety bug and a shipped exploit until the sandbox exists.
 
 ## Current Coverage
 
-256 tests. Honest about what they do and do not cover:
+320 tests. Honest about what they do and do not cover:
 
 - `Geometry`, `Canvas`, `DirtyRegion`, `DisplayList` — well covered, including degenerate inputs.
 - `Path`, `PathFlattener`, `Rasterizer`, `Stroker`, `AffineTransform` — the strongest assertions in
@@ -201,6 +207,15 @@ memory-safety bug and a shipped exploit until the sandbox exists.
   glyphs have closed-form areas. Covers the y-flip out of font space, the cmap, contour direction
   (one glyph is a square with a reversed inner square, so a decoder that ignored winding would come
   back with the wrong area), quadratic contours, and clusters through multi-byte UTF-8.
+- `Url`, `Origin`, `PublicSuffix`, `Site`, `PartitionKey` — the WHATWG standard's own cases, plus
+  the four spellings of a loopback address, opaque-origin identity, and PSL wildcards and
+  exceptions. `PartitionKey` covers Total Cookie Protection directly: one third party under two
+  top-level sites must produce two keys.
+- `Blocking`, `Policy` — filter matching including exceptions and `$important`, and the policy's
+  *ordering* (block before upgrade, sanitize after, referrer from the final URL).
+- `Http`, `Cookie` — framing ambiguity is the theme: `Content-Length` with `Transfer-Encoding`,
+  duplicate lengths, obsolete line folding. Cookie tests cover the label-boundary rule that stops
+  `notevil.com` matching `evil.com`, and partitioning at the storage layer.
 - `Inflate`, `PngDecoder` — the hostile-input suites. Reference streams produced by zlib itself
   rather than by this project, so the decoder is checked against an independent implementation of
   the format; then truncation at every length, a flipped byte at every third offset, and every way

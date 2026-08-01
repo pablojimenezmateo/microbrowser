@@ -189,6 +189,12 @@ microbrowser_module(privacy
     src/privacy/Verdict.cpp
   DEPS microbrowser_util microbrowser_url)
 
+microbrowser_module(net
+  SOURCES
+    src/net/CookieJar.cpp
+    src/net/HttpMessage.cpp
+  DEPS microbrowser_util microbrowser_url microbrowser_privacy)
+
 microbrowser_module(gfx
   SOURCES
     src/gfx/AffineTransform.cpp
@@ -261,6 +267,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
+  tests/NetTests.cpp
   tests/PaintPipelineTests.cpp
   tests/PainterTests.cpp
   tests/PathTests.cpp
@@ -275,7 +282,8 @@ add_executable(microbrowser_tests
   tests/support/SyntheticFont.cpp
   tests/support/SyntheticPng.cpp)
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url
-                                                microbrowser_privacy)
+                                                microbrowser_privacy
+                                                microbrowser_net)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -306,6 +314,9 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(inflate_fuzzer fuzz/InflateFuzzer.cpp microbrowser_util)
   microbrowser_fuzzer(png_fuzzer fuzz/PngFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------

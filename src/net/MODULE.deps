@@ -1,0 +1,16 @@
+purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
+
+# net sits above url and privacy: guidelines/privacy.md requires every request to
+# have passed privacy first, which net enforces by taking a privacy::Verdict.
+allow: util url privacy
+
+public: HttpMessage.h CookieJar.h
+
+extern:
+
+max_tu_lines: 800
+
+budget: HttpHeaders    header_lines=40 public_methods=16 members=1
+budget: ResponseParser header_lines=60 public_methods=16 members=10
+budget: Cookie         header_lines=50 public_methods=10 members=10
+budget: CookieJar      header_lines=50 public_methods=14 members=2

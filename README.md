@@ -117,7 +117,7 @@ the two designs that give it teeth are decided in ADRs.
 |---|---|---|
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
 | M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **done** |
-| M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — `src/url` and `src/privacy` done; `src/net` not started |
+| M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — URL, privacy, HTTP/1.1 parsing and cookies done; sockets, TLS and DNS not |
 | M3 | HTML parsing + DOM | |
 | M4 | CSS: parsing, selectors, cascade, computed style | |
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | |
