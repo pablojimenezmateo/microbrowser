@@ -1,0 +1,14 @@
+purpose: The box tree and its geometry. Turns a styled document into positioned boxes.
+
+allow: util dom css gfx
+
+public: Box.h LayoutEngine.h
+
+extern:
+
+max_tu_lines: 900
+
+budget: BoxGeometry     header_lines=30 public_methods=6  members=4
+budget: Box             header_lines=60 public_methods=20 members=6
+budget: TextMeasurer    header_lines=25 public_methods=6  members=0
+budget: LayoutEngine    header_lines=45 public_methods=8  members=2

@@ -202,6 +202,11 @@ microbrowser_module(css
     src/css/Tokenizer.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_gfx)
 
+microbrowser_module(layout
+  SOURCES
+    src/layout/LayoutEngine.cpp
+  DEPS microbrowser_util microbrowser_dom microbrowser_css microbrowser_gfx)
+
 microbrowser_module(html
   SOURCES
     src/html/Tokenizer.cpp
@@ -292,6 +297,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
+  tests/LayoutTests.cpp
   tests/NetTests.cpp
   tests/PaintPipelineTests.cpp
   tests/PainterTests.cpp
@@ -314,7 +320,8 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_u
                                                 microbrowser_net
                                                 microbrowser_html
                                                 microbrowser_dom
-                                                microbrowser_css)
+                                                microbrowser_css
+                                                microbrowser_layout)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -30,6 +30,7 @@ void RegisterGlyphCacheTests(std::vector<TestCase>& tests);
 void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests);
 void RegisterInflateTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
+void RegisterLayoutTests(std::vector<TestCase>& tests);
 void RegisterNetTests(std::vector<TestCase>& tests);
 void RegisterPaintPipelineTests(std::vector<TestCase>& tests);
 void RegisterPainterTests(std::vector<TestCase>& tests);
@@ -138,6 +139,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterIdleWaitStrategyTests(tests);
   microbrowser::tests::RegisterInflateTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);
+  microbrowser::tests::RegisterLayoutTests(tests);
   microbrowser::tests::RegisterNetTests(tests);
   microbrowser::tests::RegisterPaintPipelineTests(tests);
   microbrowser::tests::RegisterPainterTests(tests);

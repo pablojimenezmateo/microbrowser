@@ -108,6 +108,11 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  /* --- layout -------------------------------------------------------------- */ \
+  X(LayoutTreeBuilds, "layout.tree_builds")                                      \
+  X(LayoutBoxesCreated, "layout.boxes_created")                                  \
+  X(LayoutRuns, "layout.runs")                                                   \
+  X(LayoutDisplayListsBuilt, "layout.display_lists_built")                       \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \
