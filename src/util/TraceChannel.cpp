@@ -8,7 +8,7 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "util/StringUtil.h"
+#include "util/Env.h"
 #include "util/TransparentStringHash.h"
 
 namespace microbrowser::util {
@@ -68,26 +68,9 @@ thread_local std::array<TraceScope*, kMaxChannels> g_active_scope{};
 thread_local bool g_is_main_thread = false;
 std::atomic<bool> g_main_thread_marked{false};
 
-bool ParseEnabledValue(const char* value) {
-  if (value == nullptr || value[0] == '\0') {
-    return false;
-  }
-  return !IsFalseyToken(value);
-}
-
-bool EnvFlagEnabled(const char* env_name) {
-  if (env_name == nullptr || env_name[0] == '\0') {
-    return false;
-  }
-  return ParseEnabledValue(std::getenv(env_name));
-}
-
 double ParseMinimumDurationMs(const char* env_name) {
-  if (env_name == nullptr || env_name[0] == '\0') {
-    return 0.0;
-  }
-  const char* value = std::getenv(env_name);
-  if (value == nullptr || value[0] == '\0') {
+  const char* value = EnvValue(env_name);
+  if (value == nullptr) {
     return 0.0;
   }
 

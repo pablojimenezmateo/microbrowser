@@ -1,8 +1,6 @@
 #include "util/PerformanceTrace.h"
 
-#include <cstdlib>
-
-#include "util/StringUtil.h"
+#include "util/Env.h"
 
 namespace microbrowser::util {
 
@@ -67,15 +65,6 @@ std::string_view PerformanceTrace::ScopeLabel::View() {
   return text_;
 }
 
-bool PerformanceTrace::FlagEnabled(const char* env_name) {
-  if (env_name == nullptr || env_name[0] == '\0') {
-    return false;
-  }
-  const char* value = std::getenv(env_name);
-  if (value == nullptr || value[0] == '\0') {
-    return false;
-  }
-  return !IsFalseyToken(value);
-}
+bool PerformanceTrace::FlagEnabled(const char* env_name) { return EnvFlagEnabled(env_name); }
 
 }  // namespace microbrowser::util

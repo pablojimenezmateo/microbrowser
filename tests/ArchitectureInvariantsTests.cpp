@@ -356,6 +356,56 @@ std::vector<Violation> CheckNoManualHeapOwnership(const SourceSet& files, const 
   return violations;
 }
 
+// The environment is input, and it is input that survives into every child
+// process. Code that reads it ad hoc has grown a configuration surface nobody
+// reviewed and nobody can enumerate.
+//
+// Keeping every read in one translation unit means the whole surface is a
+// single file to read, and it is also how three separate "is this flag on"
+// implementations stopped agreeing by coincidence and started agreeing by
+// construction.
+std::vector<Violation> CheckEnvironmentReadsAreCentralized(const SourceSet& files,
+                                                           const ModuleManifests&) {
+  static constexpr std::string_view kOwner = "src/util/Env.cpp";
+  static constexpr std::string_view kReaders[] = {"getenv", "secure_getenv", "environ"};
+
+  std::vector<Violation> violations;
+  bool owner_present = false;
+
+  for (const SourceFile& file : files) {
+    if (architecture::ModuleOf(file.path).empty()) {
+      continue;
+    }
+    const bool is_owner = file.path == kOwner;
+    owner_present = owner_present || is_owner;
+    if (is_owner) {
+      continue;
+    }
+    const std::string masked = architecture::MaskCommentsAndStrings(file.text);
+    for (const std::string_view reader : kReaders) {
+      for (const std::size_t offset : architecture::FindCallSites(masked, reader)) {
+        violations.push_back(At(file, architecture::LineAtOffset(file.text, offset),
+                                std::string(reader) + " outside " + std::string(kOwner) +
+                                    ": every environment read goes through util::EnvValue or "
+                                    "util::EnvFlagEnabled, so the process's whole configuration "
+                                    "surface stays enumerable"));
+      }
+    }
+  }
+
+  // Without this the rule goes vacuous the day Env.cpp is renamed: the owner
+  // would no longer be found, nothing would be exempt, and nothing would be
+  // flagged either, because there would be no reads left anywhere to flag. A
+  // rule that passes because its subject vanished is the failure mode the
+  // control fixtures exist to prevent, so it is checked rather than assumed.
+  if (!owner_present) {
+    violations.push_back(Violation{std::string(kOwner), 0,
+                                   "the file that owns environment reads does not exist; this "
+                                   "rule has nothing to exempt and is no longer checking anything"});
+  }
+  return violations;
+}
+
 // Mutable state at namespace scope is invisible coupling: two modules that
 // never mention each other can still interfere. Function-local statics are
 // fine — they are initialized on first use and cannot be reached without
@@ -465,6 +515,7 @@ const Rule kRules[] = {
     {"NoThrowingNumericParse", CheckNoThrowingNumericParse},
     {"NoBannedCFunctions", CheckNoBannedCFunctions},
     {"NoManualHeapOwnership", CheckNoManualHeapOwnership},
+    {"EnvironmentReadsAreCentralized", CheckEnvironmentReadsAreCentralized},
     {"NoNamespaceScopeMutableState", CheckNoNamespaceScopeMutableState},
     {"HeadersUsePragmaOnce", CheckHeadersUsePragmaOnce},
     {"ObjectSizeBudgetsArePresent", CheckObjectSizeBudgetsArePresent},
@@ -636,6 +687,20 @@ std::vector<RuleFixture> BuildFixtures() {
       "NoManualHeapOwnership",
       Fixture("src/gfx/Canvas.cpp", "pool_.Free(block);\n"),
       Fixture("src/gfx/Canvas.cpp", "void* p = std::malloc(length);\n")});
+
+  fixtures.push_back(RuleFixture{
+      "EnvironmentReadsAreCentralized",
+      SourceSet{SourceFile{"src/util/Env.cpp", "return std::getenv(name);\n"},
+                SourceFile{"src/gfx/Canvas.cpp", "const bool on = util::EnvFlagEnabled(kName);\n"}},
+      SourceSet{SourceFile{"src/util/Env.cpp", "return std::getenv(name);\n"},
+                SourceFile{"src/gfx/Canvas.cpp", "const char* v = std::getenv(\"HOME\");\n"}}});
+
+  fixtures.push_back(RuleFixture{
+      "EnvironmentReadsAreCentralized",
+      SourceSet{SourceFile{"src/util/Env.cpp", "return std::getenv(name);\n"}},
+      // The owner is gone. Nothing reads the environment, so a rule without the
+      // vacuity check would report success while checking nothing.
+      SourceSet{SourceFile{"src/gfx/Canvas.cpp", "// nothing reads the environment here\n"}}});
 
   fixtures.push_back(RuleFixture{
       "NoNamespaceScopeMutableState",

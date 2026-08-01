@@ -3,9 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <cstdlib>
 
-#include "util/StringUtil.h"
+#include "util/Env.h"
 
 namespace microbrowser::util {
 namespace {
@@ -111,10 +110,9 @@ void WritePerformanceCounters(std::FILE* out) {
 }
 
 bool PerformanceCounterDumpRequested() {
-  static const bool requested = [] {
-    const char* value = std::getenv("MICROBROWSER_PERF_COUNTERS");
-    return value != nullptr && value[0] != '\0' && !IsFalseyToken(value);
-  }();
+  // Cached: this is checked on every dump path, and the env cannot change under
+  // a running process in any way we are willing to observe.
+  static const bool requested = EnvFlagEnabled("MICROBROWSER_PERF_COUNTERS");
   return requested;
 }
 

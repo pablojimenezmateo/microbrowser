@@ -130,6 +130,7 @@ endfunction()
 
 microbrowser_module(util
   SOURCES
+    src/util/Env.cpp
     src/util/Parse.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
@@ -179,6 +180,7 @@ target_link_libraries(microbrowser PRIVATE microbrowser_app)
 add_executable(microbrowser_tests
   tests/TestMain.cpp
   tests/TestSupport.cpp
+  tests/AppDirectoriesTests.cpp
   tests/ArchitectureInvariantsTests.cpp
   tests/architecture/ModuleManifest.cpp
   tests/architecture/SourceScan.cpp
@@ -186,6 +188,7 @@ add_executable(microbrowser_tests
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
+  tests/EnvTests.cpp
   tests/GeometryTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/IpcMessageTests.cpp

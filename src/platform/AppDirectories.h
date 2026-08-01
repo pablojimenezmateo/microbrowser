@@ -9,9 +9,16 @@ namespace microbrowser::platform {
 // Centralized because a browser's disk footprint is a privacy surface, not a
 // convenience: history, cookies, cache, and downloads each have a different
 // retention policy, and scattering the path decisions across features is how a
-// "memory-only cache" ends up written to disk anyway. Every persistent
-// artifact resolves its location through here, and the architecture lint checks
-// that nothing else constructs a profile path.
+// "memory-only cache" ends up written to disk anyway. Every persistent artifact
+// resolves its location through here.
+//
+// That is a convention today, held up by one lint that reaches part of the way:
+// EnvironmentReadsAreCentralized means no other file can read HOME or an XDG
+// variable, so no other file can independently derive a profile path. It does
+// not stop one from being hardcoded. A rule for that lands when there is a
+// second writer of persistent state to check it against -- writing it now would
+// give a rule with one exempt call site and nothing else to match, which passes
+// while checking nothing.
 //
 // Honors XDG_CONFIG_HOME / XDG_DATA_HOME / XDG_CACHE_HOME, which is also what
 // makes the whole profile relocatable in a test with three env vars.
