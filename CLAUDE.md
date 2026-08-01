@@ -18,29 +18,28 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**Milestones M0 (foundation) and M1 (rasterizer) are complete.** What exists:
+**The browser renders real pages.** `./build/microbrowser/microbrowser <url>` fetches a document,
+parses it, resolves its cascade, lays it out, and draws it — text included. What exists:
 
 | Module | State |
 |---|---|
-| `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE/zlib inflate |
-| `src/gfx` | Geometry, AffineTransform, Color, Canvas, DisplayList, Path, analytic-AA rasterizer, stroker, SSE2 blitters, FreeType+HarfBuzz text, glyph cache, PNG decoder, Painter. SDL-free. |
-| `src/url` | WHATWG URL parser, Host, Origin, baked-in PSL, Site, ContainerId, PartitionKey |
-| `src/privacy` | Blocking engine, URL sanitization, HTTPS-only, referrer trimming, `Verdict` |
-| `src/net` | HTTP/1.1, partitioned cookie jar and cache, `Fetch` gated on a `Verdict`, TCP+TLS transport |
-| `src/dom` | Node tree: Document, Element, Text, Comment, DocumentType |
-| `src/css` | CSS tokenizer, parser, selectors, cascade, computed style, user-agent stylesheet |
-| `src/html` | Spec-literal tokenizer and tree builder. No tables, foreign content or templates. |
-| `src/ipc` | Typed, versioned, serializable UI↔Engine messages + swappable transport |
-| `src/engine` | Stub: turns a navigation into a placeholder display list. No DOM/CSS/network. |
-| `src/platform` | The only module that knows what a window is. SDL lives here. |
+| `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE |
+| `src/gfx` | Geometry, transforms, Color, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog, glyph and shaped-run caches, PNG. SDL-free. |
+| `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them |
+| `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
+| `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
+| `src/net` | HTTP/1.1, cookies, cache, sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one. |
+| `src/dom` | Node, Element, Text, Document |
+| `src/html` | Spec-literal tokenizer and tree construction |
+| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet |
+| `src/layout` | Box tree, block box model, inline layout with line breaking and per-line text fragments, display-list building |
+| `src/engine` | Page (one document), Loader (everything network), Engine (routes messages) |
+| `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, present |
 
-**Milestone M1 (rasterizer) is complete.** Path fill and stroke with analytic anti-aliasing, affine
-transforms, SSE2 span blitters, text (FreeType outlines + HarfBuzz shaping + a glyph cache), and a
-from-scratch PNG decoder with its own DEFLATE. Three libFuzzer targets cover the parsers.
-
-Not yet started: `net`/`privacy` (M2), `html`/`dom` (M3), `css` (M4), `layout` (M5), `paint` (M6),
-`ui` (M7), `js` (M8). Roadmap in `README.md` and `AGENTS.md`.
+Not yet started: floats/flexbox/grid (rest of M5), stacking contexts (rest of M6), `ui` (M7, including
+the process split and sandbox), `js` (M8), integration (M9). Images decode but no element shows one.
+Loading is synchronous. Roadmap in `README.md` and `AGENTS.md`.
 
 ## Development Workflow
 
@@ -147,3 +146,4 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/` — durable decisions and their reasoning
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot
+- `docs/performance/m6-damage.md` — what incremental repaint saves, and what it does not
