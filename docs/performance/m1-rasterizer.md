@@ -70,6 +70,33 @@ across all 256 source alphas, every tail length from 0 to 17, and eight start of
 that a vector path is actually compiled in on x86-64 so the comparison cannot pass by comparing
 scalar against itself.
 
+## Text
+
+A screenful of body text — forty lines of forty glyphs at 16px:
+
+```
+text/shape-page                      0.053 ms      33 ns/glyph
+text/draw-page (no cache)            1.771 ms    1107 ns/glyph
+text/draw-page (glyph cache)         0.352 ms     220 ns/glyph      5.0x
+text/glyph-outline                                 209 ns/glyph
+```
+
+Shaping is not the problem and never was: 33 ns per glyph, six percent of the frame. Drawing was,
+and of the 1107 ns each uncached glyph cost, only 209 was extracting the outline from FreeType — the
+rest was re-rasterizing the same handful of shapes tens of thousands of times.
+
+The cache is keyed on face, size, glyph, hinting **and sub-pixel position**. That last one is not
+optional: text is positioned in fractional pixels, so a cache keyed without it would return a mask
+rendered at the wrong fraction and silently undo sub-pixel positioning. Four horizontal positions is
+the usual compromise — a quarter pixel of error is below what 8-bit coverage can express, and it
+costs four entries per glyph rather than the hundreds a continuous key would.
+
+**This benchmark is a worst case for the mask blitter, and deliberately so.** The synthetic test
+font's glyphs are solid blocks, roughly 100% ink; real glyphs are nearer 15%, and the blitter skips
+zero-coverage pixels. Real text should be substantially faster than 220 ns/glyph, so that number is
+a ceiling rather than an estimate. It is also why the mask blitter is still scalar: vectorizing it
+against a workload this unrepresentative would be optimizing for a font nobody has.
+
 ## Path fills and strokes
 
 ```

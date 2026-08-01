@@ -119,6 +119,12 @@ class Font {
   Font(FontFace& face, float pixel_size, Hinting hinting = Hinting::None);
 
   float PixelSize() const { return pixel_size_; }
+  Hinting HintingMode() const { return hinting_; }
+
+  // Identity of the face this font draws from, for use as a cache key. An
+  // opaque token rather than a handle: nothing may be done with it but compared,
+  // and it is a FontFace address rather than anything FreeType owns.
+  const void* FaceIdentity() const { return face_; }
   FontMetrics Metrics() const;
 
   // Horizontal advance in device pixels. Fractional: rounding advances to whole

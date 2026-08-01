@@ -46,6 +46,7 @@ namespace microbrowser::util {
   X(GfxOpaqueFills, "gfx.opaque_fills")                                          \
   X(GfxBlendedFills, "gfx.blended_fills")                                        \
   X(GfxBlendedPixels, "gfx.blended_pixels")                                      \
+  X(GfxMaskPixels, "gfx.mask_pixels")                                            \
   X(GfxPathFills, "gfx.path_fills")                                              \
   X(GfxPathSegments, "gfx.path_segments")                                        \
   X(GfxPathCells, "gfx.path_cells")                                              \
@@ -62,6 +63,10 @@ namespace microbrowser::util {
   X(GfxTextShapes, "gfx.text_shapes")                                            \
   X(GfxShapedGlyphs, "gfx.shaped_glyphs")                                        \
   X(GfxGlyphsDrawn, "gfx.glyphs_drawn")                                          \
+  X(GfxGlyphsRasterized, "gfx.glyphs_rasterized")                                \
+  X(GfxGlyphCacheHits, "gfx.glyph_cache_hits")                                   \
+  X(GfxGlyphCacheMisses, "gfx.glyph_cache_misses")                               \
+  X(GfxGlyphCacheEvictions, "gfx.glyph_cache_evictions")                         \
   /* --- display list ------------------------------------------------------- */ \
   X(DisplayListBuilds, "display_list.builds")                                    \
   X(DisplayListCommands, "display_list.commands")                                \

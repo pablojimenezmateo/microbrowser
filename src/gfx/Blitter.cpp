@@ -92,6 +92,31 @@ void BlendSpanSrcOver(std::uint32_t* destination, std::size_t length, Color sour
 #endif
 }
 
+void BlendMaskSrcOver(std::uint32_t* destination, const std::uint8_t* mask, std::size_t length,
+                      Color source) {
+  const std::uint32_t source_alpha = source.Alpha();
+  if (source_alpha == 0) {
+    return;
+  }
+  AddPerformanceCounter(PerfCounterId::GfxMaskPixels, static_cast<std::uint64_t>(length));
+  for (std::size_t i = 0; i < length; ++i) {
+    const std::uint32_t coverage = mask[i];
+    // Skipping zero coverage is not a micro-optimization: a glyph mask is
+    // mostly empty, so this branch is taken for the majority of the pixels a
+    // page of text touches.
+    if (coverage == 0) {
+      continue;
+    }
+    if (coverage == 255 && source_alpha == 255) {
+      destination[i] = source.argb;
+      continue;
+    }
+    destination[i] = BlendSrcOver(
+        destination[i],
+        source.WithAlpha(static_cast<std::uint8_t>(MulDiv255(source_alpha, coverage))));
+  }
+}
+
 bool BlendSpanIsVectorized() {
 #if defined(MICROBROWSER_BLITTER_SSE2)
   return true;

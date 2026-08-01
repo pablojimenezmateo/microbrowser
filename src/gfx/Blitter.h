@@ -36,4 +36,13 @@ void BlendSpanSrcOverScalar(std::uint32_t* destination, std::size_t length, Colo
 // the scalar one against itself and would pass while checking nothing.
 bool BlendSpanIsVectorized();
 
+// Source-over blend of one color through an 8-bit coverage mask.
+//
+// The glyph path: a cached glyph is a mask, and every pixel of it has its own
+// coverage. Distinct from BlendSpanSrcOver, where the coverage is uniform and
+// can be folded into the source alpha once per span — here it cannot, so the
+// multiply is per pixel.
+void BlendMaskSrcOver(std::uint32_t* destination, const std::uint8_t* mask, std::size_t length,
+                      Color source);
+
 }  // namespace microbrowser::gfx

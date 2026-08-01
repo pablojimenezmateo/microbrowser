@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstddef>
 
+#include <cmath>
+
 #include "gfx/Blitter.h"
 
 #include "util/PerformanceCounters.h"
@@ -59,26 +61,73 @@ void Painter::StrokeLine(FloatPoint from, FloatPoint to, const StrokeStyle& styl
   StrokePath(path, style, color);
 }
 
+void Painter::BlitGlyph(const GlyphImage& image, int x, int y, Color color) {
+  const IntRect clip = canvas_->Clip().Intersected(canvas_->Bounds());
+  // x and y are already clamped by the caller, so the corners of this rect
+  // cannot overflow. Constructing it from unclamped values would put a signed
+  // overflow one Intersected() away.
+  const IntRect placed{x, y, image.width, image.height};
+  const IntRect target = placed.Intersected(clip);
+  if (target.IsEmpty()) {
+    return;
+  }
+
+  for (int row = target.Top(); row < target.Bottom(); ++row) {
+    std::uint32_t* destination = canvas_->Row(row);
+    if (destination == nullptr) {
+      continue;
+    }
+    const std::size_t mask_row = static_cast<std::size_t>(row - y) *
+                                 static_cast<std::size_t>(image.width) +
+                                 static_cast<std::size_t>(target.Left() - x);
+    BlendMaskSrcOver(destination + target.Left(), image.coverage.data() + mask_row,
+                     static_cast<std::size_t>(target.width), color);
+  }
+}
+
 void Painter::DrawGlyphs(const Font& font, const ShapedRun& run, FloatPoint origin, Color color) {
   if (color.IsFullyTransparent() || run.glyphs.empty()) {
     return;
   }
   const AffineTransform saved = transform_;
+  // A cached mask is pixels, so it is only reusable when the transform is a
+  // pure translation. Under a scale or a rotation the glyph has to go back
+  // through the rasterizer — correctness first, and a rotated line of text is
+  // rare enough that the slow path is the right answer rather than a
+  // per-transform cache.
+  const bool translation_only = saved.A() == 1.0f && saved.B() == 0.0f && saved.C() == 0.0f &&
+                                saved.D() == 1.0f;
+
   float pen_x = origin.x;
   float pen_y = origin.y;
-
   for (const PositionedGlyph& glyph : run.glyphs) {
-    // The outline comes back relative to the glyph origin, so the pen position
-    // is applied as a transform rather than by rewriting the path. That also
-    // keeps the caller's own transform composed correctly: a rotated line of
-    // text is the glyph transform *then* the painter's, not either alone.
-    if (font.GlyphOutline(glyph.glyph, glyph_scratch_)) {
-      transform_ = AffineTransform::Translation(pen_x + glyph.x_offset,
-                                                pen_y + glyph.y_offset)
-                       .Then(saved);
+    const float x = pen_x + glyph.x_offset;
+    const float y = pen_y + glyph.y_offset;
+
+    if (translation_only) {
+      const float device_x = x + saved.E();
+      const float device_y = y + saved.F();
+      if (const GlyphImage* image = glyphs_.Acquire(font, glyph.glyph, device_x)) {
+        // Clamped well inside the device range so that the placed rect's
+        // corners stay representable however far off-surface the text is.
+        constexpr float kPlacementLimit = 1.0f * 1048576.0f;
+        const int left = SaturateFloatToInt(
+            std::floor(std::clamp(device_x, -kPlacementLimit, kPlacementLimit)));
+        const int top = SaturateFloatToInt(
+            std::nearbyint(std::clamp(device_y, -kPlacementLimit, kPlacementLimit)));
+        BlitGlyph(*image, left + image->origin.x, top + image->origin.y, color);
+        AddPerformanceCounter(PerfCounterId::GfxGlyphsDrawn);
+      }
+    } else if (font.GlyphOutline(glyph.glyph, glyph_scratch_)) {
+      // The outline comes back relative to the glyph origin, so the pen
+      // position is applied as a transform rather than by rewriting the path.
+      // That also composes with the caller's transform correctly: a rotated
+      // line of text is the glyph transform *then* the painter's.
+      transform_ = AffineTransform::Translation(x, y).Then(saved);
       FillPath(glyph_scratch_, color, FillRule::NonZero);
       AddPerformanceCounter(PerfCounterId::GfxGlyphsDrawn);
     }
+
     pen_x += glyph.x_advance;
     pen_y += glyph.y_advance;
   }

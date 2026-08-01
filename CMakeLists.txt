@@ -163,6 +163,7 @@ microbrowser_module(gfx
     src/gfx/DisplayList.cpp
     src/gfx/Font.cpp
     src/gfx/Geometry.cpp
+    src/gfx/GlyphCache.cpp
     src/gfx/Painter.cpp
     src/gfx/Path.cpp
     src/gfx/Rasterizer.cpp
@@ -219,6 +220,7 @@ add_executable(microbrowser_tests
   tests/EnvTests.cpp
   tests/FontTests.cpp
   tests/GeometryTests.cpp
+  tests/GlyphCacheTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/IpcMessageTests.cpp
   tests/PaintPipelineTests.cpp
@@ -245,9 +247,11 @@ if(MICROBROWSER_PERF_HARNESS_BUILD)
   add_executable(microbrowser_bench
     bench/BenchMain.cpp
     bench/BenchSupport.cpp
-    bench/GfxBenchmarks.cpp)
+    bench/GfxBenchmarks.cpp
+    tests/support/SyntheticFont.cpp)
   target_link_libraries(microbrowser_bench PRIVATE microbrowser_gfx)
-  target_include_directories(microbrowser_bench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bench")
+  target_include_directories(microbrowser_bench PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/bench" "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()
 
 # The suite is registered as N ctest tests, each running a deterministic

@@ -1,5 +1,7 @@
 #include <cstddef>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -8,7 +10,10 @@
 #include "gfx/Canvas.h"
 #include "gfx/Painter.h"
 #include "gfx/Path.h"
+#include "gfx/Font.h"
 #include "gfx/Rasterizer.h"
+#include "gfx/TextShaper.h"
+#include "support/SyntheticFont.h"
 
 namespace microbrowser::bench {
 
@@ -50,6 +55,10 @@ Path LargeCircle() {
 // Long-lived state, so the benchmark bodies stay closures over stable
 // references rather than rebuilding a canvas per iteration.
 struct GfxFixtures {
+  gfx::FontLibrary font_library;
+  std::optional<gfx::FontFace> face =
+      gfx::FontFace::Load(font_library, microbrowser::tests::BuildSyntheticFont());
+  gfx::TextShaper shaper;
   std::vector<Path> boxes = PageOfBoxes();
   Path circle = LargeCircle();
   Canvas canvas{kSurfaceWidth, kSurfaceHeight};
@@ -155,6 +164,43 @@ void RegisterGfxBenchmarks(std::vector<Benchmark>& benchmarks) {
 
   AddBenchmark(benchmarks, "blit/span-srcover-opaque-source", span_pixels, "px", [&f] {
     gfx::BlendSpanSrcOver(f.pixels.data(), f.pixels.size(), Color::Rgb(0x10, 0x80, 0xF0));
+  });
+
+  if (!f.face.has_value()) {
+    return;
+  }
+  // Forty lines of forty glyphs: a screenful of body text, which is the
+  // workload text performance is actually about.
+  static const std::string kLine = [] {
+    std::string line;
+    for (int i = 0; i < 10; ++i) {
+      line += "ABCD";
+    }
+    return line;
+  }();
+  constexpr int kLines = 40;
+  const std::size_t glyphs_per_page = kLine.size() * static_cast<std::size_t>(kLines);
+
+  AddBenchmark(benchmarks, "text/shape-page", glyphs_per_page, "glyph", [&f] {
+    gfx::Font font(*f.face, 16.0f);
+    for (int i = 0; i < kLines; ++i) {
+      f.shaper.Shape(font, kLine);
+    }
+  });
+
+  AddBenchmark(benchmarks, "text/draw-page", glyphs_per_page, "glyph", [&f] {
+    gfx::Font font(*f.face, 16.0f);
+    for (int i = 0; i < kLines; ++i) {
+      const auto& run = f.shaper.Shape(font, kLine);
+      f.painter.DrawGlyphs(font, run, gfx::FloatPoint{8.0f, 20.0f + static_cast<float>(i) * 19.0f},
+                           Color::Rgb(0x20, 0x20, 0x28));
+    }
+  });
+
+  AddBenchmark(benchmarks, "text/glyph-outline", 1, "glyph", [&f] {
+    gfx::Font font(*f.face, 16.0f);
+    gfx::Path path;
+    font.GlyphOutline(2, path);
   });
 }
 

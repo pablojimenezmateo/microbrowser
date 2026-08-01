@@ -4,6 +4,7 @@
 #include "gfx/Canvas.h"
 #include "gfx/Color.h"
 #include "gfx/Geometry.h"
+#include "gfx/GlyphCache.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
 #include "gfx/Stroker.h"
@@ -56,6 +57,11 @@ class Painter {
   // make. TextShaper produces the run; this consumes it.
   void DrawGlyphs(const Font& font, const ShapedRun& run, FloatPoint origin, Color color);
 
+  // The glyph cache this painter draws through. Exposed so a test can assert on
+  // hit rates and a caller can bound its memory, not so anyone can reach past
+  // DrawGlyphs.
+  GlyphCache& Glyphs() { return glyphs_; }
+
   // Blends a rasterized coverage span set. Public because a glyph mask and an
   // image alpha channel produce the same thing and must not each grow their own
   // blitter.
@@ -64,6 +70,8 @@ class Painter {
   const PathRasterizer& Rasterizer() const { return rasterizer_; }
 
  private:
+  void BlitGlyph(const GlyphImage& image, int x, int y, Color color);
+
   Canvas* canvas_;
   PathRasterizer rasterizer_;
   // Reused across strokes for the same reason the rasterizer arena is: a stroke
@@ -74,6 +82,7 @@ class Painter {
   // whole run: a page of text is tens of thousands of glyphs, and a fresh Path
   // per glyph would be tens of thousands of allocations per frame.
   Path glyph_scratch_;
+  GlyphCache glyphs_;
   AffineTransform transform_;
 };
 
