@@ -85,6 +85,12 @@ std::optional<std::int64_t> FreshnessLifetime(const HttpResponse& response) {
     // into a later load.
     return std::nullopt;
   }
+  if (response.headers.Has("vary")) {
+    // This cache key is partition + URL. A Vary response is keyed by request
+    // header values too, and reusing it without those values is a wrong page
+    // served with confidence. Refuse it until the cache stores a real vary key.
+    return std::nullopt;
+  }
   return max_age;
 }
 

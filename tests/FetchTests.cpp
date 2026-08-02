@@ -555,6 +555,33 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
                 "and a response with no freshness information is not cached on a heuristic");
   });
 
+  AddTest(tests, "Fetch/DoesNotCacheVaryResponsesUnderAUrlOnlyKey", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nVary: Accept-Language\r\n"
+         "Content-Length: 3\r\n\r\none"});
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nVary: Accept-Language\r\n"
+         "Content-Length: 3\r\n\r\ntwo"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult first = Run(policy, factory, cookies, cache, "https://example.com/vary");
+    Expect(first.ok && !first.from_cache, "the first response reached the network");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 0,
+                "and a Vary response was not stored under a key that only names the URL");
+
+    const FetchResult second = Run(policy, factory, cookies, cache, "https://example.com/vary");
+    Expect(second.ok && !second.from_cache,
+           "the second request also reaches the network without a vary-aware cache key");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 2,
+                "no URL-only cache entry answered it");
+    ExpectEqString(BodyString(second.response), "two", "second response body");
+  });
+
   AddTest(tests, "Fetch/AMalformedResponseIsAFailureRatherThanAPartialPage", [] {
     PrivacyPolicy policy;
     ScriptedFactory factory;
