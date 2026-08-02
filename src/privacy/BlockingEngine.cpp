@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "url/PublicSuffixList.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::privacy {
@@ -31,6 +32,37 @@ std::string_view Trim(std::string_view text) {
 
 bool IsAlphanumeric(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+}
+
+char ToLower(char c) {
+  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+std::string Lowered(std::string_view text) {
+  std::string out(text);
+  std::transform(out.begin(), out.end(), out.begin(), ToLower);
+  return out;
+}
+
+std::string NormalizeDomainOption(std::string_view entry) {
+  std::string out;
+  const bool negated = !entry.empty() && entry.front() == '~';
+  if (negated) {
+    entry.remove_prefix(1);
+    out.push_back('~');
+  }
+  if (!entry.empty() && entry.front() == '.') {
+    entry.remove_prefix(1);
+  }
+  out += Lowered(url::HostWithoutTrailingRootDot(entry));
+  return out;
+}
+
+std::string_view DomainOptionWithoutNegation(std::string_view entry) {
+  if (!entry.empty() && entry.front() == '~') {
+    entry.remove_prefix(1);
+  }
+  return entry;
 }
 
 // Longest *alphanumeric* run in a pattern, standing in for "most selective
@@ -253,6 +285,21 @@ void BlockingEngine::AddRule(std::string_view line) {
     }
   };
 
+  const auto add_domain_option = [&](std::string_view domain) {
+    if (domain.empty()) {
+      return;
+    }
+    const std::string normalized = NormalizeDomainOption(domain);
+    if (DomainOptionWithoutNegation(normalized).empty()) {
+      return;
+    }
+    if (rule.domain_count == 0) {
+      rule.domain_offset = static_cast<std::uint32_t>(domains_.size());
+    }
+    domains_.push_back(normalized);
+    ++rule.domain_count;
+  };
+
   const auto each_option = [&](std::string_view text) {
     std::size_t option_start = 0;
     while (option_start <= text.size()) {
@@ -293,17 +340,13 @@ void BlockingEngine::AddRule(std::string_view line) {
           add_resource_type(option, ResourceType::Document);
         } else if (option.size() > 7 && option.substr(0, 7) == "domain=") {
           const std::string_view list = option.substr(7);
-          rule.domain_offset = static_cast<std::uint32_t>(domains_.size());
           std::size_t piece_start = 0;
           while (piece_start <= list.size()) {
             const std::size_t bar = list.find('|', piece_start);
             const std::string_view domain = bar == std::string_view::npos
                                                 ? list.substr(piece_start)
                                                 : list.substr(piece_start, bar - piece_start);
-            if (!domain.empty()) {
-              domains_.emplace_back(domain);
-              ++rule.domain_count;
-            }
+            add_domain_option(domain);
             if (bar == std::string_view::npos) {
               break;
             }
@@ -365,9 +408,7 @@ void BlockingEngine::AddRule(std::string_view line) {
   }
   const std::string_view token = MostSelectiveToken(pattern);
   if (!token.empty()) {
-    std::string lowered(token);
-    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string lowered = Lowered(token);
     target.by_token[lowered].push_back(index);
   } else {
     target.unindexed.push_back(index);
@@ -471,9 +512,7 @@ void BlockingEngine::Collect(const Index& index, std::string_view url, std::stri
   Tokenize(url, tokens);
   std::string lowered;
   for (const std::string_view token : tokens) {
-    lowered.assign(token);
-    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    lowered = Lowered(token);
     const auto found = index.by_token.find(lowered);
     if (found != index.by_token.end()) {
       out.insert(out.end(), found->second.begin(), found->second.end());

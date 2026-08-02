@@ -144,7 +144,10 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
     BlockingEngine engine;
     engine.AddRules(
         "||shared.example^$domain=one.example|two.example\n"
-        "||other.example^$domain=~excluded.example");
+        "||other.example^$domain=~excluded.example\n"
+        "||case.example^$domain=ONE.EXAMPLE.\n"
+        "||dot.example^$domain=.two.example.\n"
+        "||multi.example^$domain=one.example,domain=two.example");
 
     Expect(Blocks(engine, "https://shared.example/a", "https://one.example/"), "a listed domain");
     Expect(Blocks(engine, "https://shared.example/a", "https://sub.two.example/"),
@@ -155,6 +158,12 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
            "a negated list blocks everywhere");
     Expect(!Blocks(engine, "https://other.example/a", "https://excluded.example/"),
            "except where it is negated");
+    Expect(Blocks(engine, "https://case.example/a", "https://one.example/"),
+           "domain option entries are matched case-insensitively");
+    Expect(Blocks(engine, "https://dot.example/a", "https://sub.two.example./"),
+           "and leading or root dots in list and URL spelling do not change the site");
+    Expect(Blocks(engine, "https://multi.example/a", "https://two.example/"),
+           "multiple domain options keep one coherent domain arena range");
   });
 
   // A partially-understood filter fails open on the request it was written to
