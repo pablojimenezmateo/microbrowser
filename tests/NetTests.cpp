@@ -282,6 +282,10 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
   AddTest(tests, "Cookie/DomainMatchingStopsAtALabelBoundary", [] {
     Expect(net::CookieDomainMatches("example.com", "example.com"), "exact");
     Expect(net::CookieDomainMatches("a.example.com", "example.com"), "subdomain");
+    Expect(net::CookieDomainMatches("a.example.com.", "example.com"),
+           "a root dot on the request host is DNS syntax, not a different cookie boundary");
+    Expect(net::CookieDomainMatches("a.example.com", "example.com."),
+           "and a root dot on the Domain attribute is normalized the same way");
     Expect(!net::CookieDomainMatches("notexample.com", "example.com"),
            "a suffix that does not fall on a label boundary must not match — this is the "
            "whole attack, and a naive string comparison says it does");
@@ -308,6 +312,20 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     Expect(!jar.StoreFromHeader(key, url, "id=3; Domain=com", 0),
            "and never to a public suffix, or any site could set a cookie every other site "
            "would read");
+  });
+
+  AddTest(tests, "Cookie/RootDotDoesNotBypassDomainMatching", [] {
+    CookieJar jar;
+    const Url absolute = MustParse("https://a.example.com./");
+    const PartitionKey key = KeyFor("https://a.example.com./");
+
+    Expect(jar.StoreFromHeader(key, absolute, "id=1; Domain=example.com", 0),
+           "an absolute request host can still set a parent-domain cookie");
+    ExpectEqString(jar.HeaderFor(key, absolute, true, true, 0), "id=1",
+                   "and the same normalized domain match sends it back");
+
+    Expect(!jar.StoreFromHeader(key, absolute, "registry=1; Domain=com.", 0),
+           "a root dot must not hide a public-suffix cookie");
   });
 
   AddTest(tests, "Cookie/ASecureCookieCannotBeSetOverPlainHttp", [] {

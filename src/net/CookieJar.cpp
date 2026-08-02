@@ -24,6 +24,10 @@ std::string Lowered(std::string_view text) {
   return out;
 }
 
+std::string CanonicalCookieHost(std::string_view host) {
+  return std::string(url::HostWithoutTrailingRootDot(host));
+}
+
 bool EqualsIgnoringCase(std::string_view a, std::string_view b) {
   return a.size() == b.size() &&
          std::equal(a.begin(), a.end(), b.begin(),
@@ -61,6 +65,8 @@ std::string DefaultPath(const url::Url& url) {
 }  // namespace
 
 bool CookieDomainMatches(std::string_view host, std::string_view domain) {
+  host = url::HostWithoutTrailingRootDot(host);
+  domain = url::HostWithoutTrailingRootDot(domain);
   if (domain.empty()) {
     return false;
   }
@@ -123,7 +129,7 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
   }
 
   cookie.path = DefaultPath(request_url);
-  cookie.domain = request_url.HostSerialized();
+  cookie.domain = CanonicalCookieHost(request_url.HostSerialized());
   cookie.host_only = true;
 
   std::optional<std::int64_t> max_age;
@@ -159,7 +165,7 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
         domain.remove_prefix(1);
       }
       if (!domain.empty()) {
-        cookie.domain = Lowered(domain);
+        cookie.domain = CanonicalCookieHost(Lowered(domain));
         cookie.host_only = false;
       }
     } else if (EqualsIgnoringCase(name, "max-age")) {
@@ -210,26 +216,28 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
 
 bool CookieJar::Store(const url::PartitionKey& key, const url::Url& request_url,
                       const Cookie& cookie, std::int64_t now) {
-  const std::string host = request_url.HostSerialized();
+  Cookie stored_cookie = cookie;
+  stored_cookie.domain = CanonicalCookieHost(stored_cookie.domain);
+  const std::string host = CanonicalCookieHost(request_url.HostSerialized());
 
-  if (!cookie.host_only) {
+  if (!stored_cookie.host_only) {
     // A page may only widen a cookie to a domain it belongs to, and never to a
     // public suffix. Without the second check any site could set a cookie for
     // `.com` and read it on every other.
-    if (!CookieDomainMatches(host, cookie.domain)) {
+    if (!CookieDomainMatches(host, stored_cookie.domain)) {
       AddPerformanceCounter(PerfCounterId::NetCookiesRejected);
       return false;
     }
-    if (url::IsPublicSuffix(cookie.domain)) {
+    if (url::IsPublicSuffix(stored_cookie.domain)) {
       AddPerformanceCounter(PerfCounterId::NetCookiesRejected);
       return false;
     }
-  } else if (cookie.domain != host) {
+  } else if (stored_cookie.domain != host) {
     AddPerformanceCounter(PerfCounterId::NetCookiesRejected);
     return false;
   }
 
-  if (cookie.secure && !url::Origin::FromUrl(request_url).IsPotentiallyTrustworthy()) {
+  if (stored_cookie.secure && !url::Origin::FromUrl(request_url).IsPotentiallyTrustworthy()) {
     // A Secure cookie set over plain HTTP would let a network attacker plant
     // one that the https site then trusts.
     AddPerformanceCounter(PerfCounterId::NetCookiesRejected);
@@ -240,8 +248,8 @@ bool CookieJar::Store(const url::PartitionKey& key, const url::Url& request_url,
   // path *within its partition*, and a jar that appended would grow forever and
   // send both.
   const auto same = [&](const Entry& entry) {
-    return entry.key == key && entry.cookie.name == cookie.name &&
-           entry.cookie.domain == cookie.domain && entry.cookie.path == cookie.path;
+    return entry.key == key && entry.cookie.name == stored_cookie.name &&
+           entry.cookie.domain == stored_cookie.domain && entry.cookie.path == stored_cookie.path;
   };
   const auto found = std::find_if(entries_.begin(), entries_.end(), same);
   const std::int64_t created = found != entries_.end() ? found->created : ++sequence_;
@@ -249,13 +257,13 @@ bool CookieJar::Store(const url::PartitionKey& key, const url::Url& request_url,
     entries_.erase(found);
   }
 
-  if (cookie.IsExpiredAt(now)) {
+  if (stored_cookie.IsExpiredAt(now)) {
     // Setting an expired cookie is how a server deletes one. The removal above
     // is the whole operation.
     return true;
   }
 
-  entries_.push_back(Entry{key, cookie, created});
+  entries_.push_back(Entry{key, stored_cookie, created});
   AddPerformanceCounter(PerfCounterId::NetCookiesStored);
   return true;
 }
@@ -273,7 +281,7 @@ bool CookieJar::StoreFromHeader(const url::PartitionKey& key, const url::Url& re
 std::vector<Cookie> CookieJar::CookiesFor(const url::PartitionKey& key,
                                           const url::Url& request_url, bool same_site_context,
                                           bool is_top_level_navigation, std::int64_t now) const {
-  const std::string host = request_url.HostSerialized();
+  const std::string host = CanonicalCookieHost(request_url.HostSerialized());
   const std::string path = request_url.PathString().empty() ? "/" : request_url.PathString();
   const bool secure = url::Origin::FromUrl(request_url).IsPotentiallyTrustworthy();
 
