@@ -425,6 +425,39 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "and a non-numeric span does not consume extra columns");
   });
 
+  AddTest(tests, "Layout/TableWidthAttributeCanBeAPercentage", [] {
+    const LaidOut result =
+        Run("<table width='50%'><tr><td>a</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            400.0f);
+    const Box* table = FindBox(*result.root, "table");
+    Expect(table != nullptr, "the table has a box");
+    Expect(table->Geometry().content.width == 200.0f,
+           "the table width attribute resolves as a percentage of the containing block");
+  });
+
+  AddTest(tests, "Layout/TableWidthAttributeCanBeUnitlessPixels", [] {
+    const LaidOut result =
+        Run("<table width='120'><tr><td>a</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            400.0f);
+    const Box* table = FindBox(*result.root, "table");
+    Expect(table != nullptr, "the table has a box");
+    Expect(table->Geometry().content.width == 120.0f,
+           "HTML's unitless table width attribute is pixels, unlike CSS width");
+  });
+
+  AddTest(tests, "Layout/InvalidTableWidthAttributeIsIgnored", [] {
+    const LaidOut result =
+        Run("<table width='wide'><tr><td>a</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            400.0f);
+    const Box* table = FindBox(*result.root, "table");
+    Expect(table != nullptr, "the table has a box");
+    Expect(table->Geometry().content.width == 400.0f,
+           "an invalid table width attribute falls back to auto width");
+  });
+
   // --- Painting -------------------------------------------------------------
 
   AddTest(tests, "Layout/PaintsBackgroundsAndBorders", [] {

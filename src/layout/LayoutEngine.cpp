@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <string>
+#include <string_view>
 
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
@@ -90,6 +93,29 @@ float ReplacedHeight(const Box& box) { return ReplacedIntrinsic(box, false); }
 bool IsCollapsibleSpace(const Box& box) {
   return box.GetKind() == Box::Kind::Text &&
          box.Style().white_space == css::WhiteSpace::Normal && IsAllWhitespace(box.Text());
+}
+
+std::optional<float> TableAttributeWidth(const Box& box, float available_width) {
+  if (box.Origin() == nullptr || box.Origin()->TagName() != "table") {
+    return std::nullopt;
+  }
+  const std::string* attribute = box.Origin()->GetAttribute("width");
+  if (attribute == nullptr || attribute->empty()) {
+    return std::nullopt;
+  }
+  if (attribute->back() == '%') {
+    const std::string_view number(attribute->data(), attribute->size() - 1);
+    if (const std::optional<double> percent = util::ParseDouble(number)) {
+      return std::max(0.0f, available_width * static_cast<float>(*percent) / 100.0f);
+    }
+    return std::nullopt;
+  }
+  if (const std::optional<double> pixels = util::ParseDouble(*attribute)) {
+    if (*pixels >= 0.0 && *pixels < 1e6) {
+      return static_cast<float>(*pixels);
+    }
+  }
+  return std::nullopt;
 }
 
 }  // namespace
@@ -588,6 +614,9 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     content_width = style.width.IsPercent()
                         ? available_width * style.width.value / 100.0f
                         : style.width.Resolve(style.font_size, content_width);
+  } else if (const std::optional<float> attribute_width =
+                 TableAttributeWidth(box, available_width)) {
+    content_width = *attribute_width;
   }
   if (style.IsFloating() && style.width.IsAuto()) {
     // Shrink-to-fit: as wide as its content wants, but never wider than what is
