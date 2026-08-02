@@ -211,13 +211,49 @@ void AppendNamedFormComponent(std::string_view name, std::string_view value, std
   AppendFormComponent(value, out);
 }
 
-std::string FormQuery(const dom::Element& form, const dom::Element* submitter) {
+const dom::Element* ElementById(const dom::Document& document, std::string_view id) {
+  if (id.empty()) {
+    return nullptr;
+  }
+  const dom::Element* found = nullptr;
+  document.ForEachDescendant([&](const dom::Node& node) {
+    if (found != nullptr || !node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    const std::string* candidate = element.GetAttribute("id");
+    if (candidate != nullptr && *candidate == id) {
+      found = &element;
+    }
+  });
+  return found;
+}
+
+const dom::Element* FormOwner(const dom::Element& element, const dom::Document& document) {
+  if (const std::string* form_id = element.GetAttribute("form")) {
+    const dom::Element* form = ElementById(document, *form_id);
+    return form != nullptr && form->TagName() == "form" ? form : nullptr;
+  }
+  return element.ClosestAncestor("form");
+}
+
+bool BelongsToForm(const dom::Element& element, const dom::Element& form,
+                   const dom::Document& document) {
+  return FormOwner(element, document) == &form;
+}
+
+std::string FormQuery(const dom::Document& document,
+                      const dom::Element& form,
+                      const dom::Element* submitter) {
   std::string out;
-  form.ForEachDescendant([&](const dom::Node& node) {
+  document.ForEachDescendant([&](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
     }
     const auto& element = static_cast<const dom::Element&>(node);
+    if (!BelongsToForm(element, form, document)) {
+      return;
+    }
     if (!IsSuccessfulControl(element, submitter)) {
       return;
     }
@@ -244,6 +280,7 @@ std::string WithoutQueryOrFragment(std::string_view url) {
 
 std::optional<std::string> FormGetTarget(const dom::Element& form,
                                          const dom::Element* submitter,
+                                         const dom::Document& document,
                                          std::string_view document_url) {
   const std::string* method =
       submitter != nullptr && submitter->HasAttribute("formmethod")
@@ -260,7 +297,7 @@ std::optional<std::string> FormGetTarget(const dom::Element& form,
           : form.GetAttribute("action");
   std::string target = action == nullptr || action->empty() ? std::string(document_url) : *action;
   target = WithoutQueryOrFragment(target);
-  const std::string query = FormQuery(form, submitter);
+  const std::string query = FormQuery(document, form, submitter);
   if (!query.empty()) {
     target += '?';
     target += query;
@@ -508,18 +545,18 @@ std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
 }
 
 std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point) const {
-  if (boxes_ == nullptr) {
+  if (boxes_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
   const std::optional<const dom::Element*> submitter = HitTestSubmit(*boxes_, document_point);
   if (!submitter.has_value()) {
     return std::nullopt;
   }
-  const dom::Element* form = (*submitter)->ClosestAncestor("form");
+  const dom::Element* form = FormOwner(**submitter, *document_);
   if (form == nullptr) {
     return std::nullopt;
   }
-  return FormGetTarget(*form, *submitter, url_);
+  return FormGetTarget(*form, *submitter, *document_, url_);
 }
 
 bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
@@ -573,23 +610,26 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
 
 bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   focused_text_control_ = nullptr;
-  if (boxes_ == nullptr) {
+  if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
   const std::optional<const dom::Element*> reset = HitTestReset(*boxes_, document_point);
   if (!reset.has_value()) {
     return false;
   }
-  const dom::Element* form = (*reset)->ClosestAncestor("form");
+  const dom::Element* form = FormOwner(**reset, *document_);
   if (form == nullptr) {
     return false;
   }
   bool changed = false;
-  form->ForEachDescendant([&](const dom::Node& node) {
+  document_->ForEachDescendant([&](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
     }
     auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+    if (!BelongsToForm(element, *form, *document_)) {
+      return;
+    }
     if (element.TagName() != "input" && element.TagName() != "textarea") {
       return;
     }
@@ -650,14 +690,14 @@ bool Page::DeleteBackwardFromFocusedTextControl() {
 }
 
 std::optional<std::string> Page::SubmitFocusedForm() const {
-  if (focused_text_control_ == nullptr) {
+  if (focused_text_control_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
-  const dom::Element* form = focused_text_control_->ClosestAncestor("form");
+  const dom::Element* form = FormOwner(*focused_text_control_, *document_);
   if (form == nullptr) {
     return std::nullopt;
   }
-  return FormGetTarget(*form, nullptr, url_);
+  return FormGetTarget(*form, nullptr, *document_, url_);
 }
 
 }  // namespace microbrowser::engine

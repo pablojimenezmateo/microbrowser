@@ -279,6 +279,91 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "formmethod=post stays unsupported until request bodies exist");
   });
 
+  AddTest(tests, "Page/FormAttributeAssociatesExternalControls", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>form,input{margin:0}input{width:40px;height:20px}</style>"
+        "<body style='margin:0'>"
+        "<input name='external' value='out' form='f'>"
+        "<form id='f' action='/search'><input name='inside' value='in'>"
+        "<input type='submit' value='Go'></form>"
+        "</body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 25.0f});
+    Expect(target.has_value(), "the submit control activates its form");
+    ExpectEqString(*target, "/search?external=out&inside=in",
+                   "controls with a matching form attribute are submitted with that form");
+  });
+
+  AddTest(tests, "Page/FormAttributeAssociatesExternalSubmitters", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>form,input{margin:0}input{width:40px;height:20px}</style>"
+        "<body style='margin:0'>"
+        "<form id='f' action='/search'><input name='q' value='hello'></form>"
+        "<input type='submit' name='go' value='Go' form='f'>"
+        "</body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{5.0f, 25.0f});
+    Expect(target.has_value(), "an external submitter activates its associated form");
+    ExpectEqString(*target, "/search?q=hello&go=Go",
+                   "the external submitter is serialized as the clicked submitter");
+  });
+
+  AddTest(tests, "Page/FormAttributeAssociatesFocusedTextControls", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>form,input{margin:0}input{width:40px;height:20px}</style>"
+        "<body style='margin:0'>"
+        "<input name='q' form='f'>"
+        "<form id='f' action='/search'><input type='submit' value='Go'></form>"
+        "</body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
+           "the external text input was focused");
+    Expect(page.InsertTextIntoFocusedTextControl("hello"), "typing changed the external input");
+    const std::optional<std::string> target = page.SubmitFocusedForm();
+    Expect(target.has_value(), "the external input can submit its associated form");
+    ExpectEqString(*target, "/search?q=hello", "focused submission uses the form attribute");
+  });
+
+  AddTest(tests, "Page/FormAttributeAssociatesExternalResetButtons", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>form,input{margin:0}input{width:40px;height:20px}</style>"
+        "<body style='margin:0'>"
+        "<input name='q' value='start' form='f'>"
+        "<form id='f' action='/search'><input type='submit' value='Go'></form>"
+        "<input type='reset' value='Reset' form='f'>"
+        "</body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
+           "the external text input was focused");
+    Expect(page.InsertTextIntoFocusedTextControl("ed"), "typing changed the external input");
+    page.Layout(400.0f);
+    Expect(page.ResetFormAt(gfx::FloatPoint{5.0f, 40.0f}),
+           "the external reset button restores its associated form");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{5.0f, 25.0f});
+    Expect(target.has_value(), "the submit control activates its form");
+    ExpectEqString(*target, "/search?q=start", "reset restored the associated external input");
+  });
+
   AddTest(tests, "Page/DisabledSubmitInputDoesNotSubmitForm", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
