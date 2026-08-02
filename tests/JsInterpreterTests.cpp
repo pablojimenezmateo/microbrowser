@@ -442,6 +442,15 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("class A { get v(){ return 3 } } Object.values(A.prototype).includes(3)", "true");
   });
 
+  AddTest(tests, "JsInterpreter/ObjectCreateSetsThePrototype", [] {
+    ExpectEval("const proto = { a: 1 }; const o = Object.create(proto); o.a", "1");
+    ExpectEval("const proto = { a: 1 }; const o = Object.create(proto); o.b = 2; "
+               "Object.keys(o).join(',')",
+               "b");
+    ExpectEval("'a' in Object.create({ a: 1 })", "true");
+    ExpectEval("const o = Object.create(null); o.x = 4; o.x", "4");
+  });
+
   // --- Classes --------------------------------------------------------------
 
   AddTest(tests, "JsInterpreter/ClassesAreFunctionsWithAPopulatedPrototype", [] {

@@ -321,6 +321,18 @@ void Interpreter::InstallGlobals() {
   Object* object_constructor = native("Object", [](NativeCall& call) {
     return Argument(call.arguments, 0);
   });
+  install(object_constructor, "create", [](NativeCall& call) {
+    const Value prototype = Argument(call.arguments, 0);
+    if (!prototype.IsObject() && !prototype.IsNull()) {
+      return Value::Undefined();
+    }
+    Object* object = call.interpreter.NewObject();
+    if (object == nullptr) {
+      return Value::Undefined();
+    }
+    object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
+    return Value::Obj(object);
+  });
   install(object_constructor, "keys", [](NativeCall& call) {
     const Value target = Argument(call.arguments, 0);
     std::vector<Value> keys;
