@@ -63,6 +63,10 @@ std::vector<std::byte> Bytes(std::string_view text) {
   return out;
 }
 
+std::string BodyString(const net::HttpResponse& response) {
+  return std::string(reinterpret_cast<const char*>(response.body.data()), response.body.size());
+}
+
 }  // namespace
 
 void RegisterFetchTests(std::vector<TestCase>& tests) {
@@ -304,9 +308,8 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     const FetchResult cached = Run(policy, factory, cookies, cache, "https://example.com/x");
     Expect(cached.ok && cached.from_cache,
            "the bypassed response still replaces the cache for later ordinary loads");
-    ExpectEqString(std::string(reinterpret_cast<const char*>(cached.response.body.data()),
-                               cached.response.body.size()),
-                   "two", "the later cached value is the reloaded response");
+    ExpectEqString(BodyString(cached.response), "two",
+                   "the later cached value is the reloaded response");
   });
 
   AddTest(tests, "Fetch/DoesNotUseTheUrlCacheForRequestsWithBodies", [] {
