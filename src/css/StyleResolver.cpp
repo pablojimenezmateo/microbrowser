@@ -24,11 +24,15 @@ std::string Lowered(std::string_view text) {
   return out;
 }
 
+bool IsCssWhitespace(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
+}
+
 std::string_view Trim(std::string_view text) {
-  while (!text.empty() && (text.front() == ' ' || text.front() == '\t')) {
+  while (!text.empty() && IsCssWhitespace(text.front())) {
     text.remove_prefix(1);
   }
-  while (!text.empty() && (text.back() == ' ' || text.back() == '\t')) {
+  while (!text.empty() && IsCssWhitespace(text.back())) {
     text.remove_suffix(1);
   }
   return text;
@@ -43,11 +47,11 @@ std::vector<std::string_view> SplitWords(std::string_view text) {
   std::vector<std::string_view> words;
   std::size_t start = 0;
   while (start < text.size()) {
-    while (start < text.size() && text[start] == ' ') {
+    while (start < text.size() && IsCssWhitespace(text[start])) {
       ++start;
     }
     std::size_t end = start;
-    while (end < text.size() && text[end] != ' ') {
+    while (end < text.size() && !IsCssWhitespace(text[end])) {
       ++end;
     }
     if (end > start) {

@@ -61,6 +61,8 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(ParseColor("rgb(1, 2, 3)") == gfx::Color::Rgb(1, 2, 3), "rgb()");
     Expect(ParseColor("rgb(100%, 50%, 0%)") == gfx::Color::Rgb(255, 128, 0),
            "rgb percentage channels scale into bytes");
+    Expect(ParseColor("rgb(1,\n2,\f3)") == gfx::Color::Rgb(1, 2, 3),
+           "CSS whitespace separates rgb function components");
     Expect(ParseColor("rgba(1,2,3,0.5)") == gfx::Color::Rgba(1, 2, 3, 128),
            "alpha is 0..1 rather than 0..255");
     Expect(ParseColor("rgba(255,0,0,50%)") == gfx::Color::Rgba(255, 0, 0, 128),
@@ -74,6 +76,7 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "Css/ParsesLengths", [] {
     Expect(ParseLength("10px") == Length::Pixels(10.0f), "pixels");
+    Expect(ParseLength("\n10px\f") == Length::Pixels(10.0f), "CSS whitespace is trimmed");
     Expect(ParseLength("1.5em")->unit == Length::Unit::Em, "em keeps its unit for later");
     Expect(ParseLength("50%")->unit == Length::Unit::Percent,
            "a percentage cannot be resolved without a containing block, so it is carried");
