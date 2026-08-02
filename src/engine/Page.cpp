@@ -69,6 +69,46 @@ bool ContainsAsciiCaseInsensitive(std::string_view value, std::string_view expec
   return util::EqualsAsciiCaseInsensitive(value, expected);
 }
 
+bool IsUtf8Continuation(unsigned char byte) {
+  return (byte & 0xC0u) == 0x80u;
+}
+
+std::size_t ExpectedUtf8ContinuationCount(unsigned char lead) {
+  if ((lead & 0x80u) == 0u) {
+    return 0;
+  }
+  if ((lead & 0xE0u) == 0xC0u) {
+    return 1;
+  }
+  if ((lead & 0xF0u) == 0xE0u) {
+    return 2;
+  }
+  if ((lead & 0xF8u) == 0xF0u) {
+    return 3;
+  }
+  return 0;
+}
+
+std::size_t PreviousUtf8Boundary(std::string_view text) {
+  if (text.empty()) {
+    return 0;
+  }
+  const std::size_t last = text.size() - 1;
+  if (!IsUtf8Continuation(static_cast<unsigned char>(text[last]))) {
+    return last;
+  }
+  std::size_t lead = last;
+  while (lead > 0 && IsUtf8Continuation(static_cast<unsigned char>(text[lead]))) {
+    --lead;
+  }
+  const std::size_t continuation_count = last - lead;
+  if (!IsUtf8Continuation(static_cast<unsigned char>(text[lead])) &&
+      ExpectedUtf8ContinuationCount(static_cast<unsigned char>(text[lead])) == continuation_count) {
+    return lead;
+  }
+  return last;
+}
+
 std::string InputType(const dom::Element& element) {
   const std::string* type = element.GetAttribute("type");
   return type == nullptr ? std::string("text") : *type;
@@ -164,7 +204,7 @@ std::string WithoutQueryOrFragment(std::string_view url) {
 }
 
 std::optional<std::string> FormGetTarget(const dom::Element& form,
-                                         const dom::Element& submitter,
+                                         const dom::Element* submitter,
                                          std::string_view document_url) {
   if (const std::string* method = form.GetAttribute("method")) {
     if (!util::EqualsAsciiCaseInsensitive(*method, "get")) {
@@ -174,7 +214,7 @@ std::optional<std::string> FormGetTarget(const dom::Element& form,
   const std::string* action = form.GetAttribute("action");
   std::string target = action == nullptr || action->empty() ? std::string(document_url) : *action;
   target = WithoutQueryOrFragment(target);
-  const std::string query = FormQuery(form, &submitter);
+  const std::string query = FormQuery(form, submitter);
   if (!query.empty()) {
     target += '?';
     target += query;
@@ -388,7 +428,7 @@ std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point
   if (form == nullptr) {
     return std::nullopt;
   }
-  return FormGetTarget(*form, **submitter, url_);
+  return FormGetTarget(*form, *submitter, url_);
 }
 
 bool Page::FocusInputAt(gfx::FloatPoint document_point) {
@@ -421,6 +461,34 @@ bool Page::InsertTextIntoFocusedInput(std::string_view text) {
   focused_input_->SetAttribute("value", std::move(value));
   boxes_.reset();
   return true;
+}
+
+bool Page::DeleteBackwardFromFocusedInput() {
+  if (focused_input_ == nullptr) {
+    return false;
+  }
+  std::string value;
+  if (const std::string* current = focused_input_->GetAttribute("value")) {
+    value = *current;
+  }
+  if (value.empty()) {
+    return false;
+  }
+  value.erase(PreviousUtf8Boundary(value));
+  focused_input_->SetAttribute("value", std::move(value));
+  boxes_.reset();
+  return true;
+}
+
+std::optional<std::string> Page::SubmitFocusedForm() const {
+  if (focused_input_ == nullptr) {
+    return std::nullopt;
+  }
+  const dom::Element* form = focused_input_->ClosestAncestor("form");
+  if (form == nullptr) {
+    return std::nullopt;
+  }
+  return FormGetTarget(*form, nullptr, url_);
 }
 
 }  // namespace microbrowser::engine

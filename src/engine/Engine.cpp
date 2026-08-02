@@ -106,6 +106,28 @@ bool Engine::HandlePendingMessages() {
         LayoutAndPaint();
         produced_output = true;
       }
+    } else if (const auto* command = std::get_if<ipc::InputCommandMessage>(&*message)) {
+      using Command = ipc::InputCommandMessage::Command;
+      switch (command->command) {
+        case Command::Backspace:
+          if (page_.DeleteBackwardFromFocusedInput()) {
+            LayoutAndPaint();
+            produced_output = true;
+          }
+          break;
+        case Command::Delete:
+          // The current caret model is end-of-text only, so there is no
+          // forward character to delete yet.
+          break;
+        case Command::Enter:
+          if (const std::optional<std::string> target = page_.SubmitFocusedForm()) {
+            if (const std::optional<std::string> resolved = ResolveLink(*target, page_.Url())) {
+              Navigate(*resolved);
+              produced_output = true;
+            }
+          }
+          break;
+      }
     }
     // StopLoad is accepted and ignored: loading is synchronous so there is
     // nothing to stop. It is in the vocabulary now so the UI can be written

@@ -266,6 +266,25 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/search?q=hi", "the form uses the edited input value");
   });
 
+  AddTest(tests, "Page/FocusedInputBackspaceAndEnterSubmission", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' size='3'><input type='submit' name='go' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.InsertTextIntoFocusedInput("caf\xC3\xA9"), "typing changed the input value");
+    Expect(page.DeleteBackwardFromFocusedInput(), "backspace changed the focused input value");
+    const std::optional<std::string> target = page.SubmitFocusedForm();
+    Expect(target.has_value(), "the focused input can submit its owning form");
+    ExpectEqString(*target, "/search?q=caf",
+                   "enter submission serializes the focused input without a clicked submitter");
+  });
+
   // --- Subresources ---------------------------------------------------------
 
   AddTest(tests, "Page/CollectsLinkedStyleSheetsButNotOtherLinks", [] {
@@ -680,6 +699,35 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(session.LastTitle(), "Typed", "and the result document committed");
     Expect(factory.log.requests.at(1).find("GET /search?q=hi ") != std::string::npos,
            "the second request contains the typed query");
+  });
+
+  AddTest(tests, "Engine/InputCommandsEditAndSubmitFocusedForm", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/search'>"
+                   "<input name='q' size='3'><input type='submit' name='go' value='Go'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Commands</title><body>command results</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+    session.Send(ipc::TextInputMessage{"abc"});
+    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Backspace});
+    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Delete});
+    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Enter});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?q=ab",
+                   "enter submits the edited focused form without a clicked submit button");
+    ExpectEqString(session.LastTitle(), "Commands", "and the result document committed");
+    Expect(factory.log.requests.at(1).find("GET /search?q=ab ") != std::string::npos,
+           "the second request contains the command-edited query");
   });
 
   AddTest(tests, "Engine/EveryFrameItProducesSurvivesItsOwnWireFormat", [] {

@@ -32,4 +32,4 @@ budget: Loader header_lines=80 public_methods=10 members=6
 # When a third resource kind arrives -- fonts, most likely -- these want to
 # become one table keyed by kind rather than a fourth and fifth member. Two is
 # not yet a pattern; three will be.
-budget: Page   header_lines=115 public_methods=24 members=12
+budget: Page   header_lines=125 public_methods=26 members=12

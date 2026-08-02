@@ -84,6 +84,15 @@ class Page : private layout::ImageProvider {
   // changed and layout/paint should run.
   bool InsertTextIntoFocusedInput(std::string_view text);
 
+  // Deletes the final entered codepoint from the focused input. The first caret
+  // model is end-of-text only; selection and arbitrary caret placement arrive
+  // with real form editing.
+  bool DeleteBackwardFromFocusedInput();
+
+  // The GET form target for the currently focused input's owning form, or
+  // nullopt when no supported form can be submitted.
+  std::optional<std::string> SubmitFocusedForm() const;
+
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.
