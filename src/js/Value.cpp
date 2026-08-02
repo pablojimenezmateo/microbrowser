@@ -2,10 +2,12 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include <limits>
+#include <optional>
 #include <utility>
 
 #include "js/Heap.h"
+#include "util/Parse.h"
 
 namespace microbrowser::js {
 
@@ -14,6 +16,22 @@ namespace {
 const std::string& EmptyString() {
   static const std::string empty;
   return empty;
+}
+
+std::optional<double> ParseJsDecimal(std::string_view text) {
+  if (text.empty()) {
+    return std::nullopt;
+  }
+  if (text == "Infinity" || text == "+Infinity") {
+    return std::numeric_limits<double>::infinity();
+  }
+  if (text == "-Infinity") {
+    return -std::numeric_limits<double>::infinity();
+  }
+  if (text.front() == '+') {
+    text.remove_prefix(1);
+  }
+  return util::ParseDouble(text);
 }
 
 }  // namespace
@@ -55,7 +73,7 @@ std::string NumberToString(double number) {
   for (int precision = 1; precision <= 17; ++precision) {
     char buffer[40];
     std::snprintf(buffer, sizeof(buffer), "%.*g", precision, number);
-    if (std::strtod(buffer, nullptr) == number) {
+    if (util::ParseDouble(buffer).value_or(std::nan("")) == number) {
       return buffer;
     }
   }
@@ -120,10 +138,8 @@ double ToNumber(const Value& value) {
       }
       const std::size_t end = text.find_last_not_of(" \t\n\r\f\v");
       const std::string trimmed = text.substr(begin, end - begin + 1);
-      char* stop = nullptr;
-      const double parsed = std::strtod(trimmed.c_str(), &stop);
       // The whole string has to be consumed: "12abc" is NaN, not 12.
-      return stop != nullptr && *stop == '\0' ? parsed : std::nan("");
+      return ParseJsDecimal(trimmed).value_or(std::nan(""));
     }
     case ValueType::Object:
       // Without valueOf/toString dispatch this is as far as it goes; an object

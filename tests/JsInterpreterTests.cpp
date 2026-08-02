@@ -388,6 +388,9 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("Math.abs(-3)", "3");
     ExpectEval("parseInt('12px')", "12");
     ExpectEval("Number('12px')", "NaN");  // the difference between the two
+    ExpectEval("Number('+1.5')", "1.5");
+    ExpectEval("Number('Infinity')", "Infinity");
+    ExpectEval("Number(' 12\\n')", "12");
     ExpectEval("parseFloat('1.5rem')", "1.5");
     ExpectEval("isNaN('x')", "true");
   });
