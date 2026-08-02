@@ -392,6 +392,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("Number('Infinity')", "Infinity");
     ExpectEval("Number(' 12\\n')", "12");
     ExpectEval("parseFloat('1.5rem')", "1.5");
+    ExpectEval("parseFloat(' +1.5rem')", "1.5");
+    ExpectEval("parseFloat('1e+')", "1");
+    ExpectEval("parseFloat('-Infinitypx')", "-Infinity");
+    ExpectEval("parseFloat('px')", "NaN");
     ExpectEval("isNaN('x')", "true");
   });
 

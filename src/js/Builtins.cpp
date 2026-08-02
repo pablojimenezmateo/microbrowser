@@ -1,8 +1,12 @@
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "js/Interpreter.h"
+#include "util/Parse.h"
 
 namespace microbrowser::js {
 
@@ -10,6 +14,63 @@ namespace {
 
 Value Argument(const std::vector<Value>& arguments, std::size_t index) {
   return index < arguments.size() ? arguments[index] : Value::Undefined();
+}
+
+bool IsJsWhitespace(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+}
+
+std::optional<double> ParseFloatPrefix(std::string_view text) {
+  std::size_t at = 0;
+  while (at < text.size() && IsJsWhitespace(text[at])) {
+    ++at;
+  }
+  const std::size_t start = at;
+  if (at < text.size() && (text[at] == '+' || text[at] == '-')) {
+    ++at;
+  }
+  if (text.substr(at, 8) == "Infinity") {
+    const bool negative = start < text.size() && text[start] == '-';
+    return negative ? -std::numeric_limits<double>::infinity()
+                    : std::numeric_limits<double>::infinity();
+  }
+
+  bool saw_digit = false;
+  while (at < text.size() && text[at] >= '0' && text[at] <= '9') {
+    saw_digit = true;
+    ++at;
+  }
+  if (at < text.size() && text[at] == '.') {
+    ++at;
+    while (at < text.size() && text[at] >= '0' && text[at] <= '9') {
+      saw_digit = true;
+      ++at;
+    }
+  }
+  if (!saw_digit) {
+    return std::nullopt;
+  }
+
+  if (at < text.size() && (text[at] == 'e' || text[at] == 'E')) {
+    const std::size_t exponent_start = at;
+    ++at;
+    if (at < text.size() && (text[at] == '+' || text[at] == '-')) {
+      ++at;
+    }
+    const std::size_t exponent_digits = at;
+    while (at < text.size() && text[at] >= '0' && text[at] <= '9') {
+      ++at;
+    }
+    if (at == exponent_digits) {
+      at = exponent_start;
+    }
+  }
+
+  std::string_view prefix = text.substr(start, at - start);
+  if (!prefix.empty() && prefix.front() == '+') {
+    prefix.remove_prefix(1);
+  }
+  return util::ParseDouble(prefix);
 }
 
 }  // namespace
@@ -420,12 +481,7 @@ void Interpreter::InstallGlobals() {
   global_scope_->Declare(
       "parseFloat", Value::Obj(native("parseFloat", [](NativeCall& call) {
         const std::string text = ToString(Argument(call.arguments, 0));
-        char* stop = nullptr;
-        const double parsed = std::strtod(text.c_str(), &stop);
-        if (stop == text.c_str()) {
-          return Value::Number(std::nan(""));
-        }
-        return Value::Number(parsed);
+        return Value::Number(ParseFloatPrefix(text).value_or(std::nan("")));
       })),
       false);
   global_scope_->Declare(
