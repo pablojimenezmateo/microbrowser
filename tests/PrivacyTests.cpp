@@ -259,6 +259,15 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
                    "identity-carrying parameters go, everything the server needs stays");
   });
 
+  AddTest(tests, "Policy/StripsPercentEncodedTrackingParameterNames", [] {
+    PrivacyPolicy policy;
+    const Verdict verdict = policy.Decide(
+        MakeRequest("https://shop.example/p?id=7&%75tm_source=news&f%62clid=abc&q=x",
+                    "https://shop.example/"));
+    ExpectEqString(verdict.FinalUrl().Serialize(), "https://shop.example/p?id=7&q=x",
+                   "encoding the parameter name must not hide an identifier from the sanitizer");
+  });
+
   AddTest(tests, "Policy/AQueryThatBecomesEmptyLosesItsQuestionMark", [] {
     PrivacyPolicy policy;
     const Verdict verdict =
@@ -272,7 +281,8 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
     PrivacyPolicy policy;
     policy.Engine().AddRules("||shop.example^$removeparam=ref");
     const Verdict verdict = policy.Decide(
-        MakeRequest("https://shop.example/p?ref=aff&id=7&utm_id=z", "https://shop.example/"));
+        MakeRequest("https://shop.example/p?ref=aff&r%65f=encoded&id=7&utm_id=z",
+                    "https://shop.example/"));
     ExpectEqString(verdict.FinalUrl().Serialize(), "https://shop.example/p?id=7",
                    "a filter list's removeparam and the built-in list are one operation, not "
                    "two things that rewrite URLs and drift apart");

@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "url/Host.h"
+#include "url/PercentEncoding.h"
 #include "url/PublicSuffixList.h"
 #include "util/PerformanceCounters.h"
 
@@ -35,6 +36,16 @@ std::vector<std::string_view> SplitQuery(std::string_view query) {
 std::string_view NameOf(std::string_view parameter) {
   const std::size_t equals = parameter.find('=');
   return equals == std::string_view::npos ? parameter : parameter.substr(0, equals);
+}
+
+bool ParameterNameMatches(std::string_view name, std::string_view parameter) {
+  if (name == parameter) {
+    return true;
+  }
+  if (name.find('%') == std::string_view::npos) {
+    return false;
+  }
+  return url::PercentDecode(name) == parameter;
 }
 
 char ToLower(char c) {
@@ -92,8 +103,9 @@ bool StripQueryParameters(url::Url& url, const std::vector<std::string_view>& pa
   bool removed = false;
   for (const std::string_view piece : pieces) {
     const std::string_view name = NameOf(piece);
-    const bool strip = std::any_of(parameters.begin(), parameters.end(),
-                                   [name](std::string_view p) { return p == name; });
+    const bool strip =
+        std::any_of(parameters.begin(), parameters.end(),
+                    [name](std::string_view p) { return ParameterNameMatches(name, p); });
     if (strip) {
       removed = true;
       continue;
