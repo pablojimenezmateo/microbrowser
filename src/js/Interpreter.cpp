@@ -11,6 +11,7 @@ namespace {
 // reclaim. A number rather than a heuristic because the alternative is a
 // heuristic nobody has measured.
 constexpr std::size_t kCollectionThreshold = 4096;
+constexpr std::size_t kMaxArrayIndex = 4294967294ull;
 
 
 // An array index, or npos. `a['0']` and `a[0]` are the same property, which is
@@ -29,7 +30,7 @@ std::size_t ArrayIndex(std::string_view key) {
     }
     index = index * 10 + static_cast<std::size_t>(c - '0');
   }
-  return index;
+  return index <= kMaxArrayIndex ? index : std::string_view::npos;
 }
 
 }  // namespace

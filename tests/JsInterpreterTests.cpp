@@ -303,6 +303,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
   AddTest(tests, "JsInterpreter/AnArrayGrowsWhenWrittenPastItsEnd", [] {
     ExpectEval("const a = []; a[2] = 'x'; a.length", "3");
     ExpectEval("const a = [1,2,3]; a.length = 1; a.join('')", "1");
+    ExpectEval("const a = []; a[4294967295] = 7; a.length + ':' + a[4294967295]", "0:7");
     // A page can write `a.length = 4294967295`, and honouring it would be a
     // 34-gigabyte allocation.
     ExpectEval("const a = []; a.length = 4294967295; 'ok'",
