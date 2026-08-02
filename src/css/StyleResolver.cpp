@@ -89,6 +89,36 @@ int HexValue(char c) {
   return -1;
 }
 
+std::optional<std::uint8_t> ParseRgbChannel(std::string_view text) {
+  if (text.ends_with('%')) {
+    const std::optional<double> percent = util::ParseDouble(text.substr(0, text.size() - 1));
+    if (!percent.has_value()) {
+      return std::nullopt;
+    }
+    return static_cast<std::uint8_t>(std::clamp(*percent, 0.0, 100.0) * 255.0 / 100.0 + 0.5);
+  }
+  const std::optional<double> value = util::ParseDouble(text);
+  if (!value.has_value()) {
+    return std::nullopt;
+  }
+  return static_cast<std::uint8_t>(std::clamp(*value, 0.0, 255.0) + 0.5);
+}
+
+std::optional<std::uint8_t> ParseAlphaChannel(std::string_view text) {
+  if (text.ends_with('%')) {
+    const std::optional<double> percent = util::ParseDouble(text.substr(0, text.size() - 1));
+    if (!percent.has_value()) {
+      return std::nullopt;
+    }
+    return static_cast<std::uint8_t>(std::clamp(*percent, 0.0, 100.0) * 255.0 / 100.0 + 0.5);
+  }
+  const std::optional<double> value = util::ParseDouble(text);
+  if (!value.has_value()) {
+    return std::nullopt;
+  }
+  return static_cast<std::uint8_t>(std::clamp(*value, 0.0, 1.0) * 255.0 + 0.5);
+}
+
 }  // namespace
 
 float Length::Resolve(float font_size, float fallback) const {
@@ -153,47 +183,26 @@ std::optional<gfx::Color> ParseColor(std::string_view text) {
     std::string body = lowered.substr(open + 1, close - open - 1);
     std::replace(body.begin(), body.end(), ',', ' ');
     const std::vector<std::string_view> parts = SplitWords(body);
-    if (parts.size() < 3) {
+    if (parts.size() != 3 && parts.size() != 4) {
       return std::nullopt;
     }
-    std::array<int, 3> channels{};
+    std::array<std::uint8_t, 3> channels{};
     for (std::size_t i = 0; i < 3; ++i) {
-      const auto value = util::ParseInt(parts[i]);
-      if (!value.has_value()) {
+      const std::optional<std::uint8_t> channel = ParseRgbChannel(parts[i]);
+      if (!channel.has_value()) {
         return std::nullopt;
       }
-      channels[i] = std::clamp(*value, 0, 255);
+      channels[i] = *channel;
     }
-    int alpha = 255;
-    if (parts.size() >= 4) {
-      // Alpha is 0..1 rather than 0..255, and is the one channel where a
-      // fraction is normal.
-      const std::string alpha_text(parts[3]);
-      double scale = 0.0;
-      bool ok = !alpha_text.empty();
-      std::size_t at = 0;
-      while (at < alpha_text.size() && alpha_text[at] >= '0' && alpha_text[at] <= '9') {
-        scale = scale * 10.0 + (alpha_text[at++] - '0');
+    std::uint8_t alpha = 255;
+    if (parts.size() == 4) {
+      const std::optional<std::uint8_t> parsed_alpha = ParseAlphaChannel(parts[3]);
+      if (!parsed_alpha.has_value()) {
+        return std::nullopt;
       }
-      if (at < alpha_text.size() && alpha_text[at] == '.') {
-        ++at;
-        double step = 0.1;
-        while (at < alpha_text.size() && alpha_text[at] >= '0' && alpha_text[at] <= '9') {
-          scale += (alpha_text[at++] - '0') * step;
-          step *= 0.1;
-        }
-      }
-      if (at != alpha_text.size()) {
-        ok = false;
-      }
-      if (ok) {
-        alpha = static_cast<int>(std::clamp(scale, 0.0, 1.0) * 255.0 + 0.5);
-      }
+      alpha = *parsed_alpha;
     }
-    return gfx::Color::Rgba(static_cast<std::uint8_t>(channels[0]),
-                            static_cast<std::uint8_t>(channels[1]),
-                            static_cast<std::uint8_t>(channels[2]),
-                            static_cast<std::uint8_t>(alpha));
+    return gfx::Color::Rgba(channels[0], channels[1], channels[2], alpha);
   }
 
   for (const NamedColor& named : kNamedColors) {

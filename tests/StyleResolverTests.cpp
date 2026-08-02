@@ -56,11 +56,17 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(ParseColor("#1a2b3c") == gfx::Color::Rgb(0x1A, 0x2B, 0x3C), "six digits");
     Expect(ParseColor("#11223344") == gfx::Color::Rgba(0x11, 0x22, 0x33, 0x44), "eight digits");
     Expect(ParseColor("rgb(1, 2, 3)") == gfx::Color::Rgb(1, 2, 3), "rgb()");
+    Expect(ParseColor("rgb(100%, 50%, 0%)") == gfx::Color::Rgb(255, 128, 0),
+           "rgb percentage channels scale into bytes");
     Expect(ParseColor("rgba(1,2,3,0.5)") == gfx::Color::Rgba(1, 2, 3, 128),
            "alpha is 0..1 rather than 0..255");
+    Expect(ParseColor("rgba(255,0,0,50%)") == gfx::Color::Rgba(255, 0, 0, 128),
+           "alpha may also be a percentage");
     Expect(ParseColor("transparent") == gfx::Color::Transparent(), "transparent");
     Expect(!ParseColor("notacolour").has_value(), "an unknown name is not a colour");
     Expect(!ParseColor("#12345").has_value(), "and neither is a five-digit hex");
+    Expect(!ParseColor("rgb(1, 2, 3, 4, 5)").has_value(),
+           "extra rgb components invalidate the colour rather than being ignored");
   });
 
   AddTest(tests, "Css/ParsesLengths", [] {
