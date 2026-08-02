@@ -42,6 +42,10 @@ bool IsEditableTextInput(const dom::Element& element) {
           IsInputType(element, "password"));
 }
 
+bool IsMutableTextInput(const dom::Element& element) {
+  return IsEditableTextInput(element) && !element.HasAttribute("readonly");
+}
+
 bool IsPasswordInput(const dom::Element& element) {
   return IsInputType(element, "password");
 }

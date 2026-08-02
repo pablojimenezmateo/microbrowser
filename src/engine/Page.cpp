@@ -501,7 +501,7 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
 }
 
 bool Page::InsertTextIntoFocusedInput(std::string_view text) {
-  if (focused_input_ == nullptr || text.empty()) {
+  if (focused_input_ == nullptr || text.empty() || !html::IsMutableTextInput(*focused_input_)) {
     return false;
   }
   std::string value;
@@ -520,7 +520,7 @@ bool Page::InsertTextIntoFocusedInput(std::string_view text) {
 }
 
 bool Page::DeleteBackwardFromFocusedInput() {
-  if (focused_input_ == nullptr) {
+  if (focused_input_ == nullptr || !html::IsMutableTextInput(*focused_input_)) {
     return false;
   }
   std::string value;

@@ -14,6 +14,7 @@ bool IsCheckboxInput(const dom::Element& element);
 bool IsRadioInput(const dom::Element& element);
 bool IsCheckableInput(const dom::Element& element);
 bool IsEditableTextInput(const dom::Element& element);
+bool IsMutableTextInput(const dom::Element& element);
 bool IsPasswordInput(const dom::Element& element);
 
 }  // namespace microbrowser::html

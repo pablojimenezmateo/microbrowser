@@ -325,6 +325,24 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/search?q=abc", "maxlength bounds inserted input text");
   });
 
+  AddTest(tests, "Page/FocusedReadonlyInputDoesNotMutate", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' value='locked' readonly size='6'><input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the readonly input was focused");
+    Expect(!page.InsertTextIntoFocusedInput("x"), "typing does not mutate readonly input");
+    Expect(!page.DeleteBackwardFromFocusedInput(), "backspace does not mutate readonly input");
+    const std::optional<std::string> target = page.SubmitFocusedForm();
+    Expect(target.has_value(), "the focused input can still submit its owning form");
+    ExpectEqString(*target, "/search?q=locked", "readonly preserves the original value");
+  });
+
   AddTest(tests, "Page/FocusedInputBackspaceAndEnterSubmission", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
