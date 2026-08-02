@@ -4,11 +4,11 @@
 #include <array>
 #include <atomic>
 #include <cmath>
-#include <cstdlib>
 #include <mutex>
 #include <unordered_map>
 
 #include "util/Env.h"
+#include "util/Parse.h"
 #include "util/TransparentStringHash.h"
 
 namespace microbrowser::util {
@@ -74,12 +74,11 @@ double ParseMinimumDurationMs(const char* env_name) {
     return 0.0;
   }
 
-  char* end = nullptr;
-  const double parsed = std::strtod(value, &end);
-  if (end == value || !std::isfinite(parsed)) {
+  const std::optional<double> parsed = ParseDouble(value);
+  if (!parsed.has_value() || !std::isfinite(*parsed)) {
     return 0.0;
   }
-  return std::max(0.0, parsed);
+  return std::max(0.0, *parsed);
 }
 
 double DurationMs(Clock::duration duration) {

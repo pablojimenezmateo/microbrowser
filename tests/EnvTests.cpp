@@ -2,6 +2,7 @@
 
 #include "TestSupport.h"
 #include "util/Env.h"
+#include "util/TraceChannel.h"
 
 namespace microbrowser::tests {
 
@@ -50,6 +51,26 @@ void RegisterEnvTests(std::vector<TestCase>& tests) {
     Expect(util::EnvValue("") == nullptr, "an empty name must read as absent");
     Expect(!util::EnvFlagEnabled(nullptr), "a null name must not enable anything");
     Expect(!util::EnvFlagEnabled(""), "an empty name must not enable anything");
+  });
+
+  AddTest(tests, "TraceChannel/MinimumDurationUsesStrictLocaleIndependentParse", [] {
+    {
+      const ScopedEnvVar set(kVar, "1.5");
+      util::TraceChannel channel("test", nullptr, nullptr, kVar);
+      Expect(channel.MinimumDurationMs() == 1.5,
+             "a valid duration is read as milliseconds");
+    }
+    {
+      const ScopedEnvVar set(kVar, "1.5ms");
+      util::TraceChannel channel("test", nullptr, nullptr, kVar);
+      Expect(channel.MinimumDurationMs() == 0.0,
+             "trailing garbage is rejected rather than parsed as a prefix");
+    }
+    {
+      const ScopedEnvVar set(kVar, "-2");
+      util::TraceChannel channel("test", nullptr, nullptr, kVar);
+      Expect(channel.MinimumDurationMs() == 0.0, "negative durations clamp to zero");
+    }
   });
 }
 
