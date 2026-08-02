@@ -264,6 +264,15 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(keywords.white_space == WhiteSpace::Pre,
            "an invalid white-space leaves the earlier valid value alone");
 
+    const ComputedStyle font =
+        StyleOf("<p style='font-size: 20px; font-size: -5px; "
+                "font-weight: 700; font-weight: 1001'>x</p>",
+                "", "p");
+    ExpectEqInt(static_cast<long long>(font.font_size), 20,
+                "an invalid font-size leaves the earlier valid value alone");
+    ExpectEqInt(static_cast<long long>(font.font_weight), 700,
+                "an out-of-range font-weight leaves the earlier valid value alone");
+
     const ComputedStyle border =
         StyleOf("<p style='border: 2px solid blue; border: wavy; border-width: nope'>x</p>", "",
                 "p");

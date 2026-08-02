@@ -425,14 +425,17 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       return;
     }
     if (const auto length = ParseLength(declaration.value)) {
+      float resolved = -1.0f;
       if (length->unit == Length::Unit::Percent) {
-        style.font_size = parent.font_size * length->value / 100.0f;
+        resolved = parent.font_size * length->value / 100.0f;
       } else if (length->unit == Length::Unit::Em) {
-        style.font_size = parent.font_size * length->value;
+        resolved = parent.font_size * length->value;
       } else if (!length->IsAuto()) {
-        style.font_size = length->Resolve(parent.font_size);
+        resolved = length->Resolve(parent.font_size);
       }
-      style.font_size = std::clamp(style.font_size, 1.0f, 1000.0f);
+      if (resolved >= 0.0f) {
+        style.font_size = std::clamp(resolved, 1.0f, 1000.0f);
+      }
     }
     return;
   }
@@ -442,7 +445,9 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     } else if (value == "normal") {
       style.font_weight = 400.0f;
     } else if (const auto weight = util::ParseInt(value)) {
-      style.font_weight = static_cast<float>(std::clamp(*weight, 1, 1000));
+      if (*weight >= 1 && *weight <= 1000) {
+        style.font_weight = static_cast<float>(*weight);
+      }
     }
     return;
   }
