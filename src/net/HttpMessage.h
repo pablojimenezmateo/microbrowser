@@ -117,7 +117,7 @@ class ResponseParser {
   std::string buffer_;
   std::size_t header_bytes_ = 0;
 
-  enum class BodyMode : std::uint8_t { None, Length, Chunked, UntilClose };
+  enum class BodyMode : std::uint8_t { None, Length, Chunked, ChunkTerminator, UntilClose };
   BodyMode body_mode_ = BodyMode::None;
   std::size_t remaining_ = 0;
   bool in_chunk_trailer_ = false;

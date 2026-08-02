@@ -228,46 +228,35 @@ bool ResponseParser::FinishHeaders() {
 }
 
 bool ResponseParser::ConsumeBody() {
-  switch (body_mode_) {
-    case BodyMode::None:
-      state_ = State::Complete;
-      return true;
-
-    case BodyMode::Length: {
-      const std::size_t take = std::min(remaining_, buffer_.size());
-      const auto* bytes = reinterpret_cast<const std::byte*>(buffer_.data());
-      response_.body.insert(response_.body.end(), bytes, bytes + take);
-      buffer_.erase(0, take);
-      remaining_ -= take;
-      if (remaining_ == 0) {
+  while (true) {
+    switch (body_mode_) {
+      case BodyMode::None:
         state_ = State::Complete;
-      }
-      return true;
-    }
+        return true;
 
-    case BodyMode::UntilClose: {
-      if (response_.body.size() + buffer_.size() > limits_.max_body) {
-        return Fail("body exceeds the limit");
-      }
-      const auto* bytes = reinterpret_cast<const std::byte*>(buffer_.data());
-      response_.body.insert(response_.body.end(), bytes, bytes + buffer_.size());
-      buffer_.clear();
-      return true;
-    }
-
-    case BodyMode::Chunked: {
-      while (true) {
-        if (remaining_ > 0) {
-          const std::size_t take = std::min(remaining_, buffer_.size());
-          const auto* bytes = reinterpret_cast<const std::byte*>(buffer_.data());
-          response_.body.insert(response_.body.end(), bytes, bytes + take);
-          buffer_.erase(0, take);
-          remaining_ -= take;
-          if (remaining_ > 0) {
-            return true;  // need more bytes
-          }
+      case BodyMode::Length: {
+        const std::size_t take = std::min(remaining_, buffer_.size());
+        const auto* bytes = reinterpret_cast<const std::byte*>(buffer_.data());
+        response_.body.insert(response_.body.end(), bytes, bytes + take);
+        buffer_.erase(0, take);
+        remaining_ -= take;
+        if (remaining_ == 0) {
+          state_ = State::Complete;
         }
+        return true;
+      }
 
+      case BodyMode::UntilClose: {
+        if (response_.body.size() + buffer_.size() > limits_.max_body) {
+          return Fail("body exceeds the limit");
+        }
+        const auto* bytes = reinterpret_cast<const std::byte*>(buffer_.data());
+        response_.body.insert(response_.body.end(), bytes, bytes + buffer_.size());
+        buffer_.clear();
+        return true;
+      }
+
+      case BodyMode::ChunkTerminator: {
         const std::size_t newline = buffer_.find('\n');
         if (newline == std::string::npos) {
           if (buffer_.size() > limits_.max_header_line) {
@@ -279,68 +268,97 @@ bool ResponseParser::ConsumeBody() {
         if (!line.empty() && line.back() == '\r') {
           line.remove_suffix(1);
         }
-
-        if (in_chunk_trailer_) {
-          const bool blank = line.empty();
-          buffer_.erase(0, newline + 1);
-          if (blank) {
-            state_ = State::Complete;
-            return true;
-          }
-          // Trailer fields. Parsed for validity and discarded: merging them
-          // into the header set would let a server change Content-Type after
-          // the body was already being interpreted.
-          if (line.find(':') == std::string_view::npos) {
-            return Fail("malformed trailer");
-          }
-          continue;
-        }
-
-        if (line.empty()) {
-          // The CRLF that ends a chunk's data.
-          buffer_.erase(0, newline + 1);
-          continue;
-        }
-
-        // "1a3f" or "1a3f;ext=value". The extension is ignored, the size is
-        // parsed as hex and bounded before it becomes an allocation.
-        const std::size_t semicolon = line.find(';');
-        const std::string_view size_text =
-            semicolon == std::string_view::npos ? line : line.substr(0, semicolon);
-        if (size_text.empty() || size_text.size() > 16) {
-          return Fail("malformed chunk size");
-        }
-        std::size_t size = 0;
-        for (const char c : size_text) {
-          int digit = -1;
-          if (c >= '0' && c <= '9') {
-            digit = c - '0';
-          } else if (c >= 'a' && c <= 'f') {
-            digit = c - 'a' + 10;
-          } else if (c >= 'A' && c <= 'F') {
-            digit = c - 'A' + 10;
-          } else {
-            return Fail("malformed chunk size");
-          }
-          size = size * 16 + static_cast<std::size_t>(digit);
-          if (size > limits_.max_body) {
-            return Fail("chunk exceeds the body limit");
-          }
+        if (!line.empty()) {
+          return Fail("missing chunk terminator");
         }
         buffer_.erase(0, newline + 1);
+        body_mode_ = BodyMode::Chunked;
+        continue;
+      }
 
-        if (size == 0) {
-          in_chunk_trailer_ = true;
-          continue;
+      case BodyMode::Chunked: {
+        while (true) {
+          if (remaining_ > 0) {
+            const std::size_t take = std::min(remaining_, buffer_.size());
+            const auto* bytes = reinterpret_cast<const std::byte*>(buffer_.data());
+            response_.body.insert(response_.body.end(), bytes, bytes + take);
+            buffer_.erase(0, take);
+            remaining_ -= take;
+            if (remaining_ > 0) {
+              return true;  // need more bytes
+            }
+            body_mode_ = BodyMode::ChunkTerminator;
+            break;
+          }
+
+          const std::size_t newline = buffer_.find('\n');
+          if (newline == std::string::npos) {
+            if (buffer_.size() > limits_.max_header_line) {
+              return Fail("chunk line too long");
+            }
+            return true;
+          }
+          std::string_view line(buffer_.data(), newline);
+          if (!line.empty() && line.back() == '\r') {
+            line.remove_suffix(1);
+          }
+
+          if (in_chunk_trailer_) {
+            const bool blank = line.empty();
+            buffer_.erase(0, newline + 1);
+            if (blank) {
+              state_ = State::Complete;
+              return true;
+            }
+            // Trailer fields. Parsed for validity and discarded: merging them
+            // into the header set would let a server change Content-Type after
+            // the body was already being interpreted.
+            if (line.find(':') == std::string_view::npos) {
+              return Fail("malformed trailer");
+            }
+            continue;
+          }
+
+          // "1a3f" or "1a3f;ext=value". The extension is ignored, the size is
+          // parsed as hex and bounded before it becomes an allocation.
+          const std::size_t semicolon = line.find(';');
+          const std::string_view size_text =
+              semicolon == std::string_view::npos ? line : line.substr(0, semicolon);
+          if (size_text.empty() || size_text.size() > 16) {
+            return Fail("malformed chunk size");
+          }
+          std::size_t size = 0;
+          for (const char c : size_text) {
+            int digit = -1;
+            if (c >= '0' && c <= '9') {
+              digit = c - '0';
+            } else if (c >= 'a' && c <= 'f') {
+              digit = c - 'a' + 10;
+            } else if (c >= 'A' && c <= 'F') {
+              digit = c - 'A' + 10;
+            } else {
+              return Fail("malformed chunk size");
+            }
+            size = size * 16 + static_cast<std::size_t>(digit);
+            if (size > limits_.max_body) {
+              return Fail("chunk exceeds the body limit");
+            }
+          }
+          buffer_.erase(0, newline + 1);
+
+          if (size == 0) {
+            in_chunk_trailer_ = true;
+            continue;
+          }
+          if (response_.body.size() + size > limits_.max_body) {
+            return Fail("body exceeds the limit");
+          }
+          remaining_ = size;
         }
-        if (response_.body.size() + size > limits_.max_body) {
-          return Fail("body exceeds the limit");
-        }
-        remaining_ = size;
+        continue;
       }
     }
   }
-  return true;
 }
 
 bool ResponseParser::Consume(std::span<const std::byte> data) {

@@ -105,6 +105,16 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
            "Content-Type after the body was already being interpreted");
   });
 
+  AddTest(tests, "Http/ChunkDataMustEndWithCrlf", [] {
+    ResponseParser parser = ParseWhole(
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+        "5\r\nhello"
+        "6\r\n world\r\n"
+        "0\r\n\r\n");
+    Expect(parser.Failed(),
+           "a chunk's declared bytes must be followed by CRLF before the next chunk size");
+  });
+
   // Request smuggling, which is the reason this parser exists rather than a
   // simpler one. Every documented attack is two intermediaries resolving an
   // ambiguous framing differently, so an ambiguous framing is refused.
