@@ -1,6 +1,7 @@
 #include "app/Application.h"
 
 #include <cstdio>
+#include <string>
 #include <utility>
 
 #include "app/DirtyRegionPolicy.h"
@@ -33,6 +34,34 @@ constexpr int kPixelsPerWheelNotch = 53;
 bool RedrawTraceEnabled() {
   static const bool enabled = util::PerformanceTrace::FlagEnabled("MICROBROWSER_TRACE_REDRAW");
   return enabled;
+}
+
+void AppendUtf8(char32_t codepoint, std::string& out) {
+  if (codepoint <= 0x7F) {
+    out.push_back(static_cast<char>(codepoint));
+  } else if (codepoint <= 0x7FF) {
+    out.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
+    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+  } else if (codepoint <= 0xFFFF) {
+    out.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
+    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+  } else {
+    out.push_back(static_cast<char>(0xF0 | (codepoint >> 18)));
+    out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+  }
+}
+
+std::string TextInputFor(const platform::KeyEvent& event) {
+  if (!event.pressed || !event.modifiers.PlainTyping() || event.codepoint < 0x20 ||
+      event.codepoint == 0x7F) {
+    return {};
+  }
+  std::string text;
+  AppendUtf8(event.codepoint, text);
+  return text;
 }
 
 }  // namespace
@@ -199,7 +228,13 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
   if (const auto* key = std::get_if<platform::KeyEvent>(&event)) {
     // The chrome first, always. A page that could see ctrl+L before the browser
     // did could stop the user leaving it.
-    ApplyChromeResponse(chrome_.HandleKey(*key));
+    const ui::BrowserChrome::Response response = chrome_.HandleKey(*key);
+    ApplyChromeResponse(response);
+    if (!response.handled) {
+      if (std::string text = TextInputFor(*key); !text.empty()) {
+        channel_.Ui().Send(ipc::TextInputMessage{std::move(text)});
+      }
+    }
     return;
   }
 }

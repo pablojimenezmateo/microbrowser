@@ -247,6 +247,25 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "and an unnamed submitter is not successful");
   });
 
+  AddTest(tests, "Page/FocusedInputTextUpdatesFormSubmission", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' size='2'><input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.InsertTextIntoFocusedInput("hi"), "typing changed the input value");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/search?q=hi", "the form uses the edited input value");
+  });
+
   // --- Subresources ---------------------------------------------------------
 
   AddTest(tests, "Page/CollectsLinkedStyleSheetsButNotOtherLinks", [] {
@@ -634,6 +653,33 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(factory.log.requests.at(1).find("GET /search?q=hello+world&go=Search ") !=
                std::string::npos,
            "the second request is the submitted GET form");
+  });
+
+  AddTest(tests, "Engine/TextInputChangesFocusedFormControlsBeforeSubmit", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/search'>"
+                   "<input name='q' size='2'><input type='submit' value='Go'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Typed</title><body>typed results</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+    session.Send(ipc::TextInputMessage{"hi"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?q=hi",
+                   "submitted GET forms use the current focused input value");
+    ExpectEqString(session.LastTitle(), "Typed", "and the result document committed");
+    Expect(factory.log.requests.at(1).find("GET /search?q=hi ") != std::string::npos,
+           "the second request contains the typed query");
   });
 
   AddTest(tests, "Engine/EveryFrameItProducesSurvivesItsOwnWireFormat", [] {

@@ -101,6 +101,11 @@ bool Engine::HandlePendingMessages() {
       produced_output = true;
     } else if (const auto* pointer = std::get_if<ipc::PointerMessage>(&*message)) {
       produced_output = HandlePointer(*pointer) || produced_output;
+    } else if (const auto* text = std::get_if<ipc::TextInputMessage>(&*message)) {
+      if (page_.InsertTextIntoFocusedInput(text->text)) {
+        LayoutAndPaint();
+        produced_output = true;
+      }
     }
     // StopLoad is accepted and ignored: loading is synchronous so there is
     // nothing to stop. It is in the vocabulary now so the UI can be written
@@ -123,6 +128,9 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
       Navigate(*resolved);
       return true;
     }
+    return false;
+  }
+  if (page_.FocusInputAt(document_point)) {
     return false;
   }
   const std::optional<std::string> href = page_.LinkAt(document_point);

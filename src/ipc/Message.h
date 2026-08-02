@@ -73,12 +73,21 @@ struct PointerMessage {
   friend bool operator==(const PointerMessage&, const PointerMessage&) = default;
 };
 
+struct TextInputMessage {
+  // UTF-8 text produced by a key event. Editing commands grow separate
+  // messages; this one is only insertion text.
+  std::string text;
+
+  friend bool operator==(const TextInputMessage&, const TextInputMessage&) = default;
+};
+
 using UiToEngine = std::variant<NavigateMessage,
                                 ReloadMessage,
                                 StopLoadMessage,
                                 ResizeViewportMessage,
                                 ScrollMessage,
-                                PointerMessage>;
+                                PointerMessage,
+                                TextInputMessage>;
 
 // --- Engine -> UI ------------------------------------------------------------
 

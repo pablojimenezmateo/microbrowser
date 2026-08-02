@@ -78,6 +78,16 @@ bool IsSubmitInput(const dom::Element& element) {
   return element.TagName() == "input" && ContainsAsciiCaseInsensitive(InputType(element), "submit");
 }
 
+bool IsEditableTextInput(const dom::Element& element) {
+  if (element.TagName() != "input" || element.HasAttribute("disabled")) {
+    return false;
+  }
+  const std::string type = InputType(element);
+  return ContainsAsciiCaseInsensitive(type, "text") ||
+         ContainsAsciiCaseInsensitive(type, "search") ||
+         ContainsAsciiCaseInsensitive(type, "password");
+}
+
 std::string InputValue(const dom::Element& element) {
   if (const std::string* value = element.GetAttribute("value")) {
     return *value;
@@ -186,6 +196,22 @@ std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::Fl
                                                      : std::nullopt;
 }
 
+std::optional<dom::Element*> HitTestEditableInput(const layout::Box& box, gfx::FloatPoint point) {
+  for (std::size_t i = box.Children().size(); i-- > 0;) {
+    if (std::optional<dom::Element*> hit = HitTestEditableInput(*box.Children()[i], point)) {
+      return hit;
+    }
+  }
+  const dom::Element* element = box.Origin();
+  if (element == nullptr || !IsEditableTextInput(*element)) {
+    return std::nullopt;
+  }
+  if (!Contains(box.Geometry().BorderBox(), point)) {
+    return std::nullopt;
+  }
+  return const_cast<dom::Element*>(element);
+}
+
 std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
                                        const std::string* active_href) {
   if (const std::string* href = AnchorHref(box.Origin())) {
@@ -229,6 +255,7 @@ void Page::Load(std::string_view html, std::string url) {
   resolver_ = css::StyleResolver{};
   document_ = html::ParseDocument(html);
   boxes_.reset();
+  focused_input_ = nullptr;
   content_height_ = 0.0f;
   images_.clear();
 
@@ -362,6 +389,38 @@ std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point
     return std::nullopt;
   }
   return FormGetTarget(*form, **submitter, url_);
+}
+
+bool Page::FocusInputAt(gfx::FloatPoint document_point) {
+  focused_input_ = nullptr;
+  if (boxes_ == nullptr) {
+    return false;
+  }
+  const std::optional<dom::Element*> hit = HitTestEditableInput(*boxes_, document_point);
+  if (!hit.has_value()) {
+    return false;
+  }
+  focused_input_ = *hit;
+  return true;
+}
+
+bool Page::InsertTextIntoFocusedInput(std::string_view text) {
+  if (focused_input_ == nullptr || text.empty()) {
+    return false;
+  }
+  std::string value;
+  if (const std::string* current = focused_input_->GetAttribute("value")) {
+    value = *current;
+  }
+  constexpr std::size_t kMaxInputValueBytes = 4096;
+  if (value.size() >= kMaxInputValueBytes) {
+    return false;
+  }
+  const std::size_t room = kMaxInputValueBytes - value.size();
+  value.append(text.substr(0, room));
+  focused_input_->SetAttribute("value", std::move(value));
+  boxes_.reset();
+  return true;
 }
 
 }  // namespace microbrowser::engine

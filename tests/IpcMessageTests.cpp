@@ -47,6 +47,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     RoundTrip(ipc::UiToEngine{ipc::PointerMessage{ipc::PointerMessage::Kind::Down,
                                                   gfx::IntPoint{5, 7}, 1}},
               ipc::DeserializeUiToEngine, "Pointer");
+    RoundTrip(ipc::UiToEngine{ipc::TextInputMessage{"abc"}}, ipc::DeserializeUiToEngine,
+              "TextInput");
   });
 
   AddTest(tests, "Ipc/EngineToUiRoundTripsEveryMessage", [] {

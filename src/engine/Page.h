@@ -76,6 +76,14 @@ class Page : private layout::ImageProvider {
   // query string, or nullopt when no supported form control was activated.
   std::optional<std::string> FormSubmissionAt(gfx::FloatPoint document_point) const;
 
+  // Focuses an editable input at `document_point`, clearing the focused input
+  // when the point is not one. Returns true when an input was focused.
+  bool FocusInputAt(gfx::FloatPoint document_point);
+
+  // Inserts text into the focused input. Returns true when the document value
+  // changed and layout/paint should run.
+  bool InsertTextIntoFocusedInput(std::string_view text);
+
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.
@@ -110,6 +118,7 @@ class Page : private layout::ImageProvider {
   // Owns the decoded pixels for this document, and hands out shared_ptrs so
   // that a display list can outlive a relayout without copying a bitmap.
   std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images_;
+  dom::Element* focused_input_ = nullptr;
   float content_height_ = 0.0f;
 };
 

@@ -23,6 +23,7 @@ enum class UiTag : std::uint8_t {
   ResizeViewport = 4,
   Scroll = 5,
   Pointer = 6,
+  TextInput = 7,
 };
 
 enum class EngineTag : std::uint8_t {
@@ -517,13 +518,16 @@ std::vector<std::byte> Serialize(const UiToEngine& message) {
     writer.WriteU8(static_cast<std::uint8_t>(UiTag::Scroll));
     writer.WriteI32(scroll->delta_x);
     writer.WriteI32(scroll->delta_y);
-  } else {
-    const auto& pointer = std::get<PointerMessage>(message);
+  } else if (const auto* pointer = std::get_if<PointerMessage>(&message)) {
     writer.WriteU8(static_cast<std::uint8_t>(UiTag::Pointer));
-    writer.WriteU8(static_cast<std::uint8_t>(pointer.kind));
-    writer.WriteI32(pointer.position.x);
-    writer.WriteI32(pointer.position.y);
-    writer.WriteU8(pointer.button);
+    writer.WriteU8(static_cast<std::uint8_t>(pointer->kind));
+    writer.WriteI32(pointer->position.x);
+    writer.WriteI32(pointer->position.y);
+    writer.WriteU8(pointer->button);
+  } else {
+    const auto& text = std::get<TextInputMessage>(message);
+    writer.WriteU8(static_cast<std::uint8_t>(UiTag::TextInput));
+    writer.WriteString(text.text);
   }
 
   return FinishFrame(writer);
@@ -633,6 +637,15 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
         return std::nullopt;
       }
       message = value;
+      break;
+    }
+    case UiTag::TextInput: {
+      TextInputMessage value;
+      value.text = reader.ReadString();
+      if (!reader.Ok()) {
+        return std::nullopt;
+      }
+      message = std::move(value);
       break;
     }
     default:

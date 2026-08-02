@@ -22,11 +22,14 @@ budget: Loader header_lines=80 public_methods=10 members=6
 # One document: DOM, styles, box tree, and the display list they produce. This
 # is the unit a second tab duplicates.
 # Members 9 through 11 are the subresources: the stylesheet URLs and the image
-# URLs the document referenced, and the decoded pixels for the images. Page
-# collects the URLs and the Loader fetches them, because resolving a relative
-# href against a base URL is the loader's job and parsing is this one's.
+# URLs the document referenced, and the decoded pixels for the images. Member
+# 12 is the currently focused input element, a non-owning pointer into the
+# document so form editing state lives on the DOM value rather than in a second
+# parallel store. Page collects the URLs and the Loader fetches them, because
+# resolving a relative href against a base URL is the loader's job and parsing
+# is this one's.
 #
 # When a third resource kind arrives -- fonts, most likely -- these want to
 # become one table keyed by kind rather than a fourth and fifth member. Two is
 # not yet a pattern; three will be.
-budget: Page   header_lines=105 public_methods=22 members=11
+budget: Page   header_lines=115 public_methods=24 members=12
