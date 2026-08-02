@@ -221,8 +221,8 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
     next.initiator = url::Origin::FromUrl(url);
     next.top_level_site = verdict.Partition().TopLevelSite();
     next.container = verdict.Partition().Container();
-    next.type = privacy::ResourceType::Document;
-    next.is_subresource = !remaining.is_top_level_navigation;
+    next.type = verdict.Type();
+    next.is_subresource = verdict.IsSubresource();
     verdict = policy.Decide(next, &url);
     if (!verdict.IsAllowed()) {
       return Failure("redirect refused by policy");

@@ -153,6 +153,26 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
                 "and the blocked host must never have been connected to");
   });
 
+  AddTest(tests, "Fetch/RedirectPolicyKeepsTheOriginalResourceType", [] {
+    PrivacyPolicy policy;
+    policy.Engine().AddRules("||cdn.example^$script");
+    ScriptedFactory factory;
+    factory.script.push_back({"start.example", 443, true,
+                              "HTTP/1.1 302 Found\r\n"
+                              "Location: https://cdn.example/script.js\r\n"
+                              "Content-Length: 0\r\n\r\n"});
+    factory.script.push_back({"cdn.example", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult result =
+        RunWithReferrer(policy, factory, cookies, cache, "https://start.example/script.js",
+                        "https://page.example/", "https://page.example/index.html");
+    Expect(!result.ok, "a redirected script is still matched as a script");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 1,
+                "and the type-blocked redirect target was not connected to");
+  });
+
   AddTest(tests, "Fetch/ARedirectCannotDowngradeToHttp", [] {
     PrivacyPolicy policy;
     ScriptedFactory factory;

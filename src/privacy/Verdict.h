@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
 #include <string>
 
+#include "privacy/Request.h"
 #include "url/PartitionKey.h"
 #include "url/Url.h"
 
@@ -24,55 +24,45 @@ namespace microbrowser::privacy {
 // that can forget to.
 class Verdict {
  public:
-  enum class Decision : std::uint8_t {
-    Allow,
-    // Blocked by a filter rule. The request is never made.
-    Block,
-    // Refused because it could not be made securely — HTTPS-only with no
-    // upgrade available, or a downgrade the user has not permitted.
-    BlockInsecure,
-  };
+  enum class Decision : std::uint8_t { Allow, Block, BlockInsecure };
 
-  static Verdict Allowed(url::Url final_url, url::PartitionKey key);
+  static Verdict Allowed(url::Url final_url, url::PartitionKey key, ResourceType type,
+                         bool is_subresource);
   static Verdict Blocked(std::string_view reason);
   static Verdict BlockedInsecure(std::string_view reason);
 
   Decision GetDecision() const { return decision_; }
   bool IsAllowed() const { return decision_ == Decision::Allow; }
 
-  // Valid only when allowed. This is the URL that will actually be requested,
-  // after the HTTPS upgrade and after tracking parameters were removed — not
-  // the one the page asked for.
   const url::Url& FinalUrl() const { return final_url_; }
-
-  // The partition every piece of state this request touches must be keyed by:
-  // the connection, the cookies, the cache entry, the TLS session ticket.
   const url::PartitionKey& Partition() const { return partition_; }
 
-  // What to send as `Referer`, already trimmed. Empty means send none.
   const std::string& Referrer() const { return referrer_; }
-  void SetReferrer(std::string referrer) { referrer_ = std::move(referrer); }
+  void SetReferrer(std::string referrer);
 
-  // True when the URL was rewritten from what the page asked for. Only
-  // observability wants this; the decision is in FinalUrl either way.
-  bool WasUpgraded() const { return upgraded_; }
-  bool WasSanitized() const { return sanitized_; }
-  void MarkUpgraded() { upgraded_ = true; }
-  void MarkSanitized() { sanitized_ = true; }
+  ResourceType Type() const { return type_; }
+  bool IsSubresource() const;
 
-  // Why, for a log line and a test message. Never shown to a page: telling a
-  // page which rule blocked it turns the filter list into a fingerprinting
-  // surface.
+  bool WasUpgraded() const;
+  bool WasSanitized() const;
+  void MarkUpgraded();
+  void MarkSanitized();
+
   const std::string& Reason() const { return reason_; }
 
  private:
+  enum Flag : std::uint8_t { Upgraded = 1u << 0, Sanitized = 1u << 1, Subresource = 1u << 2 };
+
+  bool HasFlag(Flag flag) const;
+  void SetFlag(Flag flag, bool enabled);
+
   Decision decision_ = Decision::Block;
   url::Url final_url_;
   url::PartitionKey partition_;
   std::string referrer_;
   std::string reason_;
-  bool upgraded_ = false;
-  bool sanitized_ = false;
+  ResourceType type_ = ResourceType::Other;
+  std::uint8_t flags_ = 0;
 };
 
 }  // namespace microbrowser::privacy

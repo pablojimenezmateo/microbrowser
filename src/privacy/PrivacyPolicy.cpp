@@ -163,7 +163,8 @@ Verdict PrivacyPolicy::Decide(const Request& request, const url::Url* referrer_d
   url::PartitionKey partition =
       url::PartitionKey::ForEmbedded(request.container, request.top_level_site, final_url);
 
-  Verdict verdict = Verdict::Allowed(std::move(final_url), std::move(partition));
+  Verdict verdict = Verdict::Allowed(std::move(final_url), std::move(partition), request.type,
+                                     request.is_subresource);
   if (upgraded) {
     verdict.MarkUpgraded();
   }
