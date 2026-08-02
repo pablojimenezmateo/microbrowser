@@ -447,6 +447,48 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/pick", "an unselected multiple select contributes no entry");
   });
 
+  AddTest(tests, "Page/SelectControlsSkipDisabledSelectedOptions", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>select,input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/pick'>"
+        "<select name='topic'><option value='placeholder' selected disabled>Pick</option>"
+        "<option value='a'>Alpha</option></select>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/pick", "a disabled selected option contributes no entry");
+  });
+
+  AddTest(tests, "Page/MultipleSelectSkipsDisabledOptions", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>select,input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/pick'>"
+        "<select name='topic' multiple>"
+        "<option value='a' selected disabled>Alpha</option>"
+        "<optgroup disabled><option value='b' selected>Beta</option></optgroup>"
+        "<option value='c' selected>Gamma</option>"
+        "</select>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/pick?topic=c",
+                   "disabled options and disabled optgroups are skipped");
+  });
+
   AddTest(tests, "Page/SerializesOnlyCheckedCheckboxesAndRadios", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

@@ -42,6 +42,14 @@ std::string OptionValue(const dom::Element& option) {
   return option.TextContent();
 }
 
+bool IsDisabledOption(const dom::Element& option) {
+  if (option.HasAttribute("disabled")) {
+    return true;
+  }
+  const dom::Element* optgroup = option.ClosestAncestor("optgroup");
+  return optgroup != nullptr && optgroup->HasAttribute("disabled");
+}
+
 const dom::Element* FirstLegendChild(const dom::Element& fieldset) {
   for (const std::unique_ptr<dom::Node>& child : fieldset.Children()) {
     if (child->IsElement()) {
@@ -201,7 +209,7 @@ std::optional<std::string> SelectedOptionValue(const dom::Element& select) {
     return std::nullopt;
   }
   const dom::Element* option = SelectedOption(select);
-  if (option == nullptr) {
+  if (option == nullptr || IsDisabledOption(*option)) {
     return std::nullopt;
   }
   return OptionValue(*option);
@@ -225,11 +233,11 @@ std::vector<std::string> SelectedOptionValues(const dom::Element& select) {
     if (first == nullptr) {
       first = &element;
     }
-    if (element.HasAttribute("selected")) {
+    if (element.HasAttribute("selected") && !IsDisabledOption(element)) {
       values.push_back(OptionValue(element));
     }
   });
-  if (!multiple && values.empty() && first != nullptr) {
+  if (!multiple && values.empty() && first != nullptr && !IsDisabledOption(*first)) {
     values.push_back(OptionValue(*first));
   }
   return values;
