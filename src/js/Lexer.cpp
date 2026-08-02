@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdlib>
 #include <string>
 
 #include "util/Parse.h"
@@ -66,6 +65,14 @@ int HexValue(char c) {
     return c - 'a' + 10;
   }
   return c - 'A' + 10;
+}
+
+double ParseBasedInteger(std::string_view digits, int base) {
+  double value = 0.0;
+  for (const char c : digits) {
+    value = value * static_cast<double>(base) + static_cast<double>(HexValue(c));
+  }
+  return value;
 }
 
 void AppendUtf8(std::string& out, char32_t codepoint) {
@@ -288,7 +295,7 @@ Token Lexer::LexNumber(std::size_t start, bool newline) {
   if (base == 10) {
     token.number = util::ParseDouble(cleaned).value_or(std::nan(""));
   } else {
-    token.number = static_cast<double>(std::strtoull(cleaned.c_str() + 2, nullptr, base));
+    token.number = ParseBasedInteger(std::string_view(cleaned).substr(2), base);
   }
   return token;
 }
