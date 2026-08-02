@@ -116,7 +116,7 @@ DataUrl DecodeDataUrl(std::string_view url) {
   return result;
 }
 
-Loader::Result Loader::Fetch(const url::Url& target, const privacy::Request& request,
+Loader::Result Loader::Fetch(const privacy::Request& request, const net::FetchOptions& options,
                              bool top_level, std::int64_t now) {
   Result result;
 
@@ -127,11 +127,11 @@ Loader::Result Loader::Fetch(const url::Url& target, const privacy::Request& req
     return result;
   }
 
-  net::FetchOptions options;
-  options.is_top_level_navigation = top_level;
+  net::FetchOptions fetch_options = options;
+  fetch_options.is_top_level_navigation = top_level;
 
   const net::FetchResult fetched =
-      net::Fetch(std::move(verdict), policy_, *transport_, cookies_, cache_, options, now);
+      net::Fetch(std::move(verdict), policy_, *transport_, cookies_, cache_, fetch_options, now);
   if (!fetched.ok) {
     result.error = fetched.error == nullptr ? "the load failed" : fetched.error;
     return result;
@@ -144,7 +144,6 @@ Loader::Result Loader::Fetch(const url::Url& target, const privacy::Request& req
   if (const std::optional<std::string_view> type = fetched.response.headers.Get("content-type")) {
     result.content_type = std::string(*type);
   }
-  (void)target;
   return result;
 }
 
@@ -179,13 +178,22 @@ Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& doc
   request.type = type;
   request.is_subresource = true;
 
-  return Fetch(*parsed, request, false, now);
+  return Fetch(request, {}, false, now);
 }
 
 Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
+  return Load(url, now, {});
+}
+
+Loader::Result Loader::Load(std::string_view url, std::int64_t now,
+                            const net::FetchOptions& options) {
   Result result;
 
   if (DataUrl data = DecodeDataUrl(url); data.ok) {
+    if (options.method != "GET" || !options.body.empty()) {
+      result.error = "data URL loads do not support request bodies";
+      return result;
+    }
     result.ok = true;
     result.body = std::move(data.body);
     result.content_type = std::move(data.content_type);
@@ -211,7 +219,7 @@ Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
 
-  return Fetch(*parsed, request, true, now);
+  return Fetch(request, options, true, now);
 }
 
 }  // namespace microbrowser::engine

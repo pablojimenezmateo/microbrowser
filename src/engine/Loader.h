@@ -42,6 +42,7 @@ class Loader {
   // clock so that cache expiry and cookie expiry are testable and so that two
   // decisions inside one load cannot disagree about what time it is.
   Result Load(std::string_view url, std::int64_t now);
+  Result Load(std::string_view url, std::int64_t now, const net::FetchOptions& options);
 
   // Loads something the document asked for, rather than something the user
   // did. The distinction is not cosmetic: it decides which cookies travel,
@@ -66,8 +67,8 @@ class Loader {
   // The one place a request is actually made. Both entry points funnel through
   // it so that "every request passed the policy" is true by construction
   // rather than by two functions remembering to do the same thing.
-  Result Fetch(const url::Url& target, const privacy::Request& request, bool top_level,
-               std::int64_t now);
+  Result Fetch(const privacy::Request& request, const net::FetchOptions& options,
+               bool top_level, std::int64_t now);
 
   privacy::PrivacyPolicy policy_;
   net::SocketTransportFactory sockets_;

@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "gfx/DisplayListDiff.h"
 #include "gfx/PngDecoder.h"
@@ -78,6 +80,27 @@ std::optional<std::string> ResolveLink(std::string_view href, std::string_view d
   return resolved.has_value() ? std::optional<std::string>(resolved->Serialize()) : std::nullopt;
 }
 
+std::vector<std::byte> BodyBytes(std::string_view body) {
+  std::vector<std::byte> out;
+  out.reserve(body.size());
+  for (const char c : body) {
+    out.push_back(static_cast<std::byte>(static_cast<unsigned char>(c)));
+  }
+  return out;
+}
+
+net::FetchOptions FetchOptionsForSubmission(const FormSubmission& submission) {
+  net::FetchOptions options;
+  options.method = submission.method;
+  if (!submission.body.empty()) {
+    options.body = BodyBytes(submission.body);
+  }
+  if (!submission.content_type.empty()) {
+    options.headers.Add("Content-Type", submission.content_type);
+  }
+  return options;
+}
+
 }  // namespace
 
 Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
@@ -120,11 +143,8 @@ bool Engine::HandlePendingMessages() {
           // forward character to delete yet.
           break;
         case Command::Enter:
-          if (const std::optional<std::string> target = page_.SubmitFocusedForm()) {
-            if (const std::optional<std::string> resolved = ResolveLink(*target, page_.Url())) {
-              Navigate(*resolved);
-              produced_output = true;
-            }
+          if (const std::optional<FormSubmission> submission = page_.FocusedFormSubmission()) {
+            produced_output = Navigate(*submission) || produced_output;
           }
           break;
       }
@@ -145,12 +165,9 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   const gfx::FloatPoint document_point{
       static_cast<float>(pointer.position.x) / device_scale_,
       static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(scroll_y_)};
-  if (const std::optional<std::string> target = page_.FormSubmissionAt(document_point)) {
-    if (const std::optional<std::string> resolved = ResolveLink(*target, page_.Url())) {
-      Navigate(*resolved);
-      return true;
-    }
-    return false;
+  if (const std::optional<FormSubmission> submission =
+          page_.FormSubmissionRequestAt(document_point)) {
+    return Navigate(*submission);
   }
   if (page_.ResetFormAt(document_point)) {
     LayoutAndPaint();
@@ -176,6 +193,10 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
 }
 
 void Engine::Navigate(const std::string& url) {
+  Navigate(url, {});
+}
+
+void Engine::Navigate(const std::string& url, const net::FetchOptions& options) {
   util::PerformanceTrace::Scope scope("engine::Navigate");
   AddPerformanceCounter(PerfCounterId::EngineNavigations);
 
@@ -188,7 +209,7 @@ void Engine::Navigate(const std::string& url) {
     // loop blocks for the length of a load. Making it asynchronous is a change
     // to this function and the message vocabulary, not to the seam -- which is
     // why it can wait until there is something worth waiting on.
-    const Loader::Result loaded = loader_.Load(url, NowSeconds());
+    const Loader::Result loaded = loader_.Load(url, NowSeconds(), options);
     if (!loaded.ok) {
       ShowError(url, loaded.error == nullptr ? "the load failed" : loaded.error);
       return;
@@ -201,6 +222,15 @@ void Engine::Navigate(const std::string& url) {
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
+}
+
+bool Engine::Navigate(const FormSubmission& submission) {
+  const std::optional<std::string> resolved = ResolveLink(submission.url, page_.Url());
+  if (!resolved.has_value()) {
+    return false;
+  }
+  Navigate(*resolved, FetchOptionsForSubmission(submission));
+  return true;
 }
 
 void Engine::LoadSubresources() {

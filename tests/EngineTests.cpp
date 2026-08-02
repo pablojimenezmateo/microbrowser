@@ -263,20 +263,28 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "the submitter's formmethod overrides the form method");
   });
 
-  AddTest(tests, "Page/SubmitterPostMethodIsUnsupported", [] {
+  AddTest(tests, "Page/SubmitterOverridesFormMethodToPost", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load(
         "<style>input{width:40px;height:20px;margin:0}</style>"
-        "<body style='margin:0'><form action='/search' method='get'>"
+        "<body style='margin:0'><form action='/search?keep=1#frag' method='get'>"
         "<input name='q' value='hello'>"
         "<input type='submit' value='Search' formmethod='post'>"
         "</form></body>",
         "https://example.org/start");
     page.Layout(400.0f);
 
+    const std::optional<engine::FormSubmission> submission =
+        page.FormSubmissionRequestAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(submission.has_value(), "formmethod=post is a supported submission path");
+    ExpectEqString(submission->method, "POST", "the submitter's formmethod wins");
+    ExpectEqString(submission->url, "/search?keep=1", "POST preserves the action query");
+    ExpectEqString(submission->body, "q=hello", "controls move into the request body");
+    ExpectEqString(submission->content_type, "application/x-www-form-urlencoded",
+                   "POST uses the default form encoding");
     Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
-           "formmethod=post stays unsupported until request bodies exist");
+           "the legacy target helper remains GET-only");
   });
 
   AddTest(tests, "Page/FormAttributeAssociatesExternalControls", [] {
@@ -1298,6 +1306,41 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(factory.log.requests.at(1).find("GET /search?q=hello+world&go=Search ") !=
                std::string::npos,
            "the second request is the submitted GET form");
+  });
+
+  AddTest(tests, "Engine/ClickingAPostFormSubmitSendsARequestBody", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/search?keep=1' method='post'>"
+                   "<input name='q' value='hello world' size='2'>"
+                   "<input type='submit' name='go' value='Search'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Posted</title><body>posted results</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?keep=1",
+                   "POST form navigation commits the action URL without moving controls into it");
+    ExpectEqString(session.LastTitle(), "Posted", "and the result document committed");
+    const std::string& request = factory.log.requests.at(1);
+    Expect(request.rfind("POST /search?keep=1 HTTP/1.1\r\n", 0) == 0,
+           "the second request uses the form method and preserves the action query");
+    Expect(request.find("Content-Type: application/x-www-form-urlencoded\r\n") !=
+               std::string::npos,
+           "the request carries the form encoding");
+    Expect(request.find("Content-Length: 23\r\n") != std::string::npos,
+           "the serialized controls define the request body length");
+    Expect(request.size() >= 23 &&
+               request.substr(request.size() - 23) == "q=hello+world&go=Search",
+           "the form controls are sent in the body");
   });
 
   AddTest(tests, "Engine/TextInputChangesFocusedFormControlsBeforeSubmit", [] {

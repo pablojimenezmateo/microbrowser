@@ -21,6 +21,7 @@ using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
 constexpr std::size_t kMaxInputValueBytes = 4096;
+constexpr std::string_view kUrlEncodedFormContentType = "application/x-www-form-urlencoded";
 
 // Splits an attribute on ASCII whitespace, per the HTML spec's
 // "space-separated tokens".
@@ -249,31 +250,62 @@ std::string WithoutQueryOrFragment(std::string_view url) {
   return cut == std::string_view::npos ? std::string(url) : std::string(url.substr(0, cut));
 }
 
-std::optional<std::string> FormGetTarget(const dom::Element& form,
-                                         const dom::Element* submitter,
-                                         const dom::Document& document,
-                                         std::string_view document_url) {
+std::string FormMethod(const dom::Element& form, const dom::Element* submitter) {
   const std::string* method =
       submitter != nullptr && submitter->HasAttribute("formmethod")
           ? submitter->GetAttribute("formmethod")
           : form.GetAttribute("method");
-  if (method != nullptr && !method->empty()) {
-    if (!util::EqualsAsciiCaseInsensitive(*method, "get")) {
-      return std::nullopt;
-    }
+  if (method != nullptr && util::EqualsAsciiCaseInsensitive(*method, "post")) {
+    return "POST";
   }
+  return "GET";
+}
+
+bool HasUnsupportedFormEncoding(const dom::Element& form, const dom::Element* submitter) {
+  const std::string* encoding =
+      submitter != nullptr && submitter->HasAttribute("formenctype")
+          ? submitter->GetAttribute("formenctype")
+          : form.GetAttribute("enctype");
+  if (encoding == nullptr || encoding->empty()) {
+    return false;
+  }
+  return util::EqualsAsciiCaseInsensitive(*encoding, "multipart/form-data") ||
+         util::EqualsAsciiCaseInsensitive(*encoding, "text/plain");
+}
+
+std::string WithoutFragment(std::string_view url) {
+  const std::size_t cut = url.find('#');
+  return cut == std::string_view::npos ? std::string(url) : std::string(url.substr(0, cut));
+}
+
+std::optional<FormSubmission> BuildFormSubmission(const dom::Element& form,
+                                                  const dom::Element* submitter,
+                                                  const dom::Document& document,
+                                                  std::string_view document_url) {
   const std::string* action =
       submitter != nullptr && submitter->HasAttribute("formaction")
           ? submitter->GetAttribute("formaction")
           : form.GetAttribute("action");
-  std::string target = action == nullptr || action->empty() ? std::string(document_url) : *action;
-  target = WithoutQueryOrFragment(target);
+  const std::string action_url =
+      action == nullptr || action->empty() ? std::string(document_url) : *action;
   const std::string query = FormQuery(document, form, submitter);
-  if (!query.empty()) {
-    target += '?';
-    target += query;
+  FormSubmission submission;
+  submission.method = FormMethod(form, submitter);
+  if (submission.method == "POST") {
+    if (HasUnsupportedFormEncoding(form, submitter)) {
+      return std::nullopt;
+    }
+    submission.url = WithoutFragment(action_url);
+    submission.body = query;
+    submission.content_type = std::string(kUrlEncodedFormContentType);
+  } else {
+    submission.url = WithoutQueryOrFragment(action_url);
+    if (!query.empty()) {
+      submission.url += '?';
+      submission.url += query;
+    }
   }
-  return target;
+  return submission;
 }
 
 using ElementPredicate = bool (*)(const dom::Element&);
@@ -515,7 +547,7 @@ std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
   return HitTestLink(*boxes_, document_point, nullptr);
 }
 
-std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point) const {
+std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) const {
   if (boxes_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
@@ -527,7 +559,15 @@ std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point
   if (form == nullptr) {
     return std::nullopt;
   }
-  return FormGetTarget(*form, *submitter, *document_, url_);
+  return BuildFormSubmission(*form, *submitter, *document_, url_);
+}
+
+std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point) const {
+  const std::optional<FormSubmission> submission = FormSubmissionRequestAt(document_point);
+  if (!submission.has_value() || submission->method != "GET") {
+    return std::nullopt;
+  }
+  return submission->url;
 }
 
 bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
@@ -660,7 +700,7 @@ bool Page::DeleteBackwardFromFocusedTextControl() {
   return true;
 }
 
-std::optional<std::string> Page::SubmitFocusedForm() const {
+std::optional<FormSubmission> Page::FocusedFormSubmission() const {
   if (focused_text_control_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
@@ -668,7 +708,15 @@ std::optional<std::string> Page::SubmitFocusedForm() const {
   if (form == nullptr) {
     return std::nullopt;
   }
-  return FormGetTarget(*form, nullptr, *document_, url_);
+  return BuildFormSubmission(*form, nullptr, *document_, url_);
+}
+
+std::optional<std::string> Page::SubmitFocusedForm() const {
+  const std::optional<FormSubmission> submission = FocusedFormSubmission();
+  if (!submission.has_value() || submission->method != "GET") {
+    return std::nullopt;
+  }
+  return submission->url;
 }
 
 }  // namespace microbrowser::engine

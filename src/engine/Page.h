@@ -15,6 +15,13 @@
 
 namespace microbrowser::engine {
 
+struct FormSubmission {
+  std::string url;
+  std::string method = "GET";
+  std::string body;
+  std::string content_type;
+};
+
 // One loaded document: its DOM, its styles, its box tree, and the display list
 // they produce.
 //
@@ -72,8 +79,13 @@ class Page : private layout::ImageProvider {
   // by Engine, and the page's box tree is laid out unscrolled.
   std::optional<std::string> LinkAt(gfx::FloatPoint document_point) const;
 
+  // The form submission activated at `document_point`, or nullopt when no
+  // supported form control was activated.
+  std::optional<FormSubmission> FormSubmissionRequestAt(gfx::FloatPoint document_point) const;
+
   // The GET form target activated at `document_point`, including the encoded
-  // query string, or nullopt when no supported form control was activated.
+  // query string. Kept for page-level tests that only care about GET URL
+  // construction; the engine uses FormSubmissionRequestAt.
   std::optional<std::string> FormSubmissionAt(gfx::FloatPoint document_point) const;
 
   // Focuses an editable text control at `document_point`.
@@ -93,8 +105,11 @@ class Page : private layout::ImageProvider {
   // Deletes the final entered codepoint from the focused text control.
   bool DeleteBackwardFromFocusedTextControl();
 
-  // The GET form target for the currently focused text control's owning form, or
-  // nullopt when no supported form can be submitted.
+  // The form submission for the currently focused text control's owning form,
+  // or nullopt when no supported form can be submitted.
+  std::optional<FormSubmission> FocusedFormSubmission() const;
+
+  // The GET form target for the currently focused text control's owning form.
   std::optional<std::string> SubmitFocusedForm() const;
 
   const std::string& Url() const { return url_; }
