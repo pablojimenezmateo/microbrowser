@@ -1,6 +1,7 @@
 #include "css/StyleSheet.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "css/Tokenizer.h"
 #include "util/PerformanceCounters.h"
@@ -649,6 +650,123 @@ std::vector<Declaration> ParseDeclarations(const std::vector<Token>& tokens, std
   return declarations;
 }
 
+bool MediaListItemMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
+  while (from < to && tokens[from].kind == Token::Kind::Whitespace) {
+    ++from;
+  }
+  while (to > from && tokens[to - 1].kind == Token::Kind::Whitespace) {
+    --to;
+  }
+  if (from + 1 != to || tokens[from].kind != Token::Kind::Ident) {
+    return false;
+  }
+  const std::string media = Lowered(tokens[from].value);
+  return media == "all" || media == "screen";
+}
+
+bool MediaPreludeMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
+  std::size_t item_start = from;
+  for (std::size_t at = from; at <= to; ++at) {
+    if (at == to || tokens[at].kind == Token::Kind::Comma) {
+      if (MediaListItemMatches(tokens, item_start, at)) {
+        return true;
+      }
+      item_start = at + 1;
+    }
+  }
+  return false;
+}
+
+std::size_t FindBlockEnd(const std::vector<Token>& tokens, std::size_t open, std::size_t end) {
+  int depth = 1;
+  std::size_t at = open + 1;
+  while (at < end && tokens[at].kind != Token::Kind::EndOfFile && depth > 0) {
+    if (tokens[at].kind == Token::Kind::LeftBrace) {
+      ++depth;
+    } else if (tokens[at].kind == Token::Kind::RightBrace) {
+      --depth;
+      if (depth == 0) {
+        break;
+      }
+    }
+    ++at;
+  }
+  return at;
+}
+
+void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                   StyleSheet& sheet) {
+  std::size_t at = from;
+  while (at < to && tokens[at].kind != Token::Kind::EndOfFile) {
+    if (tokens[at].kind == Token::Kind::Whitespace || tokens[at].kind == Token::Kind::Cdo ||
+        tokens[at].kind == Token::Kind::Cdc) {
+      ++at;
+      continue;
+    }
+
+    if (tokens[at].kind == Token::Kind::AtKeyword) {
+      const std::string at_rule = Lowered(tokens[at].value);
+      const std::size_t prelude_start = at + 1;
+      ++at;
+      while (at < to && tokens[at].kind != Token::Kind::LeftBrace &&
+             tokens[at].kind != Token::Kind::Semicolon &&
+             tokens[at].kind != Token::Kind::EndOfFile) {
+        ++at;
+      }
+      if (at >= to || tokens[at].kind == Token::Kind::EndOfFile) {
+        ++sheet.skipped;
+        break;
+      }
+      if (tokens[at].kind == Token::Kind::Semicolon) {
+        ++sheet.skipped;
+        ++at;
+        continue;
+      }
+
+      const std::size_t block_start = at + 1;
+      const std::size_t block_end = FindBlockEnd(tokens, at, to);
+      at = block_end;
+      if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
+        ++at;
+      }
+
+      if (at_rule == "media" && MediaPreludeMatches(tokens, prelude_start, block_start - 1)) {
+        ParseRuleList(tokens, block_start, block_end, sheet);
+      } else {
+        ++sheet.skipped;
+      }
+      continue;
+    }
+
+    const std::size_t prelude_start = at;
+    while (at < to && tokens[at].kind != Token::Kind::LeftBrace &&
+           tokens[at].kind != Token::Kind::EndOfFile) {
+      ++at;
+    }
+    if (at >= to || tokens[at].kind != Token::Kind::LeftBrace) {
+      ++sheet.skipped;
+      break;  // a rule with no block, at the end of the sheet
+    }
+    const std::size_t prelude_end = at;
+    const std::size_t block_start = at + 1;
+    const std::size_t block_end = FindBlockEnd(tokens, at, to);
+    at = block_end;
+    if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
+      ++at;
+    }
+
+    StyleRule rule;
+    rule.selectors = ParseSelectors(tokens, prelude_start, prelude_end);
+    if (rule.selectors.empty()) {
+      ++sheet.skipped;
+      continue;
+    }
+    rule.declarations = ParseDeclarations(tokens, block_start, block_end);
+    sheet.rules.push_back(std::move(rule));
+    AddPerformanceCounter(PerfCounterId::CssRulesParsed);
+  }
+}
+
 }  // namespace
 
 std::vector<Declaration> ParseDeclarationList(std::string_view input) {
@@ -669,81 +787,7 @@ StyleSheet ParseStyleSheet(std::string_view input) {
   StyleSheet sheet;
   const std::vector<Token> tokens = Tokenize(input);
   AddPerformanceCounter(PerfCounterId::CssSheetsParsed);
-
-  std::size_t at = 0;
-  while (at < tokens.size() && tokens[at].kind != Token::Kind::EndOfFile) {
-    if (tokens[at].kind == Token::Kind::Whitespace || tokens[at].kind == Token::Kind::Cdo ||
-        tokens[at].kind == Token::Kind::Cdc) {
-      ++at;
-      continue;
-    }
-
-    // At-rules are not implemented. Skipped past their block, and counted —
-    // applying the declarations inside `@media print` to the screen would be a
-    // partial implementation that is worse than none.
-    if (tokens[at].kind == Token::Kind::AtKeyword) {
-      ++sheet.skipped;
-      int depth = 0;
-      while (at < tokens.size() && tokens[at].kind != Token::Kind::EndOfFile) {
-        if (tokens[at].kind == Token::Kind::LeftBrace) {
-          ++depth;
-        } else if (tokens[at].kind == Token::Kind::RightBrace) {
-          --depth;
-          if (depth <= 0) {
-            ++at;
-            break;
-          }
-        } else if (tokens[at].kind == Token::Kind::Semicolon && depth == 0) {
-          ++at;
-          break;
-        }
-        ++at;
-      }
-      continue;
-    }
-
-    const std::size_t prelude_start = at;
-    while (at < tokens.size() && tokens[at].kind != Token::Kind::LeftBrace &&
-           tokens[at].kind != Token::Kind::EndOfFile) {
-      ++at;
-    }
-    if (at >= tokens.size() || tokens[at].kind != Token::Kind::LeftBrace) {
-      ++sheet.skipped;
-      break;  // a rule with no block, at the end of the sheet
-    }
-    const std::size_t prelude_end = at;
-    ++at;
-
-    const std::size_t block_start = at;
-    int depth = 1;
-    while (at < tokens.size() && tokens[at].kind != Token::Kind::EndOfFile && depth > 0) {
-      if (tokens[at].kind == Token::Kind::LeftBrace) {
-        ++depth;
-      } else if (tokens[at].kind == Token::Kind::RightBrace) {
-        --depth;
-        if (depth == 0) {
-          break;
-        }
-      }
-      ++at;
-    }
-    const std::size_t block_end = at;
-    if (at < tokens.size() && tokens[at].kind == Token::Kind::RightBrace) {
-      ++at;
-    }
-
-    StyleRule rule;
-    rule.selectors = ParseSelectors(tokens, prelude_start, prelude_end);
-    if (rule.selectors.empty()) {
-      // An unparsable selector drops the whole rule. Applying its declarations
-      // to something else would be worse than losing them.
-      ++sheet.skipped;
-      continue;
-    }
-    rule.declarations = ParseDeclarations(tokens, block_start, block_end);
-    sheet.rules.push_back(std::move(rule));
-    AddPerformanceCounter(PerfCounterId::CssRulesParsed);
-  }
+  ParseRuleList(tokens, 0, tokens.size(), sheet);
   return sheet;
 }
 

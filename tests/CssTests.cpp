@@ -154,11 +154,28 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     Expect(sheet.skipped > 0, "the drop is counted rather than silent");
   });
 
-  AddTest(tests, "CssParser/SkipsAtRulesAndCountsThem", [] {
+  AddTest(tests, "CssParser/AppliesSupportedMediaBlocks", [] {
     const StyleSheet sheet =
-        ParseStyleSheet("@media print { p { color: red } } a { color: blue }");
+        ParseStyleSheet("@media screen { p { color: red } } "
+                        "@media all, screen { a { color: blue } } "
+                        "@media print, screen { div { color: green } }");
+    ExpectEqInt(static_cast<long long>(sheet.rules.size()), 3,
+                "screen, all, and mixed media lists apply to this screen-only engine");
+    ExpectEqString(sheet.rules.at(0).selectors.at(0).compounds.at(0).parts.at(0).name, "p",
+                   "the first nested rule survives");
+    ExpectEqString(sheet.rules.at(1).selectors.at(0).compounds.at(0).parts.at(0).name, "a",
+                   "and so does a comma-separated matching media list");
+    ExpectEqString(sheet.rules.at(2).selectors.at(0).compounds.at(0).parts.at(0).name, "div",
+                   "unsupported media entries do not poison a matching one");
+  });
+
+  AddTest(tests, "CssParser/SkipsUnsupportedAtRulesAndCountsThem", [] {
+    const StyleSheet sheet =
+        ParseStyleSheet("@media print { p { color: red } } "
+                        "@media screen and (min-width: 1px) { div { color: green } } "
+                        "a { color: blue }");
     ExpectEqInt(static_cast<long long>(sheet.rules.size()), 1,
-                "the media block's contents are not applied unconditionally, which is what "
+                "unsupported media blocks are not applied unconditionally, which is what "
                 "parsing into the top level would do");
     Expect(sheet.skipped > 0, "and the gap is observable");
   });
