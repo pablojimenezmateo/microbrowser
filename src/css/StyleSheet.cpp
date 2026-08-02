@@ -202,25 +202,52 @@ bool AttributeMatches(const SelectorPart& part, const dom::Element& element) {
   return false;
 }
 
-std::size_t IndexAmongElementSiblings(const dom::Element& element, bool& only_child) {
+bool ElementMatchesTagFilter(const dom::Node& node, std::string_view tag_name) {
+  return node.IsElement() &&
+         (tag_name.empty() || static_cast<const dom::Element&>(node).TagName() == tag_name);
+}
+
+bool HasPreviousElementSibling(const dom::Element& element, std::string_view tag_name) {
   const dom::Node* parent = element.Parent();
   if (parent == nullptr) {
-    only_child = true;
-    return 0;
+    return false;
   }
-  std::size_t index = 0;
-  std::size_t count = 0;
   for (const std::unique_ptr<dom::Node>& sibling : parent->Children()) {
-    if (!sibling->IsElement()) {
+    if (sibling.get() == &element) {
+      return false;
+    }
+    if (ElementMatchesTagFilter(*sibling, tag_name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool HasFollowingElementSibling(const dom::Element& element, std::string_view tag_name) {
+  const dom::Node* parent = element.Parent();
+  if (parent == nullptr) {
+    return false;
+  }
+  bool seen = false;
+  for (const std::unique_ptr<dom::Node>& sibling : parent->Children()) {
+    if (sibling.get() == &element) {
+      seen = true;
       continue;
     }
-    if (sibling.get() == &element) {
-      index = count;
+    if (seen && ElementMatchesTagFilter(*sibling, tag_name)) {
+      return true;
     }
-    ++count;
   }
-  only_child = count == 1;
-  return index;
+  return false;
+}
+
+bool EmptyPseudoClassMatches(const dom::Element& element) {
+  for (const std::unique_ptr<dom::Node>& child : element.Children()) {
+    if (child->IsElement() || child->IsText()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool MatchesCompound(const CompoundSelector& compound, const dom::Element& element) {
@@ -252,38 +279,39 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
           return false;
         }
         break;
-      case SelectorPart::Kind::PseudoClass: {
-        bool only_child = false;
-        const std::size_t index = IndexAmongElementSiblings(element, only_child);
+      case SelectorPart::Kind::PseudoClass:
         if (part.name == "root") {
           if (element.Parent() == nullptr ||
               element.Parent()->GetKind() != dom::Node::Kind::Document) {
             return false;
           }
         } else if (part.name == "first-child") {
-          if (index != 0) {
+          if (HasPreviousElementSibling(element, "")) {
             return false;
           }
         } else if (part.name == "last-child") {
-          const dom::Node* parent = element.Parent();
-          if (parent == nullptr) {
-            return false;
-          }
-          const dom::Node* last_element = nullptr;
-          for (const std::unique_ptr<dom::Node>& sibling : parent->Children()) {
-            if (sibling->IsElement()) {
-              last_element = sibling.get();
-            }
-          }
-          if (last_element != &element) {
+          if (HasFollowingElementSibling(element, "")) {
             return false;
           }
         } else if (part.name == "only-child") {
-          if (!only_child) {
+          if (HasPreviousElementSibling(element, "") || HasFollowingElementSibling(element, "")) {
+            return false;
+          }
+        } else if (part.name == "first-of-type") {
+          if (HasPreviousElementSibling(element, element.TagName())) {
+            return false;
+          }
+        } else if (part.name == "last-of-type") {
+          if (HasFollowingElementSibling(element, element.TagName())) {
+            return false;
+          }
+        } else if (part.name == "only-of-type") {
+          if (HasPreviousElementSibling(element, element.TagName()) ||
+              HasFollowingElementSibling(element, element.TagName())) {
             return false;
           }
         } else if (part.name == "empty") {
-          if (!element.Children().empty()) {
+          if (!EmptyPseudoClassMatches(element)) {
             return false;
           }
         } else {
@@ -292,7 +320,6 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
           return false;
         }
         break;
-      }
     }
   }
   return true;

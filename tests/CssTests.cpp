@@ -237,6 +237,16 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
            "the first paragraph is not the last child");
     Expect(SelectorMatches("p:only-child", "<div><p>a</p></div>", "p"), "only-child");
     Expect(SelectorMatches("p:empty", "<div><p></p></div>", "p"), "empty");
+    Expect(SelectorMatches("p:empty", "<div><p><!-- note --></p></div>", "p"),
+           "comments do not make an element non-empty");
+    Expect(SelectorMatches("p:first-of-type", "<div><span>a</span><p>b</p></div>", "p"),
+           "first-of-type ignores earlier elements with other tag names");
+    Expect(SelectorMatches("p:last-of-type", "<div><p>a</p><span>b</span></div>", "p"),
+           "last-of-type ignores later elements with other tag names");
+    Expect(SelectorMatches("p:only-of-type", "<div><span>a</span><p>b</p><em>c</em></div>", "p"),
+           "only-of-type counts siblings with the same tag name");
+    Expect(!SelectorMatches("p:only-of-type", "<div><p>a</p><span>b</span><p>c</p></div>", "p"),
+           "only-of-type fails when another element has the same tag name");
   });
 
   AddTest(tests, "CssSelector/AnUnknownPseudoClassMatchesNothing", [] {
