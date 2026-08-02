@@ -324,11 +324,11 @@ void Interpreter::InstallGlobals() {
   install(object_constructor, "create", [](NativeCall& call) {
     const Value prototype = Argument(call.arguments, 0);
     if (!prototype.IsObject() && !prototype.IsNull()) {
-      return Value::Undefined();
+      return call.Throw("TypeError", "Object.create prototype must be an object or null");
     }
     Object* object = call.interpreter.NewObject();
     if (object == nullptr) {
-      return Value::Undefined();
+      return call.Throw("RangeError", "out of memory");
     }
     object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
     return Value::Obj(object);

@@ -449,6 +449,8 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                "b");
     ExpectEval("'a' in Object.create({ a: 1 })", "true");
     ExpectEval("const o = Object.create(null); o.x = 4; o.x", "4");
+    ExpectEval("Object.create(5)",
+               "throw TypeError: Object.create prototype must be an object or null");
   });
 
   // --- Classes --------------------------------------------------------------

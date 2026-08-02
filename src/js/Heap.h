@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -26,9 +27,19 @@ struct ArrayElement {
 
 // A native function's implementation.
 struct NativeCall {
+  NativeCall(Interpreter& owner, Value receiver, const std::vector<Value>& args)
+      : interpreter(owner), self(std::move(receiver)), arguments(args) {}
+
   Interpreter& interpreter;
   Value self;
   const std::vector<Value>& arguments;
+  Value Throw(std::string_view kind, std::string message);
+  bool HasThrown() const { return threw; }
+  const Value& ThrownValue() const { return thrown; }
+
+ private:
+  bool threw = false;
+  Value thrown;
 };
 using NativeFunction = std::function<Value(NativeCall&)>;
 

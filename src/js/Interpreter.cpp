@@ -77,6 +77,12 @@ Result Interpreter::Throw(std::string_view kind, std::string message) {
   return Result{Completion::Throw, MakeError(kind, std::move(message)), {}};
 }
 
+Value NativeCall::Throw(std::string_view kind, std::string message) {
+  thrown = interpreter.MakeError(kind, std::move(message));
+  threw = true;
+  return Value::Undefined();
+}
+
 void Interpreter::MaybeCollect() {
   if (heap_.AllocationsSinceCollection() < kCollectionThreshold || call_depth_ != 0) {
     return;
@@ -276,9 +282,9 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
     NativeCall call{*this, self, arguments};
     Value value = function->Native()(call);
     --call_depth_;
-    // A native that wants to throw returns the error and sets the flag through
-    // Interpreter::Throw; see the builtins, which return MakeError values only
-    // through this path.
+    if (call.HasThrown()) {
+      return Result{Completion::Throw, call.ThrownValue(), {}};
+    }
     return Result::Normal(std::move(value));
   }
 
