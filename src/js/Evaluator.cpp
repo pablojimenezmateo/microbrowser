@@ -253,7 +253,7 @@ Result Interpreter::EvaluateBinary(const Node& node, Environment& scope) {
         return Result::Normal(Value::Bool(b.object->HasElement(*index)));
       }
     }
-    return Result::Normal(Value::Bool(b.object->Get(key) != nullptr));
+    return Result::Normal(Value::Bool(b.object->GetProperty(key) != nullptr));
   }
   if (op == "instanceof") {
     if (!b.IsObject() || !b.object->IsCallable()) {

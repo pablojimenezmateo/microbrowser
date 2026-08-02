@@ -480,6 +480,8 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("class A { get twice(){ return this.n * 2 } } class B extends A { n = 5 } "
                "new B().twice",
                "10");
+    ExpectEval("class A { get value(){ return 1 } } 'value' in new A", "true");
+    ExpectEval("class A { set value(v){ this.v = v } } 'value' in new A", "true");
   });
 
   AddTest(tests, "JsInterpreter/InheritanceAndSuper", [] {

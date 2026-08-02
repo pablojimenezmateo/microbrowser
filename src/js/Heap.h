@@ -82,7 +82,7 @@ class Object {
   const Value* Get(std::string_view key) const;
   void Set(std::string key, Value value);
   bool Delete(std::string_view key);
-  bool HasOwn(std::string_view key) const { return GetOwn(key) != nullptr; }
+  bool HasOwn(std::string_view key) const { return GetOwnProperty(key) != nullptr; }
 
   // Insertion order, which is what `for...in` and Object.keys use for string
   // keys that are not array indices.
