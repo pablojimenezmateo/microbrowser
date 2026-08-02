@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -65,6 +66,18 @@ std::int64_t NowSeconds() {
 constexpr std::string_view kBlankDocument =
     "<!DOCTYPE html><html><head><title>New Tab</title></head><body></body></html>";
 
+std::optional<std::string> ResolveLink(std::string_view href, std::string_view document_url) {
+  if (const std::optional<url::Url> absolute = url::Url::Parse(href)) {
+    return absolute->Serialize();
+  }
+  const std::optional<url::Url> base = url::Url::Parse(document_url);
+  if (!base.has_value()) {
+    return std::nullopt;
+  }
+  const std::optional<url::Url> resolved = url::Url::Parse(href, *base);
+  return resolved.has_value() ? std::optional<std::string>(resolved->Serialize()) : std::nullopt;
+}
+
 }  // namespace
 
 Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
@@ -86,13 +99,35 @@ bool Engine::HandlePendingMessages() {
     } else if (std::holds_alternative<ipc::ReloadMessage>(*message)) {
       Navigate(page_.Url());
       produced_output = true;
+    } else if (const auto* pointer = std::get_if<ipc::PointerMessage>(&*message)) {
+      produced_output = HandlePointer(*pointer) || produced_output;
     }
-    // StopLoad and Pointer are accepted and ignored: loading is synchronous so
-    // there is nothing to stop, and nothing is hit-testable yet. They are in
-    // the vocabulary now so the UI can be written against the final shape.
+    // StopLoad is accepted and ignored: loading is synchronous so there is
+    // nothing to stop. It is in the vocabulary now so the UI can be written
+    // against the final shape.
   }
 
   return produced_output;
+}
+
+bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
+  if (pointer.kind != ipc::PointerMessage::Kind::Down || pointer.button != 1 ||
+      device_scale_ <= 0.0f) {
+    return false;
+  }
+  const gfx::FloatPoint document_point{
+      static_cast<float>(pointer.position.x) / device_scale_,
+      static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(scroll_y_)};
+  const std::optional<std::string> href = page_.LinkAt(document_point);
+  if (!href.has_value()) {
+    return false;
+  }
+  const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
+  if (!resolved.has_value()) {
+    return false;
+  }
+  Navigate(*resolved);
+  return true;
 }
 
 void Engine::Navigate(const std::string& url) {

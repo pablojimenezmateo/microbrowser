@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -65,6 +66,11 @@ class Page : private layout::ImageProvider {
   // says and what layout has to look up -- resolving is the loader's job, and
   // doing it twice in two places is how the two disagree.
   void AddImage(std::string src, std::shared_ptr<const gfx::Image> image);
+
+  // The link whose laid-out box contains `document_point`, or nullopt.
+  // Document coordinates, not viewport coordinates: scrolling is state owned
+  // by Engine, and the page's box tree is laid out unscrolled.
+  std::optional<std::string> LinkAt(gfx::FloatPoint document_point) const;
 
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab

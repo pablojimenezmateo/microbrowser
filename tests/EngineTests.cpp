@@ -74,6 +74,16 @@ struct Session {
     }
     return title;
   }
+
+  std::string LastCommittedUrl() const {
+    std::string url;
+    for (const ipc::EngineToUi& message : sent) {
+      if (const auto* committed = std::get_if<ipc::NavigationCommittedMessage>(&message)) {
+        url = committed->url;
+      }
+    }
+    return url;
+  }
 };
 
 std::size_t TextRunCount(const gfx::DisplayList& list) {
@@ -180,6 +190,20 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Paint(scrolled, 40.0f);
     Expect(!(top == scrolled), "scrolling changed the recorded geometry");
     Expect(top.Bounds().y - scrolled.Bounds().y == 40, "by exactly the scroll offset");
+  });
+
+  AddTest(tests, "Page/HitTestsLaidOutLinks", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><a href='/next'>ABC</a><p>outside</p></body>",
+              "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> hit = page.LinkAt(gfx::FloatPoint{5.0f, 5.0f});
+    Expect(hit.has_value(), "a point over link text hits the anchor");
+    ExpectEqString(*hit, "/next", "the written href is returned for the engine to resolve");
+    Expect(!page.LinkAt(gfx::FloatPoint{5.0f, 50.0f}).has_value(),
+           "text outside the anchor is not a link");
   });
 
   // --- Subresources ---------------------------------------------------------
@@ -516,6 +540,31 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     session.Send(ipc::NavigateMessage{"about:blank"});
     ExpectEqString(session.LastTitle(), "New Tab", "about:blank is a real, blank document");
     Expect(session.LastFrame() != nullptr, "and it paints");
+  });
+
+  AddTest(tests, "Engine/ClickingALinkNavigatesToIt", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><a href='/next'>ABC</a></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Next</title><body>next page</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/next",
+                   "the relative href was resolved against the document URL");
+    ExpectEqString(session.LastTitle(), "Next", "and the clicked document committed");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "the initial page and the clicked page were fetched");
+    Expect(factory.log.requests.at(1).find("GET /next ") != std::string::npos,
+           "the second request is for the clicked link");
   });
 
   AddTest(tests, "Engine/EveryFrameItProducesSurvivesItsOwnWireFormat", [] {

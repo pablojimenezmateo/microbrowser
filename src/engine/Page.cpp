@@ -51,6 +51,48 @@ std::string DirectText(const dom::Element& element) {
   return text;
 }
 
+bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
+  return point.x >= rect.x && point.x < rect.Right() && point.y >= rect.y &&
+         point.y < rect.Bottom();
+}
+
+const std::string* AnchorHref(const dom::Element* element) {
+  if (element == nullptr || element->TagName() != "a") {
+    return nullptr;
+  }
+  const std::string* href = element->GetAttribute("href");
+  return href != nullptr && !href->empty() ? href : nullptr;
+}
+
+std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
+                                       const std::string* active_href) {
+  if (const std::string* href = AnchorHref(box.Origin())) {
+    active_href = href;
+  }
+
+  for (std::size_t i = box.Children().size(); i-- > 0;) {
+    if (std::optional<std::string> hit = HitTestLink(*box.Children()[i], point, active_href)) {
+      return hit;
+    }
+  }
+
+  if (active_href == nullptr) {
+    return std::nullopt;
+  }
+  if (box.GetKind() == layout::Box::Kind::Text) {
+    for (const layout::TextFragment& fragment : box.Fragments()) {
+      if (Contains(fragment.rect, point)) {
+        return *active_href;
+      }
+    }
+    return std::nullopt;
+  }
+  if (Contains(box.Geometry().BorderBox(), point)) {
+    return *active_href;
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
 Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {}
@@ -176,6 +218,13 @@ void Page::Paint(gfx::DisplayList& out, float scroll_y) const {
   }
   layout::BuildDisplayList(*boxes_, out, gfx::FloatPoint{0.0f, -scroll_y});
   AddPerformanceCounter(PerfCounterId::DisplayListBuilds);
+}
+
+std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
+  if (boxes_ == nullptr) {
+    return std::nullopt;
+  }
+  return HitTestLink(*boxes_, document_point, nullptr);
 }
 
 }  // namespace microbrowser::engine

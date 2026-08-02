@@ -52,6 +52,7 @@ class Engine {
   void Navigate(const std::string& url);
   void SetViewport(const gfx::IntSize& size, float device_scale);
   void ScrollBy(int delta_x, int delta_y);
+  bool HandlePointer(const ipc::PointerMessage& pointer);
   // Fetches what the document referenced -- stylesheets, then images -- before
   // the first layout, because both change it.
   void LoadSubresources();
