@@ -82,7 +82,11 @@ std::string InputValue(const dom::Element& element) {
   if (const std::string* value = element.GetAttribute("value")) {
     return *value;
   }
-  if (ContainsAsciiCaseInsensitive(InputType(element), "submit")) {
+  const std::string type = InputType(element);
+  if (ContainsAsciiCaseInsensitive(type, "checkbox") || ContainsAsciiCaseInsensitive(type, "radio")) {
+    return "on";
+  }
+  if (ContainsAsciiCaseInsensitive(type, "submit")) {
     return "Submit";
   }
   return {};

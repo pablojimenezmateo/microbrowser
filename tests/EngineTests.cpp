@@ -225,6 +225,28 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "GET submission replaces the action query with successful controls");
   });
 
+  AddTest(tests, "Page/SerializesOnlyCheckedCheckboxesAndRadios", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:10px;height:10px}</style>"
+        "<body style='margin:0'><form action='/filter'>"
+        "<input type='checkbox' name='seen' checked>"
+        "<input type='checkbox' name='skip'>"
+        "<input type='radio' name='mode' value='new' checked>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{35.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/filter?seen=on&mode=new",
+                   "checked boxes without a value submit 'on', unchecked boxes submit nothing, "
+                   "and an unnamed submitter is not successful");
+  });
+
   // --- Subresources ---------------------------------------------------------
 
   AddTest(tests, "Page/CollectsLinkedStyleSheetsButNotOtherLinks", [] {
