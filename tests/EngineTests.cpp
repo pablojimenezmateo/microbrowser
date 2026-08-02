@@ -298,6 +298,28 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/search", "the disabled fieldset text control was not submitted");
   });
 
+  AddTest(tests, "Page/DisabledFieldsetFirstLegendControlsRemainEnabled", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>fieldset,legend,input{margin:0;padding:0;border:0}"
+        "input{width:40px;height:20px}</style>"
+        "<body style='margin:0'><form action='/search'>"
+        "<fieldset disabled>"
+        "<legend><input name='q' value='allowed'><input type='submit' value='Go'></legend>"
+        "<input name='blocked' value='x'>"
+        "</fieldset>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "a submit control inside the first legend remains enabled");
+    ExpectEqString(*target, "/search?q=allowed",
+                   "only controls inside the first legend escape the disabled fieldset");
+  });
+
   AddTest(tests, "Page/ButtonElementsSubmitForms", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

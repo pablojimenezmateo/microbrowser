@@ -42,6 +42,27 @@ std::string OptionValue(const dom::Element& option) {
   return option.TextContent();
 }
 
+const dom::Element* FirstLegendChild(const dom::Element& fieldset) {
+  for (const std::unique_ptr<dom::Node>& child : fieldset.Children()) {
+    if (child->IsElement()) {
+      const auto& element = static_cast<const dom::Element&>(*child);
+      if (element.TagName() == "legend") {
+        return &element;
+      }
+    }
+  }
+  return nullptr;
+}
+
+bool IsDescendantOf(const dom::Node& node, const dom::Node& ancestor) {
+  for (const dom::Node* at = &node; at != nullptr; at = at->Parent()) {
+    if (at == &ancestor) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 std::string_view InputType(const dom::Element& element) {
@@ -58,8 +79,21 @@ bool IsDisabledFormControl(const dom::Element& element) {
   if (element.HasAttribute("disabled")) {
     return true;
   }
-  const dom::Element* fieldset = element.ClosestAncestor("fieldset");
-  return fieldset != nullptr && fieldset->HasAttribute("disabled");
+  for (const dom::Node* at = element.Parent(); at != nullptr; at = at->Parent()) {
+    if (!at->IsElement()) {
+      continue;
+    }
+    const auto& fieldset = static_cast<const dom::Element&>(*at);
+    if (fieldset.TagName() != "fieldset" || !fieldset.HasAttribute("disabled")) {
+      continue;
+    }
+    const dom::Element* legend = FirstLegendChild(fieldset);
+    if (legend != nullptr && IsDescendantOf(element, *legend)) {
+      continue;
+    }
+    return true;
+  }
+  return false;
 }
 
 bool IsHiddenInput(const dom::Element& element) {
