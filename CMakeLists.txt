@@ -260,6 +260,7 @@ microbrowser_module(ipc
 microbrowser_module(engine
   SOURCES
     src/engine/Engine.cpp
+    src/engine/FormAlgorithms.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
