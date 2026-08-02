@@ -1421,6 +1421,41 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "the form controls are sent in the body");
   });
 
+  AddTest(tests, "Engine/ClickingATextPlainPostFormSendsAPlainRequestBody", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/plain' method='post' "
+                   "enctype='text/plain'>"
+                   "<input name='q' value='hello world' size='2'>"
+                   "<input type='submit' name='go' value='Search'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Plain</title><body>plain results</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/plain",
+                   "POST text/plain commits the action URL");
+    ExpectEqString(session.LastTitle(), "Plain", "and the result document committed");
+    const std::string& request = factory.log.requests.at(1);
+    Expect(request.rfind("POST /plain HTTP/1.1\r\n", 0) == 0,
+           "the second request uses POST");
+    Expect(request.find("Content-Type: text/plain\r\n") != std::string::npos,
+           "the request carries the selected form encoding");
+    Expect(request.find("Content-Length: 26\r\n") != std::string::npos,
+           "the plain form body length includes CRLF row endings");
+    Expect(request.size() >= 26 &&
+               request.substr(request.size() - 26) == "q=hello world\r\ngo=Search\r\n",
+           "the form controls are sent as name=value lines without URL encoding");
+  });
+
   AddTest(tests, "Engine/TextInputChangesFocusedFormControlsBeforeSubmit", [] {
     Session session;
     ScriptedFactory factory;

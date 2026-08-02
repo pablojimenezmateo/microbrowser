@@ -1,6 +1,7 @@
 #include "engine/Page.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <utility>
 
 #include "css/StyleSheet.h"
@@ -22,6 +23,13 @@ using util::PerfCounterId;
 
 constexpr std::size_t kMaxInputValueBytes = 4096;
 constexpr std::string_view kUrlEncodedFormContentType = "application/x-www-form-urlencoded";
+constexpr std::string_view kTextPlainFormContentType = "text/plain";
+
+enum class FormEncoding : std::uint8_t {
+  UrlEncoded,
+  TextPlain,
+  Unsupported,
+};
 
 // Splits an attribute on ASCII whitespace, per the HTML spec's
 // "space-separated tokens".
@@ -234,10 +242,11 @@ bool IsRadioGroupPeer(const dom::Element& candidate,
   return html::FormOwner(candidate, document) == html::FormOwner(activated, document);
 }
 
-std::string FormQuery(const dom::Document& document,
-                      const dom::Element& form,
-                      const dom::Element* submitter) {
-  std::string out;
+template <typename Callback>
+void ForEachSuccessfulFormValue(const dom::Document& document,
+                                const dom::Element& form,
+                                const dom::Element* submitter,
+                                Callback callback) {
   document.ForEachDescendant([&](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
@@ -255,13 +264,37 @@ std::string FormQuery(const dom::Document& document,
     }
     if (html::IsSelectElement(element)) {
       for (const std::string& value : html::SelectedOptionValues(element)) {
-        AppendNamedFormComponent(*name, value, out);
+        callback(*name, value);
       }
       return;
     }
     const std::string value = ControlValue(element);
-    AppendNamedFormComponent(*name, value, out);
+    callback(*name, value);
   });
+}
+
+std::string UrlEncodedFormData(const dom::Document& document,
+                               const dom::Element& form,
+                               const dom::Element* submitter) {
+  std::string out;
+  ForEachSuccessfulFormValue(document, form, submitter,
+                             [&](std::string_view name, std::string_view value) {
+                               AppendNamedFormComponent(name, value, out);
+                             });
+  return out;
+}
+
+std::string TextPlainFormData(const dom::Document& document,
+                              const dom::Element& form,
+                              const dom::Element* submitter) {
+  std::string out;
+  ForEachSuccessfulFormValue(document, form, submitter,
+                             [&](std::string_view name, std::string_view value) {
+                               out += name;
+                               out.push_back('=');
+                               out += value;
+                               out += "\r\n";
+                             });
   return out;
 }
 
@@ -281,16 +314,21 @@ std::string FormMethod(const dom::Element& form, const dom::Element* submitter) 
   return "GET";
 }
 
-bool HasUnsupportedFormEncoding(const dom::Element& form, const dom::Element* submitter) {
+FormEncoding FormEncodingFor(const dom::Element& form, const dom::Element* submitter) {
   const std::string* encoding =
       submitter != nullptr && submitter->HasAttribute("formenctype")
           ? submitter->GetAttribute("formenctype")
           : form.GetAttribute("enctype");
   if (encoding == nullptr || encoding->empty()) {
-    return false;
+    return FormEncoding::UrlEncoded;
   }
-  return util::EqualsAsciiCaseInsensitive(*encoding, "multipart/form-data") ||
-         util::EqualsAsciiCaseInsensitive(*encoding, "text/plain");
+  if (util::EqualsAsciiCaseInsensitive(*encoding, kTextPlainFormContentType)) {
+    return FormEncoding::TextPlain;
+  }
+  if (util::EqualsAsciiCaseInsensitive(*encoding, "multipart/form-data")) {
+    return FormEncoding::Unsupported;
+  }
+  return FormEncoding::UrlEncoded;
 }
 
 std::string WithoutFragment(std::string_view url) {
@@ -308,17 +346,23 @@ std::optional<FormSubmission> BuildFormSubmission(const dom::Element& form,
           : form.GetAttribute("action");
   const std::string action_url =
       action == nullptr || action->empty() ? std::string(document_url) : *action;
-  const std::string query = FormQuery(document, form, submitter);
+  const FormEncoding encoding = FormEncodingFor(form, submitter);
   FormSubmission submission;
   submission.method = FormMethod(form, submitter);
   if (submission.method == "POST") {
-    if (HasUnsupportedFormEncoding(form, submitter)) {
+    if (encoding == FormEncoding::Unsupported) {
       return std::nullopt;
     }
     submission.url = WithoutFragment(action_url);
-    submission.body = query;
-    submission.content_type = std::string(kUrlEncodedFormContentType);
+    if (encoding == FormEncoding::TextPlain) {
+      submission.body = TextPlainFormData(document, form, submitter);
+      submission.content_type = std::string(kTextPlainFormContentType);
+    } else {
+      submission.body = UrlEncodedFormData(document, form, submitter);
+      submission.content_type = std::string(kUrlEncodedFormContentType);
+    }
   } else {
+    const std::string query = UrlEncodedFormData(document, form, submitter);
     submission.url = WithoutQueryOrFragment(action_url);
     if (!query.empty()) {
       submission.url += '?';
