@@ -30,6 +30,10 @@ bool EqualsIgnoringCase(std::string_view a, std::string_view b) {
                     [](char x, char y) { return ToLower(x) == ToLower(y); });
 }
 
+bool StartsWith(std::string_view text, std::string_view prefix) {
+  return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
+}
+
 std::string_view Trim(std::string_view text) {
   while (!text.empty() && (text.front() == ' ' || text.front() == '\t')) {
     text.remove_prefix(1);
@@ -192,6 +196,13 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
   // asks to be sent on every cross-site request over plain HTTP, which is a
   // tracking cookie with the safety catch removed.
   if (cookie.same_site == SameSite::None && !cookie.secure) {
+    return std::nullopt;
+  }
+  if (StartsWith(cookie.name, "__Secure-") && !cookie.secure) {
+    return std::nullopt;
+  }
+  if (StartsWith(cookie.name, "__Host-") &&
+      (!cookie.secure || !cookie.host_only || cookie.path != "/")) {
     return std::nullopt;
   }
   return cookie;

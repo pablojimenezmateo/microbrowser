@@ -245,6 +245,25 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
            "with Secure it is allowed");
   });
 
+  AddTest(tests, "Cookie/EnforcesSecureAndHostPrefixes", [] {
+    const Url url = MustParse("https://example.com/");
+
+    Expect(!net::ParseSetCookie("__Secure-id=1", url, 0).has_value(),
+           "__Secure- names require the Secure attribute");
+    Expect(net::ParseSetCookie("__Secure-id=1; Secure", url, 0).has_value(),
+           "and are accepted when Secure is present");
+
+    Expect(!net::ParseSetCookie("__Host-id=1; Secure; Domain=example.com; Path=/", url, 0)
+                .has_value(),
+           "__Host- names must be host-only");
+    Expect(!net::ParseSetCookie("__Host-id=1; Secure; Path=/account", url, 0).has_value(),
+           "__Host- names must be scoped to /");
+    Expect(!net::ParseSetCookie("__Host-id=1; Path=/", url, 0).has_value(),
+           "__Host- names also require Secure");
+    Expect(net::ParseSetCookie("__Host-id=1; Secure; Path=/", url, 0).has_value(),
+           "the prefix is accepted only when every invariant holds");
+  });
+
   AddTest(tests, "Cookie/DomainMatchingStopsAtALabelBoundary", [] {
     Expect(net::CookieDomainMatches("example.com", "example.com"), "exact");
     Expect(net::CookieDomainMatches("a.example.com", "example.com"), "subdomain");
