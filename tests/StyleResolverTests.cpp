@@ -236,6 +236,10 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(reordered.border_width.top == Length::Pixels(3.0f) &&
                reordered.border_color == gfx::Color::Rgb(0xFF, 0, 0),
            "the components may come in any order, which is what the grammar says");
+
+    const ComputedStyle none = StyleOf("<p style='border: 2px solid blue; border: none'>x</p>", "",
+                                       "p");
+    Expect(!none.has_border, "border:none turns the border off");
   });
 
   AddTest(tests, "StyleResolver/AnInvalidValueLeavesThePropertyAlone", [] {
@@ -256,6 +260,15 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "an invalid text-align leaves the earlier valid value alone");
     Expect(keywords.white_space == WhiteSpace::Pre,
            "an invalid white-space leaves the earlier valid value alone");
+
+    const ComputedStyle border =
+        StyleOf("<p style='border: 2px solid blue; border: wavy; border-width: nope'>x</p>", "",
+                "p");
+    Expect(border.has_border, "an invalid border shorthand does not turn a previous border off");
+    Expect(border.border_width.top == Length::Pixels(2.0f),
+           "and an invalid border-width does not alter its previous width");
+    Expect(border.border_color == gfx::Color::Rgb(0, 0, 0xFF),
+           "or its previous colour");
   });
 
   AddTest(tests, "StyleResolver/DisplayNoneMeansNoBox", [] {

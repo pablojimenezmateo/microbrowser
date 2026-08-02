@@ -277,33 +277,84 @@ std::optional<Length> ParseLength(std::string_view text) {
 
 namespace {
 
-void ApplyEdges(std::string_view value, const ComputedStyle& style, Edges& edges) {
+bool ApplyEdges(std::string_view value, Edges& edges) {
   const std::vector<std::string_view> parts = SplitWords(value);
+  if (parts.empty() || parts.size() > 4) {
+    return false;
+  }
   std::array<Length, 4> lengths;
-  for (std::size_t i = 0; i < parts.size() && i < 4; ++i) {
+  for (std::size_t i = 0; i < parts.size(); ++i) {
     const auto length = ParseLength(parts[i]);
     if (!length.has_value()) {
-      return;  // one bad component invalidates the whole shorthand
+      return false;  // one bad component invalidates the whole shorthand
     }
     lengths[i] = *length;
   }
-  (void)style;
   switch (parts.size()) {
     case 1:
       edges = Edges{lengths[0], lengths[0], lengths[0], lengths[0]};
-      return;
+      return true;
     case 2:
       edges = Edges{lengths[0], lengths[1], lengths[0], lengths[1]};
-      return;
+      return true;
     case 3:
       edges = Edges{lengths[0], lengths[1], lengths[2], lengths[1]};
-      return;
+      return true;
     case 4:
       edges = Edges{lengths[0], lengths[1], lengths[2], lengths[3]};
-      return;
+      return true;
     default:
-      return;
+      return false;
   }
+}
+
+bool IsBorderStyleKeyword(std::string_view value) {
+  return value == "none" || value == "hidden" || value == "dotted" || value == "dashed" ||
+         value == "solid" || value == "double" || value == "groove" || value == "ridge" ||
+         value == "inset" || value == "outset";
+}
+
+void ApplyBorder(std::string_view value, ComputedStyle& style) {
+  const std::vector<std::string_view> parts = SplitWords(value);
+  if (parts.empty()) {
+    return;
+  }
+
+  std::optional<Edges> width;
+  std::optional<gfx::Color> color;
+  bool saw_style = false;
+  bool style_disables_border = false;
+  for (const std::string_view part : parts) {
+    if (const auto length = ParseLength(part)) {
+      if (width.has_value()) {
+        return;
+      }
+      width = Edges{*length, *length, *length, *length};
+    } else if (const auto parsed_color = ParseColor(part)) {
+      if (color.has_value()) {
+        return;
+      }
+      color = *parsed_color;
+    } else {
+      const std::string lowered = Lowered(part);
+      if (!IsBorderStyleKeyword(lowered)) {
+        return;
+      }
+      if (saw_style) {
+        return;
+      }
+      saw_style = true;
+      style_disables_border = lowered == "none" || lowered == "hidden";
+    }
+  }
+
+  if (width.has_value()) {
+    style.border_width = *width;
+  }
+  if (color.has_value()) {
+    style.border_color = *color;
+  }
+  style.has_border = !style_disables_border;
 }
 
 }  // namespace
@@ -469,11 +520,11 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "margin") {
-    ApplyEdges(declaration.value, style, style.margin);
+    ApplyEdges(declaration.value, style.margin);
     return;
   }
   if (property == "padding") {
-    ApplyEdges(declaration.value, style, style.padding);
+    ApplyEdges(declaration.value, style.padding);
     return;
   }
   if (property == "width" || property == "height") {
@@ -490,22 +541,13 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "border-width") {
-    ApplyEdges(declaration.value, style, style.border_width);
-    style.has_border = true;
+    if (ApplyEdges(declaration.value, style.border_width)) {
+      style.has_border = true;
+    }
     return;
   }
   if (property == "border") {
-    // `1px solid red` in any order. Each component is tried as a length then as
-    // a colour; the style keyword is recognized and ignored, since only solid
-    // is drawn.
-    for (const std::string_view part : SplitWords(declaration.value)) {
-      if (const auto length = ParseLength(part)) {
-        style.border_width = Edges{*length, *length, *length, *length};
-      } else if (const auto color = ParseColor(part)) {
-        style.border_color = *color;
-      }
-    }
-    style.has_border = true;
+    ApplyBorder(declaration.value, style);
     return;
   }
 
