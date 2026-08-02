@@ -206,6 +206,7 @@ microbrowser_module(layout
   SOURCES
     src/layout/FloatContext.cpp
     src/layout/FontTextMeasurer.cpp
+    src/layout/LayoutDisplayList.cpp
     src/layout/LayoutEngine.cpp
     src/layout/TableLayout.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_css microbrowser_gfx)

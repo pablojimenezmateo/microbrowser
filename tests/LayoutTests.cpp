@@ -426,6 +426,36 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(saw_value, "a submit input paints its value text");
   });
 
+  AddTest(tests, "Layout/PaintsCheckedInputIndicators", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input type='checkbox' checked value='box'>"
+            "<input type='radio' checked value='radio'></body>",
+            "body { margin: 0 } input { margin: 0; width: 20px; height: 20px; "
+            "background-color: white; border: 1px solid gray; color: green }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_checkbox_mark = false;
+    bool saw_radio_dot = false;
+    bool leaked_value_text = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* stroke = std::get_if<gfx::StrokePathCommand>(&command)) {
+        saw_checkbox_mark = saw_checkbox_mark || stroke->color == gfx::Color::Rgb(0, 0x80, 0);
+      } else if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        saw_radio_dot = saw_radio_dot || fill->color == gfx::Color::Rgb(0, 0x80, 0);
+      } else if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        leaked_value_text =
+            leaked_value_text ||
+            (run != nullptr && (run->text.find("box") != std::string::npos ||
+                                run->text.find("radio") != std::string::npos));
+      }
+    }
+    Expect(saw_checkbox_mark, "a checked checkbox paints an indicator");
+    Expect(saw_radio_dot, "a checked radio paints an indicator");
+    Expect(!leaked_value_text, "checkbox and radio values are form data, not visible labels");
+  });
+
   AddTest(tests, "Layout/PasswordInputValuesAreNotPaintedAsText", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input type='password' value='secret'></body>",

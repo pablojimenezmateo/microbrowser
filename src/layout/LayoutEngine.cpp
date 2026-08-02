@@ -120,12 +120,16 @@ bool IsHiddenInput(const dom::Element& element) {
   return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "hidden");
 }
 
-bool IsPasswordInput(const dom::Element& element) {
+bool IsInputType(const dom::Element& element, std::string_view expected) {
   if (element.TagName() != "input") {
     return false;
   }
   const std::string* type = element.GetAttribute("type");
-  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "password");
+  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, expected);
+}
+
+bool IsPasswordInput(const dom::Element& element) {
+  return IsInputType(element, "password");
 }
 
 bool IsReplacedElement(const dom::Element& element) {
@@ -134,6 +138,9 @@ bool IsReplacedElement(const dom::Element& element) {
 
 std::string InputControlText(const dom::Element& element) {
   if (IsPasswordInput(element)) {
+    return {};
+  }
+  if (IsInputType(element, "checkbox") || IsInputType(element, "radio")) {
     return {};
   }
   if (const std::string* value = element.GetAttribute("value")) {
@@ -798,78 +805,6 @@ float LayoutEngine::MaxContentWidth(const Box& box) const {
                                               style.border_width.right.Resolve(style.font_size)
                                         : 0.0f);
   return widest + edges;
-}
-
-void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset) {
-  // Backgrounds and borders paint before content, which is what makes a child
-  // draw on top of its parent's background rather than under it.
-  const auto paint = [&out, offset](const Box& box, auto& self) -> void {
-    const css::ComputedStyle& style = box.Style();
-    // A text box has no background and no border by construction, but the
-    // painter says so too: this is the kind of invariant that is cheap to
-    // assert here and expensive to rediscover from a screenshot.
-    if (box.GetKind() == Box::Kind::Text) {
-      const gfx::FontRequest font = FontRequestFor(style);
-      for (const TextFragment& fragment : box.Fragments()) {
-        const std::string_view piece(box.Text().data() + fragment.begin, fragment.length);
-        // The baseline, not the top of the line box. They differ by an ascent,
-        // and using the wrong one puts every line of text a line too low.
-        out.DrawText(piece, fragment.rect.width, font,
-                     gfx::FloatPoint{fragment.rect.x + offset.x, fragment.baseline + offset.y},
-                     style.color);
-      }
-      return;
-    }
-    const gfx::FloatRect unshifted = box.Geometry().BorderBox();
-    const gfx::FloatRect border_box{unshifted.x + offset.x, unshifted.y + offset.y,
-                                    unshifted.width, unshifted.height};
-
-    if (!style.background_color.IsFullyTransparent() && !border_box.IsEmpty()) {
-      gfx::Path background;
-      background.AddRect(border_box);
-      out.FillPath(background, style.background_color);
-    }
-    if (style.has_border && !border_box.IsEmpty()) {
-      const float width = style.border_width.top.Resolve(style.font_size);
-      if (width > 0.0f) {
-        gfx::Path outline;
-        // Inset by half the stroke width so the border lands inside the border
-        // box rather than straddling its edge.
-        outline.AddRect(gfx::FloatRect{border_box.x + width * 0.5f, border_box.y + width * 0.5f,
-                                       std::max(0.0f, border_box.width - width),
-                                       std::max(0.0f, border_box.height - width)});
-        gfx::StrokeStyle stroke;
-        stroke.width = width;
-        out.StrokePath(outline, stroke, style.border_color);
-      }
-    }
-
-    if (box.GetKind() == Box::Kind::Replaced) {
-      const gfx::FloatRect content = box.Geometry().content;
-      if (box.Image() != nullptr && box.Image()->IsValid()) {
-        // The used size, not the intrinsic one: a declared width scales the
-        // image, which is what an <img width=40> on a 400px file means.
-        out.DrawImage(box.Image(),
-                      gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
-                                                           content.y + offset.y, content.width,
-                                                           content.height}));
-      }
-      if (!box.Text().empty()) {
-        const gfx::FontRequest font = FontRequestFor(style);
-        const float baseline = content.y + content.height * 0.5f + style.font_size * 0.3f;
-        out.DrawText(box.Text(), std::max(0.0f, content.width - 8.0f), font,
-                     gfx::FloatPoint{content.x + offset.x + 4.0f, baseline + offset.y},
-                     style.color);
-      }
-      return;
-    }
-
-    for (const std::unique_ptr<Box>& child : box.Children()) {
-      self(*child, self);
-    }
-  };
-  paint(root, paint);
-  AddPerformanceCounter(PerfCounterId::LayoutDisplayListsBuilt);
 }
 
 }  // namespace microbrowser::layout
