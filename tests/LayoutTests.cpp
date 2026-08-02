@@ -395,6 +395,36 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "the next row starts below the tallest cell, not below the first cell only");
   });
 
+  AddTest(tests, "Layout/TableColspanConsumesMultipleColumns", [] {
+    const LaidOut result =
+        Run("<table><tr><td colspan='2'>wide</td><td>right</td></tr>"
+            "<tr><td>a</td><td>b</td><td>c</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            300.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 5, "five cell boxes");
+    Expect(cells.at(0)->Geometry().content.width == 200.0f,
+           "a colspan=2 cell occupies two of the three columns");
+    Expect(cells.at(1)->Geometry().content.x == 200.0f,
+           "the following cell starts after both columns the span consumed");
+    Expect(cells.at(3)->Geometry().content.x == 100.0f &&
+               cells.at(4)->Geometry().content.x == 200.0f,
+           "the next row still uses the same three-column grid");
+  });
+
+  AddTest(tests, "Layout/InvalidTableColspanFallsBackToOneColumn", [] {
+    const LaidOut result =
+        Run("<table><tr><td colspan='0'>a</td><td colspan='n'>b</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            200.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 2, "two cell boxes");
+    Expect(cells.at(0)->Geometry().content.width == 100.0f,
+           "zero is not accepted as a table span");
+    Expect(cells.at(1)->Geometry().content.x == 100.0f,
+           "and a non-numeric span does not consume extra columns");
+  });
+
   // --- Painting -------------------------------------------------------------
 
   AddTest(tests, "Layout/PaintsBackgroundsAndBorders", [] {

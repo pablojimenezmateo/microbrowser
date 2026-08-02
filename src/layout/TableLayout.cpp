@@ -2,6 +2,10 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <string>
+
+#include "util/Parse.h"
 
 namespace microbrowser::layout {
 
@@ -24,11 +28,26 @@ bool IsTableColumnBox(css::Display display) {
   return display == css::Display::TableColumnGroup || display == css::Display::TableColumn;
 }
 
+std::size_t ColumnSpan(const Box& cell) {
+  if (cell.Origin() == nullptr) {
+    return 1;
+  }
+  const std::string* attribute = cell.Origin()->GetAttribute("colspan");
+  if (attribute == nullptr) {
+    return 1;
+  }
+  const std::optional<int> parsed = util::ParseInt(*attribute);
+  if (!parsed.has_value() || *parsed <= 0) {
+    return 1;
+  }
+  return static_cast<std::size_t>(std::min(*parsed, 1000));
+}
+
 std::size_t CellCount(const Box& row) {
   std::size_t count = 0;
   for (const std::unique_ptr<Box>& child : row.Children()) {
     if (IsTableCell(child->Style().display)) {
-      ++count;
+      count += ColumnSpan(*child);
     }
   }
   return count;
@@ -148,12 +167,17 @@ float LayoutEngine::LayoutTableRow(Box& row, float content_left, float content_w
     if (!IsTableCell(child->Style().display)) {
       continue;
     }
+    if (column >= column_count) {
+      break;
+    }
     const float cell_left = row_left + cell_width * static_cast<float>(column);
+    const std::size_t span = std::min(ColumnSpan(*child), column_count - column);
+    const float spanned_width = cell_width * static_cast<float>(span);
     float cell_cursor = row_top;
     FloatContext cell_floats;
-    LayoutBlock(*child, cell_left, cell_width, cell_cursor, cell_floats);
+    LayoutBlock(*child, cell_left, spanned_width, cell_cursor, cell_floats);
     row_bottom = std::max(row_bottom, cell_cursor);
-    ++column;
+    column += span;
   }
 
   geometry.content = gfx::FloatRect{row_left, row_top, row_width, row_bottom - row_top};
