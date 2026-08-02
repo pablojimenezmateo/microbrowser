@@ -283,6 +283,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = {}; o.x = 5; o.x", "5");
     ExpectEval("const k = 'z'; const o = { [k]: 9 }; o.z", "9");
     ExpectEval("const o = { a: 1 }; delete o.a; typeof o.a", "undefined");
+    ExpectEval("const o = {}; delete o.missing", "true");
     ExpectEval("const o = { a: undefined }; 'a' in o", "true");
   });
 

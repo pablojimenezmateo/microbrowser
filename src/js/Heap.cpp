@@ -75,7 +75,7 @@ void Object::DefineAccessor(std::string key, Object* getter, Object* setter) {
 bool Object::Delete(std::string_view key) {
   const auto found = properties_.find(std::string(key));
   if (found == properties_.end()) {
-    return false;
+    return true;
   }
   properties_.erase(found);
   key_order_.erase(std::remove(key_order_.begin(), key_order_.end(), std::string(key)),
