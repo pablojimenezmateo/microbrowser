@@ -28,6 +28,15 @@ bool IsRequestFramingHeader(std::string_view name) {
   return HeaderNameIs(name, "content-length") || HeaderNameIs(name, "transfer-encoding");
 }
 
+bool IsFetchOwnedHeader(std::string_view name) {
+  return IsRequestFramingHeader(name) || HeaderNameIs(name, "host") ||
+         HeaderNameIs(name, "connection") || HeaderNameIs(name, "proxy-connection") ||
+         HeaderNameIs(name, "accept-language") || HeaderNameIs(name, "accept-encoding") ||
+         HeaderNameIs(name, "cookie") || HeaderNameIs(name, "referer") ||
+         HeaderNameIs(name, "user-agent") || HeaderNameIs(name, "te") ||
+         HeaderNameIs(name, "trailer") || HeaderNameIs(name, "upgrade");
+}
+
 bool IsBodyHeader(std::string_view name) {
   return IsRequestFramingHeader(name) || HeaderNameIs(name, "content-type");
 }
@@ -77,7 +86,7 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   headers.Add("Connection", "close");
 
   for (const HttpHeaders::Field& field : options.headers.Fields()) {
-    if (IsRequestFramingHeader(field.name)) {
+    if (IsFetchOwnedHeader(field.name)) {
       continue;
     }
     headers.Add(field.name, field.value);

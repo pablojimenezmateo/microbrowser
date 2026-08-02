@@ -82,6 +82,19 @@ std::string BodyString(const net::HttpResponse& response) {
   return std::string(reinterpret_cast<const char*>(response.body.data()), response.body.size());
 }
 
+std::size_t CountOccurrences(std::string_view text, std::string_view needle) {
+  std::size_t count = 0;
+  std::size_t offset = 0;
+  while (true) {
+    const std::size_t found = text.find(needle, offset);
+    if (found == std::string_view::npos) {
+      return count;
+    }
+    ++count;
+    offset = found + needle.size();
+  }
+}
+
 }  // namespace
 
 void RegisterFetchTests(std::vector<TestCase>& tests) {
@@ -273,6 +286,47 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "caller-provided Content-Length is not forwarded");
     Expect(request.find("Transfer-Encoding:") == std::string::npos,
            "and neither is caller-provided transfer coding");
+  });
+
+  AddTest(tests, "Fetch/OwnsPrivacyAndConnectionHeaders", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    FetchOptions options;
+    options.headers.Add("Host", "evil.example");
+    options.headers.Add("Cookie", "sid=attacker");
+    options.headers.Add("Referer", "https://secret.example/path");
+    options.headers.Add("Accept-Language", "fr-FR");
+    options.headers.Add("Accept-Encoding", "gzip");
+    options.headers.Add("Connection", "keep-alive");
+    options.headers.Add("User-Agent", "fingerprint");
+    options.headers.Add("X-Keep", "yes");
+
+    const FetchResult result =
+        Run(policy, factory, cookies, cache, "https://example.com/page", options);
+    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+
+    const std::string& request = factory.log.requests.at(0);
+    ExpectEqInt(static_cast<long long>(CountOccurrences(request, "Host: ")), 1,
+                "Fetch owns the Host header");
+    Expect(request.find("Host: example.com\r\n") != std::string::npos, "canonical Host");
+    Expect(request.find("Cookie:") == std::string::npos,
+           "caller-provided cookies do not bypass the jar");
+    Expect(request.find("Referer:") == std::string::npos,
+           "caller-provided referrers do not bypass the privacy verdict");
+    Expect(request.find("Accept-Language: en-US\r\n") != std::string::npos,
+           "locale exposure stays fixed");
+    Expect(request.find("Accept-Language: fr-FR\r\n") == std::string::npos,
+           "and the caller cannot replace it");
+    Expect(request.find("Accept-Encoding: identity\r\n") != std::string::npos,
+           "content coding stays explicit");
+    Expect(request.find("Connection: close\r\n") != std::string::npos, "one connection policy");
+    Expect(request.find("User-Agent:") == std::string::npos, "no caller-supplied user agent");
+    Expect(request.find("X-Keep: yes\r\n") != std::string::npos,
+           "ordinary application headers still travel");
   });
 
   AddTest(tests, "Fetch/StoresAndSendsCookiesInTheRequestsOwnPartition", [] {
