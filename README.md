@@ -137,7 +137,7 @@ so in detail rather than leaving it to be discovered at the end.
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
 | M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **done** — text reaches pixels through the display list, with a font database, a glyph cache and a shaped-run cache |
 | M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — URL, privacy, HTTP/1.1, cookies, cache, sockets and TLS done; connection pooling and a partitioned DNS cache not |
-| M3 | HTML parsing + DOM | **in progress** — tokenizer, DOM, tree construction and ordinary tables done; foreign content and templates not |
+| M3 | HTML parsing + DOM | **in progress** — tokenizer, DOM, tree construction, ordinary tables and select insertion modes done; foreign content and templates not |
 | M4 | CSS: parsing, selectors, cascade, computed style | **done** — tokenizer, parser, selectors, cascade, computed style, user-agent sheet |
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements, floats, clearance and basic table row/cell layout done; flexbox and grid not |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | **in progress** — display-list building and incremental repaint from a two-frame diff done; stacking contexts not |

@@ -33,7 +33,7 @@ what each demands, not by preference:
 Server-rendered HTML, table-based layout, a few hundred bytes of CSS, and
 almost no script. What is missing is small and already on the list:
 
-- HTML tables (an M3 gap: the tree builder has no table insertion modes)
+- HTML table/select edge cases beyond the covered insertion modes
 - Links and navigation from a click
 - Form controls, for the comment and search boxes
 
