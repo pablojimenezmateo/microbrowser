@@ -367,6 +367,49 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "text before it");
   });
 
+  AddTest(tests, "Layout/InputControlsGenerateVisibleInlineBoxes", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input size='10'><span>after</span></body>",
+            "body { margin: 0 } input { margin: 0; font-size: 20px }", 400.0f);
+    const Box* input = FindBox(*result.root, "input");
+    Expect(input != nullptr, "the input has a box");
+    Expect(input->Geometry().content.width == 132.0f,
+           "the size attribute becomes a bounded text-control width");
+    Expect(input->Geometry().content.height == 30.0f,
+           "and the control has a line-height-derived height");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(!texts.empty() && !texts.at(0)->Fragments().empty(), "the following text laid out");
+    Expect(texts.at(0)->Fragments().at(0).rect.x >= input->Geometry().content.Right(),
+           "the input occupies inline space before following text");
+  });
+
+  AddTest(tests, "Layout/HiddenInputsGenerateNoBox", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input type='hidden' value='secret'><span>visible</span></body>",
+            "body { margin: 0 }", 400.0f);
+    Expect(FindBox(*result.root, "input") == nullptr,
+           "a hidden input is form state, not a rendered control");
+    Expect(!TextBoxes(*result.root).empty(), "the visible content remains");
+  });
+
+  AddTest(tests, "Layout/PaintsInputControlBackgroundAndBorder", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input size='4'></body>",
+            "body { margin: 0 } input { margin: 0; background-color: white; "
+            "border: 1px solid gray; font-size: 20px }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_fill = false;
+    bool saw_stroke = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      saw_fill = saw_fill || std::holds_alternative<gfx::FillPathCommand>(command);
+      saw_stroke = saw_stroke || std::holds_alternative<gfx::StrokePathCommand>(command);
+    }
+    Expect(saw_fill, "the control background is painted");
+    Expect(saw_stroke, "and so is its border");
+  });
+
   AddTest(tests, "Layout/TableCellsShareARowInsteadOfStacking", [] {
     const LaidOut result =
         Run("<table><tr><td>a</td><td>b</td></tr></table>",

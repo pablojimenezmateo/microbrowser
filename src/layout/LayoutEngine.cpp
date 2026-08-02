@@ -83,6 +83,24 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
   if (box.Image() != nullptr && box.Image()->IsValid()) {
     return static_cast<float>(horizontal ? box.Image()->Width() : box.Image()->Height());
   }
+  if (box.Origin() != nullptr && box.Origin()->TagName() == "input") {
+    if (!horizontal) {
+      return style.font_size * 1.2f + 6.0f;
+    }
+    const std::string* size = box.Origin()->GetAttribute("size");
+    if (size != nullptr) {
+      if (const std::optional<double> parsed = util::ParseDouble(*size)) {
+        if (*parsed > 0.0 && *parsed < 1000.0) {
+          return static_cast<float>(*parsed) * style.font_size * 0.6f + 12.0f;
+        }
+      }
+    }
+    const std::string* value = box.Origin()->GetAttribute("value");
+    if (value != nullptr && !value->empty()) {
+      return static_cast<float>(value->size()) * style.font_size * 0.6f + 18.0f;
+    }
+    return style.font_size * 20.0f * 0.6f + 12.0f;
+  }
   return 0.0f;
 }
 
@@ -93,6 +111,18 @@ float ReplacedHeight(const Box& box) { return ReplacedIntrinsic(box, false); }
 bool IsCollapsibleSpace(const Box& box) {
   return box.GetKind() == Box::Kind::Text &&
          box.Style().white_space == css::WhiteSpace::Normal && IsAllWhitespace(box.Text());
+}
+
+bool IsHiddenInput(const dom::Element& element) {
+  if (element.TagName() != "input") {
+    return false;
+  }
+  const std::string* type = element.GetAttribute("type");
+  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "hidden");
+}
+
+bool IsReplacedElement(const dom::Element& element) {
+  return element.TagName() == "img" || element.TagName() == "input";
 }
 
 std::optional<float> TableAttributeWidth(const Box& box, float available_width) {
@@ -220,12 +250,17 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     return nullptr;
   }
 
+  if (IsHiddenInput(element)) {
+    return nullptr;
+  }
+
   // A replaced element's children generate no boxes: whatever is inside an
-  // <img> is fallback content the element replaces.
-  if (util::EqualsAsciiCaseInsensitive(element.TagName(), "img")) {
+  // <img> is fallback content the element replaces, and an <input> has its own
+  // control surface rather than DOM children.
+  if (IsReplacedElement(element)) {
     auto box = std::make_unique<Box>(Box::Kind::Replaced, style);
     box->SetOrigin(&element);
-    if (images_ != nullptr) {
+    if (element.TagName() == "img" && images_ != nullptr) {
       if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
         box->SetImage(images_->ImageFor(*src));
       }
@@ -747,18 +782,6 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
     // A text box has no background and no border by construction, but the
     // painter says so too: this is the kind of invariant that is cheap to
     // assert here and expensive to rediscover from a screenshot.
-    if (box.GetKind() == Box::Kind::Replaced) {
-      const gfx::FloatRect content = box.Geometry().content;
-      if (box.Image() != nullptr && box.Image()->IsValid()) {
-        // The used size, not the intrinsic one: a declared width scales the
-        // image, which is what an <img width=40> on a 400px file means.
-        out.DrawImage(box.Image(),
-                      gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
-                                                           content.y + offset.y, content.width,
-                                                           content.height}));
-      }
-      return;
-    }
     if (box.GetKind() == Box::Kind::Text) {
       const gfx::FontRequest font = FontRequestFor(style);
       for (const TextFragment& fragment : box.Fragments()) {
@@ -793,6 +816,19 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
         stroke.width = width;
         out.StrokePath(outline, stroke, style.border_color);
       }
+    }
+
+    if (box.GetKind() == Box::Kind::Replaced) {
+      const gfx::FloatRect content = box.Geometry().content;
+      if (box.Image() != nullptr && box.Image()->IsValid()) {
+        // The used size, not the intrinsic one: a declared width scales the
+        // image, which is what an <img width=40> on a 400px file means.
+        out.DrawImage(box.Image(),
+                      gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
+                                                           content.y + offset.y, content.width,
+                                                           content.height}));
+      }
+      return;
     }
 
     for (const std::unique_ptr<Box>& child : box.Children()) {
