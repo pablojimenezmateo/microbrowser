@@ -51,7 +51,7 @@ class HttpCache {
   std::size_t Size() const { return entries_.size(); }
   std::size_t Bytes() const { return bytes_; }
 
-  void SetByteBudget(std::size_t bytes) { budget_ = bytes; }
+  void SetByteBudget(std::size_t bytes);
 
  private:
   struct Record {

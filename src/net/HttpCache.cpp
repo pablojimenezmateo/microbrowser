@@ -154,6 +154,11 @@ void HttpCache::EvictToBudget() {
   }
 }
 
+void HttpCache::SetByteBudget(std::size_t bytes) {
+  budget_ = bytes;
+  EvictToBudget();
+}
+
 void HttpCache::RemoveStale(std::int64_t now) {
   entries_.erase(std::remove_if(entries_.begin(), entries_.end(),
                                 [now](const Record& record) {
