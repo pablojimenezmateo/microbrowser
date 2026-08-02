@@ -36,6 +36,30 @@ bool IsResetInput(const dom::Element& element) {
   return IsInputType(element, "reset");
 }
 
+bool IsSubmitControl(const dom::Element& element) {
+  if (IsSubmitInput(element)) {
+    return true;
+  }
+  if (element.TagName() != "button") {
+    return false;
+  }
+  const std::string* type = element.GetAttribute("type");
+  return type == nullptr || type->empty() ||
+         (!util::EqualsAsciiCaseInsensitive(*type, "button") &&
+          !util::EqualsAsciiCaseInsensitive(*type, "reset"));
+}
+
+bool IsResetControl(const dom::Element& element) {
+  if (IsResetInput(element)) {
+    return true;
+  }
+  if (element.TagName() != "button") {
+    return false;
+  }
+  const std::string* type = element.GetAttribute("type");
+  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "reset");
+}
+
 bool IsCheckboxInput(const dom::Element& element) {
   return IsInputType(element, "checkbox");
 }

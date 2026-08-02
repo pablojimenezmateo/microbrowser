@@ -109,7 +109,7 @@ std::size_t PreviousUtf8Boundary(std::string_view text) {
   return last;
 }
 
-std::string InputValue(const dom::Element& element) {
+std::string ControlValue(const dom::Element& element) {
   if (const std::string* value = element.GetAttribute("value")) {
     return *value;
   }
@@ -134,26 +134,32 @@ std::size_t InputValueLimitBytes(const dom::Element& element) {
   return std::min(static_cast<std::size_t>(*parsed), kMaxInputValueBytes);
 }
 
-bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitter) {
-  if (element.TagName() != "input" || element.HasAttribute("disabled")) {
+bool IsSuccessfulControl(const dom::Element& element, const dom::Element* submitter) {
+  if (element.HasAttribute("disabled")) {
     return false;
   }
   const std::string* name = element.GetAttribute("name");
   if (name == nullptr || name->empty()) {
     return false;
   }
-  if (html::IsSubmitInput(element)) {
-    return &element == submitter;
+  if (element.TagName() == "button") {
+    return html::IsSubmitControl(element) && &element == submitter;
   }
-  if (html::IsInputType(element, "button") || html::IsInputType(element, "reset") ||
-      html::IsInputType(element, "file")) {
-    return false;
+  if (element.TagName() == "input") {
+    if (html::IsSubmitInput(element)) {
+      return &element == submitter;
+    }
+    if (html::IsInputType(element, "button") || html::IsInputType(element, "reset") ||
+        html::IsInputType(element, "file")) {
+      return false;
+    }
+    if ((html::IsCheckboxInput(element) || html::IsRadioInput(element)) &&
+        !element.HasAttribute("checked")) {
+      return false;
+    }
+    return true;
   }
-  if ((html::IsCheckboxInput(element) || html::IsRadioInput(element)) &&
-      !element.HasAttribute("checked")) {
-    return false;
-  }
-  return true;
+  return false;
 }
 
 bool IsValueResettableInput(const dom::Element& element) {
@@ -191,7 +197,7 @@ std::string FormQuery(const dom::Element& form, const dom::Element* submitter) {
       return;
     }
     const auto& element = static_cast<const dom::Element&>(node);
-    if (!IsSuccessfulInput(element, submitter)) {
+    if (!IsSuccessfulControl(element, submitter)) {
       return;
     }
     if (!out.empty()) {
@@ -199,7 +205,7 @@ std::string FormQuery(const dom::Element& form, const dom::Element* submitter) {
     }
     AppendFormComponent(*element.GetAttribute("name"), out);
     out.push_back('=');
-    const std::string value = InputValue(element);
+    const std::string value = ControlValue(element);
     AppendFormComponent(value, out);
   });
   return out;
@@ -229,14 +235,14 @@ std::optional<std::string> FormGetTarget(const dom::Element& form,
   return target;
 }
 
-using InputPredicate = bool (*)(const dom::Element&);
+using ElementPredicate = bool (*)(const dom::Element&);
 
-std::optional<const dom::Element*> HitTestEnabledInput(const layout::Box& box,
-                                                       gfx::FloatPoint point,
-                                                       InputPredicate predicate) {
+std::optional<const dom::Element*> HitTestEnabledElement(const layout::Box& box,
+                                                         gfx::FloatPoint point,
+                                                         ElementPredicate predicate) {
   for (std::size_t i = box.Children().size(); i-- > 0;) {
     if (std::optional<const dom::Element*> hit =
-            HitTestEnabledInput(*box.Children()[i], point, predicate)) {
+            HitTestEnabledElement(*box.Children()[i], point, predicate)) {
       return hit;
     }
   }
@@ -249,11 +255,11 @@ std::optional<const dom::Element*> HitTestEnabledInput(const layout::Box& box,
 }
 
 std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::FloatPoint point) {
-  return HitTestEnabledInput(box, point, html::IsSubmitInput);
+  return HitTestEnabledElement(box, point, html::IsSubmitControl);
 }
 
 std::optional<const dom::Element*> HitTestReset(const layout::Box& box, gfx::FloatPoint point) {
-  return HitTestEnabledInput(box, point, html::IsResetInput);
+  return HitTestEnabledElement(box, point, html::IsResetControl);
 }
 
 std::optional<dom::Element*> HitTestCheckableInput(const layout::Box& box,
@@ -347,7 +353,7 @@ void Page::Load(std::string_view html, std::string url) {
       const auto& element = static_cast<const dom::Element&>(node);
       if (element.TagName() == "input") {
         input_defaults_.emplace(&element,
-                                std::pair<std::string, bool>{InputValue(element),
+                                std::pair<std::string, bool>{ControlValue(element),
                                                              element.HasAttribute("checked")});
       }
     });

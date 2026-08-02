@@ -96,6 +96,8 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "and cells are laid out across that row");
     Expect(StyleOf("<input>", "", "input").display == Display::InlineBlock,
            "an input is an inline-block control, not an invisible void element");
+    Expect(StyleOf("<button>Go</button>", "", "button").display == Display::InlineBlock,
+           "a button is an inline-block control, not ordinary inline text");
   });
 
   AddTest(tests, "StyleResolver/AuthorRulesBeatTheUserAgent", [] {

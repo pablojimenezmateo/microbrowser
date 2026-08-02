@@ -426,6 +426,26 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(saw_value, "a submit input paints its value text");
   });
 
+  AddTest(tests, "Layout/PaintsButtonTextContent", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><button value='form-value'>Go</button></body>",
+            "body { margin: 0 } button { margin: 0; width: 80px; height: 24px; font-size: 20px }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_label = false;
+    bool leaked_value = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_label = saw_label || (run != nullptr && run->text == "Go");
+        leaked_value = leaked_value || (run != nullptr && run->text == "form-value");
+      }
+    }
+    Expect(saw_label, "a button paints its text content");
+    Expect(!leaked_value, "a button's value is form data, not the visible label");
+  });
+
   AddTest(tests, "Layout/PaintsCheckedInputIndicators", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input type='checkbox' checked value='box'>"

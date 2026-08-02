@@ -83,7 +83,8 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
   if (box.Image() != nullptr && box.Image()->IsValid()) {
     return static_cast<float>(horizontal ? box.Image()->Width() : box.Image()->Height());
   }
-  if (box.Origin() != nullptr && box.Origin()->TagName() == "input") {
+  if (box.Origin() != nullptr &&
+      (box.Origin()->TagName() == "input" || box.Origin()->TagName() == "button")) {
     if (!horizontal) {
       return style.font_size * 1.2f + 6.0f;
     }
@@ -113,10 +114,14 @@ bool IsCollapsibleSpace(const Box& box) {
 }
 
 bool IsReplacedElement(const dom::Element& element) {
-  return element.TagName() == "img" || element.TagName() == "input";
+  return element.TagName() == "img" || element.TagName() == "input" ||
+         element.TagName() == "button";
 }
 
-std::string InputControlText(const dom::Element& element) {
+std::string FormControlText(const dom::Element& element) {
+  if (element.TagName() == "button") {
+    return CollapseWhitespace(element.TextContent());
+  }
   if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return {};
   }
@@ -132,10 +137,10 @@ std::string InputControlText(const dom::Element& element) {
     }
     return {};
   }
-  if (html::IsSubmitInput(element)) {
+  if (html::IsSubmitControl(element)) {
     return "Submit";
   }
-  if (html::IsResetInput(element)) {
+  if (html::IsResetControl(element)) {
     return "Reset";
   }
   return {};
@@ -271,8 +276,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   }
 
   // A replaced element's children generate no boxes: whatever is inside an
-  // <img> is fallback content the element replaces, and an <input> has its own
-  // control surface rather than DOM children.
+  // <img> is fallback content the element replaces, and form controls have
+  // their own control surface rather than ordinary DOM child boxes.
   if (IsReplacedElement(element)) {
     auto box = std::make_unique<Box>(Box::Kind::Replaced, style);
     box->SetOrigin(&element);
@@ -280,8 +285,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
         box->SetImage(images_->ImageFor(*src));
       }
-    } else if (element.TagName() == "input") {
-      box->SetText(InputControlText(element));
+    } else if (element.TagName() == "input" || element.TagName() == "button") {
+      box->SetText(FormControlText(element));
     }
     box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};
     produced_inline = true;

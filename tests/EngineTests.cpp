@@ -240,6 +240,53 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "a disabled submit control must not activate its form");
   });
 
+  AddTest(tests, "Page/ButtonElementsSubmitForms", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input,button{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' value='hello'>"
+        "<button name='go' value='Search'>Search</button>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "clicking a button with no type activates its form");
+    ExpectEqString(*target, "/search?q=hello&go=Search",
+                   "the clicked button is serialized as the submitter");
+  });
+
+  AddTest(tests, "Page/ButtonElementTypesAreHonored", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input,button{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' value='start'>"
+        "<button type='button' name='noop' value='x'>Noop</button>"
+        "<button type='reset'>Reset</button>"
+        "<button name='go' value='Go'>Go</button>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
+           "a button with type=button does not submit");
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.InsertTextIntoFocusedInput("ed"), "typing changed the input value");
+    page.Layout(400.0f);
+    Expect(page.ResetFormAt(gfx::FloatPoint{85.0f, 5.0f}), "button type=reset resets its form");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{125.0f, 5.0f});
+    Expect(target.has_value(), "the submit button activates its form");
+    ExpectEqString(*target, "/search?q=start&go=Go",
+                   "reset restored the input and the clicked submit button was serialized");
+  });
+
   AddTest(tests, "Page/SerializesOnlyCheckedCheckboxesAndRadios", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
