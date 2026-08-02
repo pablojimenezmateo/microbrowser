@@ -307,6 +307,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // 34-gigabyte allocation.
     ExpectEval("const a = []; a.length = 4294967295; 'ok'",
                "throw RangeError: array length is too large");
+    ExpectEval("const a = [1,2,3]; a.length = 1.5; 'ok'",
+               "throw RangeError: array length is too large");
+    ExpectEval("const a = [1,2,3]; a.length = NaN; 'ok'",
+               "throw RangeError: array length is too large");
   });
 
   AddTest(tests, "JsInterpreter/Destructuring", [] {

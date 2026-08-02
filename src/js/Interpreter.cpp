@@ -185,11 +185,13 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
   Object* object = base.object;
   if (object->GetKind() == Object::Kind::Array) {
     if (key == "length") {
-      const std::uint32_t length = ToUint32(ToNumber(value));
+      const double numeric_length = ToNumber(value);
+      const std::uint32_t length = ToUint32(numeric_length);
       constexpr std::uint32_t kMaxArrayLength = 1u << 26;
-      if (length > kMaxArrayLength) {
+      if (numeric_length != static_cast<double>(length) || length > kMaxArrayLength) {
         // A page can write `a.length = 4294967295`, and honouring it would be a
-        // 34-gigabyte allocation. The bound is far past anything real.
+        // 34-gigabyte allocation. The bound is far past anything real. Fractional,
+        // negative, and NaN lengths are invalid rather than truncated.
         return Throw("RangeError", "array length is too large");
       }
       object->Elements().resize(length);
