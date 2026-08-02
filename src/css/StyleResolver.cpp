@@ -617,7 +617,9 @@ header, footer, nav, aside, main, blockquote, pre, form, figure, hr {
   display: block;
 }
 li { display: list-item }
-input, button, textarea { display: inline-block; background-color: white; border: 1px solid gray }
+input, button, textarea, select {
+  display: inline-block; background-color: white; border: 1px solid gray
+}
 table { display: table }
 caption { display: table-caption }
 colgroup { display: table-column-group }

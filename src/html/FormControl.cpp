@@ -1,5 +1,6 @@
 #include "html/FormControl.h"
 
+#include <optional>
 #include <string>
 
 #include "util/StringUtil.h"
@@ -11,6 +12,27 @@ namespace {
 constexpr std::string_view kEditableTextTypes[] = {
     "text", "search", "password", "email", "url", "tel", "number",
 };
+
+const dom::Element* SelectedOption(const dom::Element& select) {
+  const dom::Element* first = nullptr;
+  const dom::Element* selected = nullptr;
+  select.ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    if (element.TagName() != "option") {
+      return;
+    }
+    if (first == nullptr) {
+      first = &element;
+    }
+    if (selected == nullptr && element.HasAttribute("selected")) {
+      selected = &element;
+    }
+  });
+  return selected != nullptr ? selected : first;
+}
 
 }  // namespace
 
@@ -110,6 +132,32 @@ bool IsEditableTextControl(const dom::Element& element) {
 
 bool IsMutableTextControl(const dom::Element& element) {
   return IsEditableTextControl(element) && !element.HasAttribute("readonly");
+}
+
+bool IsSelectElement(const dom::Element& element) {
+  return element.TagName() == "select";
+}
+
+std::optional<std::string> SelectedOptionText(const dom::Element& select) {
+  if (!IsSelectElement(select)) {
+    return std::nullopt;
+  }
+  const dom::Element* option = SelectedOption(select);
+  return option == nullptr ? std::nullopt : std::optional<std::string>(option->TextContent());
+}
+
+std::optional<std::string> SelectedOptionValue(const dom::Element& select) {
+  if (!IsSelectElement(select)) {
+    return std::nullopt;
+  }
+  const dom::Element* option = SelectedOption(select);
+  if (option == nullptr) {
+    return std::nullopt;
+  }
+  if (const std::string* value = option->GetAttribute("value")) {
+    return *value;
+  }
+  return option->TextContent();
 }
 
 }  // namespace microbrowser::html

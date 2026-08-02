@@ -100,6 +100,9 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "a button is an inline-block control, not ordinary inline text");
     Expect(StyleOf("<textarea>x</textarea>", "", "textarea").display == Display::InlineBlock,
            "a textarea is an inline-block control, not ordinary inline text");
+    Expect(StyleOf("<select><option>x</option></select>", "", "select").display ==
+               Display::InlineBlock,
+           "a select is an inline-block control, not ordinary inline text");
   });
 
   AddTest(tests, "StyleResolver/AuthorRulesBeatTheUserAgent", [] {

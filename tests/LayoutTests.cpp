@@ -467,6 +467,27 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(saw_text, "a textarea paints its default text");
   });
 
+  AddTest(tests, "Layout/PaintsSelectedOptionText", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><select><option value='a'>Alpha</option>"
+            "<option value='b' selected>Beta</option></select></body>",
+            "body { margin: 0 } select { margin: 0; width: 80px; height: 24px; font-size: 20px }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_label = false;
+    bool leaked_value = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_label = saw_label || (run != nullptr && run->text == "Beta");
+        leaked_value = leaked_value || (run != nullptr && run->text == "b");
+      }
+    }
+    Expect(saw_label, "a select paints the selected option text");
+    Expect(!leaked_value, "the option value is form data, not the visible label");
+  });
+
   AddTest(tests, "Layout/PaintsCheckedInputIndicators", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input type='checkbox' checked value='box'>"

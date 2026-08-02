@@ -85,7 +85,8 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
   }
   if (box.Origin() != nullptr && (box.Origin()->TagName() == "input" ||
                                   box.Origin()->TagName() == "button" ||
-                                  box.Origin()->TagName() == "textarea")) {
+                                  box.Origin()->TagName() == "textarea" ||
+                                  box.Origin()->TagName() == "select")) {
     if (!horizontal) {
       if (box.Origin()->TagName() == "textarea") {
         const std::string* rows = box.Origin()->GetAttribute("rows");
@@ -127,10 +128,14 @@ bool IsCollapsibleSpace(const Box& box) {
 
 bool IsReplacedElement(const dom::Element& element) {
   return element.TagName() == "img" || element.TagName() == "input" ||
-         element.TagName() == "button" || element.TagName() == "textarea";
+         element.TagName() == "button" || element.TagName() == "textarea" ||
+         element.TagName() == "select";
 }
 
 std::string FormControlText(const dom::Element& element) {
+  if (const std::optional<std::string> selected = html::SelectedOptionText(element)) {
+    return *selected;
+  }
   if (element.TagName() == "button") {
     return CollapseWhitespace(element.TextContent());
   }
@@ -309,7 +314,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
         box->SetImage(images_->ImageFor(*src));
       }
     } else if (element.TagName() == "input" || element.TagName() == "button" ||
-               element.TagName() == "textarea") {
+               element.TagName() == "textarea" || element.TagName() == "select") {
       box->SetText(FormControlText(element));
     }
     box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};

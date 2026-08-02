@@ -287,6 +287,45 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "reset restored the input and the clicked submit button was serialized");
   });
 
+  AddTest(tests, "Page/SelectControlsSubmitSelectedOptions", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>select,input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/pick'>"
+        "<select name='topic'>"
+        "<option value='a'>Alpha</option><option value='b' selected>Beta</option>"
+        "</select>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/pick?topic=b", "select serializes its selected option value");
+  });
+
+  AddTest(tests, "Page/SelectControlsDefaultToTheFirstOption", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>select,input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/pick'>"
+        "<select name='topic'><option>Alpha</option><option value='b'>Beta</option></select>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/pick?topic=Alpha",
+                   "a select with no selected option uses the first option text");
+  });
+
   AddTest(tests, "Page/SerializesOnlyCheckedCheckboxesAndRadios", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

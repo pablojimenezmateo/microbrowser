@@ -116,6 +116,9 @@ std::string ControlValue(const dom::Element& element) {
   if (html::IsTextareaElement(element)) {
     return element.TextContent();
   }
+  if (const std::optional<std::string> selected = html::SelectedOptionValue(element)) {
+    return *selected;
+  }
   if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return "on";
   }
@@ -164,6 +167,9 @@ bool IsSuccessfulControl(const dom::Element& element, const dom::Element* submit
   }
   if (html::IsTextareaElement(element)) {
     return true;
+  }
+  if (html::IsSelectElement(element)) {
+    return html::SelectedOptionValue(element).has_value();
   }
   return false;
 }
