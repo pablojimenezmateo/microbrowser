@@ -20,5 +20,9 @@ bool IsTextInputType(const dom::Element& element);
 bool IsEditableTextInput(const dom::Element& element);
 bool IsMutableTextInput(const dom::Element& element);
 bool IsPasswordInput(const dom::Element& element);
+bool IsTextareaElement(const dom::Element& element);
+bool IsTextControl(const dom::Element& element);
+bool IsEditableTextControl(const dom::Element& element);
+bool IsMutableTextControl(const dom::Element& element);
 
 }  // namespace microbrowser::html

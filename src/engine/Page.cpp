@@ -113,6 +113,9 @@ std::string ControlValue(const dom::Element& element) {
   if (const std::string* value = element.GetAttribute("value")) {
     return *value;
   }
+  if (html::IsTextareaElement(element)) {
+    return element.TextContent();
+  }
   if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return "on";
   }
@@ -122,7 +125,7 @@ std::string ControlValue(const dom::Element& element) {
   return {};
 }
 
-std::size_t InputValueLimitBytes(const dom::Element& element) {
+std::size_t TextControlValueLimitBytes(const dom::Element& element) {
   const std::string* maxlength = element.GetAttribute("maxlength");
   if (maxlength == nullptr) {
     return kMaxInputValueBytes;
@@ -159,11 +162,14 @@ bool IsSuccessfulControl(const dom::Element& element, const dom::Element* submit
     }
     return true;
   }
+  if (html::IsTextareaElement(element)) {
+    return true;
+  }
   return false;
 }
 
-bool IsValueResettableInput(const dom::Element& element) {
-  return html::IsTextInputType(element);
+bool IsValueResettableControl(const dom::Element& element) {
+  return html::IsTextControl(element);
 }
 
 bool IsRadioGroupPeer(const dom::Element& candidate, const dom::Element& activated) {
@@ -279,14 +285,15 @@ std::optional<dom::Element*> HitTestCheckableInput(const layout::Box& box,
   return const_cast<dom::Element*>(element);
 }
 
-std::optional<dom::Element*> HitTestEditableInput(const layout::Box& box, gfx::FloatPoint point) {
+std::optional<dom::Element*> HitTestEditableTextControl(const layout::Box& box,
+                                                        gfx::FloatPoint point) {
   for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<dom::Element*> hit = HitTestEditableInput(*box.Children()[i], point)) {
+    if (std::optional<dom::Element*> hit = HitTestEditableTextControl(*box.Children()[i], point)) {
       return hit;
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || !html::IsEditableTextInput(*element)) {
+  if (element == nullptr || !html::IsEditableTextControl(*element)) {
     return std::nullopt;
   }
   if (!Contains(box.Geometry().BorderBox(), point)) {
@@ -338,10 +345,10 @@ void Page::Load(std::string_view html, std::string url) {
   resolver_ = css::StyleResolver{};
   document_ = html::ParseDocument(html);
   boxes_.reset();
-  focused_input_ = nullptr;
+  focused_text_control_ = nullptr;
   content_height_ = 0.0f;
   images_.clear();
-  input_defaults_.clear();
+  control_defaults_.clear();
 
   CollectStyleSheets();
   CollectImages();
@@ -351,10 +358,10 @@ void Page::Load(std::string_view html, std::string url) {
         return;
       }
       const auto& element = static_cast<const dom::Element&>(node);
-      if (element.TagName() == "input") {
-        input_defaults_.emplace(&element,
-                                std::pair<std::string, bool>{ControlValue(element),
-                                                             element.HasAttribute("checked")});
+      if (element.TagName() == "input" || element.TagName() == "textarea") {
+        control_defaults_.emplace(&element,
+                                  std::pair<std::string, bool>{ControlValue(element),
+                                                               element.HasAttribute("checked")});
       }
     });
   }
@@ -488,21 +495,21 @@ std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point
   return FormGetTarget(*form, *submitter, url_);
 }
 
-bool Page::FocusInputAt(gfx::FloatPoint document_point) {
-  focused_input_ = nullptr;
+bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
+  focused_text_control_ = nullptr;
   if (boxes_ == nullptr) {
     return false;
   }
-  const std::optional<dom::Element*> hit = HitTestEditableInput(*boxes_, document_point);
+  const std::optional<dom::Element*> hit = HitTestEditableTextControl(*boxes_, document_point);
   if (!hit.has_value()) {
     return false;
   }
-  focused_input_ = *hit;
+  focused_text_control_ = *hit;
   return true;
 }
 
 bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
-  focused_input_ = nullptr;
+  focused_text_control_ = nullptr;
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
@@ -538,7 +545,7 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
 }
 
 bool Page::ResetFormAt(gfx::FloatPoint document_point) {
-  focused_input_ = nullptr;
+  focused_text_control_ = nullptr;
   if (boxes_ == nullptr) {
     return false;
   }
@@ -556,11 +563,11 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
       return;
     }
     auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
-    if (element.TagName() != "input") {
+    if (element.TagName() != "input" && element.TagName() != "textarea") {
       return;
     }
-    const auto found = input_defaults_.find(&element);
-    if (found == input_defaults_.end()) {
+    const auto found = control_defaults_.find(&element);
+    if (found == control_defaults_.end()) {
       return;
     }
     const auto& [value, checked] = found->second;
@@ -571,7 +578,7 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
       } else {
         changed = element.RemoveAttribute("checked") || changed;
       }
-    } else if (IsValueResettableInput(element)) {
+    } else if (IsValueResettableControl(element)) {
       const std::string* current = element.GetAttribute("value");
       changed = current == nullptr || *current != value || changed;
       element.SetAttribute("value", value);
@@ -584,47 +591,42 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   return true;
 }
 
-bool Page::InsertTextIntoFocusedInput(std::string_view text) {
-  if (focused_input_ == nullptr || text.empty() || !html::IsMutableTextInput(*focused_input_)) {
+bool Page::InsertTextIntoFocusedTextControl(std::string_view text) {
+  if (focused_text_control_ == nullptr || text.empty() ||
+      !html::IsMutableTextControl(*focused_text_control_)) {
     return false;
   }
-  std::string value;
-  if (const std::string* current = focused_input_->GetAttribute("value")) {
-    value = *current;
-  }
-  const std::size_t limit = InputValueLimitBytes(*focused_input_);
+  std::string value = ControlValue(*focused_text_control_);
+  const std::size_t limit = TextControlValueLimitBytes(*focused_text_control_);
   if (value.size() >= limit) {
     return false;
   }
   const std::size_t room = limit - value.size();
   value.append(text.substr(0, room));
-  focused_input_->SetAttribute("value", std::move(value));
+  focused_text_control_->SetAttribute("value", std::move(value));
   boxes_.reset();
   return true;
 }
 
-bool Page::DeleteBackwardFromFocusedInput() {
-  if (focused_input_ == nullptr || !html::IsMutableTextInput(*focused_input_)) {
+bool Page::DeleteBackwardFromFocusedTextControl() {
+  if (focused_text_control_ == nullptr || !html::IsMutableTextControl(*focused_text_control_)) {
     return false;
   }
-  std::string value;
-  if (const std::string* current = focused_input_->GetAttribute("value")) {
-    value = *current;
-  }
+  std::string value = ControlValue(*focused_text_control_);
   if (value.empty()) {
     return false;
   }
   value.erase(PreviousUtf8Boundary(value));
-  focused_input_->SetAttribute("value", std::move(value));
+  focused_text_control_->SetAttribute("value", std::move(value));
   boxes_.reset();
   return true;
 }
 
 std::optional<std::string> Page::SubmitFocusedForm() const {
-  if (focused_input_ == nullptr) {
+  if (focused_text_control_ == nullptr) {
     return std::nullopt;
   }
-  const dom::Element* form = focused_input_->ClosestAncestor("form");
+  const dom::Element* form = focused_text_control_->ClosestAncestor("form");
   if (form == nullptr) {
     return std::nullopt;
   }

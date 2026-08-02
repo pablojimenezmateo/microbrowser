@@ -96,4 +96,20 @@ bool IsPasswordInput(const dom::Element& element) {
   return IsInputType(element, "password");
 }
 
+bool IsTextareaElement(const dom::Element& element) {
+  return element.TagName() == "textarea";
+}
+
+bool IsTextControl(const dom::Element& element) {
+  return IsTextInputType(element) || IsTextareaElement(element);
+}
+
+bool IsEditableTextControl(const dom::Element& element) {
+  return !element.HasAttribute("disabled") && IsTextControl(element);
+}
+
+bool IsMutableTextControl(const dom::Element& element) {
+  return IsEditableTextControl(element) && !element.HasAttribute("readonly");
+}
+
 }  // namespace microbrowser::html

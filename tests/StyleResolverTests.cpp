@@ -98,6 +98,8 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "an input is an inline-block control, not an invisible void element");
     Expect(StyleOf("<button>Go</button>", "", "button").display == Display::InlineBlock,
            "a button is an inline-block control, not ordinary inline text");
+    Expect(StyleOf("<textarea>x</textarea>", "", "textarea").display == Display::InlineBlock,
+           "a textarea is an inline-block control, not ordinary inline text");
   });
 
   AddTest(tests, "StyleResolver/AuthorRulesBeatTheUserAgent", [] {

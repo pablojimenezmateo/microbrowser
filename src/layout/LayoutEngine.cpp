@@ -83,12 +83,24 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
   if (box.Image() != nullptr && box.Image()->IsValid()) {
     return static_cast<float>(horizontal ? box.Image()->Width() : box.Image()->Height());
   }
-  if (box.Origin() != nullptr &&
-      (box.Origin()->TagName() == "input" || box.Origin()->TagName() == "button")) {
+  if (box.Origin() != nullptr && (box.Origin()->TagName() == "input" ||
+                                  box.Origin()->TagName() == "button" ||
+                                  box.Origin()->TagName() == "textarea")) {
     if (!horizontal) {
+      if (box.Origin()->TagName() == "textarea") {
+        const std::string* rows = box.Origin()->GetAttribute("rows");
+        if (rows != nullptr) {
+          if (const std::optional<double> parsed = util::ParseDouble(*rows)) {
+            if (*parsed > 0.0 && *parsed < 1000.0) {
+              return static_cast<float>(*parsed) * style.font_size * 1.2f + 6.0f;
+            }
+          }
+        }
+      }
       return style.font_size * 1.2f + 6.0f;
     }
-    const std::string* size = box.Origin()->GetAttribute("size");
+    const std::string* size =
+        box.Origin()->GetAttribute(box.Origin()->TagName() == "textarea" ? "cols" : "size");
     if (size != nullptr) {
       if (const std::optional<double> parsed = util::ParseDouble(*size)) {
         if (*parsed > 0.0 && *parsed < 1000.0) {
@@ -115,12 +127,23 @@ bool IsCollapsibleSpace(const Box& box) {
 
 bool IsReplacedElement(const dom::Element& element) {
   return element.TagName() == "img" || element.TagName() == "input" ||
-         element.TagName() == "button";
+         element.TagName() == "button" || element.TagName() == "textarea";
 }
 
 std::string FormControlText(const dom::Element& element) {
   if (element.TagName() == "button") {
     return CollapseWhitespace(element.TextContent());
+  }
+  if (html::IsTextareaElement(element)) {
+    const std::string* value = element.GetAttribute("value");
+    const std::string current = value != nullptr ? *value : element.TextContent();
+    if (!current.empty()) {
+      return current;
+    }
+    if (const std::string* placeholder = element.GetAttribute("placeholder")) {
+      return *placeholder;
+    }
+    return {};
   }
   if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return {};
@@ -285,7 +308,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
         box->SetImage(images_->ImageFor(*src));
       }
-    } else if (element.TagName() == "input" || element.TagName() == "button") {
+    } else if (element.TagName() == "input" || element.TagName() == "button" ||
+               element.TagName() == "textarea") {
       box->SetText(FormControlText(element));
     }
     box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};

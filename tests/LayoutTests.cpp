@@ -446,6 +446,27 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(!leaked_value, "a button's value is form data, not the visible label");
   });
 
+  AddTest(tests, "Layout/PaintsTextareaDefaultText", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><textarea cols='4' rows='2'>Hello</textarea></body>",
+            "body { margin: 0 } textarea { margin: 0; font-size: 20px }", 400.0f);
+    const Box* textarea = FindBox(*result.root, "textarea");
+    Expect(textarea != nullptr, "the textarea has a box");
+    Expect(textarea->Geometry().content.width == 60.0f, "cols controls intrinsic width");
+    Expect(textarea->Geometry().content.height == 54.0f, "rows controls intrinsic height");
+
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_text = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_text = saw_text || (run != nullptr && run->text == "Hello");
+      }
+    }
+    Expect(saw_text, "a textarea paints its default text");
+  });
+
   AddTest(tests, "Layout/PaintsCheckedInputIndicators", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input type='checkbox' checked value='box'>"

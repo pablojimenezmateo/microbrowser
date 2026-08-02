@@ -25,9 +25,9 @@ budget: Loader header_lines=80 public_methods=10 members=6
 # URLs the document referenced, and the decoded pixels for the images. Member
 # 12 is the original form-control state, keyed by element, so reset controls can
 # restore DOM-mutated values without smuggling internal attributes into the DOM.
-# Member 13 is the currently focused input element, a non-owning pointer into
-# the document so form editing state lives on the DOM value rather than in a
-# second parallel store. Page collects the URLs and the Loader fetches them,
+# Member 13 is the currently focused text-control element, a non-owning pointer
+# into the document so form editing state lives on the DOM value rather than in
+# a second parallel store. Page collects the URLs and the Loader fetches them,
 # because resolving a relative href against a base URL is the loader's job and
 # parsing is this one's.
 #

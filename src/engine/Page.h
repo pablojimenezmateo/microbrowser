@@ -76,9 +76,8 @@ class Page : private layout::ImageProvider {
   // query string, or nullopt when no supported form control was activated.
   std::optional<std::string> FormSubmissionAt(gfx::FloatPoint document_point) const;
 
-  // Focuses an editable input at `document_point`, clearing the focused input
-  // when the point is not one. Returns true when an input was focused.
-  bool FocusInputAt(gfx::FloatPoint document_point);
+  // Focuses an editable text control at `document_point`.
+  bool FocusTextControlAt(gfx::FloatPoint document_point);
 
   // Activates a checkbox or radio input at `document_point`. Returns true when
   // the document value changed and layout/paint should run.
@@ -88,16 +87,13 @@ class Page : private layout::ImageProvider {
   // when the document value changed and layout/paint should run.
   bool ResetFormAt(gfx::FloatPoint document_point);
 
-  // Inserts text into the focused input. Returns true when the document value
-  // changed and layout/paint should run.
-  bool InsertTextIntoFocusedInput(std::string_view text);
+  // Inserts text into the focused text control.
+  bool InsertTextIntoFocusedTextControl(std::string_view text);
 
-  // Deletes the final entered codepoint from the focused input. The first caret
-  // model is end-of-text only; selection and arbitrary caret placement arrive
-  // with real form editing.
-  bool DeleteBackwardFromFocusedInput();
+  // Deletes the final entered codepoint from the focused text control.
+  bool DeleteBackwardFromFocusedTextControl();
 
-  // The GET form target for the currently focused input's owning form, or
+  // The GET form target for the currently focused text control's owning form, or
   // nullopt when no supported form can be submitted.
   std::optional<std::string> SubmitFocusedForm() const;
 
@@ -135,8 +131,8 @@ class Page : private layout::ImageProvider {
   // Owns the decoded pixels for this document, and hands out shared_ptrs so
   // that a display list can outlive a relayout without copying a bitmap.
   std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images_;
-  std::map<const dom::Element*, std::pair<std::string, bool>> input_defaults_;
-  dom::Element* focused_input_ = nullptr;
+  std::map<const dom::Element*, std::pair<std::string, bool>> control_defaults_;
+  dom::Element* focused_text_control_ = nullptr;
   float content_height_ = 0.0f;
 };
 

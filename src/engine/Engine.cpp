@@ -102,7 +102,7 @@ bool Engine::HandlePendingMessages() {
     } else if (const auto* pointer = std::get_if<ipc::PointerMessage>(&*message)) {
       produced_output = HandlePointer(*pointer) || produced_output;
     } else if (const auto* text = std::get_if<ipc::TextInputMessage>(&*message)) {
-      if (page_.InsertTextIntoFocusedInput(text->text)) {
+      if (page_.InsertTextIntoFocusedTextControl(text->text)) {
         LayoutAndPaint();
         produced_output = true;
       }
@@ -110,7 +110,7 @@ bool Engine::HandlePendingMessages() {
       using Command = ipc::InputCommandMessage::Command;
       switch (command->command) {
         case Command::Backspace:
-          if (page_.DeleteBackwardFromFocusedInput()) {
+          if (page_.DeleteBackwardFromFocusedTextControl()) {
             LayoutAndPaint();
             produced_output = true;
           }
@@ -160,7 +160,7 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
     LayoutAndPaint();
     return true;
   }
-  if (page_.FocusInputAt(document_point)) {
+  if (page_.FocusTextControlAt(document_point)) {
     return false;
   }
   const std::optional<std::string> href = page_.LinkAt(document_point);
