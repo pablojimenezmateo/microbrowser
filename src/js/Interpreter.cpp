@@ -1,6 +1,7 @@
 #include "js/Interpreter.h"
 
 #include <cmath>
+#include <optional>
 #include <utility>
 
 namespace microbrowser::js {
@@ -11,27 +12,6 @@ namespace {
 // reclaim. A number rather than a heuristic because the alternative is a
 // heuristic nobody has measured.
 constexpr std::size_t kCollectionThreshold = 4096;
-constexpr std::size_t kMaxArrayIndex = 4294967294ull;
-
-
-// An array index, or npos. `a['0']` and `a[0]` are the same property, which is
-// why this works on the string form rather than on the value's type.
-std::size_t ArrayIndex(std::string_view key) {
-  if (key.empty() || key.size() > 10) {
-    return std::string_view::npos;
-  }
-  if (key.size() > 1 && key[0] == '0') {
-    return std::string_view::npos;  // "01" is a property name, not an index
-  }
-  std::size_t index = 0;
-  for (const char c : key) {
-    if (c < '0' || c > '9') {
-      return std::string_view::npos;
-    }
-    index = index * 10 + static_cast<std::size_t>(c - '0');
-  }
-  return index <= kMaxArrayIndex ? index : std::string_view::npos;
-}
 
 }  // namespace
 
@@ -60,13 +40,22 @@ Value Interpreter::NewArrayValue(std::vector<Value> elements) {
   return array == nullptr ? Value::Undefined() : Value::Obj(array);
 }
 
+Value Interpreter::NewArrayValue(std::vector<Value> elements, std::vector<bool> present) {
+  Object* array = NewArray(std::move(elements), std::move(present));
+  return array == nullptr ? Value::Undefined() : Value::Obj(array);
+}
+
 Object* Interpreter::NewArray(std::vector<Value> elements) {
+  return NewArray(std::move(elements), {});
+}
+
+Object* Interpreter::NewArray(std::vector<Value> elements, std::vector<bool> present) {
   Object* array = heap_.AllocateObject(Object::Kind::Array);
   if (array == nullptr) {
     return nullptr;
   }
   array->SetPrototype(array_prototype_);
-  array->Elements() = std::move(elements);
+  array->SetElements(std::move(elements), std::move(present));
   return array;
 }
 
@@ -133,10 +122,9 @@ Value Interpreter::GetProperty(const Value& base, std::string_view key) {
     if (key == "length") {
       return Value::Number(static_cast<double>(text.size()));
     }
-    const std::size_t index = ArrayIndex(key);
-    if (index != std::string_view::npos) {
-      return index < text.size() ? Value::String(std::string(1, text[index]))
-                                 : Value::Undefined();
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+      return *index < text.size() ? Value::String(std::string(1, text[*index]))
+                                  : Value::Undefined();
     }
     return Value::Undefined();
   }
@@ -147,11 +135,10 @@ Value Interpreter::GetProperty(const Value& base, std::string_view key) {
   Object* object = base.object;
   if (object->GetKind() == Object::Kind::Array) {
     if (key == "length") {
-      return Value::Number(static_cast<double>(object->Elements().size()));
+      return Value::Number(static_cast<double>(object->ElementCount()));
     }
-    const std::size_t index = ArrayIndex(key);
-    if (index != std::string_view::npos) {
-      return index < object->Elements().size() ? object->Elements()[index] : Value::Undefined();
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+      return object->GetElement(*index);
     }
   }
   const Object::Property* property = object->GetProperty(key);
@@ -195,19 +182,15 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
         // negative, and NaN lengths are invalid rather than truncated.
         return Throw("RangeError", "array length is too large");
       }
-      object->Elements().resize(length);
+      object->ResizeElements(length);
       return Result::Normal(value);
     }
-    const std::size_t index = ArrayIndex(key);
-    if (index != std::string_view::npos) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
       constexpr std::size_t kMaxArrayLength = 1u << 26;
-      if (index >= kMaxArrayLength) {
+      if (*index >= kMaxArrayLength) {
         return Throw("RangeError", "array index is too large");
       }
-      if (index >= object->Elements().size()) {
-        object->Elements().resize(index + 1);
-      }
-      object->Elements()[index] = value;
+      object->SetElement(*index, value);
       return Result::Normal(value);
     }
   }

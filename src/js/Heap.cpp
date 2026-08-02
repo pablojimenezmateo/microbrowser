@@ -11,8 +11,29 @@ namespace {
 // (`a.__proto__ = b; b.__proto__ = a`), so the walk is bounded rather than
 // trusted -- an unbounded one is a hang, not a wrong answer.
 constexpr int kMaxPrototypeDepth = 1000;
+constexpr std::size_t kMaxArrayIndex = 4294967294ull;
 
 }  // namespace
+
+std::optional<std::size_t> ParseArrayIndex(std::string_view key) {
+  if (key.empty() || key.size() > 10) {
+    return std::nullopt;
+  }
+  if (key.size() > 1 && key[0] == '0') {
+    return std::nullopt;  // "01" is a property name, not an index.
+  }
+  std::size_t index = 0;
+  for (const char c : key) {
+    if (c < '0' || c > '9') {
+      return std::nullopt;
+    }
+    index = index * 10 + static_cast<std::size_t>(c - '0');
+  }
+  if (index > kMaxArrayIndex) {
+    return std::nullopt;
+  }
+  return index;
+}
 
 const Object::Property* Object::GetOwnProperty(std::string_view key) const {
   const auto found = properties_.find(std::string(key));
@@ -73,6 +94,15 @@ void Object::DefineAccessor(std::string key, Object* getter, Object* setter) {
 }
 
 bool Object::Delete(std::string_view key) {
+  if (kind_ == Kind::Array) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+      if (*index < elements_.size()) {
+        elements_[*index].value = Value::Undefined();
+        elements_[*index].present = false;
+      }
+      return true;
+    }
+  }
   const auto found = properties_.find(std::string(key));
   if (found == properties_.end()) {
     return true;
@@ -81,6 +111,49 @@ bool Object::Delete(std::string_view key) {
   key_order_.erase(std::remove(key_order_.begin(), key_order_.end(), std::string(key)),
                    key_order_.end());
   return true;
+}
+
+bool Object::HasElement(std::size_t index) const {
+  return index < elements_.size() && elements_[index].present;
+}
+
+Value Object::GetElement(std::size_t index) const {
+  return HasElement(index) ? elements_[index].value : Value::Undefined();
+}
+
+void Object::SetElements(std::vector<Value> elements, std::vector<bool> present) {
+  elements_.clear();
+  elements_.reserve(elements.size());
+  for (std::size_t i = 0; i < elements.size(); ++i) {
+    elements_.push_back(ArrayElement{
+        std::move(elements[i]),
+        present.empty() ? true : (i < present.size() && present[i]),
+    });
+  }
+}
+
+void Object::ResizeElements(std::size_t size) {
+  elements_.resize(size);
+}
+
+void Object::SetElement(std::size_t index, Value value) {
+  if (index >= elements_.size()) {
+    elements_.resize(index + 1);
+  }
+  elements_[index] = ArrayElement{std::move(value), true};
+}
+
+void Object::PushElement(Value value) {
+  elements_.push_back(ArrayElement{std::move(value), true});
+}
+
+Value Object::PopElement() {
+  if (elements_.empty()) {
+    return Value::Undefined();
+  }
+  Value value = elements_.back().present ? elements_.back().value : Value::Undefined();
+  elements_.pop_back();
+  return value;
 }
 
 void Object::MakeFunction(const Node* parameters, const Node* body, Environment* closure,
@@ -202,8 +275,10 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
         Mark(entry.second.getter);
         Mark(entry.second.setter);
       }
-      for (const Value& element : object->elements_) {
-        MarkValue(element);
+      for (const ArrayElement& element : object->elements_) {
+        if (element.present) {
+          MarkValue(element.value);
+        }
       }
     }
     while (!environment_worklist_.empty()) {

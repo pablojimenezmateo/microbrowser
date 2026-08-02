@@ -167,11 +167,11 @@ std::string ToString(const Value& value) {
         // Array.prototype.toString joins with commas, and a null or undefined
         // element contributes nothing rather than its name.
         std::string joined;
-        for (std::size_t i = 0; i < value.object->Elements().size(); ++i) {
+        for (std::size_t i = 0; i < value.object->ElementCount(); ++i) {
           if (i != 0) {
             joined.push_back(',');
           }
-          const Value& element = value.object->Elements()[i];
+          const Value element = value.object->GetElement(i);
           if (!element.IsNullish()) {
             joined += ToString(element);
           }

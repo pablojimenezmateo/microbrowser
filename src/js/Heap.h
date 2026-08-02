@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -15,6 +16,13 @@ namespace microbrowser::js {
 
 class Environment;
 class Interpreter;
+
+std::optional<std::size_t> ParseArrayIndex(std::string_view key);
+
+struct ArrayElement {
+  Value value;
+  bool present = false;
+};
 
 // A native function's implementation.
 struct NativeCall {
@@ -80,8 +88,14 @@ class Object {
   // keys that are not array indices.
   const std::vector<std::string>& Keys() const { return key_order_; }
 
-  std::vector<Value>& Elements() { return elements_; }
-  const std::vector<Value>& Elements() const { return elements_; }
+  std::size_t ElementCount() const { return elements_.size(); }
+  bool HasElement(std::size_t index) const;
+  Value GetElement(std::size_t index) const;
+  void SetElements(std::vector<Value> elements, std::vector<bool> present);
+  void ResizeElements(std::size_t size);
+  void SetElement(std::size_t index, Value value);
+  void PushElement(Value value);
+  Value PopElement();
 
   // Function state. Empty for anything that is not callable.
   const Node* Parameters() const { return parameters_; }
@@ -122,7 +136,7 @@ class Object {
   Object* prototype_ = nullptr;
   std::unordered_map<std::string, Property> properties_;
   std::vector<std::string> key_order_;
-  std::vector<Value> elements_;
+  std::vector<ArrayElement> elements_;
 
   const Node* parameters_ = nullptr;
   const Node* body_ = nullptr;

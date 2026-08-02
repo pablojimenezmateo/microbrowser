@@ -86,6 +86,7 @@ class Interpreter {
   // worse. Undefined when the heap is full, which a builtin propagates as an
   // ordinary value rather than as a second failure channel.
   Value NewArrayValue(std::vector<Value> elements);
+  Value NewArrayValue(std::vector<Value> elements, std::vector<bool> present);
 
  private:
   friend struct NativeCall;
@@ -118,6 +119,7 @@ class Interpreter {
 
   Object* NewObject();
   Object* NewArray(std::vector<Value> elements);
+  Object* NewArray(std::vector<Value> elements, std::vector<bool> present);
   Value NewFunction(const Node& node, Environment& scope, bool arrow);
   void InstallGlobals();
 

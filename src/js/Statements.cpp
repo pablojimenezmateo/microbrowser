@@ -119,9 +119,11 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
 
     case NodeKind::ArrayLiteral: {
       std::vector<Value> elements;
+      std::vector<bool> present;
       for (const NodePtr& element : node.children) {
         if (element == nullptr) {
           elements.push_back(Value::Undefined());  // a hole reads as undefined
+          present.push_back(false);
           continue;
         }
         if (element->kind == NodeKind::Spread) {
@@ -135,8 +137,9 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
           }
           if (spread.value.IsObject() &&
               spread.value.object->GetKind() == Object::Kind::Array) {
-            for (const Value& value : spread.value.object->Elements()) {
-              elements.push_back(value);
+            for (std::size_t i = 0; i < spread.value.object->ElementCount(); ++i) {
+              elements.push_back(spread.value.object->GetElement(i));
+              present.push_back(true);
             }
           }
           continue;
@@ -146,8 +149,9 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
           return value;
         }
         elements.push_back(value.value);
+        present.push_back(true);
       }
-      Object* array = NewArray(std::move(elements));
+      Object* array = NewArray(std::move(elements), std::move(present));
       if (array == nullptr) {
         return Throw("RangeError", "out of memory");
       }
@@ -517,11 +521,15 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
   if (iterable.value.IsObject()) {
     Object* object = iterable.value.object;
     if (object->GetKind() == Object::Kind::Array) {
-      for (std::size_t i = 0; i < object->Elements().size(); ++i) {
+      for (std::size_t i = 0; i < object->ElementCount(); ++i) {
         // `for...of` yields values, `for...in` yields keys -- and for an array
         // the keys are strings, which is the classic reason `for...in` over an
         // array gives "0", "1" rather than 0, 1.
-        items.push_back(is_of ? object->Elements()[i] : Value::String(std::to_string(i)));
+        if (is_of) {
+          items.push_back(object->GetElement(i));
+        } else if (object->HasElement(i)) {
+          items.push_back(Value::String(std::to_string(i)));
+        }
       }
     }
     if (!is_of) {

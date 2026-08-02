@@ -300,6 +300,24 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("[1,2,3,4].slice(-2).join('')", "34");
   });
 
+  AddTest(tests, "JsInterpreter/SparseArrayHolesAreNotElements", [] {
+    ExpectEval("0 in [, 1]", "false");
+    ExpectEval("1 in [, 1]", "true");
+    ExpectEval("const a = [1,2]; delete a[0]; a.length + ':' + (0 in a) + ':' + a.join(',')",
+               "2:false:,2");
+    ExpectEval("Object.keys([, 'x']).join(',')", "1");
+    ExpectEval("Object.values([, 'x']).join(',')", "x");
+    ExpectEval("JSON.stringify([, 1])", "[null,1]");
+    ExpectEval("[, undefined].indexOf(undefined)", "1");
+    ExpectEval("[,].includes(undefined)", "true");
+    ExpectEval("[1,,3].map(x => x * 2).join(',')", "2,,6");
+    ExpectEval("[1,,3].filter(x => true).join(',')", "1,3");
+    ExpectEval("[1,,3].reduce((a, b) => a + b)", "4");
+    ExpectEval("let s = ''; for (const k in [, 'x']) s += k; s", "1");
+    ExpectEval("let s = ''; for (const v of [, 'x']) s += String(v) + ','; s",
+               "undefined,x,");
+  });
+
   AddTest(tests, "JsInterpreter/AnArrayGrowsWhenWrittenPastItsEnd", [] {
     ExpectEval("const a = []; a[2] = 'x'; a.length", "3");
     ExpectEval("const a = [1,2,3]; a.length = 1; a.join('')", "1");

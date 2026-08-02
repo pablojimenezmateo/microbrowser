@@ -251,12 +251,12 @@ void Interpreter::InstallGlobals() {
         if (value.object->GetKind() == Object::Kind::Array) {
           out.push_back('[');
           bool first = true;
-          for (const Value& element : value.object->Elements()) {
+          for (std::size_t i = 0; i < value.object->ElementCount(); ++i) {
             if (!first) {
               out.push_back(',');
             }
             first = false;
-            if (!Write(element, depth + 1)) {
+            if (!Write(value.object->GetElement(i), depth + 1)) {
               return false;
             }
           }
@@ -326,8 +326,10 @@ void Interpreter::InstallGlobals() {
     std::vector<Value> keys;
     if (target.IsObject()) {
       if (target.object->GetKind() == Object::Kind::Array) {
-        for (std::size_t i = 0; i < target.object->Elements().size(); ++i) {
-          keys.push_back(Value::String(std::to_string(i)));
+        for (std::size_t i = 0; i < target.object->ElementCount(); ++i) {
+          if (target.object->HasElement(i)) {
+            keys.push_back(Value::String(std::to_string(i)));
+          }
         }
       }
       for (const std::string& key : target.object->Keys()) {
@@ -341,8 +343,10 @@ void Interpreter::InstallGlobals() {
     std::vector<Value> values;
     if (target.IsObject()) {
       if (target.object->GetKind() == Object::Kind::Array) {
-        for (const Value& element : target.object->Elements()) {
-          values.push_back(element);
+        for (std::size_t i = 0; i < target.object->ElementCount(); ++i) {
+          if (target.object->HasElement(i)) {
+            values.push_back(target.object->GetElement(i));
+          }
         }
       }
       for (const std::string& key : target.object->Keys()) {
@@ -360,17 +364,15 @@ void Interpreter::InstallGlobals() {
       return Value::Undefined();
     }
     for (const Value& argument : call.arguments) {
-      call.self.object->Elements().push_back(argument);
+      call.self.object->PushElement(argument);
     }
-    return Value::Number(static_cast<double>(call.self.object->Elements().size()));
+    return Value::Number(static_cast<double>(call.self.object->ElementCount()));
   });
   install(array_prototype_, "pop", [](NativeCall& call) {
-    if (!call.self.IsObject() || call.self.object->Elements().empty()) {
+    if (!call.self.IsObject() || call.self.object->ElementCount() == 0) {
       return Value::Undefined();
     }
-    Value last = call.self.object->Elements().back();
-    call.self.object->Elements().pop_back();
-    return last;
+    return call.self.object->PopElement();
   });
   install(array_prototype_, "join", [](NativeCall& call) {
     if (!call.self.IsObject()) {
@@ -380,13 +382,13 @@ void Interpreter::InstallGlobals() {
     const std::string separator =
         separator_value.IsUndefined() ? "," : ToString(separator_value);
     std::string joined;
-    const std::vector<Value>& elements = call.self.object->Elements();
-    for (std::size_t i = 0; i < elements.size(); ++i) {
+    for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
       if (i != 0) {
         joined += separator;
       }
-      if (!elements[i].IsNullish()) {
-        joined += ToString(elements[i]);
+      const Value element = call.self.object->GetElement(i);
+      if (!element.IsNullish()) {
+        joined += ToString(element);
       }
     }
     return Value::String(std::move(joined));
@@ -396,9 +398,9 @@ void Interpreter::InstallGlobals() {
       return Value::Number(-1);
     }
     const Value needle = Argument(call.arguments, 0);
-    const std::vector<Value>& elements = call.self.object->Elements();
-    for (std::size_t i = 0; i < elements.size(); ++i) {
-      if (StrictEquals(elements[i], needle)) {
+    for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
+      if (call.self.object->HasElement(i) &&
+          StrictEquals(call.self.object->GetElement(i), needle)) {
         return Value::Number(static_cast<double>(i));
       }
     }
@@ -409,8 +411,8 @@ void Interpreter::InstallGlobals() {
       return Value::Bool(false);
     }
     const Value needle = Argument(call.arguments, 0);
-    for (const Value& element : call.self.object->Elements()) {
-      if (StrictEquals(element, needle)) {
+    for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
+      if (StrictEquals(call.self.object->GetElement(i), needle)) {
         return Value::Bool(true);
       }
     }
@@ -418,9 +420,9 @@ void Interpreter::InstallGlobals() {
   });
   install(array_prototype_, "slice", [](NativeCall& call) {
     std::vector<Value> out;
+    std::vector<bool> present;
     if (call.self.IsObject()) {
-      const std::vector<Value>& elements = call.self.object->Elements();
-      const double size = static_cast<double>(elements.size());
+      const double size = static_cast<double>(call.self.object->ElementCount());
       double begin = call.arguments.empty() ? 0.0 : ToNumber(call.arguments[0]);
       double end = call.arguments.size() < 2 ? size : ToNumber(call.arguments[1]);
       // A negative index counts from the end, which is what makes slice(-1)
@@ -428,42 +430,53 @@ void Interpreter::InstallGlobals() {
       begin = begin < 0 ? std::max(0.0, size + begin) : std::min(begin, size);
       end = end < 0 ? std::max(0.0, size + end) : std::min(end, size);
       for (double i = begin; i < end; ++i) {
-        out.push_back(elements[static_cast<std::size_t>(i)]);
+        const std::size_t index = static_cast<std::size_t>(i);
+        out.push_back(call.self.object->GetElement(index));
+        present.push_back(call.self.object->HasElement(index));
       }
     }
-    return call.interpreter.NewArrayValue(std::move(out));
+    return call.interpreter.NewArrayValue(std::move(out), std::move(present));
   });
   install(array_prototype_, "map", [](NativeCall& call) {
     std::vector<Value> out;
+    std::vector<bool> present;
     if (call.self.IsObject()) {
       const Value callback = Argument(call.arguments, 0);
-      const std::vector<Value> elements = call.self.object->Elements();
-      for (std::size_t i = 0; i < elements.size(); ++i) {
+      for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
+        if (!call.self.object->HasElement(i)) {
+          out.push_back(Value::Undefined());
+          present.push_back(false);
+          continue;
+        }
         const Result mapped = call.interpreter.CallFunction(
             callback, Value::Undefined(),
-            {elements[i], Value::Number(static_cast<double>(i)), call.self});
+            {call.self.object->GetElement(i), Value::Number(static_cast<double>(i)), call.self});
         if (mapped.IsAbrupt()) {
           return Value::Undefined();
         }
         out.push_back(mapped.value);
+        present.push_back(true);
       }
     }
-    return call.interpreter.NewArrayValue(std::move(out));
+    return call.interpreter.NewArrayValue(std::move(out), std::move(present));
   });
   install(array_prototype_, "filter", [](NativeCall& call) {
     std::vector<Value> out;
     if (call.self.IsObject()) {
       const Value callback = Argument(call.arguments, 0);
-      const std::vector<Value> elements = call.self.object->Elements();
-      for (std::size_t i = 0; i < elements.size(); ++i) {
+      for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
+        if (!call.self.object->HasElement(i)) {
+          continue;
+        }
+        const Value element = call.self.object->GetElement(i);
         const Result kept = call.interpreter.CallFunction(
-            callback, Value::Undefined(),
-            {elements[i], Value::Number(static_cast<double>(i)), call.self});
+            callback, Value::Undefined(), {element, Value::Number(static_cast<double>(i)),
+                                           call.self});
         if (kept.IsAbrupt()) {
           return Value::Undefined();
         }
         if (ToBoolean(kept.value)) {
-          out.push_back(elements[i]);
+          out.push_back(element);
         }
       }
     }
@@ -474,19 +487,28 @@ void Interpreter::InstallGlobals() {
       return Value::Undefined();
     }
     const Value callback = Argument(call.arguments, 0);
-    const std::vector<Value> elements = call.self.object->Elements();
     std::size_t index = 0;
     Value accumulator;
     if (call.arguments.size() >= 2) {
       accumulator = call.arguments[1];
-    } else if (!elements.empty()) {
-      accumulator = elements[0];
-      index = 1;
+    } else {
+      while (index < call.self.object->ElementCount() && !call.self.object->HasElement(index)) {
+        ++index;
+      }
+      if (index >= call.self.object->ElementCount()) {
+        return Value::Undefined();
+      }
+      accumulator = call.self.object->GetElement(index);
+      ++index;
     }
-    for (; index < elements.size(); ++index) {
+    for (; index < call.self.object->ElementCount(); ++index) {
+      if (!call.self.object->HasElement(index)) {
+        continue;
+      }
       const Result next = call.interpreter.CallFunction(
           callback, Value::Undefined(),
-          {accumulator, elements[index], Value::Number(static_cast<double>(index)), call.self});
+          {accumulator, call.self.object->GetElement(index),
+           Value::Number(static_cast<double>(index)), call.self});
       if (next.IsAbrupt()) {
         return Value::Undefined();
       }

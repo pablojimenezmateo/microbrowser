@@ -1,4 +1,5 @@
 #include <cmath>
+#include <optional>
 #include <utility>
 
 #include "js/Interpreter.h"
@@ -47,8 +48,8 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
         if (element->kind == NodeKind::Spread || element->kind == NodeKind::RestElement) {
           std::vector<Value> rest;
           if (value.IsObject() && value.object->GetKind() == Object::Kind::Array) {
-            for (std::size_t j = i; j < value.object->Elements().size(); ++j) {
-              rest.push_back(value.object->Elements()[j]);
+            for (std::size_t j = i; j < value.object->ElementCount(); ++j) {
+              rest.push_back(value.object->GetElement(j));
             }
           }
           const Node* inner = element->Child(0);
@@ -248,9 +249,8 @@ Result Interpreter::EvaluateBinary(const Node& node, Environment& scope) {
     }
     const std::string key = ToString(a);
     if (b.object->GetKind() == Object::Kind::Array) {
-      const double index = ToNumber(a);
-      if (index >= 0 && index < static_cast<double>(b.object->Elements().size())) {
-        return Result::Normal(Value::Bool(true));
+      if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+        return Result::Normal(Value::Bool(b.object->HasElement(*index)));
       }
     }
     return Result::Normal(Value::Bool(b.object->Get(key) != nullptr));
@@ -456,8 +456,8 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
         return spread;
       }
       if (spread.value.IsObject() && spread.value.object->GetKind() == Object::Kind::Array) {
-        for (const Value& element : spread.value.object->Elements()) {
-          arguments.push_back(element);
+        for (std::size_t j = 0; j < spread.value.object->ElementCount(); ++j) {
+          arguments.push_back(spread.value.object->GetElement(j));
         }
       }
       continue;
