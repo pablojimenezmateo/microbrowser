@@ -225,6 +225,21 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "GET submission replaces the action query with successful controls");
   });
 
+  AddTest(tests, "Page/DisabledSubmitInputDoesNotSubmitForm", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' value='hello' size='2'>"
+        "<input type='submit' value='Go' disabled>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
+           "a disabled submit control must not activate its form");
+  });
+
   AddTest(tests, "Page/SerializesOnlyCheckedCheckboxesAndRadios", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

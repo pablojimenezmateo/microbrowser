@@ -232,7 +232,7 @@ std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::Fl
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || !html::IsSubmitInput(*element)) {
+  if (element == nullptr || element->HasAttribute("disabled") || !html::IsSubmitInput(*element)) {
     return std::nullopt;
   }
   return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
