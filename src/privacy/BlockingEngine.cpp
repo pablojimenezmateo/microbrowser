@@ -237,8 +237,21 @@ void BlockingEngine::AddRule(std::string_view line) {
   }
 
   std::uint16_t types = 0;
+  std::uint16_t excluded_types = 0;
   bool any_type_named = false;
+  bool any_type_excluded = false;
   bool unknown_option = false;
+
+  const auto add_resource_type = [&](std::string_view option, ResourceType type) {
+    const bool negated = !option.empty() && option.front() == '~';
+    if (negated) {
+      excluded_types |= ResourceTypeBit(type);
+      any_type_excluded = true;
+    } else {
+      types |= ResourceTypeBit(type);
+      any_type_named = true;
+    }
+  };
 
   const auto each_option = [&](std::string_view text) {
     std::size_t option_start = 0;
@@ -254,36 +267,30 @@ void BlockingEngine::AddRule(std::string_view line) {
           rule.flags |= CompiledRule::FirstPartyOnly;
         } else if (option == "important") {
           rule.flags |= CompiledRule::Important;
-        } else if (option == "script") {
-          types |= ResourceTypeBit(ResourceType::Script);
-          any_type_named = true;
-        } else if (option == "image") {
-          types |= ResourceTypeBit(ResourceType::Image);
-          any_type_named = true;
-        } else if (option == "stylesheet" || option == "css") {
-          types |= ResourceTypeBit(ResourceType::Stylesheet);
-          any_type_named = true;
-        } else if (option == "xhr" || option == "xmlhttprequest") {
-          types |= ResourceTypeBit(ResourceType::Xhr);
-          any_type_named = true;
-        } else if (option == "font") {
-          types |= ResourceTypeBit(ResourceType::Font);
-          any_type_named = true;
-        } else if (option == "media") {
-          types |= ResourceTypeBit(ResourceType::Media);
-          any_type_named = true;
-        } else if (option == "subdocument" || option == "frame") {
-          types |= ResourceTypeBit(ResourceType::Subdocument);
-          any_type_named = true;
-        } else if (option == "websocket") {
-          types |= ResourceTypeBit(ResourceType::WebSocket);
-          any_type_named = true;
-        } else if (option == "ping" || option == "beacon") {
-          types |= ResourceTypeBit(ResourceType::Ping);
-          any_type_named = true;
-        } else if (option == "document") {
-          types |= ResourceTypeBit(ResourceType::Document);
-          any_type_named = true;
+        } else if (option == "script" || option == "~script") {
+          add_resource_type(option, ResourceType::Script);
+        } else if (option == "image" || option == "~image") {
+          add_resource_type(option, ResourceType::Image);
+        } else if (option == "stylesheet" || option == "~stylesheet" || option == "css" ||
+                   option == "~css") {
+          add_resource_type(option, ResourceType::Stylesheet);
+        } else if (option == "xhr" || option == "~xhr" || option == "xmlhttprequest" ||
+                   option == "~xmlhttprequest") {
+          add_resource_type(option, ResourceType::Xhr);
+        } else if (option == "font" || option == "~font") {
+          add_resource_type(option, ResourceType::Font);
+        } else if (option == "media" || option == "~media") {
+          add_resource_type(option, ResourceType::Media);
+        } else if (option == "subdocument" || option == "~subdocument" || option == "frame" ||
+                   option == "~frame") {
+          add_resource_type(option, ResourceType::Subdocument);
+        } else if (option == "websocket" || option == "~websocket") {
+          add_resource_type(option, ResourceType::WebSocket);
+        } else if (option == "ping" || option == "~ping" || option == "beacon" ||
+                   option == "~beacon") {
+          add_resource_type(option, ResourceType::Ping);
+        } else if (option == "document" || option == "~document") {
+          add_resource_type(option, ResourceType::Document);
         } else if (option.size() > 7 && option.substr(0, 7) == "domain=") {
           const std::string_view list = option.substr(7);
           rule.domain_offset = static_cast<std::uint32_t>(domains_.size());
@@ -328,6 +335,11 @@ void BlockingEngine::AddRule(std::string_view line) {
   }
   if (any_type_named) {
     rule.resource_types = types;
+  } else if (any_type_excluded) {
+    rule.resource_types = kAllResourceTypes;
+  }
+  if (any_type_excluded) {
+    rule.resource_types &= static_cast<std::uint16_t>(~excluded_types);
   }
 
   rule.pattern_offset = static_cast<std::uint32_t>(arena_.size());

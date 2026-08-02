@@ -111,6 +111,22 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
            "but a type the rule did not name does not");
   });
 
+  AddTest(tests, "Blocking/NegatedResourceTypeOptionsExcludeTypes", [] {
+    BlockingEngine engine;
+    engine.AddRules(
+        "||cdn.example^$~image\n"
+        "||media.example^$script,image,~image");
+
+    Expect(Blocks(engine, "https://cdn.example/a", "https://a.example/", ResourceType::Script),
+           "a negated type alone means every type except that one");
+    Expect(!Blocks(engine, "https://cdn.example/a", "https://a.example/", ResourceType::Image),
+           "so images are excluded");
+    Expect(Blocks(engine, "https://media.example/a", "https://a.example/", ResourceType::Script),
+           "a negated type can also narrow a positive type list");
+    Expect(!Blocks(engine, "https://media.example/a", "https://a.example/", ResourceType::Image),
+           "and removes that type from it");
+  });
+
   AddTest(tests, "Blocking/PartyOptionsUseSiteNotOrigin", [] {
     BlockingEngine engine;
     engine.AddRules("||widget.example^$third-party");
