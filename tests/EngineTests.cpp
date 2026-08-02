@@ -317,6 +317,31 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/filter?q=&seen=on", "reset restored the original form state");
   });
 
+  AddTest(tests, "Page/DisabledResetInputDoesNotRestoreForm", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:20px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/filter'>"
+        "<input name='q'>"
+        "<input type='reset' value='Reset' disabled>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.InsertTextIntoFocusedInput("abc"), "typing changed the input value");
+    page.Layout(400.0f);
+    Expect(!page.ResetFormAt(gfx::FloatPoint{25.0f, 5.0f}),
+           "a disabled reset control must not restore its form");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/filter?q=abc", "disabled reset left the edited state intact");
+  });
+
   AddTest(tests, "Page/FocusedInputTextUpdatesFormSubmission", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
