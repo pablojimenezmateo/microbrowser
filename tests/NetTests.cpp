@@ -151,6 +151,11 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     ResponseParser weird_encoding = ParseWhole(
         "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked, identity\r\n\r\n0\r\n\r\n");
     Expect(weird_encoding.Failed(), "an encoding list we do not implement is not guessed at");
+
+    ResponseParser duplicate_encoding = ParseWhole(
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTransfer-Encoding: identity\r\n\r\n"
+        "0\r\n\r\n");
+    Expect(duplicate_encoding.Failed(), "two Transfer-Encoding headers are ambiguous too");
   });
 
   AddTest(tests, "Http/RejectsMalformedStartAndHeaders", [] {

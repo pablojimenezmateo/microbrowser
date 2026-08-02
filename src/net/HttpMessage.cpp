@@ -198,6 +198,9 @@ bool ResponseParser::FinishHeaders() {
   }
 
   if (has_encoding) {
+    if (response_.headers.Count("transfer-encoding") > 1) {
+      return Fail("duplicate Transfer-Encoding");
+    }
     const std::string_view encoding = *response_.headers.Get("transfer-encoding");
     std::string lowered(encoding);
     std::transform(lowered.begin(), lowered.end(), lowered.begin(), ToLower);
