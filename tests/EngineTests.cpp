@@ -677,6 +677,30 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "activated checkable controls update the submitted state");
   });
 
+  AddTest(tests, "Page/RadioGroupsUseFormAttributeOwnership", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>form,input{margin:0}input{width:20px;height:20px}</style>"
+        "<body style='margin:0'>"
+        "<input type='radio' name='mode' value='new' form='f'>"
+        "<form id='f' action='/filter'>"
+        "<input type='radio' name='mode' value='old' checked>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.ActivateCheckableInputAt(gfx::FloatPoint{5.0f, 5.0f}),
+           "clicking the external radio selects it");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{25.0f, 25.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/filter?mode=new",
+                   "a radio outside the form clears its peer with the same form owner");
+  });
+
   AddTest(tests, "Page/ResetInputRestoresFormControlDefaults", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

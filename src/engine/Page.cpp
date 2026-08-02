@@ -178,19 +178,6 @@ bool IsValueResettableControl(const dom::Element& element) {
   return html::IsTextControl(element);
 }
 
-bool IsRadioGroupPeer(const dom::Element& candidate, const dom::Element& activated) {
-  if (&candidate == &activated || !html::IsRadioInput(candidate)) {
-    return false;
-  }
-  const std::string* candidate_name = candidate.GetAttribute("name");
-  const std::string* activated_name = activated.GetAttribute("name");
-  if (candidate_name == nullptr || activated_name == nullptr || candidate_name->empty() ||
-      *candidate_name != *activated_name) {
-    return false;
-  }
-  return candidate.ClosestAncestor("form") == activated.ClosestAncestor("form");
-}
-
 void AppendFormComponent(std::string_view value, std::string& out) {
   for (const char c : value) {
     if (c == ' ') {
@@ -240,6 +227,21 @@ const dom::Element* FormOwner(const dom::Element& element, const dom::Document& 
 bool BelongsToForm(const dom::Element& element, const dom::Element& form,
                    const dom::Document& document) {
   return FormOwner(element, document) == &form;
+}
+
+bool IsRadioGroupPeer(const dom::Element& candidate,
+                      const dom::Element& activated,
+                      const dom::Document& document) {
+  if (&candidate == &activated || !html::IsRadioInput(candidate)) {
+    return false;
+  }
+  const std::string* candidate_name = candidate.GetAttribute("name");
+  const std::string* activated_name = activated.GetAttribute("name");
+  if (candidate_name == nullptr || activated_name == nullptr || candidate_name->empty() ||
+      *candidate_name != *activated_name) {
+    return false;
+  }
+  return FormOwner(candidate, document) == FormOwner(activated, document);
 }
 
 std::string FormQuery(const dom::Document& document,
@@ -599,7 +601,7 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
       return;
     }
     auto& candidate = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
-    if (IsRadioGroupPeer(candidate, input)) {
+    if (IsRadioGroupPeer(candidate, input, *document_)) {
       candidate.RemoveAttribute("checked");
     }
   });
