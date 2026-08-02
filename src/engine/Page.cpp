@@ -169,7 +169,7 @@ bool IsSuccessfulControl(const dom::Element& element, const dom::Element* submit
     return true;
   }
   if (html::IsSelectElement(element)) {
-    return html::SelectedOptionValue(element).has_value();
+    return !html::SelectedOptionValues(element).empty();
   }
   return false;
 }
@@ -202,6 +202,15 @@ void AppendFormComponent(std::string_view value, std::string& out) {
   }
 }
 
+void AppendNamedFormComponent(std::string_view name, std::string_view value, std::string& out) {
+  if (!out.empty()) {
+    out.push_back('&');
+  }
+  AppendFormComponent(name, out);
+  out.push_back('=');
+  AppendFormComponent(value, out);
+}
+
 std::string FormQuery(const dom::Element& form, const dom::Element* submitter) {
   std::string out;
   form.ForEachDescendant([&](const dom::Node& node) {
@@ -212,13 +221,18 @@ std::string FormQuery(const dom::Element& form, const dom::Element* submitter) {
     if (!IsSuccessfulControl(element, submitter)) {
       return;
     }
-    if (!out.empty()) {
-      out.push_back('&');
+    const std::string* name = element.GetAttribute("name");
+    if (name == nullptr) {
+      return;
     }
-    AppendFormComponent(*element.GetAttribute("name"), out);
-    out.push_back('=');
+    if (html::IsSelectElement(element)) {
+      for (const std::string& value : html::SelectedOptionValues(element)) {
+        AppendNamedFormComponent(*name, value, out);
+      }
+      return;
+    }
     const std::string value = ControlValue(element);
-    AppendFormComponent(value, out);
+    AppendNamedFormComponent(*name, value, out);
   });
   return out;
 }

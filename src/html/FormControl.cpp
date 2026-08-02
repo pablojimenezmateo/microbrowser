@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "util/StringUtil.h"
 
@@ -32,6 +33,13 @@ const dom::Element* SelectedOption(const dom::Element& select) {
     }
   });
   return selected != nullptr ? selected : first;
+}
+
+std::string OptionValue(const dom::Element& option) {
+  if (const std::string* value = option.GetAttribute("value")) {
+    return *value;
+  }
+  return option.TextContent();
 }
 
 }  // namespace
@@ -154,10 +162,35 @@ std::optional<std::string> SelectedOptionValue(const dom::Element& select) {
   if (option == nullptr) {
     return std::nullopt;
   }
-  if (const std::string* value = option->GetAttribute("value")) {
-    return *value;
+  return OptionValue(*option);
+}
+
+std::vector<std::string> SelectedOptionValues(const dom::Element& select) {
+  std::vector<std::string> values;
+  if (!IsSelectElement(select)) {
+    return values;
   }
-  return option->TextContent();
+  const bool multiple = select.HasAttribute("multiple");
+  const dom::Element* first = nullptr;
+  select.ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    if (element.TagName() != "option") {
+      return;
+    }
+    if (first == nullptr) {
+      first = &element;
+    }
+    if (element.HasAttribute("selected")) {
+      values.push_back(OptionValue(element));
+    }
+  });
+  if (!multiple && values.empty() && first != nullptr) {
+    values.push_back(OptionValue(*first));
+  }
+  return values;
 }
 
 }  // namespace microbrowser::html

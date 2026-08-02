@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "dom/Node.h"
 
@@ -29,5 +30,6 @@ bool IsMutableTextControl(const dom::Element& element);
 bool IsSelectElement(const dom::Element& element);
 std::optional<std::string> SelectedOptionText(const dom::Element& select);
 std::optional<std::string> SelectedOptionValue(const dom::Element& select);
+std::vector<std::string> SelectedOptionValues(const dom::Element& select);
 
 }  // namespace microbrowser::html

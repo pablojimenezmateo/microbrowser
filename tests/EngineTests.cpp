@@ -326,6 +326,47 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "a select with no selected option uses the first option text");
   });
 
+  AddTest(tests, "Page/MultipleSelectControlsSubmitEverySelectedOption", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>select,input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/pick'>"
+        "<select name='topic' multiple>"
+        "<option value='a' selected>Alpha</option>"
+        "<option value='b'>Beta</option>"
+        "<option selected>Gamma</option>"
+        "</select>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/pick?topic=a&topic=Gamma",
+                   "a multiple select serializes every selected option in tree order");
+  });
+
+  AddTest(tests, "Page/MultipleSelectWithNoSelectionIsNotSuccessful", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>select,input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/pick'>"
+        "<select name='topic' multiple><option value='a'>Alpha</option></select>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/pick", "an unselected multiple select contributes no entry");
+  });
+
   AddTest(tests, "Page/SerializesOnlyCheckedCheckboxesAndRadios", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
