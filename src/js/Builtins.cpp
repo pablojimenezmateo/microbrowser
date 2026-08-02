@@ -350,8 +350,7 @@ void Interpreter::InstallGlobals() {
         }
       }
       for (const std::string& key : target.object->Keys()) {
-        const Value* property = target.object->GetOwn(key);
-        values.push_back(property == nullptr ? Value::Undefined() : *property);
+        values.push_back(call.interpreter.GetProperty(target, key));
       }
     }
     return call.interpreter.NewArrayValue(std::move(values));

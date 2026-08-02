@@ -436,6 +436,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
   AddTest(tests, "JsInterpreter/ObjectKeysAndValues", [] {
     ExpectEval("Object.keys({ b: 1, a: 2 }).join(',')", "b,a");  // insertion order
     ExpectEval("Object.values({ a: 1, b: 2 }).join(',')", "1,2");
+    ExpectEval("class A { get v(){ return 3 } } Object.values(A.prototype).includes(3)", "true");
   });
 
   // --- Classes --------------------------------------------------------------
