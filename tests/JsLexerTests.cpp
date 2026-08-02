@@ -98,7 +98,8 @@ void RegisterJsLexerTests(std::vector<TestCase>& tests) {
     };
     for (const Case& test : {Case{"0", 0.0}, Case{"42", 42.0}, Case{"3.5", 3.5},
                              Case{".5", 0.5}, Case{"1e3", 1000.0}, Case{"1.5e-2", 0.015},
-                             Case{"0x1F", 31.0}, Case{"0b1011", 11.0}, Case{"0o17", 15.0},
+                             Case{"1.5e+2", 150.0}, Case{"0x1F", 31.0},
+                             Case{"0b1011", 11.0}, Case{"0o17", 15.0},
                              Case{"1_000_000", 1000000.0}}) {
       const std::vector<Token> tokens = Lex(test.source);
       Expect(At(tokens, 0).type == TokenType::NumericLiteral,

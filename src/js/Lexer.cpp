@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <string>
 
+#include "util/Parse.h"
+
 namespace microbrowser::js {
 
 namespace {
@@ -284,7 +286,7 @@ Token Lexer::LexNumber(std::size_t start, bool newline) {
     }
   }
   if (base == 10) {
-    token.number = std::strtod(cleaned.c_str(), nullptr);
+    token.number = util::ParseDouble(cleaned).value_or(std::nan(""));
   } else {
     token.number = static_cast<double>(std::strtoull(cleaned.c_str() + 2, nullptr, base));
   }
