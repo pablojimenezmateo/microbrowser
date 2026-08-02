@@ -9,6 +9,7 @@
 #include "TestSupport.h"
 #include "net/CookieJar.h"
 #include "net/HttpMessage.h"
+#include "util/PerformanceCounters.h"
 #include "url/PartitionKey.h"
 #include "url/Url.h"
 
@@ -56,6 +57,7 @@ PartitionKey KeyFor(std::string_view url, ContainerId container = ContainerId::D
 
 void RegisterNetTests(std::vector<TestCase>& tests) {
   AddTest(tests, "Http/ParsesASimpleResponse", [] {
+    util::ResetPerformanceCounters();
     ResponseParser parser = ParseWhole(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 5\r\n\r\nhello");
     Expect(parser.IsComplete(), "a complete response parses");
@@ -64,6 +66,9 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     ExpectEqString(std::string(*parser.Response().headers.Get("content-type")), "text/html",
                    "header lookup is case-insensitive");
     ExpectEqString(BodyOf(parser), "hello", "body");
+    ExpectEqInt(static_cast<long long>(util::ReadPerformanceCounter(
+                    util::PerfCounterId::NetResponsesParsed)),
+                1, "fixed-length completions count as parsed responses");
   });
 
   AddTest(tests, "Http/ParsesAcrossArbitrarySplits", [] {

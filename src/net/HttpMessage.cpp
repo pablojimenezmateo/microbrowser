@@ -114,6 +114,14 @@ bool ResponseParser::Fail(const char* reason) {
   return false;
 }
 
+bool ResponseParser::Complete() {
+  if (state_ != State::Complete) {
+    state_ = State::Complete;
+    AddPerformanceCounter(PerfCounterId::NetResponsesParsed);
+  }
+  return true;
+}
+
 bool ResponseParser::ParseStatusLine(std::string_view line) {
   // "HTTP/1.1 200 OK"
   if (line.size() < 12 || line.substr(0, 5) != "HTTP/") {
@@ -222,7 +230,7 @@ bool ResponseParser::FinishHeaders() {
 
   state_ = State::Body;
   if (body_mode_ == BodyMode::None || (body_mode_ == BodyMode::Length && remaining_ == 0)) {
-    state_ = State::Complete;
+    return Complete();
   }
   return true;
 }
@@ -231,8 +239,7 @@ bool ResponseParser::ConsumeBody() {
   while (true) {
     switch (body_mode_) {
       case BodyMode::None:
-        state_ = State::Complete;
-        return true;
+        return Complete();
 
       case BodyMode::Length: {
         const std::size_t take = std::min(remaining_, buffer_.size());
@@ -241,7 +248,7 @@ bool ResponseParser::ConsumeBody() {
         buffer_.erase(0, take);
         remaining_ -= take;
         if (remaining_ == 0) {
-          state_ = State::Complete;
+          return Complete();
         }
         return true;
       }
@@ -307,8 +314,7 @@ bool ResponseParser::ConsumeBody() {
             const bool blank = line.empty();
             buffer_.erase(0, newline + 1);
             if (blank) {
-              state_ = State::Complete;
-              return true;
+              return Complete();
             }
             // Trailer fields. Parsed for validity and discarded: merging them
             // into the header set would let a server change Content-Type after
@@ -429,9 +435,7 @@ bool ResponseParser::Finish() {
   }
   if (state_ == State::Body && body_mode_ == BodyMode::UntilClose) {
     // A body delimited by the connection closing is complete when it closes.
-    state_ = State::Complete;
-    AddPerformanceCounter(PerfCounterId::NetResponsesParsed);
-    return true;
+    return Complete();
   }
   return Fail("connection closed mid-message");
 }

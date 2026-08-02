@@ -109,6 +109,7 @@ class ResponseParser {
   bool FinishHeaders();
   bool ConsumeBody();
   bool Fail(const char* reason);
+  bool Complete();
 
   HttpLimits limits_;
   State state_ = State::StatusLine;
