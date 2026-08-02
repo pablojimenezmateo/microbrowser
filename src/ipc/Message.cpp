@@ -24,6 +24,7 @@ enum class UiTag : std::uint8_t {
   Scroll = 5,
   Pointer = 6,
   TextInput = 7,
+  InputCommand = 8,
 };
 
 enum class EngineTag : std::uint8_t {
@@ -524,10 +525,13 @@ std::vector<std::byte> Serialize(const UiToEngine& message) {
     writer.WriteI32(pointer->position.x);
     writer.WriteI32(pointer->position.y);
     writer.WriteU8(pointer->button);
-  } else {
-    const auto& text = std::get<TextInputMessage>(message);
+  } else if (const auto* text = std::get_if<TextInputMessage>(&message)) {
     writer.WriteU8(static_cast<std::uint8_t>(UiTag::TextInput));
-    writer.WriteString(text.text);
+    writer.WriteString(text->text);
+  } else {
+    const auto& command = std::get<InputCommandMessage>(message);
+    writer.WriteU8(static_cast<std::uint8_t>(UiTag::InputCommand));
+    writer.WriteU8(static_cast<std::uint8_t>(command.command));
   }
 
   return FinishFrame(writer);
@@ -646,6 +650,17 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
         return std::nullopt;
       }
       message = std::move(value);
+      break;
+    }
+    case UiTag::InputCommand: {
+      InputCommandMessage value;
+      const std::uint8_t command = reader.ReadU8();
+      if (!reader.Ok() ||
+          command > static_cast<std::uint8_t>(InputCommandMessage::Command::Enter)) {
+        return std::nullopt;
+      }
+      value.command = static_cast<InputCommandMessage::Command>(command);
+      message = value;
       break;
     }
     default:

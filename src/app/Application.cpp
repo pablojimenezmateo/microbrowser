@@ -1,6 +1,7 @@
 #include "app/Application.h"
 
 #include <cstdio>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -62,6 +63,23 @@ std::string TextInputFor(const platform::KeyEvent& event) {
   std::string text;
   AppendUtf8(event.codepoint, text);
   return text;
+}
+
+std::optional<ipc::InputCommandMessage> InputCommandFor(const platform::KeyEvent& event) {
+  if (!event.pressed || event.modifiers.Any()) {
+    return std::nullopt;
+  }
+  using Command = ipc::InputCommandMessage::Command;
+  switch (event.key) {
+    case platform::Key::Backspace:
+      return ipc::InputCommandMessage{Command::Backspace};
+    case platform::Key::Delete:
+      return ipc::InputCommandMessage{Command::Delete};
+    case platform::Key::Enter:
+      return ipc::InputCommandMessage{Command::Enter};
+    default:
+      return std::nullopt;
+  }
 }
 
 }  // namespace
@@ -231,7 +249,9 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
     const ui::BrowserChrome::Response response = chrome_.HandleKey(*key);
     ApplyChromeResponse(response);
     if (!response.handled) {
-      if (std::string text = TextInputFor(*key); !text.empty()) {
+      if (const std::optional<ipc::InputCommandMessage> command = InputCommandFor(*key)) {
+        channel_.Ui().Send(*command);
+      } else if (std::string text = TextInputFor(*key); !text.empty()) {
         channel_.Ui().Send(ipc::TextInputMessage{std::move(text)});
       }
     }

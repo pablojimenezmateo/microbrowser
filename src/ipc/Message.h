@@ -81,13 +81,26 @@ struct TextInputMessage {
   friend bool operator==(const TextInputMessage&, const TextInputMessage&) = default;
 };
 
+struct InputCommandMessage {
+  enum class Command : std::uint8_t {
+    Backspace,
+    Delete,
+    Enter,
+  };
+
+  Command command = Command::Backspace;
+
+  friend bool operator==(const InputCommandMessage&, const InputCommandMessage&) = default;
+};
+
 using UiToEngine = std::variant<NavigateMessage,
                                 ReloadMessage,
                                 StopLoadMessage,
                                 ResizeViewportMessage,
                                 ScrollMessage,
                                 PointerMessage,
-                                TextInputMessage>;
+                                TextInputMessage,
+                                InputCommandMessage>;
 
 // --- Engine -> UI ------------------------------------------------------------
 
