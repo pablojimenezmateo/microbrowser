@@ -34,6 +34,11 @@ std::string_view Trim(std::string_view text) {
   return text;
 }
 
+bool AcceptsBgColorAttribute(std::string_view tag_name) {
+  return tag_name == "body" || tag_name == "table" || tag_name == "tr" || tag_name == "td" ||
+         tag_name == "th";
+}
+
 std::vector<std::string_view> SplitWords(std::string_view text) {
   std::vector<std::string_view> words;
   std::size_t start = 0;
@@ -547,6 +552,13 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   if (const std::string* inline_style = element.GetAttribute("style")) {
     inline_declarations = ParseDeclarationList(*inline_style);
   }
+  std::vector<Declaration> presentational_declarations;
+  if (AcceptsBgColorAttribute(element.TagName())) {
+    if (const std::string* bgcolor = element.GetAttribute("bgcolor")) {
+      presentational_declarations.push_back(
+          Declaration{"background-color", *bgcolor, false});
+    }
+  }
 
   struct Candidate {
     const Declaration* declaration;
@@ -563,6 +575,9 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
     for (const Declaration& declaration : entry.declarations) {
       ordered.push_back(Candidate{&declaration, entry.origin, entry.specificity, entry.order});
     }
+  }
+  for (const Declaration& declaration : presentational_declarations) {
+    ordered.push_back(Candidate{&declaration, Origin::Author, Specificity{}, 0});
   }
   // Specificity above every selector, which is what "the style attribute wins
   // within its origin" means concretely.

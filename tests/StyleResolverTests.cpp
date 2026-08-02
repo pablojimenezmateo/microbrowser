@@ -141,6 +141,19 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "but not an important author rule");
   });
 
+  AddTest(tests, "StyleResolver/BgcolorAttributeIsAPresentationalHint", [] {
+    Expect(StyleOf("<table bgcolor='#123456'><tr><td>x</td></tr></table>", "", "table")
+               .background_color == gfx::Color::Rgb(0x12, 0x34, 0x56),
+           "old table markup uses bgcolor as a presentational background hint");
+    Expect(StyleOf("<table bgcolor='red'><tr><td>x</td></tr></table>",
+                   "table { background-color: blue }", "table")
+               .background_color == gfx::Color::Rgb(0, 0, 0xFF),
+           "author CSS still overrides the presentational hint");
+    Expect(StyleOf("<table bgcolor='notacolour'><tr><td>x</td></tr></table>", "", "table")
+               .background_color == gfx::Color::Transparent(),
+           "an invalid bgcolor value is ignored like an invalid CSS colour");
+  });
+
   AddTest(tests, "StyleResolver/InheritsTheInheritedPropertiesAndNotTheOthers", [] {
     const ComputedStyle child =
         StyleOf("<div style='color: red; margin: 20px'><span>x</span></div>", "", "span");
