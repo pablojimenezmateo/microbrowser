@@ -378,6 +378,77 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
                 "and the custom-header response is not stored under the URL-only key");
   });
 
+  AddTest(tests, "Fetch/DoesNotUseCachedPublicResponseOnceCookiesApply", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\npub"});
+    factory.script.push_back({"example.com", 443, true,
+                              "HTTP/1.1 200 OK\r\nSet-Cookie: sid=abc\r\n"
+                              "Content-Length: 0\r\n\r\n"});
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\nprv"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult public_response =
+        Run(policy, factory, cookies, cache, "https://example.com/account");
+    Expect(public_response.ok && !public_response.from_cache,
+           "the public response came from the network");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 1, "and was cached");
+
+    const FetchResult login = Run(policy, factory, cookies, cache, "https://example.com/login");
+    Expect(login.ok, login.error != nullptr ? login.error : "login failed");
+    ExpectEqInt(static_cast<long long>(cookies.Size()), 1, "the login cookie was stored");
+
+    const FetchResult private_response =
+        Run(policy, factory, cookies, cache, "https://example.com/account");
+    Expect(private_response.ok && !private_response.from_cache,
+           "a cookie-bearing request must not reuse a response cached before login");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 3,
+                "the private request reached the transport");
+    Expect(factory.log.requests.at(2).find("Cookie: sid=abc\r\n") != std::string::npos,
+           "with the cookie that makes the cached public response invalid");
+    ExpectEqString(BodyString(private_response.response), "prv", "private response body");
+  });
+
+  AddTest(tests, "Fetch/DoesNotStoreResponsesToCookieBearingRequests", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true,
+                              "HTTP/1.1 200 OK\r\nSet-Cookie: sid=abc\r\n"
+                              "Content-Length: 0\r\n\r\n"});
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\none"});
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\ntwo"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult login = Run(policy, factory, cookies, cache, "https://example.com/login");
+    Expect(login.ok, login.error != nullptr ? login.error : "login failed");
+
+    const FetchResult first_account =
+        Run(policy, factory, cookies, cache, "https://example.com/account");
+    Expect(first_account.ok && !first_account.from_cache,
+           "the first cookie-bearing request came from the network");
+    ExpectEqString(BodyString(first_account.response), "one", "first account response");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 0,
+                "a response to a cookie-bearing request is not stored under the URL-only key");
+
+    const FetchResult second_account =
+        Run(policy, factory, cookies, cache, "https://example.com/account");
+    Expect(second_account.ok && !second_account.from_cache,
+           "the second cookie-bearing request also reaches the network");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 3,
+                "no cache hit hid the second account request");
+    ExpectEqString(BodyString(second_account.response), "two", "second account response");
+  });
+
   AddTest(tests, "Fetch/ACachedResponseIsNotSharedAcrossPartitions", [] {
     // Cache *timing* is a read oracle across partitions: a third party that can
     // tell its resource loaded quickly on one site learns the user visited

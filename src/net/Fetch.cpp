@@ -94,8 +94,9 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   return headers;
 }
 
-bool MayUseHttpCache(const FetchOptions& options) {
-  return options.method == "GET" && options.body.empty() && options.headers.Fields().empty();
+bool MayUseHttpCache(const FetchOptions& options, std::string_view cookie_header) {
+  return options.method == "GET" && options.body.empty() && options.headers.Fields().empty() &&
+         cookie_header.empty();
 }
 
 }  // namespace
@@ -120,7 +121,10 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
       return Failure("not an http(s) URL");
     }
 
-    const bool may_use_cache = MayUseHttpCache(remaining);
+    const bool same_site = verdict.Partition().IsFirstParty();
+    const std::string cookie_header = cookies.HeaderFor(
+        verdict.Partition(), url, same_site, remaining.is_top_level_navigation, now);
+    const bool may_use_cache = MayUseHttpCache(remaining, cookie_header);
     if (may_use_cache && !remaining.bypass_cache) {
       if (const HttpCache::Entry* cached = cache.Lookup(verdict.Partition(), url, now)) {
         FetchResult result;
@@ -133,9 +137,6 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
       }
     }
 
-    const bool same_site = verdict.Partition().IsFirstParty();
-    const std::string cookie_header = cookies.HeaderFor(
-        verdict.Partition(), url, same_site, remaining.is_top_level_navigation, now);
     const HttpHeaders headers = BuildHeaders(url, remaining, verdict, cookie_header);
     const std::string request = SerializeRequest(remaining.method, RequestTarget(url), headers);
 
