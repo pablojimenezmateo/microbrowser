@@ -255,6 +255,25 @@ void RegisterTreeBuilderTests(std::vector<TestCase>& tests) {
                "</div></body></html>");
   });
 
+  AddTest(tests, "TreeBuilder/ClosesOptionsAndOptgroupsImplicitly", [] {
+    ExpectTree("<select><option>One<option>Two</select>",
+               "<html><head></head><body><select>"
+               "<option>One</option><option>Two</option>"
+               "</select></body></html>");
+    ExpectTree("<select><optgroup label='A'><option>One<optgroup label='B'><option>Two</select>",
+               "<html><head></head><body><select>"
+               "<optgroup label=\"A\"><option>One</option></optgroup>"
+               "<optgroup label=\"B\"><option>Two</option></optgroup>"
+               "</select></body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/TableContentClosesASelectInTable", [] {
+    ExpectTree("<table><tr><td><select><option>One<tr><td>Two</table>",
+               "<html><head></head><body><table><tbody><tr><td>"
+               "<select><option>One</option></select></td></tr>"
+               "<tr><td>Two</td></tr></tbody></table></body></html>");
+  });
+
   AddTest(tests, "TreeBuilder/DropsTableStructureOutsideATable", [] {
     // A `<td>` with no table is a parse error and inserts nothing. Honouring it
     // would put a cell in the body, which no browser does.

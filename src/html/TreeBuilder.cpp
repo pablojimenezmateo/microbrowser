@@ -47,6 +47,9 @@ constexpr std::array<std::string_view, 8> kScopeStoppers = {
 constexpr std::array<std::string_view, 9> kTableStructureTags = {
     "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr"};
 
+constexpr std::array<std::string_view, 8> kSelectTableTags = {
+    "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th"};
+
 bool Contains(const auto& list, std::string_view value) {
   return std::find(list.begin(), list.end(), value) != list.end();
 }
@@ -127,6 +130,11 @@ bool TreeBuilder::HasInScope(std::string_view tag_name, Scope scope) const {
         // The narrowest walk: a `</tr>` must not reach past its own table into
         // an outer one, which is how nested tables stay separate.
         if (name == "html" || name == "table") {
+          return false;
+        }
+        continue;
+      case Scope::Select:
+        if (name != "optgroup" && name != "option") {
           return false;
         }
         continue;
@@ -275,6 +283,12 @@ void TreeBuilder::ProcessInBody(const Token& token) {
         InsertElement(token);
         frameset_ok_ = false;
         mode_ = InsertionMode::InTable;
+        return;
+      }
+      if (token.data == "select") {
+        InsertElement(token);
+        frameset_ok_ = false;
+        ResetInsertionMode();
         return;
       }
       if (Contains(kTableStructureTags, token.data)) {
@@ -766,6 +780,125 @@ void TreeBuilder::ProcessInCell(const Token& token) {
   ProcessInBody(token);
 }
 
+// §13.2.6.4.16 "in select".
+void TreeBuilder::ProcessInSelect(const Token& token) {
+  const auto current_is = [this](std::string_view tag_name) {
+    return CurrentNode().IsElement() &&
+           static_cast<dom::Element&>(CurrentNode()).TagName() == tag_name;
+  };
+  const auto pop_current_if = [&](std::string_view tag_name) {
+    if (current_is(tag_name)) {
+      open_elements_.pop_back();
+      return true;
+    }
+    return false;
+  };
+
+  switch (token.kind) {
+    case Token::Kind::Character:
+      InsertText(token.data);
+      return;
+
+    case Token::Kind::Comment:
+      InsertComment(token.data, nullptr);
+      return;
+
+    case Token::Kind::Doctype:
+      ++errors_;
+      return;
+
+    case Token::Kind::StartTag:
+      if (token.data == "html") {
+        ProcessInBody(token);
+        return;
+      }
+      if (token.data == "option") {
+        pop_current_if("option");
+        InsertElement(token);
+        return;
+      }
+      if (token.data == "optgroup") {
+        pop_current_if("option");
+        pop_current_if("optgroup");
+        InsertElement(token);
+        return;
+      }
+      if (token.data == "select") {
+        ++errors_;
+        if (!HasInScope("select", Scope::Select)) {
+          return;
+        }
+        PopUntil("select");
+        ResetInsertionMode();
+        return;
+      }
+      if (token.data == "input" || token.data == "textarea") {
+        ++errors_;
+        if (!HasInScope("select", Scope::Select)) {
+          return;
+        }
+        PopUntil("select");
+        ResetInsertionMode();
+        Process(token);
+        return;
+      }
+      if (token.data == "script" || token.data == "style") {
+        SwitchToRawText(token, token.data == "script" ? TokenizerState::ScriptData
+                                                      : TokenizerState::RawText);
+        return;
+      }
+      break;
+
+    case Token::Kind::EndTag:
+      if (token.data == "option") {
+        if (!pop_current_if("option")) {
+          ++errors_;
+        }
+        return;
+      }
+      if (token.data == "optgroup") {
+        pop_current_if("option");
+        if (!pop_current_if("optgroup")) {
+          ++errors_;
+        }
+        return;
+      }
+      if (token.data == "select") {
+        if (!HasInScope("select", Scope::Select)) {
+          ++errors_;
+          return;
+        }
+        PopUntil("select");
+        ResetInsertionMode();
+        return;
+      }
+      break;
+
+    case Token::Kind::EndOfFile:
+      ProcessInBody(token);
+      return;
+  }
+
+  ++errors_;
+}
+
+// §13.2.6.4.17 "in select in table".
+void TreeBuilder::ProcessInSelectInTable(const Token& token) {
+  const bool table_start = token.kind == Token::Kind::StartTag &&
+                           Contains(kSelectTableTags, token.data);
+  const bool table_end = token.kind == Token::Kind::EndTag && Contains(kSelectTableTags, token.data);
+  if (table_start || table_end) {
+    ++errors_;
+    if (table_start || HasInScope(token.data, Scope::Table)) {
+      PopUntil("select");
+      ResetInsertionMode();
+      Process(token);
+    }
+    return;
+  }
+  ProcessInSelect(token);
+}
+
 // §13.2.6.4.9, "reset the insertion mode appropriately". After a table closes,
 // the mode follows from what is still open — the parser cannot simply restore
 // what it was, because the token that closed the table may have closed more.
@@ -795,6 +928,20 @@ void TreeBuilder::ResetInsertionMode() {
     }
     if (name == "table") {
       mode_ = InsertionMode::InTable;
+      return;
+    }
+    if (name == "select") {
+      for (std::size_t ancestor = i; ancestor-- > 0;) {
+        const std::string& ancestor_name = open_elements_[ancestor]->TagName();
+        if (ancestor_name == "table" || ancestor_name == "caption" ||
+            ancestor_name == "tbody" || ancestor_name == "tfoot" ||
+            ancestor_name == "thead" || ancestor_name == "tr" ||
+            ancestor_name == "td" || ancestor_name == "th") {
+          mode_ = InsertionMode::InSelectInTable;
+          return;
+        }
+      }
+      mode_ = InsertionMode::InSelect;
       return;
     }
     if (name == "head" || name == "body") {
@@ -975,6 +1122,14 @@ void TreeBuilder::Process(const Token& token) {
 
     case InsertionMode::InCell:
       ProcessInCell(token);
+      return;
+
+    case InsertionMode::InSelect:
+      ProcessInSelect(token);
+      return;
+
+    case InsertionMode::InSelectInTable:
+      ProcessInSelectInTable(token);
       return;
 
     case InsertionMode::Text: {

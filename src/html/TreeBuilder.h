@@ -16,13 +16,11 @@ namespace microbrowser::html {
 // Insertion modes, per WHATWG HTML §13.2.6. Named as the spec names them, in
 // the spec's order.
 //
-// Not all of them: foreign content (SVG and MathML), template contents, and the
-// select family are not implemented. Each is a substantial algorithm of its
-// own, and a *partial* implementation of one is worse than its absence — the
-// tree builder would silently produce a tree that differs from every other
-// browser, which is the failure this whole spec-literal approach exists to
-// avoid. `UnsupportedModeCount()` reports when input needed one, so the gap is
-// observable rather than invisible.
+// Not all of them: foreign content (SVG and MathML) and template contents are
+// not implemented. Each is a substantial algorithm of its own, and a *partial*
+// implementation of one is worse than its absence — the tree builder would
+// silently produce a tree that differs from every other browser, which is the
+// failure this whole spec-literal approach exists to avoid.
 enum class InsertionMode : std::uint8_t {
   Initial,
   BeforeHtml,
@@ -38,6 +36,8 @@ enum class InsertionMode : std::uint8_t {
   InTableBody,
   InRow,
   InCell,
+  InSelect,
+  InSelectInTable,
   AfterBody,
   AfterAfterBody,
 };
@@ -51,6 +51,7 @@ enum class Scope : std::uint8_t {
   Button,
   ListItem,
   Table,
+  Select,
 };
 
 // Builds a DOM from HTML source.
@@ -80,6 +81,8 @@ class TreeBuilder {
   void ProcessInTableBody(const Token& token);
   void ProcessInRow(const Token& token);
   void ProcessInCell(const Token& token);
+  void ProcessInSelect(const Token& token);
+  void ProcessInSelectInTable(const Token& token);
 
   dom::Element& InsertElement(const Token& token);
   void InsertText(std::string_view text);
