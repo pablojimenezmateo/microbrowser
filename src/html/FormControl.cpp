@@ -6,6 +6,14 @@
 
 namespace microbrowser::html {
 
+namespace {
+
+constexpr std::string_view kEditableTextTypes[] = {
+    "text", "search", "password", "email", "url", "tel", "number",
+};
+
+}  // namespace
+
 std::string_view InputType(const dom::Element& element) {
   const std::string* type = element.GetAttribute("type");
   return type == nullptr ? std::string_view("text") : std::string_view(*type);
@@ -41,11 +49,15 @@ bool IsCheckableInput(const dom::Element& element) {
 }
 
 bool IsEditableTextInput(const dom::Element& element) {
-  return !element.HasAttribute("disabled") &&
-         (IsInputType(element, "text") || IsInputType(element, "search") ||
-          IsInputType(element, "password") || IsInputType(element, "email") ||
-          IsInputType(element, "url") || IsInputType(element, "tel") ||
-          IsInputType(element, "number"));
+  if (element.HasAttribute("disabled")) {
+    return false;
+  }
+  for (const std::string_view type : kEditableTextTypes) {
+    if (IsInputType(element, type)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool IsMutableTextInput(const dom::Element& element) {
