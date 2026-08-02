@@ -5,6 +5,7 @@
 
 #include "css/StyleSheet.h"
 #include "gfx/PngDecoder.h"
+#include "html/FormControl.h"
 #include "html/TreeBuilder.h"
 #include "url/PercentEncoding.h"
 #include "util/Parse.h"
@@ -68,10 +69,6 @@ const std::string* AnchorHref(const dom::Element* element) {
   return href != nullptr && !href->empty() ? href : nullptr;
 }
 
-bool ContainsAsciiCaseInsensitive(std::string_view value, std::string_view expected) {
-  return util::EqualsAsciiCaseInsensitive(value, expected);
-}
-
 bool IsUtf8Continuation(unsigned char byte) {
   return (byte & 0xC0u) == 0x80u;
 }
@@ -112,47 +109,14 @@ std::size_t PreviousUtf8Boundary(std::string_view text) {
   return last;
 }
 
-std::string InputType(const dom::Element& element) {
-  const std::string* type = element.GetAttribute("type");
-  return type == nullptr ? std::string("text") : *type;
-}
-
-bool IsSubmitInput(const dom::Element& element) {
-  return element.TagName() == "input" && ContainsAsciiCaseInsensitive(InputType(element), "submit");
-}
-
-bool IsCheckboxInput(const dom::Element& element) {
-  return element.TagName() == "input" &&
-         ContainsAsciiCaseInsensitive(InputType(element), "checkbox");
-}
-
-bool IsRadioInput(const dom::Element& element) {
-  return element.TagName() == "input" && ContainsAsciiCaseInsensitive(InputType(element), "radio");
-}
-
-bool IsCheckableInput(const dom::Element& element) {
-  return !element.HasAttribute("disabled") && (IsCheckboxInput(element) || IsRadioInput(element));
-}
-
-bool IsEditableTextInput(const dom::Element& element) {
-  if (element.TagName() != "input" || element.HasAttribute("disabled")) {
-    return false;
-  }
-  const std::string type = InputType(element);
-  return ContainsAsciiCaseInsensitive(type, "text") ||
-         ContainsAsciiCaseInsensitive(type, "search") ||
-         ContainsAsciiCaseInsensitive(type, "password");
-}
-
 std::string InputValue(const dom::Element& element) {
   if (const std::string* value = element.GetAttribute("value")) {
     return *value;
   }
-  const std::string type = InputType(element);
-  if (ContainsAsciiCaseInsensitive(type, "checkbox") || ContainsAsciiCaseInsensitive(type, "radio")) {
+  if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return "on";
   }
-  if (ContainsAsciiCaseInsensitive(type, "submit")) {
+  if (html::IsSubmitInput(element)) {
     return "Submit";
   }
   return {};
@@ -178,16 +142,14 @@ bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitte
   if (name == nullptr || name->empty()) {
     return false;
   }
-  const std::string type = InputType(element);
-  if (ContainsAsciiCaseInsensitive(type, "submit")) {
+  if (html::IsSubmitInput(element)) {
     return &element == submitter;
   }
-  if (ContainsAsciiCaseInsensitive(type, "button") || ContainsAsciiCaseInsensitive(type, "reset") ||
-      ContainsAsciiCaseInsensitive(type, "file")) {
+  if (html::IsInputType(element, "button") || html::IsInputType(element, "reset") ||
+      html::IsInputType(element, "file")) {
     return false;
   }
-  if ((ContainsAsciiCaseInsensitive(type, "checkbox") ||
-       ContainsAsciiCaseInsensitive(type, "radio")) &&
+  if ((html::IsCheckboxInput(element) || html::IsRadioInput(element)) &&
       !element.HasAttribute("checked")) {
     return false;
   }
@@ -195,7 +157,7 @@ bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitte
 }
 
 bool IsRadioGroupPeer(const dom::Element& candidate, const dom::Element& activated) {
-  if (&candidate == &activated || !IsRadioInput(candidate)) {
+  if (&candidate == &activated || !html::IsRadioInput(candidate)) {
     return false;
   }
   const std::string* candidate_name = candidate.GetAttribute("name");
@@ -270,7 +232,7 @@ std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::Fl
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || !IsSubmitInput(*element)) {
+  if (element == nullptr || !html::IsSubmitInput(*element)) {
     return std::nullopt;
   }
   return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
@@ -285,7 +247,7 @@ std::optional<dom::Element*> HitTestCheckableInput(const layout::Box& box,
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || !IsCheckableInput(*element)) {
+  if (element == nullptr || !html::IsCheckableInput(*element)) {
     return std::nullopt;
   }
   if (!Contains(box.Geometry().BorderBox(), point)) {
@@ -301,7 +263,7 @@ std::optional<dom::Element*> HitTestEditableInput(const layout::Box& box, gfx::F
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || !IsEditableTextInput(*element)) {
+  if (element == nullptr || !html::IsEditableTextInput(*element)) {
     return std::nullopt;
   }
   if (!Contains(box.Geometry().BorderBox(), point)) {
@@ -512,7 +474,7 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
     return false;
   }
   dom::Element& input = **hit;
-  if (IsCheckboxInput(input)) {
+  if (html::IsCheckboxInput(input)) {
     if (input.HasAttribute("checked")) {
       input.RemoveAttribute("checked");
     } else {

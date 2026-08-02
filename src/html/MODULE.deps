@@ -1,8 +1,8 @@
-purpose: HTML tokenizing and tree construction. Spec-literal, because HTML's error handling is normative.
+purpose: HTML tokenizing, tree construction, and element semantics.
 
 allow: util url dom
 
-public: Token.h Tokenizer.h TreeBuilder.h
+public: FormControl.h Token.h Tokenizer.h TreeBuilder.h
 
 extern:
 

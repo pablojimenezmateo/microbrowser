@@ -202,6 +202,13 @@ microbrowser_module(css
     src/css/Tokenizer.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_gfx)
 
+microbrowser_module(html
+  SOURCES
+    src/html/FormControl.cpp
+    src/html/Tokenizer.cpp
+    src/html/TreeBuilder.cpp
+  DEPS microbrowser_util microbrowser_url microbrowser_dom)
+
 microbrowser_module(layout
   SOURCES
     src/layout/FloatContext.cpp
@@ -209,13 +216,7 @@ microbrowser_module(layout
     src/layout/LayoutDisplayList.cpp
     src/layout/LayoutEngine.cpp
     src/layout/TableLayout.cpp
-  DEPS microbrowser_util microbrowser_dom microbrowser_css microbrowser_gfx)
-
-microbrowser_module(html
-  SOURCES
-    src/html/Tokenizer.cpp
-    src/html/TreeBuilder.cpp
-  DEPS microbrowser_util microbrowser_url microbrowser_dom)
+  DEPS microbrowser_util microbrowser_dom microbrowser_html microbrowser_css microbrowser_gfx)
 
 microbrowser_module(net
   SOURCES

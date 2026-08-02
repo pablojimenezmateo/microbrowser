@@ -1,6 +1,6 @@
 purpose: The box tree and its geometry. Turns a styled document into positioned boxes.
 
-allow: util dom css gfx
+allow: util dom html css gfx
 
 public: Box.h FloatContext.h FontTextMeasurer.h LayoutEngine.h
 

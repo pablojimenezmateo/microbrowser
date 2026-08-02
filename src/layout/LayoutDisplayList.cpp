@@ -2,10 +2,9 @@
 
 #include <algorithm>
 #include <memory>
-#include <string_view>
 
+#include "html/FormControl.h"
 #include "util/PerformanceCounters.h"
-#include "util/StringUtil.h"
 
 namespace microbrowser::layout {
 
@@ -13,14 +12,6 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
-
-bool IsInputType(const dom::Element& element, std::string_view expected) {
-  if (element.TagName() != "input") {
-    return false;
-  }
-  const std::string* type = element.GetAttribute("type");
-  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, expected);
-}
 
 void PaintCheckedInputIndicator(const Box& box, gfx::DisplayList& out, gfx::FloatPoint offset) {
   const dom::Element* element = box.Origin();
@@ -37,7 +28,7 @@ void PaintCheckedInputIndicator(const Box& box, gfx::DisplayList& out, gfx::Floa
     return;
   }
 
-  if (IsInputType(*element, "checkbox")) {
+  if (html::IsCheckboxInput(*element)) {
     gfx::Path mark;
     mark.MoveTo(gfx::FloatPoint{control.x + side * 0.25f, control.y + side * 0.55f});
     mark.LineTo(gfx::FloatPoint{control.x + side * 0.45f, control.y + side * 0.75f});
@@ -45,7 +36,7 @@ void PaintCheckedInputIndicator(const Box& box, gfx::DisplayList& out, gfx::Floa
     gfx::StrokeStyle stroke;
     stroke.width = std::max(1.0f, side * 0.12f);
     out.StrokePath(mark, stroke, style.color);
-  } else if (IsInputType(*element, "radio")) {
+  } else if (html::IsRadioInput(*element)) {
     gfx::Path dot;
     const float inset = side * 0.32f;
     dot.AddEllipse(gfx::FloatRect{control.x + inset, control.y + inset,

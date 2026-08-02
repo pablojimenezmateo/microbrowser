@@ -6,9 +6,9 @@
 #include <string>
 #include <string_view>
 
+#include "html/FormControl.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
-#include "util/StringUtil.h"
 
 namespace microbrowser::layout {
 
@@ -112,45 +112,24 @@ bool IsCollapsibleSpace(const Box& box) {
          box.Style().white_space == css::WhiteSpace::Normal && IsAllWhitespace(box.Text());
 }
 
-bool IsHiddenInput(const dom::Element& element) {
-  if (element.TagName() != "input") {
-    return false;
-  }
-  const std::string* type = element.GetAttribute("type");
-  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "hidden");
-}
-
-bool IsInputType(const dom::Element& element, std::string_view expected) {
-  if (element.TagName() != "input") {
-    return false;
-  }
-  const std::string* type = element.GetAttribute("type");
-  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, expected);
-}
-
-bool IsPasswordInput(const dom::Element& element) {
-  return IsInputType(element, "password");
-}
-
 bool IsReplacedElement(const dom::Element& element) {
   return element.TagName() == "img" || element.TagName() == "input";
 }
 
 std::string InputControlText(const dom::Element& element) {
-  if (IsPasswordInput(element)) {
+  if (html::IsPasswordInput(element)) {
     return {};
   }
-  if (IsInputType(element, "checkbox") || IsInputType(element, "radio")) {
+  if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return {};
   }
   if (const std::string* value = element.GetAttribute("value")) {
     return *value;
   }
-  const std::string* type = element.GetAttribute("type");
-  if (type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "submit")) {
+  if (html::IsSubmitInput(element)) {
     return "Submit";
   }
-  if (type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "reset")) {
+  if (html::IsInputType(element, "reset")) {
     return "Reset";
   }
   return {};
@@ -281,7 +260,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     return nullptr;
   }
 
-  if (IsHiddenInput(element)) {
+  if (html::IsHiddenInput(element)) {
     return nullptr;
   }
 
