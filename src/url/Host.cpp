@@ -181,6 +181,21 @@ std::string SerializeIpv4(std::uint32_t address) {
   return out;
 }
 
+bool IsPotentiallyPrivateIpv4(std::uint32_t address) {
+  const std::uint32_t a = (address >> 24) & 0xFFu;
+  const std::uint32_t b = (address >> 16) & 0xFFu;
+  if (a == 127 || a == 10 || a == 0) {
+    return true;
+  }
+  if (a == 192 && b == 168) {
+    return true;
+  }
+  if (a == 169 && b == 254) {
+    return true;
+  }
+  return a == 172 && b >= 16 && b <= 31;
+}
+
 std::optional<std::array<std::uint16_t, 8>> ParseIpv6(std::string_view input) {
   std::array<std::uint16_t, 8> pieces{};
   std::size_t piece_index = 0;
@@ -342,6 +357,16 @@ std::string SerializeIpv6(const std::array<std::uint16_t, 8>& pieces) {
   return out;
 }
 
+bool IsIpv4MappedPrivateAddress(const std::array<std::uint16_t, 8>& pieces) {
+  if (pieces[0] != 0 || pieces[1] != 0 || pieces[2] != 0 || pieces[3] != 0 || pieces[4] != 0 ||
+      pieces[5] != 0xFFFFu) {
+    return false;
+  }
+  const std::uint32_t mapped_address =
+      (static_cast<std::uint32_t>(pieces[6]) << 16u) | static_cast<std::uint32_t>(pieces[7]);
+  return IsPotentiallyPrivateIpv4(mapped_address);
+}
+
 }  // namespace
 
 std::optional<Host> Host::Parse(std::string_view input, bool is_special) {
@@ -416,29 +441,19 @@ std::optional<Host> Host::Parse(std::string_view input, bool is_special) {
 
 bool Host::IsPotentiallyPrivate() const {
   switch (kind_) {
-    case Kind::Ipv4: {
-      const std::uint32_t a = (ipv4_ >> 24) & 0xFFu;
-      const std::uint32_t b = (ipv4_ >> 16) & 0xFFu;
-      if (a == 127 || a == 10 || a == 0) {
+    case Kind::Ipv4:
+      return IsPotentiallyPrivateIpv4(ipv4_);
+    case Kind::Ipv6: {
+      const auto pieces = ParseIpv6(std::string_view(serialized_).substr(1, serialized_.size() - 2));
+      if (pieces.has_value() && IsIpv4MappedPrivateAddress(*pieces)) {
         return true;
       }
-      if (a == 192 && b == 168) {
-        return true;
-      }
-      if (a == 169 && b == 254) {
-        return true;
-      }
-      if (a == 172 && b >= 16 && b <= 31) {
-        return true;
-      }
-      return false;
-    }
-    case Kind::Ipv6:
       // ::1 and the unique-local and link-local ranges.
       return serialized_ == "[::1]" || serialized_.rfind("[fc", 0) == 0 ||
              serialized_.rfind("[fd", 0) == 0 || serialized_.rfind("[fe8", 0) == 0 ||
              serialized_.rfind("[fe9", 0) == 0 || serialized_.rfind("[fea", 0) == 0 ||
              serialized_.rfind("[feb", 0) == 0;
+    }
     case Kind::Domain: {
       if (serialized_ == "localhost") {
         return true;

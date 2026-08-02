@@ -139,6 +139,10 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
     ExpectSerializes("http://[::ffff:127.0.0.1]/", "http://[::ffff:7f00:1]/");
     Expect(MustParse("http://[::1]/").GetHost().IsPotentiallyPrivate(),
            "IPv6 loopback is loopback");
+    Expect(MustParse("http://[::ffff:127.0.0.1]/").GetHost().IsPotentiallyPrivate(),
+           "IPv4-mapped IPv6 must inherit the embedded address classification");
+    Expect(!MustParse("http://[::ffff:8.8.8.8]/").GetHost().IsPotentiallyPrivate(),
+           "a public IPv4-mapped IPv6 address stays public");
   });
 
   AddTest(tests, "Url/PercentEncodesPerComponent", [] {
