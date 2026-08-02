@@ -190,6 +190,13 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
                 "which is 40px, not 20");
   });
 
+  AddTest(tests, "StyleResolver/UnitlessLineHeightMayBeFractional", [] {
+    const ComputedStyle style = StyleOf("<p style='font-size: 20px; line-height: 1.5'>x</p>", "",
+                                        "p");
+    ExpectEqInt(static_cast<long long>(style.line_height), 30,
+                "a unitless line-height number multiplies the element font size");
+  });
+
   AddTest(tests, "StyleResolver/ParsesEdgeShorthands", [] {
     const ComputedStyle one = StyleOf("<p style='margin: 5px'>x</p>", "", "p");
     Expect(one.margin.top == Length::Pixels(5.0f) && one.margin.left == Length::Pixels(5.0f),

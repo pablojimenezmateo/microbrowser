@@ -429,7 +429,7 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     }
     if (const auto length = ParseLength(declaration.value)) {
       style.line_height = length->Resolve(style.font_size, 0.0f);
-    } else if (const auto multiple = util::ParseInt(value)) {
+    } else if (const auto multiple = util::ParseDouble(value)) {
       style.line_height = static_cast<float>(*multiple) * style.font_size;
     }
     return;
