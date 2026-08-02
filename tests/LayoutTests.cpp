@@ -410,6 +410,37 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(saw_stroke, "and so is its border");
   });
 
+  AddTest(tests, "Layout/PaintsInputControlValues", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input type='submit' value='Search'></body>",
+            "body { margin: 0 } input { margin: 0; font-size: 20px }", 400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_value = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_value = saw_value || (run != nullptr && run->text == "Search");
+      }
+    }
+    Expect(saw_value, "a submit input paints its value text");
+  });
+
+  AddTest(tests, "Layout/PasswordInputValuesAreNotPaintedAsText", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input type='password' value='secret'></body>",
+            "body { margin: 0 } input { margin: 0; font-size: 20px }", 400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        Expect(run == nullptr || run->text.find("secret") == std::string::npos,
+               "the password value must not be emitted as text");
+      }
+    }
+  });
+
   AddTest(tests, "Layout/TableCellsShareARowInsteadOfStacking", [] {
     const LaidOut result =
         Run("<table><tr><td>a</td><td>b</td></tr></table>",

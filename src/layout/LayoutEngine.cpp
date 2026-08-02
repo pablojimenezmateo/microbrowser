@@ -95,9 +95,8 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
         }
       }
     }
-    const std::string* value = box.Origin()->GetAttribute("value");
-    if (value != nullptr && !value->empty()) {
-      return static_cast<float>(value->size()) * style.font_size * 0.6f + 18.0f;
+    if (!box.Text().empty()) {
+      return static_cast<float>(box.Text().size()) * style.font_size * 0.6f + 18.0f;
     }
     return style.font_size * 20.0f * 0.6f + 12.0f;
   }
@@ -121,8 +120,33 @@ bool IsHiddenInput(const dom::Element& element) {
   return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "hidden");
 }
 
+bool IsPasswordInput(const dom::Element& element) {
+  if (element.TagName() != "input") {
+    return false;
+  }
+  const std::string* type = element.GetAttribute("type");
+  return type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "password");
+}
+
 bool IsReplacedElement(const dom::Element& element) {
   return element.TagName() == "img" || element.TagName() == "input";
+}
+
+std::string InputControlText(const dom::Element& element) {
+  if (IsPasswordInput(element)) {
+    return {};
+  }
+  if (const std::string* value = element.GetAttribute("value")) {
+    return *value;
+  }
+  const std::string* type = element.GetAttribute("type");
+  if (type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "submit")) {
+    return "Submit";
+  }
+  if (type != nullptr && util::EqualsAsciiCaseInsensitive(*type, "reset")) {
+    return "Reset";
+  }
+  return {};
 }
 
 std::optional<float> TableAttributeWidth(const Box& box, float available_width) {
@@ -264,6 +288,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
         box->SetImage(images_->ImageFor(*src));
       }
+    } else if (element.TagName() == "input") {
+      box->SetText(InputControlText(element));
     }
     box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};
     produced_inline = true;
@@ -827,6 +853,13 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
                       gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
                                                            content.y + offset.y, content.width,
                                                            content.height}));
+      }
+      if (!box.Text().empty()) {
+        const gfx::FontRequest font = FontRequestFor(style);
+        const float baseline = content.y + content.height * 0.5f + style.font_size * 0.3f;
+        out.DrawText(box.Text(), std::max(0.0f, content.width - 8.0f), font,
+                     gfx::FloatPoint{content.x + offset.x + 4.0f, baseline + offset.y},
+                     style.color);
       }
       return;
     }
