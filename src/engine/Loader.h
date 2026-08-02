@@ -43,6 +43,8 @@ class Loader {
   // decisions inside one load cannot disagree about what time it is.
   Result Load(std::string_view url, std::int64_t now);
   Result Load(std::string_view url, std::int64_t now, const net::FetchOptions& options);
+  Result Load(std::string_view url, std::int64_t now, const net::FetchOptions& options,
+              const url::Url* referrer_document);
 
   // Loads something the document asked for, rather than something the user
   // did. The distinction is not cosmetic: it decides which cookies travel,

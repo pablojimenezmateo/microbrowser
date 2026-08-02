@@ -190,7 +190,7 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   if (!resolved.has_value()) {
     return false;
   }
-  Navigate(*resolved);
+  NavigateFromCurrentDocument(*resolved, {});
   return true;
 }
 
@@ -199,6 +199,11 @@ void Engine::Navigate(const std::string& url) {
 }
 
 void Engine::Navigate(const std::string& url, const net::FetchOptions& options) {
+  Navigate(url, options, nullptr);
+}
+
+void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
+                      const url::Url* referrer_document) {
   util::PerformanceTrace::Scope scope("engine::Navigate");
   AddPerformanceCounter(PerfCounterId::EngineNavigations);
 
@@ -211,7 +216,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options) 
     // loop blocks for the length of a load. Making it asynchronous is a change
     // to this function and the message vocabulary, not to the seam -- which is
     // why it can wait until there is something worth waiting on.
-    const Loader::Result loaded = loader_.Load(url, NowSeconds(), options);
+    const Loader::Result loaded = loader_.Load(url, NowSeconds(), options, referrer_document);
     if (!loaded.ok) {
       ShowError(url, loaded.error == nullptr ? "the load failed" : loaded.error);
       return;
@@ -226,12 +231,18 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options) 
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
 }
 
+void Engine::NavigateFromCurrentDocument(const std::string& url,
+                                         const net::FetchOptions& options) {
+  const std::optional<url::Url> referrer = url::Url::Parse(page_.Url());
+  Navigate(url, options, referrer.has_value() ? &*referrer : nullptr);
+}
+
 bool Engine::Navigate(const FormSubmission& submission) {
   const std::optional<std::string> resolved = ResolveLink(submission.url, page_.Url());
   if (!resolved.has_value()) {
     return false;
   }
-  Navigate(*resolved, FetchOptionsForSubmission(submission));
+  NavigateFromCurrentDocument(*resolved, FetchOptionsForSubmission(submission));
   return true;
 }
 

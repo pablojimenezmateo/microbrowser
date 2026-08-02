@@ -1359,6 +1359,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                 "the initial page and the clicked page were fetched");
     Expect(factory.log.requests.at(1).find("GET /next ") != std::string::npos,
            "the second request is for the clicked link");
+    Expect(factory.log.requests.at(1).find("Referer: https://example.org/start\r\n") !=
+               std::string::npos,
+           "the clicked navigation carries the policy-computed referrer");
   });
 
   AddTest(tests, "Engine/ClickingAGetFormSubmitNavigatesToTheSerializedQuery", [] {
@@ -1387,6 +1390,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(factory.log.requests.at(1).find("GET /search?q=hello+world&go=Search ") !=
                std::string::npos,
            "the second request is the submitted GET form");
+    Expect(factory.log.requests.at(1).find("Referer: https://example.org/start\r\n") !=
+               std::string::npos,
+           "the GET form navigation carries the policy-computed referrer");
   });
 
   AddTest(tests, "Engine/ClickingAPostFormSubmitSendsARequestBody", [] {
@@ -1414,6 +1420,8 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     const std::string& request = factory.log.requests.at(1);
     Expect(request.rfind("POST /search?keep=1 HTTP/1.1\r\n", 0) == 0,
            "the second request uses the form method and preserves the action query");
+    Expect(request.find("Referer: https://example.org/start\r\n") != std::string::npos,
+           "the POST form navigation carries the policy-computed referrer");
     Expect(request.find("Content-Type: application/x-www-form-urlencoded\r\n") !=
                std::string::npos,
            "the request carries the form encoding");

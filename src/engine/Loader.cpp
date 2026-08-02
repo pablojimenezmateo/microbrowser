@@ -198,6 +198,12 @@ Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
 
 Loader::Result Loader::Load(std::string_view url, std::int64_t now,
                             const net::FetchOptions& options) {
+  return Load(url, now, options, nullptr);
+}
+
+Loader::Result Loader::Load(std::string_view url, std::int64_t now,
+                            const net::FetchOptions& options,
+                            const url::Url* referrer_document) {
   Result result;
 
   if (DataUrl data = DecodeDataUrl(url); data.ok) {
@@ -230,7 +236,7 @@ Loader::Result Loader::Load(std::string_view url, std::int64_t now,
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
 
-  return Fetch(request, options, true, now, nullptr);
+  return Fetch(request, options, true, now, referrer_document);
 }
 
 }  // namespace microbrowser::engine

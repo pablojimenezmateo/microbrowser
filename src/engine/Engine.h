@@ -51,6 +51,9 @@ class Engine {
  private:
   void Navigate(const std::string& url);
   void Navigate(const std::string& url, const net::FetchOptions& options);
+  void Navigate(const std::string& url, const net::FetchOptions& options,
+                const url::Url* referrer_document);
+  void NavigateFromCurrentDocument(const std::string& url, const net::FetchOptions& options);
   bool Navigate(const FormSubmission& submission);
   void SetViewport(const gfx::IntSize& size, float device_scale);
   void ScrollBy(int delta_x, int delta_y);
