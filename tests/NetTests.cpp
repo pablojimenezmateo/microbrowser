@@ -158,6 +158,8 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     Expect(ParseWhole("HTTP/9.9 200 OK\r\n\r\n").Failed(), "unsupported version");
     Expect(ParseWhole("HTTP/1.1 999 X\r\n\r\n").Failed(), "status code out of range");
     Expect(ParseWhole("HTTP/1.1 abc X\r\n\r\n").Failed(), "non-numeric status");
+    Expect(ParseWhole("HTTP/1.1 200OK\r\n\r\n").Failed(), "status code needs a delimiter");
+    Expect(ParseWhole("HTTP/1.1 200\tOK\r\n\r\n").Failed(), "and that delimiter is a space");
     Expect(ParseWhole("HTTP/1.1 200 OK\r\nnocolon\r\n\r\n").Failed(), "header with no colon");
   });
 

@@ -145,6 +145,9 @@ bool ResponseParser::ParseStatusLine(std::string_view line) {
   if (!parsed.has_value() || *parsed < 100 || *parsed > 599) {
     return Fail("status code out of range");
   }
+  if (rest.size() > 3 && rest[3] != ' ') {
+    return Fail("malformed status line");
+  }
   response_.status = *parsed;
   if (rest.size() > 4) {
     response_.reason = std::string(TrimOptionalWhitespace(rest.substr(4)));
