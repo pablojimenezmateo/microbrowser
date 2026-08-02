@@ -245,12 +245,19 @@ std::string WithoutQueryOrFragment(std::string_view url) {
 std::optional<std::string> FormGetTarget(const dom::Element& form,
                                          const dom::Element* submitter,
                                          std::string_view document_url) {
-  if (const std::string* method = form.GetAttribute("method")) {
+  const std::string* method =
+      submitter != nullptr && submitter->HasAttribute("formmethod")
+          ? submitter->GetAttribute("formmethod")
+          : form.GetAttribute("method");
+  if (method != nullptr && !method->empty()) {
     if (!util::EqualsAsciiCaseInsensitive(*method, "get")) {
       return std::nullopt;
     }
   }
-  const std::string* action = form.GetAttribute("action");
+  const std::string* action =
+      submitter != nullptr && submitter->HasAttribute("formaction")
+          ? submitter->GetAttribute("formaction")
+          : form.GetAttribute("action");
   std::string target = action == nullptr || action->empty() ? std::string(document_url) : *action;
   target = WithoutQueryOrFragment(target);
   const std::string query = FormQuery(form, submitter);

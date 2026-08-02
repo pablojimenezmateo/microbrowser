@@ -225,6 +225,60 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "GET submission replaces the action query with successful controls");
   });
 
+  AddTest(tests, "Page/SubmitterOverridesFormAction", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/default'>"
+        "<input name='q' value='hello'>"
+        "<input type='submit' value='Search' formaction='/override?old=1'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/override?q=hello",
+                   "the submitter's formaction overrides the form action");
+  });
+
+  AddTest(tests, "Page/SubmitterOverridesFormMethodToGet", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/search' method='post'>"
+        "<input name='q' value='hello'>"
+        "<input type='submit' value='Search' formmethod='get'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "formmethod=get is a supported submission path");
+    ExpectEqString(*target, "/search?q=hello",
+                   "the submitter's formmethod overrides the form method");
+  });
+
+  AddTest(tests, "Page/SubmitterPostMethodIsUnsupported", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/search' method='get'>"
+        "<input name='q' value='hello'>"
+        "<input type='submit' value='Search' formmethod='post'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
+           "formmethod=post stays unsupported until request bodies exist");
+  });
+
   AddTest(tests, "Page/DisabledSubmitInputDoesNotSubmitForm", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
