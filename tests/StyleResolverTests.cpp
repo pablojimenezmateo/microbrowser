@@ -227,6 +227,10 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
                four.margin.bottom == Length::Pixels(3.0f) &&
                four.margin.left == Length::Pixels(4.0f),
            "four values run clockwise from the top");
+
+    const ComputedStyle margin = StyleOf("<p style='margin: -1px auto'>x</p>", "", "p");
+    Expect(margin.margin.top == Length::Pixels(-1.0f) && margin.margin.right.IsAuto(),
+           "margins may be negative or auto");
   });
 
   AddTest(tests, "StyleResolver/ParsesTheBorderShorthandInAnyOrder", [] {
@@ -274,13 +278,20 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
                 "an out-of-range font-weight leaves the earlier valid value alone");
 
     const ComputedStyle border =
-        StyleOf("<p style='border: 2px solid blue; border: wavy; border-width: nope'>x</p>", "",
-                "p");
+        StyleOf("<p style='border: 2px solid blue; border: wavy; "
+                "border: -1px solid red; border-width: nope; border-width: 50%'>x</p>",
+                "", "p");
     Expect(border.has_border, "an invalid border shorthand does not turn a previous border off");
     Expect(border.border_width.top == Length::Pixels(2.0f),
            "and an invalid border-width does not alter its previous width");
     Expect(border.border_color == gfx::Color::Rgb(0, 0, 0xFF),
            "or its previous colour");
+
+    const ComputedStyle padding =
+        StyleOf("<p style='padding: 5px; padding: -1px; padding-left: auto'>x</p>", "", "p");
+    Expect(padding.padding.top == Length::Pixels(5.0f) &&
+               padding.padding.left == Length::Pixels(5.0f),
+           "invalid padding edge values leave the earlier valid padding alone");
   });
 
   AddTest(tests, "StyleResolver/DisplayNoneMeansNoBox", [] {

@@ -281,7 +281,19 @@ std::optional<Length> ParseLength(std::string_view text) {
 
 namespace {
 
-bool ApplyEdges(std::string_view value, Edges& edges) {
+bool EdgeLengthAllowed(const Length& length, bool allow_negative, bool allow_auto,
+                       bool allow_percent) {
+  if (!allow_auto && length.IsAuto()) {
+    return false;
+  }
+  if (!allow_percent && length.IsPercent()) {
+    return false;
+  }
+  return allow_negative || length.value >= 0.0f;
+}
+
+bool ApplyEdges(std::string_view value, Edges& edges, bool allow_negative, bool allow_auto,
+                bool allow_percent) {
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty() || parts.size() > 4) {
     return false;
@@ -289,7 +301,8 @@ bool ApplyEdges(std::string_view value, Edges& edges) {
   std::array<Length, 4> lengths;
   for (std::size_t i = 0; i < parts.size(); ++i) {
     const auto length = ParseLength(parts[i]);
-    if (!length.has_value()) {
+    if (!length.has_value() ||
+        !EdgeLengthAllowed(*length, allow_negative, allow_auto, allow_percent)) {
       return false;  // one bad component invalidates the whole shorthand
     }
     lengths[i] = *length;
@@ -330,7 +343,7 @@ void ApplyBorder(std::string_view value, ComputedStyle& style) {
   bool style_disables_border = false;
   for (const std::string_view part : parts) {
     if (const auto length = ParseLength(part)) {
-      if (width.has_value()) {
+      if (width.has_value() || !EdgeLengthAllowed(*length, false, false, false)) {
         return;
       }
       width = Edges{*length, *length, *length, *length};
@@ -529,11 +542,11 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "margin") {
-    ApplyEdges(declaration.value, style.margin);
+    ApplyEdges(declaration.value, style.margin, true, true, true);
     return;
   }
   if (property == "padding") {
-    ApplyEdges(declaration.value, style.padding);
+    ApplyEdges(declaration.value, style.padding, false, false, true);
     return;
   }
   if (property == "width" || property == "height") {
@@ -550,7 +563,7 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "border-width") {
-    if (ApplyEdges(declaration.value, style.border_width)) {
+    if (ApplyEdges(declaration.value, style.border_width, false, false, false)) {
       style.has_border = true;
     }
     return;
@@ -567,10 +580,12 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     const std::string padding_name = "padding-" + std::string(kSides[i]);
     if (property == margin_name || property == padding_name) {
       const auto length = ParseLength(declaration.value);
-      if (!length.has_value()) {
+      const bool is_margin = property == margin_name;
+      if (!length.has_value() ||
+          !EdgeLengthAllowed(*length, is_margin, is_margin, true)) {
         return;
       }
-      Edges& edges = property == margin_name ? style.margin : style.padding;
+      Edges& edges = is_margin ? style.margin : style.padding;
       (&edges.top)[i] = *length;
       return;
     }
