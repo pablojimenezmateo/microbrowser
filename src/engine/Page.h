@@ -84,6 +84,10 @@ class Page : private layout::ImageProvider {
   // the document value changed and layout/paint should run.
   bool ActivateCheckableInputAt(gfx::FloatPoint document_point);
 
+  // Resets the owning form of a reset input at `document_point`. Returns true
+  // when the document value changed and layout/paint should run.
+  bool ResetFormAt(gfx::FloatPoint document_point);
+
   // Inserts text into the focused input. Returns true when the document value
   // changed and layout/paint should run.
   bool InsertTextIntoFocusedInput(std::string_view text);
@@ -131,6 +135,7 @@ class Page : private layout::ImageProvider {
   // Owns the decoded pixels for this document, and hands out shared_ptrs so
   // that a display list can outlive a relayout without copying a bitmap.
   std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images_;
+  std::map<const dom::Element*, std::pair<std::string, bool>> input_defaults_;
   dom::Element* focused_input_ = nullptr;
   float content_height_ = 0.0f;
 };

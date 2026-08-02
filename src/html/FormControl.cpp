@@ -24,6 +24,10 @@ bool IsSubmitInput(const dom::Element& element) {
   return IsInputType(element, "submit");
 }
 
+bool IsResetInput(const dom::Element& element) {
+  return IsInputType(element, "reset");
+}
+
 bool IsCheckboxInput(const dom::Element& element) {
   return IsInputType(element, "checkbox");
 }

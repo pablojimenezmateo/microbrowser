@@ -129,7 +129,7 @@ std::string InputControlText(const dom::Element& element) {
   if (html::IsSubmitInput(element)) {
     return "Submit";
   }
-  if (html::IsInputType(element, "reset")) {
+  if (html::IsResetInput(element)) {
     return "Reset";
   }
   return {};

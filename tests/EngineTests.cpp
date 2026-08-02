@@ -289,6 +289,34 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "activated checkable controls update the submitted state");
   });
 
+  AddTest(tests, "Page/ResetInputRestoresFormControlDefaults", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:20px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/filter'>"
+        "<input name='q'>"
+        "<input type='checkbox' name='seen' checked>"
+        "<input type='reset' value='Reset'>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.InsertTextIntoFocusedInput("abc"), "typing changed the input value");
+    page.Layout(400.0f);
+    Expect(page.ActivateCheckableInputAt(gfx::FloatPoint{25.0f, 5.0f}),
+           "clicking the checkbox toggles it");
+    page.Layout(400.0f);
+    Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "clicking reset restores defaults");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{65.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/filter?q=&seen=on", "reset restored the original form state");
+  });
+
   AddTest(tests, "Page/FocusedInputTextUpdatesFormSubmission", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
@@ -837,6 +865,39 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(factory.log.requests.at(1).find("GET /filter?seen=on&mode=new ") !=
                std::string::npos,
            "the second request contains the toggled controls");
+  });
+
+  AddTest(tests, "Engine/ClickingResetRestoresSubmittedFormDefaults", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<style>input{width:20px;height:20px;margin:0}</style>"
+                   "<body style='margin:0'><form action='/filter'>"
+                   "<input name='q'>"
+                   "<input type='checkbox' name='seen' checked>"
+                   "<input type='reset' value='Reset'>"
+                   "<input type='submit' value='Go'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Filtered</title><body>filtered</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+    session.Send(ipc::TextInputMessage{"abc"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{25, 5}, 1});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{65, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/filter?q=&seen=on",
+                   "submitted GET forms use reset defaults");
+    ExpectEqString(session.LastTitle(), "Filtered", "and the result document committed");
+    Expect(factory.log.requests.at(1).find("GET /filter?q=&seen=on ") != std::string::npos,
+           "the second request contains the reset form state");
   });
 
   AddTest(tests, "Engine/EveryFrameItProducesSurvivesItsOwnWireFormat", [] {

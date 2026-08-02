@@ -156,6 +156,11 @@ bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitte
   return true;
 }
 
+bool IsValueResettableInput(const dom::Element& element) {
+  return html::IsInputType(element, "text") || html::IsInputType(element, "search") ||
+         html::IsInputType(element, "password");
+}
+
 bool IsRadioGroupPeer(const dom::Element& candidate, const dom::Element& activated) {
   if (&candidate == &activated || !html::IsRadioInput(candidate)) {
     return false;
@@ -233,6 +238,20 @@ std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::Fl
   }
   const dom::Element* element = box.Origin();
   if (element == nullptr || element->HasAttribute("disabled") || !html::IsSubmitInput(*element)) {
+    return std::nullopt;
+  }
+  return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
+                                                     : std::nullopt;
+}
+
+std::optional<const dom::Element*> HitTestReset(const layout::Box& box, gfx::FloatPoint point) {
+  for (std::size_t i = box.Children().size(); i-- > 0;) {
+    if (std::optional<const dom::Element*> hit = HitTestReset(*box.Children()[i], point)) {
+      return hit;
+    }
+  }
+  const dom::Element* element = box.Origin();
+  if (element == nullptr || element->HasAttribute("disabled") || !html::IsResetInput(*element)) {
     return std::nullopt;
   }
   return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
@@ -318,9 +337,23 @@ void Page::Load(std::string_view html, std::string url) {
   focused_input_ = nullptr;
   content_height_ = 0.0f;
   images_.clear();
+  input_defaults_.clear();
 
   CollectStyleSheets();
   CollectImages();
+  if (document_ != nullptr) {
+    document_->ForEachDescendant([&](const dom::Node& node) {
+      if (!node.IsElement()) {
+        return;
+      }
+      const auto& element = static_cast<const dom::Element&>(node);
+      if (element.TagName() == "input") {
+        input_defaults_.emplace(&element,
+                                std::pair<std::string, bool>{InputValue(element),
+                                                             element.HasAttribute("checked")});
+      }
+    });
+  }
   ExtractTitle();
 }
 
@@ -496,6 +529,53 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
     }
   });
   input.SetAttribute("checked", "");
+  boxes_.reset();
+  return true;
+}
+
+bool Page::ResetFormAt(gfx::FloatPoint document_point) {
+  focused_input_ = nullptr;
+  if (boxes_ == nullptr) {
+    return false;
+  }
+  const std::optional<const dom::Element*> reset = HitTestReset(*boxes_, document_point);
+  if (!reset.has_value()) {
+    return false;
+  }
+  const dom::Element* form = (*reset)->ClosestAncestor("form");
+  if (form == nullptr) {
+    return false;
+  }
+  bool changed = false;
+  form->ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+    if (element.TagName() != "input") {
+      return;
+    }
+    const auto found = input_defaults_.find(&element);
+    if (found == input_defaults_.end()) {
+      return;
+    }
+    const auto& [value, checked] = found->second;
+    if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
+      if (checked) {
+        changed = !element.HasAttribute("checked") || changed;
+        element.SetAttribute("checked", "");
+      } else {
+        changed = element.RemoveAttribute("checked") || changed;
+      }
+    } else if (IsValueResettableInput(element)) {
+      const std::string* current = element.GetAttribute("value");
+      changed = current == nullptr || *current != value || changed;
+      element.SetAttribute("value", value);
+    }
+  });
+  if (!changed) {
+    return false;
+  }
   boxes_.reset();
   return true;
 }
