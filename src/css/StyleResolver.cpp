@@ -550,7 +550,8 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "width" || property == "height") {
-    if (const auto length = ParseLength(declaration.value)) {
+    if (const auto length = ParseLength(declaration.value);
+        length.has_value() && EdgeLengthAllowed(*length, false, true, true)) {
       (property == "width" ? style.width : style.height) = *length;
     }
     return;

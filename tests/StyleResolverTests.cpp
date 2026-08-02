@@ -277,6 +277,15 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(font.font_weight), 700,
                 "an out-of-range font-weight leaves the earlier valid value alone");
 
+    const ComputedStyle dimensions =
+        StyleOf("<p style='width: 10px; width: -1px; height: 20px; height: -5%'>x</p>", "", "p");
+    Expect(dimensions.width == Length::Pixels(10.0f),
+           "an invalid width leaves the earlier valid value alone");
+    Expect(dimensions.height == Length::Pixels(20.0f),
+           "an invalid height leaves the earlier valid value alone");
+    const ComputedStyle auto_width = StyleOf("<p style='width: 10px; width: auto'>x</p>", "", "p");
+    Expect(auto_width.width.IsAuto(), "auto is still a valid width");
+
     const ComputedStyle border =
         StyleOf("<p style='border: 2px solid blue; border: wavy; "
                 "border: -1px solid red; border-width: nope; border-width: 50%'>x</p>",
