@@ -6,6 +6,7 @@
 #include "css/StyleSheet.h"
 #include "gfx/PngDecoder.h"
 #include "html/TreeBuilder.h"
+#include "url/PercentEncoding.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
@@ -62,6 +63,123 @@ const std::string* AnchorHref(const dom::Element* element) {
   }
   const std::string* href = element->GetAttribute("href");
   return href != nullptr && !href->empty() ? href : nullptr;
+}
+
+bool ContainsAsciiCaseInsensitive(std::string_view value, std::string_view expected) {
+  return util::EqualsAsciiCaseInsensitive(value, expected);
+}
+
+std::string InputType(const dom::Element& element) {
+  const std::string* type = element.GetAttribute("type");
+  return type == nullptr ? std::string("text") : *type;
+}
+
+bool IsSubmitInput(const dom::Element& element) {
+  return element.TagName() == "input" && ContainsAsciiCaseInsensitive(InputType(element), "submit");
+}
+
+std::string InputValue(const dom::Element& element) {
+  if (const std::string* value = element.GetAttribute("value")) {
+    return *value;
+  }
+  if (ContainsAsciiCaseInsensitive(InputType(element), "submit")) {
+    return "Submit";
+  }
+  return {};
+}
+
+bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitter) {
+  if (element.TagName() != "input" || element.HasAttribute("disabled")) {
+    return false;
+  }
+  const std::string* name = element.GetAttribute("name");
+  if (name == nullptr || name->empty()) {
+    return false;
+  }
+  const std::string type = InputType(element);
+  if (ContainsAsciiCaseInsensitive(type, "submit")) {
+    return &element == submitter;
+  }
+  if (ContainsAsciiCaseInsensitive(type, "button") || ContainsAsciiCaseInsensitive(type, "reset") ||
+      ContainsAsciiCaseInsensitive(type, "file")) {
+    return false;
+  }
+  if ((ContainsAsciiCaseInsensitive(type, "checkbox") ||
+       ContainsAsciiCaseInsensitive(type, "radio")) &&
+      !element.HasAttribute("checked")) {
+    return false;
+  }
+  return true;
+}
+
+void AppendFormComponent(std::string_view value, std::string& out) {
+  for (const char c : value) {
+    if (c == ' ') {
+      out.push_back('+');
+    } else {
+      const std::string_view piece(&c, 1);
+      url::PercentEncodeInto(piece, url::PercentEncodeSet::Component, out);
+    }
+  }
+}
+
+std::string FormQuery(const dom::Element& form, const dom::Element* submitter) {
+  std::string out;
+  form.ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    if (!IsSuccessfulInput(element, submitter)) {
+      return;
+    }
+    if (!out.empty()) {
+      out.push_back('&');
+    }
+    AppendFormComponent(*element.GetAttribute("name"), out);
+    out.push_back('=');
+    const std::string value = InputValue(element);
+    AppendFormComponent(value, out);
+  });
+  return out;
+}
+
+std::string WithoutQueryOrFragment(std::string_view url) {
+  const std::size_t cut = url.find_first_of("?#");
+  return cut == std::string_view::npos ? std::string(url) : std::string(url.substr(0, cut));
+}
+
+std::optional<std::string> FormGetTarget(const dom::Element& form,
+                                         const dom::Element& submitter,
+                                         std::string_view document_url) {
+  if (const std::string* method = form.GetAttribute("method")) {
+    if (!util::EqualsAsciiCaseInsensitive(*method, "get")) {
+      return std::nullopt;
+    }
+  }
+  const std::string* action = form.GetAttribute("action");
+  std::string target = action == nullptr || action->empty() ? std::string(document_url) : *action;
+  target = WithoutQueryOrFragment(target);
+  const std::string query = FormQuery(form, &submitter);
+  if (!query.empty()) {
+    target += '?';
+    target += query;
+  }
+  return target;
+}
+
+std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::FloatPoint point) {
+  for (std::size_t i = box.Children().size(); i-- > 0;) {
+    if (std::optional<const dom::Element*> hit = HitTestSubmit(*box.Children()[i], point)) {
+      return hit;
+    }
+  }
+  const dom::Element* element = box.Origin();
+  if (element == nullptr || !IsSubmitInput(*element)) {
+    return std::nullopt;
+  }
+  return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
+                                                     : std::nullopt;
 }
 
 std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
@@ -225,6 +343,21 @@ std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
     return std::nullopt;
   }
   return HitTestLink(*boxes_, document_point, nullptr);
+}
+
+std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point) const {
+  if (boxes_ == nullptr) {
+    return std::nullopt;
+  }
+  const std::optional<const dom::Element*> submitter = HitTestSubmit(*boxes_, document_point);
+  if (!submitter.has_value()) {
+    return std::nullopt;
+  }
+  const dom::Element* form = (*submitter)->ClosestAncestor("form");
+  if (form == nullptr) {
+    return std::nullopt;
+  }
+  return FormGetTarget(*form, **submitter, url_);
 }
 
 }  // namespace microbrowser::engine

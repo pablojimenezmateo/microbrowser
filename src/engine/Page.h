@@ -72,6 +72,10 @@ class Page : private layout::ImageProvider {
   // by Engine, and the page's box tree is laid out unscrolled.
   std::optional<std::string> LinkAt(gfx::FloatPoint document_point) const;
 
+  // The GET form target activated at `document_point`, including the encoded
+  // query string, or nullopt when no supported form control was activated.
+  std::optional<std::string> FormSubmissionAt(gfx::FloatPoint document_point) const;
+
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.

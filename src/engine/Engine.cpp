@@ -118,6 +118,13 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   const gfx::FloatPoint document_point{
       static_cast<float>(pointer.position.x) / device_scale_,
       static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(scroll_y_)};
+  if (const std::optional<std::string> target = page_.FormSubmissionAt(document_point)) {
+    if (const std::optional<std::string> resolved = ResolveLink(*target, page_.Url())) {
+      Navigate(*resolved);
+      return true;
+    }
+    return false;
+  }
   const std::optional<std::string> href = page_.LinkAt(document_point);
   if (!href.has_value()) {
     return false;

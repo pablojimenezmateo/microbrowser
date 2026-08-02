@@ -206,6 +206,25 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "text outside the anchor is not a link");
   });
 
+  AddTest(tests, "Page/BuildsGetFormSubmissionTargets", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/search?old=1'>"
+        "<input type='hidden' name='token' value='a&b'>"
+        "<input name='q' value='hello world' size='2'>"
+        "<input type='submit' name='go' value='Search'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "clicking the submit input activates its form");
+    ExpectEqString(*target, "/search?token=a%26b&q=hello+world&go=Search",
+                   "GET submission replaces the action query with successful controls");
+  });
+
   // --- Subresources ---------------------------------------------------------
 
   AddTest(tests, "Page/CollectsLinkedStyleSheetsButNotOtherLinks", [] {
@@ -565,6 +584,34 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                 "the initial page and the clicked page were fetched");
     Expect(factory.log.requests.at(1).find("GET /next ") != std::string::npos,
            "the second request is for the clicked link");
+  });
+
+  AddTest(tests, "Engine/ClickingAGetFormSubmitNavigatesToTheSerializedQuery", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/search'>"
+                   "<input name='q' value='hello world' size='2'>"
+                   "<input type='submit' name='go' value='Search'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Results</title><body>results</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(),
+                   "https://example.org/search?q=hello+world&go=Search",
+                   "the form query was encoded and resolved against the document URL");
+    ExpectEqString(session.LastTitle(), "Results", "and the result document committed");
+    Expect(factory.log.requests.at(1).find("GET /search?q=hello+world&go=Search ") !=
+               std::string::npos,
+           "the second request is the submitted GET form");
   });
 
   AddTest(tests, "Engine/EveryFrameItProducesSurvivesItsOwnWireFormat", [] {
