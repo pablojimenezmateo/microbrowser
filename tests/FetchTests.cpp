@@ -52,6 +52,21 @@ FetchResult Run(const PrivacyPolicy& policy, ScriptedFactory& factory, CookieJar
   return net::Fetch(policy.Decide(request), policy, factory, cookies, cache, options, now);
 }
 
+FetchResult RunWithReferrer(const PrivacyPolicy& policy, ScriptedFactory& factory,
+                            CookieJar& cookies, HttpCache& cache, std::string_view target,
+                            std::string_view top_level, std::string_view referrer,
+                            std::int64_t now = 1000) {
+  privacy::Request request;
+  request.url = MustParse(target);
+  const Url top = MustParse(top_level);
+  request.top_level_site = url::Site::FromUrl(top);
+  request.initiator = url::Origin::FromUrl(top);
+  request.type = privacy::ResourceType::Script;
+  const Url referrer_url = MustParse(referrer);
+  return net::Fetch(policy.Decide(request, &referrer_url), policy, factory, cookies, cache, {},
+                    now);
+}
+
 constexpr std::string_view kOk = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi";
 
 std::vector<std::byte> Bytes(std::string_view text) {
@@ -376,6 +391,38 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "with the custom header still present");
     ExpectEqInt(static_cast<long long>(cache.Size()), 1,
                 "and the custom-header response is not stored under the URL-only key");
+  });
+
+  AddTest(tests, "Fetch/DoesNotUseTheUrlCacheForRequestsWithReferrers", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"cdn.example", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\none"});
+    factory.script.push_back(
+        {"cdn.example", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\ntwo"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult first =
+        RunWithReferrer(policy, factory, cookies, cache, "https://cdn.example/data",
+                        "https://news.example/", "https://news.example/secret/article");
+    Expect(first.ok && !first.from_cache, "the first referrer-bearing request reaches the network");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 0,
+                "and is not stored under a URL-only key");
+    Expect(factory.log.requests.at(0).find("Referer: https://news.example/\r\n") !=
+               std::string::npos,
+           "with the trimmed cross-origin referrer");
+
+    const FetchResult second =
+        RunWithReferrer(policy, factory, cookies, cache, "https://cdn.example/data",
+                        "https://news.example/", "https://news.example/secret/article");
+    Expect(second.ok && !second.from_cache,
+           "a referrer-bearing request must not reuse a URL-only cache entry");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 2,
+                "the second request reached the transport");
+    ExpectEqString(BodyString(second.response), "two", "second response body");
   });
 
   AddTest(tests, "Fetch/DoesNotUseCachedPublicResponseOnceCookiesApply", [] {

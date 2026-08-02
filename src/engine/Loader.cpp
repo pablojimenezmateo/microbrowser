@@ -117,10 +117,11 @@ DataUrl DecodeDataUrl(std::string_view url) {
 }
 
 Loader::Result Loader::Fetch(const privacy::Request& request, const net::FetchOptions& options,
-                             bool top_level, std::int64_t now) {
+                             bool top_level, std::int64_t now,
+                             const url::Url* referrer_document) {
   Result result;
 
-  privacy::Verdict verdict = policy_.Decide(request);
+  privacy::Verdict verdict = policy_.Decide(request, referrer_document);
   if (!verdict.IsAllowed()) {
     blocked_reason_ = verdict.Reason();
     result.error = blocked_reason_.empty() ? "blocked" : blocked_reason_.c_str();
@@ -188,7 +189,7 @@ Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& doc
   request.type = type;
   request.is_subresource = true;
 
-  return Fetch(request, options, false, now);
+  return Fetch(request, options, false, now, &document);
 }
 
 Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
@@ -229,7 +230,7 @@ Loader::Result Loader::Load(std::string_view url, std::int64_t now,
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
 
-  return Fetch(request, options, true, now);
+  return Fetch(request, options, true, now, nullptr);
 }
 
 }  // namespace microbrowser::engine

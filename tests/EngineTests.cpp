@@ -1008,6 +1008,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(factory.log.requests.at(0).find("GET /style.css ") != std::string::npos,
            "resolved against the document, not against the root: every href in a page is "
            "relative to where the page is");
+    Expect(factory.log.requests.at(0).find("Referer: https://example.org/dir/page.html\r\n") !=
+               std::string::npos,
+           "and the subresource request carries the policy-computed referrer");
   });
 
   AddTest(tests, "Loader/ABlockedSubresourceIsNotFetched", [] {

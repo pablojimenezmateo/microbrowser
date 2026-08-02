@@ -71,7 +71,7 @@ class Loader {
   // it so that "every request passed the policy" is true by construction
   // rather than by two functions remembering to do the same thing.
   Result Fetch(const privacy::Request& request, const net::FetchOptions& options,
-               bool top_level, std::int64_t now);
+               bool top_level, std::int64_t now, const url::Url* referrer_document);
 
   privacy::PrivacyPolicy policy_;
   net::SocketTransportFactory sockets_;

@@ -94,9 +94,11 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   return headers;
 }
 
-bool MayUseHttpCache(const FetchOptions& options, std::string_view cookie_header) {
+bool MayUseHttpCache(const FetchOptions& options,
+                     std::string_view cookie_header,
+                     std::string_view referrer) {
   return options.method == "GET" && options.body.empty() && options.headers.Fields().empty() &&
-         cookie_header.empty();
+         cookie_header.empty() && referrer.empty();
 }
 
 }  // namespace
@@ -124,7 +126,7 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
     const bool same_site = verdict.Partition().IsFirstParty();
     const std::string cookie_header = cookies.HeaderFor(
         verdict.Partition(), url, same_site, remaining.is_top_level_navigation, now);
-    const bool may_use_cache = MayUseHttpCache(remaining, cookie_header);
+    const bool may_use_cache = MayUseHttpCache(remaining, cookie_header, verdict.Referrer());
     if (may_use_cache && !remaining.bypass_cache) {
       if (const HttpCache::Entry* cached = cache.Lookup(verdict.Partition(), url, now)) {
         FetchResult result;
