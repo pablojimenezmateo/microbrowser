@@ -11,7 +11,7 @@ extern:
 max_tu_lines: 800
 
 budget: Node         header_lines=70 public_methods=20 members=3
-budget: Element      header_lines=30 public_methods=10 members=2
+budget: Element      header_lines=35 public_methods=12 members=2
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
 budget: DocumentType header_lines=25 public_methods=6  members=1

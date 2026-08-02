@@ -80,6 +80,10 @@ class Page : private layout::ImageProvider {
   // when the point is not one. Returns true when an input was focused.
   bool FocusInputAt(gfx::FloatPoint document_point);
 
+  // Activates a checkbox or radio input at `document_point`. Returns true when
+  // the document value changed and layout/paint should run.
+  bool ActivateCheckableInputAt(gfx::FloatPoint document_point);
+
   // Inserts text into the focused input. Returns true when the document value
   // changed and layout/paint should run.
   bool InsertTextIntoFocusedInput(std::string_view text);

@@ -118,6 +118,19 @@ bool IsSubmitInput(const dom::Element& element) {
   return element.TagName() == "input" && ContainsAsciiCaseInsensitive(InputType(element), "submit");
 }
 
+bool IsCheckboxInput(const dom::Element& element) {
+  return element.TagName() == "input" &&
+         ContainsAsciiCaseInsensitive(InputType(element), "checkbox");
+}
+
+bool IsRadioInput(const dom::Element& element) {
+  return element.TagName() == "input" && ContainsAsciiCaseInsensitive(InputType(element), "radio");
+}
+
+bool IsCheckableInput(const dom::Element& element) {
+  return !element.HasAttribute("disabled") && (IsCheckboxInput(element) || IsRadioInput(element));
+}
+
 bool IsEditableTextInput(const dom::Element& element) {
   if (element.TagName() != "input" || element.HasAttribute("disabled")) {
     return false;
@@ -164,6 +177,19 @@ bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitte
     return false;
   }
   return true;
+}
+
+bool IsRadioGroupPeer(const dom::Element& candidate, const dom::Element& activated) {
+  if (&candidate == &activated || !IsRadioInput(candidate)) {
+    return false;
+  }
+  const std::string* candidate_name = candidate.GetAttribute("name");
+  const std::string* activated_name = activated.GetAttribute("name");
+  if (candidate_name == nullptr || activated_name == nullptr || candidate_name->empty() ||
+      *candidate_name != *activated_name) {
+    return false;
+  }
+  return candidate.ClosestAncestor("form") == activated.ClosestAncestor("form");
 }
 
 void AppendFormComponent(std::string_view value, std::string& out) {
@@ -234,6 +260,23 @@ std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::Fl
   }
   return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
                                                      : std::nullopt;
+}
+
+std::optional<dom::Element*> HitTestCheckableInput(const layout::Box& box,
+                                                   gfx::FloatPoint point) {
+  for (std::size_t i = box.Children().size(); i-- > 0;) {
+    if (std::optional<dom::Element*> hit = HitTestCheckableInput(*box.Children()[i], point)) {
+      return hit;
+    }
+  }
+  const dom::Element* element = box.Origin();
+  if (element == nullptr || !IsCheckableInput(*element)) {
+    return std::nullopt;
+  }
+  if (!Contains(box.Geometry().BorderBox(), point)) {
+    return std::nullopt;
+  }
+  return const_cast<dom::Element*>(element);
 }
 
 std::optional<dom::Element*> HitTestEditableInput(const layout::Box& box, gfx::FloatPoint point) {
@@ -441,6 +484,42 @@ bool Page::FocusInputAt(gfx::FloatPoint document_point) {
     return false;
   }
   focused_input_ = *hit;
+  return true;
+}
+
+bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
+  focused_input_ = nullptr;
+  if (boxes_ == nullptr || document_ == nullptr) {
+    return false;
+  }
+  const std::optional<dom::Element*> hit = HitTestCheckableInput(*boxes_, document_point);
+  if (!hit.has_value()) {
+    return false;
+  }
+  dom::Element& input = **hit;
+  if (IsCheckboxInput(input)) {
+    if (input.HasAttribute("checked")) {
+      input.RemoveAttribute("checked");
+    } else {
+      input.SetAttribute("checked", "");
+    }
+    boxes_.reset();
+    return true;
+  }
+  if (input.HasAttribute("checked")) {
+    return false;
+  }
+  document_->ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    auto& candidate = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+    if (IsRadioGroupPeer(candidate, input)) {
+      candidate.RemoveAttribute("checked");
+    }
+  });
+  input.SetAttribute("checked", "");
+  boxes_.reset();
   return true;
 }
 

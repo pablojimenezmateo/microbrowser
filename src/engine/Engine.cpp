@@ -152,6 +152,10 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
     }
     return false;
   }
+  if (page_.ActivateCheckableInputAt(document_point)) {
+    LayoutAndPaint();
+    return true;
+  }
   if (page_.FocusInputAt(document_point)) {
     return false;
   }

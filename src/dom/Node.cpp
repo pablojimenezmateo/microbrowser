@@ -137,6 +137,18 @@ void Element::SetAttribute(std::string name, std::string value) {
   attributes_.push_back(Attribute{std::move(name), std::move(value)});
 }
 
+bool Element::RemoveAttribute(std::string_view name) {
+  const auto found = std::find_if(attributes_.begin(), attributes_.end(),
+                                  [name](const Attribute& attribute) {
+                                    return attribute.name == name;
+                                  });
+  if (found == attributes_.end()) {
+    return false;
+  }
+  attributes_.erase(found);
+  return true;
+}
+
 std::string Element::Serialize() const {
   std::string out;
   out.push_back('<');

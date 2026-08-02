@@ -107,6 +107,7 @@ class Element : public Node {
   const std::string* GetAttribute(std::string_view name) const;
   bool HasAttribute(std::string_view name) const { return GetAttribute(name) != nullptr; }
   void SetAttribute(std::string name, std::string value);
+  bool RemoveAttribute(std::string_view name);
 
   std::string Serialize() const override;
 

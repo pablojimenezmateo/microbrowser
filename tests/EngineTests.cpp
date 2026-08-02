@@ -247,6 +247,33 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "and an unnamed submitter is not successful");
   });
 
+  AddTest(tests, "Page/ClickingCheckableInputsUpdatesFormSubmission", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:10px;height:10px;margin:0}</style>"
+        "<body style='margin:0'><form action='/filter'>"
+        "<input type='checkbox' name='seen'>"
+        "<input type='radio' name='mode' value='old' checked>"
+        "<input type='radio' name='mode' value='new'>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.ActivateCheckableInputAt(gfx::FloatPoint{5.0f, 5.0f}),
+           "clicking the checkbox toggles it");
+    page.Layout(400.0f);
+    Expect(page.ActivateCheckableInputAt(gfx::FloatPoint{25.0f, 5.0f}),
+           "clicking a radio input selects it");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{35.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/filter?seen=on&mode=new",
+                   "activated checkable controls update the submitted state");
+  });
+
   AddTest(tests, "Page/FocusedInputTextUpdatesFormSubmission", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
@@ -728,6 +755,38 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(session.LastTitle(), "Commands", "and the result document committed");
     Expect(factory.log.requests.at(1).find("GET /search?q=ab ") != std::string::npos,
            "the second request contains the command-edited query");
+  });
+
+  AddTest(tests, "Engine/ClickingCheckableInputsUpdatesSubmittedForm", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<style>input{width:10px;height:10px;margin:0}</style>"
+                   "<body style='margin:0'><form action='/filter'>"
+                   "<input type='checkbox' name='seen'>"
+                   "<input type='radio' name='mode' value='old' checked>"
+                   "<input type='radio' name='mode' value='new'>"
+                   "<input type='submit' value='Go'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Filtered</title><body>filtered</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{25, 5}, 1});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{35, 5}, 1});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/filter?seen=on&mode=new",
+                   "submitted GET forms use clicked checkable state");
+    ExpectEqString(session.LastTitle(), "Filtered", "and the result document committed");
+    Expect(factory.log.requests.at(1).find("GET /filter?seen=on&mode=new ") !=
+               std::string::npos,
+           "the second request contains the toggled controls");
   });
 
   AddTest(tests, "Engine/EveryFrameItProducesSurvivesItsOwnWireFormat", [] {
