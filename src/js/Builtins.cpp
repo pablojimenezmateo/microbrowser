@@ -73,6 +73,55 @@ std::optional<double> ParseFloatPrefix(std::string_view text) {
   return util::ParseDouble(prefix);
 }
 
+int DigitValue(char c) {
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'a' && c <= 'z') {
+    return c - 'a' + 10;
+  }
+  if (c >= 'A' && c <= 'Z') {
+    return c - 'A' + 10;
+  }
+  return -1;
+}
+
+std::optional<double> ParseIntPrefix(std::string_view text, int radix) {
+  if (radix != 0 && (radix < 2 || radix > 36)) {
+    return std::nullopt;
+  }
+
+  std::size_t at = 0;
+  while (at < text.size() && IsJsWhitespace(text[at])) {
+    ++at;
+  }
+  double sign = 1.0;
+  if (at < text.size() && (text[at] == '+' || text[at] == '-')) {
+    sign = text[at] == '-' ? -1.0 : 1.0;
+    ++at;
+  }
+  if ((radix == 0 || radix == 16) && at + 1 < text.size() && text[at] == '0' &&
+      (text[at + 1] == 'x' || text[at + 1] == 'X')) {
+    radix = 16;
+    at += 2;
+  } else if (radix == 0) {
+    radix = 10;
+  }
+
+  double value = 0.0;
+  bool saw_digit = false;
+  while (at < text.size()) {
+    const int digit = DigitValue(text[at]);
+    if (digit < 0 || digit >= radix) {
+      break;
+    }
+    value = value * static_cast<double>(radix) + static_cast<double>(digit);
+    saw_digit = true;
+    ++at;
+  }
+  return saw_digit ? std::optional<double>(sign * value) : std::nullopt;
+}
+
 }  // namespace
 
 void Interpreter::InstallGlobals() {
@@ -467,15 +516,9 @@ void Interpreter::InstallGlobals() {
         // Unlike Number(), parseInt stops at the first character it cannot use
         // -- which is why parseInt('12px') is 12 and Number('12px') is NaN.
         const std::string text = ToString(Argument(call.arguments, 0));
-        const int radix = call.arguments.size() > 1
-                              ? static_cast<int>(ToNumber(call.arguments[1]))
-                              : 10;
-        char* stop = nullptr;
-        const long parsed = std::strtol(text.c_str(), &stop, radix == 0 ? 10 : radix);
-        if (stop == text.c_str()) {
-          return Value::Number(std::nan(""));
-        }
-        return Value::Number(static_cast<double>(parsed));
+        const int radix =
+            call.arguments.size() > 1 ? ToInt32(ToNumber(call.arguments[1])) : 0;
+        return Value::Number(ParseIntPrefix(text, radix).value_or(std::nan("")));
       })),
       false);
   global_scope_->Declare(

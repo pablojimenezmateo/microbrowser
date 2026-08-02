@@ -387,6 +387,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("Math.round(-0.5)", "0");  // rounds half up, not away from zero
     ExpectEval("Math.abs(-3)", "3");
     ExpectEval("parseInt('12px')", "12");
+    ExpectEval("parseInt('0x10')", "16");
+    ExpectEval("parseInt('-0x10')", "-16");
+    ExpectEval("parseInt('10', 2)", "2");
+    ExpectEval("parseInt('10', 1)", "NaN");
     ExpectEval("Number('12px')", "NaN");  // the difference between the two
     ExpectEval("Number('+1.5')", "1.5");
     ExpectEval("Number('Infinity')", "Infinity");
