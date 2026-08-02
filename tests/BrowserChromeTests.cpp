@@ -53,6 +53,13 @@ Modifiers Shift() {
   return modifiers;
 }
 
+Modifiers ControlShift() {
+  Modifiers modifiers;
+  modifiers.control = true;
+  modifiers.shift = true;
+  return modifiers;
+}
+
 void TypeString(TextField& field, std::string_view text) {
   for (const char c : text) {
     field.HandleKey(Typed(static_cast<char32_t>(static_cast<unsigned char>(c))));
@@ -318,6 +325,20 @@ void RegisterBrowserChromeTests(std::vector<TestCase>& tests) {
     const BrowserChrome::Response typing = chrome.HandleKey(Named(Key::Down));
     Expect(!typing.intent.has_value(),
            "but not while the omnibox has focus -- arrows belong to the field then");
+  });
+
+  AddTest(tests, "Chrome/ControlShiftRRequestsACacheBypassingReload", [] {
+    BrowserChrome chrome = MakeChrome();
+    const BrowserChrome::Response ordinary = chrome.HandleKey(Chord(U'r', Control()));
+    Expect(ordinary.intent.has_value() &&
+               ordinary.intent->kind == BrowserChrome::Intent::Kind::Reload,
+           "ctrl+R reloads");
+    Expect(!ordinary.intent->bypass_cache, "without bypassing a fresh cache entry");
+
+    const BrowserChrome::Response bypass = chrome.HandleKey(Chord(U'R', ControlShift()));
+    Expect(bypass.intent.has_value() && bypass.intent->kind == BrowserChrome::Intent::Kind::Reload,
+           "ctrl+shift+R also reloads");
+    Expect(bypass.intent->bypass_cache, "and asks the engine to reach the network");
   });
 
   AddTest(tests, "Chrome/BackAndForwardButtonsNavigateAndDoNotStrandTheHistory", [] {

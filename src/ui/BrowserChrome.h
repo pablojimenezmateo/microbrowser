@@ -25,6 +25,7 @@ class BrowserChrome {
     Kind kind = Kind::Navigate;
     std::string url;
     int scroll_delta = 0;
+    bool bypass_cache = false;
   };
 
   // The event was consumed by the chrome and must not reach the page.

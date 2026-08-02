@@ -406,7 +406,7 @@ void Application::ApplyChromeResponse(const ui::BrowserChrome::Response& respons
       channel_.Ui().Send(ipc::NavigateMessage{response.intent->url});
       break;
     case ui::BrowserChrome::Intent::Kind::Reload:
-      channel_.Ui().Send(ipc::ReloadMessage{false});
+      channel_.Ui().Send(ipc::ReloadMessage{response.intent->bypass_cache});
       break;
     case ui::BrowserChrome::Intent::Kind::ScrollPage:
       channel_.Ui().Send(ipc::ScrollMessage{0, response.intent->scroll_delta});

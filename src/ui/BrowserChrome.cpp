@@ -190,7 +190,7 @@ BrowserChrome::Response BrowserChrome::HandleKey(const platform::KeyEvent& event
   if (event.modifiers.control && (event.codepoint == U'r' || event.codepoint == U'R')) {
     response.handled = true;
     response.needs_repaint = true;
-    response.intent = Intent{Intent::Kind::Reload, {}, 0};
+    response.intent = Intent{Intent::Kind::Reload, {}, 0, event.modifiers.shift};
     return response;
   }
 
