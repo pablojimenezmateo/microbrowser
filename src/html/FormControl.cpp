@@ -48,8 +48,8 @@ bool IsCheckableInput(const dom::Element& element) {
   return !element.HasAttribute("disabled") && (IsCheckboxInput(element) || IsRadioInput(element));
 }
 
-bool IsEditableTextInput(const dom::Element& element) {
-  if (element.HasAttribute("disabled")) {
+bool IsTextInputType(const dom::Element& element) {
+  if (element.TagName() != "input") {
     return false;
   }
   for (const std::string_view type : kEditableTextTypes) {
@@ -58,6 +58,10 @@ bool IsEditableTextInput(const dom::Element& element) {
     }
   }
   return false;
+}
+
+bool IsEditableTextInput(const dom::Element& element) {
+  return !element.HasAttribute("disabled") && IsTextInputType(element);
 }
 
 bool IsMutableTextInput(const dom::Element& element) {

@@ -157,8 +157,7 @@ bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitte
 }
 
 bool IsValueResettableInput(const dom::Element& element) {
-  return html::IsInputType(element, "text") || html::IsInputType(element, "search") ||
-         html::IsInputType(element, "password");
+  return html::IsTextInputType(element);
 }
 
 bool IsRadioGroupPeer(const dom::Element& candidate, const dom::Element& activated) {

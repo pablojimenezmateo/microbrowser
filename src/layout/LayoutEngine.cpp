@@ -117,14 +117,20 @@ bool IsReplacedElement(const dom::Element& element) {
 }
 
 std::string InputControlText(const dom::Element& element) {
-  if (html::IsPasswordInput(element)) {
-    return {};
-  }
   if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
     return {};
   }
-  if (const std::string* value = element.GetAttribute("value")) {
+  if (const std::string* value = element.GetAttribute("value"); value != nullptr && !value->empty()) {
+    if (html::IsPasswordInput(element)) {
+      return {};
+    }
     return *value;
+  }
+  if (html::IsTextInputType(element)) {
+    if (const std::string* placeholder = element.GetAttribute("placeholder")) {
+      return *placeholder;
+    }
+    return {};
   }
   if (html::IsSubmitInput(element)) {
     return "Submit";

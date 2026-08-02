@@ -342,6 +342,31 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/filter?q=abc", "disabled reset left the edited state intact");
   });
 
+  AddTest(tests, "Page/ResetRestoresTextLikeInputTypes", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/contact'>"
+        "<input type='email' name='email' value='a@b'>"
+        "<input type='reset' value='Reset'>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
+    Expect(page.InsertTextIntoFocusedInput("c"), "typing changed the input value");
+    page.Layout(400.0f);
+    Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "clicking reset restores defaults");
+    page.Layout(400.0f);
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{85.0f, 5.0f});
+    Expect(target.has_value(), "the submit control activates the form");
+    ExpectEqString(*target, "/contact?email=a%40b",
+                   "reset restored the email input's original value");
+  });
+
   AddTest(tests, "Page/FocusedInputTextUpdatesFormSubmission", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

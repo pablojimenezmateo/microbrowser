@@ -471,6 +471,49 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     }
   });
 
+  AddTest(tests, "Layout/PaintsTextInputPlaceholders", [] {
+    const LaidOut result =
+        Run("<body style='margin:0'><input placeholder='Search'></body>",
+            "body { margin: 0 } input { margin: 0; width: 100px; height: 24px; font-size: 20px }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_placeholder = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_placeholder = saw_placeholder || (run != nullptr && run->text == "Search");
+      }
+    }
+    Expect(saw_placeholder, "an empty text input paints its placeholder");
+  });
+
+  AddTest(tests, "Layout/PaintsPasswordPlaceholdersWithoutLeakingValues", [] {
+    const LaidOut result = Run(
+        "<body style='margin:0'><input type='password' placeholder='Password'>"
+        "<input type='password' value='secret' placeholder='Secret'></body>",
+        "body { margin: 0 } input { margin: 0; width: 100px; height: 24px; font-size: 20px }",
+        400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_placeholder = false;
+    bool leaked_value = false;
+    bool painted_hidden_placeholder = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_placeholder = saw_placeholder || (run != nullptr && run->text == "Password");
+        leaked_value =
+            leaked_value || (run != nullptr && run->text.find("secret") != std::string::npos);
+        painted_hidden_placeholder =
+            painted_hidden_placeholder || (run != nullptr && run->text == "Secret");
+      }
+    }
+    Expect(saw_placeholder, "an empty password input paints its placeholder");
+    Expect(!leaked_value, "a password input value is still not emitted as text");
+    Expect(!painted_hidden_placeholder, "a non-empty password input does not paint its placeholder");
+  });
+
   AddTest(tests, "Layout/TableCellsShareARowInsteadOfStacking", [] {
     const LaidOut result =
         Run("<table><tr><td>a</td><td>b</td></tr></table>",
