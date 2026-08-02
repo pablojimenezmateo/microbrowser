@@ -179,6 +179,63 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     Expect(!looped.ok, "an unbounded redirect chain must terminate as a failure");
   });
 
+  AddTest(tests, "Fetch/PostRedirectToGetDropsBodyAndBodyHeaders", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true,
+                              "HTTP/1.1 303 See Other\r\nLocation: /done\r\n"
+                              "Content-Length: 0\r\n\r\n"});
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    FetchOptions options;
+    options.method = "POST";
+    options.headers.Add("Content-Type", "application/x-www-form-urlencoded");
+    options.headers.Add("X-Keep", "yes");
+    options.body = Bytes("q=hello");
+    const FetchResult result =
+        Run(policy, factory, cookies, cache, "https://example.com/form", options);
+    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+
+    const std::string& redirected = factory.log.requests.at(1);
+    Expect(redirected.rfind("GET /done HTTP/1.1\r\n", 0) == 0,
+           "303 rewrites POST to GET");
+    Expect(redirected.find("Content-Type:") == std::string::npos,
+           "a redirected GET does not keep the form entity header");
+    Expect(redirected.find("Content-Length:") == std::string::npos,
+           "and it has no body length");
+    Expect(redirected.find("X-Keep: yes\r\n") != std::string::npos,
+           "headers unrelated to the request body are kept across the redirect");
+    Expect(redirected.size() < 7 || redirected.substr(redirected.size() - 7) != "q=hello",
+           "and the original body is not sent again");
+  });
+
+  AddTest(tests, "Fetch/OwnsRequestBodyFramingHeaders", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    FetchOptions options;
+    options.method = "POST";
+    options.headers.Add("Content-Length", "999");
+    options.headers.Add("Transfer-Encoding", "chunked");
+    options.body = Bytes("q=hello");
+    const FetchResult result =
+        Run(policy, factory, cookies, cache, "https://example.com/form", options);
+    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+
+    const std::string& request = factory.log.requests.at(0);
+    Expect(request.find("Content-Length: 7\r\n") != std::string::npos,
+           "Fetch computes the body length from the body it will actually send");
+    Expect(request.find("Content-Length: 999\r\n") == std::string::npos,
+           "caller-provided Content-Length is not forwarded");
+    Expect(request.find("Transfer-Encoding:") == std::string::npos,
+           "and neither is caller-provided transfer coding");
+  });
+
   AddTest(tests, "Fetch/StoresAndSendsCookiesInTheRequestsOwnPartition", [] {
     PrivacyPolicy policy;
     ScriptedFactory factory;

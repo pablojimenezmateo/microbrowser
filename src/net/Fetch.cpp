@@ -1,8 +1,10 @@
 #include "net/Fetch.h"
 
 #include <array>
+#include <utility>
 
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::net {
 
@@ -16,6 +18,28 @@ FetchResult Failure(const char* reason) {
   result.error = reason;
   AddPerformanceCounter(PerfCounterId::NetFetchFailures);
   return result;
+}
+
+bool HeaderNameIs(std::string_view name, std::string_view expected) {
+  return util::EqualsAsciiCaseInsensitive(name, expected);
+}
+
+bool IsRequestFramingHeader(std::string_view name) {
+  return HeaderNameIs(name, "content-length") || HeaderNameIs(name, "transfer-encoding");
+}
+
+bool IsBodyHeader(std::string_view name) {
+  return IsRequestFramingHeader(name) || HeaderNameIs(name, "content-type");
+}
+
+void DropBodyHeaders(FetchOptions& options) {
+  HttpHeaders kept;
+  for (const HttpHeaders::Field& field : options.headers.Fields()) {
+    if (!IsBodyHeader(field.name)) {
+      kept.Add(field.name, field.value);
+    }
+  }
+  options.headers = std::move(kept);
 }
 
 // The request line target: path and query, never the fragment. A fragment is
@@ -53,6 +77,9 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   headers.Add("Connection", "close");
 
   for (const HttpHeaders::Field& field : options.headers.Fields()) {
+    if (IsRequestFramingHeader(field.name)) {
+      continue;
+    }
     headers.Add(field.name, field.value);
   }
   if (!verdict.Referrer().empty()) {
@@ -203,6 +230,7 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
                                    remaining.method != "GET" && remaining.method != "HEAD")) {
       remaining.method = "GET";
       remaining.body.clear();
+      DropBodyHeaders(remaining);
     }
   }
 }
