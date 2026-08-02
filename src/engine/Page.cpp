@@ -230,32 +230,31 @@ std::optional<std::string> FormGetTarget(const dom::Element& form,
   return target;
 }
 
-std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::FloatPoint point) {
+using InputPredicate = bool (*)(const dom::Element&);
+
+std::optional<const dom::Element*> HitTestEnabledInput(const layout::Box& box,
+                                                       gfx::FloatPoint point,
+                                                       InputPredicate predicate) {
   for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<const dom::Element*> hit = HitTestSubmit(*box.Children()[i], point)) {
+    if (std::optional<const dom::Element*> hit =
+            HitTestEnabledInput(*box.Children()[i], point, predicate)) {
       return hit;
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || element->HasAttribute("disabled") || !html::IsSubmitInput(*element)) {
+  if (element == nullptr || element->HasAttribute("disabled") || !predicate(*element)) {
     return std::nullopt;
   }
   return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
                                                      : std::nullopt;
 }
 
+std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::FloatPoint point) {
+  return HitTestEnabledInput(box, point, html::IsSubmitInput);
+}
+
 std::optional<const dom::Element*> HitTestReset(const layout::Box& box, gfx::FloatPoint point) {
-  for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<const dom::Element*> hit = HitTestReset(*box.Children()[i], point)) {
-      return hit;
-    }
-  }
-  const dom::Element* element = box.Origin();
-  if (element == nullptr || element->HasAttribute("disabled") || !html::IsResetInput(*element)) {
-    return std::nullopt;
-  }
-  return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
-                                                     : std::nullopt;
+  return HitTestEnabledInput(box, point, html::IsResetInput);
 }
 
 std::optional<dom::Element*> HitTestCheckableInput(const layout::Box& box,
