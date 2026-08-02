@@ -13,13 +13,6 @@ std::uint64_t NextOpaqueNonce() {
   return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-std::string SiteFallbackHost(std::string_view host) {
-  if (host.size() > 1 && host.back() == '.' && host.front() != '[') {
-    host.remove_suffix(1);
-  }
-  return std::string(host);
-}
-
 }  // namespace
 
 Site Site::FromUrl(const Url& url) {
@@ -43,7 +36,8 @@ Site Site::FromOrigin(const Origin& origin) {
   // in both cases the host itself is the finest boundary available. Falling
   // back to the host is right; falling back to *empty* would put every such
   // host in one shared bucket.
-  site.domain_ = registrable.empty() ? SiteFallbackHost(origin.Host()) : registrable;
+  site.domain_ =
+      registrable.empty() ? std::string(HostWithoutTrailingRootDot(origin.Host())) : registrable;
   return site;
 }
 

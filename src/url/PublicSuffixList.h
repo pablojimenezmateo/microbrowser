@@ -25,6 +25,10 @@ namespace microbrowser::url {
 // a generated file. Growing it is a data change, not a code change, and
 // `PublicSuffixListSize()` exists so a test can notice when it happens.
 
+// Host spelling used for public-suffix and site-key decisions. A final root
+// dot marks an absolute DNS name and must not become an extra label.
+std::string_view HostWithoutTrailingRootDot(std::string_view host);
+
 // Length in labels of the public suffix of `host`, or 0 when the host is itself
 // a public suffix with nothing registered under it.
 std::size_t PublicSuffixLabelCount(std::string_view host);

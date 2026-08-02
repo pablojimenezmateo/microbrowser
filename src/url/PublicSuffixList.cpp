@@ -47,13 +47,6 @@ std::vector<std::string_view> SplitLabels(std::string_view host) {
   return labels;
 }
 
-std::string_view HostForPublicSuffix(std::string_view host) {
-  if (host.size() > 1 && host.back() == '.' && host.front() != '[') {
-    host.remove_suffix(1);
-  }
-  return host;
-}
-
 struct Match {
   std::size_t labels = 0;
   bool found = false;
@@ -118,8 +111,15 @@ bool LooksLikeIpAddress(std::string_view host) {
 
 }  // namespace
 
+std::string_view HostWithoutTrailingRootDot(std::string_view host) {
+  if (host.size() > 1 && host.back() == '.' && host.front() != '[') {
+    host.remove_suffix(1);
+  }
+  return host;
+}
+
 std::size_t PublicSuffixLabelCount(std::string_view host) {
-  host = HostForPublicSuffix(host);
+  host = HostWithoutTrailingRootDot(host);
   if (host.empty() || LooksLikeIpAddress(host)) {
     return 0;
   }
@@ -139,13 +139,13 @@ std::size_t PublicSuffixLabelCount(std::string_view host) {
 }
 
 bool IsPublicSuffix(std::string_view host) {
-  host = HostForPublicSuffix(host);
+  host = HostWithoutTrailingRootDot(host);
   const std::size_t suffix = PublicSuffixLabelCount(host);
   return suffix != 0 && suffix == SplitLabels(host).size();
 }
 
 std::string RegistrableDomain(std::string_view host) {
-  host = HostForPublicSuffix(host);
+  host = HostWithoutTrailingRootDot(host);
   if (host.empty() || LooksLikeIpAddress(host)) {
     return {};
   }
