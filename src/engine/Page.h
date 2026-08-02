@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>
@@ -56,17 +57,15 @@ class Page : private layout::ImageProvider {
   // Stylesheet URLs the document referenced, in document order, exactly as
   // written. Resolving them against the document is the loader's job, because
   // it is the loader that knows what a base URL is for.
-  const std::vector<std::string>& PendingStyleSheets() const { return pending_sheets_; }
+  const std::vector<std::string>& PendingStyleSheets() const { return resources_.pending_sheets; }
 
-  // Adds a fetched stylesheet. Author origin, appended after the document's
-  // own <style> elements -- which is wrong for a sheet that appeared earlier
-  // in the document, and is the next thing to fix here. Document order within
-  // an origin is the last tiebreaker in the cascade, so this only shows up
-  // when two rules of equal specificity disagree.
-  void AddStyleSheet(std::string_view css);
+  // Adds the fetched stylesheet for `PendingStyleSheets()[pending_index]`.
+  // Author-origin cascade order is the document order of <style> and <link>,
+  // so the index fills a slot rather than appending at load completion time.
+  void AddStyleSheet(std::size_t pending_index, std::string_view css);
 
   // Image URLs the document referenced, in document order, exactly as written.
-  const std::vector<std::string>& PendingImages() const { return pending_images_; }
+  const std::vector<std::string>& PendingImages() const { return resources_.pending_images; }
 
   // Records a decoded image under the `src` the document wrote. Keyed by the
   // written form rather than the resolved one because that is what the element
@@ -115,15 +114,22 @@ class Page : private layout::ImageProvider {
   css::StyleResolver& Styles() { return resolver_; }
 
  private:
+  struct DocumentResources {
+    std::vector<std::string> pending_sheets;
+    std::vector<std::size_t> pending_sheet_slots;
+    std::vector<std::optional<std::string>> author_sheet_slots;
+    std::vector<std::string> pending_images;
+    std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images;
+  };
+
   // layout::ImageProvider. Private inheritance: layout asks the page for an
   // image, and nobody else has business calling this.
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
 
   void ExtractTitle();
-  // Collects <style> element text into the resolver. Called on load, before
-  // any style is resolved, because a resolver consulted first would cache a
-  // cascade that the sheet then changes.
+  // Collects <style> elements and stylesheet links in document order.
   void CollectStyleSheets();
+  void RebuildAuthorStyleSheets();
   void CollectImages();
 
   gfx::TextRenderer text_;
@@ -133,11 +139,7 @@ class Page : private layout::ImageProvider {
   std::unique_ptr<layout::Box> boxes_;
   std::string url_;
   std::string title_;
-  std::vector<std::string> pending_sheets_;
-  std::vector<std::string> pending_images_;
-  // Owns the decoded pixels for this document, and hands out shared_ptrs so
-  // that a display list can outlive a relayout without copying a bitmap.
-  std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images_;
+  DocumentResources resources_;
   std::map<const dom::Element*, std::pair<std::string, bool>> control_defaults_;
   dom::Element* focused_text_control_ = nullptr;
   float content_height_ = 0.0f;

@@ -21,17 +21,15 @@ budget: Engine header_lines=75 public_methods=8 members=8
 budget: Loader header_lines=80 public_methods=10 members=6
 # One document: DOM, styles, box tree, and the display list they produce. This
 # is the unit a second tab duplicates.
-# Members 9 through 11 are the subresources: the stylesheet URLs and the image
-# URLs the document referenced, and the decoded pixels for the images. Member
-# 12 is the original form-control state, keyed by element, so reset controls can
+# Member 9 is the document resource plan: linked stylesheet slots, image URLs,
+# and decoded image pixels. Keeping those in one value matters because external
+# stylesheets are fetched by the loader but cascade in document order with
+# inline <style> elements.
+# Member 10 is the original form-control state, keyed by element, so reset controls can
 # restore DOM-mutated values without smuggling internal attributes into the DOM.
-# Member 13 is the currently focused text-control element, a non-owning pointer
+# Member 11 is the currently focused text-control element, a non-owning pointer
 # into the document so form editing state lives on the DOM value rather than in
 # a second parallel store. Page collects the URLs and the Loader fetches them,
 # because resolving a relative href against a base URL is the loader's job and
 # parsing is this one's.
-#
-# When a third resource kind arrives -- fonts, most likely -- these want to
-# become one table keyed by kind rather than a fourth and fifth member. Two is
-# not yet a pattern; three will be.
-budget: Page   header_lines=135 public_methods=30 members=13
+budget: Page   header_lines=145 public_methods=30 members=11

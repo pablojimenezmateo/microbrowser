@@ -958,6 +958,39 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(sheets.at(1), "b.css", "and rel matches case-insensitively");
   });
 
+  AddTest(tests, "Page/StyleSheetsCascadeInDocumentOrderAcrossLinksAndStyleElements", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<head><link rel='stylesheet' href='early.css'>"
+        "<style>p { height: 40px }</style></head>"
+        "<body><p>ABC</p></body>",
+        "https://example.org/");
+
+    page.AddStyleSheet(0, "p { height: 400px }");
+    const float height = page.Layout(400.0f);
+    Expect(height < 200.0f,
+           "a linked sheet fills its document slot; it does not win merely because it loaded "
+           "after a later <style> element");
+  });
+
+  AddTest(tests, "Page/FailedStyleSheetsDoNotShiftLaterSheetsIntoTheWrongCascadeSlot", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<head><link rel='stylesheet' href='missing.css'>"
+        "<style>p { height: 40px }</style>"
+        "<link rel='stylesheet' href='late.css'></head>"
+        "<body><p>ABC</p></body>",
+        "https://example.org/");
+
+    page.AddStyleSheet(1, "p { height: 400px }");
+    const float height = page.Layout(400.0f);
+    Expect(height >= 300.0f,
+           "the second successful fetch fills the second link's slot, after the inline style, "
+           "even though the first link never loaded");
+  });
+
   AddTest(tests, "Loader/ASubresourceIsFetchedRelativeToItsDocument", [] {
     engine::Loader loader;
     ScriptedFactory factory;

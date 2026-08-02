@@ -247,11 +247,13 @@ void Engine::LoadSubresources() {
     return;
   }
 
-  for (const std::string& href : page_.PendingStyleSheets()) {
+  const std::vector<std::string>& sheets = page_.PendingStyleSheets();
+  for (std::size_t i = 0; i < sheets.size(); ++i) {
     const Loader::Result sheet =
-        loader_.LoadSubresource(href, *document, privacy::ResourceType::Stylesheet, NowSeconds());
+        loader_.LoadSubresource(sheets[i], *document, privacy::ResourceType::Stylesheet,
+                                NowSeconds());
     if (sheet.ok) {
-      page_.AddStyleSheet(sheet.body);
+      page_.AddStyleSheet(i, sheet.body);
       AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
     } else {
       // A stylesheet that does not load is a page rendered without it, which is

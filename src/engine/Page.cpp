@@ -57,6 +57,26 @@ std::string DirectText(const dom::Element& element) {
   return text;
 }
 
+bool IsLinkedStyleSheet(const dom::Element& link) {
+  if (link.TagName() != "link") {
+    return false;
+  }
+  // `rel` is a space-separated set of tokens, and a sheet is only a sheet
+  // when "stylesheet" is one of them: `rel="alternate stylesheet"` is not
+  // applied, and `rel="preload"` is not a stylesheet at all.
+  const std::string* rel = link.GetAttribute("rel");
+  if (rel == nullptr) {
+    return false;
+  }
+  bool is_stylesheet = false;
+  bool is_alternate = false;
+  for (const std::string_view token : SplitTokens(*rel)) {
+    is_stylesheet = is_stylesheet || util::EqualsAsciiCaseInsensitive(token, "stylesheet");
+    is_alternate = is_alternate || util::EqualsAsciiCaseInsensitive(token, "alternate");
+  }
+  return is_stylesheet && !is_alternate;
+}
+
 bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
   return point.x >= rect.x && point.x < rect.Right() && point.y >= rect.y &&
          point.y < rect.Bottom();
@@ -414,7 +434,7 @@ void Page::Load(std::string_view html, std::string url) {
   boxes_.reset();
   focused_text_control_ = nullptr;
   content_height_ = 0.0f;
-  images_.clear();
+  resources_ = DocumentResources{};
   control_defaults_.clear();
 
   CollectStyleSheets();
@@ -436,47 +456,58 @@ void Page::Load(std::string_view html, std::string url) {
 }
 
 void Page::CollectStyleSheets() {
-  pending_sheets_.clear();
+  resources_.pending_sheets.clear();
+  resources_.pending_sheet_slots.clear();
+  resources_.author_sheet_slots.clear();
   if (document_ == nullptr) {
     return;
   }
-  for (const dom::Element* style : document_->ElementsByTagName("style")) {
-    resolver_.AddStyleSheet(css::ParseStyleSheet(DirectText(*style)), css::Origin::Author);
+  document_->ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    if (element.TagName() == "style") {
+      resources_.author_sheet_slots.emplace_back(DirectText(element));
+      return;
+    }
+    if (!IsLinkedStyleSheet(element)) {
+      return;
+    }
+    const std::string* href = element.GetAttribute("href");
+    if (href == nullptr || href->empty()) {
+      return;
+    }
+    resources_.pending_sheets.push_back(*href);
+    resources_.pending_sheet_slots.push_back(resources_.author_sheet_slots.size());
+    resources_.author_sheet_slots.push_back(std::nullopt);
+  });
+  RebuildAuthorStyleSheets();
+}
+
+void Page::RebuildAuthorStyleSheets() {
+  resolver_ = css::StyleResolver{};
+  for (const std::optional<std::string>& css : resources_.author_sheet_slots) {
+    if (css.has_value()) {
+      resolver_.AddStyleSheet(css::ParseStyleSheet(*css), css::Origin::Author);
+    }
   }
-  for (const dom::Element* link : document_->ElementsByTagName("link")) {
-    // `rel` is a space-separated set of tokens, and a sheet is only a sheet
-    // when "stylesheet" is one of them: `rel="alternate stylesheet"` is not
-    // applied, and `rel="preload"` is not a stylesheet at all.
-    const std::string* rel = link->GetAttribute("rel");
-    const std::string* href = link->GetAttribute("href");
-    if (rel == nullptr || href == nullptr || href->empty()) {
-      continue;
-    }
-    bool is_stylesheet = false;
-    bool is_alternate = false;
-    for (const std::string_view token : SplitTokens(*rel)) {
-      is_stylesheet = is_stylesheet || util::EqualsAsciiCaseInsensitive(token, "stylesheet");
-      is_alternate = is_alternate || util::EqualsAsciiCaseInsensitive(token, "alternate");
-    }
-    if (is_stylesheet && !is_alternate) {
-      pending_sheets_.push_back(*href);
-    }
-  }
+  boxes_.reset();
 }
 
 void Page::CollectImages() {
-  pending_images_.clear();
+  resources_.pending_images.clear();
   if (document_ == nullptr) {
     return;
   }
   for (const dom::Element* image : document_->ElementsByTagName("img")) {
     const std::string* src = image->GetAttribute("src");
     if (src != nullptr && !src->empty() &&
-        std::find(pending_images_.begin(), pending_images_.end(), *src) ==
-            pending_images_.end()) {
+        std::find(resources_.pending_images.begin(), resources_.pending_images.end(), *src) ==
+            resources_.pending_images.end()) {
       // Deduplicated: a page that shows one icon forty times fetches and
       // decodes it once.
-      pending_images_.push_back(*src);
+      resources_.pending_images.push_back(*src);
     }
   }
 }
@@ -485,20 +516,26 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   if (image == nullptr || !image->IsValid()) {
     return;
   }
-  images_[std::move(src)] = std::move(image);
+  resources_.images[std::move(src)] = std::move(image);
   // The box tree sized its replaced boxes against what was available then.
   boxes_.reset();
 }
 
 std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {
-  const auto found = images_.find(src);
-  return found == images_.end() ? nullptr : found->second;
+  const auto found = resources_.images.find(src);
+  return found == resources_.images.end() ? nullptr : found->second;
 }
 
-void Page::AddStyleSheet(std::string_view css) {
-  resolver_.AddStyleSheet(css::ParseStyleSheet(css), css::Origin::Author);
-  // The box tree was built against the old cascade, if it was built at all.
-  boxes_.reset();
+void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {
+  if (pending_index >= resources_.pending_sheet_slots.size()) {
+    return;
+  }
+  const std::size_t slot = resources_.pending_sheet_slots[pending_index];
+  if (slot >= resources_.author_sheet_slots.size()) {
+    return;
+  }
+  resources_.author_sheet_slots[slot] = std::string(css);
+  RebuildAuthorStyleSheets();
 }
 
 void Page::ExtractTitle() {
