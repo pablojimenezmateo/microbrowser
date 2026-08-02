@@ -214,8 +214,16 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
     Expect(!Origin::FromUrl(MustParse("http://example.org/")).IsPotentiallyTrustworthy(), "http");
     Expect(Origin::FromUrl(MustParse("http://localhost:3000/")).IsPotentiallyTrustworthy(),
            "localhost is trusted because an attacker on the network cannot reach it");
+    Expect(Origin::FromUrl(MustParse("http://localhost./")).IsPotentiallyTrustworthy(),
+           "and the absolute DNS spelling is the same local host");
+    Expect(Origin::FromUrl(MustParse("http://app.localhost./")).IsPotentiallyTrustworthy(),
+           "localhost subdomains keep that treatment when written absolutely");
     Expect(Origin::FromUrl(MustParse("http://127.0.0.1/")).IsPotentiallyTrustworthy(), "loopback");
     Expect(Origin::FromUrl(MustParse("http://[::1]/")).IsPotentiallyTrustworthy(), "IPv6 loopback");
+    Expect(Origin::FromUrl(MustParse("http://[::ffff:127.0.0.1]/")).IsPotentiallyTrustworthy(),
+           "and so is an IPv4-mapped IPv6 loopback address");
+    Expect(!Origin::FromUrl(MustParse("http://192.168.0.1/")).IsPotentiallyTrustworthy(),
+           "private network addresses are not automatically secure contexts");
     Expect(!Origin::FromUrl(MustParse("data:text/plain,x")).IsPotentiallyTrustworthy(),
            "an opaque origin is never trustworthy");
   });

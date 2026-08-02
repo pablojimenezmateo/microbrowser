@@ -181,10 +181,14 @@ std::string SerializeIpv4(std::uint32_t address) {
   return out;
 }
 
+bool IsLoopbackIpv4(std::uint32_t address) {
+  return ((address >> 24) & 0xFFu) == 127;
+}
+
 bool IsPotentiallyPrivateIpv4(std::uint32_t address) {
   const std::uint32_t a = (address >> 24) & 0xFFu;
   const std::uint32_t b = (address >> 16) & 0xFFu;
-  if (a == 127 || a == 10 || a == 0) {
+  if (IsLoopbackIpv4(address) || a == 10 || a == 0) {
     return true;
   }
   if (a == 192 && b == 168) {
@@ -194,6 +198,18 @@ bool IsPotentiallyPrivateIpv4(std::uint32_t address) {
     return true;
   }
   return a == 172 && b >= 16 && b <= 31;
+}
+
+bool IsLocalhostName(std::string_view host) {
+  if (host.size() > 1 && host.back() == '.') {
+    host.remove_suffix(1);
+  }
+  if (host == "localhost") {
+    return true;
+  }
+  constexpr std::string_view kSuffix = ".localhost";
+  return host.size() > kSuffix.size() &&
+         host.compare(host.size() - kSuffix.size(), kSuffix.size(), kSuffix) == 0;
 }
 
 std::optional<std::array<std::uint16_t, 8>> ParseIpv6(std::string_view input) {
@@ -357,14 +373,13 @@ std::string SerializeIpv6(const std::array<std::uint16_t, 8>& pieces) {
   return out;
 }
 
-bool IsIpv4MappedPrivateAddress(const std::array<std::uint16_t, 8>& pieces) {
+std::optional<std::uint32_t> Ipv4MappedAddress(const std::array<std::uint16_t, 8>& pieces) {
   if (pieces[0] != 0 || pieces[1] != 0 || pieces[2] != 0 || pieces[3] != 0 || pieces[4] != 0 ||
       pieces[5] != 0xFFFFu) {
-    return false;
+    return std::nullopt;
   }
-  const std::uint32_t mapped_address =
-      (static_cast<std::uint32_t>(pieces[6]) << 16u) | static_cast<std::uint32_t>(pieces[7]);
-  return IsPotentiallyPrivateIpv4(mapped_address);
+  return (static_cast<std::uint32_t>(pieces[6]) << 16u) |
+         static_cast<std::uint32_t>(pieces[7]);
 }
 
 }  // namespace
@@ -445,8 +460,11 @@ bool Host::IsPotentiallyPrivate() const {
       return IsPotentiallyPrivateIpv4(ipv4_);
     case Kind::Ipv6: {
       const auto pieces = ParseIpv6(std::string_view(serialized_).substr(1, serialized_.size() - 2));
-      if (pieces.has_value() && IsIpv4MappedPrivateAddress(*pieces)) {
-        return true;
+      if (pieces.has_value()) {
+        const std::optional<std::uint32_t> mapped_address = Ipv4MappedAddress(*pieces);
+        if (mapped_address.has_value()) {
+          return IsPotentiallyPrivateIpv4(*mapped_address);
+        }
       }
       // ::1 and the unique-local and link-local ranges.
       return serialized_ == "[::1]" || serialized_.rfind("[fc", 0) == 0 ||
@@ -454,14 +472,32 @@ bool Host::IsPotentiallyPrivate() const {
              serialized_.rfind("[fe9", 0) == 0 || serialized_.rfind("[fea", 0) == 0 ||
              serialized_.rfind("[feb", 0) == 0;
     }
-    case Kind::Domain: {
-      if (serialized_ == "localhost") {
+    case Kind::Domain:
+      return IsLocalhostName(serialized_);
+    case Kind::Empty:
+    case Kind::Opaque:
+      return false;
+  }
+  return false;
+}
+
+bool Host::IsLoopbackOrLocalhost() const {
+  switch (kind_) {
+    case Kind::Ipv4:
+      return IsLoopbackIpv4(ipv4_);
+    case Kind::Ipv6: {
+      if (serialized_ == "[::1]") {
         return true;
       }
-      constexpr std::string_view kSuffix = ".localhost";
-      return serialized_.size() > kSuffix.size() &&
-             serialized_.compare(serialized_.size() - kSuffix.size(), kSuffix.size(), kSuffix) == 0;
+      const auto pieces = ParseIpv6(std::string_view(serialized_).substr(1, serialized_.size() - 2));
+      if (!pieces.has_value()) {
+        return false;
+      }
+      const std::optional<std::uint32_t> mapped_address = Ipv4MappedAddress(*pieces);
+      return mapped_address.has_value() && IsLoopbackIpv4(*mapped_address);
     }
+    case Kind::Domain:
+      return IsLocalhostName(serialized_);
     case Kind::Empty:
     case Kind::Opaque:
       return false;

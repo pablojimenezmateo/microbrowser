@@ -48,6 +48,10 @@ class Host {
   // the check belongs on the parsed host rather than on the name.
   bool IsPotentiallyPrivate() const;
 
+  // True only for loopback addresses and localhost names. Secure-context
+  // trust uses this narrower carve-out; private LAN addresses are not enough.
+  bool IsLoopbackOrLocalhost() const;
+
   friend bool operator==(const Host&, const Host&) = default;
 
  private:

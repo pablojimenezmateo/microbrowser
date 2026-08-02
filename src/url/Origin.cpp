@@ -2,6 +2,8 @@
 
 #include <atomic>
 
+#include "url/Host.h"
+
 namespace microbrowser::url {
 
 namespace {
@@ -73,15 +75,10 @@ bool Origin::IsPotentiallyTrustworthy() const {
   if (scheme_ == "https" || scheme_ == "wss") {
     return true;
   }
-  // Loopback. Parsed rather than string-matched, because `http://127.1` and
-  // `http://0x7f.0.0.1` are loopback too and a string comparison misses both —
-  // the Host parser has already canonicalized them by the time they reach here.
-  if (host_ == "localhost" || host_ == "127.0.0.1" || host_ == "[::1]") {
-    return true;
-  }
-  constexpr std::string_view kLocalSuffix = ".localhost";
-  return host_.size() > kLocalSuffix.size() &&
-         host_.compare(host_.size() - kLocalSuffix.size(), kLocalSuffix.size(), kLocalSuffix) == 0;
+  // Loopback. Parsed rather than string-matched, because `http://127.1`,
+  // `http://0x7f.0.0.1`, and `http://localhost./` are loopback too.
+  const auto host = Host::Parse(host_, true);
+  return host.has_value() && host->IsLoopbackOrLocalhost();
 }
 
 }  // namespace microbrowser::url
