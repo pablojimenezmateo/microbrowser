@@ -241,12 +241,22 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "PublicSuffix/ARegistryIsNotRegistrable", [] {
     Expect(url::IsPublicSuffix("com"), "com is a registry");
+    Expect(url::IsPublicSuffix("com."), "the absolute spelling is still the same registry");
     Expect(url::IsPublicSuffix("co.uk"), "and so is co.uk");
     Expect(!url::IsPublicSuffix("example.com"), "but a domain under one is not");
     ExpectEqString(url::RegistrableDomain("com"), "",
                    "nothing is registrable at a registry; returning it would make every .com "
                    "domain one site");
+    ExpectEqString(url::RegistrableDomain("com."), "",
+                   "and an absolute registry name is still not registrable");
     ExpectEqString(url::RegistrableDomain("co.uk"), "", "same for a multi-label registry");
+  });
+
+  AddTest(tests, "PublicSuffix/IgnoresOneTrailingRootDot", [] {
+    ExpectEqString(url::RegistrableDomain("www.example.com."), "example.com",
+                   "the root dot marks an absolute DNS name, not a new registrable domain");
+    ExpectEqString(url::RegistrableDomain("a.b.example.invalidtld."), "example.invalidtld",
+                   "the implicit wildcard rule applies after dropping the root dot");
   });
 
   // Wildcards and exceptions are where a suffix-comparison implementation is
@@ -288,6 +298,9 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
     Expect(!(a == other), "different registrable domains are different sites");
     Expect(!(a == insecure), "and scheme is part of a site, so http and https differ");
     ExpectEqString(a.Serialize(), "https://example.com", "a site serializes as scheme and domain");
+
+    const Site absolute = Site::FromUrl(MustParse("https://a.example.com./"));
+    Expect(absolute == a, "a trailing root dot must not create a separate site bucket");
   });
 
   AddTest(tests, "Site/AnAddressIsItsOwnSite", [] {
