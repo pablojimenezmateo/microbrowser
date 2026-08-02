@@ -5,6 +5,7 @@
 #include "url/PublicSuffixList.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
+#include "util/SaturatingMath.h"
 
 namespace microbrowser::net {
 
@@ -162,7 +163,7 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
       if (seconds.has_value()) {
         // Max-Age wins over Expires when both appear, which is what the RFC
         // says and what every implementation does.
-        max_age = *seconds <= 0 ? std::int64_t{0} : now + *seconds;
+        max_age = *seconds <= 0 ? std::int64_t{0} : util::SaturatingSignedAdd(now, *seconds);
       }
     } else if (EqualsIgnoringCase(name, "expires")) {
       // Only the epoch-seconds form is parsed. HTTP-date parsing needs a real

@@ -24,4 +24,19 @@ constexpr T SaturatingAdd(T a, T b) {
   return b > static_cast<T>(limit - a) ? limit : static_cast<T>(a + b);
 }
 
+// Saturating signed addition. Use when an attacker-controlled delta is applied
+// to a signed timestamp or coordinate and wraparound would turn "far future"
+// into "already expired".
+template <typename T>
+constexpr T SaturatingSignedAdd(T a, T b) {
+  static_assert(std::is_signed_v<T>, "SaturatingSignedAdd is for signed types");
+  if (b > 0 && a > static_cast<T>(std::numeric_limits<T>::max() - b)) {
+    return std::numeric_limits<T>::max();
+  }
+  if (b < 0 && a < static_cast<T>(std::numeric_limits<T>::min() - b)) {
+    return std::numeric_limits<T>::min();
+  }
+  return static_cast<T>(a + b);
+}
+
 }  // namespace microbrowser::util

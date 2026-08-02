@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -351,6 +352,17 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     jar.StoreFromHeader(key, url, "id=gone; Max-Age=0", 0);
     ExpectEqInt(static_cast<long long>(jar.Size()), 0,
                 "setting an expired cookie is how a server deletes one");
+  });
+
+  AddTest(tests, "Cookie/MaxAgeAdditionSaturatesInsteadOfWrapping", [] {
+    const Url url = MustParse("https://example.com/");
+    const auto cookie =
+        net::ParseSetCookie("id=long; Max-Age=9223372036854775807", url, 1000);
+    Expect(cookie.has_value(), "the cookie parses");
+    Expect(cookie->expires.has_value() &&
+               *cookie->expires == std::numeric_limits<std::int64_t>::max(),
+           "a huge Max-Age is clamped to the latest representable expiry rather than wrapping "
+           "negative");
   });
 
   AddTest(tests, "Cookie/OrdersByPathLengthThenAge", [] {

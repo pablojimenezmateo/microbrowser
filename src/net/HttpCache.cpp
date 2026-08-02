@@ -4,6 +4,7 @@
 
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
+#include "util/SaturatingMath.h"
 
 namespace microbrowser::net {
 
@@ -142,7 +143,7 @@ bool HttpCache::Store(const url::PartitionKey& key, const url::Url& url,
   record.url = target;
   record.entry.response = response;
   record.entry.stored_at = now;
-  record.entry.expires_at = now + *lifetime;
+  record.entry.expires_at = util::SaturatingSignedAdd(now, *lifetime);
   entries_.push_back(std::move(record));
   bytes_ += size;
   EvictToBudget();

@@ -296,6 +296,27 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "failing to connect is the correct outcome");
   });
 
+  AddTest(tests, "Fetch/HugeMaxAgeDoesNotWrapTheCacheEntryStale", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=9223372036854775807\r\n"
+         "Content-Length: 2\r\n\r\nhi"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult first = Run(policy, factory, cookies, cache, "https://example.com/x");
+    Expect(first.ok && !first.from_cache, "the first fetch stores the response");
+
+    const FetchResult second = Run(policy, factory, cookies, cache, "https://example.com/x", {},
+                                   2000);
+    Expect(second.ok && second.from_cache,
+           "a huge max-age saturates instead of wrapping to an already-stale expiry");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 1,
+                "so the second request does not reach the transport");
+  });
+
   AddTest(tests, "Fetch/BypassCacheReloadFetchesAndReplacesFreshEntries", [] {
     PrivacyPolicy policy;
     ScriptedFactory factory;
