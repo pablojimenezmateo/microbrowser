@@ -55,6 +55,9 @@ class Loader {
   // always the top-level one.
   Result LoadSubresource(std::string_view url, const url::Url& document,
                          privacy::ResourceType type, std::int64_t now);
+  Result LoadSubresource(std::string_view url, const url::Url& document,
+                         privacy::ResourceType type, std::int64_t now,
+                         const net::FetchOptions& options);
 
   privacy::PrivacyPolicy& Policy() { return policy_; }
   net::CookieJar& Cookies() { return cookies_; }

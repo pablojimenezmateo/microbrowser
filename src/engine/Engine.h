@@ -57,7 +57,7 @@ class Engine {
   bool HandlePointer(const ipc::PointerMessage& pointer);
   // Fetches what the document referenced -- stylesheets, then images -- before
   // the first layout, because both change it.
-  void LoadSubresources();
+  void LoadSubresources(bool bypass_cache);
 
   // Lays out at the current viewport width, then paints. Separate from
   // PaintAndSend because scrolling repaints without relaying out, and a

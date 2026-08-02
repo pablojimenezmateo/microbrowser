@@ -277,6 +277,38 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "failing to connect is the correct outcome");
   });
 
+  AddTest(tests, "Fetch/BypassCacheReloadFetchesAndReplacesFreshEntries", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\none"});
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\ntwo"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult first = Run(policy, factory, cookies, cache, "https://example.com/x");
+    Expect(first.ok && !first.from_cache, "the first response came from the network");
+
+    FetchOptions options;
+    options.bypass_cache = true;
+    const FetchResult reloaded =
+        Run(policy, factory, cookies, cache, "https://example.com/x", options);
+    Expect(reloaded.ok && !reloaded.from_cache,
+           "explicit cache bypass must not serve the fresh entry");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 2,
+                "it opened a second connection");
+
+    const FetchResult cached = Run(policy, factory, cookies, cache, "https://example.com/x");
+    Expect(cached.ok && cached.from_cache,
+           "the bypassed response still replaces the cache for later ordinary loads");
+    ExpectEqString(std::string(reinterpret_cast<const char*>(cached.response.body.data()),
+                               cached.response.body.size()),
+                   "two", "the later cached value is the reloaded response");
+  });
+
   AddTest(tests, "Fetch/DoesNotUseTheUrlCacheForRequestsWithBodies", [] {
     PrivacyPolicy policy;
     ScriptedFactory factory;

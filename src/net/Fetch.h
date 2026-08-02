@@ -22,6 +22,10 @@ struct FetchOptions {
   // False for a subresource. Decides which cookies travel — Lax cookies go on
   // a top-level navigation and nowhere else.
   bool is_top_level_navigation = false;
+  // True for an explicit reload that should validate by going to the network
+  // rather than serving an existing fresh entry. A successful response may
+  // still replace the cache entry.
+  bool bypass_cache = false;
 };
 
 struct FetchResult {

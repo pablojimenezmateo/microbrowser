@@ -121,7 +121,7 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
     }
 
     const bool may_use_cache = MayUseHttpCache(remaining);
-    if (may_use_cache) {
+    if (may_use_cache && !remaining.bypass_cache) {
       if (const HttpCache::Entry* cached = cache.Lookup(verdict.Partition(), url, now)) {
         FetchResult result;
         result.ok = true;

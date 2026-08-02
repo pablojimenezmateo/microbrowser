@@ -149,9 +149,19 @@ Loader::Result Loader::Fetch(const privacy::Request& request, const net::FetchOp
 
 Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& document,
                                        privacy::ResourceType type, std::int64_t now) {
+  return LoadSubresource(url, document, type, now, {});
+}
+
+Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& document,
+                                       privacy::ResourceType type, std::int64_t now,
+                                       const net::FetchOptions& options) {
   Result result;
 
   if (DataUrl data = DecodeDataUrl(url); data.ok) {
+    if (options.method != "GET" || !options.body.empty()) {
+      result.error = "data URL loads do not support request bodies";
+      return result;
+    }
     result.ok = true;
     result.body = std::move(data.body);
     result.content_type = std::move(data.content_type);
@@ -178,7 +188,7 @@ Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& doc
   request.type = type;
   request.is_subresource = true;
 
-  return Fetch(request, {}, false, now);
+  return Fetch(request, options, false, now);
 }
 
 Loader::Result Loader::Load(std::string_view url, std::int64_t now) {

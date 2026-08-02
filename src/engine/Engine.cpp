@@ -119,8 +119,10 @@ bool Engine::HandlePendingMessages() {
     } else if (const auto* scroll = std::get_if<ipc::ScrollMessage>(&*message)) {
       ScrollBy(scroll->delta_x, scroll->delta_y);
       produced_output = true;
-    } else if (std::holds_alternative<ipc::ReloadMessage>(*message)) {
-      Navigate(page_.Url());
+    } else if (const auto* reload = std::get_if<ipc::ReloadMessage>(&*message)) {
+      net::FetchOptions options;
+      options.bypass_cache = reload->bypass_cache;
+      Navigate(page_.Url(), options);
       produced_output = true;
     } else if (const auto* pointer = std::get_if<ipc::PointerMessage>(&*message)) {
       produced_output = HandlePointer(*pointer) || produced_output;
@@ -217,7 +219,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options) 
     page_.Load(loaded.body, loaded.final_url.empty() ? url : loaded.final_url);
   }
 
-  LoadSubresources();
+  LoadSubresources(options.bypass_cache);
   endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();
@@ -233,7 +235,7 @@ bool Engine::Navigate(const FormSubmission& submission) {
   return true;
 }
 
-void Engine::LoadSubresources() {
+void Engine::LoadSubresources(bool bypass_cache) {
   // Synchronously, before the first layout. That is not how a browser should do
   // it -- a slow subresource blocks the page -- but a stylesheet *is*
   // render-blocking and an image's size changes layout, so the ordering is
@@ -247,11 +249,14 @@ void Engine::LoadSubresources() {
     return;
   }
 
+  net::FetchOptions options;
+  options.bypass_cache = bypass_cache;
+
   const std::vector<std::string>& sheets = page_.PendingStyleSheets();
   for (std::size_t i = 0; i < sheets.size(); ++i) {
     const Loader::Result sheet =
         loader_.LoadSubresource(sheets[i], *document, privacy::ResourceType::Stylesheet,
-                                NowSeconds());
+                                NowSeconds(), options);
     if (sheet.ok) {
       page_.AddStyleSheet(i, sheet.body);
       AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
@@ -264,7 +269,8 @@ void Engine::LoadSubresources() {
 
   for (const std::string& src : page_.PendingImages()) {
     const Loader::Result fetched =
-        loader_.LoadSubresource(src, *document, privacy::ResourceType::Image, NowSeconds());
+        loader_.LoadSubresource(src, *document, privacy::ResourceType::Image, NowSeconds(),
+                                options);
     if (!fetched.ok) {
       AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
       continue;

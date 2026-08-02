@@ -1303,6 +1303,36 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(session.LastFrame() != nullptr, "and it paints");
   });
 
+  AddTest(tests, "Engine/ReloadCanBypassTheHttpCache", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: max-age=600\r\n"
+        "Content-Length: 34\r\n\r\n<title>One</title><body>one</body>"});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: max-age=600\r\n"
+        "Content-Length: 34\r\n\r\n<title>Two</title><body>two</body>"});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+    ExpectEqString(session.LastTitle(), "One", "the first document committed");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 1,
+                "the initial navigation fetched the document");
+
+    session.Send(ipc::ReloadMessage{false});
+    ExpectEqString(session.LastTitle(), "One", "ordinary reload may use a fresh cache entry");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 1,
+                "and did not open another connection");
+
+    session.Send(ipc::ReloadMessage{true});
+    ExpectEqString(session.LastTitle(), "Two", "cache-bypassing reload fetched the new document");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "and made the second request");
+  });
+
   AddTest(tests, "Engine/ClickingALinkNavigatesToIt", [] {
     Session session;
     ScriptedFactory factory;
