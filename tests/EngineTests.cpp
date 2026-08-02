@@ -361,6 +361,23 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/search?q=hi", "the form uses the edited input value");
   });
 
+  AddTest(tests, "Page/TextLikeInputTypesCanBeEdited", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/contact'>"
+        "<input type='email' name='email' size='4'><input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
+    Expect(page.InsertTextIntoFocusedInput("a@b"), "typing changed the input value");
+    const std::optional<std::string> target = page.SubmitFocusedForm();
+    Expect(target.has_value(), "the focused input can submit its owning form");
+    ExpectEqString(*target, "/contact?email=a%40b", "email input edits are submitted");
+  });
+
   AddTest(tests, "Page/FocusedInputHonorsMaxlength", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
@@ -829,6 +846,33 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(session.LastTitle(), "Typed", "and the result document committed");
     Expect(factory.log.requests.at(1).find("GET /search?q=hi ") != std::string::npos,
            "the second request contains the typed query");
+  });
+
+  AddTest(tests, "Engine/TextLikeInputTypesCanBeEditedAndSubmitted", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/contact'>"
+                   "<input type='email' name='email' size='4'><input type='submit' value='Go'>"
+                   "</form></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Contact</title><body>contact</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+    session.Send(ipc::TextInputMessage{"a@b"});
+    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Enter});
+
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/contact?email=a%40b",
+                   "text-like input types use the focused text-editing path");
+    ExpectEqString(session.LastTitle(), "Contact", "and the result document committed");
+    Expect(factory.log.requests.at(1).find("GET /contact?email=a%40b ") != std::string::npos,
+           "the second request contains the edited email value");
   });
 
   AddTest(tests, "Engine/InputCommandsEditAndSubmitFocusedForm", [] {

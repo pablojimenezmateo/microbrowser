@@ -43,7 +43,9 @@ bool IsCheckableInput(const dom::Element& element) {
 bool IsEditableTextInput(const dom::Element& element) {
   return !element.HasAttribute("disabled") &&
          (IsInputType(element, "text") || IsInputType(element, "search") ||
-          IsInputType(element, "password"));
+          IsInputType(element, "password") || IsInputType(element, "email") ||
+          IsInputType(element, "url") || IsInputType(element, "tel") ||
+          IsInputType(element, "number"));
 }
 
 bool IsMutableTextInput(const dom::Element& element) {
