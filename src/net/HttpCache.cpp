@@ -159,6 +159,13 @@ void HttpCache::EvictToBudget() {
   }
 }
 
+void HttpCache::RecomputeBytes() {
+  bytes_ = 0;
+  for (const Record& record : entries_) {
+    bytes_ += RecordBytes(record.url, record.entry.response);
+  }
+}
+
 void HttpCache::SetByteBudget(std::size_t bytes) {
   budget_ = bytes;
   EvictToBudget();
@@ -170,10 +177,7 @@ void HttpCache::RemoveStale(std::int64_t now) {
                                   return record.entry.expires_at <= now;
                                 }),
                  entries_.end());
-  bytes_ = 0;
-  for (const Record& record : entries_) {
-    bytes_ += RecordBytes(record.url, record.entry.response);
-  }
+  RecomputeBytes();
 }
 
 void HttpCache::ClearContainer(url::ContainerId container) {
@@ -182,10 +186,7 @@ void HttpCache::ClearContainer(url::ContainerId container) {
                                   return record.key.Container() == container;
                                 }),
                  entries_.end());
-  bytes_ = 0;
-  for (const Record& record : entries_) {
-    bytes_ += RecordBytes(record.url, record.entry.response);
-  }
+  RecomputeBytes();
 }
 
 }  // namespace microbrowser::net

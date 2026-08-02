@@ -61,6 +61,7 @@ class HttpCache {
   };
 
   void EvictToBudget();
+  void RecomputeBytes();
 
   std::vector<Record> entries_;
   std::size_t bytes_ = 0;
