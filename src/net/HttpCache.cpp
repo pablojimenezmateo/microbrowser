@@ -43,6 +43,10 @@ std::vector<std::string> Directives(std::string_view value) {
   return out;
 }
 
+std::size_t RecordBytes(std::string_view url, const HttpResponse& response) {
+  return response.body.size() + url.size() + 256;
+}
+
 }  // namespace
 
 std::optional<std::int64_t> FreshnessLifetime(const HttpResponse& response) {
@@ -119,7 +123,7 @@ bool HttpCache::Store(const url::PartitionKey& key, const url::Url& url,
   }
 
   const std::string target = url.Serialize(true);
-  const std::size_t size = response.body.size() + target.size() + 256;
+  const std::size_t size = RecordBytes(target, response);
   if (size > budget_) {
     return false;  // one response larger than the whole cache
   }
@@ -129,7 +133,7 @@ bool HttpCache::Store(const url::PartitionKey& key, const url::Url& url,
   };
   const auto found = std::find_if(entries_.begin(), entries_.end(), same);
   if (found != entries_.end()) {
-    bytes_ -= std::min(bytes_, found->entry.response.body.size() + found->url.size() + 256);
+    bytes_ -= std::min(bytes_, RecordBytes(found->url, found->entry.response));
     entries_.erase(found);
   }
 
@@ -149,7 +153,7 @@ bool HttpCache::Store(const url::PartitionKey& key, const url::Url& url,
 void HttpCache::EvictToBudget() {
   while (bytes_ > budget_ && !entries_.empty()) {
     const Record& oldest = entries_.front();
-    bytes_ -= std::min(bytes_, oldest.entry.response.body.size() + oldest.url.size() + 256);
+    bytes_ -= std::min(bytes_, RecordBytes(oldest.url, oldest.entry.response));
     entries_.erase(entries_.begin());
   }
 }
@@ -167,7 +171,7 @@ void HttpCache::RemoveStale(std::int64_t now) {
                  entries_.end());
   bytes_ = 0;
   for (const Record& record : entries_) {
-    bytes_ += record.entry.response.body.size() + record.url.size() + 256;
+    bytes_ += RecordBytes(record.url, record.entry.response);
   }
 }
 
@@ -179,7 +183,7 @@ void HttpCache::ClearContainer(url::ContainerId container) {
                  entries_.end());
   bytes_ = 0;
   for (const Record& record : entries_) {
-    bytes_ += record.entry.response.body.size() + record.url.size() + 256;
+    bytes_ += RecordBytes(record.url, record.entry.response);
   }
 }
 
