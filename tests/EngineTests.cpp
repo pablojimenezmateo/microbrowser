@@ -293,6 +293,23 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(*target, "/search?q=hi", "the form uses the edited input value");
   });
 
+  AddTest(tests, "Page/FocusedInputHonorsMaxlength", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><form action='/search'>"
+        "<input name='q' maxlength='3' size='3'><input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.FocusInputAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.InsertTextIntoFocusedInput("abcd"), "typing changed the input value");
+    const std::optional<std::string> target = page.SubmitFocusedForm();
+    Expect(target.has_value(), "the focused input can submit its owning form");
+    ExpectEqString(*target, "/search?q=abc", "maxlength bounds inserted input text");
+  });
+
   AddTest(tests, "Page/FocusedInputBackspaceAndEnterSubmission", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

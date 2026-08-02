@@ -7,6 +7,7 @@
 #include "gfx/PngDecoder.h"
 #include "html/TreeBuilder.h"
 #include "url/PercentEncoding.h"
+#include "util/Parse.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
@@ -17,6 +18,8 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
+
+constexpr std::size_t kMaxInputValueBytes = 4096;
 
 // Splits an attribute on ASCII whitespace, per the HTML spec's
 // "space-separated tokens".
@@ -153,6 +156,18 @@ std::string InputValue(const dom::Element& element) {
     return "Submit";
   }
   return {};
+}
+
+std::size_t InputValueLimitBytes(const dom::Element& element) {
+  const std::string* maxlength = element.GetAttribute("maxlength");
+  if (maxlength == nullptr) {
+    return kMaxInputValueBytes;
+  }
+  const std::optional<int> parsed = util::ParseInt(*maxlength);
+  if (!parsed.has_value() || *parsed < 0) {
+    return kMaxInputValueBytes;
+  }
+  return std::min(static_cast<std::size_t>(*parsed), kMaxInputValueBytes);
 }
 
 bool IsSuccessfulInput(const dom::Element& element, const dom::Element* submitter) {
@@ -531,11 +546,11 @@ bool Page::InsertTextIntoFocusedInput(std::string_view text) {
   if (const std::string* current = focused_input_->GetAttribute("value")) {
     value = *current;
   }
-  constexpr std::size_t kMaxInputValueBytes = 4096;
-  if (value.size() >= kMaxInputValueBytes) {
+  const std::size_t limit = InputValueLimitBytes(*focused_input_);
+  if (value.size() >= limit) {
     return false;
   }
-  const std::size_t room = kMaxInputValueBytes - value.size();
+  const std::size_t room = limit - value.size();
   value.append(text.substr(0, room));
   focused_input_->SetAttribute("value", std::move(value));
   boxes_.reset();
