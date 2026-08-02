@@ -249,6 +249,9 @@ Result Interpreter::EvaluateBinary(const Node& node, Environment& scope) {
     }
     const std::string key = ToString(a);
     if (b.object->GetKind() == Object::Kind::Array) {
+      if (key == "length") {
+        return Result::Normal(Value::Bool(true));
+      }
       if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
         return Result::Normal(Value::Bool(b.object->HasElement(*index)));
       }

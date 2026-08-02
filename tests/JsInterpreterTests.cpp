@@ -303,6 +303,9 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
   AddTest(tests, "JsInterpreter/SparseArrayHolesAreNotElements", [] {
     ExpectEval("0 in [, 1]", "false");
     ExpectEval("1 in [, 1]", "true");
+    ExpectEval("'length' in []", "true");
+    ExpectEval("const a = [1,2]; delete a.length", "false");
+    ExpectEval("const a = [1,2]; delete a.length; a.length", "2");
     ExpectEval("const a = [1,2]; delete a[0]; a.length + ':' + (0 in a) + ':' + a.join(',')",
                "2:false:,2");
     ExpectEval("Object.keys([, 'x']).join(',')", "1");

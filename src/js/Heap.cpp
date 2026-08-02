@@ -95,6 +95,9 @@ void Object::DefineAccessor(std::string key, Object* getter, Object* setter) {
 
 bool Object::Delete(std::string_view key) {
   if (kind_ == Kind::Array) {
+    if (key == "length") {
+      return false;
+    }
     if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
       if (*index < elements_.size()) {
         elements_[*index].value = Value::Undefined();
@@ -111,6 +114,18 @@ bool Object::Delete(std::string_view key) {
   key_order_.erase(std::remove(key_order_.begin(), key_order_.end(), std::string(key)),
                    key_order_.end());
   return true;
+}
+
+bool Object::HasOwn(std::string_view key) const {
+  if (kind_ == Kind::Array) {
+    if (key == "length") {
+      return true;
+    }
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+      return HasElement(*index);
+    }
+  }
+  return GetOwnProperty(key) != nullptr;
 }
 
 bool Object::HasElement(std::size_t index) const {
