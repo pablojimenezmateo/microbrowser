@@ -54,6 +54,14 @@ bool IsInputType(const dom::Element& element, std::string_view expected) {
          util::EqualsAsciiCaseInsensitive(InputType(element), expected);
 }
 
+bool IsDisabledFormControl(const dom::Element& element) {
+  if (element.HasAttribute("disabled")) {
+    return true;
+  }
+  const dom::Element* fieldset = element.ClosestAncestor("fieldset");
+  return fieldset != nullptr && fieldset->HasAttribute("disabled");
+}
+
 bool IsHiddenInput(const dom::Element& element) {
   return IsInputType(element, "hidden");
 }
@@ -99,7 +107,7 @@ bool IsRadioInput(const dom::Element& element) {
 }
 
 bool IsCheckableInput(const dom::Element& element) {
-  return !element.HasAttribute("disabled") && (IsCheckboxInput(element) || IsRadioInput(element));
+  return !IsDisabledFormControl(element) && (IsCheckboxInput(element) || IsRadioInput(element));
 }
 
 bool IsTextInputType(const dom::Element& element) {
@@ -115,7 +123,7 @@ bool IsTextInputType(const dom::Element& element) {
 }
 
 bool IsEditableTextInput(const dom::Element& element) {
-  return !element.HasAttribute("disabled") && IsTextInputType(element);
+  return !IsDisabledFormControl(element) && IsTextInputType(element);
 }
 
 bool IsMutableTextInput(const dom::Element& element) {
@@ -135,7 +143,7 @@ bool IsTextControl(const dom::Element& element) {
 }
 
 bool IsEditableTextControl(const dom::Element& element) {
-  return !element.HasAttribute("disabled") && IsTextControl(element);
+  return !IsDisabledFormControl(element) && IsTextControl(element);
 }
 
 bool IsMutableTextControl(const dom::Element& element) {

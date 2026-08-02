@@ -240,6 +240,64 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "a disabled submit control must not activate its form");
   });
 
+  AddTest(tests, "Page/DisabledFieldsetControlsAreNotSubmitted", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>fieldset,input{margin:0;padding:0;border:0}input{width:40px;height:20px}</style>"
+        "<body style='margin:0'><form action='/search'>"
+        "<fieldset disabled>"
+        "<input name='q' value='hello'>"
+        "<input type='checkbox' name='seen' checked>"
+        "</fieldset>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{85.0f, 5.0f});
+    Expect(target.has_value(), "the submit control outside the fieldset activates the form");
+    ExpectEqString(*target, "/search", "disabled fieldset descendants are not successful");
+  });
+
+  AddTest(tests, "Page/DisabledFieldsetSubmitInputDoesNotSubmitForm", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/search'>"
+        "<fieldset disabled><input type='submit' value='Go'></fieldset>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(!page.FormSubmissionAt(gfx::FloatPoint{5.0f, 5.0f}).has_value(),
+           "a submit control inside a disabled fieldset must not activate its form");
+  });
+
+  AddTest(tests, "Page/DisabledFieldsetTextControlsCannotBeEdited", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<body style='margin:0'><form action='/search'>"
+        "<fieldset disabled><input name='q' value='locked'></fieldset>"
+        "<input type='submit' value='Go'>"
+        "</form></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(!page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
+           "a text control inside a disabled fieldset cannot be focused");
+    Expect(!page.InsertTextIntoFocusedTextControl("x"),
+           "typing cannot mutate a disabled fieldset descendant");
+    const std::optional<std::string> target =
+        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+    Expect(target.has_value(), "the submit control outside the fieldset activates the form");
+    ExpectEqString(*target, "/search", "the disabled fieldset text control was not submitted");
+  });
+
   AddTest(tests, "Page/ButtonElementsSubmitForms", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

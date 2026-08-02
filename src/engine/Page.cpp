@@ -141,7 +141,7 @@ std::size_t TextControlValueLimitBytes(const dom::Element& element) {
 }
 
 bool IsSuccessfulControl(const dom::Element& element, const dom::Element* submitter) {
-  if (element.HasAttribute("disabled")) {
+  if (html::IsDisabledFormControl(element)) {
     return false;
   }
   const std::string* name = element.GetAttribute("name");
@@ -273,7 +273,7 @@ std::optional<const dom::Element*> HitTestEnabledElement(const layout::Box& box,
     }
   }
   const dom::Element* element = box.Origin();
-  if (element == nullptr || element->HasAttribute("disabled") || !predicate(*element)) {
+  if (element == nullptr || html::IsDisabledFormControl(*element) || !predicate(*element)) {
     return std::nullopt;
   }
   return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)

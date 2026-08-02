@@ -11,6 +11,7 @@ namespace microbrowser::html {
 
 std::string_view InputType(const dom::Element& element);
 bool IsInputType(const dom::Element& element, std::string_view expected);
+bool IsDisabledFormControl(const dom::Element& element);
 bool IsHiddenInput(const dom::Element& element);
 bool IsSubmitInput(const dom::Element& element);
 bool IsResetInput(const dom::Element& element);
