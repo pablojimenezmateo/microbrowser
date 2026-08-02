@@ -414,8 +414,11 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "font-style") {
-    style.font_style = value == "italic" || value == "oblique" ? FontStyle::Italic
-                                                               : FontStyle::Normal;
+    if (value == "italic" || value == "oblique") {
+      style.font_style = FontStyle::Italic;
+    } else if (value == "normal") {
+      style.font_style = FontStyle::Normal;
+    }
     return;
   }
   if (property == "font-family") {
@@ -448,7 +451,7 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.text_align = TextAlign::Right;
     } else if (value == "justify") {
       style.text_align = TextAlign::Justify;
-    } else {
+    } else if (value == "left") {
       style.text_align = TextAlign::Left;
     }
     return;
@@ -460,7 +463,7 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.white_space = WhiteSpace::NoWrap;
     } else if (value == "pre-wrap") {
       style.white_space = WhiteSpace::PreWrap;
-    } else {
+    } else if (value == "normal") {
       style.white_space = WhiteSpace::Normal;
     }
     return;

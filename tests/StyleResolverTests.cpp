@@ -14,12 +14,15 @@ namespace microbrowser::tests {
 
 using css::ComputedStyle;
 using css::Display;
+using css::FontStyle;
 using css::Length;
 using css::Origin;
 using css::ParseColor;
 using css::ParseLength;
 using css::ParseStyleSheet;
 using css::StyleResolver;
+using css::TextAlign;
+using css::WhiteSpace;
 using dom::Element;
 
 namespace {
@@ -241,6 +244,18 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(style.color == gfx::Color::Rgb(0, 0, 0),
            "an unparsable value is dropped rather than turning the element transparent");
     Expect(style.display == Display::Block, "and the rest of the rule still applies");
+
+    const ComputedStyle keywords =
+        StyleOf("<p style='font-style: italic; font-style: sideways; "
+                "text-align: center; text-align: somewhere; "
+                "white-space: pre; white-space: balanced'>x</p>",
+                "", "p");
+    Expect(keywords.font_style == FontStyle::Italic,
+           "an invalid font-style leaves the earlier valid value alone");
+    Expect(keywords.text_align == TextAlign::Center,
+           "an invalid text-align leaves the earlier valid value alone");
+    Expect(keywords.white_space == WhiteSpace::Pre,
+           "an invalid white-space leaves the earlier valid value alone");
   });
 
   AddTest(tests, "StyleResolver/DisplayNoneMeansNoBox", [] {
