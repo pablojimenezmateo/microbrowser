@@ -308,6 +308,24 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.display = Display::InlineBlock;
     } else if (value == "list-item") {
       style.display = Display::ListItem;
+    } else if (value == "table") {
+      style.display = Display::Table;
+    } else if (value == "table-caption") {
+      style.display = Display::TableCaption;
+    } else if (value == "table-column-group") {
+      style.display = Display::TableColumnGroup;
+    } else if (value == "table-column") {
+      style.display = Display::TableColumn;
+    } else if (value == "table-header-group") {
+      style.display = Display::TableHeaderGroup;
+    } else if (value == "table-footer-group") {
+      style.display = Display::TableFooterGroup;
+    } else if (value == "table-row-group") {
+      style.display = Display::TableRowGroup;
+    } else if (value == "table-row") {
+      style.display = Display::TableRow;
+    } else if (value == "table-cell") {
+      style.display = Display::TableCell;
     } else if (value == "none") {
       style.display = Display::None;
     }
@@ -580,10 +598,19 @@ std::string_view UserAgentStyleSheet() {
   // values are the ones the HTML specification's rendering section gives.
   return R"CSS(
 html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, section, article,
-header, footer, nav, aside, main, blockquote, pre, form, figure, hr, table {
+header, footer, nav, aside, main, blockquote, pre, form, figure, hr {
   display: block;
 }
 li { display: list-item }
+table { display: table }
+caption { display: table-caption }
+colgroup { display: table-column-group }
+col { display: table-column }
+thead { display: table-header-group }
+tbody { display: table-row-group }
+tfoot { display: table-footer-group }
+tr { display: table-row }
+td, th { display: table-cell }
 head, style, script, title, meta, link { display: none }
 body { margin: 8px }
 p { margin: 1em 0 }

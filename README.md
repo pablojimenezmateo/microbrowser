@@ -6,9 +6,9 @@ Own HTML parser, own CSS engine, own layout, own software rasterizer, own HTTP c
 JavaScript engine. No GPU requirement. Privacy-respecting by construction.
 
 **Status: early. M0 (foundation) and M1 (rasterizer) are complete — it opens a window, paints
-antialiased paths and strokes, shapes and renders text, and decodes PNG. There is no HTML parser,
-no CSS, no layout, no network, and no JavaScript yet.** See the roadmap below for what exists and
-what does not.
+antialiased paths and strokes, shapes and renders text, decodes PNG, parses HTML and CSS, runs a
+small JavaScript interpreter, fetches HTTP/1.1, and lays out block, inline, float, image and basic
+table content.** See the roadmap below for what exists and what does not.
 
 ## Why
 
@@ -137,9 +137,9 @@ so in detail rather than leaving it to be discovered at the end.
 | **M0** | Foundation: build, test harness, architecture lint, gfx core, IPC seam, main loop | **done** |
 | M1 | Rasterizer: paths, analytic AA, SIMD blitters, FreeType + HarfBuzz text, images | **done** — text reaches pixels through the display list, with a font database, a glyph cache and a shaped-run cache |
 | M2 | Network + privacy: URL, TLS, HTTP/1.1, cookies, containers, filter engine, HTTPS-only | **in progress** — URL, privacy, HTTP/1.1, cookies, cache, sockets and TLS done; connection pooling and a partitioned DNS cache not |
-| M3 | HTML parsing + DOM | **in progress** — tokenizer, DOM and tree construction done; tables, foreign content and templates not |
+| M3 | HTML parsing + DOM | **in progress** — tokenizer, DOM, tree construction and ordinary tables done; foreign content and templates not |
 | M4 | CSS: parsing, selectors, cascade, computed style | **done** — tokenizer, parser, selectors, cascade, computed style, user-agent sheet |
-| M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements, floats and clearance done; flexbox and grid not |
+| M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements, floats, clearance and basic table row/cell layout done; flexbox and grid not |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | **in progress** — display-list building and incremental repaint from a two-frame diff done; stacking contexts not |
 | M7 | Browser UI: tabs, omnibox, history, downloads, plus the process split and sandbox. **First usable browser.** | **in progress** — toolbar, omnibox with editing and keyboard shortcuts, back/forward history done; tabs, downloads, the process split and the sandbox not |
 | M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | **in progress** — lexer, parser, tree-walking interpreter, mark-sweep GC, classes and a small standard library done; the bytecode VM, Promises, async/await, generators and a regex engine not. See ADR 0007 — this is now the project's dominant cost. |

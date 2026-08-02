@@ -620,7 +620,9 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
 
   float content_height = 0.0f;
-  if (!has_block_child && !box.Children().empty()) {
+  if (style.display == css::Display::Table) {
+    content_height = LayoutTableChildren(box, content_left, content_width, content_top);
+  } else if (!has_block_child && !box.Children().empty()) {
     content_height =
         LayoutInlineChildren(box, content_left, content_width, content_top, child_floats);
   } else {

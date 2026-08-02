@@ -57,6 +57,16 @@ const Box* FindBox(const Box& root, std::string_view tag) {
   return found;
 }
 
+std::vector<const Box*> BoxesByTag(const Box& root, std::string_view tag) {
+  std::vector<const Box*> boxes;
+  root.ForEachDescendant([&](const Box& box) {
+    if (box.Origin() != nullptr && box.Origin()->TagName() == tag) {
+      boxes.push_back(&box);
+    }
+  });
+  return boxes;
+}
+
 std::vector<const Box*> TextBoxes(const Box& root) {
   std::vector<const Box*> boxes;
   root.ForEachDescendant([&](const Box& box) {
@@ -355,6 +365,34 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(image->Geometry().content.x == 0.0f,
            "an atomic inline that does not fit starts a new line rather than overlapping the "
            "text before it");
+  });
+
+  AddTest(tests, "Layout/TableCellsShareARowInsteadOfStacking", [] {
+    const LaidOut result =
+        Run("<table><tr><td>a</td><td>b</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            200.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 2, "two cell boxes");
+    Expect(cells.at(0)->Geometry().content.x == 0.0f, "the first cell starts at the row edge");
+    Expect(cells.at(1)->Geometry().content.x == 100.0f,
+           "the second cell is placed beside the first, not below it");
+    Expect(cells.at(0)->Geometry().content.y == cells.at(1)->Geometry().content.y,
+           "cells in one row share a y position");
+  });
+
+  AddTest(tests, "Layout/TableRowsAdvanceByTheirTallestCell", [] {
+    const LaidOut result = Run(
+        "<table><tr><td>short</td><td><img src='x' width='10' height='60'></td></tr>"
+        "<tr><td>next</td><td>row</td></tr></table>",
+        "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px } img { margin: 0 }",
+        200.0f);
+    const std::vector<const Box*> rows = BoxesByTag(*result.root, "tr");
+    ExpectEqInt(static_cast<long long>(rows.size()), 2, "two row boxes");
+    Expect(rows.at(0)->Geometry().content.height >= 60.0f,
+           "the first row is at least as tall as its image cell");
+    Expect(rows.at(1)->Geometry().content.y >= rows.at(0)->Geometry().content.Bottom(),
+           "the next row starts below the tallest cell, not below the first cell only");
   });
 
   // --- Painting -------------------------------------------------------------

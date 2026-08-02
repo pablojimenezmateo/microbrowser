@@ -9,7 +9,22 @@
 
 namespace microbrowser::css {
 
-enum class Display : std::uint8_t { Inline, Block, InlineBlock, ListItem, None };
+enum class Display : std::uint8_t {
+  Inline,
+  Block,
+  InlineBlock,
+  ListItem,
+  Table,
+  TableCaption,
+  TableColumnGroup,
+  TableColumn,
+  TableHeaderGroup,
+  TableFooterGroup,
+  TableRowGroup,
+  TableRow,
+  TableCell,
+  None,
+};
 enum class FontStyle : std::uint8_t { Normal, Italic };
 enum class TextAlign : std::uint8_t { Left, Right, Center, Justify };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };

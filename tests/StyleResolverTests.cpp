@@ -85,6 +85,15 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(StyleOf("<p>x</p>", "", "p").display == Display::Block, "a paragraph is block");
     Expect(StyleOf("<b>x</b>", "", "b").font_weight > 400.0f, "b is bold");
     Expect(StyleOf("<h1>x</h1>", "", "h1").font_size > 16.0f, "h1 is larger than body text");
+    Expect(StyleOf("<table><tr><td>x</td></tr></table>", "", "table").display ==
+               Display::Table,
+           "a table establishes table layout, not an ordinary block");
+    Expect(StyleOf("<table><tr><td>x</td></tr></table>", "", "tr").display ==
+               Display::TableRow,
+           "a row stays a row for layout");
+    Expect(StyleOf("<table><tr><td>x</td></tr></table>", "", "td").display ==
+               Display::TableCell,
+           "and cells are laid out across that row");
   });
 
   AddTest(tests, "StyleResolver/AuthorRulesBeatTheUserAgent", [] {

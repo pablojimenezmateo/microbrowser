@@ -47,6 +47,11 @@ class LayoutEngine {
                    FloatContext& floats) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
                              FloatContext& floats) const;
+  float LayoutTableChildren(Box& box, float content_left, float content_width, float start_y) const;
+  float LayoutTableRowGroup(Box& group, float content_left, float content_width, float start_y,
+                            std::size_t column_count) const;
+  float LayoutTableRow(Box& row, float content_left, float content_width, float start_y,
+                       std::size_t column_count) const;
   // Widest this box would be if it never wrapped. Needed for shrink-to-fit,
   // which is what `float: left` with no declared width means.
   float MaxContentWidth(const Box& box) const;
