@@ -67,6 +67,10 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   return headers;
 }
 
+bool MayUseHttpCache(const FetchOptions& options) {
+  return options.method == "GET" && options.body.empty();
+}
+
 }  // namespace
 
 FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy,
@@ -89,14 +93,17 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
       return Failure("not an http(s) URL");
     }
 
-    if (const HttpCache::Entry* cached = cache.Lookup(verdict.Partition(), url, now)) {
-      FetchResult result;
-      result.ok = true;
-      result.response = cached->response;
-      result.final_url = url;
-      result.redirects = redirects;
-      result.from_cache = true;
-      return result;
+    const bool may_use_cache = MayUseHttpCache(remaining);
+    if (may_use_cache) {
+      if (const HttpCache::Entry* cached = cache.Lookup(verdict.Partition(), url, now)) {
+        FetchResult result;
+        result.ok = true;
+        result.response = cached->response;
+        result.final_url = url;
+        result.redirects = redirects;
+        result.from_cache = true;
+        return result;
+      }
     }
 
     const bool same_site = verdict.Partition().IsFirstParty();
@@ -154,7 +161,9 @@ FetchResult Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy
     }
 
     if (!response.IsRedirect() || !response.headers.Has("location")) {
-      cache.Store(verdict.Partition(), url, response, now);
+      if (may_use_cache) {
+        cache.Store(verdict.Partition(), url, response, now);
+      }
       FetchResult result;
       result.ok = true;
       result.response = std::move(response);

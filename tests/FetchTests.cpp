@@ -54,6 +54,15 @@ FetchResult Run(const PrivacyPolicy& policy, ScriptedFactory& factory, CookieJar
 
 constexpr std::string_view kOk = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi";
 
+std::vector<std::byte> Bytes(std::string_view text) {
+  std::vector<std::byte> out;
+  out.reserve(text.size());
+  for (const char c : text) {
+    out.push_back(static_cast<std::byte>(static_cast<unsigned char>(c)));
+  }
+  return out;
+}
+
 }  // namespace
 
 void RegisterFetchTests(std::vector<TestCase>& tests) {
@@ -209,6 +218,42 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     Expect(!stale.ok || !stale.from_cache,
            "and a stale entry is not served; the script has no second response, so this "
            "failing to connect is the correct outcome");
+  });
+
+  AddTest(tests, "Fetch/DoesNotUseTheUrlCacheForRequestsWithBodies", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\nget"});
+    factory.script.push_back({"example.com", 443, true,
+                              "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\n"
+                              "Content-Length: 4\r\n\r\npost"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult get = Run(policy, factory, cookies, cache, "https://example.com/form");
+    Expect(get.ok && !get.from_cache, "the GET response was fetched and stored");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 1, "the GET response is cacheable");
+
+    FetchOptions options;
+    options.method = "POST";
+    options.body = Bytes("q=hello");
+    const FetchResult post =
+        Run(policy, factory, cookies, cache, "https://example.com/form", options);
+    Expect(post.ok && !post.from_cache,
+           "a body-carrying request must not reuse a response cached under the same URL");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 2,
+                "the POST reached the transport instead of being answered from cache");
+
+    const std::string& request = factory.log.requests.at(1);
+    Expect(request.rfind("POST /form HTTP/1.1\r\n", 0) == 0, "the method was preserved");
+    Expect(request.find("Content-Length: 7\r\n") != std::string::npos,
+           "the body length is sent with the request");
+    Expect(request.size() >= 7 && request.substr(request.size() - 7) == "q=hello",
+           "and the request body follows the headers");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 1,
+                "the POST response is not inserted into a URL-only cache");
   });
 
   AddTest(tests, "Fetch/ACachedResponseIsNotSharedAcrossPartitions", [] {
