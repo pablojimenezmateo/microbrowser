@@ -313,6 +313,36 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
                 "the POST response is not inserted into a URL-only cache");
   });
 
+  AddTest(tests, "Fetch/DoesNotUseTheUrlCacheForRequestsWithCustomHeaders", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\none"});
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 3\r\n\r\ntwo"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult ordinary = Run(policy, factory, cookies, cache, "https://example.com/data");
+    Expect(ordinary.ok && !ordinary.from_cache, "the first ordinary GET is cacheable");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 1, "it was stored");
+
+    FetchOptions options;
+    options.headers.Add("X-Mode", "alternate");
+    const FetchResult custom =
+        Run(policy, factory, cookies, cache, "https://example.com/data", options);
+    Expect(custom.ok && !custom.from_cache,
+           "a request header can affect the response, and this cache key does not include it");
+    ExpectEqInt(static_cast<long long>(factory.log.hosts.size()), 2,
+                "so the custom-header request reaches the transport");
+    Expect(factory.log.requests.at(1).find("X-Mode: alternate\r\n") != std::string::npos,
+           "with the custom header still present");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 1,
+                "and the custom-header response is not stored under the URL-only key");
+  });
+
   AddTest(tests, "Fetch/ACachedResponseIsNotSharedAcrossPartitions", [] {
     // Cache *timing* is a read oracle across partitions: a third party that can
     // tell its resource loaded quickly on one site learns the user visited

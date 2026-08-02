@@ -95,7 +95,7 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
 }
 
 bool MayUseHttpCache(const FetchOptions& options) {
-  return options.method == "GET" && options.body.empty();
+  return options.method == "GET" && options.body.empty() && options.headers.Fields().empty();
 }
 
 }  // namespace
