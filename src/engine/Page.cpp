@@ -198,37 +198,6 @@ void AppendNamedFormComponent(std::string_view name, std::string_view value, std
   AppendFormComponent(value, out);
 }
 
-const dom::Element* ElementById(const dom::Document& document, std::string_view id) {
-  if (id.empty()) {
-    return nullptr;
-  }
-  const dom::Element* found = nullptr;
-  document.ForEachDescendant([&](const dom::Node& node) {
-    if (found != nullptr || !node.IsElement()) {
-      return;
-    }
-    const auto& element = static_cast<const dom::Element&>(node);
-    const std::string* candidate = element.GetAttribute("id");
-    if (candidate != nullptr && *candidate == id) {
-      found = &element;
-    }
-  });
-  return found;
-}
-
-const dom::Element* FormOwner(const dom::Element& element, const dom::Document& document) {
-  if (const std::string* form_id = element.GetAttribute("form")) {
-    const dom::Element* form = ElementById(document, *form_id);
-    return form != nullptr && form->TagName() == "form" ? form : nullptr;
-  }
-  return element.ClosestAncestor("form");
-}
-
-bool BelongsToForm(const dom::Element& element, const dom::Element& form,
-                   const dom::Document& document) {
-  return FormOwner(element, document) == &form;
-}
-
 bool IsRadioGroupPeer(const dom::Element& candidate,
                       const dom::Element& activated,
                       const dom::Document& document) {
@@ -241,7 +210,7 @@ bool IsRadioGroupPeer(const dom::Element& candidate,
       *candidate_name != *activated_name) {
     return false;
   }
-  return FormOwner(candidate, document) == FormOwner(activated, document);
+  return html::FormOwner(candidate, document) == html::FormOwner(activated, document);
 }
 
 std::string FormQuery(const dom::Document& document,
@@ -253,7 +222,7 @@ std::string FormQuery(const dom::Document& document,
       return;
     }
     const auto& element = static_cast<const dom::Element&>(node);
-    if (!BelongsToForm(element, form, document)) {
+    if (!html::BelongsToForm(element, form, document)) {
       return;
     }
     if (!IsSuccessfulControl(element, submitter)) {
@@ -554,7 +523,7 @@ std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point
   if (!submitter.has_value()) {
     return std::nullopt;
   }
-  const dom::Element* form = FormOwner(**submitter, *document_);
+  const dom::Element* form = html::FormOwner(**submitter, *document_);
   if (form == nullptr) {
     return std::nullopt;
   }
@@ -619,7 +588,7 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   if (!reset.has_value()) {
     return false;
   }
-  const dom::Element* form = FormOwner(**reset, *document_);
+  const dom::Element* form = html::FormOwner(**reset, *document_);
   if (form == nullptr) {
     return false;
   }
@@ -629,7 +598,7 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
       return;
     }
     auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
-    if (!BelongsToForm(element, *form, *document_)) {
+    if (!html::BelongsToForm(element, *form, *document_)) {
       return;
     }
     if (element.TagName() != "input" && element.TagName() != "textarea") {
@@ -695,7 +664,7 @@ std::optional<std::string> Page::SubmitFocusedForm() const {
   if (focused_text_control_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
-  const dom::Element* form = FormOwner(*focused_text_control_, *document_);
+  const dom::Element* form = html::FormOwner(*focused_text_control_, *document_);
   if (form == nullptr) {
     return std::nullopt;
   }

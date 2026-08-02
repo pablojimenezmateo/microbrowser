@@ -1,5 +1,6 @@
 #include "html/FormControl.h"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -69,6 +70,24 @@ bool IsDescendantOf(const dom::Node& node, const dom::Node& ancestor) {
     }
   }
   return false;
+}
+
+const dom::Element* ElementById(const dom::Document& document, std::string_view id) {
+  if (id.empty()) {
+    return nullptr;
+  }
+  const dom::Element* found = nullptr;
+  document.ForEachDescendant([&](const dom::Node& node) {
+    if (found != nullptr || !node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    const std::string* candidate = element.GetAttribute("id");
+    if (candidate != nullptr && *candidate == id) {
+      found = &element;
+    }
+  });
+  return found;
 }
 
 }  // namespace
@@ -194,6 +213,20 @@ bool IsMutableTextControl(const dom::Element& element) {
 
 bool IsSelectElement(const dom::Element& element) {
   return element.TagName() == "select";
+}
+
+const dom::Element* FormOwner(const dom::Element& element, const dom::Document& document) {
+  if (const std::string* form_id = element.GetAttribute("form")) {
+    const dom::Element* form = ElementById(document, *form_id);
+    return form != nullptr && form->TagName() == "form" ? form : nullptr;
+  }
+  return element.ClosestAncestor("form");
+}
+
+bool BelongsToForm(const dom::Element& element,
+                   const dom::Element& form,
+                   const dom::Document& document) {
+  return FormOwner(element, document) == &form;
 }
 
 std::optional<std::string> SelectedOptionText(const dom::Element& select) {

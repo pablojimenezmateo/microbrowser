@@ -29,6 +29,10 @@ bool IsTextControl(const dom::Element& element);
 bool IsEditableTextControl(const dom::Element& element);
 bool IsMutableTextControl(const dom::Element& element);
 bool IsSelectElement(const dom::Element& element);
+const dom::Element* FormOwner(const dom::Element& element, const dom::Document& document);
+bool BelongsToForm(const dom::Element& element,
+                   const dom::Element& form,
+                   const dom::Document& document);
 std::optional<std::string> SelectedOptionText(const dom::Element& select);
 std::optional<std::string> SelectedOptionValue(const dom::Element& select);
 std::vector<std::string> SelectedOptionValues(const dom::Element& select);
