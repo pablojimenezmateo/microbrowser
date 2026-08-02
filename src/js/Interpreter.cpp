@@ -78,7 +78,11 @@ Result Interpreter::Throw(std::string_view kind, std::string message) {
 }
 
 Value NativeCall::Throw(std::string_view kind, std::string message) {
-  thrown = interpreter.MakeError(kind, std::move(message));
+  return ThrowValue(interpreter.MakeError(kind, std::move(message)));
+}
+
+Value NativeCall::ThrowValue(Value value) {
+  thrown = std::move(value);
   threw = true;
   return Value::Undefined();
 }

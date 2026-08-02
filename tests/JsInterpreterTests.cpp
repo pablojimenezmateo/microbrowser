@@ -316,6 +316,9 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("[1,,3].map(x => x * 2).join(',')", "2,,6");
     ExpectEval("[1,,3].filter(x => true).join(',')", "1,3");
     ExpectEval("[1,,3].reduce((a, b) => a + b)", "4");
+    ExpectEval("[1].map(x => { throw 'map' })", "throw map");
+    ExpectEval("[1].filter(x => { throw 'filter' })", "throw filter");
+    ExpectEval("[1,2].reduce((a, b) => { throw 'reduce' })", "throw reduce");
     ExpectEval("let s = ''; for (const k in [, 'x']) s += k; s", "1");
     ExpectEval("let s = ''; for (const v of [, 'x']) s += String(v) + ','; s",
                "undefined,x,");

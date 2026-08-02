@@ -463,7 +463,7 @@ void Interpreter::InstallGlobals() {
             callback, Value::Undefined(),
             {call.self.object->GetElement(i), Value::Number(static_cast<double>(i)), call.self});
         if (mapped.IsAbrupt()) {
-          return Value::Undefined();
+          return call.ThrowValue(mapped.value);
         }
         out.push_back(mapped.value);
         present.push_back(true);
@@ -484,7 +484,7 @@ void Interpreter::InstallGlobals() {
             callback, Value::Undefined(), {element, Value::Number(static_cast<double>(i)),
                                            call.self});
         if (kept.IsAbrupt()) {
-          return Value::Undefined();
+          return call.ThrowValue(kept.value);
         }
         if (ToBoolean(kept.value)) {
           out.push_back(element);
@@ -521,7 +521,7 @@ void Interpreter::InstallGlobals() {
           {accumulator, call.self.object->GetElement(index),
            Value::Number(static_cast<double>(index)), call.self});
       if (next.IsAbrupt()) {
-        return Value::Undefined();
+        return call.ThrowValue(next.value);
       }
       accumulator = next.value;
     }

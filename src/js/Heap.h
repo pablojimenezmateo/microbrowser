@@ -34,6 +34,7 @@ struct NativeCall {
   Value self;
   const std::vector<Value>& arguments;
   Value Throw(std::string_view kind, std::string message);
+  Value ThrowValue(Value value);
   bool HasThrown() const { return threw; }
   const Value& ThrownValue() const { return thrown; }
 
