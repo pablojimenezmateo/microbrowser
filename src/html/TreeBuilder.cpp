@@ -370,7 +370,7 @@ void TreeBuilder::ProcessInBody(const Token& token) {
 // other element's are: text and stray elements cannot live between a `<table>`
 // and its `<tr>`, so the parser moves them out (foster parenting) rather than
 // building a tree no layout engine could interpret. Every clause below is the
-// spec's; the ones that are absent are template and select.
+// spec's; the one that is absent is template.
 void TreeBuilder::ProcessInTable(const Token& token) {
   switch (token.kind) {
     case Token::Kind::Character:
@@ -823,6 +823,12 @@ void TreeBuilder::ProcessInSelect(const Token& token) {
         InsertElement(token);
         return;
       }
+      if (token.data == "hr") {
+        pop_current_if("option");
+        pop_current_if("optgroup");
+        InsertElement(token);
+        return;
+      }
       if (token.data == "select") {
         ++errors_;
         if (!HasInScope("select", Scope::Select)) {
@@ -842,9 +848,8 @@ void TreeBuilder::ProcessInSelect(const Token& token) {
         Process(token);
         return;
       }
-      if (token.data == "script" || token.data == "style") {
-        SwitchToRawText(token, token.data == "script" ? TokenizerState::ScriptData
-                                                      : TokenizerState::RawText);
+      if (token.data == "script") {
+        SwitchToRawText(token, TokenizerState::ScriptData);
         return;
       }
       break;
