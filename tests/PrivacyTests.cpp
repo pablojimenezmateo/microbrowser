@@ -49,11 +49,15 @@ bool Blocks(const BlockingEngine& engine, std::string_view url, std::string_view
 void RegisterPrivacyTests(std::vector<TestCase>& tests) {
   AddTest(tests, "Blocking/HostAnchoredRulesCoverSubdomains", [] {
     BlockingEngine engine;
-    engine.AddRules("||ads.example^");
+    engine.AddRules(
+        "||ads.example^\n"
+        "||UPPER.example^");
 
     Expect(Blocks(engine, "https://ads.example/x.js", "https://news.example/"), "the host itself");
     Expect(Blocks(engine, "https://a.b.ads.example/x.js", "https://news.example/"),
            "and every subdomain, which is what the `||` anchor means");
+    Expect(Blocks(engine, "https://upper.example/x.js", "https://news.example/"),
+           "host-anchored rules are ASCII case-insensitive like filter-list network rules");
     Expect(!Blocks(engine, "https://notads.example/x.js", "https://news.example/"),
            "but not a host that merely ends with the same letters — that is the bug a "
            "string-suffix implementation has");
@@ -71,6 +75,8 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
 
     Expect(Blocks(engine, "https://cdn.example/img/banner.gif", "https://a.example/"),
            "a plain substring matches anywhere");
+    Expect(Blocks(engine, "https://cdn.example/img/BANNER.GIF", "https://a.example/"),
+           "network filter matching is ASCII case-insensitive by default");
     Expect(Blocks(engine, "https://exact.example/only", "https://a.example/"),
            "a start anchor matches from the beginning");
     Expect(!Blocks(engine, "https://other.example/https://exact.example/only",

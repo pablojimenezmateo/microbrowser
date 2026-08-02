@@ -385,9 +385,10 @@ void BlockingEngine::AddRule(std::string_view line) {
     rule.resource_types &= static_cast<std::uint16_t>(~excluded_types);
   }
 
+  const std::string pattern_text = Lowered(line);
   rule.pattern_offset = static_cast<std::uint32_t>(arena_.size());
-  rule.pattern_length = static_cast<std::uint32_t>(line.size());
-  arena_ += line;
+  rule.pattern_length = static_cast<std::uint32_t>(pattern_text.size());
+  arena_ += pattern_text;
 
   const auto index = static_cast<std::uint32_t>(rules_.size());
   rules_.push_back(rule);
@@ -527,7 +528,7 @@ MatchResult BlockingEngine::Match(const Request& request) const {
   MatchResult result;
   AddPerformanceCounter(PerfCounterId::PrivacyRequestsMatched);
 
-  const std::string url = request.url.Serialize(true);
+  const std::string url = Lowered(request.url.Serialize(true));
   const std::string_view host = request.url.HostSerialized();
 
   std::vector<std::uint32_t> candidates;
