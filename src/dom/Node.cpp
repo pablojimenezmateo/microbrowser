@@ -64,6 +64,18 @@ Node& Node::Append(std::unique_ptr<Node> child) {
   return *children_.back();
 }
 
+Node& Node::InsertBefore(std::unique_ptr<Node> child, const Node* reference) {
+  const auto found = std::find_if(
+      children_.begin(), children_.end(),
+      [reference](const std::unique_ptr<Node>& candidate) { return candidate.get() == reference; });
+  if (found == children_.end()) {
+    return Append(std::move(child));
+  }
+  child->parent_ = this;
+  AddPerformanceCounter(PerfCounterId::DomNodesCreated);
+  return **children_.insert(found, std::move(child));
+}
+
 bool Node::Remove(Node* child) {
   const auto found = std::find_if(
       children_.begin(), children_.end(),

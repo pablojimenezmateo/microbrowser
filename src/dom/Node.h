@@ -50,6 +50,12 @@ class Node {
 
   Node& Append(std::unique_ptr<Node> child);
 
+  // Inserts before `reference`, appending when it is null or not a child here.
+  // The HTML parser's foster parenting needs it: content that appears inside a
+  // table but does not belong in one is inserted *before* the table, so a null
+  // or stale reference must degrade to an append rather than fail.
+  Node& InsertBefore(std::unique_ptr<Node> child, const Node* reference);
+
   // Detaches and destroys `child`. Returns false if it is not a child of this
   // node, which is a caller bug rather than a routine outcome.
   bool Remove(Node* child);

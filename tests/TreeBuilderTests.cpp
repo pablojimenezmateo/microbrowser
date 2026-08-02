@@ -168,19 +168,98 @@ void RegisterTreeBuilderTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "TreeBuilder/ReportsWhenItNeededAnUnimplementedInsertionMode", [] {
-    // Tables are not implemented. That is recorded rather than silently
-    // producing a tree different from every other browser's.
-    TreeBuilder builder("<table><tr><td>cell</td></tr></table>");
+    // `<template>` has no insertion mode here. That is recorded rather than
+    // silently producing a tree different from every other browser's.
+    TreeBuilder builder("<template><p>x</p></template>");
     const std::unique_ptr<Document> document = builder.Build();
     Expect(document != nullptr, "a document is still produced");
     Expect(builder.UnsupportedModeCount() > 0,
            "and the gap is observable, so a caller can say the tree is incomplete rather "
            "than trusting it");
 
-    TreeBuilder ordinary("<p>no tables here</p>");
+    TreeBuilder ordinary("<table><tr><td>tables are implemented</table>");
     ordinary.Build();
     ExpectEqInt(static_cast<long long>(ordinary.UnsupportedModeCount()), 0,
                 "an ordinary document reports nothing unsupported");
+  });
+
+  AddTest(tests, "TreeBuilder/SuppliesTheTbodyNobodyWrites", [] {
+    // Almost no page writes `<tbody>`, and every browser's DOM has one. Layout
+    // and selectors both see the row group whether or not the author typed it.
+    ExpectTree("<table><tr><td>cell</td></tr></table>",
+               "<html><head></head><body>"
+               "<table><tbody><tr><td>cell</td></tr></tbody></table>"
+               "</body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/ClosesCellsAndRowsImplicitly", [] {
+    // `<td>a<td>b` is two sibling cells. Nesting them instead would indent the
+    // whole rest of the table one level per cell.
+    ExpectTree("<table><tr><td>a<td>b<tr><td>c</table>",
+               "<html><head></head><body><table><tbody>"
+               "<tr><td>a</td><td>b</td></tr>"
+               "<tr><td>c</td></tr>"
+               "</tbody></table></body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/FosterParentsContentThatCannotLiveInATable", [] {
+    // §13.2.6.1. Text and stray elements between a table and its rows are moved
+    // *before* the table rather than dropped or nested, because a table's
+    // children are constrained in a way no other element's are.
+    ExpectTree("<table>stray<tr><td>cell</table>",
+               "<html><head></head><body>stray"
+               "<table><tbody><tr><td>cell</td></tr></tbody></table>"
+               "</body></html>");
+    ExpectTree("<table><div>d</div><tr><td>cell</table>",
+               "<html><head></head><body><div>d</div>"
+               "<table><tbody><tr><td>cell</td></tr></tbody></table>"
+               "</body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/KeepsWhitespaceInsideTheTable", [] {
+    // Whitespace-only runs are the one kind of character data a table keeps, so
+    // a pretty-printed table does not shed its indentation into the body.
+    ExpectTree("<table> <tr><td>c</table>",
+               "<html><head></head><body>"
+               "<table> <tbody><tr><td>c</td></tr></tbody></table>"
+               "</body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/NestedTablesStaySeparate", [] {
+    // Table scope is what keeps the inner `</table>` from closing the outer
+    // one. Hacker News nests layout tables several deep.
+    ExpectTree("<table><tr><td><table><tr><td>in</table>out</table>",
+               "<html><head></head><body><table><tbody><tr><td>"
+               "<table><tbody><tr><td>in</td></tr></tbody></table>out"
+               "</td></tr></tbody></table></body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/HandlesCaptionsAndColumnGroups", [] {
+    ExpectTree("<table><caption>C</caption><col><tr><td>a</table>",
+               "<html><head></head><body><table>"
+               "<caption>C</caption><colgroup><col></colgroup>"
+               "<tbody><tr><td>a</td></tr></tbody>"
+               "</table></body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/ReturnsToTheBodyAfterATableCloses", [] {
+    // "Reset the insertion mode appropriately": the mode after `</table>` is a
+    // function of what is still open, not of what it was before.
+    ExpectTree("<table><tr><td>a</table><p>after</p>",
+               "<html><head></head><body>"
+               "<table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>"
+               "</body></html>");
+    ExpectTree("<div><table><tr><td>a</table><p>after</p></div>",
+               "<html><head></head><body><div>"
+               "<table><tbody><tr><td>a</td></tr></tbody></table><p>after</p>"
+               "</div></body></html>");
+  });
+
+  AddTest(tests, "TreeBuilder/DropsTableStructureOutsideATable", [] {
+    // A `<td>` with no table is a parse error and inserts nothing. Honouring it
+    // would put a cell in the body, which no browser does.
+    ExpectTree("<td>orphan</td>", "<html><head></head><body>orphan</body></html>");
+    ExpectTree("<tr><td>orphan", "<html><head></head><body>orphan</body></html>");
   });
 
   AddTest(tests, "TreeBuilder/FindsElementsByTagName", [] {

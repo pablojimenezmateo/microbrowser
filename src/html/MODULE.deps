@@ -15,4 +15,9 @@ max_tu_lines: 1400
 budget: TokenizerState header_lines=80 public_methods=0  members=0
 budget: Token          header_lines=45 public_methods=6  members=10
 budget: Tokenizer      header_lines=60 public_methods=12 members=18
-budget: TreeBuilder    header_lines=45 public_methods=8  members=10
+# Raised for the table insertion modes. The two new members are the spec's own
+# state — the buffered character run that "in table text" cannot place until it
+# knows whether the run is only whitespace, and the foster-parenting flag — and
+# the header lines are one declaration per insertion mode. Both grow with the
+# spec's shape rather than with this class taking on more responsibility.
+budget: TreeBuilder    header_lines=62 public_methods=8  members=12
