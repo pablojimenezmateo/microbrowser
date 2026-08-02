@@ -327,6 +327,26 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
                    "the later cached value is the reloaded response");
   });
 
+  AddTest(tests, "Fetch/ClearingTheHttpCacheResetsByteAccounting", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back(
+        {"example.com", 443, true,
+         "HTTP/1.1 200 OK\r\nCache-Control: max-age=600\r\nContent-Length: 2\r\n\r\nhi"});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult first = Run(policy, factory, cookies, cache, "https://example.com/x");
+    Expect(first.ok && !first.from_cache, "the response was fetched");
+    ExpectEqInt(static_cast<long long>(cache.Size()), 1, "and stored");
+    Expect(cache.Bytes() > 0, "with byte accounting");
+
+    cache.Clear();
+    ExpectEqInt(static_cast<long long>(cache.Size()), 0, "no entries remain");
+    ExpectEqInt(static_cast<long long>(cache.Bytes()), 0,
+                "and no cleared entry is still counted against the budget");
+  });
+
   AddTest(tests, "Fetch/DoesNotUseTheUrlCacheForRequestsWithBodies", [] {
     PrivacyPolicy policy;
     ScriptedFactory factory;

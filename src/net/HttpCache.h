@@ -42,7 +42,10 @@ class HttpCache {
   bool Store(const url::PartitionKey& key, const url::Url& url, const HttpResponse& response,
              std::int64_t now);
 
-  void Clear() { entries_.clear(); }
+  void Clear() {
+    entries_.clear();
+    bytes_ = 0;
+  }
   void ClearContainer(url::ContainerId container);
   void RemoveStale(std::int64_t now);
   std::size_t Size() const { return entries_.size(); }
