@@ -338,26 +338,16 @@ bool MatchesFrom(const std::vector<CompoundSelector>& compounds, std::size_t ind
           break;
         }
         if (sibling->IsElement()) {
-          previous = static_cast<const dom::Element*>(sibling.get());
+          const dom::Element* candidate = static_cast<const dom::Element*>(sibling.get());
+          if (current.combinator == Combinator::LaterSibling &&
+              MatchesFrom(compounds, index - 1, *candidate)) {
+            return true;
+          }
+          previous = candidate;
         }
       }
       if (current.combinator == Combinator::NextSibling) {
         return previous != nullptr && MatchesFrom(compounds, index - 1, *previous);
-      }
-      for (const dom::Element* at = previous; at != nullptr;) {
-        if (MatchesFrom(compounds, index - 1, *at)) {
-          return true;
-        }
-        const dom::Element* earlier = nullptr;
-        for (const std::unique_ptr<dom::Node>& sibling : parent->Children()) {
-          if (sibling.get() == at) {
-            break;
-          }
-          if (sibling->IsElement()) {
-            earlier = static_cast<const dom::Element*>(sibling.get());
-          }
-        }
-        at = earlier;
       }
       return false;
     }

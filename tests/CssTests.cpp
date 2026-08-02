@@ -216,6 +216,8 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
            "adjacent means immediately adjacent");
     Expect(SelectorMatches("h1 ~ p", "<h1>t</h1><div>d</div><p>x</p>", "p"),
            "a later sibling need not be adjacent");
+    Expect(!SelectorMatches("h2 ~ p", "<h1>t</h1><div>d</div><p>x</p><h2>later</h2>", "p"),
+           "general sibling does not look forward");
   });
 
   AddTest(tests, "CssSelector/MatchesAttributeSelectors", [] {
