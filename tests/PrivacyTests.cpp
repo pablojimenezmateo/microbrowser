@@ -217,19 +217,30 @@ void RegisterPrivacyTests(std::vector<TestCase>& tests) {
     // and upgrading it would make local development impossible without teaching
     // people to click through warnings.
     PrivacyPolicy policy;
-    for (const std::string_view url : {"http://localhost:3000/x", "http://127.0.0.1:8080/x"}) {
+    for (const std::string_view url : {"http://localhost:3000/x", "http://localhost./x",
+                                       "http://127.0.0.1:8080/x",
+                                       "http://[::ffff:127.0.0.1]/x"}) {
       const Verdict verdict = policy.Decide(MakeRequest(url, "http://localhost:3000/"));
       Expect(verdict.IsAllowed(), "loopback is allowed");
       Expect(!verdict.WasUpgraded(), "and not upgraded");
     }
+
+    const Verdict lan = policy.Decide(MakeRequest("http://192.168.0.1/x", "http://localhost/"));
+    Expect(lan.WasUpgraded(),
+           "private LAN addresses are reachable from the network side and do not get the "
+           "loopback development carve-out");
   });
 
   AddTest(tests, "Policy/AnExplicitlyAllowedHostIsNotUpgraded", [] {
     PrivacyPolicy policy;
-    policy.AllowInsecureHost("legacy.example");
+    policy.AllowInsecureHost("LEGACY.EXAMPLE.");
     const Verdict allowed =
         policy.Decide(MakeRequest("http://legacy.example/x", "https://a.example/"));
     Expect(!allowed.WasUpgraded(), "the user's per-host decision is honored");
+
+    const Verdict absolute =
+        policy.Decide(MakeRequest("http://legacy.example./x", "https://a.example/"));
+    Expect(!absolute.WasUpgraded(), "the same host written with a root dot is the same exception");
 
     const Verdict other = policy.Decide(MakeRequest("http://other.example/x", "https://a.example/"));
     Expect(other.WasUpgraded(),

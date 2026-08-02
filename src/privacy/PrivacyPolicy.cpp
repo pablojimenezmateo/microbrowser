@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "url/Host.h"
+#include "url/PublicSuffixList.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::privacy {
@@ -33,6 +35,22 @@ std::vector<std::string_view> SplitQuery(std::string_view query) {
 std::string_view NameOf(std::string_view parameter) {
   const std::size_t equals = parameter.find('=');
   return equals == std::string_view::npos ? parameter : parameter.substr(0, equals);
+}
+
+char ToLower(char c) {
+  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
+}
+
+std::string Lowered(std::string_view text) {
+  std::string out(text);
+  std::transform(out.begin(), out.end(), out.begin(), ToLower);
+  return out;
+}
+
+std::string CanonicalPolicyHost(std::string_view host) {
+  const auto parsed = url::Host::Parse(host, true);
+  const std::string serialized = parsed.has_value() ? parsed->Serialized() : Lowered(host);
+  return std::string(url::HostWithoutTrailingRootDot(serialized));
 }
 
 }  // namespace
@@ -100,14 +118,16 @@ bool StripQueryParameters(url::Url& url, const std::vector<std::string_view>& pa
 }
 
 void PrivacyPolicy::AllowInsecureHost(std::string host) {
-  if (!IsInsecureHostAllowed(host)) {
+  host = CanonicalPolicyHost(host);
+  if (!host.empty() && !IsInsecureHostAllowed(host)) {
     insecure_hosts_.push_back(std::move(host));
   }
 }
 
 bool PrivacyPolicy::IsInsecureHostAllowed(std::string_view host) const {
+  const std::string canonical = CanonicalPolicyHost(host);
   return std::any_of(insecure_hosts_.begin(), insecure_hosts_.end(),
-                     [host](const std::string& allowed) { return allowed == host; });
+                     [&canonical](const std::string& allowed) { return allowed == canonical; });
 }
 
 Verdict PrivacyPolicy::Decide(const Request& request, const url::Url* referrer_document) const {
@@ -128,7 +148,7 @@ Verdict PrivacyPolicy::Decide(const Request& request, const url::Url* referrer_d
   bool upgraded = false;
 
   if (final_url.Scheme() == "http") {
-    const bool exempt = final_url.GetHost().IsPotentiallyPrivate() ||
+    const bool exempt = final_url.GetHost().IsLoopbackOrLocalhost() ||
                         IsInsecureHostAllowed(final_url.HostSerialized());
     if (settings_.https_only && !exempt) {
       // Upgraded by reparsing rather than by editing the scheme in place: the
