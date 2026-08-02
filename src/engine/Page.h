@@ -83,11 +83,6 @@ class Page : private layout::ImageProvider {
   // supported form control was activated.
   std::optional<FormSubmission> FormSubmissionRequestAt(gfx::FloatPoint document_point) const;
 
-  // The GET form target activated at `document_point`, including the encoded
-  // query string. Kept for page-level tests that only care about GET URL
-  // construction; the engine uses FormSubmissionRequestAt.
-  std::optional<std::string> FormSubmissionAt(gfx::FloatPoint document_point) const;
-
   // Focuses an editable text control at `document_point`.
   bool FocusTextControlAt(gfx::FloatPoint document_point);
 
@@ -108,9 +103,6 @@ class Page : private layout::ImageProvider {
   // The form submission for the currently focused text control's owning form,
   // or nullopt when no supported form can be submitted.
   std::optional<FormSubmission> FocusedFormSubmission() const;
-
-  // The GET form target for the currently focused text control's owning form.
-  std::optional<std::string> SubmitFocusedForm() const;
 
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab

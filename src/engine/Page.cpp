@@ -562,14 +562,6 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
   return BuildFormSubmission(*form, *submitter, *document_, url_);
 }
 
-std::optional<std::string> Page::FormSubmissionAt(gfx::FloatPoint document_point) const {
-  const std::optional<FormSubmission> submission = FormSubmissionRequestAt(document_point);
-  if (!submission.has_value() || submission->method != "GET") {
-    return std::nullopt;
-  }
-  return submission->url;
-}
-
 bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
   focused_text_control_ = nullptr;
   if (boxes_ == nullptr) {
@@ -709,14 +701,6 @@ std::optional<FormSubmission> Page::FocusedFormSubmission() const {
     return std::nullopt;
   }
   return BuildFormSubmission(*form, nullptr, *document_, url_);
-}
-
-std::optional<std::string> Page::SubmitFocusedForm() const {
-  const std::optional<FormSubmission> submission = FocusedFormSubmission();
-  if (!submission.has_value() || submission->method != "GET") {
-    return std::nullopt;
-  }
-  return submission->url;
 }
 
 }  // namespace microbrowser::engine

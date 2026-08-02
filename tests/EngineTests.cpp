@@ -94,6 +94,23 @@ std::size_t TextRunCount(const gfx::DisplayList& list) {
   return runs;
 }
 
+std::optional<std::string> SubmissionTarget(const engine::Page& page,
+                                            gfx::FloatPoint point) {
+  const std::optional<engine::FormSubmission> submission = page.FormSubmissionRequestAt(point);
+  if (!submission.has_value() || submission->method != "GET") {
+    return std::nullopt;
+  }
+  return submission->url;
+}
+
+std::optional<std::string> FocusedSubmissionTarget(const engine::Page& page) {
+  const std::optional<engine::FormSubmission> submission = page.FocusedFormSubmission();
+  if (!submission.has_value() || submission->method != "GET") {
+    return std::nullopt;
+  }
+  return submission->url;
+}
+
 }  // namespace
 
 void RegisterEngineTests(std::vector<TestCase>& tests) {
@@ -219,7 +236,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "clicking the submit input activates its form");
     ExpectEqString(*target, "/search?token=a%26b&q=hello+world&go=Search",
                    "GET submission replaces the action query with successful controls");
@@ -238,7 +255,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/override?q=hello",
                    "the submitter's formaction overrides the form action");
@@ -257,7 +274,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "formmethod=get is a supported submission path");
     ExpectEqString(*target, "/search?q=hello",
                    "the submitter's formmethod overrides the form method");
@@ -283,8 +300,6 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(submission->body, "q=hello", "controls move into the request body");
     ExpectEqString(submission->content_type, "application/x-www-form-urlencoded",
                    "POST uses the default form encoding");
-    Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
-           "the legacy target helper remains GET-only");
   });
 
   AddTest(tests, "Page/FormAttributeAssociatesExternalControls", [] {
@@ -301,7 +316,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 25.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 25.0f});
     Expect(target.has_value(), "the submit control activates its form");
     ExpectEqString(*target, "/search?external=out&inside=in",
                    "controls with a matching form attribute are submitted with that form");
@@ -320,7 +335,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{5.0f, 25.0f});
+        SubmissionTarget(page, gfx::FloatPoint{5.0f, 25.0f});
     Expect(target.has_value(), "an external submitter activates its associated form");
     ExpectEqString(*target, "/search?q=hello&go=Go",
                    "the external submitter is serialized as the clicked submitter");
@@ -341,7 +356,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
            "the external text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("hello"), "typing changed the external input");
-    const std::optional<std::string> target = page.SubmitFocusedForm();
+    const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the external input can submit its associated form");
     ExpectEqString(*target, "/search?q=hello", "focused submission uses the form attribute");
   });
@@ -367,7 +382,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "the external reset button restores its associated form");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{5.0f, 25.0f});
+        SubmissionTarget(page, gfx::FloatPoint{5.0f, 25.0f});
     Expect(target.has_value(), "the submit control activates its form");
     ExpectEqString(*target, "/search?q=start", "reset restored the associated external input");
   });
@@ -383,7 +398,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
+    Expect(!SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f}).has_value(),
            "a disabled submit control must not activate its form");
   });
 
@@ -403,7 +418,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{85.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{85.0f, 5.0f});
     Expect(target.has_value(), "the submit control outside the fieldset activates the form");
     ExpectEqString(*target, "/search", "disabled fieldset descendants are not successful");
   });
@@ -419,7 +434,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(!page.FormSubmissionAt(gfx::FloatPoint{5.0f, 5.0f}).has_value(),
+    Expect(!SubmissionTarget(page, gfx::FloatPoint{5.0f, 5.0f}).has_value(),
            "a submit control inside a disabled fieldset must not activate its form");
   });
 
@@ -440,7 +455,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!page.InsertTextIntoFocusedTextControl("x"),
            "typing cannot mutate a disabled fieldset descendant");
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control outside the fieldset activates the form");
     ExpectEqString(*target, "/search", "the disabled fieldset text control was not submitted");
   });
@@ -461,7 +476,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "a submit control inside the first legend remains enabled");
     ExpectEqString(*target, "/search?q=allowed",
                    "only controls inside the first legend escape the disabled fieldset");
@@ -480,7 +495,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "clicking a button with no type activates its form");
     ExpectEqString(*target, "/search?q=hello&go=Search",
                    "the clicked button is serialized as the submitter");
@@ -500,7 +515,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(!page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f}).has_value(),
+    Expect(!SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f}).has_value(),
            "a button with type=button does not submit");
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("ed"), "typing changed the input value");
@@ -508,7 +523,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.ResetFormAt(gfx::FloatPoint{85.0f, 5.0f}), "button type=reset resets its form");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{125.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{125.0f, 5.0f});
     Expect(target.has_value(), "the submit button activates its form");
     ExpectEqString(*target, "/search?q=start&go=Go",
                    "reset restored the input and the clicked submit button was serialized");
@@ -529,7 +544,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/pick?topic=b", "select serializes its selected option value");
   });
@@ -547,7 +562,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/pick?topic=Alpha",
                    "a select with no selected option uses the first option text");
@@ -570,7 +585,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/pick?topic=a&topic=Gamma",
                    "a multiple select serializes every selected option in tree order");
@@ -589,7 +604,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/pick", "an unselected multiple select contributes no entry");
   });
@@ -608,7 +623,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/pick", "a disabled selected option contributes no entry");
   });
@@ -630,7 +645,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/pick?topic=c",
                    "disabled options and disabled optgroups are skipped");
@@ -651,7 +666,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{35.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{35.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/filter?seen=on&mode=new",
                    "checked boxes without a value submit 'on', unchecked boxes submit nothing, "
@@ -679,7 +694,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "clicking a radio input selects it");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{35.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{35.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/filter?seen=on&mode=new",
                    "activated checkable controls update the submitted state");
@@ -703,7 +718,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "clicking the external radio selects it");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{25.0f, 25.0f});
+        SubmissionTarget(page, gfx::FloatPoint{25.0f, 25.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/filter?mode=new",
                    "a radio outside the form clears its peer with the same form owner");
@@ -732,7 +747,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "clicking reset restores defaults");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{65.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{65.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/filter?q=&seen=on", "reset restored the original form state");
   });
@@ -757,7 +772,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "a disabled reset control must not restore its form");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/filter?q=abc", "disabled reset left the edited state intact");
   });
@@ -781,7 +796,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "clicking reset restores defaults");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{85.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{85.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/contact?email=a%40b",
                    "reset restored the email input's original value");
@@ -801,7 +816,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.InsertTextIntoFocusedTextControl("hi"), "typing changed the input value");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/search?q=hi", "the form uses the edited input value");
   });
@@ -819,7 +834,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the textarea was focused");
     Expect(page.InsertTextIntoFocusedTextControl("&"), "typing changed the textarea value");
-    const std::optional<std::string> target = page.SubmitFocusedForm();
+    const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused textarea can submit its owning form");
     ExpectEqString(*target, "/note?body=hi%26", "textarea edits are submitted");
   });
@@ -843,7 +858,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "reset restored the textarea");
     page.Layout(400.0f);
     const std::optional<std::string> target =
-        page.FormSubmissionAt(gfx::FloatPoint{85.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{85.0f, 5.0f});
     Expect(target.has_value(), "the submit control activates the form");
     ExpectEqString(*target, "/note?body=hi", "reset restored the textarea default text");
   });
@@ -860,7 +875,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("a@b"), "typing changed the input value");
-    const std::optional<std::string> target = page.SubmitFocusedForm();
+    const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused input can submit its owning form");
     ExpectEqString(*target, "/contact?email=a%40b", "email input edits are submitted");
   });
@@ -877,7 +892,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("abcd"), "typing changed the input value");
-    const std::optional<std::string> target = page.SubmitFocusedForm();
+    const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused input can submit its owning form");
     ExpectEqString(*target, "/search?q=abc", "maxlength bounds inserted input text");
   });
@@ -895,7 +910,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the readonly input was focused");
     Expect(!page.InsertTextIntoFocusedTextControl("x"), "typing does not mutate readonly input");
     Expect(!page.DeleteBackwardFromFocusedTextControl(), "backspace does not mutate readonly input");
-    const std::optional<std::string> target = page.SubmitFocusedForm();
+    const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused input can still submit its owning form");
     ExpectEqString(*target, "/search?q=locked", "readonly preserves the original value");
   });
@@ -913,7 +928,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("caf\xC3\xA9"), "typing changed the input value");
     Expect(page.DeleteBackwardFromFocusedTextControl(), "backspace changed the focused input value");
-    const std::optional<std::string> target = page.SubmitFocusedForm();
+    const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused input can submit its owning form");
     ExpectEqString(*target, "/search?q=caf",
                    "enter submission serializes the focused input without a clicked submitter");
