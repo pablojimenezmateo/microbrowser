@@ -428,9 +428,16 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       return;
     }
     if (const auto length = ParseLength(declaration.value)) {
-      style.line_height = length->Resolve(style.font_size, 0.0f);
+      const float resolved = length->unit == Length::Unit::Percent
+                                 ? style.font_size * length->value / 100.0f
+                                 : length->Resolve(style.font_size, -1.0f);
+      if (resolved >= 0.0f) {
+        style.line_height = resolved;
+      }
     } else if (const auto multiple = util::ParseDouble(value)) {
-      style.line_height = static_cast<float>(*multiple) * style.font_size;
+      if (*multiple >= 0.0) {
+        style.line_height = static_cast<float>(*multiple) * style.font_size;
+      }
     }
     return;
   }

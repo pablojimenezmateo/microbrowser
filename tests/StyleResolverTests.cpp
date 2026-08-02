@@ -195,6 +195,14 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
                                         "p");
     ExpectEqInt(static_cast<long long>(style.line_height), 30,
                 "a unitless line-height number multiplies the element font size");
+    const ComputedStyle percent =
+        StyleOf("<p style='font-size: 20px; line-height: 150%'>x</p>", "", "p");
+    ExpectEqInt(static_cast<long long>(percent.line_height), 30,
+                "a percentage line-height also resolves against the element font size");
+    const ComputedStyle negative =
+        StyleOf("<p style='line-height: 30px; line-height: -1.5'>x</p>", "", "p");
+    ExpectEqInt(static_cast<long long>(negative.line_height), 30,
+                "a negative line-height is invalid and leaves the earlier value alone");
   });
 
   AddTest(tests, "StyleResolver/ParsesEdgeShorthands", [] {
