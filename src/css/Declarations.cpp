@@ -47,6 +47,91 @@ std::vector<std::string_view> SplitWords(std::string_view text) {
   return words;
 }
 
+// Splits on `separator`, but not inside a function's parentheses or a string.
+// `url(a,b), red` is two layers, not three: a comma inside `url()` belongs to
+// the url. A splitter that did not track nesting would produce a fragment that
+// parses as neither a url nor a colour and would silently drop the layer.
+std::vector<std::string_view> SplitTopLevel(std::string_view value, char separator) {
+  std::vector<std::string_view> parts;
+  std::size_t depth = 0;
+  char quote = '\0';
+  std::size_t begin = 0;
+  for (std::size_t i = 0; i < value.size(); ++i) {
+    const char c = value[i];
+    if (quote != '\0') {
+      if (c == quote) {
+        quote = '\0';
+      }
+    } else if (c == '"' || c == '\'') {
+      quote = c;
+    } else if (c == '(') {
+      ++depth;
+    } else if (c == ')') {
+      depth -= depth > 0 ? 1 : 0;
+    } else if (c == separator && depth == 0) {
+      parts.push_back(value.substr(begin, i - begin));
+      begin = i + 1;
+    }
+  }
+  parts.push_back(value.substr(begin));
+  return parts;
+}
+
+// The contents of a `url(...)`, unquoted, or empty when `value` does not
+// contain one. Not a general function parser: `url()` is the only CSS function
+// this renderer fetches anything for.
+std::string ParseUrlFunction(std::string_view value) {
+  const std::string_view trimmed = Trim(value);
+  const std::size_t open = Lowered(trimmed).find("url(");
+  if (open == std::string::npos) {
+    return {};
+  }
+  const std::size_t close = trimmed.find(')', open);
+  if (close == std::string_view::npos) {
+    return {};
+  }
+  std::string_view inner = Trim(trimmed.substr(open + 4, close - open - 4));
+  if (inner.size() >= 2 && (inner.front() == '"' || inner.front() == '\'') &&
+      inner.back() == inner.front()) {
+    inner = inner.substr(1, inner.size() - 2);
+  }
+  return std::string(inner);
+}
+
+std::optional<BackgroundRepeat> ParseBackgroundRepeat(std::string_view word) {
+  const std::string lowered = Lowered(Trim(word));
+  if (lowered == "repeat") {
+    return BackgroundRepeat::Repeat;
+  }
+  if (lowered == "repeat-x") {
+    return BackgroundRepeat::RepeatX;
+  }
+  if (lowered == "repeat-y") {
+    return BackgroundRepeat::RepeatY;
+  }
+  if (lowered == "no-repeat") {
+    return BackgroundRepeat::NoRepeat;
+  }
+  return std::nullopt;
+}
+
+// A `background-position` component. The keywords are percentages of the space
+// the image does not fill, which is what makes `center` centre rather than
+// offset by half the box.
+Length ParseBackgroundPosition(std::string_view word, bool horizontal) {
+  const std::string lowered = Lowered(Trim(word));
+  if (lowered == "center") {
+    return Length{50.0f, Length::Unit::Percent};
+  }
+  if (lowered == (horizontal ? "left" : "top")) {
+    return Length::Pixels(0.0f);
+  }
+  if (lowered == (horizontal ? "right" : "bottom")) {
+    return Length{100.0f, Length::Unit::Percent};
+  }
+  return ParseLength(word).value_or(Length::Pixels(0.0f));
+}
+
 // Splits a `font-family` value into its candidates, in order.
 //
 // Quotes are stripped and do not delimit a candidate on their own -- a quoted
@@ -313,10 +398,96 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     }
     return;
   }
-  if (property == "background-color" || property == "background") {
+  if (property == "background-color") {
     if (const auto color = ParseColor(declaration.value)) {
       style.background_color = *color;
     }
+    return;
+  }
+  if (property == "background") {
+    // The shorthand, read for the parts this renderer has. Every longhand it
+    // sets is reset first, because a shorthand sets *all* of its longhands --
+    // a `background: red` after a `background-image` must clear the image, and
+    // one that only assigned what it recognised would leave it behind.
+    style.background_color = gfx::Color::Transparent();
+    style.background.image.clear();
+    style.background.repeat = BackgroundRepeat::Repeat;
+    if (const auto color = ParseColor(declaration.value)) {
+      style.background_color = *color;
+      return;
+    }
+    // A layer list: `url(a), linear-gradient(...)`. The first layer that is an
+    // image this renderer can fetch wins; a gradient layer is skipped rather
+    // than approximated, and a value that is nothing but gradients leaves the
+    // element with no background at all -- which is what it looks like here,
+    // and is more honest than a flat colour nobody chose.
+    for (const std::string_view layer : SplitTopLevel(declaration.value, ',')) {
+      if (std::string url = ParseUrlFunction(layer); !url.empty()) {
+        style.background.image = std::move(url);
+        break;
+      }
+    }
+    for (const std::string_view word : SplitWords(declaration.value)) {
+      if (const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(word)) {
+        style.background.repeat = *repeat;
+      } else if (const auto color = ParseColor(word)) {
+        style.background_color = *color;
+      }
+    }
+    return;
+  }
+  if (property == "background-image") {
+    style.background.image.clear();
+    for (const std::string_view layer : SplitTopLevel(declaration.value, ',')) {
+      if (std::string url = ParseUrlFunction(layer); !url.empty()) {
+        style.background.image = std::move(url);
+        break;
+      }
+    }
+    return;
+  }
+  if (property == "background-repeat") {
+    // Two values are the per-axis form; one applies to both. Only the first is
+    // read, because `repeat no-repeat` is spelled `repeat-x` far more often
+    // and the pair adds a second way to say the same four things.
+    const std::vector<std::string_view> words = SplitWords(declaration.value);
+    if (!words.empty()) {
+      if (const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(words.front())) {
+        style.background.repeat = *repeat;
+      }
+    }
+    return;
+  }
+  if (property == "background-size") {
+    // `contain` and `cover` are not lengths and are not supported: both need
+    // the image's aspect ratio, which the cascade does not have. A single
+    // length applies to the width and leaves the height automatic, which is
+    // what keeps an icon's proportions.
+    const std::vector<std::string_view> words = SplitWords(declaration.value);
+    if (words.empty() || words.size() > 2) {
+      return;
+    }
+    const std::optional<Length> first = ParseLength(words.front());
+    if (!first.has_value()) {
+      return;
+    }
+    style.background.size_x = *first;
+    style.background.size_y =
+        words.size() == 2 ? ParseLength(words[1]).value_or(Length::Auto()) : Length::Auto();
+    return;
+  }
+  if (property == "background-position") {
+    const std::vector<std::string_view> words = SplitWords(declaration.value);
+    if (words.empty() || words.size() > 2) {
+      return;
+    }
+    // A single value sets the horizontal position and centres the vertical,
+    // which is what CSS says and is the difference between an icon on the left
+    // edge and one halfway down it.
+    style.background.position_x = ParseBackgroundPosition(words.front(), true);
+    style.background.position_y =
+        words.size() == 2 ? ParseBackgroundPosition(words[1], false)
+                          : Length{50.0f, Length::Unit::Percent};
     return;
   }
   if (property == "font-size") {

@@ -125,6 +125,14 @@ class Box {
   const std::shared_ptr<const gfx::Image>& Image() const { return image_; }
   void SetImage(std::shared_ptr<const gfx::Image> image) { image_ = std::move(image); }
 
+  // `background-image`. A second slot rather than a reuse of the first: a
+  // replaced element can have both, and they paint at different times and in
+  // different places -- the background under the border, the content over it.
+  const std::shared_ptr<const gfx::Image>& BackgroundImage() const { return background_image_; }
+  void SetBackgroundImage(std::shared_ptr<const gfx::Image> image) {
+    background_image_ = std::move(image);
+  }
+
   const std::vector<TextFragment>& Fragments() const { return fragments_; }
   void AddFragment(const TextFragment& fragment) { fragments_.push_back(fragment); }
   void ClearFragments() { fragments_.clear(); }
@@ -146,6 +154,7 @@ class Box {
   std::string text_;
   std::vector<TextFragment> fragments_;
   std::shared_ptr<const gfx::Image> image_;
+  std::shared_ptr<const gfx::Image> background_image_;
 };
 
 // Supplies the pixels for a replaced element.

@@ -28,6 +28,8 @@ enum class Display : std::uint8_t {
 };
 enum class FontStyle : std::uint8_t { Normal, Italic };
 enum class TextAlign : std::uint8_t { Left, Right, Center, Justify };
+
+enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
 
 // Taken out of the normal flow and shifted to one side, with the following
@@ -76,6 +78,35 @@ struct Edges {
   friend bool operator==(const Edges&, const Edges&) = default;
 };
 
+// Everything `background-image` needs beyond the pixels.
+//
+// One value rather than five fields on ComputedStyle because they are one
+// concept: nothing here means anything without `image`, and a shorthand that
+// sets the image resets all of them together. Keeping them apart made the
+// style struct read as though a page could have a background position with no
+// background.
+//
+// A single layer. CSS allows a list, and a page that writes one gets its first
+// image -- see where the shorthand is parsed for why the rest are dropped
+// rather than approximated.
+struct BackgroundLayer {
+  // The `url()`, exactly as the stylesheet wrote it, or empty. Resolving it
+  // against the document is the loader's job: the cascade does not know what a
+  // base URL is, and doing it in two places is how the two disagree.
+  std::string image;
+  BackgroundRepeat repeat = BackgroundRepeat::Repeat;
+  // `auto` on an axis means the image's own size there, which is what keeps an
+  // icon's proportions when a stylesheet gives only a width.
+  Length size_x = Length::Auto();
+  Length size_y = Length::Auto();
+  // A percentage is a fraction of the space the image does *not* fill, which is
+  // what makes `50%` centre rather than offset by half the box.
+  Length position_x;
+  Length position_y;
+
+  friend bool operator==(const BackgroundLayer&, const BackgroundLayer&) = default;
+};
+
 // The style of one element, after the cascade.
 //
 // Every property is resolved to a value — there is no "unset" state to check at
@@ -86,6 +117,7 @@ struct ComputedStyle {
   Display display = Display::Inline;
   gfx::Color color = gfx::Color::Rgb(0, 0, 0);
   gfx::Color background_color = gfx::Color::Transparent();
+  BackgroundLayer background;
 
   // Inherited. Absolute pixels: font-size is the one length that must be
   // resolved during the cascade, because `em` on every other property is

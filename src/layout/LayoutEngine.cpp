@@ -283,9 +283,18 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // A replaced element's children generate no boxes: whatever is inside an
   // <img> is fallback content the element replaces, and form controls have
   // their own control surface rather than ordinary DOM child boxes.
+  // Every box may carry one, replaced or not, so it is resolved before the
+  // kinds diverge rather than in each branch.
+  const auto attach_background = [this, &style](Box& box) {
+    if (images_ != nullptr && !style.background.image.empty()) {
+      box.SetBackgroundImage(images_->ImageFor(style.background.image));
+    }
+  };
+
   if (IsReplacedElement(element)) {
     auto box = std::make_unique<Box>(Box::Kind::Replaced, style);
     box->SetOrigin(&element);
+    attach_background(*box);
     if (element.TagName() == "img" && images_ != nullptr) {
       if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
         box->SetImage(images_->ImageFor(*src));
@@ -299,15 +308,10 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     return box;
   }
 
-  const bool inline_level = style.IsInlineLevel();
-  auto box = std::make_unique<Box>(inline_level ? Box::Kind::Inline : Box::Kind::Block, style);
-  box->SetOrigin(&element);
-  if (inline_level) {
-    produced_inline = true;
-  }
-
-  // Children are gathered first so that "does this block mix inline and block
-  // children" is answerable before any of them are attached.
+  // Children are gathered before this box is created, because two things about
+  // it are not knowable until they exist: whether it mixes inline and block
+  // content, and -- for a declared inline -- whether it contains a block at all.
+  const bool declared_inline = style.IsInlineLevel();
   std::vector<std::unique_ptr<Box>> children;
   bool any_inline = false;
   bool any_block = false;
@@ -354,6 +358,24 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       any_block = any_block || child->IsOutOfLineFlow();
     }
   }
+
+  // An inline box containing a block is not an inline box. CSS 2.1 s9.2.1.1
+  // splits the inline around the block and wraps each part in an anonymous
+  // block; this promotes the whole element instead, which produces the same
+  // boxes for the case the web actually writes -- `<a><div>...</div></a>`,
+  // which is how Hacker News draws its vote arrows and how most of the web
+  // makes a card clickable.
+  //
+  // Left inline, the block child is never laid out at all: line layout walks
+  // *through* a non-inline child collecting the inline content inside it, so a
+  // block with no inline content simply vanishes, taking its background and its
+  // borders with it. That is a wrong render with no error, which is the worst
+  // kind.
+  const bool inline_level = declared_inline && !any_block;
+  auto box = std::make_unique<Box>(inline_level ? Box::Kind::Inline : Box::Kind::Block, style);
+  box->SetOrigin(&element);
+  attach_background(*box);
+  produced_inline = inline_level;
 
   if (!inline_level && any_inline && any_block) {
     // Mixed content. Consecutive inline children are wrapped in anonymous
@@ -602,6 +624,32 @@ float LayoutEngine::Layout(Box& root, float width) const {
   return std::max(cursor, floats.LowestBottom());
 }
 
+// The width a box states outright, plus its horizontal edges, or nullopt.
+//
+// A stated width is what both intrinsic measurements are: an element that says
+// it is ten pixels wide wants ten pixels whether or not anything wraps, and
+// what is inside it does not enter into it. Without this an empty box with a
+// width -- an icon drawn entirely by `background-image`, which is how most of
+// the web draws small icons -- measures as its margins, and the table column
+// holding it collapses onto its neighbour.
+//
+// A percentage is excluded: it resolves against a containing block, and an
+// intrinsic measurement is taken precisely when that is not yet known.
+std::optional<float> DeclaredContentWidth(const Box& box) {
+  const css::ComputedStyle& style = box.Style();
+  if (style.width.IsAuto() || style.width.IsPercent()) {
+    return std::nullopt;
+  }
+  const float edges = style.margin.left.Resolve(style.font_size) +
+                      style.margin.right.Resolve(style.font_size) +
+                      style.padding.left.Resolve(style.font_size) +
+                      style.padding.right.Resolve(style.font_size) +
+                      (style.has_border ? style.border_width.left.Resolve(style.font_size) +
+                                              style.border_width.right.Resolve(style.font_size)
+                                        : 0.0f);
+  return std::max(0.0f, style.width.Resolve(style.font_size)) + edges;
+}
+
 // The width this box wants if nothing ever wrapped.
 //
 // Text contributes its whole run, a replaced box its used width, a block the
@@ -609,6 +657,9 @@ float LayoutEngine::Layout(Box& root, float width) const {
 // the definition of max-content, applied to the box kinds that exist.
 float LayoutEngine::MaxContentWidth(const Box& box) const {
   const css::ComputedStyle& style = box.Style();
+  if (const std::optional<float> declared = DeclaredContentWidth(box)) {
+    return *declared;
+  }
   if (box.GetKind() == Box::Kind::Text) {
     return measurer_->MeasureWidth(box.Text(), style);
   }
@@ -651,6 +702,9 @@ float LayoutEngine::MaxContentWidth(const Box& box) const {
 // word and not the width of all of them.
 float LayoutEngine::MinContentWidth(const Box& box) const {
   const css::ComputedStyle& style = box.Style();
+  if (const std::optional<float> declared = DeclaredContentWidth(box)) {
+    return *declared;
+  }
   if (box.GetKind() == Box::Kind::Text) {
     if (style.white_space == css::WhiteSpace::Pre) {
       return measurer_->MeasureWidth(box.Text(), style);

@@ -631,6 +631,40 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(line_x("right") == 70.0f, "and a right-aligned line takes all of it");
   });
 
+  AddTest(tests, "Layout/AnEmptyBoxWithAWidthStillMeasuresAsThatWide", [] {
+    // An icon drawn entirely by `background-image` has no content at all, and
+    // both intrinsic measurements used to return its margins. The table column
+    // holding one collapsed onto its neighbour -- which is how Hacker News's
+    // vote arrows ended up painted over the headlines beside them.
+    const LaidOut result =
+        Run("<table><tr><td><div class='icon'></div></td><td>title</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }"
+            ".icon { width: 10px; height: 10px; margin: 0 2px }",
+            400.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 2, "two cells");
+    Expect(cells.at(0)->Geometry().content.width == 14.0f,
+           "the column is as wide as the stated width plus its margins");
+    Expect(cells.at(1)->Geometry().content.x == 14.0f, "and the next column starts after it");
+  });
+
+  AddTest(tests, "Layout/AnInlineHoldingABlockBecomesABlock", [] {
+    // `<a><div></div></a>` is how the web makes a card clickable, and how
+    // Hacker News draws its vote arrows. Left inline, line layout walks
+    // *through* the block collecting inline content, so a block with none
+    // vanishes -- taking its background and borders with it, and reporting
+    // nothing wrong.
+    const LaidOut result =
+        Run("<a href='/x'><div>inside</div></a>",
+            "body { margin: 0 } a, div { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const Box* anchor_box = FindBox(*result.root, "a");
+    const Box* div = FindBox(*result.root, "div");
+    Expect(anchor_box != nullptr && anchor_box->IsBlockLevel(),
+           "the anchor is promoted to a block because it contains one");
+    Expect(div != nullptr && div->Geometry().content.width > 0.0f,
+           "and the block inside it is actually laid out");
+  });
+
   AddTest(tests, "Layout/AutoMarginsCentreABlock", [] {
     const LaidOut result =
         Run("<div>x</div>", "body { margin: 0 } div { width: 100px; margin: 0 auto }", 400.0f);
@@ -825,6 +859,72 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     }
     Expect(saw_fill, "the background is a fill");
     Expect(saw_stroke, "and the border is a stroke");
+  });
+
+  AddTest(tests, "Layout/TilesABackgroundImage", [] {
+    // A four-by-four image in a twenty-by-ten box: five columns and three rows,
+    // clipped to the element. The tiles run past the edge by design -- that is
+    // what makes a repeat reach the corner.
+    struct OneImage : public layout::ImageProvider {
+      std::shared_ptr<const gfx::Image> ImageFor(std::string_view) const override {
+        auto image = std::make_shared<gfx::Image>();
+        image->Adopt(4, 4, std::vector<std::uint32_t>(16, 0xFF00FF00u));
+        return image;
+      }
+    };
+    const OneImage images;
+
+    const auto commands = [&images](std::string_view css) {
+      const std::unique_ptr<dom::Document> document = html::ParseDocument("<div></div>");
+      css::StyleResolver resolver;
+      resolver.AddStyleSheet(css::ParseStyleSheet(css), css::Origin::Author);
+      const FixedTextMeasurer measurer(kAdvanceRatio);
+      const LayoutEngine engine(resolver, measurer, &images);
+      std::unique_ptr<Box> root = engine.BuildBoxTree(*document);
+      engine.Layout(*root, 400.0f);
+      gfx::DisplayList list;
+      layout::BuildDisplayList(*root, list);
+      std::vector<gfx::IntRect> images_drawn;
+      for (const gfx::DisplayCommand& command : list.Commands()) {
+        if (const auto* drawn = std::get_if<gfx::DrawImageCommand>(&command)) {
+          images_drawn.push_back(drawn->destination);
+        }
+      }
+      return images_drawn;
+    };
+
+    const std::vector<gfx::IntRect> tiled = commands(
+        "body { margin: 0 } div { margin: 0; width: 20px; height: 10px; "
+        "background-image: url(x.png) }");
+    ExpectEqInt(static_cast<long long>(tiled.size()), 15, "five columns by three rows");
+
+    const std::vector<gfx::IntRect> once = commands(
+        "body { margin: 0 } div { margin: 0; width: 20px; height: 10px; "
+        "background-image: url(x.png); background-repeat: no-repeat }");
+    ExpectEqInt(static_cast<long long>(once.size()), 1, "`no-repeat` draws exactly one");
+    Expect(once.at(0).width == 4 && once.at(0).height == 4, "at the image's own size");
+
+    const std::vector<gfx::IntRect> sized = commands(
+        "body { margin: 0 } div { margin: 0; width: 20px; height: 10px; "
+        "background-image: url(x.png); background-repeat: no-repeat; background-size: 8px }");
+    ExpectEqInt(static_cast<long long>(sized.size()), 1, "one tile");
+    Expect(sized.at(0).width == 8 && sized.at(0).height == 8,
+           "a single `background-size` length keeps the image's proportions rather than "
+           "leaving the other axis at the intrinsic size");
+
+    const std::vector<gfx::IntRect> horizontal = commands(
+        "body { margin: 0 } div { margin: 0; width: 20px; height: 10px; "
+        "background-image: url(x.png); background-repeat: repeat-x }");
+    ExpectEqInt(static_cast<long long>(horizontal.size()), 5, "`repeat-x` tiles one axis only");
+
+    const std::vector<gfx::IntRect> centred = commands(
+        "body { margin: 0 } div { margin: 0; width: 20px; height: 10px; "
+        "background-image: url(x.png); background-repeat: no-repeat; "
+        "background-position: center }");
+    ExpectEqInt(static_cast<long long>(centred.size()), 1, "one tile");
+    Expect(centred.at(0).x == 8,
+           "a percentage position is a fraction of the space the image does not fill, which is "
+           "what makes 50% centre rather than offset by half the box");
   });
 
   AddTest(tests, "Layout/PaintsTextAtItsBaselineWithTheStylesFont", [] {

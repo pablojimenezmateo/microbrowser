@@ -12,7 +12,10 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # Fragments are the seventh member. A wrapped text box occupies one rectangle
 # per line and there is nowhere else to put them; a single geometry meant the
 # last line overwrote every earlier one.
-budget: Box             header_lines=100 public_methods=30 members=8
+# One more member and two more methods for `background-image`: a box may carry
+# both a content image and a background one, they paint at different times, and
+# a single slot would make a replaced element with a background lose one of them.
+budget: Box             header_lines=110 public_methods=32 members=9
 budget: ImageProvider   header_lines=25 public_methods=6  members=0
 budget: TextFragment    header_lines=25 public_methods=4  members=4
 budget: TextMeasurer    header_lines=30 public_methods=8  members=0

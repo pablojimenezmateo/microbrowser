@@ -289,6 +289,21 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
              std::string("runaway parse for: ") + std::string(input));
     }
   });
+
+  AddTest(tests, "Css/AnUnquotedUrlSurvivesReconstruction", [] {
+    // `url(x.png)` scans as one token holding just the target, and reconstructing
+    // it without the wrapper leaves a bare `x.png` that reads as an identifier
+    // rather than a resource. Before this the two spellings of the same value
+    // produced different declarations, so a stylesheet that omitted the quotes
+    // -- which most do -- lost every background image it named.
+    const StyleSheet unquoted = ParseStyleSheet("div { background-image: url(x.png) }");
+    const StyleSheet quoted = ParseStyleSheet("div { background-image: url(\"x.png\") }");
+    Expect(unquoted.rules.size() == 1 && quoted.rules.size() == 1, "one rule each");
+    Expect(!unquoted.rules[0].declarations.empty(), "with a declaration");
+    ExpectEqString(unquoted.rules[0].declarations[0].value,
+                   quoted.rules[0].declarations[0].value,
+                   "the quoted and unquoted spellings mean the same thing");
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -167,6 +167,25 @@ void RegisterSvgTests(std::vector<TestCase>& tests) {
     Expect(At(image, 30, 20) == Color::Rgb(0, 0, 0xFF), "and the right half the second");
   });
 
+  AddTest(tests, "Svg/PreservesTheAspectRatioUnlessToldNotTo", [] {
+    // `preserveAspectRatio` defaults to `xMidYMid meet`: scale uniformly and
+    // centre the leftover. A renderer that stretched instead would distort
+    // every icon whose viewBox is not the shape of its box -- silently, since a
+    // stretched triangle is still a triangle.
+    const Image fitted =
+        Render(R"SVG(<svg viewBox="0 0 2 1"><rect width="2" height="1"/></svg>)SVG", 20, 20);
+    Expect(At(fitted, 10, 10) == Color::Rgb(0, 0, 0), "the shape is drawn in the middle");
+    Expect(At(fitted, 10, 1).IsFullyTransparent() && At(fitted, 10, 18).IsFullyTransparent(),
+           "with the leftover split above and below it rather than stretched into");
+
+    const Image stretched = Render(
+        R"SVG(<svg viewBox="0 0 2 1" preserveAspectRatio="none"><rect width="2" height="1"/>)SVG"
+        R"SVG(</svg>)SVG",
+        20, 20);
+    Expect(At(stretched, 10, 1) == Color::Rgb(0, 0, 0),
+           "and only an explicit `none` fills the box");
+  });
+
   AddTest(tests, "Svg/FallsBackToTheDocumentsOwnSize", [] {
     const Image image = Render(R"SVG(<svg width="12" height="7"><rect width="12" height="7"/></svg>)SVG");
     Expect(image.IsValid() && image.Width() == 12 && image.Height() == 7,

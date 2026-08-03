@@ -1,6 +1,7 @@
 #include "layout/LayoutEngine.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "html/FormControl.h"
@@ -46,6 +47,127 @@ void PaintCheckedInputIndicator(const Box& box, gfx::DisplayList& out, gfx::Floa
   }
 }
 
+// The most tiles one background may emit.
+//
+// A one-pixel image repeated across a full-page element is millions of draw
+// commands, every one of which is serialized, diffed and replayed. The bound
+// is high enough that no design hits it and low enough that a hostile page
+// cannot turn a 40-byte GIF into a gigabyte of display list.
+constexpr int kMaxBackgroundTiles = 4096;
+
+// Where one tile of a background image goes, in the element's own coordinates.
+//
+// `background-size` decides the tile; `auto` on an axis means the image's own
+// size there, which is what keeps an icon's proportions when only one axis is
+// given. A percentage is a percentage of the box, which is what CSS says and is
+// the difference between a background that scales with the element and one that
+// does not.
+gfx::FloatRect BackgroundTile(const css::ComputedStyle& style, const gfx::Image& image,
+                              const gfx::FloatRect& box) {
+  const auto axis = [&style](const css::Length& length, float box_extent, float intrinsic) {
+    if (length.IsAuto()) {
+      return intrinsic;
+    }
+    return length.IsPercent() ? box_extent * length.value / 100.0f
+                              : length.Resolve(style.font_size, intrinsic);
+  };
+  const float intrinsic_width = static_cast<float>(image.Width());
+  const float intrinsic_height = static_cast<float>(image.Height());
+  float width = axis(style.background.size_x, box.width, intrinsic_width);
+  float height = axis(style.background.size_y, box.height, intrinsic_height);
+  // `auto` on one axis with a length on the other keeps the image's proportions
+  // rather than taking its own size on that axis. `background-size: 10px` on a
+  // 32-pixel-square icon means a 10-pixel square, and a browser that used 10 by
+  // 32 would stretch every icon on the page.
+  if (style.background.size_x.IsAuto() != style.background.size_y.IsAuto() &&
+      intrinsic_width > 0.0f && intrinsic_height > 0.0f) {
+    if (style.background.size_x.IsAuto()) {
+      width = height * intrinsic_width / intrinsic_height;
+    } else {
+      height = width * intrinsic_height / intrinsic_width;
+    }
+  }
+  if (!(width > 0.0f) || !(height > 0.0f)) {
+    return gfx::FloatRect{};
+  }
+
+  // A percentage position is a fraction of the space the image does *not*
+  // fill, which is why `50%` centres rather than offsetting by half the box.
+  const auto place = [&style](const css::Length& length, float box_extent, float tile_extent) {
+    if (length.IsPercent()) {
+      return (box_extent - tile_extent) * length.value / 100.0f;
+    }
+    return length.Resolve(style.font_size, 0.0f);
+  };
+  return gfx::FloatRect{box.x + place(style.background.position_x, box.width, width),
+                        box.y + place(style.background.position_y, box.height, height), width,
+                        height};
+}
+
+void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx::DisplayList& out) {
+  const std::shared_ptr<const gfx::Image>& image = box.BackgroundImage();
+  if (image == nullptr || !image->IsValid() || border_box.IsEmpty()) {
+    return;
+  }
+  const css::ComputedStyle& style = box.Style();
+  const gfx::FloatRect first = BackgroundTile(style, *image, border_box);
+  if (first.width <= 0.0f || first.height <= 0.0f) {
+    return;
+  }
+
+  const bool repeat_x = style.background.repeat == css::BackgroundRepeat::Repeat ||
+                        style.background.repeat == css::BackgroundRepeat::RepeatX;
+  const bool repeat_y = style.background.repeat == css::BackgroundRepeat::Repeat ||
+                        style.background.repeat == css::BackgroundRepeat::RepeatY;
+
+  // Tiling starts at the first tile and walks *backwards* as well as forwards:
+  // a positioned background repeats in both directions from where it sits, and
+  // one that only walked forwards would leave the space above and to the left
+  // of the origin bare.
+  const auto span = [](bool repeat, float origin, float tile, float box_low, float box_high,
+                       float& start) {
+    if (!repeat) {
+      start = origin;
+      return 1;
+    }
+    const float steps_back = std::ceil((origin - box_low) / tile);
+    start = origin - steps_back * tile;
+    // How many tiles from `start` it takes to reach the far edge -- not one
+    // more. An edge that lands exactly on a tile boundary needs no extra tile,
+    // and adding one anyway draws a whole invisible column outside the clip on
+    // every background on the page.
+    return std::max(1, static_cast<int>(std::ceil((box_high - start) / tile)));
+  };
+  float start_x = first.x;
+  float start_y = first.y;
+  const int columns = span(repeat_x, first.x, first.width, border_box.x, border_box.Right(),
+                           start_x);
+  const int rows = span(repeat_y, first.y, first.height, border_box.y, border_box.Bottom(),
+                        start_y);
+  if (columns <= 0 || rows <= 0 || columns > kMaxBackgroundTiles ||
+      rows > kMaxBackgroundTiles || columns * rows > kMaxBackgroundTiles) {
+    // Too many to be a design. Draw the single tile so the element is not
+    // simply blank, and stop -- which is legible, unlike either extreme.
+    out.PushClip(gfx::EnclosingIntRect(border_box));
+    out.DrawImage(image, gfx::EnclosingIntRect(first));
+    out.PopClip();
+    return;
+  }
+
+  // Clipped to the element, because the last tile in each direction runs past
+  // its edge by design -- that is what makes a repeat reach the corner.
+  out.PushClip(gfx::EnclosingIntRect(border_box));
+  for (int row = 0; row < rows; ++row) {
+    for (int column = 0; column < columns; ++column) {
+      out.DrawImage(image, gfx::EnclosingIntRect(gfx::FloatRect{
+                               start_x + static_cast<float>(column) * first.width,
+                               start_y + static_cast<float>(row) * first.height, first.width,
+                               first.height}));
+    }
+  }
+  out.PopClip();
+}
+
 }  // namespace
 
 void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset) {
@@ -77,6 +199,10 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
       background.AddRect(border_box);
       out.FillPath(background, style.background_color);
     }
+    // Over the colour and under the border, which is the order CSS paints a
+    // background in and the reason a page can put a translucent image over a
+    // solid colour and get both.
+    PaintBackgroundImage(box, border_box, out);
     if (style.has_border && !border_box.IsEmpty()) {
       const float width = style.border_width.top.Resolve(style.font_size);
       if (width > 0.0f) {

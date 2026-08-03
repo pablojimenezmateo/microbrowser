@@ -74,8 +74,18 @@ std::string Reconstruct(const std::vector<Token>& tokens, std::size_t from, std:
         }
         break;
       case Token::Kind::Ident:
-      case Token::Kind::Url:
         out += token.value;
+        break;
+      case Token::Kind::Url:
+        // An unquoted `url(x.png)` scans as one token holding just the target,
+        // and it has to be written back out as a url or it reconstructs to a
+        // bare `x.png` -- which reads as an identifier, not a resource. The
+        // quoted form is a Function token plus a String and round-trips on its
+        // own, so before this the two spellings of the same value produced
+        // different declarations.
+        out += "url(\"";
+        out += token.value;
+        out += "\")";
         break;
       case Token::Kind::Function:
         out += token.value;

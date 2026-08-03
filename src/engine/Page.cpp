@@ -282,6 +282,11 @@ void Page::RebuildAuthorStyleSheets() {
       resolver_.AddStyleSheet(css::ParseStyleSheet(*css), css::Origin::Author);
     }
   }
+  // A background image is named by the cascade, so the set of images a document
+  // wants is not known until its stylesheets have arrived. Re-collected here
+  // rather than only at load, or a page whose icons come from an external sheet
+  // -- which is every page that has any -- would never fetch one.
+  CollectImages();
   boxes_.reset();
 }
 
@@ -290,16 +295,31 @@ void Page::CollectImages() {
   if (document_ == nullptr) {
     return;
   }
+  // Deduplicated: a page that shows one icon forty times fetches and decodes
+  // it once. That matters more for background images than for <img>, since a
+  // sprite is by definition the same file behind every icon on the page.
+  const auto want = [this](const std::string& src) {
+    if (src.empty() || std::find(resources_.pending_images.begin(),
+                                 resources_.pending_images.end(),
+                                 src) != resources_.pending_images.end()) {
+      return;
+    }
+    resources_.pending_images.push_back(src);
+  };
   for (const dom::Element* image : document_->ElementsByTagName("img")) {
-    const std::string* src = image->GetAttribute("src");
-    if (src != nullptr && !src->empty() &&
-        std::find(resources_.pending_images.begin(), resources_.pending_images.end(), *src) ==
-            resources_.pending_images.end()) {
-      // Deduplicated: a page that shows one icon forty times fetches and
-      // decodes it once.
-      resources_.pending_images.push_back(*src);
+    if (const std::string* src = image->GetAttribute("src")) {
+      want(*src);
     }
   }
+  // Background images are named by the *cascade*, not by an attribute, so
+  // finding them means resolving style -- which happens again at layout. The
+  // duplicate resolve is the price of loading before the first layout, and the
+  // alternative (laying out once with no backgrounds, then again) costs more
+  // and shows the page twice.
+  resolver_.ForEachStyledElement(*document_, [&want](const dom::Element&,
+                                                     const css::ComputedStyle& style) {
+    want(style.background.image);
+  });
 }
 
 gfx::IntSize Page::RequestedImageSize(std::string_view src) const {

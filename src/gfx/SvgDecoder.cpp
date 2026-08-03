@@ -544,9 +544,27 @@ SvgDecodeResult DecodeSvg(std::span<const std::byte> bytes, int width, int heigh
   // device units, which is what an SVG with only width and height means.
   AffineTransform to_device;
   if (view_box.width > 0.0f && view_box.height > 0.0f) {
+    float scale_x = surface_width / view_box.width;
+    float scale_y = surface_height / view_box.height;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    // `preserveAspectRatio` defaults to `xMidYMid meet`: scale uniformly to fit
+    // and centre what is left over. Only the explicit `none` stretches. Getting
+    // this backwards distorts every icon whose viewBox is not the same shape as
+    // the box it is drawn in, which is most of them -- and it distorts them
+    // silently, since a stretched triangle is still a triangle.
+    const std::string_view* preserve = Find(root.attributes, "preserveAspectRatio");
+    const bool uniform = preserve == nullptr || Trim(*preserve).substr(0, 4) != "none";
+    if (uniform) {
+      const float scale = std::min(scale_x, scale_y);
+      scale_x = scale;
+      scale_y = scale;
+      offset_x = (surface_width - view_box.width * scale) * 0.5f;
+      offset_y = (surface_height - view_box.height * scale) * 0.5f;
+    }
     to_device = AffineTransform::Translation(-view_box.x, -view_box.y)
-                    .Then(AffineTransform::Scaling(surface_width / view_box.width,
-                                                   surface_height / view_box.height));
+                    .Then(AffineTransform::Scaling(scale_x, scale_y))
+                    .Then(AffineTransform::Translation(offset_x, offset_y));
   }
 
   Canvas canvas{static_cast<int>(surface_width), static_cast<int>(surface_height)};
