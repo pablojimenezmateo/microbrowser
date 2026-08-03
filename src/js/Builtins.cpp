@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -20,7 +19,14 @@ bool IsJsWhitespace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
 }
 
-std::optional<double> ParseFloatPrefix(std::string_view text) {
+// The prefix of `text` that parses as a number, or NaN when there is none.
+//
+// NaN rather than an optional, because NaN *is* what parseFloat and parseInt
+// answer with -- an optional here would be a second way to say the same thing,
+// unwrapped with `.value_or(NaN)` at the only two call sites. It also stops GCC
+// warning that the empty optional may be used uninitialised, which is a false
+// positive it only reaches at -O2, and which broke the ASan build.
+double ParseFloatPrefix(std::string_view text) {
   std::size_t at = 0;
   while (at < text.size() && IsJsWhitespace(text[at])) {
     ++at;
@@ -48,7 +54,7 @@ std::optional<double> ParseFloatPrefix(std::string_view text) {
     }
   }
   if (!saw_digit) {
-    return std::nullopt;
+    return std::nan("");
   }
 
   if (at < text.size() && (text[at] == 'e' || text[at] == 'E')) {
@@ -70,7 +76,7 @@ std::optional<double> ParseFloatPrefix(std::string_view text) {
   if (!prefix.empty() && prefix.front() == '+') {
     prefix.remove_prefix(1);
   }
-  return util::ParseDouble(prefix);
+  return util::ParseDouble(prefix).value_or(std::nan(""));
 }
 
 int DigitValue(char c) {
@@ -86,9 +92,9 @@ int DigitValue(char c) {
   return -1;
 }
 
-std::optional<double> ParseIntPrefix(std::string_view text, int radix) {
+double ParseIntPrefix(std::string_view text, int radix) {
   if (radix != 0 && (radix < 2 || radix > 36)) {
-    return std::nullopt;
+    return std::nan("");
   }
 
   std::size_t at = 0;
@@ -119,7 +125,7 @@ std::optional<double> ParseIntPrefix(std::string_view text, int radix) {
     saw_digit = true;
     ++at;
   }
-  return saw_digit ? std::optional<double>(sign * value) : std::nullopt;
+  return saw_digit ? sign * value : std::nan("");
 }
 
 }  // namespace
@@ -551,13 +557,13 @@ void Interpreter::InstallGlobals() {
         const std::string text = ToString(Argument(call.arguments, 0));
         const int radix =
             call.arguments.size() > 1 ? ToInt32(ToNumber(call.arguments[1])) : 0;
-        return Value::Number(ParseIntPrefix(text, radix).value_or(std::nan("")));
+        return Value::Number(ParseIntPrefix(text, radix));
       })),
       false);
   global_scope_->Declare(
       "parseFloat", Value::Obj(native("parseFloat", [](NativeCall& call) {
         const std::string text = ToString(Argument(call.arguments, 0));
-        return Value::Number(ParseFloatPrefix(text).value_or(std::nan("")));
+        return Value::Number(ParseFloatPrefix(text));
       })),
       false);
   global_scope_->Declare(
