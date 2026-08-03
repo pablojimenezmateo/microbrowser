@@ -107,6 +107,25 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     }
     return true;
   }
+  if (property == "overflow" || property == "overflow-x" || property == "overflow-y") {
+    Overflow parsed = Overflow::Visible;
+    if (value == "hidden" || value == "clip") {
+      parsed = Overflow::Hidden;
+    } else if (value == "scroll") {
+      parsed = Overflow::Scroll;
+    } else if (value == "auto") {
+      parsed = Overflow::Auto;
+    } else if (value != "visible") {
+      return true;  // an unrecognized value is a dropped declaration
+    }
+    if (property != "overflow-y") {
+      style.overflow_x = parsed;
+    }
+    if (property != "overflow-x") {
+      style.overflow_y = parsed;
+    }
+    return true;
+  }
   if (property == "top" || property == "right" || property == "bottom" ||
       property == "left") {
     // `auto` is the initial value and has to be settable back, because a later

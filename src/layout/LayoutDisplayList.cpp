@@ -239,8 +239,32 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
       return;
     }
 
+    // Anything but `overflow: visible` cuts its content off at the padding
+    // box -- the same rectangle a background paints, which is what makes a
+    // clipped child stop exactly where the box's own paint stops. The clip is
+    // pushed after this box's own background and border so that neither is
+    // clipped by it.
+    //
+    // Scrolling is the other half of overflow and is not here: a scroller
+    // clips what is outside it *and* offers the rest back, and only the
+    // clipping half is paint's. Until there is a scroll offset per box, a
+    // `scroll` box shows its first screenful, which is what it shows before
+    // anyone scrolls it anyway.
+    const bool clips = style.ClipsOverflow();
+    if (clips) {
+      const gfx::FloatRect padding = box.Geometry().PaddingBox();
+      out.PushClip(gfx::IntRect{
+          static_cast<int>(std::floor(padding.x + offset.x)),
+          static_cast<int>(std::floor(padding.y + offset.y)),
+          static_cast<int>(std::ceil(padding.width)),
+          static_cast<int>(std::ceil(padding.height)),
+      });
+    }
     for (const std::unique_ptr<Box>& child : box.Children()) {
       self(*child, self);
+    }
+    if (clips) {
+      out.PopClip();
     }
   };
   paint(root, paint);

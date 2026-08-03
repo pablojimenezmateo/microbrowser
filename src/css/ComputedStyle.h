@@ -73,6 +73,14 @@ enum class Clear : std::uint8_t { None, Left, Right, Both };
 // read to answer it and to pick a containing block.
 enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed };
 
+// What happens to content that does not fit its box.
+//
+// Only the first is different in kind: `Visible` lets content escape, and the
+// other three all clip it. Whether the overflow can then be *scrolled* back
+// into view is a separate question from whether it is clipped, and only the
+// clipping half is layout's.
+enum class Overflow : std::uint8_t { Visible, Hidden, Scroll, Auto };
+
 // A CSS length, resolved as far as it can be without a layout context.
 //
 // Percentages cannot be resolved here — they need a containing block, which
@@ -177,6 +185,11 @@ struct ComputedStyle {
   Clear clear = Clear::None;
 
   Position position = Position::Static;
+  // Per axis, because a page sets them separately as often as together --
+  // `overflow-x: hidden` with `overflow-y: auto` is the ordinary way to write
+  // a vertical scroller.
+  Overflow overflow_x = Overflow::Visible;
+  Overflow overflow_y = Overflow::Visible;
   // `top`/`right`/`bottom`/`left`. All four default to `auto`, which for a
   // relative box means "no offset" and for an absolute one means "wherever the
   // flow would have put it" -- two different meanings for the same value, and
@@ -258,6 +271,14 @@ struct ComputedStyle {
   // it. `static` does not, which is what makes `position: relative` with no
   // offsets the idiomatic way to anchor a child.
   bool IsPositioned() const { return position != Position::Static; }
+
+  // Content that does not fit is cut off at the box's edge. True for every
+  // value but `visible`, including the scrolling ones -- a scroller clips
+  // what is outside it and offers the rest back, which is two behaviours and
+  // only one of them belongs to paint.
+  bool ClipsOverflow() const {
+    return overflow_x != Overflow::Visible || overflow_y != Overflow::Visible;
+  }
 
  private:
   float ClampBy(float used, const Length& low, const Length& high, float container) const {

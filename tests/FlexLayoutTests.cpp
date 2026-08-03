@@ -7,6 +7,9 @@
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "html/TreeBuilder.h"
+#include <variant>
+
+#include "gfx/DisplayList.h"
 #include "layout/LayoutEngine.h"
 
 // Flex layout.
@@ -404,6 +407,38 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(box->Geometry().content.y + 0.5f),
                 static_cast<long long>(page_bottom - 30.0f - 20.0f + 0.5f),
                 "its lower edge is thirty from the bottom");
+  });
+
+  AddTest(tests, "Position/OverflowClipsWhatDoesNotFit", [] {
+    // The clip is the padding box -- the same rectangle a background paints --
+    // so a clipped child stops exactly where the box's own paint stops.
+    const Flexed result = Run(
+        "<div id=box><div id=tall></div></div>",
+        "body, div { margin: 0 } #box { height: 30px; overflow: hidden } "
+        "#tall { height: 200px; background: red }");
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    int pushes = 0;
+    int pops = 0;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      pushes += std::holds_alternative<gfx::PushClipCommand>(command) ? 1 : 0;
+      pops += std::holds_alternative<gfx::PopClipCommand>(command) ? 1 : 0;
+    }
+    ExpectEqInt(pushes, 1, "one clip, for the one box that asked for it");
+    ExpectEqInt(pops, 1, "and it is closed");
+
+    // `visible` is the only value that does not clip, including the scrolling
+    // ones -- a scroller clips what is outside it and offers the rest back.
+    const Flexed open = Run(
+        "<div id=box><div id=tall></div></div>",
+        "body, div { margin: 0 } #box { height: 30px } #tall { height: 200px }");
+    gfx::DisplayList unclipped;
+    layout::BuildDisplayList(*open.root, unclipped);
+    int unclipped_pushes = 0;
+    for (const gfx::DisplayCommand& command : unclipped.Commands()) {
+      unclipped_pushes += std::holds_alternative<gfx::PushClipCommand>(command) ? 1 : 0;
+    }
+    ExpectEqInt(unclipped_pushes, 0, "and visible content is not clipped");
   });
 
   AddTest(tests, "Flex/AContainerIsAsTallAsItsLines", [] {
