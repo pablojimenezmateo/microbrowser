@@ -613,6 +613,66 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "every row uses the same column grid");
   });
 
+  AddTest(tests, "Layout/AlignsLinesWithinTheirBlock", [] {
+    // Each character is 10px, so "abc" is a 30px line in a 100px block.
+    const auto line_x = [](std::string_view align) {
+      const LaidOut result =
+          Run("<div>abc</div>",
+              std::string("body { margin: 0 } div { margin: 0; width: 100px; font-size: 20px; "
+                          "text-align: ") + std::string(align) + " }",
+              400.0f);
+      const std::vector<const Box*> texts = TextBoxes(*result.root);
+      return texts.empty() || texts.at(0)->Fragments().empty()
+                 ? -1.0f
+                 : texts.at(0)->Fragments().at(0).rect.x;
+    };
+    Expect(line_x("left") == 0.0f, "a left-aligned line starts at the content edge");
+    Expect(line_x("center") == 35.0f, "a centred line splits the 70px of slack");
+    Expect(line_x("right") == 70.0f, "and a right-aligned line takes all of it");
+  });
+
+  AddTest(tests, "Layout/AutoMarginsCentreABlock", [] {
+    const LaidOut result =
+        Run("<div>x</div>", "body { margin: 0 } div { width: 100px; margin: 0 auto }", 400.0f);
+    const Box* div = FindBox(*result.root, "div");
+    Expect(div != nullptr && div->Geometry().content.x == 150.0f,
+           "`margin: 0 auto` splits the leftover evenly, which is how the web centres a block");
+  });
+
+  AddTest(tests, "Layout/ALoneAutoMarginPushesTheBlockOver", [] {
+    const LaidOut result =
+        Run("<div>x</div>", "body { margin: 0 } div { width: 100px; margin-left: auto }", 400.0f);
+    const Box* div = FindBox(*result.root, "div");
+    Expect(div != nullptr && div->Geometry().content.x == 300.0f,
+           "one auto margin takes the whole leftover rather than half of it");
+  });
+
+  AddTest(tests, "Layout/CenterCentresItsBlockChildren", [] {
+    // What <center> is for, and what `text-align: center` cannot do: a table is
+    // not inline content, so aligning lines does not move it.
+    const LaidOut result =
+        Run("<center><table width='100'><tr><td>a</td></tr></table></center>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const Box* table = FindBox(*result.root, "table");
+    Expect(table != nullptr && table->Geometry().content.x == 150.0f,
+           "the table is centred in the <center>, not left at its edge");
+  });
+
+  AddTest(tests, "Layout/ATableInsideACenterStillAlignsItsCellsLeft", [] {
+    // text-align inherits, so without the user-agent reset at the table every
+    // cell of every layout table inside a <center> would have centred text --
+    // which is not what wrapping a table in <center> asks for.
+    const LaidOut result =
+        Run("<center><table width='200'><tr><td>a</td></tr></table></center>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(!texts.empty() && !texts.at(0)->Fragments().empty(), "the cell has a line");
+    const Box* cell = FindBox(*result.root, "td");
+    Expect(cell != nullptr &&
+               texts.at(0)->Fragments().at(0).rect.x == cell->Geometry().content.x,
+           "the cell's text starts at the cell's left edge");
+  });
+
   AddTest(tests, "Layout/ATableIsNoWiderThanItsContent", [] {
     const LaidOut result =
         Run("<table><tr><td>ab</td></tr></table>",

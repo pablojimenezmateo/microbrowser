@@ -105,6 +105,11 @@ struct ComputedStyle {
   float line_height = 0.0f;
 
   TextAlign text_align = TextAlign::Left;
+  // Set by `text-align: -microbrowser-center`, which is what <center> means and
+  // what no standard value expresses -- every engine carries an equivalent
+  // (`-moz-center`, `-webkit-center`). Not inherited, unlike text_align: see
+  // LayoutEngine::LayoutBlock's `center_in_container`.
+  bool centers_block_children = false;
   WhiteSpace white_space = WhiteSpace::Normal;
   Float css_float = Float::None;
   Clear clear = Clear::None;

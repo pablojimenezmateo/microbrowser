@@ -56,8 +56,16 @@ class LayoutEngine {
   // establishes its own -- the root, and every float -- passes a fresh one to
   // its children, which is what keeps a float inside a sidebar from shortening
   // the lines of the article next to it.
+  // `center_in_container` is the <center> rule: the containing block centres
+  // its block-level children outright, whatever their margins say. It centres
+  // this box's lines too, but that part is ordinary `text-align: center` and
+  // inherits with it; *this* half is a property of the container, which is why
+  // it is a parameter and why css::ComputedStyle::centers_block_children is
+  // deliberately not inherited. Inheriting it would make every block inside a
+  // <center>, however deep, re-centre itself against a container it already
+  // fits exactly -- and a nested block that fits exactly must not move.
   void LayoutBlock(Box& box, float container_left, float available_width, float& cursor_y,
-                   FloatContext& floats) const;
+                   FloatContext& floats, bool center_in_container = false) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
                              FloatContext& floats) const;
   float LayoutTableChildren(Box& box, float content_left, float content_width, float start_y) const;

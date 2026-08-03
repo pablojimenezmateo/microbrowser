@@ -197,6 +197,7 @@ microbrowser_module(dom
 
 microbrowser_module(css
   SOURCES
+    src/css/Declarations.cpp
     src/css/StyleResolver.cpp
     src/css/StyleSheet.cpp
     src/css/Tokenizer.cpp
@@ -213,6 +214,7 @@ microbrowser_module(layout
   SOURCES
     src/layout/FloatContext.cpp
     src/layout/FontTextMeasurer.cpp
+    src/layout/InlineLayout.cpp
     src/layout/LayoutDisplayList.cpp
     src/layout/LayoutEngine.cpp
     src/layout/TableLayout.cpp
