@@ -487,4 +487,24 @@ ParseResult ParserImpl::ParseProgram() {
   return result;
 }
 
+ParseResult ParserImpl::ParseExpressionSource() {
+  NodePtr program = std::make_unique<Node>();
+  program->kind = NodeKind::Program;
+  if (!AtEnd()) {
+    // The comma operator included: `${a, b}` is one expression, not two.
+    program->children.push_back(ParseExpression());
+  }
+  if (!AtEnd()) {
+    // Trailing tokens are an error rather than silently ignored -- `${a b}` is
+    // not an expression, and dropping the `b` would run something the page did
+    // not write.
+    Error("unexpected token '" + std::string(current_.lexeme) + "'");
+  }
+
+  ParseResult result;
+  result.program = std::move(program);
+  result.errors = std::move(errors_);
+  return result;
+}
+
 }  // namespace microbrowser::js

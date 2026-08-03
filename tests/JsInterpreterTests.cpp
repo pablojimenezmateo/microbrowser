@@ -364,6 +364,41 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("const x = 'y'; `${`inner ${x}`}`", "inner y");
   });
 
+  AddTest(tests, "JsInterpreter/AdjacentTemplateSubstitutionsAllRun", [] {
+    // With no literal text between them. The parser and the interpreter used to
+    // scan the raw text separately and resume one character apart after a
+    // substitution, so the `$` of the next one fell into the gap and every
+    // substitution but the first was dropped.
+    ExpectEval("`${1}${2}`", "12");
+    ExpectEval("`${1}${2}${3}`", "123");
+    ExpectEval("`x${1}${2}y`", "x12y");
+    ExpectEval("const x = 5; `${x}${x}${x}`", "555");
+    ExpectEval("`${}` + '|'", "|");   // an empty substitution contributes nothing
+    ExpectEval("`$ {1}`", "$ {1}");   // and `${` has to be adjacent to begin one
+  });
+
+  AddTest(tests, "JsInterpreter/TemplateEscapesMatchStringEscapes", [] {
+    // The same escape decoder, because `\n` cannot mean a newline in one and
+    // the letter n in the other. It did: the template path had its own
+    // two-line version that pushed whatever followed the backslash.
+    ExpectEval("`a\\nb`.charCodeAt(1)", "10");
+    ExpectEval("'a\\nb'.charCodeAt(1)", "10");
+    ExpectEval("`a\\tb`.charCodeAt(1)", "9");
+    ExpectEval("`a\\u0041b`", "aAb");
+    ExpectEval("`\\u{1F600}`.length", "4");  // four bytes of UTF-8
+    ExpectEval("`\\``", "`");
+    ExpectEval("`\\q`", "q");  // an unrecognised escape is the character itself
+  });
+
+  AddTest(tests, "JsInterpreter/ATemplateSubstitutionIsAnExpression", [] {
+    // Not a statement. Parsed as one, a leading brace is a block rather than an
+    // object literal, and this was a syntax error.
+    ExpectEval("`${{ a: 1 }.a}`", "1");
+    ExpectEval("`${{ a: 1, b: 2 }.b}`", "2");
+    ExpectEval("`${(1, 2)}`", "2");  // the comma operator is still one expression
+    ExpectEval("`${ [1, 2].join('-') }`", "1-2");
+  });
+
   AddTest(tests, "JsInterpreter/OptionalChainingStopsAtNullish", [] {
     ExpectEval("const o = null; typeof o?.a", "undefined");
     ExpectEval("const o = { a: { b: 1 } }; o?.a?.b", "1");

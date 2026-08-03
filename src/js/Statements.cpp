@@ -2,6 +2,7 @@
 #include <utility>
 
 #include "js/Interpreter.h"
+#include "js/TemplateParts.h"
 
 namespace microbrowser::js {
 
@@ -51,44 +52,27 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(Value::String(node.string));
 
     case NodeKind::TemplateLiteral: {
-      // The raw source with its substitutions replaced by their values. The
-      // parser kept the substitution expressions in order, which is what makes
-      // this a walk rather than a re-parse.
+      // The literal chunks with each substitution's value between them. The
+      // split is the same function the parser used, so the children line up
+      // with the gaps by construction rather than by two walks agreeing.
+      const TemplateParts parts = SplitTemplate(node.string);
       std::string out;
-      std::size_t child = 0;
-      const std::string& raw = node.string;
-      for (std::size_t i = 1; i + 1 < raw.size(); ++i) {
-        if (raw[i] == '\\' && i + 1 < raw.size()) {
-          out.push_back(raw[i + 1]);
-          ++i;
-          continue;
+      for (std::size_t i = 0; i < parts.literals.size(); ++i) {
+        out += parts.literals[i];
+        if (i >= node.children.size()) {
+          continue;  // the last chunk has no substitution after it
         }
-        if (raw[i] == '$' && raw[i + 1] == '{') {
-          int braces = 1;
-          std::size_t j = i + 2;
-          for (; j < raw.size() && braces > 0; ++j) {
-            if (raw[j] == '{') ++braces;
-            else if (raw[j] == '}') --braces;
-          }
-          if (child < node.children.size() && node.Child(child) != nullptr) {
-            const Node* expression = node.Child(child);
-            // The parser wrapped each substitution in a statement.
-            const Node* inner =
-                expression->kind == NodeKind::ExpressionStatement ? expression->Child(0)
-                                                                  : expression;
-            if (inner != nullptr) {
-              const Result value = Evaluate(*inner, scope);
-              if (value.IsAbrupt()) {
-                return value;
-              }
-              out += ToString(value.value);
-            }
-          }
-          ++child;
-          i = j - 1;
-          continue;
+        // Each child is the substitution's expression -- the parser parses one
+        // per `${}`, so no unwrapping and no re-scan of the raw text.
+        const Node* expression = node.Child(i);
+        if (expression == nullptr) {
+          continue;  // an empty `${}` contributes nothing
         }
-        out.push_back(raw[i]);
+        const Result value = Evaluate(*expression, scope);
+        if (value.IsAbrupt()) {
+          return value;
+        }
+        out += ToString(value.value);
       }
       return Result::Normal(Value::String(std::move(out)));
     }

@@ -252,8 +252,27 @@ void RegisterJsParserTests(std::vector<TestCase>& tests) {
            "would evaluate to nothing");
   });
 
+  AddTest(tests, "JsParser/EverySubstitutionGetsAChild", [] {
+    // One child per `${}`, in order, so the interpreter can pair them with the
+    // literal chunks by index. Adjacent substitutions are the case that used to
+    // lose all but the first.
+    const ParseResult result = js::Parse("`${a}${b}${c}`");
+    Expect(result.Ok(), "it parses");
+    const Node* statement = result.program->Child(0);
+    Expect(statement != nullptr, "there is a statement");
+    const Node* literal = statement->Child(0);
+    Expect(literal != nullptr && literal->kind == NodeKind::TemplateLiteral, "a template");
+    ExpectEqInt(static_cast<long long>(literal->children.size()), 3, "three substitutions");
+  });
+
   AddTest(tests, "JsParser/NestedTemplatesParse", [] {
     ExpectClean("`a ${ `b ${c}` } d`");
+  });
+
+  AddTest(tests, "JsParser/ASubstitutionIsParsedAsAnExpression", [] {
+    // A leading brace is an object literal here, not a block.
+    ExpectClean("`${ { a: 1 }.a }`");
+    ExpectClean("`${ (1, 2) }`");
   });
 
   AddTest(tests, "JsParser/TaggedTemplatesParse", [] {

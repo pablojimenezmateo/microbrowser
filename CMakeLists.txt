@@ -290,6 +290,7 @@ microbrowser_module(js
     src/js/Builtins.cpp
     src/js/StringBuiltins.cpp
     src/js/FunctionBuiltins.cpp
+    src/js/TemplateParts.cpp
     src/js/Classes.cpp
   DEPS microbrowser_util)
 

@@ -26,6 +26,10 @@ class ParserImpl {
   explicit ParserImpl(std::string_view source) : source_(source), lexer_(source) { Advance(); }
 
   ParseResult ParseProgram();
+  // One expression and nothing else. What a template substitution is: `${...}`
+  // holds an expression, and parsing it as a program makes a leading `{` a
+  // block instead of an object literal -- so `${{a: 1}.a}` was a syntax error.
+  ParseResult ParseExpressionSource();
 
  private:
   // --- Token plumbing ------------------------------------------------------

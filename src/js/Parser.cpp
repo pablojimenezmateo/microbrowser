@@ -1,5 +1,7 @@
 #include "js/ParserImpl.h"
 
+#include "js/TemplateParts.h"
+
 #include <algorithm>
 #include <array>
 #include <utility>
@@ -219,37 +221,19 @@ NodePtr ParserImpl::ParseTemplate() {
   // Substitutions are re-parsed from the raw text, which keeps the nesting
   // rules in one place: a template inside a substitution inside a template is
   // handled by recursion rather than by a second brace counter.
-  const std::string_view raw = current_.lexeme;
-  for (std::size_t i = 1; i + 1 < raw.size(); ++i) {
-    if (raw[i] == '\\') {
-      ++i;
-      continue;
+  for (const std::string_view substitution : SplitTemplate(current_.lexeme).substitutions) {
+    ParserImpl inner_parser(substitution);
+    ParseResult inner = inner_parser.ParseExpressionSource();
+    // One child per substitution, position included -- a null for an empty
+    // `${}` rather than a gap, because the interpreter pairs children with
+    // literal chunks by index and a missing one would shift every later
+    // substitution into the wrong slot.
+    node->children.push_back(inner.program != nullptr && !inner.program->children.empty()
+                                 ? std::move(inner.program->children.front())
+                                 : nullptr);
+    for (ParseError& error : inner.errors) {
+      Error(std::move(error.message));
     }
-    if (raw[i] != '$' || raw[i + 1] != '{') {
-      continue;
-    }
-    std::size_t depth = 1;
-    const std::size_t begin = i + 2;
-    std::size_t j = begin;
-    for (; j < raw.size() && depth > 0; ++j) {
-      if (raw[j] == '\\') {
-        ++j;
-      } else if (raw[j] == '{') {
-        ++depth;
-      } else if (raw[j] == '}') {
-        --depth;
-      }
-    }
-    if (depth == 0 && j > begin) {
-      ParseResult inner = Parse(raw.substr(begin, j - begin - 1));
-      if (inner.program != nullptr && !inner.program->children.empty()) {
-        node->children.push_back(std::move(inner.program->children.front()));
-      }
-      for (ParseError& error : inner.errors) {
-        Error(std::move(error.message));
-      }
-    }
-    i = j;
   }
   Advance();
   return node;

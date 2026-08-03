@@ -1,5 +1,7 @@
 #include "js/Lexer.h"
 
+#include "js/TemplateParts.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -73,24 +75,6 @@ double ParseBasedInteger(std::string_view digits, int base) {
     value = value * static_cast<double>(base) + static_cast<double>(HexValue(c));
   }
   return value;
-}
-
-void AppendUtf8(std::string& out, char32_t codepoint) {
-  if (codepoint < 0x80) {
-    out.push_back(static_cast<char>(codepoint));
-  } else if (codepoint < 0x800) {
-    out.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
-    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-  } else if (codepoint < 0x10000) {
-    out.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
-    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-  } else {
-    out.push_back(static_cast<char>(0xF0 | (codepoint >> 18)));
-    out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
-    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-  }
 }
 
 // Punctuators, longest first. Order is the whole algorithm: matching `>` before
@@ -326,81 +310,14 @@ Token Lexer::LexString(std::size_t start, bool newline) {
     }
 
     ++offset_;
-    if (offset_ >= source_.size()) {
+    // The escape forms live with the template splitter, because a template's
+    // `\n` has to be the same newline a string's is. They were two
+    // implementations and only one of them was right.
+    std::size_t lines = 0;
+    if (!DecodeEscape(source_, offset_, value, lines)) {
       return MakeToken(TokenType::Invalid, start, newline);
     }
-    const char escape = source_[offset_++];
-    switch (escape) {
-      case 'n': value.push_back('\n'); break;
-      case 't': value.push_back('\t'); break;
-      case 'r': value.push_back('\r'); break;
-      case 'b': value.push_back('\b'); break;
-      case 'f': value.push_back('\f'); break;
-      case 'v': value.push_back('\v'); break;
-      case '0':
-        // `\0` is a NUL only when no digit follows; `\01` is a legacy octal
-        // escape, which is a syntax error in strict mode and is refused here.
-        if (offset_ < source_.size() && IsDecimalDigit(source_[offset_])) {
-          return MakeToken(TokenType::Invalid, start, newline);
-        }
-        value.push_back('\0');
-        break;
-      case 'x': {
-        if (offset_ + 1 >= source_.size() || !IsHexDigit(source_[offset_]) ||
-            !IsHexDigit(source_[offset_ + 1])) {
-          return MakeToken(TokenType::Invalid, start, newline);
-        }
-        const int high = HexValue(source_[offset_]);
-        const int low = HexValue(source_[offset_ + 1]);
-        offset_ += 2;
-        AppendUtf8(value, static_cast<char32_t>(high * 16 + low));
-        break;
-      }
-      case 'u': {
-        char32_t codepoint = 0;
-        if (offset_ < source_.size() && source_[offset_] == '{') {
-          ++offset_;
-          std::size_t seen = 0;
-          while (offset_ < source_.size() && IsHexDigit(source_[offset_])) {
-            codepoint = codepoint * 16 + static_cast<char32_t>(HexValue(source_[offset_]));
-            if (codepoint > 0x10FFFF) {
-              return MakeToken(TokenType::Invalid, start, newline);
-            }
-            ++offset_;
-            ++seen;
-          }
-          if (seen == 0 || offset_ >= source_.size() || source_[offset_] != '}') {
-            return MakeToken(TokenType::Invalid, start, newline);
-          }
-          ++offset_;
-        } else {
-          if (offset_ + 3 >= source_.size()) {
-            return MakeToken(TokenType::Invalid, start, newline);
-          }
-          for (int i = 0; i < 4; ++i) {
-            if (!IsHexDigit(source_[offset_ + static_cast<std::size_t>(i)])) {
-              return MakeToken(TokenType::Invalid, start, newline);
-            }
-            codepoint = codepoint * 16 +
-                        static_cast<char32_t>(HexValue(source_[offset_ + static_cast<std::size_t>(i)]));
-          }
-          offset_ += 4;
-        }
-        AppendUtf8(value, codepoint);
-        break;
-      }
-      default:
-        if (IsLineTerminator(escape)) {
-          // A line continuation contributes nothing to the value.
-          if (escape == '\r' && offset_ < source_.size() && source_[offset_] == '\n') {
-            ++offset_;
-          }
-          ++line_;
-          break;
-        }
-        value.push_back(escape);
-        break;
-    }
+    line_ += lines;
   }
 
   Token token = MakeToken(TokenType::StringLiteral, start, newline);
