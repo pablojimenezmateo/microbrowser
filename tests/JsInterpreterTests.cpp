@@ -128,7 +128,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // The entire semantic difference between the two forms.
     ExpectEval("const o = { n: 7, get(){ return this.n } }; o.get()", "7");
     ExpectEval("const o = { n: 7, get(){ return (() => this.n)() } }; o.get()", "7");
-    ExpectEval("const o = { n: 7, get(){ return (function(){ return this }).call } }; typeof o.get()",
+    // An ordinary function called plainly gets no receiver, so the outer
+    // `this` does not reach it -- which is the half of the difference the two
+    // lines above do not show.
+    ExpectEval("const o = { n: 7, get(){ return (function(){ return this })() } }; typeof o.get()",
                "undefined");
   });
 
@@ -631,6 +634,56 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqString(log.at(0), "fib(25) = 75025", "memoized fibonacci");
     ExpectEqString(log.at(1), "ALAN, GRACE", "filter and map and join");
     ExpectEqString(log.at(2), R"({"count":3,"age":122})", "and reduce into an object");
+  });
+
+  // --- Function.prototype ---------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/CallAndApplyRedirectTheReceiver", [] {
+    ExpectEval("function f(){ return this.n } f.call({ n: 7 })", "7");
+    ExpectEval("function f(a, b){ return this.n + a + b } f.call({ n: 1 }, 2, 3)", "6");
+    ExpectEval("function f(a, b){ return this.n + a + b } f.apply({ n: 1 }, [2, 3])", "6");
+    // apply with nothing to spread is a call with no arguments, not an error.
+    ExpectEval("function f(){ return arguments.length } f.apply(null)", "0");
+    // A borrowed method is the whole point: it runs against what it is given.
+    ExpectEval("String.prototype.toUpperCase.call('ab')", "AB");
+    ExpectEval("String.prototype.slice.call(12345, 1, 3)", "23");
+    ExpectEval("try { Function.prototype.call.call(7) } catch (e) { e.name }", "TypeError");
+    // No path from a source string to running code: no `Function(...)`, and no
+    // `eval` for it to hide behind either.
+    ExpectEval("try { Function('return 1') } catch (e) { e.name }", "TypeError");
+    ExpectEval("typeof eval", "undefined");
+    ExpectEval("Function.prototype.call === (function(){}).call", "true");
+    // A throw from inside travels out rather than being swallowed.
+    ExpectEval("try { (function(){ throw 'boom' }).call({}) } catch (e) { e }", "boom");
+  });
+
+  AddTest(tests, "JsInterpreter/BindFixesTheReceiverAndPrependsArguments", [] {
+    ExpectEval("function f(){ return this.n } f.bind({ n: 7 })()", "7");
+    ExpectEval("function f(a, b){ return a + b } f.bind(null, 1)(2)", "3");
+    ExpectEval("function f(a, b, c){ return '' + a + b + c } f.bind(null, 1, 2)(3)", "123");
+    // Binding twice cannot re-point `this`: the second bind's receiver is the
+    // first bound function's, which already ignores it.
+    ExpectEval("function f(){ return this.n } f.bind({ n: 1 }).bind({ n: 2 })()", "1");
+    ExpectEval("function f(){} f.bind(null).name", "bound f");
+    ExpectEval("const o = { n: 5, get(){ return this.n } }; const g = o.get.bind(o); g()", "5");
+  });
+
+  AddTest(tests, "JsInterpreter/BoundFunctionsSurviveCollection", [] {
+    // The reason bind keeps its state in properties rather than in the
+    // std::function's captures: the collector marks properties and cannot see
+    // captures. A bound function whose target was only captured would be a
+    // dangling pointer the moment anything allocated enough, and calling it
+    // would be a use-after-free rather than a wrong answer.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(R"(
+      const g = (function (a, b) { return this.n + a + b }).bind({ n: 100 }, 20);
+      let sink = null;
+      for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }
+      g(3)
+    )");
+    Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "123",
+                   "the target, receiver and bound arguments all outlived the collector");
   });
 
   // --- String.prototype -----------------------------------------------------

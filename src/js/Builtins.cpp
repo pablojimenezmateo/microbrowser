@@ -147,6 +147,9 @@ void Interpreter::InstallGlobals() {
     InstallNative(target, name, std::move(function));
   };
 
+  // First, because every native installed after this one inherits from it.
+  InstallFunctionPrototype();
+
   global_scope_->Declare("globalThis", Value::Obj(global_), false);
   global_scope_->Declare("undefined", Value::Undefined(), true);
   global_scope_->Declare("NaN", Value::Number(std::nan("")), true);

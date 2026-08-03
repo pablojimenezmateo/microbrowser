@@ -27,10 +27,18 @@ struct ArrayElement {
 
 // A native function's implementation.
 struct NativeCall {
-  NativeCall(Interpreter& owner, Value receiver, const std::vector<Value>& args)
-      : interpreter(owner), self(std::move(receiver)), arguments(args) {}
+  NativeCall(Interpreter& owner, Object* function, Value receiver,
+             const std::vector<Value>& args)
+      : interpreter(owner), callee(function), self(std::move(receiver)), arguments(args) {}
 
   Interpreter& interpreter;
+  // The function object being called, as distinct from `self`, which is the
+  // receiver it was read from. A native that needs per-instance state -- the
+  // function `bind` returns is the one that does -- keeps it in properties on
+  // this and reads it back here. Captures in the std::function are invisible
+  // to the collector; properties are marked, so this is the difference between
+  // state that survives a collection and a use-after-free.
+  Object* callee = nullptr;
   Value self;
   const std::vector<Value>& arguments;
   Value Throw(std::string_view kind, std::string message);

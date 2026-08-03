@@ -129,6 +129,7 @@ class Interpreter {
   // String.prototype, in its own translation unit: it is the largest single
   // group of builtins and Builtins.cpp is already near the module's TU limit.
   void InstallStringPrototype(Object* string_constructor);
+  void InstallFunctionPrototype();
 
   Heap heap_;
   Object* global_ = nullptr;

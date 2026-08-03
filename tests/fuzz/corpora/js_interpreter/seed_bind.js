@@ -1,0 +1,1 @@
+const g=(function(a){return this.n+a}).bind({n:1},2);g(3)

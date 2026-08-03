@@ -292,7 +292,7 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   Object* function = callee.object;
   if (function->GetKind() == Object::Kind::Native) {
     ++call_depth_;
-    NativeCall call{*this, self, arguments};
+    NativeCall call{*this, function, self, arguments};
     Value value = function->Native()(call);
     --call_depth_;
     if (call.HasThrown()) {
