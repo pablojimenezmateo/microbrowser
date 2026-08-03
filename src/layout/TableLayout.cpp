@@ -353,6 +353,15 @@ float LayoutEngine::LayoutTableRow(Box& row, float content_left, float content_w
     column += span;
   }
 
+  // A stated height is a floor, not a ceiling: a row is at least as tall as it
+  // says and at least as tall as its tallest cell, because a cell clipped to a
+  // shorter row would lose text. This is what a spacer row -- `<tr
+  // style="height:5px">` with no cells at all -- is for, and without it every
+  // such row collapses to nothing and the rows it was separating run together.
+  if (!style.height.IsAuto() && !style.height.IsPercent()) {
+    row_bottom = std::max(row_bottom, row_top + style.height.Resolve(style.font_size));
+  }
+
   geometry.content = gfx::FloatRect{row_left, row_top, row_width, row_bottom - row_top};
   return row_bottom + style.padding.bottom.Resolve(style.font_size) +
          geometry.border.bottom.Resolve(style.font_size) +

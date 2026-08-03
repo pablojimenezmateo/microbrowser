@@ -726,6 +726,20 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "the next row starts below the tallest cell, not below the first cell only");
   });
 
+  AddTest(tests, "Layout/ARowIsAtLeastAsTallAsItSays", [] {
+    // A spacer row -- a <tr> with a height and no cells -- is how a table
+    // written in HTML puts a gap between two rows. Ignoring its height
+    // collapses it to nothing and the rows it separates run together.
+    const LaidOut result =
+        Run("<table><tr><td>a</td></tr><tr style='height:5px'></tr><tr><td>b</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const std::vector<const Box*> rows = BoxesByTag(*result.root, "tr");
+    ExpectEqInt(static_cast<long long>(rows.size()), 3, "three rows");
+    Expect(rows.at(1)->Geometry().content.height == 5.0f, "the spacer row keeps its height");
+    Expect(rows.at(2)->Geometry().content.y >= rows.at(1)->Geometry().content.Bottom(),
+           "and the row after it starts below the gap");
+  });
+
   AddTest(tests, "Layout/TableColspanConsumesMultipleColumns", [] {
     const LaidOut result =
         Run("<table><tr><td colspan='2'>wide</td><td>right</td></tr>"
