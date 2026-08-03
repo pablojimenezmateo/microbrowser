@@ -235,6 +235,7 @@ microbrowser_module(gfx
     src/gfx/AffineTransform.cpp
     src/gfx/Blitter.cpp
     src/gfx/Canvas.cpp
+    src/gfx/ColorText.cpp
     src/gfx/DirtyRegion.cpp
     src/gfx/DisplayList.cpp
     src/gfx/DisplayListDiff.cpp
@@ -249,6 +250,8 @@ microbrowser_module(gfx
     src/gfx/PngDecoder.cpp
     src/gfx/Rasterizer.cpp
     src/gfx/Stroker.cpp
+    src/gfx/SvgDecoder.cpp
+    src/gfx/SvgPath.cpp
     src/gfx/TextShaper.cpp
   DEPS microbrowser_util
   EXTERN Freetype::Freetype ${MICROBROWSER_HARFBUZZ_TARGET})
@@ -364,6 +367,7 @@ add_executable(microbrowser_tests
   tests/PrivacyTests.cpp
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
+  tests/SvgTests.cpp
   tests/StyleResolverTests.cpp
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp
@@ -413,6 +417,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(inflate_fuzzer fuzz/InflateFuzzer.cpp microbrowser_util)
   microbrowser_fuzzer(png_fuzzer fuzz/PngFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)

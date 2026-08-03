@@ -2,7 +2,7 @@ purpose: Software rasterization. Pixels in memory; nothing about windows or the 
 
 allow: util
 
-public: Geometry.h AffineTransform.h Color.h Blitter.h Font.h FontCatalog.h TextRenderer.h Canvas.h DirtyRegion.h DisplayList.h DisplayListDiff.h Path.h PathFlattener.h GlyphCache.h Image.h PngDecoder.h Rasterizer.h Stroker.h TextShaper.h Painter.h
+public: Geometry.h AffineTransform.h Color.h ColorText.h Blitter.h Font.h FontCatalog.h TextRenderer.h Canvas.h DirtyRegion.h DisplayList.h DisplayListDiff.h Path.h PathFlattener.h GlyphCache.h Image.h PngDecoder.h SvgDecoder.h SvgPath.h Rasterizer.h Stroker.h TextShaper.h Painter.h
 
 # SDL is deliberately absent, and that absence is load-bearing: it is what makes
 # "gfx must not include SDL" an enforced rule rather than a convention.

@@ -4,9 +4,11 @@
 #include <utility>
 
 #include "css/StyleSheet.h"
+#include "gfx/SvgDecoder.h"
 #include "engine/FormAlgorithms.h"
 #include "html/FormControl.h"
 #include "html/TreeBuilder.h"
+#include "util/Parse.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
@@ -298,6 +300,36 @@ void Page::CollectImages() {
       resources_.pending_images.push_back(*src);
     }
   }
+}
+
+gfx::IntSize Page::RequestedImageSize(std::string_view src) const {
+  gfx::IntSize size;
+  if (document_ == nullptr) {
+    return size;
+  }
+  // The largest request wins, and both axes are taken independently. One
+  // resource may be drawn at several sizes, and a vector rasterized at the
+  // smallest of them is blurry everywhere else; rasterizing at the largest
+  // only ever scales down, which the painter resamples cleanly.
+  for (const dom::Element* image : document_->ElementsByTagName("img")) {
+    const std::string* source = image->GetAttribute("src");
+    if (source == nullptr || *source != src) {
+      continue;
+    }
+    for (const char* attribute : {"width", "height"}) {
+      const std::string* text = image->GetAttribute(attribute);
+      if (text == nullptr) {
+        continue;
+      }
+      const std::optional<int> value = util::ParseInt(*text);
+      if (!value.has_value() || *value <= 0 || *value > gfx::kMaxSvgEdge) {
+        continue;
+      }
+      int& axis = attribute[0] == 'w' ? size.width : size.height;
+      axis = std::max(axis, *value);
+    }
+  }
+  return size;
 }
 
 void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {

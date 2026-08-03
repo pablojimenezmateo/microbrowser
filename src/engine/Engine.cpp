@@ -12,6 +12,7 @@
 
 #include "gfx/DisplayListDiff.h"
 #include "gfx/PngDecoder.h"
+#include "gfx/SvgDecoder.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
 
@@ -288,14 +289,33 @@ void Engine::LoadSubresources(bool bypass_cache) {
     }
     // The bytes are attacker-controlled and the decoder says so: a failure here
     // is an image that does not draw, not a page that does not render.
+    //
+    // Which decoder is chosen by sniffing rather than by the Content-Type
+    // header, for the reason every browser sniffs: the header is a claim by the
+    // server, and a server that mislabels a PNG must not stop it rendering.
     const std::span<const std::byte> bytes(
         reinterpret_cast<const std::byte*>(fetched.body.data()), fetched.body.size());
-    gfx::PngDecodeResult decoded = gfx::DecodePng(bytes);
-    if (!decoded.Ok()) {
+    gfx::Image image;
+    if (gfx::LooksLikeSvg(bytes)) {
+      // SVG is a document, so it has to be rasterized at a size. The element's
+      // attributes are the size the page asked for; the document's own is the
+      // fallback, applied inside the decoder.
+      const gfx::IntSize requested = page_.RequestedImageSize(src);
+      gfx::SvgDecodeResult decoded = gfx::DecodeSvg(bytes, requested.width, requested.height);
+      if (decoded.Ok()) {
+        image = std::move(decoded.image);
+      }
+    } else {
+      gfx::PngDecodeResult decoded = gfx::DecodePng(bytes);
+      if (decoded.Ok()) {
+        image = std::move(decoded.image);
+      }
+    }
+    if (!image.IsValid()) {
       AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
       continue;
     }
-    page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(decoded.image)));
+    page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(image)));
     AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
   }
 }

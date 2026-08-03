@@ -67,6 +67,12 @@ class Page : private layout::ImageProvider {
   // Image URLs the document referenced, in document order, exactly as written.
   const std::vector<std::string>& PendingImages() const { return resources_.pending_images; }
 
+  // The size the document asks for `src` to be drawn at, or a zero extent for
+  // an axis nothing states. Only a vector image needs it -- a bitmap has its
+  // own size and this is the box it is scaled into -- which is why it is asked
+  // for by the loader rather than applied here.
+  gfx::IntSize RequestedImageSize(std::string_view src) const;
+
   // Records a decoded image under the `src` the document wrote. Keyed by the
   // written form rather than the resolved one because that is what the element
   // says and what layout has to look up -- resolving is the loader's job, and
