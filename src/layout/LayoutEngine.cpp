@@ -229,7 +229,7 @@ gfx::FloatRect BoxGeometry::MarginBox() const {
 // live face -- see gfx/DisplayList.h.
 gfx::FontRequest FontRequestFor(const css::ComputedStyle& style) {
   gfx::FontRequest request;
-  request.family = style.font_family;
+  request.families = style.font_family;
   request.size = style.font_size;
   request.weight = static_cast<int>(style.font_weight);
   request.italic = style.font_style == css::FontStyle::Italic;

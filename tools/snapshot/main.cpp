@@ -164,8 +164,13 @@ int main(int argc, char** argv) {
                display_list.Fonts().size(), display_list.Images().size(), title.c_str(),
                options.output.c_str());
   for (const microbrowser::gfx::FontRequest& font : display_list.Fonts()) {
+    std::string families;
+    for (const std::string& family : font.families) {
+      families += families.empty() ? "" : ", ";
+      families += family;
+    }
     std::fprintf(stderr, "  font: family=\"%s\" size=%.1f weight=%d italic=%d -> %s\n",
-                 font.family.c_str(), static_cast<double>(font.size), font.weight,
+                 families.c_str(), static_cast<double>(font.size), font.weight,
                  font.italic ? 1 : 0, fonts.FontFor(font) == nullptr ? "MISSING" : "ok");
   }
   return 0;

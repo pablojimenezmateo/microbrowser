@@ -710,8 +710,9 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
 
     const gfx::FontRequest* font = list.FontAt(drawn->font);
     Expect(font != nullptr, "and a font request");
-    ExpectEqString(font->family, "Fictional",
-                   "which names a family rather than carrying a font handle -- a handle could "
+    ExpectEqInt(static_cast<long long>(font->families.size()), 1, "naming one family");
+    ExpectEqString(font->families.at(0), "Fictional",
+                   "which names families rather than carrying a font handle -- a handle could "
                    "not cross a process boundary");
     Expect(font->size == 20.0f && font->weight == 700, "at the style's size and weight");
 

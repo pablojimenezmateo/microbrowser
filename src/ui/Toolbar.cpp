@@ -66,7 +66,7 @@ gfx::Path ReloadArc(const gfx::IntRect& button) {
 
 gfx::FontRequest Toolbar::OmniboxFont() {
   gfx::FontRequest font;
-  font.family = "sans-serif";
+  font.families = {"sans-serif"};
   font.size = 14.0f;
   return font;
 }

@@ -49,7 +49,14 @@ budget: FontProvider   header_lines=35 public_methods=8  members=0
 # The matcher is public and static, with its reasoning next to it, because
 # platform's font database ranks files it has not loaded by the same rule. Two
 # implementations of "which face answers this request" would drift.
-budget: FontCatalog    header_lines=90 public_methods=12 members=5
+#
+# Raised for the font stack: a request names a list of families, not one, so
+# "which family did we settle on" became "in what order do we try them". That
+# is FamilyCandidates and FamilyRank, and both are public for the same reason
+# the matcher is -- platform ranks unloaded files against the identical list,
+# and a second implementation of the ordering would page in a file the matcher
+# then declines to use.
+budget: FontCatalog    header_lines=105 public_methods=14 members=5
 # Owns a shaper and an LRU of shaped runs, which is four members before the
 # provider it borrows. Shaping is the most expensive step in the text stack and
 # the cache is why this type exists at all -- see the class comment.

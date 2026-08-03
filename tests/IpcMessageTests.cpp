@@ -177,9 +177,9 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
   AddTest(tests, "Ipc/TextCommandsRoundTrip", [] {
     ipc::PaintFrameMessage paint;
     paint.display_list.DrawText("Hello, world", 84.5f,
-                                gfx::FontRequest{"DejaVu Sans", 16.0f, 400, false},
+                                gfx::FontRequest{{"DejaVu Sans"}, 16.0f, 400, false},
                                 gfx::FloatPoint{12.0f, 30.5f}, Color::Rgb(0x11, 0x22, 0x33));
-    paint.display_list.DrawText("italic", 30.0f, gfx::FontRequest{"Serif", 24.0f, 700, true},
+    paint.display_list.DrawText("italic", 30.0f, gfx::FontRequest{{"Serif"}, 24.0f, 700, true},
                                 gfx::FloatPoint{0.0f, 60.0f}, Color::Rgba(1, 2, 3, 4));
     RoundTrip(ipc::EngineToUi{paint}, ipc::DeserializeEngineToUi, "PaintFrame(text)");
 
@@ -188,7 +188,7 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
     ExpectEqInt(static_cast<long long>(list.Texts().size()), 2, "both runs crossed");
     ExpectEqString(list.TextAt(0)->text, "Hello, world", "with their text");
-    ExpectEqString(list.FontAt(0)->family, "DejaVu Sans",
+    ExpectEqString(list.FontAt(0)->families.at(0), "DejaVu Sans",
                    "and the family they asked for -- a font handle could not cross a process "
                    "boundary, which is why the command names a family");
     Expect(list.FontAt(1)->italic && list.FontAt(1)->weight == 700, "and its slant and weight");
@@ -199,8 +199,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     // float maximum overflows FreeType's 26.6 conversion rather than producing
     // very large text, and a weight outside the CSS range makes the
     // nearest-weight search meaningless.
-    const auto text_frame = [](float size, int weight, std::uint8_t italic, float advance,
-                               float x) {
+    const auto family_frame = [](std::uint32_t families, float size, int weight,
+                                 std::uint8_t italic, float advance, float x) {
       ipc::ByteWriter writer;
       writer.WriteU32(ipc::kProtocolVersion);
       writer.WriteU8(1);   // PaintFrame
@@ -210,6 +210,10 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteF32(x);
       writer.WriteF32(0.0f);
       writer.WriteF32(advance);
+      writer.WriteU32(families);
+      // Deliberately one, whatever the declared count says: a reader that
+      // trusts the count walks off the end of the buffer, and a reader that
+      // allocates from it does so before reading a byte.
       writer.WriteString("Family");
       writer.WriteF32(size);
       writer.WriteI32(weight);
@@ -217,6 +221,10 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteString("run");
       writer.WriteU32(0);  // damage rect count
       return writer.Take();
+    };
+    const auto text_frame = [&family_frame](float size, int weight, std::uint8_t italic,
+                                            float advance, float x) {
+      return family_frame(1, size, weight, italic, advance, x);
     };
 
     Expect(ipc::DeserializeEngineToUi(text_frame(16.0f, 400, 0, 10.0f, 1.0f)).has_value(),
@@ -238,6 +246,13 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
               "an infinite advance"},
              {text_frame(16.0f, 400, 0, 10.0f, std::numeric_limits<float>::quiet_NaN()),
               "a NaN origin"},
+             {family_frame(0xFFFFFFFF, 16.0f, 400, 0, 10.0f, 1.0f),
+              "a font stack of four billion families"},
+             {family_frame(static_cast<std::uint32_t>(gfx::kMaxFontFamilies) + 1, 16.0f, 400, 0,
+                           10.0f, 1.0f),
+              "a font stack one past the bound"},
+             {family_frame(4, 16.0f, 400, 0, 10.0f, 1.0f),
+              "a font stack claiming more families than the frame carries"},
          }) {
       Expect(!ipc::DeserializeEngineToUi(bytes).has_value(),
              std::string("the decoder accepted ") + why);

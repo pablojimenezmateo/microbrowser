@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "gfx/Color.h"
 
@@ -92,7 +93,13 @@ struct ComputedStyle {
   float font_size = 16.0f;
   float font_weight = 400.0f;
   FontStyle font_style = FontStyle::Normal;
-  std::string font_family = "sans-serif";
+  // The families the stylesheet named, best first. A list rather than a name
+  // because that is what CSS says: `font-family: Verdana, Geneva, sans-serif`
+  // asks for three fonts and settles for the first that exists. Which of them
+  // exists is a property of the machine, so the choice cannot be made here --
+  // the whole list travels to the font provider, which is the only thing that
+  // knows. Bounded at gfx::kMaxFontFamilies where it is parsed.
+  std::vector<std::string> font_family{"sans-serif"};
   // Zero means "normal", which is a multiple of the font size rather than a
   // length, and is resolved by layout.
   float line_height = 0.0f;

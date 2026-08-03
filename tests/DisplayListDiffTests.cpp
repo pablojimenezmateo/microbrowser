@@ -148,10 +148,10 @@ void RegisterDisplayListDiffTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "Damage/TwoCommandsWithTheSameTextIndexAreNotAssumedEqual", [] {
     DisplayList before;
-    before.DrawText("one", 30.0f, gfx::FontRequest{"Test", 16.0f, 400, false},
+    before.DrawText("one", 30.0f, gfx::FontRequest{{"Test"}, 16.0f, 400, false},
                     gfx::FloatPoint{10.0f, 20.0f}, Color::Rgb(0, 0, 0));
     DisplayList after;
-    after.DrawText("two", 30.0f, gfx::FontRequest{"Test", 16.0f, 400, false},
+    after.DrawText("two", 30.0f, gfx::FontRequest{{"Test"}, 16.0f, 400, false},
                    gfx::FloatPoint{10.0f, 20.0f}, Color::Rgb(0, 0, 0));
 
     Expect(!gfx::CommandsPaintTheSame(before, before.Commands().at(0), after,

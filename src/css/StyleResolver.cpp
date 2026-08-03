@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 
+#include "gfx/Font.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
 
@@ -36,6 +37,44 @@ std::string_view Trim(std::string_view text) {
     text.remove_suffix(1);
   }
   return text;
+}
+
+// Splits a `font-family` value into its candidates, in order.
+//
+// Quotes are stripped and do not delimit a candidate on their own -- a quoted
+// name may contain a comma, which is the only reason the split is a scan rather
+// than a call to something generic. Unquoted names keep their spaces; the
+// catalog collapses runs when it normalizes, so `Helvetica  Neue` still matches.
+// Empty entries are dropped rather than becoming a request for the default,
+// because `Verdana, , serif` should mean what `Verdana, serif` means.
+std::vector<std::string> ParseFontFamilyList(std::string_view value) {
+  std::vector<std::string> families;
+  std::string current;
+  char quote = '\0';
+  const auto flush = [&families, &current]() {
+    const std::string_view trimmed = Trim(current);
+    if (!trimmed.empty() && families.size() < gfx::kMaxFontFamilies) {
+      families.emplace_back(trimmed);
+    }
+    current.clear();
+  };
+  for (const char c : value) {
+    if (quote != '\0') {
+      if (c == quote) {
+        quote = '\0';
+      } else {
+        current.push_back(c);
+      }
+    } else if (c == '"' || c == '\'') {
+      quote = c;
+    } else if (c == ',') {
+      flush();
+    } else {
+      current.push_back(c);
+    }
+  }
+  flush();
+  return families;
 }
 
 bool AcceptsBgColorAttribute(std::string_view tag_name) {
@@ -495,7 +534,13 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return;
   }
   if (property == "font-family") {
-    style.font_family = std::string(Trim(declaration.value));
+    // A value that parses to nothing (`font-family: ,`) leaves the inherited
+    // list alone rather than clearing it, which is what an invalid declaration
+    // is supposed to do.
+    if (std::vector<std::string> families = ParseFontFamilyList(declaration.value);
+        !families.empty()) {
+      style.font_family = std::move(families);
+    }
     return;
   }
   if (property == "line-height") {

@@ -244,14 +244,34 @@ bool ReadStrokeStyle(ByteReader& reader, gfx::StrokeStyle& out) {
 // index must not cross a trust boundary. A renderer naming a run that is not
 // there would be an out-of-bounds read waiting to happen.
 void WriteFontRequest(ByteWriter& writer, const gfx::FontRequest& font) {
-  writer.WriteString(font.family);
+  // Count-prefixed rather than comma-joined: a family name may legitimately
+  // contain a comma when the stylesheet quoted it, and re-splitting on the
+  // reading side would be a second parser that disagrees with the first.
+  writer.WriteU32(static_cast<std::uint32_t>(
+      std::min<std::size_t>(font.families.size(), gfx::kMaxFontFamilies)));
+  for (std::size_t i = 0; i < font.families.size() && i < gfx::kMaxFontFamilies; ++i) {
+    writer.WriteString(font.families[i]);
+  }
   writer.WriteF32(font.size);
   writer.WriteI32(font.weight);
   writer.WriteU8(font.italic ? 1 : 0);
 }
 
 bool ReadFontRequest(ByteReader& reader, gfx::FontRequest& out) {
-  out.family = reader.ReadString();
+  // Checked before the loop, not inside it: a count of four billion would
+  // otherwise reserve nothing but run four billion failing reads.
+  const std::uint32_t families = reader.ReadU32();
+  if (!reader.Ok() || families > gfx::kMaxFontFamilies) {
+    return false;
+  }
+  out.families.clear();
+  out.families.reserve(families);
+  for (std::uint32_t i = 0; i < families; ++i) {
+    out.families.push_back(reader.ReadString());
+    if (!reader.Ok()) {
+      return false;
+    }
+  }
   out.size = reader.ReadF32();
   out.weight = reader.ReadI32();
   const std::uint8_t italic = reader.ReadU8();

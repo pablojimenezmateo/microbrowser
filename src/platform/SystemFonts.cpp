@@ -169,18 +169,24 @@ std::size_t SystemFontProvider::BestUnloaded(const gfx::FontRequest& request,
                                              int& distance_out) const {
   std::size_t best = std::string::npos;
   distance_out = gfx::FontCatalog::kNoMatch;
-  // Only files from the family actually asked for. Falling back to another
-  // family is the catalog's job, over faces it already has; a loader that fell
-  // back too would page in a file from an unrelated family every time a page
-  // named one this machine does not have.
-  const std::string wanted = catalog_.ResolveFamily(request.family);
+  // Only families on the page's list, ranked the way the catalog ranks them --
+  // which includes the default, as its last entry. That last entry is what
+  // makes text appear at all on a page whose whole font stack names families
+  // this machine does not have: without it nothing is ever loaded, the catalog
+  // has no face to fall back *to*, and every run paints nothing.
+  //
+  // Anything off the list stays on disk. A loader that fell back further would
+  // page in a file from an unrelated family every time a page named one this
+  // machine does not have, and the catalog would then decline to use it.
+  const std::vector<std::string> candidates = catalog_.FamilyCandidates(request);
   for (std::size_t i = 0; i < index_.size(); ++i) {
-    if (index_[i].loaded || gfx::FontCatalog::NormalizeFamily(index_[i].family) != wanted) {
+    if (index_[i].loaded) {
       continue;
     }
-    const int distance = gfx::FontCatalog::MatchDistance(index_[i].family, index_[i].weight,
-                                                         index_[i].italic, request, wanted);
-    if (best == std::string::npos || distance < distance_out) {
+    const int distance = gfx::FontCatalog::MatchDistance(
+        index_[i].weight, index_[i].italic, request,
+        gfx::FontCatalog::FamilyRank(candidates, index_[i].family));
+    if (distance < distance_out) {
       best = i;
       distance_out = distance;
     }

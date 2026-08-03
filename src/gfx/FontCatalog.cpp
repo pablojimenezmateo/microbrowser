@@ -22,18 +22,24 @@ char Lower(char c) {
 }  // namespace
 
 std::string FontCatalog::NormalizeFamily(std::string_view family) {
-  std::size_t begin = 0;
-  std::size_t end = family.size();
-  while (begin < end && (family[begin] == ' ' || family[begin] == '\t')) {
-    ++begin;
-  }
-  while (end > begin && (family[end - 1] == ' ' || family[end - 1] == '\t')) {
-    --end;
-  }
+  // Trimmed at both ends, and internal runs collapsed to one space: an unquoted
+  // CSS family name is a sequence of identifiers, so `Helvetica Neue` and
+  // `Helvetica  Neue` are the same name and a stylesheet may write either.
+  // Comparing them as raw text is a silent no-match that renders as the wrong
+  // font rather than as an error.
   std::string out;
-  out.reserve(end - begin);
-  for (std::size_t i = begin; i < end; ++i) {
-    out.push_back(Lower(family[i]));
+  out.reserve(family.size());
+  bool pending_space = false;
+  for (const char c : family) {
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f') {
+      pending_space = !out.empty();
+      continue;
+    }
+    if (pending_space) {
+      out.push_back(' ');
+      pending_space = false;
+    }
+    out.push_back(Lower(c));
   }
   return out;
 }
@@ -82,56 +88,83 @@ std::string FontCatalog::ResolveFamily(std::string_view requested) const {
   return normalized.empty() ? default_family_ : normalized;
 }
 
-int FontCatalog::MatchDistance(std::string_view family, int weight, bool italic,
-                               const FontRequest& request, std::string_view wanted_family) {
-  const std::string candidate = NormalizeFamily(family);
-  const std::string wanted = NormalizeFamily(wanted_family);
-  // A tier per criterion, each wider than everything below it, so the ordering
-  // is family, then slant, then weight, and no amount of weight agreement can
-  // outrank the right family. A single weighted score is exactly how that
-  // ordering gets lost.
-  int distance = 0;
-  if (candidate != wanted) {
-    distance += 1000000;
+std::vector<std::string> FontCatalog::FamilyCandidates(const FontRequest& request) const {
+  std::vector<std::string> candidates;
+  candidates.reserve(request.families.size() + 1);
+  const auto add = [&candidates](std::string family) {
+    if (family.empty() || candidates.size() >= kMaxFontFamilies ||
+        std::find(candidates.begin(), candidates.end(), family) != candidates.end()) {
+      return;
+    }
+    candidates.push_back(std::move(family));
+  };
+  for (const std::string& family : request.families) {
+    add(ResolveFamily(family));
   }
+  // Always last, never first: the default is what a page gets when it named
+  // nothing this machine has, and a page that named nothing at all resolves to
+  // it through ResolveFamily's empty case anyway.
+  add(default_family_);
+  return candidates;
+}
+
+int FontCatalog::FamilyRank(const std::vector<std::string>& candidates, std::string_view family) {
+  const std::string normalized = NormalizeFamily(family);
+  for (std::size_t i = 0; i < candidates.size(); ++i) {
+    if (candidates[i] == normalized) {
+      return static_cast<int>(i);
+    }
+  }
+  return -1;
+}
+
+int FontCatalog::MatchDistance(int weight, bool italic, const FontRequest& request,
+                               int family_rank) {
+  if (family_rank < 0) {
+    return kNoMatch;
+  }
+  // The family tier times the longest list anything will build stays well under
+  // kNoMatch, so "on the list, badly" can never be confused with "not on it".
+  static_assert(static_cast<int>(kMaxFontFamilies) * 1000000 < kNoMatch);
+  int distance = std::min(family_rank, static_cast<int>(kMaxFontFamilies)) * 1000000;
   distance += italic == request.italic ? 0 : 10000;
   distance += std::min(std::abs(weight - request.weight), 9999);
   return distance;
 }
 
 int FontCatalog::BestLoadedDistance(const FontRequest& request) const {
-  const std::string wanted = ResolveFamily(request.family);
+  const std::vector<std::string> candidates = FamilyCandidates(request);
   int best = kNoMatch;
   for (const std::unique_ptr<Face>& candidate : faces_) {
-    best = std::min(best, MatchDistance(candidate->family, candidate->weight, candidate->italic,
-                                        request, wanted));
+    best = std::min(best, MatchDistance(candidate->weight, candidate->italic, request,
+                                        FamilyRank(candidates, candidate->family)));
   }
   return best;
 }
 
 const FontCatalog::Face* FontCatalog::Match(const FontRequest& request) const {
-  // Two rounds: the family the page asked for, then the default. A face from
-  // the wrong family is never a better answer than any face from the right one,
-  // and falling back is a separate decision from ranking within a family.
-  const std::string wanted = ResolveFamily(request.family);
-  for (const std::string& family : {wanted, default_family_}) {
-    const Face* best = nullptr;
-    int best_distance = kNoMatch;
-    for (const std::unique_ptr<Face>& candidate : faces_) {
-      if (NormalizeFamily(candidate->family) != family) {
-        continue;
-      }
-      const int distance =
-          MatchDistance(candidate->family, candidate->weight, candidate->italic, request, family);
-      if (best == nullptr || distance < best_distance) {
-        best = candidate.get();
-        best_distance = distance;
-      }
-    }
-    if (best != nullptr) {
-      return best;
+  // One pass over every loaded face, ranked by where its family sits on the
+  // page's list. The list already ends in the default, so falling back is not a
+  // second round with different rules -- it is the last entry losing to nothing
+  // better, which is why a face from the page's second choice can never be
+  // beaten by a nearer weight in its third.
+  const std::vector<std::string> candidates = FamilyCandidates(request);
+  const Face* best = nullptr;
+  int best_distance = kNoMatch;
+  for (const std::unique_ptr<Face>& candidate : faces_) {
+    const int distance = MatchDistance(candidate->weight, candidate->italic, request,
+                                       FamilyRank(candidates, candidate->family));
+    if (distance < best_distance) {
+      best = candidate.get();
+      best_distance = distance;
     }
   }
+  if (best != nullptr) {
+    return best;
+  }
+  // Nothing on the list is loaded and nothing answers the default either --
+  // which happens before any face has been registered under a recognised name.
+  // Some text beats none.
   return faces_.empty() ? nullptr : faces_.front().get();
 }
 

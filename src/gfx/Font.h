@@ -40,6 +40,14 @@ struct FontMetrics {
 // legibility on a 96 DPI panel and decides otherwise.
 enum class Hinting : std::uint8_t { None, Normal };
 
+// The longest font stack anything in this browser will consider.
+//
+// A bound rather than a guess: the list arrives from a stylesheet today and,
+// after the process split, from a renderer -- so it is attacker-controlled at
+// both ends. Real stacks name at most a handful. Everything past the bound is
+// dropped where the list is built, so nothing downstream has to think about it.
+inline constexpr std::size_t kMaxFontFamilies = 32;
+
 // What text asks for, before anything has decided which file answers.
 //
 // A request rather than a Font, because the thing that knows the text (layout,
@@ -48,9 +56,13 @@ enum class Hinting : std::uint8_t { None, Normal };
 // This is also what lets a display list carrying text cross a process boundary:
 // it names a family, not a handle.
 struct FontRequest {
-  // Empty means "whatever the provider's default is". Generic families
-  // ("serif", "sans-serif", "monospace") are spelled as themselves.
-  std::string family;
+  // The families the stylesheet named, in the order it named them; the first
+  // one this machine can answer wins. Empty means "whatever the provider's
+  // default is". Generic families ("serif", "sans-serif", "monospace") are
+  // spelled as themselves and are ordinary entries on the list -- essentially
+  // every real font stack ends in one, and a browser that stopped at the first
+  // unrecognised name would render no text on most of the web.
+  std::vector<std::string> families;
   float size = 16.0f;
   // CSS numeric weights: 400 is normal, 700 is bold.
   int weight = 400;

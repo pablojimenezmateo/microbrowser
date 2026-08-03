@@ -83,14 +83,24 @@ class FontCatalog : public FontProvider {
   // into the catalog, rather than carrying a second FontLibrary around.
   FontLibrary& Library() const { return *library_; }
 
-  // How well a face answers a request. Lower is better; a mismatched family is
-  // worse than any slant mismatch, which is worse than any weight difference.
+  // How well a face answers a request, given that its family is the
+  // `family_rank`-th entry of FamilyCandidates() — negative when it is not on
+  // that list at all. Lower is better.
+  //
+  // A tier per criterion, each wider than everything below it, so the ordering
+  // is family position, then slant, then weight: a page that asked for Verdana
+  // and got its second choice in exactly the right weight has still been given
+  // the wrong font. A single weighted score is precisely how that ordering gets
+  // lost.
   //
   // Public and static because font *selection* and font *loading* are in
   // different modules — platform's database has to rank files it has not
   // loaded — and two implementations of this ordering would drift.
-  static int MatchDistance(std::string_view family, int weight, bool italic,
-                           const FontRequest& request, std::string_view wanted_family);
+  static int MatchDistance(int weight, bool italic, const FontRequest& request, int family_rank);
+
+  // Where `family` sits on `candidates`, or -1. Normalizes, so a caller holding
+  // a family name as the face reports it does not have to.
+  static int FamilyRank(const std::vector<std::string>& candidates, std::string_view family);
 
   // The distance of the face this catalog would pick today, or kNoMatch when it
   // has nothing. A loader compares a candidate against this to decide whether
@@ -98,9 +108,17 @@ class FontCatalog : public FontProvider {
   static constexpr int kNoMatch = 1 << 30;
   int BestLoadedDistance(const FontRequest& request) const;
 
-  // The family a request actually names: generics resolved, empty replaced by
-  // the default. Public because the font database has to ask the same question
-  // about files it has not loaded.
+  // The families to try, best first: every family the request named with
+  // generics resolved and duplicates dropped, then the default.
+  //
+  // Public, and the single source of truth for the question, because the font
+  // database in platform ranks files it has not loaded against the same list.
+  // Two implementations of "which family did we settle on" would drift, and the
+  // symptom would be a file paged in that the matcher then declines to use.
+  std::vector<std::string> FamilyCandidates(const FontRequest& request) const;
+
+  // The family one name actually means: a generic resolved, an empty name
+  // replaced by the default.
   std::string ResolveFamily(std::string_view requested) const;
 
   // Case-insensitive, whitespace-trimmed. `Font-Family: DejaVu Sans` and
