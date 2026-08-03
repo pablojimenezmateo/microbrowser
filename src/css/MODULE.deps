@@ -18,5 +18,11 @@ budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
 budget: Selector         header_lines=25 public_methods=6  members=1
 budget: Length           header_lines=35 public_methods=10 members=2
-budget: ComputedStyle    header_lines=60 public_methods=10 members=22
+# One member per property, plus one grouped member for the twelve flex
+# properties. Twelve loose fields would have been more than a third of this
+# struct and would have said nothing about belonging together; grouped, the
+# member count went up by one and the header by the description of what the
+# container reads and what the item reads.
+budget: ComputedStyle    header_lines=110 public_methods=14 members=23
+budget: FlexStyle        header_lines=50  public_methods=2  members=12
 budget: StyleResolver    header_lines=60 public_methods=12 members=2

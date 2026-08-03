@@ -212,6 +212,7 @@ microbrowser_module(html
 
 microbrowser_module(layout
   SOURCES
+    src/layout/FlexLayout.cpp
     src/layout/FloatContext.cpp
     src/layout/FontTextMeasurer.cpp
     src/layout/InlineLayout.cpp
@@ -366,6 +367,7 @@ add_executable(microbrowser_tests
   tests/JsLexerTests.cpp
   tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
+  tests/FlexLayoutTests.cpp
   tests/LayoutTests.cpp
   tests/NetTests.cpp
   tests/PaintPipelineTests.cpp

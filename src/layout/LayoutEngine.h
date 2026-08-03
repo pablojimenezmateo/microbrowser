@@ -25,6 +25,19 @@ struct TableColumnWidths {
   std::vector<float> max;
 };
 
+// A size the caller has already decided, which the box must use rather than
+// derive.
+//
+// Both halves are optional because the two flex directions fix different ones:
+// a row fixes an item's width and leaves its height to its content, a column
+// does the reverse. Nothing outside flex layout sets either -- an ordinary
+// block's size is a function of its style and its container, and forcing it
+// would be a way to make those disagree.
+struct ForcedSize {
+  std::optional<float> content_width;
+  std::optional<float> content_height;
+};
+
 // Builds a box tree from a styled document and lays it out.
 //
 // Two phases, deliberately separate. Building the tree is where anonymous
@@ -66,7 +79,14 @@ class LayoutEngine {
   // <center>, however deep, re-centre itself against a container it already
   // fits exactly -- and a nested block that fits exactly must not move.
   void LayoutBlock(Box& box, float container_left, float available_width, float& cursor_y,
-                   FloatContext& floats, bool center_in_container = false) const;
+                   FloatContext& floats, bool center_in_container = false,
+                   const ForcedSize* forced = nullptr) const;
+  // Lays out a flex container's children and returns the content height they
+  // occupy. In its own translation unit: the algorithm is long, and it is the
+  // only place in layout where children are sized against each other rather
+  // than each against the container.
+  float LayoutFlexChildren(Box& box, float content_left, float content_width,
+                           float start_y) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
                              FloatContext& floats) const;
   // `measured` carries the column bounds in when the caller already needed

@@ -79,7 +79,11 @@ std::vector<const Box*> TextBoxes(const Box& root) {
 
 }  // namespace
 
+void RegisterFlexLayoutTests(std::vector<TestCase>& tests);
+
 void RegisterLayoutTests(std::vector<TestCase>& tests) {
+  RegisterFlexLayoutTests(tests);
+
   AddTest(tests, "Layout/StacksBlocksVertically", [] {
     const LaidOut result =
         Run("<div>a</div><div>b</div>", "body { margin: 0 } div { margin: 0; font-size: 20px }");

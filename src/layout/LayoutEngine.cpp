@@ -384,7 +384,12 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   attach_background(*box);
   produced_inline = inline_level;
 
-  if (!inline_level && any_inline && any_block) {
+  // Every child of a flex container is an item, so a run of inline children
+  // has to become one box rather than a line inside the container. That is the
+  // same anonymous-block wrapping mixed content already needs, applied
+  // unconditionally.
+  const bool wrap_inline_runs = style.IsFlexContainer() ? any_inline : (any_inline && any_block);
+  if (!inline_level && wrap_inline_runs) {
     // Mixed content. Consecutive inline children are wrapped in anonymous
     // blocks, which is the only way the two kinds can be siblings — a block
     // formatting context contains blocks, and inline content needs one of its
@@ -479,7 +484,7 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
 
 void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_width,
                                float& cursor_y, FloatContext& floats,
-                               bool center_in_container) const {
+                               bool center_in_container, const ForcedSize* forced) const {
   const css::ComputedStyle& style = box.Style();
   BoxGeometry& geometry = box.Geometry();
   geometry.margin = style.margin;
@@ -522,6 +527,12 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
       total_max += table_columns->max[i];
     }
     content_width = std::min(std::max(total_min, content_width), total_max);
+  }
+  if (forced != nullptr && forced->content_width.has_value()) {
+    // The flex algorithm already decided this, against the other items. The
+    // box's own `width` was an input to that decision and must not be applied
+    // a second time here.
+    content_width = *forced->content_width;
   }
   if (style.IsFloating() && style.width.IsAuto()) {
     // Shrink-to-fit: as wide as its content wants, but never wider than what is
@@ -581,7 +592,9 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
 
   float content_height = 0.0f;
-  if (style.display == css::Display::Table) {
+  if (style.IsFlexContainer()) {
+    content_height = LayoutFlexChildren(box, content_left, content_width, content_top);
+  } else if (style.display == css::Display::Table) {
     content_height =
         LayoutTableChildren(box, content_left, content_width, content_top, table_columns);
   } else if (!has_block_child && !box.Children().empty()) {
@@ -617,6 +630,9 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
   if (!style.height.IsAuto() && !style.height.IsPercent()) {
     content_height = style.height.Resolve(style.font_size, content_height);
+  }
+  if (forced != nullptr && forced->content_height.has_value()) {
+    content_height = *forced->content_height;  // same reasoning as the width above
   }
 
   geometry.content = gfx::FloatRect{content_left, content_top, content_width, content_height};

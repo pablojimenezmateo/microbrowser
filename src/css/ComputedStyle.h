@@ -24,8 +24,29 @@ enum class Display : std::uint8_t {
   TableRowGroup,
   TableRow,
   TableCell,
+  Flex,
+  InlineFlex,
   None,
 };
+
+enum class FlexDirection : std::uint8_t { Row, RowReverse, Column, ColumnReverse };
+enum class FlexWrap : std::uint8_t { NoWrap, Wrap, WrapReverse };
+// One enum for `justify-content` and `align-content`, because the spec gives
+// them the same value set and a second copy would be a second thing to keep in
+// step.
+enum class Distribution : std::uint8_t {
+  FlexStart,
+  FlexEnd,
+  Center,
+  SpaceBetween,
+  SpaceAround,
+  SpaceEvenly,
+  Stretch,
+};
+// `align-items` and `align-self` share this. `Auto` is only meaningful on
+// `align-self`, where it means "whatever the container says" -- which is why
+// the two are one enum with a value the other never takes.
+enum class Alignment : std::uint8_t { Auto, Stretch, FlexStart, FlexEnd, Center, Baseline };
 enum class FontStyle : std::uint8_t { Normal, Italic };
 enum class TextAlign : std::uint8_t { Left, Right, Center, Justify };
 
@@ -155,6 +176,37 @@ struct ComputedStyle {
   Length width = Length::Auto();
   Length height = Length::Auto();
 
+  // The flex properties, grouped.
+  //
+  // Twelve fields for one feature, and they are only ever read together --
+  // loose on ComputedStyle they would be more than half its members and would
+  // say nothing about belonging to each other. The container reads the first
+  // five and the item reads the rest, which is the only split that matters and
+  // is written here rather than inferred.
+  struct FlexStyle {
+    // Read by the container.
+    FlexDirection direction = FlexDirection::Row;
+    FlexWrap wrap = FlexWrap::NoWrap;
+    Distribution justify_content = Distribution::FlexStart;
+    Alignment align_items = Alignment::Stretch;
+    Distribution align_content = Distribution::Stretch;
+    float row_gap = 0.0f;
+    float column_gap = 0.0f;
+
+    // Read by the item, from its own style.
+    Alignment align_self = Alignment::Auto;
+    float grow = 0.0f;
+    // One, not zero: an item shrinks by default and grows only when asked,
+    // which is the asymmetry that makes `flex: 1` mean something different
+    // from the initial value.
+    float shrink = 1.0f;
+    Length basis = Length::Auto();
+    int order = 0;
+
+    friend bool operator==(const FlexStyle&, const FlexStyle&) = default;
+  };
+  FlexStyle flex;
+
   bool IsFloating() const { return css_float != Float::None; }
 
   bool IsInlineLevel() const {
@@ -162,7 +214,14 @@ struct ComputedStyle {
     // span makes it a block, per CSS 2.1 s9.7. Answering that here rather than
     // at each call site is what keeps the rule from being applied in three
     // places and forgotten in a fourth.
-    return !IsFloating() && (display == Display::Inline || display == Display::InlineBlock);
+    return !IsFloating() && (display == Display::Inline || display == Display::InlineBlock ||
+                             display == Display::InlineFlex);
+  }
+  // A flex container lays its children out itself, so the box tree has to make
+  // every one of them an item -- which is a different question from how the
+  // container itself sits in its own parent.
+  bool IsFlexContainer() const {
+    return display == Display::Flex || display == Display::InlineFlex;
   }
   bool GeneratesBox() const { return display != Display::None; }
 
