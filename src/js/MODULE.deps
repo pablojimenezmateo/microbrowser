@@ -24,6 +24,20 @@ budget: NodeKind header_lines=70 public_methods=0  members=0
 # Parser.cpp and statements in ParserStatements.cpp.
 budget: ParserImpl header_lines=90 public_methods=6 members=5
 budget: Value       header_lines=60 public_methods=20 members=5
+# A compiled pattern, as a value: the program behind it is shared and immutable,
+# so copying a RegExp is a refcount rather than a recompile.
+budget: RegExp         header_lines=40 public_methods=10 members=3
+budget: RegExpFlags    header_lines=30 public_methods=2  members=7
+budget: RegExpMatch    header_lines=30 public_methods=6  members=1
+# The instruction list, its constant pools, and the flags the matcher reads off
+# it. Data, with no behaviour of its own -- every member is one of those three.
+budget: RegExpProgram  header_lines=30 public_methods=0  members=11
+budget: CharSet        header_lines=20 public_methods=6  members=1
+budget: MatchState     header_lines=15 public_methods=0  members=3
+budget: Instruction    header_lines=10 public_methods=0  members=4
+# One entry per thing the matcher can do, with what each field means written
+# next to it. It grows with the pattern syntax and nothing else.
+budget: Op             header_lines=45 public_methods=0  members=0
 # Grew for classes: the home object `super` resolves against, the superclass,
 # and the instance field initializers. All three are per-function state that
 # has nowhere else to live -- a class *is* a function here, which is what keeps

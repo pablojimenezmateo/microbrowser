@@ -297,6 +297,8 @@ microbrowser_module(js
     src/js/FunctionBuiltins.cpp
     src/js/TemplateParts.cpp
     src/js/Classes.cpp
+    src/js/RegExp.cpp
+    src/js/RegExpMatcher.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(ui
@@ -357,6 +359,7 @@ add_executable(microbrowser_tests
   tests/IpcMessageTests.cpp
   tests/JsInterpreterTests.cpp
   tests/JsLexerTests.cpp
+  tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
   tests/LayoutTests.cpp
   tests/NetTests.cpp
@@ -427,6 +430,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
   microbrowser_fuzzer(js_parser_fuzzer fuzz/JsParserFuzzer.cpp microbrowser_js)
   microbrowser_fuzzer(js_interpreter_fuzzer fuzz/JsInterpreterFuzzer.cpp microbrowser_js)
+  microbrowser_fuzzer(js_regexp_fuzzer fuzz/JsRegExpFuzzer.cpp microbrowser_js)
 endif()
 
 # --- Benchmarks --------------------------------------------------------------
