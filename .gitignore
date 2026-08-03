@@ -14,12 +14,24 @@ __pycache__/
 
 # libFuzzer corpora accumulate auto-generated, hash-named inputs on every run and
 # clog the tree. Ignore those, but keep each target's directory (a tracked
-# .gitkeep) so the documented `./<Target>Fuzz tests/fuzz/corpora/<Target>`
+# .gitkeep) so the documented `<target>_fuzzer tests/fuzz/corpora/<target>`
 # commands still work (libFuzzer errors on a missing corpus dir), and keep any
-# hand-curated `seed_*` inputs.
+# hand-curated `seed_*` inputs. Every target in CMakeLists.txt needs a
+# directory here; a missing one is what sends artifacts to the working tree.
 /tests/fuzz/corpora/*/*
 !/tests/fuzz/corpora/*/.gitkeep
 !/tests/fuzz/corpora/*/seed_*
+
+# libFuzzer also drops a hash-named artifact into the *working directory* --
+# not the corpus -- whenever a run finds a crash, a leak, a timeout, or an
+# input slower than the report threshold. One of these was committed to the
+# repository root once; ignoring them is what stops the next one. A reproducer
+# worth keeping belongs in the target's corpus as a `seed_*` file.
+crash-*
+leak-*
+timeout-*
+oom-*
+slow-unit-*
 
 # Reference-test failure output: the actual/diff PPMs a failing run writes next
 # to the golden. Goldens themselves (tests/ref/**/*.ppm) are tracked.
