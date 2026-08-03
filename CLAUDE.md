@@ -35,7 +35,7 @@ parses it, resolves its cascade, lays it out, and draws it — text included. Wh
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, tables, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype` and part of `Array.prototype`. No bytecode VM, Promises, async, generators or regex engine, and `Function.prototype` is empty — no `call`, `apply` or `bind`. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype`, `call`/`apply`/`bind`, part of `Array.prototype`. No bytecode VM, Promises, async, generators or regex engine. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
@@ -69,8 +69,8 @@ reasoning; this is the queue.
 4. **A regular expression engine.** A regex literal currently evaluates to its own source text,
    which is a placeholder rather than a feature. `split`, `replace` and `replaceAll` take string
    patterns only because of it, so a regex argument reaches them as text and matches literally.
-   `Function.prototype.call`/`apply`/`bind` are missing in the same way — small next to a regex
-   engine, and reached for constantly by real script.
+   It is the last language feature a real page uses that is not merely missing but silently
+   wrong, which is what puts it above the layout work below.
 5. **Flexbox, then grid.** Not optional for reddit, google, Plex or YouTube. `position:
    absolute/fixed/sticky` and a real overflow/scrolling model are in the same bucket.
 6. **DOM bindings (M9).** The seam where every same-origin check will live. Nothing interactive
