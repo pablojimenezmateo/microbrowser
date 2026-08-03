@@ -103,14 +103,30 @@ means, beyond what M8 has so far:
   Done. Private names are ordinary properties under their `#` name, which is
   not real privacy and is the right amount until something observes the
   difference.
-- **Promises and a microtask queue**, then **async/await**. This is not a
-  language feature that can be bolted on: it changes the host's event loop, and
-  the loop is currently a blocking wait on window events.
-- **Generators and iterators**, which `for...of` is defined in terms of.
-- **A regular expression engine.** Currently a regex literal evaluates to its
-  own source text, which is a placeholder and not a feature.
-- **`Symbol`, `Proxy`, `Reflect`, getters and setters, `WeakMap`**, and the rest
-  of the surface a framework's own runtime uses.
+- ~~**Promises and a microtask queue**~~, then **async/await**. The queue is
+  done, and it turned out not to change the host loop at all: a microtask
+  exists only because something already ran, so the drain rides a wakeup that
+  was already happening and the zero-idle-CPU invariant is untouched. It is
+  drained at the end of a turn and bounded, so an endless `.then` chain costs
+  promptness rather than the window.
+
+  `await` is a different problem and is *not* done. A promise only ever
+  schedules a call, which a tree-walker can do; suspending a function in the
+  middle needs its stack to be data rather than C++ frames. That waits on the
+  bytecode VM, along with generators.
+- ~~**Iterators**, which `for...of` is defined in terms of.~~ Done, with
+  symbols under them: `for...of`, spread, rest and array destructuring all run
+  the protocol, and `Map` and `Set` publish it. **Generators** are not, and
+  wait on the VM for the same reason `await` does.
+- ~~**A regular expression engine.**~~ Done: a backtracking matcher over a
+  compiled program, bounded three ways because both the pattern and the
+  subject are attacker-controlled. Byte-oriented like the rest of the string
+  implementation, which is exact for ASCII and an approximation above it --
+  making the unit a code point is the same change as making a JS string
+  UTF-16.
+- ~~**`Symbol`**~~ and ~~getters and setters~~ are done. **`Proxy`,
+  `Reflect`, `WeakMap`** and the rest of the surface a framework's own runtime
+  uses are not.
 - **Modules**, with the loading they imply.
 
 ### It changes the timeline, not the shape

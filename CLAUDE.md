@@ -44,15 +44,17 @@ What exists:
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype`, `call`/`apply`/`bind`, part of `Array.prototype`. No bytecode VM, Promises, async, generators or regex engine. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype`, most of `Array.prototype` and the `Object` statics, `call`/`apply`/`bind`, error constructors. A backtracking regular expression engine, wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type, and the iteration protocol `for...of`, spread and destructuring all run. `Map` and `Set`. Promises, `queueMicrotask` and the microtask queue. No bytecode VM, async/await or generators. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: flexbox and grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
 the process split and the sandbox (rest of M7), the JS bytecode VM and the rest of the builtins
-(rest of M8), integration (M9). The collector is written but can only run between top-level
-statements — a tree-walker cannot scan the C++ frames holding live values mid-evaluation, so the
-heap has a ceiling that surfaces as a `RangeError`. Loading is synchronous — the loop blocks
+(rest of M8), integration (M9). The collector runs between top-level statements and between
+microtasks — both are points where nothing is in progress and every live value is reachable from
+the roots — but not during evaluation, because a tree-walker cannot scan the C++ frames holding
+live values. The heap still has a ceiling that surfaces as a `RangeError`, and `async`/`await`
+still has nowhere to suspend to. Loading is synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 
@@ -69,19 +71,21 @@ reasoning; this is the queue.
    invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
    `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
    there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **The JavaScript bytecode VM.** The largest single item and the project's dominant cost. It is
-   not only speed: the collector cannot run during evaluation today, because a tree-walker keeps
-   live values in C++ frames it cannot scan — so the heap has a ceiling that becomes a
-   `RangeError` instead of a collection. A VM's value stack is explicit and scannable, so precise
-   collection and the speed arrive together. See the note at the top of `src/js/Heap.h`.
-3. **Promises and a microtask queue, then async/await.** Not a language feature that bolts on: it
-   changes the host event loop, which is currently a blocking wait on window events. Check it
-   against the zero-idle-CPU invariant before writing any of it.
-4. **A regular expression engine.** A regex literal currently evaluates to its own source text,
-   which is a placeholder rather than a feature. `split`, `replace` and `replaceAll` take string
-   patterns only because of it, so a regex argument reaches them as text and matches literally.
-   It is the last language feature a real page uses that is not merely missing but silently
-   wrong, which is what puts it above the layout work below.
+2. **The JavaScript bytecode VM, and async/await with it.** The largest single item and the
+   project's dominant cost. It is not only speed, and it is no longer only about the collector
+   either. Two things now wait on it. The collector cannot run during evaluation, because a
+   tree-walker keeps live values in C++ frames it cannot scan — so the heap has a ceiling that
+   becomes a `RangeError` instead of a collection. And **an async function has to suspend**,
+   which a tree-walker cannot do: its state is C++ stack frames. Promises landed without it
+   because a promise only ever *schedules* a call; `await` is the one that needs the stack to be
+   data. A VM's value stack is explicit, so precise collection, generators, `async`/`await` and
+   the speed all arrive together. See the note at the top of `src/js/Heap.h`.
+3. **`Proxy` and `Reflect`, `WeakMap`, and modules.** The rest of the surface a framework's own
+   runtime uses. Smaller than the VM and independent of it.
+4. **A `setTimeout` that respects the idle invariant.** The microtask queue deliberately did not
+   need a wakeup — a microtask exists only because something already ran. A timer genuinely does,
+   and it has to arrive as an `IdleWaitState::next_deadline_ms` rather than as a poll. Nothing
+   time-based works until this exists, which is most of what a page does after it loads.
 5. **Flexbox, then grid.** Not optional for reddit, google, Plex or YouTube. `position:
    absolute/fixed/sticky` and a real overflow/scrolling model are in the same bucket.
 6. **DOM bindings (M9).** The seam where every same-origin check will live. Nothing interactive
