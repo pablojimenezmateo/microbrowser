@@ -133,7 +133,7 @@ bool ReplacementFor(NativeCall& call, const Value& replacement, const std::strin
 
 void Interpreter::InstallStringPrototype(Object* string_constructor) {
   const auto method = [this](const char* name, NativeFunction function) {
-    InstallNative(string_prototype_, name, std::move(function));
+    InstallNative(well_known_.string_prototype, name, std::move(function));
   };
 
   // --- Identity -------------------------------------------------------------
@@ -425,8 +425,8 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   method("replaceAll", replace(true));
 
   // --- The constructor's own properties -------------------------------------
-  string_constructor->Set("prototype", Value::Obj(string_prototype_));
-  string_prototype_->Set("constructor", Value::Obj(string_constructor));
+  string_constructor->Set("prototype", Value::Obj(well_known_.string_prototype));
+  well_known_.string_prototype->Set("constructor", Value::Obj(string_constructor));
   InstallNative(string_constructor, "fromCharCode", [](NativeCall& call) {
     // The exact inverse of charCodeAt under this file's byte model: one byte
     // per argument, masked the way the spec masks to sixteen bits.

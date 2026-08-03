@@ -77,11 +77,11 @@ void Interpreter::InstallFunctionPrototype() {
   Object* constructor = NewNative("Function", [](NativeCall& call) {
     return call.Throw("TypeError", "compiling a function from source is not supported");
   });
-  constructor->Set("prototype", Value::Obj(function_prototype_));
-  function_prototype_->Set("constructor", Value::Obj(constructor));
+  constructor->Set("prototype", Value::Obj(well_known_.function_prototype));
+  well_known_.function_prototype->Set("constructor", Value::Obj(constructor));
   global_scope_->Declare("Function", Value::Obj(constructor), false);
 
-  InstallNative(function_prototype_, "call", [](NativeCall& call) {
+  InstallNative(well_known_.function_prototype, "call", [](NativeCall& call) {
     Object* target = CallableSelf(call, "call");
     if (target == nullptr) {
       return Value::Undefined();
@@ -93,7 +93,7 @@ void Interpreter::InstallFunctionPrototype() {
                                                        Argument(call.arguments, 0), arguments));
   });
 
-  InstallNative(function_prototype_, "apply", [](NativeCall& call) {
+  InstallNative(well_known_.function_prototype, "apply", [](NativeCall& call) {
     Object* target = CallableSelf(call, "apply");
     if (target == nullptr) {
       return Value::Undefined();
@@ -103,7 +103,7 @@ void Interpreter::InstallFunctionPrototype() {
                                                        ArrayElements(Argument(call.arguments, 1))));
   });
 
-  InstallNative(function_prototype_, "bind", [](NativeCall& call) {
+  InstallNative(well_known_.function_prototype, "bind", [](NativeCall& call) {
     Object* target = CallableSelf(call, "bind");
     if (target == nullptr) {
       return Value::Undefined();

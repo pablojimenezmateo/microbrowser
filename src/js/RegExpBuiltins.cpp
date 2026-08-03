@@ -377,7 +377,7 @@ void Interpreter::InstallRegExpPrototype() {
   // page cannot make `source` disagree with what is actually matched.
   const auto accessor = [this](const char* name, NativeFunction function) {
     if (Object* getter = NewNative(name, std::move(function))) {
-      regexp_prototype_->DefineAccessor(name, getter, nullptr);
+      well_known_.regexp_prototype->DefineAccessor(name, getter, nullptr);
     }
   };
   const auto flag = [&accessor](const char* name, bool RegExpFlags::*member) {
@@ -399,7 +399,7 @@ void Interpreter::InstallRegExpPrototype() {
   flag("unicode", &RegExpFlags::unicode);
   flag("hasIndices", &RegExpFlags::has_indices);
 
-  install(regexp_prototype_, "exec", [](NativeCall& call) {
+  install(well_known_.regexp_prototype, "exec", [](NativeCall& call) {
     const RegExp* pattern = call.interpreter.RegExpOf(call.self);
     if (pattern == nullptr) {
       return call.Throw("TypeError", "RegExp.prototype.exec called on a non-RegExp");
@@ -423,7 +423,7 @@ void Interpreter::InstallRegExpPrototype() {
     return MakeMatchResult(call.interpreter, *pattern, *match, text);
   });
 
-  install(regexp_prototype_, "test", [](NativeCall& call) {
+  install(well_known_.regexp_prototype, "test", [](NativeCall& call) {
     const RegExp* pattern = call.interpreter.RegExpOf(call.self);
     if (pattern == nullptr) {
       return call.Throw("TypeError", "RegExp.prototype.test called on a non-RegExp");
@@ -442,7 +442,7 @@ void Interpreter::InstallRegExpPrototype() {
     return Value::Bool(match.has_value());
   });
 
-  install(regexp_prototype_, "toString", [](NativeCall& call) {
+  install(well_known_.regexp_prototype, "toString", [](NativeCall& call) {
     const RegExp* pattern = call.interpreter.RegExpOf(call.self);
     if (pattern == nullptr) {
       return Value::String(std::string("/(?:)/"));
@@ -469,14 +469,14 @@ void Interpreter::InstallRegExpPrototype() {
     return call.interpreter.NewRegExpValue(std::move(pattern));
   });
   if (constructor != nullptr) {
-    constructor->Set("prototype", Value::Obj(regexp_prototype_));
-    regexp_prototype_->Set("constructor", Value::Obj(constructor));
+    constructor->Set("prototype", Value::Obj(well_known_.regexp_prototype));
+    well_known_.regexp_prototype->Set("constructor", Value::Obj(constructor));
     global_scope_->Declare("RegExp", Value::Obj(constructor), false);
   }
 
   // --- The String methods that only exist for patterns ----------------------
 
-  install(string_prototype_, "match", [](NativeCall& call) {
+  install(well_known_.string_prototype, "match", [](NativeCall& call) {
     const std::string text = ToString(call.self);
     PatternArgument argument;
     if (!ReadPatternArgument(call, Argument(call.arguments, 0), false, argument)) {
@@ -516,7 +516,7 @@ void Interpreter::InstallRegExpPrototype() {
     return call.interpreter.NewArrayValue(std::move(found));
   });
 
-  install(string_prototype_, "matchAll", [](NativeCall& call) {
+  install(well_known_.string_prototype, "matchAll", [](NativeCall& call) {
     const std::string text = ToString(call.self);
     const Value given = Argument(call.arguments, 0);
     // A pattern handed to matchAll must be global. The spec makes this a
@@ -587,7 +587,7 @@ void Interpreter::InstallRegExpPrototype() {
     return iterator;
   });
 
-  install(string_prototype_, "search", [](NativeCall& call) {
+  install(well_known_.string_prototype, "search", [](NativeCall& call) {
     const std::string text = ToString(call.self);
     PatternArgument argument;
     if (!ReadPatternArgument(call, Argument(call.arguments, 0), false, argument)) {

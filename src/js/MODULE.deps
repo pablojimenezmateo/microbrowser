@@ -59,31 +59,18 @@ budget: MapIndex    header_lines=20 public_methods=0  members=2
 # handful of, and the collector is already what knows when an object dies, so
 # the sweep that frees the object drops the entry.
 budget: Heap        header_lines=105 public_methods=18 members=7
-# The tree-walking interpreter. Its members are the heap, the well-known
-# objects it needs to hand out, and the shadow stacks the collector reads --
-# a tree-walker cannot scan its own C++ frames, which is one of the concrete
-# reasons a bytecode VM is worth building.
+# The tree-walking interpreter.
 #
-# Grew again by one for `Symbol.iterator`. Not a prototype, but the same
-# category of thing: a well-known cell the language requires, allocated once,
-# and a GC root. A member rather than a lookup through the global `Symbol`
-# because a page can reassign that name and the iteration protocol has to keep
-# working when it does.
+# The member count went *down* at the commit that raised these numbers, from
+# nineteen to thirteen: the seven well-known values -- the five prototypes,
+# Promise.prototype and the `Symbol.iterator` cell -- are one grouped member
+# now rather than seven loose ones. That was the budget doing its job. The old
+# shape kept the fields here and the root list in MaybeCollect, so adding one
+# and forgetting the other was a use-after-free nothing would catch until a
+# page allocated enough; `WellKnown::Roots()` is now the only list.
 #
-# The header also carries the Iteration cursor, which is state rather than a
-# member: `for...of`, spread and destructuring each hold one on the C++ stack,
-# and it is declared here because all three call OpenIteration/StepIteration.
-#
-# Grew again by one for RegExp.prototype, which is the same category: a
-# well-known object the language requires, allocated once, handed out, and
-# rooted -- forgetting the last of those is a use-after-free, which is what
-# `JsInterpreter/WellKnownPrototypesSurviveCollection` and
-# `JsInterpreter/ACompiledPatternSurvivesACollection` are there to catch.
-#
-# Grew by one for String.prototype, which is the same category as the object,
-# array and function prototypes already here: a well-known object the language
-# requires, allocated once and handed out. Every one of them is also a GC root,
-# and forgetting to list a new one there is a use-after-free -- so
-# `JsInterpreter/WellKnownPrototypesSurviveCollection` checks that the root set
-# and this list agree, for every prototype with something observable on it.
-budget: Interpreter header_lines=245 public_methods=36 members=17
+# The header is larger than before because that grouping is written out where
+# it lives, along with the microtask record. Lines here are description; the
+# member and method counts are what say whether this is becoming a god object,
+# and both have room.
+budget: Interpreter header_lines=300 public_methods=40 members=14

@@ -20,11 +20,12 @@ constexpr std::size_t kCollectionThreshold = 4096;
 Interpreter::Interpreter() {
   global_ = heap_.AllocateObject(Object::Kind::Plain);
   global_scope_ = heap_.AllocateEnvironment(nullptr);
-  object_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
-  array_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
-  function_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
-  string_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
-  regexp_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.object_prototype = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.array_prototype = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.function_prototype = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.string_prototype = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.regexp_prototype = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.promise_prototype = heap_.AllocateObject(Object::Kind::Plain);
   InstallGlobals();
 }
 
@@ -35,7 +36,7 @@ Object* Interpreter::NewObject() {
   if (object == nullptr) {
     return nullptr;  // the heap is full; the caller turns this into a RangeError
   }
-  object->SetPrototype(object_prototype_);
+  object->SetPrototype(well_known_.object_prototype);
   return object;
 }
 
@@ -58,7 +59,7 @@ Object* Interpreter::NewArray(std::vector<Value> elements, std::vector<bool> pre
   if (array == nullptr) {
     return nullptr;
   }
-  array->SetPrototype(array_prototype_);
+  array->SetPrototype(well_known_.array_prototype);
   array->SetElements(std::move(elements), std::move(present));
   return array;
 }
@@ -78,7 +79,7 @@ Value Interpreter::NewRegExpValue(RegExp pattern) {
   if (object == nullptr) {
     return Value::Undefined();
   }
-  object->SetPrototype(regexp_prototype_);
+  object->SetPrototype(well_known_.regexp_prototype);
   // Writable, and read back before every global match: a page advances a
   // stateful regex by assigning to it.
   object->Set("lastIndex", Value::Number(0.0));
@@ -106,7 +107,21 @@ Value Interpreter::MakeError(std::string_view kind, std::string message) {
     // recursing here.
     return Value::String(std::string(kind) + ": " + message);
   }
-  error->SetPrototype(object_prototype_);
+  // The prototype of the matching constructor, when there is one, so that a
+  // page's `catch (e) { if (e instanceof TypeError) }` is true of an error the
+  // *engine* threw and not only of one the page made. Falls back to the plain
+  // object prototype during startup, before the constructors exist.
+  Object* prototype = well_known_.object_prototype;
+  if (Value* constructor = global_scope_->Lookup(std::string(kind))) {
+    if (constructor->IsObject()) {
+      if (const Value* declared = constructor->object->GetOwn("prototype")) {
+        if (declared->IsObject()) {
+          prototype = declared->object;
+        }
+      }
+    }
+  }
+  error->SetPrototype(prototype);
   error->Set("name", Value::String(std::string(kind)));
   error->Set("message", Value::String(std::move(message)));
   return Value::Obj(error);
@@ -130,10 +145,17 @@ void Interpreter::MaybeCollect() {
   if (heap_.AllocationsSinceCollection() < kCollectionThreshold || call_depth_ != 0) {
     return;
   }
-  std::vector<Object*> object_roots{global_,           object_prototype_, array_prototype_,
-                                    function_prototype_, string_prototype_, regexp_prototype_,
-                                    symbol_iterator_};
+  std::vector<Object*> object_roots = well_known_.Roots();
+  object_roots.push_back(global_);
   object_roots.insert(object_roots.end(), active_objects_.begin(), active_objects_.end());
+  // A queued job is the only thing keeping its handler and its result alive.
+  for (const Microtask& task : microtasks_) {
+    for (const Value* held : {&task.callee, &task.argument, &task.derived}) {
+      if (held->IsObject() || held->IsSymbol()) {
+        object_roots.push_back(held->object);
+      }
+    }
+  }
   std::vector<Environment*> environment_roots{global_scope_};
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());
   heap_.Collect(object_roots, environment_roots);
@@ -144,7 +166,7 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
   if (function == nullptr) {
     return Value::Undefined();
   }
-  function->SetPrototype(function_prototype_);
+  function->SetPrototype(well_known_.function_prototype);
   function->MakeFunction(node.Child(0), node.Child(1), &scope, arrow);
   function->Set("name", Value::String(node.string));
   const Node* parameters = node.Child(0);
@@ -188,7 +210,7 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
     // some invented receiver -- boxing is what would make it callable, and it
     // is not worth building for a case no real page has.
     const Object::Property* method =
-        string_prototype_ == nullptr ? nullptr : string_prototype_->GetProperty(key);
+        well_known_.string_prototype == nullptr ? nullptr : well_known_.string_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (base.IsSymbol()) {
@@ -433,6 +455,10 @@ Result Interpreter::RunProgram(const Node& program) {
     }
     Result result = EvaluateStatement(*statement, *global_scope_);
     if (result.IsAbrupt()) {
+      // The queue is drained even when the script threw. A promise settled
+      // before the throw still has handlers owed to it, and dropping them
+      // would leave a page half-run rather than merely broken.
+      DrainMicrotasks();
       return result;
     }
     last = std::move(result.value);
@@ -440,6 +466,10 @@ Result Interpreter::RunProgram(const Node& program) {
     // value reachable from the roots. See the note in Heap.h.
     MaybeCollect();
   }
+  // The end of the turn, which is the only place microtasks run. See the note
+  // on DrainMicrotasks: this is a wakeup that was already happening.
+  DrainMicrotasks();
+  MaybeCollect();
   return Result::Normal(std::move(last));
 }
 

@@ -34,7 +34,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
     const Value* parent_prototype = superclass->Get("prototype");
     prototype->SetPrototype(parent_prototype != nullptr && parent_prototype->IsObject()
                                 ? parent_prototype->object
-                                : object_prototype_);
+                                : well_known_.object_prototype);
   }
 
   // The scope the methods close over holds the class binding, so a method can
@@ -68,7 +68,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
   if (constructor == nullptr) {
     return Throw("RangeError", "out of memory");
   }
-  constructor->SetPrototype(superclass != nullptr ? superclass : function_prototype_);
+  constructor->SetPrototype(superclass != nullptr ? superclass : well_known_.function_prototype);
   constructor->MakeFunction(constructor_parameters, constructor_body, class_scope, false);
   constructor->Set("name", Value::String(node.string));
   constructor->Set("prototype", Value::Obj(prototype));

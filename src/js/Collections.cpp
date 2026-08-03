@@ -399,8 +399,8 @@ void Interpreter::InstallCollections() {
   // `for...of` over a Map yields pairs and over a Set yields members, which is
   // exactly `entries` and `values`. Aliased rather than reimplemented, so the
   // two can never drift apart.
-  if (symbol_iterator_ != nullptr) {
-    const PropertyKey hook = PropertyKey::Symbol(symbol_iterator_);
+  if (well_known_.symbol_iterator != nullptr) {
+    const PropertyKey hook = PropertyKey::Symbol(well_known_.symbol_iterator);
     if (const Value* entries = map_prototype->GetOwn("entries")) {
       map_prototype->Set(hook, *entries);
     }

@@ -100,6 +100,9 @@ class Interpreter {
   // evaluates to. Public for the same reason NewArrayValue is: a builtin --
   // and the literal's evaluation -- has no other way to make one.
   Value NewRegExpValue(RegExp pattern);
+  // A pending promise. Public so the host can hand one out: a fetch that
+  // resolves later is the shape every browser API takes.
+  Value NewPromiseValue();
   // One iteration in progress.
   //
   // A cursor rather than a collected vector, because the protocol is
@@ -129,9 +132,36 @@ class Interpreter {
   // whole thing by definition, so draining is what the spec says there --
   // unlike `for...of`, which must stop asking at a `break`.
   Result CollectIterable(const Value& iterable, std::vector<Value>& out);
+  // One queued microtask.
+  //
+  // A promise reaction, or a plain job from `queueMicrotask`. The three values
+  // are held rather than a captured closure because a capture is invisible to
+  // the collector, and a queued job keeps its handler and its result alive by
+  // definition -- they are the only reason it is still queued.
+  struct Microtask {
+    // The handler. Not callable when a `then` had none for this outcome, which
+    // is how a rejection passes through a `.then(f)` untouched.
+    Value callee;
+    Value argument;
+    // The promise to settle with the handler's result. Undefined for a plain
+    // job, which has no promise behind it.
+    Value derived;
+    // Whether `argument` is a rejection reason rather than a value.
+    bool rejected = false;
+  };
+  void EnqueueMicrotask(Microtask task);
+  // Runs the queue to empty.
+  //
+  // Called at the end of a turn -- after a script, after a host-driven call --
+  // and never on a timer. That is what keeps promises inside the zero-idle-CPU
+  // invariant: a microtask exists only because something already ran, so
+  // draining costs a wakeup that was already happening and never asks for one.
+  void DrainMicrotasks();
+  bool HasPendingMicrotasks() const { return !microtasks_.empty(); }
+
   // The `Symbol.iterator` cell, so a caller can ask for the protocol hook
   // without going through the global object -- which a page can reassign.
-  Object* SymbolIterator() const { return symbol_iterator_; }
+  Object* SymbolIterator() const { return well_known_.symbol_iterator; }
 
   // The compiled pattern behind a RegExp object, or null for anything else.
   // This is what "is a regular expression" means here, and it is a stronger
@@ -204,26 +234,46 @@ class Interpreter {
   // Map and Set. After InstallIteration, because both take an iterable in
   // their constructor and both publish `Symbol.iterator`.
   void InstallCollections();
+  // Promise, and the microtask queue it settles through.
+  void InstallPromises();
+
+  // The values the language requires to exist, allocated once and handed out.
+  //
+  // One member rather than seven, and one list rather than two. Every one of
+  // these is also a GC root, and the old shape had the fields here and the
+  // roots enumerated in MaybeCollect -- so adding one and forgetting the other
+  // was a use-after-free that nothing would catch until a page allocated
+  // enough. `Roots()` is now the only list, and it cannot disagree with
+  // itself.
+  struct WellKnown {
+    Object* object_prototype = nullptr;
+    Object* array_prototype = nullptr;
+    Object* function_prototype = nullptr;
+    // Where a string's methods live, so that `"a".trim` and
+    // `String.prototype.trim` are the same function object. A string is a
+    // primitive here rather than a boxed object, so GetProperty consults this
+    // directly instead of walking a chain from a wrapper.
+    Object* string_prototype = nullptr;
+    Object* regexp_prototype = nullptr;
+    Object* promise_prototype = nullptr;
+    // Not a prototype, but the same category: the cell every iteration goes
+    // through. Held here rather than looked up through the global `Symbol`,
+    // which a page can reassign -- the protocol has to keep working when it
+    // does.
+    Object* symbol_iterator = nullptr;
+
+    std::vector<Object*> Roots() const {
+      return {object_prototype, array_prototype,  function_prototype, string_prototype,
+              regexp_prototype, promise_prototype, symbol_iterator};
+    }
+  };
 
   Heap heap_;
   Object* global_ = nullptr;
   Environment* global_scope_ = nullptr;
-  Object* array_prototype_ = nullptr;
-  Object* object_prototype_ = nullptr;
-  Object* function_prototype_ = nullptr;
-  // Where a string's methods live, so that `"a".trim` and
-  // `String.prototype.trim` are the same function object. A string is a
-  // primitive here rather than a boxed object, so the lookup in GetProperty
-  // consults this directly instead of walking a prototype chain from a wrapper.
-  Object* string_prototype_ = nullptr;
-  // Where a RegExp object's methods live. A root like every other prototype:
-  // it is reachable through the RegExp constructor too, and a page can delete
-  // that property.
-  Object* regexp_prototype_ = nullptr;
-  // The well-known symbol every iteration goes through. A member rather than a
-  // lookup through the global `Symbol`, which a page can reassign -- the
-  // protocol has to keep working when it does. A GC root like the prototypes.
-  Object* symbol_iterator_ = nullptr;
+  WellKnown well_known_;
+  // Pending jobs, oldest first. A GC root while queued.
+  std::vector<Microtask> microtasks_;
   std::vector<std::string> console_;
 
   // Every scope currently on the C++ call stack, so the collector can find

@@ -1161,6 +1161,150 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqString(js::ToString(result.value), "kept also 2", "the map outlived the collector");
   });
 
+  // --- Errors ---------------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/ErrorsHaveConstructorsAndTypes", [] {
+    ExpectEval("new Error('boom').message", "boom");
+    ExpectEval("String(new TypeError('t'))", "TypeError: t");
+    ExpectEval("String(new Error())", "Error");
+    // Callable with or without `new`, which is one of the few places the
+    // language says the two are the same.
+    ExpectEval("Error('no new').message", "no new");
+    ExpectEval("new TypeError('t') instanceof TypeError", "true");
+    ExpectEval("new TypeError('t') instanceof Error", "true");
+    ExpectEval("new Error('e') instanceof TypeError", "false");
+    // The one that matters: an error the *engine* threw is the same kind of
+    // object as one a page made, so `catch (e) { if (e instanceof TypeError) }`
+    // works on both.
+    ExpectEval("try { null.x } catch (e) { [e.name, e instanceof TypeError].join(' ') }",
+               "TypeError true");
+    ExpectEval("new Error('x', { cause: 'y' }).cause", "y");
+  });
+
+  // --- Promises and the microtask queue -------------------------------------
+
+  AddTest(tests, "JsInterpreter/APromiseSettlesAfterTheScriptThatMadeIt", [] {
+    // The defining property, and the reason a microtask queue exists at all:
+    // a handler never runs during the turn that attached it.
+    const std::vector<std::string> lines = Log(
+        "console.log('before');"
+        "Promise.resolve('value').then(v => console.log('then ' + v));"
+        "console.log('after');");
+    ExpectEqInt(static_cast<long long>(lines.size()), 3, "three lines");
+    ExpectEqString(lines[0], "before", "sync first");
+    ExpectEqString(lines[1], "after", "the rest of the script before any handler");
+    ExpectEqString(lines[2], "then value", "and the handler at the end of the turn");
+  });
+
+  AddTest(tests, "JsInterpreter/AnExecutorRunsImmediatelyButItsHandlersDoNot", [] {
+    // The half of the design a page depends on: `new Promise(r => { save = r })`
+    // only works because the executor is synchronous.
+    const std::vector<std::string> lines = Log(
+        "let settle; const p = new Promise(r => { console.log('executor'); settle = r; });"
+        "p.then(v => console.log('got ' + v));"
+        "settle(7);"
+        "console.log('sync end');");
+    ExpectEqInt(static_cast<long long>(lines.size()), 3, "three lines");
+    ExpectEqString(lines[0], "executor", "the executor ran during the constructor");
+    ExpectEqString(lines[1], "sync end", "and the handler still waited");
+    ExpectEqString(lines[2], "got 7", "for the end of the turn");
+  });
+
+  AddTest(tests, "JsInterpreter/AChainPassesValuesAndRejectionsAlong", [] {
+    ExpectEqString(Log("Promise.resolve(5).then(v => v * 2).then(v => console.log('chain ' + v))")
+                       .at(0),
+                   "chain 10", "each handler's return feeds the next");
+    // A rejection travels down the chain until something catches it, which is
+    // what a `then` with no rejection handler has to do.
+    ExpectEqString(Log("Promise.reject('no').then(() => console.log('skipped'))"
+                       ".catch(e => console.log('caught ' + e))")
+                       .at(0),
+                   "caught no", "a rejection skips the value handlers");
+    // A handler that throws rejects the promise it returns.
+    ExpectEqString(Log("Promise.resolve().then(() => { throw new Error('x') })"
+                       ".catch(e => console.log('rethrown ' + e.message))")
+                       .at(0),
+                   "rethrown x", "a throwing handler rejects its promise");
+    // `finally` observes without intercepting.
+    const std::vector<std::string> lines =
+        Log("Promise.reject('r').finally(() => console.log('finally'))"
+            ".catch(e => console.log('still ' + e))");
+    ExpectEqString(lines.at(0), "finally", "it ran");
+    ExpectEqString(lines.at(1), "still r", "and the rejection passed through it");
+  });
+
+  AddTest(tests, "JsInterpreter/APromiseOfAPromiseFlattens", [] {
+    // The resolve procedure, which is not just "fulfill". Without it a handler
+    // returning a promise hands the next one a promise instead of its value,
+    // and every chain that awaits something breaks.
+    ExpectEqString(Log("Promise.resolve(Promise.resolve('flat'))"
+                       ".then(v => console.log(v))")
+                       .at(0),
+                   "flat", "a promise resolved with a promise adopts it");
+    ExpectEqString(Log("Promise.resolve().then(() => Promise.resolve('inner'))"
+                       ".then(v => console.log(v))")
+                       .at(0),
+                   "inner", "and so does one a handler returned");
+    // Any thenable, not only a real promise.
+    ExpectEqString(Log("Promise.resolve({ then(res) { res('adopted') } })"
+                       ".then(v => console.log(v))")
+                       .at(0),
+                   "adopted", "a page's own thenable is adopted too");
+    // Resolving a promise with itself would wait forever, so it is a rejection.
+    ExpectEqString(Log("let settle; const p = new Promise(r => { settle = r }); settle(p);"
+                       "p.catch(e => console.log(e.name))")
+                       .at(0),
+                   "TypeError", "a promise cannot resolve to itself");
+  });
+
+  AddTest(tests, "JsInterpreter/TheCombinatorsDifferInWhichAnswerWins", [] {
+    ExpectEqString(Log("Promise.all([1, Promise.resolve(2), 3])"
+                       ".then(vs => console.log(vs.join('')))").at(0),
+                   "123", "all waits for every one, in order");
+    ExpectEqString(Log("Promise.all([1, Promise.reject('no')])"
+                       ".catch(e => console.log('rejected ' + e))").at(0),
+                   "rejected no", "and one rejection ends it");
+    ExpectEqString(Log("Promise.race([new Promise(() => {}), Promise.resolve('fast')])"
+                       ".then(v => console.log(v))").at(0),
+                   "fast", "race takes the first answer");
+    ExpectEqString(Log("Promise.allSettled([Promise.resolve(1), Promise.reject('e')])"
+                       ".then(rs => console.log(rs.map(r => r.status).join(',')))").at(0),
+                   "fulfilled,rejected", "allSettled reports both outcomes");
+    ExpectEqString(Log("Promise.any([Promise.reject('a'), Promise.resolve('b')])"
+                       ".then(v => console.log(v))").at(0),
+                   "b", "any takes the first success");
+    ExpectEqString(Log("Promise.any([]).catch(e => console.log(e.name))").at(0),
+                   "AggregateError", "and rejects when there is nothing to succeed");
+    ExpectEqString(Log("Promise.all([]).then(vs => console.log('empty ' + vs.length))").at(0),
+                   "empty 0", "an empty all fulfils at once");
+    // Any iterable, not only an array.
+    ExpectEqString(Log("Promise.all(new Set([1, 2])).then(vs => console.log(vs.join('')))").at(0),
+                   "12", "the combinators take any iterable");
+  });
+
+  AddTest(tests, "JsInterpreter/TheQueueIsFirstInFirstOut", [] {
+    const std::vector<std::string> lines = Log(
+        "queueMicrotask(() => console.log('one'));"
+        "Promise.resolve().then(() => console.log('two'));"
+        "queueMicrotask(() => console.log('three'));");
+    ExpectEqInt(static_cast<long long>(lines.size()), 3, "all three ran");
+    ExpectEqString(lines[0] + lines[1] + lines[2], "onetwothree", "in the order queued");
+  });
+
+  AddTest(tests, "JsInterpreter/AnEndlessMicrotaskLoopStopsInsteadOfHanging", [] {
+    // Every browser hangs on this, because the queue is drained to empty
+    // before anything else runs. Here the drain gives up and leaves the rest
+    // queued, so the window survives -- see the note on DrainMicrotasks.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(
+        "let n = 0; const loop = () => { n++; Promise.resolve().then(loop) }; loop();"
+        "'returned'");
+    Expect(!result.IsAbrupt(), "it returned at all: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "returned", "with the program's value");
+    Expect(interpreter.HasPendingMicrotasks(),
+           "and left the rest of the work queued rather than dropping it");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

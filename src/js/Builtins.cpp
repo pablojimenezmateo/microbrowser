@@ -129,7 +129,7 @@ double ParseIntPrefix(std::string_view text, int radix) {
 
 Object* Interpreter::NewNative(const char* name, NativeFunction function) {
   Object* object = heap_.AllocateObject(Object::Kind::Native);
-  object->SetPrototype(function_prototype_);
+  object->SetPrototype(well_known_.function_prototype);
   object->MakeNative(std::move(function));
   object->Set("name", Value::String(name));
   return object;
@@ -390,7 +390,7 @@ void Interpreter::InstallGlobals() {
   global_scope_->Declare("Object", Value::Obj(object_constructor), false);
 
   // --- Array prototype ------------------------------------------------------
-  install(array_prototype_, "push", [](NativeCall& call) {
+  install(well_known_.array_prototype, "push", [](NativeCall& call) {
     if (!call.self.IsObject() || call.self.object->GetKind() != Object::Kind::Array) {
       return Value::Undefined();
     }
@@ -399,13 +399,13 @@ void Interpreter::InstallGlobals() {
     }
     return Value::Number(static_cast<double>(call.self.object->ElementCount()));
   });
-  install(array_prototype_, "pop", [](NativeCall& call) {
+  install(well_known_.array_prototype, "pop", [](NativeCall& call) {
     if (!call.self.IsObject() || call.self.object->ElementCount() == 0) {
       return Value::Undefined();
     }
     return call.self.object->PopElement();
   });
-  install(array_prototype_, "join", [](NativeCall& call) {
+  install(well_known_.array_prototype, "join", [](NativeCall& call) {
     if (!call.self.IsObject()) {
       return Value::String("");
     }
@@ -424,7 +424,7 @@ void Interpreter::InstallGlobals() {
     }
     return Value::String(std::move(joined));
   });
-  install(array_prototype_, "indexOf", [](NativeCall& call) {
+  install(well_known_.array_prototype, "indexOf", [](NativeCall& call) {
     if (!call.self.IsObject()) {
       return Value::Number(-1);
     }
@@ -437,7 +437,7 @@ void Interpreter::InstallGlobals() {
     }
     return Value::Number(-1);
   });
-  install(array_prototype_, "includes", [](NativeCall& call) {
+  install(well_known_.array_prototype, "includes", [](NativeCall& call) {
     if (!call.self.IsObject()) {
       return Value::Bool(false);
     }
@@ -449,7 +449,7 @@ void Interpreter::InstallGlobals() {
     }
     return Value::Bool(false);
   });
-  install(array_prototype_, "slice", [](NativeCall& call) {
+  install(well_known_.array_prototype, "slice", [](NativeCall& call) {
     std::vector<Value> out;
     std::vector<bool> present;
     if (call.self.IsObject()) {
@@ -468,7 +468,7 @@ void Interpreter::InstallGlobals() {
     }
     return call.interpreter.NewArrayValue(std::move(out), std::move(present));
   });
-  install(array_prototype_, "map", [](NativeCall& call) {
+  install(well_known_.array_prototype, "map", [](NativeCall& call) {
     std::vector<Value> out;
     std::vector<bool> present;
     if (call.self.IsObject()) {
@@ -491,7 +491,7 @@ void Interpreter::InstallGlobals() {
     }
     return call.interpreter.NewArrayValue(std::move(out), std::move(present));
   });
-  install(array_prototype_, "filter", [](NativeCall& call) {
+  install(well_known_.array_prototype, "filter", [](NativeCall& call) {
     std::vector<Value> out;
     if (call.self.IsObject()) {
       const Value callback = Argument(call.arguments, 0);
@@ -513,7 +513,7 @@ void Interpreter::InstallGlobals() {
     }
     return call.interpreter.NewArrayValue(std::move(out));
   });
-  install(array_prototype_, "reduce", [](NativeCall& call) {
+  install(well_known_.array_prototype, "reduce", [](NativeCall& call) {
     if (!call.self.IsObject()) {
       return Value::Undefined();
     }
@@ -548,6 +548,67 @@ void Interpreter::InstallGlobals() {
     return accumulator;
   });
 
+  // --- Errors ---------------------------------------------------------------
+  // `new Error('x')` is how a page raises one, and until now there was no
+  // constructor to call: errors existed only as the things the engine threw.
+  // Each kind gets its own so that `e instanceof TypeError` has something to
+  // be true of, and so a caught error prints as the kind it is.
+  Object* error_prototype = NewObject();
+  const auto error_kind = [this, error_prototype](const char* name) {
+    Object* prototype = name == std::string_view("Error") ? error_prototype : NewObject();
+    if (prototype == nullptr) {
+      return;
+    }
+    if (prototype != error_prototype) {
+      prototype->SetPrototype(error_prototype);
+    }
+    prototype->Set("name", Value::String(name));
+    Object* constructor = NewNative(name, [](NativeCall& call) {
+      // Callable with or without `new`: `Error('x')` and `new Error('x')` are
+      // the same thing, which is one of the few places the language says so.
+      Object* error = call.interpreter.GetHeap().AllocateObject(Object::Kind::Error);
+      if (error == nullptr) {
+        return call.Throw("RangeError", "out of memory");
+      }
+      const Value* prototype_value =
+          call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
+      if (prototype_value != nullptr && prototype_value->IsObject()) {
+        error->SetPrototype(prototype_value->object);
+      }
+      const Value message = Argument(call.arguments, 0);
+      if (!message.IsUndefined()) {
+        error->Set("message", Value::String(ToString(message)));
+      }
+      const Value options = Argument(call.arguments, 1);
+      if (options.IsObject()) {
+        if (const Value* cause = options.object->GetOwn("cause")) {
+          error->Set("cause", *cause);
+        }
+      }
+      return Value::Obj(error);
+    });
+    if (constructor == nullptr) {
+      return;
+    }
+    constructor->Set("prototype", Value::Obj(prototype));
+    prototype->Set("constructor", Value::Obj(constructor));
+    global_scope_->Declare(name, Value::Obj(constructor), false);
+  };
+  if (error_prototype != nullptr) {
+    error_prototype->Set("message", Value::String(""));
+    install(error_prototype, "toString", [](NativeCall& call) {
+      return Value::String(ToString(call.self));
+    });
+    error_kind("Error");
+    error_kind("TypeError");
+    error_kind("RangeError");
+    error_kind("SyntaxError");
+    error_kind("ReferenceError");
+    error_kind("EvalError");
+    error_kind("URIError");
+    error_kind("AggregateError");
+  }
+
   // --- String and number conversions ---------------------------------------
   Object* string_constructor = native("String", [](NativeCall& call) {
     // `String()` with no argument is the empty string, not "undefined". Every
@@ -562,6 +623,7 @@ void Interpreter::InstallGlobals() {
   // After both prototypes exist: the iteration hooks are installed on them.
   InstallIteration();
   InstallCollections();
+  InstallPromises();
   global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {

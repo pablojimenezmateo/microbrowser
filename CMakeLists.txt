@@ -299,6 +299,7 @@ microbrowser_module(js
     src/js/Classes.cpp
     src/js/Collections.cpp
     src/js/Iteration.cpp
+    src/js/Promises.cpp
     src/js/RegExp.cpp
     src/js/RegExpBuiltins.cpp
     src/js/RegExpMatcher.cpp

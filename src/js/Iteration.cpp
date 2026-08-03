@@ -87,7 +87,7 @@ void Interpreter::InstallIteration() {
     constructor->Set(name, Value::Sym(cell));
     return cell;
   };
-  symbol_iterator_ = well_known("iterator");
+  well_known_.symbol_iterator = well_known("iterator");
   well_known("asyncIterator");
   well_known("hasInstance");
   well_known("toPrimitive");
@@ -141,10 +141,10 @@ void Interpreter::InstallIteration() {
   });
   global_scope_->Declare("Symbol", Value::Obj(constructor), false);
 
-  if (symbol_iterator_ == nullptr) {
+  if (well_known_.symbol_iterator == nullptr) {
     return;
   }
-  const PropertyKey iterator_key = PropertyKey::Symbol(symbol_iterator_);
+  const PropertyKey iterator_key = PropertyKey::Symbol(well_known_.symbol_iterator);
 
   // An iterator over something indexable. The array and string iterators
   // differ only in what they read out of the target, so they share this.
@@ -198,8 +198,8 @@ void Interpreter::InstallIteration() {
       target->Set(iterator_key, Value::Obj(hook));
     }
   };
-  install_iterator_hook(array_prototype_, false);
-  install_iterator_hook(string_prototype_, true);
+  install_iterator_hook(well_known_.array_prototype, false);
+  install_iterator_hook(well_known_.string_prototype, true);
 }
 
 // --- The protocol ----------------------------------------------------------
@@ -209,10 +209,10 @@ Result Interpreter::OpenIteration(const Value& iterable, Iteration& state) {
   if (iterable.IsNullish()) {
     return Throw("TypeError", ToString(iterable) + " is not iterable");
   }
-  if (symbol_iterator_ == nullptr) {
+  if (well_known_.symbol_iterator == nullptr) {
     return Throw("TypeError", "the iteration protocol is unavailable");
   }
-  const PropertyKey iterator_key = PropertyKey::Symbol(symbol_iterator_);
+  const PropertyKey iterator_key = PropertyKey::Symbol(well_known_.symbol_iterator);
 
   // The fast path, taken only when the object's hook is still the built-in
   // one. A page that replaces `Array.prototype[Symbol.iterator]` gets the
@@ -220,7 +220,7 @@ Result Interpreter::OpenIteration(const Value& iterable, Iteration& state) {
   if (iterable.IsObject() && iterable.object->GetKind() == Object::Kind::Array) {
     const Object::Property* found = iterable.object->GetProperty(iterator_key);
     const Object::Property* builtin =
-        array_prototype_ == nullptr ? nullptr : array_prototype_->GetOwnProperty(iterator_key);
+        well_known_.array_prototype == nullptr ? nullptr : well_known_.array_prototype->GetOwnProperty(iterator_key);
     if (found != nullptr && builtin != nullptr && !found->IsAccessor() &&
         !builtin->IsAccessor() && StrictEquals(found->value, builtin->value)) {
       state.array = iterable.object;
