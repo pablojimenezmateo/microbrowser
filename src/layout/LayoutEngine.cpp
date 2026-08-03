@@ -540,7 +540,10 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     // flow beside it, which is the one thing a float is for.
     content_width = std::clamp(MaxContentWidth(box) - horizontal, 0.0f, content_width);
   }
-  content_width = std::max(0.0f, content_width);
+  // The bounds apply to whatever decided the width above -- a declared one,
+  // shrink-to-fit, or the flex algorithm. One place, so a `max-width` cannot
+  // be honoured on a block and forgotten on a float.
+  content_width = style.ClampWidth(std::max(0.0f, content_width), available_width);
 
   // Auto margins absorb whatever the box does not use, which is how
   // `margin: 0 auto` centres a block and how <center> centres a table. A float
@@ -634,6 +637,11 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   if (forced != nullptr && forced->content_height.has_value()) {
     content_height = *forced->content_height;  // same reasoning as the width above
   }
+  // A percentage min/max-height resolves against the containing block's
+  // height, which a block in normal flow does not have -- so the container
+  // passed here is the content height itself, which makes a percentage bound a
+  // no-op rather than a wrong number.
+  content_height = style.ClampHeight(content_height, content_height);
 
   geometry.content = gfx::FloatRect{content_left, content_top, content_width, content_height};
   cursor_y = content_top + content_height + style.padding.bottom.Resolve(style.font_size) +

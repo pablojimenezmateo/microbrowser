@@ -23,6 +23,12 @@ budget: Length           header_lines=35 public_methods=10 members=2
 # struct and would have said nothing about belonging together; grouped, the
 # member count went up by one and the header by the description of what the
 # container reads and what the item reads.
-budget: ComputedStyle    header_lines=110 public_methods=14 members=23
+# A property bag, and it grows one member per CSS property this engine
+# supports -- which is the point of it. The member count is therefore a measure
+# of coverage rather than of design, and the numbers that say whether this is
+# becoming something other than a property bag are the method count and whether
+# any group of fields is large enough to want a struct of its own. Two already
+# do: `background` and `flex`.
+budget: ComputedStyle    header_lines=140 public_methods=18 members=28
 budget: FlexStyle        header_lines=50  public_methods=2  members=12
 budget: StyleResolver    header_lines=60 public_methods=12 members=2

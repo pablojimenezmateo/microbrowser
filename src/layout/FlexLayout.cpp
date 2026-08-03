@@ -224,7 +224,15 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
       LayoutBlock(*item.box, content_left, cross_size, probe, floats);
       item.base_main = probe;
     }
-    item.base_main = std::max(0.0f, item.base_main);
+    // Clamped as an *outer* size, which is what the rest of the algorithm
+    // distributes: the bound is on the content box, so the extras go back on
+    // afterwards. Clamped again after flexing, in the loop that resolves the
+    // lengths -- this is the bound on the *base* size, which is what an item
+    // starts from.
+    const float bounded = row ? item_style.ClampWidth(item.base_main - item.main_extra, main_size)
+                              : item_style.ClampHeight(item.base_main - item.main_extra,
+                                                       item.base_main - item.main_extra);
+    item.base_main = std::max(0.0f, bounded + item.main_extra);
     item.outer_main = item.base_main;
   }
 
@@ -257,34 +265,65 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
 
   for (const Line& line : lines) {
     const auto count = static_cast<float>(line.end - line.begin);
-    float total_base = std::max(0.0f, count - 1.0f) * main_gap;
-    float total_grow = 0.0f;
-    float total_weighted_shrink = 0.0f;
-    for (std::size_t i = line.begin; i < line.end; ++i) {
-      total_base += items[i].outer_main;
-      total_grow += items[i].box->Style().flex.grow;
-      total_weighted_shrink += items[i].box->Style().flex.shrink * items[i].base_main;
-    }
-    // A column container with an auto height has no main size to flex against,
-    // so nothing grows or shrinks -- there is no "free space" to speak of.
+    const float gaps = std::max(0.0f, count - 1.0f) * main_gap;
+    // A column container with an auto height has no main size to flex
+    // against, so nothing grows or shrinks -- there is no free space to speak
+    // of.
     if (!row || main_size <= 0.0f) {
       continue;
     }
-    const float free_space = main_size - total_base;
-    if (free_space > 0.0f && total_grow > 0.0f) {
+
+    // Freeze and redistribute, which is the part of the spec that is easy to
+    // leave out and visible when it is. An item that hits a bound stops
+    // flexing, and the space it did not take is shared out again among the
+    // ones still able to move. Without the loop, a `flex: 1` item beside a
+    // capped sibling stops halfway and leaves a gap -- which is exactly what
+    // a broken flex row looks like.
+    //
+    // Bounded by the item count: every round freezes at least one item, or it
+    // is the last round.
+    std::vector<bool> frozen(items.size(), false);
+    for (std::size_t round = 0; round <= line.end - line.begin; ++round) {
+      float taken = gaps;
+      float total_grow = 0.0f;
+      float total_weighted_shrink = 0.0f;
       for (std::size_t i = line.begin; i < line.end; ++i) {
-        items[i].outer_main +=
-            free_space * items[i].box->Style().flex.grow / total_grow;
+        taken += items[i].outer_main;
+        if (frozen[i]) {
+          continue;
+        }
+        total_grow += items[i].box->Style().flex.grow;
+        total_weighted_shrink += items[i].box->Style().flex.shrink * items[i].base_main;
       }
-    } else if (free_space < 0.0f && total_weighted_shrink > 0.0f) {
-      // Shrinking is weighted by base size as well as by factor: a large item
-      // gives up more than a small one with the same `flex-shrink`, which is
-      // what keeps a long label from collapsing to nothing beside a short one.
+      const float free_space = main_size - taken;
+      const bool growing = free_space > 0.0f;
+      const float total = growing ? total_grow : total_weighted_shrink;
+      if (free_space == 0.0f || total <= 0.0f) {
+        break;
+      }
+
+      bool froze_any = false;
       for (std::size_t i = line.begin; i < line.end; ++i) {
-        const float share = items[i].box->Style().flex.shrink * items[i].base_main /
-                            total_weighted_shrink;
-        items[i].outer_main = std::max(items[i].main_extra, items[i].outer_main +
-                                                                free_space * share);
+        if (frozen[i]) {
+          continue;
+        }
+        Item& item = items[i];
+        const css::ComputedStyle& item_style = item.box->Style();
+        const float share = growing ? item_style.flex.grow / total
+                                    : item_style.flex.shrink * item.base_main / total;
+        const float wanted = std::max(item.main_extra, item.outer_main + free_space * share);
+        const float allowed =
+            item_style.ClampWidth(wanted - item.main_extra, main_size) + item.main_extra;
+        item.outer_main = allowed;
+        // A bound that bit is what freezes the item: it cannot take any more
+        // of the space, so the next round shares what is left without it.
+        if (allowed != wanted) {
+          frozen[i] = true;
+          froze_any = true;
+        }
+      }
+      if (!froze_any) {
+        break;  // everything moved freely, so the space is fully distributed
       }
     }
   }

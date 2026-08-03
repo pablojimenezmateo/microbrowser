@@ -197,6 +197,7 @@ microbrowser_module(dom
 
 microbrowser_module(css
   SOURCES
+    src/css/BoxDeclarations.cpp
     src/css/Declarations.cpp
     src/css/StyleResolver.cpp
     src/css/StyleSheet.cpp

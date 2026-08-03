@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -175,6 +176,29 @@ struct ComputedStyle {
 
   Length width = Length::Auto();
   Length height = Length::Auto();
+  // The bounds on the two above. A minimum of zero and a maximum of `auto`
+  // are the initial values, and `auto` here reads as "none" -- the property
+  // spells it that way and Length has no separate word for it, so the one
+  // meaning "unbounded" is reused rather than a fifth unit added for it.
+  Length min_width = Length::Pixels(0.0f);
+  Length max_width = Length::Auto();
+  Length min_height = Length::Pixels(0.0f);
+  Length max_height = Length::Auto();
+
+  // A used size, clamped by its bounds. Applied after a size is decided by
+  // whatever decided it -- the block model, shrink-to-fit, or the flex
+  // algorithm -- which is what lets one rule serve all three.
+  //
+  // Maximum first, then minimum, in that order: the spec resolves the two that
+  // way and it is observable when they contradict each other. A `min-width`
+  // larger than a `max-width` wins, and a page that writes both means the
+  // minimum.
+  float ClampWidth(float used, float container) const {
+    return ClampBy(used, min_width, max_width, container);
+  }
+  float ClampHeight(float used, float container) const {
+    return ClampBy(used, min_height, max_height, container);
+  }
 
   // The flex properties, grouped.
   //
@@ -209,6 +233,23 @@ struct ComputedStyle {
 
   bool IsFloating() const { return css_float != Float::None; }
 
+ private:
+  float ClampBy(float used, const Length& low, const Length& high, float container) const {
+    const auto resolve = [this, container](const Length& length) {
+      return length.IsPercent() ? container * length.value / 100.0f
+                                : length.Resolve(font_size, container);
+    };
+    if (!high.IsAuto()) {
+      used = std::min(used, resolve(high));
+    }
+    if (!low.IsAuto()) {
+      used = std::max(used, resolve(low));
+    }
+    return std::max(0.0f, used);
+  }
+
+ public:
+
   bool IsInlineLevel() const {
     // A float is block-level whatever it was declared as: `float: left` on a
     // span makes it a block, per CSS 2.1 s9.7. Answering that here rather than
@@ -235,5 +276,15 @@ std::optional<gfx::Color> ParseColor(std::string_view text);
 
 // Parses a length. Nullopt when the text is not one.
 std::optional<Length> ParseLength(std::string_view text);
+
+// The flex properties and the sizing bounds. True when `property` was one of
+// them, whether or not its value was usable -- an unusable value is a dropped
+// declaration, not an unrecognized property.
+//
+// Separate from ApplyDeclaration because Declarations.cpp is at its module's
+// line cap, and the cap means a missing translation unit rather than a bigger
+// file.
+bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
+                         const ComputedStyle& parent, ComputedStyle& style);
 
 }  // namespace microbrowser::css

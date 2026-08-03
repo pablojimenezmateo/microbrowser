@@ -253,6 +253,51 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
            "and it sits after the anonymous item holding the text");
   });
 
+  AddTest(tests, "Flex/MinAndMaxBoundTheResolvedLength", [] {
+    // Growing stops at `max-width`, which is what keeps a `flex: 1` column
+    // from stretching a control across a wide window.
+    const Flexed capped = Run(
+        "<div class=flex><p id=a>a</p><p id=b>b</p></div>",
+        std::string(kReset) + "p { flex: 1 } #a { max-width: 60px }");
+    // And the ninety it could not take is handed to its sibling rather than
+    // left as a gap -- which is what the freeze-and-redistribute loop is for.
+    ExpectEqString(Horizontal(*capped.root, "p"), "0,60 60,240",
+                   "the capped item stops growing and passes the rest on");
+
+    // Shrinking stops at `min-width`, which is what stops a label collapsing.
+    const Flexed floored = Run(
+        "<div class=flex><p id=a>a</p><p id=b>b</p></div>",
+        std::string(kReset) +
+            "#a { flex-basis: 300px; min-width: 250px } #b { flex-basis: 100px }");
+    // Bases of 300 and 100 overflow by 100. The first would give up 75, but
+    // its floor stops it at 250 -- so it freezes having given up only 50, and
+    // the other 50 comes off the second. The redistribution is why this is 50
+    // and not 75.
+    ExpectEqString(Horizontal(*floored.root, "p"), "0,250 250,50",
+                   "the floored item stops shrinking and the rest comes off its sibling");
+  });
+
+  AddTest(tests, "Flex/AMinimumBeatsAMaximumWhenTheyContradict", [] {
+    // The spec resolves the maximum first and then the minimum, so a page that
+    // writes both means the minimum. Observable only when they contradict, and
+    // silently wrong the other way round.
+    const Flexed result = Run("<div class=flex><p>a</p></div>",
+                              std::string(kReset) + "p { width: 10px; min-width: 200px; "
+                                                    "max-width: 100px }");
+    ExpectEqString(Horizontal(*result.root, "p"), "0,200", "the minimum wins");
+  });
+
+  AddTest(tests, "Flex/BoundsApplyToOrdinaryBlocksToo", [] {
+    // Not a flex rule: the clamp is applied wherever a used width is decided,
+    // so a plain block honours it as well.
+    const Flexed result = Run("<div id=wide></div>",
+                              "body, div { margin: 0 } #wide { max-width: 120px }");
+    const std::vector<const Box*> blocks = Items(*result.root, "div");
+    Expect(blocks.size() == 1, "one block");
+    ExpectEqInt(static_cast<long long>(blocks[0]->Geometry().content.width + 0.5f), 120,
+                "a block wider than its maximum is clamped");
+  });
+
   AddTest(tests, "Flex/AContainerIsAsTallAsItsLines", [] {
     const Flexed result = Run(
         "<div class=flex><p>a</p><p>b</p><p>c</p></div>",
