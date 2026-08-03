@@ -17,6 +17,7 @@ namespace microbrowser::js {
 
 class Environment;
 class Interpreter;
+class RegExp;
 
 std::optional<std::size_t> ParseArrayIndex(std::string_view key);
 
@@ -61,7 +62,7 @@ using NativeFunction = std::function<Value(NativeCall&)>;
 // lookup starts with a downcast.
 class Object {
  public:
-  enum class Kind : std::uint8_t { Plain, Array, Function, Native, Error };
+  enum class Kind : std::uint8_t { Plain, Array, Function, Native, Error, RegExp };
 
   explicit Object(Kind kind) : kind_(kind) {}
 
@@ -232,6 +233,16 @@ class Heap {
   std::size_t Collect(const std::vector<Object*>& object_roots,
                       const std::vector<Environment*>& environment_roots);
 
+  // A compiled pattern belonging to a RegExp object.
+  //
+  // Kept beside the object rather than in it. Every JavaScript object would
+  // otherwise carry a pointer for a kind of object a page makes a handful of,
+  // and the collector is already the thing that knows when an object dies --
+  // so the entry is dropped by the same sweep that frees it, rather than by a
+  // second lifetime story that could disagree.
+  void AttachRegExp(const Object* object, std::shared_ptr<const RegExp> pattern);
+  const RegExp* FindRegExp(const Object* object) const;
+
   // A ceiling on live cells.
   //
   // Needed because the collector cannot run during evaluation -- see the note
@@ -258,6 +269,8 @@ class Heap {
 
   std::vector<std::unique_ptr<Object>> objects_;
   std::vector<std::unique_ptr<Environment>> environments_;
+  // Sparse: one entry per RegExp object alive, not one slot per object.
+  std::unordered_map<const Object*, std::shared_ptr<const RegExp>> regexps_;
   std::size_t since_collection_ = 0;
   // Around 150 MB here, which is far more than any page legitimately needs and
   // far less than the machine has. Measured rather than guessed: the fuzzer's

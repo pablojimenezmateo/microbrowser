@@ -298,6 +298,7 @@ microbrowser_module(js
     src/js/TemplateParts.cpp
     src/js/Classes.cpp
     src/js/RegExp.cpp
+    src/js/RegExpBuiltins.cpp
     src/js/RegExpMatcher.cpp
   DEPS microbrowser_util)
 

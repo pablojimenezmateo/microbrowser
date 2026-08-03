@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "js/RegExp.h"
+
 namespace microbrowser::js {
 
 namespace {
@@ -215,6 +217,15 @@ bool Environment::Assign(std::string_view name, const Value& value) {
 
 Heap::~Heap() = default;
 
+void Heap::AttachRegExp(const Object* object, std::shared_ptr<const RegExp> pattern) {
+  regexps_[object] = std::move(pattern);
+}
+
+const RegExp* Heap::FindRegExp(const Object* object) const {
+  const auto found = regexps_.find(object);
+  return found == regexps_.end() ? nullptr : found->second.get();
+}
+
 Object* Heap::AllocateObject(Object::Kind kind) {
   if (AtLimit()) {
     return nullptr;
@@ -307,6 +318,16 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
   }
 
   const std::size_t before = objects_.size() + environments_.size();
+  // Before the objects go, so the side table never holds a key that has been
+  // freed -- a stale entry would be handed out as a compiled pattern the next
+  // time an object happened to be allocated at the same address.
+  if (!regexps_.empty()) {
+    for (const std::unique_ptr<Object>& object : objects_) {
+      if (!object->marked_) {
+        regexps_.erase(object.get());
+      }
+    }
+  }
   objects_.erase(std::remove_if(objects_.begin(), objects_.end(),
                                 [](const std::unique_ptr<Object>& object) {
                                   return !object->marked_;

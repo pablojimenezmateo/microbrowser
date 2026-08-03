@@ -8,6 +8,7 @@
 #include "js/Ast.h"
 #include "js/Heap.h"
 #include "js/Parser.h"
+#include "js/RegExp.h"
 #include "js/Value.h"
 
 namespace microbrowser::js {
@@ -87,6 +88,19 @@ class Interpreter {
   // ordinary value rather than as a second failure channel.
   Value NewArrayValue(std::vector<Value> elements);
   Value NewArrayValue(std::vector<Value> elements, std::vector<bool> present);
+  // A plain object, for a builtin that has to return a record rather than a
+  // list -- a match's named groups being the first of them.
+  Value NewObjectValue();
+
+  // Wraps a compiled pattern as the JavaScript object a regex literal
+  // evaluates to. Public for the same reason NewArrayValue is: a builtin --
+  // and the literal's evaluation -- has no other way to make one.
+  Value NewRegExpValue(RegExp pattern);
+  // The compiled pattern behind a RegExp object, or null for anything else.
+  // This is what "is a regular expression" means here, and it is a stronger
+  // question than looking for a `source` property: an ordinary object cannot
+  // answer yes to it.
+  const RegExp* RegExpOf(const Value& value) const;
 
  private:
   friend struct NativeCall;
@@ -130,6 +144,11 @@ class Interpreter {
   // group of builtins and Builtins.cpp is already near the module's TU limit.
   void InstallStringPrototype(Object* string_constructor);
   void InstallFunctionPrototype();
+  // RegExp.prototype and the regex-aware String methods, in their own
+  // translation unit: they are one feature, and splitting them across the two
+  // files that already exist would put the pattern-matching logic in the file
+  // whose whole point is that it has none.
+  void InstallRegExpPrototype();
 
   Heap heap_;
   Object* global_ = nullptr;
@@ -142,6 +161,10 @@ class Interpreter {
   // primitive here rather than a boxed object, so the lookup in GetProperty
   // consults this directly instead of walking a prototype chain from a wrapper.
   Object* string_prototype_ = nullptr;
+  // Where a RegExp object's methods live. A root like every other prototype:
+  // it is reachable through the RegExp constructor too, and a page can delete
+  // that property.
+  Object* regexp_prototype_ = nullptr;
   std::vector<std::string> console_;
 
   // Every scope currently on the C++ call stack, so the collector can find

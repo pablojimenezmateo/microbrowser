@@ -863,6 +863,118 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                    "the string and array prototypes outlived the collector");
   });
 
+  // --- Regular expressions, as the language sees them ------------------------
+
+  AddTest(tests, "JsInterpreter/ARegExpLiteralIsAPatternRatherThanItsOwnText", [] {
+    // The whole point of the engine landing: before it, every one of these
+    // evaluated to the source text of the literal, and `test` did not exist.
+    ExpectEval("typeof /a/", "object");
+    ExpectEval("String(/ab+c/gi)", "/ab+c/gi");
+    ExpectEval("/\\d+/.test('abc123')", "true");
+    ExpectEval("/\\d+/.test('abc')", "false");
+    ExpectEval("/a/.source + ' ' + /a/gi.flags", "a gi");
+    ExpectEval("/(?:)/.source", "(?:)");
+    ExpectEval("/a/g.global + ' ' + /a/.global", "true false");
+  });
+
+  AddTest(tests, "JsInterpreter/ExecReportsWhereEachGroupLanded", [] {
+    ExpectEval("/(\\d)(\\d)/.exec('ab12')[2]", "2");
+    ExpectEval("/(\\d)(\\d)/.exec('ab12').index", "2");
+    ExpectEval("/(\\d)(\\d)/.exec('ab12').input", "ab12");
+    ExpectEval("/x/.exec('ab') === null", "true");
+    // A branch not taken leaves its group undefined, which is what a page
+    // tests for.
+    ExpectEval("typeof /(a)|(b)/.exec('b')[1]", "undefined");
+    ExpectEval("/(?<y>\\d{4})-(?<m>\\d{2})/.exec('2026-08').groups.m", "08");
+  });
+
+  AddTest(tests, "JsInterpreter/AGlobalRegExpCarriesItsPositionInLastIndex", [] {
+    // `g` makes a regex stateful, and the state is a property a page reads,
+    // writes, and trips over.
+    ExpectEval("const r = /a/g; [r.test('aa'), r.lastIndex, r.test('aa'), r.test('aa')].join(' ')",
+               "true 1 true false");
+    ExpectEval("const r = /a/g; r.test('aa'); r.lastIndex = 0; r.test('aa')", "true");
+    ExpectEval("const r = /a/; [r.test('aa'), r.lastIndex].join(' ')", "true 0");
+  });
+
+  AddTest(tests, "JsInterpreter/StringMethodsTakeAPatternAsWellAsAString", [] {
+    ExpectEval("'a1b2'.replace(/\\d/g, '#')", "a#b#");
+    ExpectEval("'a1b2'.replace(/\\d/, '#')", "a#b2");
+    ExpectEval("'2026-08-03'.replace(/(\\d+)-(\\d+)-(\\d+)/, '$3/$2/$1')", "03/08/2026");
+    ExpectEval("'2026-08'.replace(/(?<y>\\d+)-(?<m>\\d+)/, '$<m> of $<y>')", "08 of 2026");
+    ExpectEval("'aBcD'.replace(/[A-Z]/g, c => '_' + c.toLowerCase())", "a_bc_d");
+    ExpectEval("'  a  b '.trim().split(/\\s+/).join('|')", "a|b");
+    // A separator's captures join the result, which is what makes this five
+    // pieces rather than three.
+    ExpectEval("'a1b22c'.split(/(\\d+)/).join('|')", "a|1|b|22|c");
+    ExpectEval("'axb'.search(/b/) + ' ' + 'axb'.search(/q/)", "2 -1");
+    ExpectEval("'aaa'.match(/a/g).length", "3");
+    ExpectEval("'ab12'.match(/(\\d)(\\d)/)[1]", "1");
+    ExpectEval("'a1b2'.matchAll(/\\d/g).length", "2");
+    // A pattern handed to matchAll must be global, and the spec makes that a
+    // TypeError rather than an implicit `g`: the two readings of
+    // `s.matchAll(/x/)` differ by an infinite loop.
+    ExpectEval("try { 'a'.matchAll(/a/) } catch (e) { e.name }", "TypeError");
+  });
+
+  AddTest(tests, "JsInterpreter/WhichMethodsConvertAStringToAPatternAndWhichDoNot", [] {
+    // The two rules genuinely differ, and getting them the wrong way round is
+    // silently wrong rather than an error. `match` converts, so its `.` means
+    // any character; `replace` and `split` do not, so theirs means a dot.
+    ExpectEval("'a.c'.match('.')[0]", "a");
+    ExpectEval("'a.c'.replace('.', '-')", "a-c");
+    ExpectEval("'a.c'.replace(/./, '-')", "-.c");
+    ExpectEval("'a.b.c'.split('.').length", "3");
+    ExpectEval("'axc'.search('x')", "1");
+    // A converted pattern is global, because matchAll requires one.
+    ExpectEval("'a1b2'.matchAll('\\\\d').length", "2");
+    // `match` with no argument matches the empty pattern at position 0 rather
+    // than failing, which is what makes `''.match()` an empty match.
+    ExpectEval("'abc'.match().index", "0");
+  });
+
+  AddTest(tests, "JsInterpreter/TheRegExpConstructorCompilesAtRuntime", [] {
+    ExpectEval("new RegExp('a+', 'i').test('AAA')", "true");
+    // Copying a pattern keeps its flags, unless new ones are given.
+    ExpectEval("new RegExp(/b/g).flags", "g");
+    ExpectEval("new RegExp(/b/g, 'i').flags", "i");
+    ExpectEval("RegExp('x').test('x')", "true");
+    ExpectEval("try { new RegExp('('); } catch (e) { e.name }", "SyntaxError");
+    ExpectEval("try { new RegExp('a', 'q'); } catch (e) { e.name }", "SyntaxError");
+    // And compiling a pattern at runtime is still not a path from a string to
+    // running code -- there is no `eval`, and a test elsewhere says so.
+    ExpectEval("try { eval; } catch (e) { e.name }", "ReferenceError");
+  });
+
+  AddTest(tests, "JsInterpreter/AMalformedLiteralIsRefusedRatherThanMatchingNothing", [] {
+    // Two different refusals, at two different times. An unterminated literal
+    // never reaches the pattern compiler: the lexer cannot find where it ends,
+    // so the whole program is a syntax error -- which is what a real engine
+    // does too, and why the `try` around it does not catch anything.
+    ExpectEval("try { /[a/.test('a') } catch (e) { e.name }",
+               "throw SyntaxError: unterminated regular expression (line 1)");
+    // A literal whose extent *is* clear but whose pattern is not compiles at
+    // evaluation, so this one is catchable. A real engine reports it earlier;
+    // the difference is when, not whether.
+    ExpectEval("try { /(/.test('a') } catch (e) { e.name }", "SyntaxError");
+  });
+
+  AddTest(tests, "JsInterpreter/ACompiledPatternSurvivesACollection", [] {
+    // The compiled pattern lives beside the object, in a table the collector
+    // prunes. If the sweep dropped an entry for a live object, every match
+    // after the next collection would fail; if it kept one for a dead object,
+    // a later allocation at the same address would inherit it.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(R"(
+      const keep = /(\d+)/;
+      let sink = null;
+      for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }
+      keep.exec('n42')[1]
+    )");
+    Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "42", "the pattern outlived the collector");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

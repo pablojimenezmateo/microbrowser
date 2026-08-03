@@ -190,6 +190,14 @@ std::string ToString(const Value& value) {
         }
         return out;
       }
+      if (value.object->GetKind() == Object::Kind::RegExp) {
+        // `/source/flags`, which is a literal that parses back to the same
+        // pattern. Same reasoning as Error above: printing tells the truth.
+        const Value* source = value.object->Get("source");
+        const Value* flags = value.object->Get("flags");
+        return "/" + (source == nullptr ? std::string("(?:)") : ToString(*source)) + "/" +
+               (flags == nullptr ? std::string() : ToString(*flags));
+      }
       if (value.object->IsCallable()) {
         return "function";
       }

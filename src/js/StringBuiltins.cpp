@@ -9,6 +9,7 @@
 
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
+#include "js/RegExpSupport.h"
 #include "util/StringUtil.h"
 
 // String.prototype.
@@ -29,11 +30,11 @@
 // that came first: `s.charCodeAt(i)` and `s[i]` agree, and `fromCharCode`
 // inverts `charCodeAt` exactly.
 //
-// There is no regular expression engine, so `split`, `replace` and `replaceAll`
-// take string patterns only. A regex argument reaches them as its own source
-// text -- which is what a regex literal currently evaluates to -- and matches
-// literally. That is wrong, but it is wrong in a way that shows up as a failed
-// match rather than as a silently different result.
+// `split`, `replace` and `replaceAll` each accept a pattern as well as a
+// string. The pattern branch is in RegExpBuiltins.cpp and reached through
+// RegExpSupport.h: what the two forms share is the method name and nothing
+// else, and capture-group substitution does not belong in the file whose
+// defining property is that it does no matching.
 
 namespace microbrowser::js {
 
@@ -347,6 +348,9 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
             : static_cast<std::size_t>(ToUint32(ToNumber(limit_value)));
     std::vector<Value> parts;
     const Value separator_value = Argument(call.arguments, 0);
+    if (call.interpreter.RegExpOf(separator_value) != nullptr) {
+      return RegExpSplit(call, separator_value, text, limit_value);
+    }
     if (limit == 0) {
       return call.interpreter.NewArrayValue(std::move(parts));
     }
@@ -381,8 +385,12 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   const auto replace = [](bool all) {
     return [all](NativeCall& call) {
       const std::string text = Self(call);
-      const std::string search = ToString(Argument(call.arguments, 0));
+      const Value pattern = Argument(call.arguments, 0);
       const Value replacement = Argument(call.arguments, 1);
+      if (call.interpreter.RegExpOf(pattern) != nullptr) {
+        return RegExpReplace(call, pattern, text, replacement, all);
+      }
+      const std::string search = ToString(pattern);
       std::string out;
       std::size_t at = 0;
       do {

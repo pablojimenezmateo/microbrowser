@@ -24,6 +24,7 @@ Interpreter::Interpreter() {
   array_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
   function_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
   string_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
+  regexp_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
   InstallGlobals();
 }
 
@@ -62,6 +63,36 @@ Object* Interpreter::NewArray(std::vector<Value> elements, std::vector<bool> pre
   return array;
 }
 
+Value Interpreter::NewObjectValue() {
+  Object* object = NewObject();
+  return object == nullptr ? Value::Undefined() : Value::Obj(object);
+}
+
+Value Interpreter::NewRegExpValue(RegExp pattern) {
+  Object* object = heap_.AllocateObject(Object::Kind::RegExp);
+  if (object == nullptr) {
+    return Value::Undefined();
+  }
+  object->SetPrototype(regexp_prototype_);
+  // Writable, and read back before every global match: a page advances a
+  // stateful regex by assigning to it.
+  object->Set("lastIndex", Value::Number(0.0));
+  // Own data properties rather than accessors, for the same reason an Error
+  // carries `name` and `message`: ToString has no interpreter to call a method
+  // with, and printing a pattern as "[object Object]" tells nobody anything. A
+  // page that assigns to these changes what printing says and not what
+  // matches, since the compiled pattern beside the object is the authority.
+  object->Set("source", Value::String(pattern.Source().empty() ? std::string("(?:)")
+                                                               : pattern.Source()));
+  object->Set("flags", Value::String(pattern.Flags().Text()));
+  heap_.AttachRegExp(object, std::make_shared<const RegExp>(std::move(pattern)));
+  return Value::Obj(object);
+}
+
+const RegExp* Interpreter::RegExpOf(const Value& value) const {
+  return value.IsObject() ? heap_.FindRegExp(value.object) : nullptr;
+}
+
 Value Interpreter::MakeError(std::string_view kind, std::string message) {
   Object* error = heap_.AllocateObject(Object::Kind::Error);
   if (error == nullptr) {
@@ -94,8 +125,8 @@ void Interpreter::MaybeCollect() {
   if (heap_.AllocationsSinceCollection() < kCollectionThreshold || call_depth_ != 0) {
     return;
   }
-  std::vector<Object*> object_roots{global_, object_prototype_, array_prototype_,
-                                    function_prototype_, string_prototype_};
+  std::vector<Object*> object_roots{global_,           object_prototype_, array_prototype_,
+                                    function_prototype_, string_prototype_, regexp_prototype_};
   object_roots.insert(object_roots.end(), active_objects_.begin(), active_objects_.end());
   std::vector<Environment*> environment_roots{global_scope_};
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());

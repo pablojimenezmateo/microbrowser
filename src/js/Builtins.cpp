@@ -550,6 +550,9 @@ void Interpreter::InstallGlobals() {
                                                 : ToString(call.arguments[0]));
   });
   InstallStringPrototype(string_constructor);
+  // After it, because the pattern-taking String methods are installed on the
+  // same prototype and would otherwise be overwritten by it.
+  InstallRegExpPrototype();
   global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {

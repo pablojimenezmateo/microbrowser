@@ -46,10 +46,34 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(Value::Bool(node.number != 0.0));
     case NodeKind::NullLiteral:
       return Result::Normal(Value::Null());
-    case NodeKind::RegExpLiteral:
-      // No regular expression engine yet. A string keeps the program running
-      // rather than failing at parse time on a feature that is not there.
-      return Result::Normal(Value::String(node.string));
+    case NodeKind::RegExpLiteral: {
+      // The literal arrives as it was written, delimiters and all, because the
+      // lexer's job was to find its extent rather than to take it apart. The
+      // last `/` separates the pattern from the flags: the first one cannot,
+      // since `/[/]/` has one in the middle.
+      const std::size_t close = node.string.rfind('/');
+      if (node.string.size() < 2 || node.string.front() != '/' || close == 0) {
+        return Throw("SyntaxError", "malformed regular expression literal");
+      }
+      const std::string source = node.string.substr(1, close - 1);
+      const std::string flag_text = node.string.substr(close + 1);
+      const std::optional<RegExpFlags> flags = RegExpFlags::Parse(flag_text);
+      if (!flags.has_value()) {
+        return Throw("SyntaxError", "invalid regular expression flags: " + flag_text);
+      }
+      std::string error;
+      RegExp pattern = RegExp::Compile(source, *flags, error);
+      if (!pattern.IsValid()) {
+        return Throw("SyntaxError", "invalid regular expression: " + error);
+      }
+      // A fresh object per evaluation, which is what makes `lastIndex` on a
+      // literal inside a loop start over each time round.
+      const Value value = NewRegExpValue(std::move(pattern));
+      if (value.IsUndefined()) {
+        return Throw("RangeError", "out of memory");
+      }
+      return Result::Normal(value);
+    }
 
     case NodeKind::TemplateLiteral: {
       // The literal chunks with each substitution's value between them. The
