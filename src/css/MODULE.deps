@@ -29,6 +29,6 @@ budget: Length           header_lines=35 public_methods=10 members=2
 # becoming something other than a property bag are the method count and whether
 # any group of fields is large enough to want a struct of its own. Two already
 # do: `background` and `flex`.
-budget: ComputedStyle    header_lines=140 public_methods=18 members=28
+budget: ComputedStyle    header_lines=165 public_methods=22 members=30
 budget: FlexStyle        header_lines=50  public_methods=2  members=12
 budget: StyleResolver    header_lines=60 public_methods=12 members=2

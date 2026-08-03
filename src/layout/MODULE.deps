@@ -19,7 +19,12 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # cache rather than a computation because sizing a table's columns measures
 # every cell's subtree, and a nested table did that once per ancestor -- 70% of
 # the time to lay out a comment page, growing with nesting depth.
-budget: Box             header_lines=130 public_methods=35 members=10
+# Three more methods for positioning: the question "is this box out of the
+# flow entirely", and mutable access to the children and fragments. The two
+# mutable accessors are what the second pass needs -- a relative offset and an
+# absolute placement both move a subtree that already has geometry, and
+# geometry is absolute, so a box that moves takes everything under it.
+budget: Box             header_lines=145 public_methods=39 members=10
 budget: ImageProvider   header_lines=25 public_methods=6  members=0
 budget: TextFragment    header_lines=25 public_methods=4  members=4
 budget: TextMeasurer    header_lines=30 public_methods=8  members=0

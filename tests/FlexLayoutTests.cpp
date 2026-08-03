@@ -298,6 +298,114 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
                 "a block wider than its maximum is clamped");
   });
 
+  // --- Positioning -----------------------------------------------------------
+
+  AddTest(tests, "Position/RelativeMovesTheBoxAndNotItsSpace", [] {
+    // The defining difference from absolute: the box is drawn somewhere else
+    // and its siblings are laid out as though it had not moved.
+    const Flexed result = Run(
+        "<div id=a></div><div id=b></div>",
+        "body, div { margin: 0 } div { height: 20px } "
+        "#a { position: relative; left: 30px; top: 5px }");
+    const std::vector<const Box*> blocks = Items(*result.root, "div");
+    Expect(blocks.size() == 2, "two blocks");
+    ExpectEqInt(static_cast<long long>(blocks[0]->Geometry().content.x + 0.5f), 30, "moved right");
+    ExpectEqInt(static_cast<long long>(blocks[0]->Geometry().content.y + 0.5f), 5, "and down");
+    ExpectEqInt(static_cast<long long>(blocks[1]->Geometry().content.y + 0.5f), 20,
+                "and the next block sits where it would have anyway");
+  });
+
+  AddTest(tests, "Position/RelativePrefersLeftAndTopWhenBothEdgesAreGiven", [] {
+    // The two are the same offset stated twice, and the spec picks the first
+    // for a left-to-right page.
+    const Flexed result = Run("<div id=a></div>",
+                              "body, div { margin: 0 } div { height: 20px } "
+                              "#a { position: relative; left: 10px; right: 40px }");
+    ExpectEqInt(static_cast<long long>(Items(*result.root, "div")[0]->Geometry().content.x + 0.5f),
+                10, "left wins");
+  });
+
+  AddTest(tests, "Position/AbsoluteTakesNoSpaceFromItsSiblings", [] {
+    const Flexed result = Run(
+        "<div id=a></div><div id=b></div>",
+        "body, div { margin: 0 } div { height: 20px } "
+        "#a { position: absolute; left: 10px; top: 100px }");
+    const std::vector<const Box*> blocks = Items(*result.root, "div");
+    ExpectEqInt(static_cast<long long>(blocks[0]->Geometry().content.x + 0.5f), 10, "placed");
+    ExpectEqInt(static_cast<long long>(blocks[0]->Geometry().content.y + 0.5f), 100, "at its offsets");
+    // The one that matters: the sibling moved up to the top, because the
+    // absolute box is not in the flow at all.
+    ExpectEqInt(static_cast<long long>(blocks[1]->Geometry().content.y + 0.5f), 0,
+                "the sibling starts at the top");
+  });
+
+  AddTest(tests, "Position/APositionedAncestorIsTheContainingBlock", [] {
+    // `position: relative` with no offsets is the idiomatic way to anchor a
+    // child, and it works because a *static* ancestor is transparent to the
+    // search while a positioned one is not.
+    const Flexed anchored = Run(
+        "<div id=outer><div id=mid><div id=inner></div></div></div>",
+        "body, div { margin: 0 } #outer { margin-top: 50px; height: 200px; position: relative } "
+        "#mid { height: 100px } "
+        "#inner { position: absolute; left: 10px; top: 10px; width: 20px; height: 20px }");
+    const Box* inner = nullptr;
+    anchored.root->ForEachDescendant([&](const Box& box) {
+      const std::string* id = box.Origin() == nullptr ? nullptr : box.Origin()->GetAttribute("id");
+      if (id != nullptr && *id == "inner") {
+        inner = &box;
+      }
+    });
+    Expect(inner != nullptr, "the inner box exists");
+    // Offset from #outer's padding box, which starts at y=50.
+    ExpectEqInt(static_cast<long long>(inner->Geometry().content.y + 0.5f), 60,
+                "measured from the positioned ancestor, not from the page");
+
+    // Without the anchor, the same markup measures from the root instead.
+    const Flexed loose = Run(
+        "<div id=outer><div id=mid><div id=inner></div></div></div>",
+        "body, div { margin: 0 } #outer { margin-top: 50px; height: 200px } "
+        "#mid { height: 100px } "
+        "#inner { position: absolute; left: 10px; top: 10px; width: 20px; height: 20px }");
+    const Box* unanchored = nullptr;
+    loose.root->ForEachDescendant([&](const Box& box) {
+      const std::string* id = box.Origin() == nullptr ? nullptr : box.Origin()->GetAttribute("id");
+      if (id != nullptr && *id == "inner") {
+        unanchored = &box;
+      }
+    });
+    Expect(unanchored != nullptr, "and so does the unanchored one");
+    ExpectEqInt(static_cast<long long>(unanchored->Geometry().content.y + 0.5f), 10,
+                "measured from the page");
+  });
+
+  AddTest(tests, "Position/TwoOffsetsOnAnAxisGiveTheBoxItsSize", [] {
+    // What `left: 0; right: 0` means, and how an overlay is written.
+    const Flexed result = Run(
+        "<div id=box></div>",
+        "body, div { margin: 0 } "
+        "#box { position: absolute; left: 20px; right: 30px; height: 10px }");
+    const Box* box = Items(*result.root, "div")[0];
+    ExpectEqInt(static_cast<long long>(box->Geometry().content.x + 0.5f), 20, "left edge");
+    // The viewport in these tests is 400 wide.
+    ExpectEqInt(static_cast<long long>(box->Geometry().content.width + 0.5f), 350,
+                "and the width is what is between the two offsets");
+  });
+
+  AddTest(tests, "Position/BottomPlacesTheBoxByItsLowerEdge", [] {
+    // Which needs the height, so it is applied after the box has one rather
+    // than guessed at.
+    const Flexed result = Run(
+        "<div id=box></div>",
+        "body, div { margin: 0 } body { height: 200px } "
+        "#box { position: absolute; bottom: 30px; left: 0; width: 10px; height: 20px }");
+    const Box* box = Items(*result.root, "div")[0];
+    const Box* root = result.root.get();
+    const float page_bottom = root->Geometry().PaddingBox().Bottom();
+    ExpectEqInt(static_cast<long long>(box->Geometry().content.y + 0.5f),
+                static_cast<long long>(page_bottom - 30.0f - 20.0f + 0.5f),
+                "its lower edge is thirty from the bottom");
+  });
+
   AddTest(tests, "Flex/AContainerIsAsTallAsItsLines", [] {
     const Flexed result = Run(
         "<div class=flex><p>a</p><p>b</p><p>c</p></div>",

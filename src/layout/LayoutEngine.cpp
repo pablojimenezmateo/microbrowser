@@ -609,6 +609,11 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
       if (!child->IsOutOfLineFlow()) {
         continue;
       }
+      if (child->IsAbsolutelyPositioned()) {
+        // Out of the flow entirely: it takes no space from its siblings and
+        // is placed later, once this box has a size to place it against.
+        continue;
+      }
       const css::ComputedStyle& child_style = child->Style();
       // `clear` first: it moves the box down before anything else decides where
       // it goes, including before a float on it is placed.
@@ -647,6 +652,17 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   cursor_y = content_top + content_height + style.padding.bottom.Resolve(style.font_size) +
              geometry.border.bottom.Resolve(style.font_size) +
              style.margin.bottom.Resolve(style.font_size);
+
+  // Now that this box has a size, it can place the absolutely positioned boxes
+  // that named it as their containing block. Only a positioned box does: a
+  // static one is transparent to the search, which is what makes `position:
+  // relative` with no offsets the idiomatic way to anchor a child.
+  if (style.IsPositioned()) {
+    LayoutAbsoluteDescendants(box, geometry.PaddingBox());
+  }
+  // Last, so the offset moves a subtree that is already complete -- including
+  // anything absolutely positioned against this box.
+  ApplyRelativeOffset(box);
 }
 
 float LayoutEngine::Layout(Box& root, float width) const {
@@ -658,6 +674,11 @@ float LayoutEngine::Layout(Box& root, float width) const {
   // The root establishes the initial block formatting context.
   FloatContext floats;
   LayoutBlock(root, 0.0f, width, cursor, floats);
+  // The root is the containing block of last resort: an absolutely positioned
+  // box with no positioned ancestor is placed against the initial containing
+  // block, and so is every `fixed` one until there is a scroll offset to hold
+  // them still against.
+  LayoutAbsoluteDescendants(root, root.Geometry().PaddingBox());
   // The document is as tall as the lower of its flow content and its floats: a
   // page that is nothing but a tall float still scrolls.
   return std::max(cursor, floats.LowestBottom());

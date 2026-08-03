@@ -65,6 +65,14 @@ enum class Float : std::uint8_t { None, Left, Right };
 // it is a value here rather than two booleans.
 enum class Clear : std::uint8_t { None, Left, Right, Both };
 
+// Where a box is placed relative to where the flow would have put it.
+//
+// The split that matters is not four ways but two: `Static` and `Relative`
+// stay in the flow and take up space, `Absolute` and `Fixed` do not. Which is
+// why the question layout asks is `IsOutOfFlow`, and the enum is only ever
+// read to answer it and to pick a containing block.
+enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed };
+
 // A CSS length, resolved as far as it can be without a layout context.
 //
 // Percentages cannot be resolved here — they need a containing block, which
@@ -168,6 +176,13 @@ struct ComputedStyle {
   Float css_float = Float::None;
   Clear clear = Clear::None;
 
+  Position position = Position::Static;
+  // `top`/`right`/`bottom`/`left`. All four default to `auto`, which for a
+  // relative box means "no offset" and for an absolute one means "wherever the
+  // flow would have put it" -- two different meanings for the same value, and
+  // the reason they cannot default to zero.
+  Edges inset{Length::Auto(), Length::Auto(), Length::Auto(), Length::Auto()};
+
   Edges margin;
   Edges padding;
   Edges border_width;
@@ -232,6 +247,17 @@ struct ComputedStyle {
   FlexStyle flex;
 
   bool IsFloating() const { return css_float != Float::None; }
+
+  // Out of the normal flow: it neither takes space from its siblings nor gets
+  // any from them. A float is out of flow too, but differently -- it shortens
+  // the lines beside it, which an absolutely positioned box does not.
+  bool IsAbsolutelyPositioned() const {
+    return position == Position::Absolute || position == Position::Fixed;
+  }
+  // Establishes a containing block for the absolutely positioned boxes inside
+  // it. `static` does not, which is what makes `position: relative` with no
+  // offsets the idiomatic way to anchor a child.
+  bool IsPositioned() const { return position != Position::Static; }
 
  private:
   float ClampBy(float used, const Length& low, const Length& high, float container) const {

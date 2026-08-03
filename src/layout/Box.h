@@ -124,6 +124,18 @@ class Box {
   // Participates in the block layout pass: stacked, or placed as a float.
   bool IsOutOfLineFlow() const { return IsBlockLevel() || IsFloating(); }
 
+  // Absolutely positioned: laid out after the flow, against a containing block
+  // rather than after its siblings. Asked of the box for the reason
+  // IsFloating is -- it is true whatever kind the box is, and a call site that
+  // forgets to check leaves the box in the flow taking up space it should not.
+  bool IsAbsolutelyPositioned() const { return style_.IsAbsolutelyPositioned(); }
+
+  // Mutable children, for the passes that move a box after it was placed:
+  // relative offsets and absolute positioning both run over a subtree that
+  // already has geometry.
+  std::vector<std::unique_ptr<Box>>& MutableChildren() { return children_; }
+  std::vector<TextFragment>& MutableFragments() { return fragments_; }
+
   // The pixels a replaced box shows. Null until the resource loads, and a
   // replaced box with no image still occupies its intrinsic size -- otherwise
   // the page reflows when the image arrives, which is the layout shift every

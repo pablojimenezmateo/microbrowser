@@ -87,6 +87,13 @@ class LayoutEngine {
   // than each against the container.
   float LayoutFlexChildren(Box& box, float content_left, float content_width,
                            float start_y) const;
+  // Positioning, in its own translation unit. Two passes and not one: an
+  // absolutely positioned box is sized against the padding box of the nearest
+  // positioned ancestor, and that ancestor's height is not known until its
+  // in-flow children have been laid out.
+  void ApplyRelativeOffset(Box& box) const;
+  void LayoutAbsoluteDescendants(Box& container, const gfx::FloatRect& containing_block) const;
+  void LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_block) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
                              FloatContext& floats) const;
   // `measured` carries the column bounds in when the caller already needed

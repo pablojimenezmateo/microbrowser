@@ -214,6 +214,7 @@ microbrowser_module(html
 microbrowser_module(layout
   SOURCES
     src/layout/FlexLayout.cpp
+    src/layout/PositionedLayout.cpp
     src/layout/FloatContext.cpp
     src/layout/FontTextMeasurer.cpp
     src/layout/InlineLayout.cpp

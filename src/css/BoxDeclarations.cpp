@@ -90,6 +90,59 @@ std::optional<Alignment> ParseAlignment(std::string_view value) {
 
 bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
                          const ComputedStyle& parent, ComputedStyle& style) {
+  if (property == "position") {
+    if (value == "static") {
+      style.position = Position::Static;
+    } else if (value == "relative") {
+      style.position = Position::Relative;
+    } else if (value == "absolute") {
+      style.position = Position::Absolute;
+    } else if (value == "fixed") {
+      style.position = Position::Fixed;
+    } else if (value == "sticky") {
+      // Sticky is relative until it would scroll out of view, and there is no
+      // scroll position here to compare against. Relative is what it looks
+      // like before it sticks, which is the right half to be wrong about.
+      style.position = Position::Relative;
+    }
+    return true;
+  }
+  if (property == "top" || property == "right" || property == "bottom" ||
+      property == "left") {
+    // `auto` is the initial value and has to be settable back, because a later
+    // rule undoing an earlier one is ordinary cascade.
+    Length parsed = Length::Auto();
+    if (value != "auto") {
+      const std::optional<Length> length = ParseLength(value);
+      if (!length.has_value()) {
+        return true;
+      }
+      parsed = *length;
+    }
+    if (property == "top") {
+      style.inset.top = parsed;
+    } else if (property == "right") {
+      style.inset.right = parsed;
+    } else if (property == "bottom") {
+      style.inset.bottom = parsed;
+    } else {
+      style.inset.left = parsed;
+    }
+    return true;
+  }
+  if (property == "inset") {
+    // One to four values, in the order every other edge shorthand uses.
+    const std::vector<std::string_view> parts = SplitWords(value);
+    static constexpr const char* kSides[] = {"top", "right", "bottom", "left"};
+    for (std::size_t side = 0; side < 4 && !parts.empty(); ++side) {
+      const std::size_t at = parts.size() == 1   ? 0
+                             : parts.size() == 2 ? side % 2
+                             : parts.size() == 3 ? (side == 3 ? 1 : side)
+                                                 : side;
+      ApplyBoxDeclaration(kSides[side], std::string(parts[at]), parent, style);
+    }
+    return true;
+  }
   if (property == "min-width" || property == "max-width" || property == "min-height" ||
       property == "max-height") {
     // `none` is the maximum's way of saying unbounded, and `auto` is the
