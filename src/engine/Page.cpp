@@ -5,7 +5,6 @@
 
 #include "css/StyleSheet.h"
 #include "engine/FormAlgorithms.h"
-#include "gfx/PngDecoder.h"
 #include "html/FormControl.h"
 #include "html/TreeBuilder.h"
 #include "util/PerformanceCounters.h"
@@ -147,61 +146,33 @@ bool IsRadioGroupPeer(const dom::Element& candidate,
 
 using ElementPredicate = bool (*)(const dom::Element&);
 
-std::optional<const dom::Element*> HitTestEnabledElement(const layout::Box& box,
-                                                         gfx::FloatPoint point,
-                                                         ElementPredicate predicate) {
+// The one hit-test walk over form controls: submit, reset, checkbox, radio and
+// text field differ only in the predicate.
+//
+// Last child first, because a later sibling paints over an earlier one and the
+// topmost box under the point is the one that was clicked. A disabled control
+// is never a target, which is a property of every control rather than of any
+// one predicate -- so it is checked here, once, instead of being re-derived in
+// each caller.
+//
+// The box tree is const because hit testing does not change layout, and
+// `Origin()` hands out a const element to preserve that. The element itself is
+// not const: activating a control mutates it -- a checkbox flips `checked`, a
+// text field takes focus -- and the document it belongs to is mutable. That is
+// what the cast crosses, and why it lives here rather than at four call sites.
+dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
+                                 ElementPredicate predicate) {
   for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<const dom::Element*> hit =
-            HitTestEnabledElement(*box.Children()[i], point, predicate)) {
+    if (dom::Element* hit = HitTestFormControl(*box.Children()[i], point, predicate)) {
       return hit;
     }
   }
   const dom::Element* element = box.Origin();
   if (element == nullptr || html::IsDisabledFormControl(*element) || !predicate(*element)) {
-    return std::nullopt;
-  }
-  return Contains(box.Geometry().BorderBox(), point) ? std::optional<const dom::Element*>(element)
-                                                     : std::nullopt;
-}
-
-std::optional<const dom::Element*> HitTestSubmit(const layout::Box& box, gfx::FloatPoint point) {
-  return HitTestEnabledElement(box, point, html::IsSubmitControl);
-}
-
-std::optional<const dom::Element*> HitTestReset(const layout::Box& box, gfx::FloatPoint point) {
-  return HitTestEnabledElement(box, point, html::IsResetControl);
-}
-
-std::optional<dom::Element*> HitTestCheckableInput(const layout::Box& box,
-                                                   gfx::FloatPoint point) {
-  for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<dom::Element*> hit = HitTestCheckableInput(*box.Children()[i], point)) {
-      return hit;
-    }
-  }
-  const dom::Element* element = box.Origin();
-  if (element == nullptr || !html::IsCheckableInput(*element)) {
-    return std::nullopt;
+    return nullptr;
   }
   if (!Contains(box.Geometry().BorderBox(), point)) {
-    return std::nullopt;
-  }
-  return const_cast<dom::Element*>(element);
-}
-
-std::optional<dom::Element*> HitTestEditableTextControl(const layout::Box& box,
-                                                        gfx::FloatPoint point) {
-  for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<dom::Element*> hit = HitTestEditableTextControl(*box.Children()[i], point)) {
-      return hit;
-    }
-  }
-  const dom::Element* element = box.Origin();
-  if (element == nullptr || !html::IsEditableTextControl(*element)) {
-    return std::nullopt;
-  }
-  if (!Contains(box.Geometry().BorderBox(), point)) {
-    return std::nullopt;
+    return nullptr;
   }
   return const_cast<dom::Element*>(element);
 }
@@ -405,15 +376,16 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
   if (boxes_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
-  const std::optional<const dom::Element*> submitter = HitTestSubmit(*boxes_, document_point);
-  if (!submitter.has_value()) {
+  const dom::Element* submitter =
+      HitTestFormControl(*boxes_, document_point, html::IsSubmitControl);
+  if (submitter == nullptr) {
     return std::nullopt;
   }
-  const dom::Element* form = html::FormOwner(**submitter, *document_);
+  const dom::Element* form = html::FormOwner(*submitter, *document_);
   if (form == nullptr) {
     return std::nullopt;
   }
-  return BuildFormSubmission(*form, *submitter, *document_, url_);
+  return BuildFormSubmission(*form, submitter, *document_, url_);
 }
 
 bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
@@ -421,12 +393,9 @@ bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr) {
     return false;
   }
-  const std::optional<dom::Element*> hit = HitTestEditableTextControl(*boxes_, document_point);
-  if (!hit.has_value()) {
-    return false;
-  }
-  focused_text_control_ = *hit;
-  return true;
+  focused_text_control_ =
+      HitTestFormControl(*boxes_, document_point, html::IsEditableTextControl);
+  return focused_text_control_ != nullptr;
 }
 
 bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
@@ -434,11 +403,11 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  const std::optional<dom::Element*> hit = HitTestCheckableInput(*boxes_, document_point);
-  if (!hit.has_value()) {
+  dom::Element* hit = HitTestFormControl(*boxes_, document_point, html::IsCheckableInput);
+  if (hit == nullptr) {
     return false;
   }
-  dom::Element& input = **hit;
+  dom::Element& input = *hit;
   if (html::IsCheckboxInput(input)) {
     if (input.HasAttribute("checked")) {
       input.RemoveAttribute("checked");
@@ -470,11 +439,11 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  const std::optional<const dom::Element*> reset = HitTestReset(*boxes_, document_point);
-  if (!reset.has_value()) {
+  const dom::Element* reset = HitTestFormControl(*boxes_, document_point, html::IsResetControl);
+  if (reset == nullptr) {
     return false;
   }
-  const dom::Element* form = html::FormOwner(**reset, *document_);
+  const dom::Element* form = html::FormOwner(*reset, *document_);
   if (form == nullptr) {
     return false;
   }
