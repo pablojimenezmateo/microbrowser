@@ -315,6 +315,14 @@ microbrowser_module(app
 add_executable(microbrowser src/app/main.cpp)
 target_link_libraries(microbrowser PRIVATE microbrowser_app)
 
+# Renders a URL to a PPM and exits -- no window, no loop. The one way to look at
+# a real page on a machine with no display, and the way most layout and paint
+# bugs in this project have actually been found. Not part of the shipped
+# browser, which is why it lives outside src/.
+add_executable(microbrowser_snapshot tools/snapshot/main.cpp)
+target_link_libraries(microbrowser_snapshot PRIVATE microbrowser_engine microbrowser_gfx
+                                                    microbrowser_ipc microbrowser_platform)
+
 add_executable(microbrowser_tests
   tests/TestMain.cpp
   tests/TestSupport.cpp
