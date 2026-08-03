@@ -38,11 +38,17 @@ struct Options {
   int height = 900;
   int scroll_y = 0;
   bool dump = false;
+  // A click to deliver before the snapshot, in viewport pixels. Negative means
+  // none -- 0,0 is a real point.
+  int click_x = -1;
+  int click_y = -1;
 };
 
 const char* kUsage =
-    "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll] [-v]\n"
-    "  -v  print every display list command: what was painted, where, and in what colour\n";
+    "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n"
+    "                            [-click x,y] [-v]\n"
+    "  -click  deliver a click before the snapshot, to follow a link or submit a form\n"
+    "  -v      print every display list command: what was painted, where, in what colour\n";
 
 // One line per command. The point of a dump rather than a pixel is that a rect
 // of the right colour in the wrong place and a rect that was never recorded
@@ -119,6 +125,15 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       const std::optional<int> parsed = ParseInt(value());
       if (!parsed) return false;
       out.height = *parsed;
+    } else if (argument == "-click") {
+      const std::string_view text = value();
+      const std::size_t comma = text.find(',');
+      if (comma == std::string_view::npos) return false;
+      const std::optional<int> x = ParseInt(text.substr(0, comma));
+      const std::optional<int> y = ParseInt(text.substr(comma + 1));
+      if (!x || !y) return false;
+      out.click_x = *x;
+      out.click_y = *y;
     } else if (argument == "-v") {
       out.dump = true;
     } else if (argument == "-y") {
@@ -175,6 +190,16 @@ int main(int argc, char** argv) {
       microbrowser::gfx::IntSize{options.width, options.height}, 1.0f});
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{options.url});
   engine.HandlePendingMessages();
+  if (options.click_x >= 0 && options.click_y >= 0) {
+    // Down then up, the way a real click arrives, so the engine sees the same
+    // sequence the window would deliver.
+    for (const auto kind : {microbrowser::ipc::PointerMessage::Kind::Down,
+                            microbrowser::ipc::PointerMessage::Kind::Up}) {
+      channel.Ui().Send(microbrowser::ipc::PointerMessage{
+          kind, microbrowser::gfx::IntPoint{options.click_x, options.click_y}, 1});
+    }
+    engine.HandlePendingMessages();
+  }
   if (options.scroll_y > 0) {
     channel.Ui().Send(microbrowser::ipc::ScrollMessage{0, options.scroll_y});
     engine.HandlePendingMessages();
@@ -184,6 +209,7 @@ int main(int argc, char** argv) {
   // -- and the last is the finished page.
   microbrowser::gfx::DisplayList display_list;
   std::string title;
+  std::string url = options.url;
   bool painted = false;
   while (std::optional<microbrowser::ipc::EngineToUi> message = channel.Ui().TryReceive()) {
     if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message)) {
@@ -191,6 +217,9 @@ int main(int argc, char** argv) {
       painted = true;
     } else if (auto* changed = std::get_if<microbrowser::ipc::TitleChangedMessage>(&*message)) {
       title = changed->title;
+    } else if (auto* committed =
+                   std::get_if<microbrowser::ipc::NavigationCommittedMessage>(&*message)) {
+      url = committed->url;
     }
   }
   if (!painted) {
@@ -208,7 +237,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   std::fprintf(stderr, "%s: %zu commands, %zu runs, %zu fonts, %zu images, title \"%s\" -> %s\n",
-               options.url.c_str(), display_list.Size(), display_list.Texts().size(),
+               url.c_str(), display_list.Size(), display_list.Texts().size(),
                display_list.Fonts().size(), display_list.Images().size(), title.c_str(),
                options.output.c_str());
   if (options.dump) {

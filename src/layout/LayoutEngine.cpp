@@ -280,6 +280,13 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     return nullptr;
   }
 
+  if (element.TagName() == "br") {
+    auto box = std::make_unique<Box>(Box::Kind::LineBreak, style);
+    box->SetOrigin(&element);
+    produced_inline = true;
+    return box;
+  }
+
   // A replaced element's children generate no boxes: whatever is inside an
   // <img> is fallback content the element replaces, and form controls have
   // their own control surface rather than ordinary DOM child boxes.

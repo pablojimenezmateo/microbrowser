@@ -140,6 +140,18 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   collect(box, collect);
 
   for (Box* item : run) {
+    if (item->GetKind() == Box::Kind::LineBreak) {
+      // A zero-width item first, so the line has this element's height even
+      // when nothing else is on it -- which is what makes two `<br>`s in a row
+      // produce a blank line rather than collapsing into one break.
+      const css::ComputedStyle& break_style = item->Style();
+      const float ascent = measurer_->Ascent(break_style);
+      const float descent = std::max(0.0f, measurer_->LineHeight(break_style) - ascent);
+      item->Geometry().content = gfx::FloatRect{x, y, 0.0f, ascent + descent};
+      line.push_back(LineItem{item, false, 0, 0, x, 0.0f, ascent, descent});
+      finish_line();
+      continue;
+    }
     if (item->GetKind() == Box::Kind::Replaced) {
       // An atomic inline: one unbreakable rectangle. It wraps to the next line
       // if it does not fit and the line already has something on it, and

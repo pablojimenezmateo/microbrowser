@@ -81,6 +81,11 @@ class Box {
     // rectangle rather than as text, which is why it is a kind rather than an
     // Inline box with a picture in it.
     Replaced,
+    // A forced line break: `<br>`. A kind rather than a zero-width text box
+    // with a newline in it, because line breaking would then have to decide
+    // whether a newline in text means a break -- which depends on
+    // `white-space` -- and answer differently for the same character.
+    LineBreak,
   };
 
   Box(Kind kind, css::ComputedStyle style) : kind_(kind), style_(std::move(style)) {}
@@ -112,7 +117,8 @@ class Box {
   // Placed on a line as one unbreakable rectangle: text and replaced content
   // that is still in flow.
   bool IsInlineLevel() const {
-    return !IsFloating() && (kind_ == Kind::Text || kind_ == Kind::Replaced);
+    return !IsFloating() &&
+           (kind_ == Kind::Text || kind_ == Kind::Replaced || kind_ == Kind::LineBreak);
   }
 
   // Participates in the block layout pass: stacked, or placed as a float.

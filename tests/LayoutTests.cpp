@@ -631,6 +631,19 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(line_x("right") == 70.0f, "and a right-aligned line takes all of it");
   });
 
+  AddTest(tests, "Layout/BreaksTheLineAtABr", [] {
+    const LaidOut result =
+        Run("<div>a<br>b<br><br>c</div>",
+            "body { margin: 0 } div { margin: 0; font-size: 20px }", 400.0f);
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    ExpectEqInt(static_cast<long long>(texts.size()), 3, "three runs of text");
+    const auto line_of = [](const Box* box) { return box->Fragments().at(0).rect.y; };
+    Expect(line_of(texts.at(0)) < line_of(texts.at(1)), "`a` and `b` are on different lines");
+    Expect(line_of(texts.at(2)) - line_of(texts.at(1)) >
+               line_of(texts.at(1)) - line_of(texts.at(0)),
+           "and two <br>s in a row leave a blank line rather than collapsing into one break");
+  });
+
   AddTest(tests, "Layout/AnEmptyBoxWithAWidthStillMeasuresAsThatWide", [] {
     // An icon drawn entirely by `background-image` has no content at all, and
     // both intrinsic measurements used to return its margins. The table column
