@@ -4,16 +4,13 @@
 #include <string_view>
 #include <utility>
 
+#include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
 #include "util/Parse.h"
 
 namespace microbrowser::js {
 
 namespace {
-
-Value Argument(const std::vector<Value>& arguments, std::size_t index) {
-  return index < arguments.size() ? arguments[index] : Value::Undefined();
-}
 
 bool IsJsWhitespace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
@@ -130,16 +127,24 @@ double ParseIntPrefix(std::string_view text, int radix) {
 
 }  // namespace
 
+Object* Interpreter::NewNative(const char* name, NativeFunction function) {
+  Object* object = heap_.AllocateObject(Object::Kind::Native);
+  object->SetPrototype(function_prototype_);
+  object->MakeNative(std::move(function));
+  object->Set("name", Value::String(name));
+  return object;
+}
+
+void Interpreter::InstallNative(Object* target, const char* name, NativeFunction function) {
+  target->Set(name, Value::Obj(NewNative(name, std::move(function))));
+}
+
 void Interpreter::InstallGlobals() {
   const auto native = [this](const char* name, NativeFunction function) {
-    Object* object = heap_.AllocateObject(Object::Kind::Native);
-    object->SetPrototype(function_prototype_);
-    object->MakeNative(std::move(function));
-    object->Set("name", Value::String(name));
-    return object;
+    return NewNative(name, std::move(function));
   };
-  const auto install = [&](Object* target, const char* name, NativeFunction function) {
-    target->Set(name, Value::Obj(native(name, std::move(function))));
+  const auto install = [this](Object* target, const char* name, NativeFunction function) {
+    InstallNative(target, name, std::move(function));
   };
 
   global_scope_->Declare("globalThis", Value::Obj(global_), false);
@@ -535,11 +540,14 @@ void Interpreter::InstallGlobals() {
   });
 
   // --- String and number conversions ---------------------------------------
-  global_scope_->Declare(
-      "String", Value::Obj(native("String", [](NativeCall& call) {
-        return Value::String(ToString(Argument(call.arguments, 0)));
-      })),
-      false);
+  Object* string_constructor = native("String", [](NativeCall& call) {
+    // `String()` with no argument is the empty string, not "undefined". Every
+    // other value goes through the ordinary conversion.
+    return Value::String(call.arguments.empty() ? std::string()
+                                                : ToString(call.arguments[0]));
+  });
+  InstallStringPrototype(string_constructor);
+  global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {
         return Value::Number(ToNumber(Argument(call.arguments, 0)));

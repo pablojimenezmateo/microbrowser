@@ -4,6 +4,8 @@
 #include <optional>
 #include <utility>
 
+#include "js/BuiltinSupport.h"
+
 namespace microbrowser::js {
 
 namespace {
@@ -21,6 +23,7 @@ Interpreter::Interpreter() {
   object_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
   array_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
   function_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
+  string_prototype_ = heap_.AllocateObject(Object::Kind::Plain);
   InstallGlobals();
 }
 
@@ -92,7 +95,7 @@ void Interpreter::MaybeCollect() {
     return;
   }
   std::vector<Object*> object_roots{global_, object_prototype_, array_prototype_,
-                                    function_prototype_};
+                                    function_prototype_, string_prototype_};
   object_roots.insert(object_roots.end(), active_objects_.begin(), active_objects_.end());
   std::vector<Environment*> environment_roots{global_scope_};
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());
@@ -136,7 +139,15 @@ Value Interpreter::GetProperty(const Value& base, std::string_view key) {
       return *index < text.size() ? Value::String(std::string(1, text[*index]))
                                   : Value::Undefined();
     }
-    return Value::Undefined();
+    // Anything else is a method, read from the shared prototype rather than
+    // from a wrapper object: a string is a primitive here, so there is nothing
+    // to box. Reading a plain value is the whole lookup. An accessor a page
+    // added to String.prototype reads as undefined rather than running with
+    // some invented receiver -- boxing is what would make it callable, and it
+    // is not worth building for a case no real page has.
+    const Object::Property* method =
+        string_prototype_ == nullptr ? nullptr : string_prototype_->GetProperty(key);
+    return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (!base.IsObject()) {
     return Value::Undefined();
@@ -185,8 +196,7 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
     if (key == "length") {
       const double numeric_length = ToNumber(value);
       const std::uint32_t length = ToUint32(numeric_length);
-      constexpr std::uint32_t kMaxArrayLength = 1u << 26;
-      if (numeric_length != static_cast<double>(length) || length > kMaxArrayLength) {
+      if (numeric_length != static_cast<double>(length) || length > kMaxAllocationLength) {
         // A page can write `a.length = 4294967295`, and honouring it would be a
         // 34-gigabyte allocation. The bound is far past anything real. Fractional,
         // negative, and NaN lengths are invalid rather than truncated.
@@ -196,8 +206,7 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
       return Result::Normal(value);
     }
     if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
-      constexpr std::size_t kMaxArrayLength = 1u << 26;
-      if (*index >= kMaxArrayLength) {
+      if (*index >= kMaxAllocationLength) {
         return Throw("RangeError", "array index is too large");
       }
       object->SetElement(*index, value);

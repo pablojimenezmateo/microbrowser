@@ -1,0 +1,1 @@
+'ab'.replaceAll('','-').split('').join('|')

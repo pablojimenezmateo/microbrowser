@@ -611,7 +611,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       ];
       const names = people
         .filter(p => p.age > 38)
-        .map(p => p.name.toUpperCase ? p.name : p.name)
+        .map(p => p.name.toUpperCase())
         .join(', ');
 
       const totals = people.reduce((acc, p) => { acc.count++; acc.age += p.age; return acc; },
@@ -629,8 +629,164 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     const std::vector<std::string>& log = interpreter.ConsoleOutput();
     ExpectEqInt(static_cast<long long>(log.size()), 3, "three lines were logged");
     ExpectEqString(log.at(0), "fib(25) = 75025", "memoized fibonacci");
-    ExpectEqString(log.at(1), "alan, grace", "filter and map and join");
+    ExpectEqString(log.at(1), "ALAN, GRACE", "filter and map and join");
     ExpectEqString(log.at(2), R"({"count":3,"age":122})", "and reduce into an object");
+  });
+
+  // --- String.prototype -----------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/StringMethodsComeFromASharedPrototype", [] {
+    // Not copied onto each value: the identity is what makes a method
+    // borrowable, and what a page relies on when it caches one.
+    ExpectEval("'a'.trim === 'b'.trim", "true");
+    ExpectEval("'a'.trim === String.prototype.trim", "true");
+    ExpectEval("String.prototype.constructor === String", "true");
+    ExpectEval("typeof 'a'.nope", "undefined");
+    // A page can add one, and it is found the same way.
+    ExpectEval("String.prototype.shout = function() { return this + '!'; }; 'hi'.shout()", "hi!");
+  });
+
+  AddTest(tests, "JsInterpreter/StringCharacterAccess", [] {
+    ExpectEval("'abc'.charAt(1)", "b");
+    ExpectEval("'abc'.charAt(9)", "");        // out of range is empty
+    ExpectEval("'abc'.charAt(-1)", "");       // charAt does not count from the end
+    ExpectEval("'abc'.at(-1)", "c");          // at does
+    ExpectEval("typeof 'abc'.at(9)", "undefined");  // and is undefined past the end
+    ExpectEval("'abc'.charCodeAt(0)", "97");
+    ExpectEval("'abc'.charCodeAt(9)", "NaN");  // not 0
+    ExpectEval("String.fromCharCode(104, 105)", "hi");
+    // fromCharCode inverts charCodeAt exactly, which is the property that has
+    // to hold for the byte model to be self-consistent.
+    ExpectEval("String.fromCharCode('x'.charCodeAt(0))", "x");
+  });
+
+  AddTest(tests, "JsInterpreter/StringSearching", [] {
+    ExpectEval("'abcabc'.indexOf('b')", "1");
+    ExpectEval("'abcabc'.indexOf('b', 2)", "4");
+    ExpectEval("'abc'.indexOf('z')", "-1");
+    ExpectEval("'abc'.indexOf('')", "0");
+    ExpectEval("'abc'.indexOf('', 99)", "3");  // the position clamps to the length
+    ExpectEval("'abcabc'.lastIndexOf('b')", "4");
+    ExpectEval("'abcabc'.lastIndexOf('b', 3)", "1");
+    ExpectEval("'abc'.includes('bc')", "true");
+    ExpectEval("'abc'.startsWith('ab')", "true");
+    ExpectEval("'abc'.startsWith('bc', 1)", "true");
+    ExpectEval("'abcd'.endsWith('cd')", "true");
+    // endsWith's argument is where the string is treated as ending, not where
+    // to start looking.
+    ExpectEval("'abcd'.endsWith('bc', 3)", "true");
+    ExpectEval("'abcd'.endsWith('cd', 3)", "false");
+  });
+
+  AddTest(tests, "JsInterpreter/StringSliceAndSubstringDifferOnNegatives", [] {
+    ExpectEval("'abcdef'.slice(1, 3)", "bc");
+    ExpectEval("'abcdef'.slice(-2)", "ef");
+    ExpectEval("'abcdef'.slice(3, 1)", "");  // reversed is empty
+    ExpectEval("'abcdef'.substring(3, 1)", "bc");  // reversed swaps
+    ExpectEval("'abcdef'.substring(-2)", "abcdef");  // negative clamps to zero
+    // Saturating rather than wrapping: these are the values a fuzzer reaches
+    // for, and narrowing them without the clamp is undefined behaviour.
+    ExpectEval("'abc'.slice(1e300)", "");
+    ExpectEval("'abc'.slice(-1e300)", "abc");
+    ExpectEval("'abc'.slice(NaN, NaN)", "");
+  });
+
+  AddTest(tests, "JsInterpreter/StringCaseAndWhitespace", [] {
+    ExpectEval("'Ab1'.toUpperCase()", "AB1");
+    ExpectEval("'Ab1'.toLowerCase()", "ab1");
+    ExpectEval("'  a b  '.trim()", "a b");
+    ExpectEval("'  a  '.trimStart() + '|'", "a  |");
+    ExpectEval("'  a  '.trimEnd() + '|'", "  a|");
+    ExpectEval("'   '.trim() + '|'", "|");
+  });
+
+  AddTest(tests, "JsInterpreter/StringSplit", [] {
+    ExpectEval("'a,b,c'.split(',').join('|')", "a|b|c");
+    ExpectEval("'a,b,'.split(',').length", "3");  // the empty tail is a part
+    ExpectEval("'abc'.split('').join('|')", "a|b|c");
+    ExpectEval("''.split('').length", "0");  // but an empty string has none
+    ExpectEval("''.split('x').length", "1");  // unless the separator misses
+    ExpectEval("'a,b,c'.split(',', 2).join('|')", "a|b");
+    ExpectEval("'a,b'.split(',', 0).length", "0");
+    // No separator at all is one part, which is not the same as an empty one.
+    ExpectEval("'a,b'.split().length", "1");
+  });
+
+  AddTest(tests, "JsInterpreter/StringReplace", [] {
+    ExpectEval("'aaa'.replace('a', 'X')", "Xaa");   // first only
+    ExpectEval("'aaa'.replaceAll('a', 'X')", "XXX");
+    ExpectEval("'abc'.replace('z', 'X')", "abc");   // no match is unchanged
+    ExpectEval("'a-b'.replace('-', '$&$&')", "a--b");
+    ExpectEval("'a-b'.replace('-', '$$')", "a$b");
+    ExpectEval("'a-b'.replace('-', \"[$`|$']\")", "a[a|b]b");
+    // A function replacement receives the spec's (match, position, whole).
+    ExpectEval("'a1b2'.replaceAll('1', (m, i, s) => m + ':' + i + ':' + s.length)", "a1:1:4b2");
+    // An empty pattern matches at every position, including past the end. The
+    // cursor has to advance anyway or this never terminates.
+    ExpectEval("'ab'.replaceAll('', '-')", "-a-b-");
+    ExpectEval("''.replaceAll('', '-')", "-");
+    ExpectEval("'abc'.replace('', '-')", "-abc");
+    // A throw from the callback propagates rather than being swallowed.
+    ExpectEval("try { 'a'.replace('a', () => { throw 'boom'; }); } catch (e) { e }", "boom");
+  });
+
+  AddTest(tests, "JsInterpreter/StringBuilding", [] {
+    ExpectEval("'ab'.repeat(3)", "ababab");
+    ExpectEval("'ab'.repeat(0) + '|'", "|");
+    ExpectEval("'5'.padStart(3, '0')", "005");
+    ExpectEval("'5'.padEnd(3)", "5  ");        // the default pad is a space
+    ExpectEval("'abc'.padStart(2)", "abc");    // already long enough
+    ExpectEval("'ab'.padStart(7, '123')", "12312ab");  // the last repeat truncates
+    ExpectEval("'ab'.padStart(7, '')", "ab");  // an empty pad cannot fill
+    ExpectEval("'a'.concat('b', 1)", "ab1");
+  });
+
+  AddTest(tests, "JsInterpreter/StringAllocationIsBounded", [] {
+    // Every one of these is a length a page chose, multiplied. Without the
+    // bound the answer is gigabytes; with it, it is a value a script can catch.
+    ExpectEval("try { 'x'.repeat(1e9) } catch (e) { e.name }", "RangeError");
+    ExpectEval("try { 'x'.repeat(-1) } catch (e) { e.name }", "RangeError");
+    ExpectEval("try { 'x'.repeat(Infinity) } catch (e) { e.name }", "RangeError");
+    ExpectEval("try { 'x'.padStart(1e9) } catch (e) { e.name }", "RangeError");
+  });
+
+  AddTest(tests, "JsInterpreter/WellKnownPrototypesSurviveCollection", [] {
+    // Every prototype the interpreter holds has to be in the collector's root
+    // set. One that is not gets freed the first time a program allocates
+    // enough, and every method read off it afterwards is a use-after-free.
+    // Dropping the array prototype from that list turns this test into a
+    // segfault, which is what makes it a guard rather than a description.
+    //
+    // String.prototype is reachable a second way, through `String.prototype`
+    // on the constructor -- but a page can delete that property, so the
+    // explicit root is what it actually rests on.
+    //
+    // Only the string and array prototypes carry methods so far, so those are
+    // the two this can observe; the object and function prototypes are empty
+    // and get covered here the moment anything is installed on them.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(R"(
+      let sink = null;
+      for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }
+      ['ab'.toUpperCase(), [3, 1, 2].join('-'), 'a,b'.split(',').length].join(' ')
+    )");
+    Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "AB 3-1-2 2",
+                   "the string and array prototypes outlived the collector");
+  });
+
+  AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
+    // `length` and `[i]` predate the prototype and still win over it, which is
+    // the ordering GetProperty has to preserve.
+    ExpectEval("'abc'.length", "3");
+    ExpectEval("'abc'[1]", "b");
+    ExpectEval("typeof 'abc'[9]", "undefined");
+    ExpectEval("'abc'.slice(1).length", "2");
+    // A number is converted before the method runs -- template literals and
+    // `+` produce strings from anything, so methods have to accept what they
+    // produce.
+    ExpectEval("`${12345}`.slice(1, 3)", "23");
+    ExpectEval("(1 + '').padStart(3, '0')", "001");
   });
 }
 

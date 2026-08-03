@@ -121,7 +121,14 @@ class Interpreter {
   Object* NewArray(std::vector<Value> elements);
   Object* NewArray(std::vector<Value> elements, std::vector<bool> present);
   Value NewFunction(const Node& node, Environment& scope, bool arrow);
+  // Wraps a C++ callable as a JS function object, and puts one on an object
+  // under a name. Every builtin is installed through these two.
+  Object* NewNative(const char* name, NativeFunction function);
+  void InstallNative(Object* target, const char* name, NativeFunction function);
   void InstallGlobals();
+  // String.prototype, in its own translation unit: it is the largest single
+  // group of builtins and Builtins.cpp is already near the module's TU limit.
+  void InstallStringPrototype(Object* string_constructor);
 
   Heap heap_;
   Object* global_ = nullptr;
@@ -129,6 +136,11 @@ class Interpreter {
   Object* array_prototype_ = nullptr;
   Object* object_prototype_ = nullptr;
   Object* function_prototype_ = nullptr;
+  // Where a string's methods live, so that `"a".trim` and
+  // `String.prototype.trim` are the same function object. A string is a
+  // primitive here rather than a boxed object, so the lookup in GetProperty
+  // consults this directly instead of walking a prototype chain from a wrapper.
+  Object* string_prototype_ = nullptr;
   std::vector<std::string> console_;
 
   // Every scope currently on the C++ call stack, so the collector can find
