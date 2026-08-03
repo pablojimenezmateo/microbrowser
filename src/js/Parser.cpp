@@ -28,8 +28,8 @@ constexpr std::array<BinaryOp, 24> kBinaryOps = {{
     {"/", 11, false},   {"%", 11, false},  {"**", 12, true},  {"__unused", 0, false},
 }};
 
-constexpr std::array<std::string_view, 12> kAssignmentOps = {
-    "=", "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "|=", "^=",
+constexpr std::array<std::string_view, 13> kAssignmentOps = {
+    "=", "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "|=", "^=", "**=",
 };
 
 // Logical assignment is spelled with escapes because `??=` is a trigraph in a
@@ -283,6 +283,26 @@ NodePtr ParserImpl::ParseObjectLiteral() {
       continue;
     }
 
+    // `get x(){}` and `set x(v){}`. Detected the same way the class body
+    // detects them: `get` and `set` are ordinary identifiers, so a property
+    // *named* `get` has to still work, and the only way to tell is to read the
+    // next token and put it back.
+    bool getter = false;
+    bool setter = false;
+    if ((current_.lexeme == "get" || current_.lexeme == "set") &&
+        current_.type == TokenType::Identifier) {
+      const bool is_getter = current_.lexeme == "get";
+      const Token saved = current_;
+      Advance();
+      if (At(":") || At("(") || At(",") || At("}") || At("=")) {
+        lexer_.SeekTo(saved.end, saved.line);
+        current_ = saved;
+      } else {
+        getter = is_getter;
+        setter = !is_getter;
+      }
+    }
+
     bool computed = false;
     NodePtr computed_key;
     if (At("[")) {
@@ -307,7 +327,15 @@ NodePtr ParserImpl::ParseObjectLiteral() {
       continue;
     }
 
-    if (Eat(":")) {
+    if (getter || setter) {
+      // An accessor is a method whose value happens to be read or written
+      // rather than called, so it parses as one and is marked.
+      NodePtr function = Make(NodeKind::FunctionExpression);
+      function->string = property->string;
+      function->children.push_back(ParseParameters());
+      function->children.push_back(ParseBlock());
+      property->children.push_back(std::move(function));
+    } else if (Eat(":")) {
       property->children.push_back(ParseAssignment());
     } else if (At("(")) {
       // A method. Represented as a plain property whose value is a function, so
@@ -332,8 +360,11 @@ NodePtr ParserImpl::ParseObjectLiteral() {
         property->children.push_back(std::move(identifier));
       }
     }
+    // A bitfield, the way a class member's flags are: computed, getter and
+    // setter are three independent facts about one property and `{ get [k]()
+    // {} }` is all of them at once.
+    property->number = (computed ? 1.0 : 0.0) + (getter ? 2.0 : 0.0) + (setter ? 4.0 : 0.0);
     if (computed) {
-      property->number = 1.0;
       property->children.push_back(std::move(computed_key));
     }
     node->children.push_back(std::move(property));

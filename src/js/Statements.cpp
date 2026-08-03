@@ -196,16 +196,22 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
           }
           continue;
         }
+        // The parser packs three independent facts into `number`: whether the
+        // key was computed, and whether this is a getter or a setter.
+        const auto flags = static_cast<int>(property->number);
+        const bool computed = (flags & 1) != 0;
+        const bool is_getter = (flags & 2) != 0;
+        const bool is_setter = (flags & 4) != 0;
         // A computed key keeps whatever it evaluated to. Stringifying here is
         // what would file `{ [Symbol.iterator]() {} }` under a name a page can
         // write out, which would make the protocol hook forgeable.
         PropertyKey key = property->string;
-        if (property->number == 1.0 && property->Child(1) != nullptr) {
-          const Result computed = Evaluate(*property->Child(1), scope);
-          if (computed.IsAbrupt()) {
-            return computed;
+        if (computed && property->Child(1) != nullptr) {
+          const Result evaluated_key = Evaluate(*property->Child(1), scope);
+          if (evaluated_key.IsAbrupt()) {
+            return evaluated_key;
           }
-          key = KeyFrom(computed.value);
+          key = KeyFrom(evaluated_key.value);
         }
         const Node* value_node = property->Child(0);
         if (value_node == nullptr) {
@@ -214,6 +220,17 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         const Result value = Evaluate(*value_node, scope);
         if (value.IsAbrupt()) {
           return value;
+        }
+        if (is_getter || is_setter) {
+          if (!value.value.IsObject()) {
+            return Throw("TypeError", "an accessor must be a function");
+          }
+          // Defined rather than set, so that `{ get x(){}, set x(v){} }`
+          // fills in the two halves of one property rather than the second
+          // replacing the first.
+          object->DefineAccessor(std::move(key), is_getter ? value.value.object : nullptr,
+                                 is_setter ? value.value.object : nullptr);
+          continue;
         }
         object->Set(std::move(key), value.value);
       }
@@ -364,6 +381,24 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       for (std::size_t i = 1; i < node.children.size(); ++i) {
         const Node* argument = node.Child(i);
         if (argument == nullptr) {
+          continue;
+        }
+        // `new C(...args)`. The parser already accepts it; evaluating the
+        // spread node as an ordinary expression is what used to make it a
+        // "SyntaxError: unsupported expression" at run time.
+        if (argument->kind == NodeKind::Spread) {
+          const Node* inner = argument->Child(0);
+          if (inner == nullptr) {
+            continue;
+          }
+          const Result spread = Evaluate(*inner, scope);
+          if (spread.IsAbrupt()) {
+            return spread;
+          }
+          const Result collected = CollectIterable(spread.value, arguments);
+          if (collected.IsAbrupt()) {
+            return collected;
+          }
           continue;
         }
         const Result value = Evaluate(*argument, scope);

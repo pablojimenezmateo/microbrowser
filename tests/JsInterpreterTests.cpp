@@ -1417,6 +1417,37 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("Object.isFrozen(1)", "true");
   });
 
+  // --- Syntax a real page uses -----------------------------------------------
+
+  AddTest(tests, "JsInterpreter/AnObjectLiteralCanDefineAccessors", [] {
+    ExpectEval("({ get v(){ return 7 } }).v", "7");
+    ExpectEval("const o = { set v(x){ this.w = x } }; o.v = 3; o.w", "3");
+    // Both halves of one property, not the second replacing the first.
+    ExpectEval("const o = { get v(){ return this.n }, set v(x){ this.n = x * 2 } }; "
+               "o.v = 4; o.v",
+               "8");
+    ExpectEval("const k = 'dyn'; ({ get [k](){ return 'c' } }).dyn", "c");
+    // `get` and `set` are ordinary identifiers, so a property named either
+    // still has to work -- which is the only reason detecting an accessor
+    // needs a token of lookahead.
+    ExpectEval("const o = { get: 1, set: 2 }; o.get + o.set", "3");
+    ExpectEval("const o = { get(){ return 5 } }; o.get()", "5");
+  });
+
+  AddTest(tests, "JsInterpreter/NewTakesASpreadLikeAnyOtherCall", [] {
+    ExpectEval("class P { constructor(a, b){ this.s = a + b } } new P(...[1, 2]).s", "3");
+    // Any iterable, since the spread runs the protocol.
+    ExpectEval("class P { constructor(a, b){ this.s = a + b } } new P(...new Set([3, 4])).s", "7");
+    ExpectEval("class P { constructor(a, b, c){ this.s = '' + a + b + c } } "
+               "new P(0, ...[1, 2]).s",
+               "012");
+  });
+
+  AddTest(tests, "JsInterpreter/ExponentAssignsLikeEveryOtherOperator", [] {
+    ExpectEval("let n = 2; n **= 3; n", "8");
+    ExpectEval("let n = 2; n **= 0; n", "1");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.
