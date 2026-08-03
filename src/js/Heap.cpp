@@ -37,19 +37,23 @@ std::optional<std::size_t> ParseArrayIndex(std::string_view key) {
   return index;
 }
 
-const Object::Property* Object::GetOwnProperty(std::string_view key) const {
-  const auto found = properties_.find(std::string(key));
+PropertyKey KeyFrom(const Value& value) {
+  return value.IsSymbol() ? PropertyKey::Symbol(value.object) : PropertyKey(ToString(value));
+}
+
+const Object::Property* Object::GetOwnProperty(const PropertyKey& key) const {
+  const auto found = properties_.find(key);
   return found == properties_.end() ? nullptr : &found->second;
 }
 
-const Value* Object::GetOwn(std::string_view key) const {
+const Value* Object::GetOwn(const PropertyKey& key) const {
   const Property* property = GetOwnProperty(key);
   // An accessor has no value to hand back. Callers that can invoke a getter go
   // through GetProperty; the ones that cannot are asking about data.
   return property == nullptr || property->IsAccessor() ? nullptr : &property->value;
 }
 
-const Object::Property* Object::GetProperty(std::string_view key) const {
+const Object::Property* Object::GetProperty(const PropertyKey& key) const {
   const Object* current = this;
   for (int depth = 0; current != nullptr && depth < kMaxPrototypeDepth; ++depth) {
     if (const Property* property = current->GetOwnProperty(key)) {
@@ -60,12 +64,12 @@ const Object::Property* Object::GetProperty(std::string_view key) const {
   return nullptr;
 }
 
-const Value* Object::Get(std::string_view key) const {
+const Value* Object::Get(const PropertyKey& key) const {
   const Property* property = GetProperty(key);
   return property == nullptr || property->IsAccessor() ? nullptr : &property->value;
 }
 
-void Object::Set(std::string key, Value value) {
+void Object::Set(PropertyKey key, Value value) {
   const auto found = properties_.find(key);
   if (found != properties_.end()) {
     found->second.value = std::move(value);
@@ -73,11 +77,13 @@ void Object::Set(std::string key, Value value) {
     found->second.setter = nullptr;
     return;
   }
-  key_order_.push_back(key);
+  if (!key.IsSymbol()) {
+    key_order_.push_back(key.Text());
+  }
   properties_.emplace(std::move(key), Property{std::move(value), nullptr, nullptr});
 }
 
-void Object::DefineAccessor(std::string key, Object* getter, Object* setter) {
+void Object::DefineAccessor(PropertyKey key, Object* getter, Object* setter) {
   const auto found = properties_.find(key);
   if (found != properties_.end()) {
     // A second `get`/`set` for the same name fills in the other half rather
@@ -91,16 +97,18 @@ void Object::DefineAccessor(std::string key, Object* getter, Object* setter) {
     found->second.value = Value::Undefined();
     return;
   }
-  key_order_.push_back(key);
+  if (!key.IsSymbol()) {
+    key_order_.push_back(key.Text());
+  }
   properties_.emplace(std::move(key), Property{Value::Undefined(), getter, setter});
 }
 
-bool Object::Delete(std::string_view key) {
-  if (kind_ == Kind::Array) {
-    if (key == "length") {
+bool Object::Delete(const PropertyKey& key) {
+  if (kind_ == Kind::Array && !key.IsSymbol()) {
+    if (key.Text() == "length") {
       return false;
     }
-    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
       if (*index < elements_.size()) {
         elements_[*index].value = Value::Undefined();
         elements_[*index].present = false;
@@ -108,22 +116,24 @@ bool Object::Delete(std::string_view key) {
       return true;
     }
   }
-  const auto found = properties_.find(std::string(key));
+  const auto found = properties_.find(key);
   if (found == properties_.end()) {
     return true;
   }
   properties_.erase(found);
-  key_order_.erase(std::remove(key_order_.begin(), key_order_.end(), std::string(key)),
-                   key_order_.end());
+  if (!key.IsSymbol()) {
+    key_order_.erase(std::remove(key_order_.begin(), key_order_.end(), key.Text()),
+                     key_order_.end());
+  }
   return true;
 }
 
-bool Object::HasOwn(std::string_view key) const {
-  if (kind_ == Kind::Array) {
-    if (key == "length") {
+bool Object::HasOwn(const PropertyKey& key) const {
+  if (kind_ == Kind::Array && !key.IsSymbol()) {
+    if (key.Text() == "length") {
       return true;
     }
-    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
       return HasElement(*index);
     }
   }
@@ -245,7 +255,11 @@ Environment* Heap::AllocateEnvironment(Environment* parent) {
 }
 
 void Heap::MarkValue(const Value& value) {
-  if (value.type == ValueType::Object && value.object != nullptr) {
+  // A symbol's cell is collected like an object and lives in the same vector,
+  // so it is marked the same way. Missing it here would free a symbol still
+  // held in a variable.
+  if ((value.type == ValueType::Object || value.type == ValueType::Symbol) &&
+      value.object != nullptr) {
     Mark(value.object);
   }
 }
@@ -297,6 +311,10 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
       Mark(object->super_constructor_);
       MarkValue(object->bound_this_);
       for (const auto& entry : object->properties_) {
+        // The key too: a symbol whose only reference is that it is a key here
+        // is still reachable, and freeing it would leave the map holding a
+        // pointer to a cell that could be reallocated as something else.
+        Mark(const_cast<Object*>(entry.first.Cell()));
         MarkValue(entry.second.value);
         Mark(entry.second.getter);
         Mark(entry.second.setter);

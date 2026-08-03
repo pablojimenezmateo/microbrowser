@@ -21,9 +21,61 @@ class RegExp;
 
 std::optional<std::size_t> ParseArrayIndex(std::string_view key);
 
+class PropertyKey;
+// The key a computed access denotes. A symbol stays a symbol; everything else
+// becomes its string form, which is what makes `o[1]` and `o['1']` the same
+// property.
+PropertyKey KeyFrom(const Value& value);
+
 struct ArrayElement {
   Value value;
   bool present = false;
+};
+
+// What a property is filed under.
+//
+// The language has exactly two kinds of key and they never compare equal to
+// each other, so this is a sum type rather than a string with an escape
+// convention. Deriving a symbol's key from its description would let a string
+// of the same text collide with it, and not colliding is the entire reason
+// symbols exist -- `Symbol.iterator` has to be a key no page can reach by
+// writing one out.
+//
+// Constructible from a string implicitly, because the overwhelming majority of
+// keys are strings and every call site that names one would otherwise say so
+// twice.
+class PropertyKey {
+ public:
+  PropertyKey() = default;
+  PropertyKey(std::string text) : text_(std::move(text)) {}       // NOLINT: implicit by design
+  PropertyKey(std::string_view text) : text_(text) {}             // NOLINT
+  PropertyKey(const char* text) : text_(text) {}                  // NOLINT
+  // The cell is the identity: two symbols with the same description are
+  // different keys, which is the whole point of them.
+  static PropertyKey Symbol(const Object* cell) {
+    PropertyKey key;
+    key.symbol_ = cell;
+    return key;
+  }
+
+  bool IsSymbol() const { return symbol_ != nullptr; }
+  const std::string& Text() const { return text_; }
+  const Object* Cell() const { return symbol_; }
+
+  bool operator==(const PropertyKey& other) const {
+    return symbol_ == other.symbol_ && (symbol_ != nullptr || text_ == other.text_);
+  }
+
+  struct Hash {
+    std::size_t operator()(const PropertyKey& key) const {
+      return key.IsSymbol() ? std::hash<const void*>{}(key.Cell())
+                            : std::hash<std::string>{}(key.Text());
+    }
+  };
+
+ private:
+  const Object* symbol_ = nullptr;
+  std::string text_;
 };
 
 // A native function's implementation.
@@ -62,7 +114,7 @@ using NativeFunction = std::function<Value(NativeCall&)>;
 // lookup starts with a downcast.
 class Object {
  public:
-  enum class Kind : std::uint8_t { Plain, Array, Function, Native, Error, RegExp };
+  enum class Kind : std::uint8_t { Plain, Array, Function, Native, Error, RegExp, Symbol };
 
   explicit Object(Kind kind) : kind_(kind) {}
 
@@ -91,22 +143,24 @@ class Object {
   // Own properties only. Null when absent, which is distinct from a property
   // whose value is undefined -- `'x' in o` and `o.x === undefined` are
   // different questions.
-  const Value* GetOwn(std::string_view key) const;
-  const Property* GetOwnProperty(std::string_view key) const;
+  const Value* GetOwn(const PropertyKey& key) const;
+  const Property* GetOwnProperty(const PropertyKey& key) const;
   // Walks the prototype chain, so an accessor inherited from a class body is
   // found on an instance that does not have one of its own.
-  const Property* GetProperty(std::string_view key) const;
-  void DefineAccessor(std::string key, Object* getter, Object* setter);
+  const Property* GetProperty(const PropertyKey& key) const;
+  void DefineAccessor(PropertyKey key, Object* getter, Object* setter);
   // Walks the prototype chain. The chain is bounded while walking rather than
   // on assignment: a cycle can be built with __proto__ or with Object.create,
   // and an unbounded walk is a hang reachable from a page.
-  const Value* Get(std::string_view key) const;
-  void Set(std::string key, Value value);
-  bool Delete(std::string_view key);
-  bool HasOwn(std::string_view key) const;
+  const Value* Get(const PropertyKey& key) const;
+  void Set(PropertyKey key, Value value);
+  bool Delete(const PropertyKey& key);
+  bool HasOwn(const PropertyKey& key) const;
 
   // Insertion order, which is what `for...in` and Object.keys use for string
-  // keys that are not array indices.
+  // keys that are not array indices. Symbol-keyed properties are deliberately
+  // absent: nothing that enumerates an object is supposed to see them, which
+  // is what makes a symbol a safe place to hang a protocol hook.
   const std::vector<std::string>& Keys() const { return key_order_; }
 
   std::size_t ElementCount() const { return elements_.size(); }
@@ -140,9 +194,9 @@ class Object {
 
   // Instance field initializers, in declaration order. The node is null for a
   // field with no initializer, which is undefined rather than absent.
-  using InstanceField = std::pair<std::string, const Node*>;
+  using InstanceField = std::pair<PropertyKey, const Node*>;
   const std::vector<InstanceField>& InstanceFields() const { return instance_fields_; }
-  void AddInstanceField(std::string name, const Node* initializer) {
+  void AddInstanceField(PropertyKey name, const Node* initializer) {
     instance_fields_.emplace_back(std::move(name), initializer);
   }
 
@@ -155,7 +209,7 @@ class Object {
 
   Kind kind_ = Kind::Plain;
   Object* prototype_ = nullptr;
-  std::unordered_map<std::string, Property> properties_;
+  std::unordered_map<PropertyKey, Property, PropertyKey::Hash> properties_;
   std::vector<std::string> key_order_;
   std::vector<ArrayElement> elements_;
 

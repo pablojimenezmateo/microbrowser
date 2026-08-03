@@ -89,13 +89,18 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
     const bool is_static = (flags & kMethodStatic) != 0;
     Object* target = is_static ? constructor : prototype;
 
-    std::string name = member->string;
+    // Two things, because they are two things: what the member is filed
+    // under, which a computed key can make a symbol, and what `fn.name`
+    // reports, which is always text.
+    PropertyKey name = member->string;
+    std::string display = member->string;
     if ((flags & kMethodComputed) != 0 && member->Child(0) != nullptr) {
       const Result computed = Evaluate(*member->Child(0), *class_scope);
       if (computed.IsAbrupt()) {
         return computed;
       }
-      name = ToString(computed.value);
+      name = KeyFrom(computed.value);
+      display = ToString(computed.value);
     }
 
     const Node* function_node = member->children.empty()
@@ -123,7 +128,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
       continue;
     }
 
-    if (name == "constructor" && !is_static) {
+    if (!name.IsSymbol() && name.Text() == "constructor" && !is_static) {
       continue;  // already the class object
     }
 
@@ -131,7 +136,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
     if (!method.IsObject()) {
       return Throw("RangeError", "out of memory");
     }
-    method.object->Set("name", Value::String(name));
+    method.object->Set("name", Value::String(display));
     // The home object is what `super.x` resolves against: the *defining*
     // object's prototype, not the receiver's. Without it, a method that calls
     // super in a three-level hierarchy recurses into itself.

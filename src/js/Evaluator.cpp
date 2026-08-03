@@ -2,6 +2,7 @@
 #include <optional>
 #include <utility>
 
+#include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
 
 namespace microbrowser::js {
@@ -39,18 +40,38 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
       return Result::Normal(value);
 
     case NodeKind::ArrayLiteral: {
-      // Array destructuring. A hole skips an element rather than binding it.
+      // Array destructuring, over the iteration protocol rather than by index.
+      // `const [a, b] = new Set(xs)` is the same syntax as `const [a, b] = xs`
+      // and reading indices would give undefined for one of them.
+      //
+      // One value taken per element, not a drained vector: the pattern is
+      // allowed to be shorter than the iterable, and stepping only as far as
+      // it needs is the difference between destructuring an endless iterator
+      // and hanging on one.
+      Iteration cursor;
+      const Result opened = OpenIteration(value, cursor);
+      if (opened.IsAbrupt()) {
+        return opened;
+      }
+      bool exhausted = false;
       for (std::size_t i = 0; i < target.children.size(); ++i) {
         const Node* element = target.Child(i);
-        if (element == nullptr) {
-          continue;
-        }
-        if (element->kind == NodeKind::Spread || element->kind == NodeKind::RestElement) {
+        if (element != nullptr &&
+            (element->kind == NodeKind::Spread || element->kind == NodeKind::RestElement)) {
           std::vector<Value> rest;
-          if (value.IsObject() && value.object->GetKind() == Object::Kind::Array) {
-            for (std::size_t j = i; j < value.object->ElementCount(); ++j) {
-              rest.push_back(value.object->GetElement(j));
+          while (!exhausted) {
+            Value item;
+            const Result stepped = StepIteration(cursor, item, exhausted);
+            if (stepped.IsAbrupt()) {
+              return stepped;
             }
+            if (exhausted) {
+              break;
+            }
+            if (rest.size() >= kMaxAllocationLength) {
+              return Throw("RangeError", "too many values to destructure");
+            }
+            rest.push_back(std::move(item));
           }
           const Node* inner = element->Child(0);
           if (inner != nullptr) {
@@ -66,7 +87,21 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
           }
           break;
         }
-        const Value item = GetProperty(value, std::to_string(i));
+        // A hole still consumes a value -- `const [, b] = xs` binds the
+        // second, which it can only do by stepping past the first.
+        Value item;
+        if (!exhausted) {
+          const Result stepped = StepIteration(cursor, item, exhausted);
+          if (stepped.IsAbrupt()) {
+            return stepped;
+          }
+          if (exhausted) {
+            item = Value::Undefined();
+          }
+        }
+        if (element == nullptr) {
+          continue;
+        }
         const Result bound = BindPattern(*element, item, scope, declare, is_const);
         if (bound.IsAbrupt()) {
           return bound;
@@ -114,7 +149,7 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
       if (member.IsAbrupt()) {
         return member;
       }
-      return SetProperty(base, ToString(member.value), value);
+      return SetProperty(base, KeyFrom(member.value), value);
     }
 
     default:
@@ -145,7 +180,7 @@ Result Interpreter::EvaluateMember(const Node& node, Environment& scope, Value& 
       if (key.IsAbrupt()) {
         return key;
       }
-      return Result::Normal(Value::String(ToString(key.value)));
+      return key;  // a symbol key stays a symbol; see the note below
     }
     return Result::Normal(Value::String(property_node->string));
   }
@@ -165,7 +200,11 @@ Result Interpreter::EvaluateMember(const Node& node, Environment& scope, Value& 
   if (key.IsAbrupt()) {
     return key;
   }
-  return Result::Normal(Value::String(ToString(key.value)));
+  // Returned as it was evaluated rather than as a string. Stringifying here is
+  // what would make `o[Symbol.iterator]` the property named "Symbol(Symbol
+  // .iterator)" -- a name a page can write out, which is exactly what a symbol
+  // key must not be. Callers turn it into a key with KeyFrom.
+  return key;
 }
 
 Result Interpreter::EvaluateBinary(const Node& node, Environment& scope) {
@@ -361,7 +400,7 @@ Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
     if (key.IsAbrupt()) {
       return key;
     }
-    const Result stored = SetProperty(base, ToString(key.value), value.value);
+    const Result stored = SetProperty(base, KeyFrom(key.value), value.value);
     if (stored.IsAbrupt()) {
       return stored;
     }
@@ -432,7 +471,7 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     // stays the receiver -- which is the whole point of the two being separate.
     const Value lookup_base = super_base_.IsObject() ? super_base_ : base;
     super_base_ = Value::Undefined();
-    callee = Result::Normal(GetProperty(lookup_base, ToString(key.value)));
+    callee = Result::Normal(GetProperty(lookup_base, KeyFrom(key.value)));
   } else {
     callee = Evaluate(*callee_node, scope);
   }
@@ -458,10 +497,11 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
       if (spread.IsAbrupt()) {
         return spread;
       }
-      if (spread.value.IsObject() && spread.value.object->GetKind() == Object::Kind::Array) {
-        for (std::size_t j = 0; j < spread.value.object->ElementCount(); ++j) {
-          arguments.push_back(spread.value.object->GetElement(j));
-        }
+      // Any iterable, not only an array: `f(...new Set(xs))` and
+      // `f(...'abc')` are both ordinary calls.
+      const Result collected = CollectIterable(spread.value, arguments);
+      if (collected.IsAbrupt()) {
+        return collected;
       }
       continue;
     }

@@ -10,7 +10,7 @@ namespace microbrowser::js {
 
 class Object;
 
-enum class ValueType : std::uint8_t { Undefined, Null, Boolean, Number, String, Object };
+enum class ValueType : std::uint8_t { Undefined, Null, Boolean, Number, String, Object, Symbol };
 
 // A JavaScript value.
 //
@@ -54,11 +54,21 @@ struct Value {
     value.object = object;
     return value;
   }
+  // A symbol. Its cell is collected like an object and its *identity* is the
+  // cell, which is what makes two symbols with the same description different
+  // -- and what makes a symbol usable as a key no page can write out.
+  static Value Sym(Object* cell) {
+    Value value;
+    value.type = ValueType::Symbol;
+    value.object = cell;
+    return value;
+  }
 
   bool IsUndefined() const { return type == ValueType::Undefined; }
   bool IsNull() const { return type == ValueType::Null; }
   bool IsNullish() const { return IsUndefined() || IsNull(); }
   bool IsObject() const { return type == ValueType::Object && object != nullptr; }
+  bool IsSymbol() const { return type == ValueType::Symbol && object != nullptr; }
   bool IsString() const { return type == ValueType::String; }
   bool IsNumber() const { return type == ValueType::Number; }
 

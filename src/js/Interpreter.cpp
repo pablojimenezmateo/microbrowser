@@ -68,6 +68,11 @@ Value Interpreter::NewObjectValue() {
   return object == nullptr ? Value::Undefined() : Value::Obj(object);
 }
 
+Value Interpreter::NewNativeValue(const char* name, NativeFunction function) {
+  Object* native = NewNative(name, std::move(function));
+  return native == nullptr ? Value::Undefined() : Value::Obj(native);
+}
+
 Value Interpreter::NewRegExpValue(RegExp pattern) {
   Object* object = heap_.AllocateObject(Object::Kind::RegExp);
   if (object == nullptr) {
@@ -126,7 +131,8 @@ void Interpreter::MaybeCollect() {
     return;
   }
   std::vector<Object*> object_roots{global_,           object_prototype_, array_prototype_,
-                                    function_prototype_, string_prototype_, regexp_prototype_};
+                                    function_prototype_, string_prototype_, regexp_prototype_,
+                                    symbol_iterator_};
   object_roots.insert(object_roots.end(), active_objects_.begin(), active_objects_.end());
   std::vector<Environment*> environment_roots{global_scope_};
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());
@@ -160,13 +166,18 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
 
 // --- Property access -------------------------------------------------------
 
-Value Interpreter::GetProperty(const Value& base, std::string_view key) {
+Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
+  // A symbol key names none of the built-in structure below -- there is no
+  // symbol spelled "length" and no symbol that is an array index -- so those
+  // tests are guarded rather than repeated inside each one.
+  const bool named = !key.IsSymbol();
   if (base.IsString()) {
     const std::string& text = base.AsString();
-    if (key == "length") {
+    if (named && key.Text() == "length") {
       return Value::Number(static_cast<double>(text.size()));
     }
-    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+    if (const std::optional<std::size_t> index =
+            named ? ParseArrayIndex(key.Text()) : std::nullopt) {
       return *index < text.size() ? Value::String(std::string(1, text[*index]))
                                   : Value::Undefined();
     }
@@ -180,16 +191,31 @@ Value Interpreter::GetProperty(const Value& base, std::string_view key) {
         string_prototype_ == nullptr ? nullptr : string_prototype_->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
+  if (base.IsSymbol()) {
+    // A symbol is a primitive, but its cell is an object, so `sym.description`
+    // and `sym.toString` are an ordinary prototype walk from the cell. No
+    // wrapper is needed and none is made -- the same reasoning as a string,
+    // which reads its methods straight off String.prototype.
+    const Object::Property* property = base.object->GetProperty(key);
+    if (property == nullptr) {
+      return Value::Undefined();
+    }
+    if (property->getter != nullptr) {
+      const Result got = CallFunction(Value::Obj(property->getter), base, {});
+      return got.IsAbrupt() ? Value::Undefined() : got.value;
+    }
+    return property->IsAccessor() ? Value::Undefined() : property->value;
+  }
   if (!base.IsObject()) {
     return Value::Undefined();
   }
 
   Object* object = base.object;
-  if (object->GetKind() == Object::Kind::Array) {
-    if (key == "length") {
+  if (object->GetKind() == Object::Kind::Array && named) {
+    if (key.Text() == "length") {
       return Value::Number(static_cast<double>(object->ElementCount()));
     }
-    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
       return object->GetElement(*index);
     }
   }
@@ -210,21 +236,23 @@ Value Interpreter::GetProperty(const Value& base, std::string_view key) {
   return property->value;
 }
 
-Result Interpreter::SetProperty(const Value& base, std::string_view key, const Value& value) {
+Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const Value& value) {
+  const bool named = !key.IsSymbol();
   if (!base.IsObject()) {
     // Assigning to a property of a primitive is a silent no-op outside strict
     // mode and a TypeError inside it. Null and undefined are always an error,
     // which is the one people actually hit.
     if (base.IsNullish()) {
-      return Throw("TypeError",
-                   "cannot set property '" + std::string(key) + "' of " + ToString(base));
+      return Throw("TypeError", "cannot set property '" +
+                                    (named ? key.Text() : std::string("[symbol]")) + "' of " +
+                                    ToString(base));
     }
     return Result::Normal(value);
   }
 
   Object* object = base.object;
-  if (object->GetKind() == Object::Kind::Array) {
-    if (key == "length") {
+  if (object->GetKind() == Object::Kind::Array && named) {
+    if (key.Text() == "length") {
       const double numeric_length = ToNumber(value);
       const std::uint32_t length = ToUint32(numeric_length);
       if (numeric_length != static_cast<double>(length) || length > kMaxAllocationLength) {
@@ -236,7 +264,7 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
       object->ResizeElements(length);
       return Result::Normal(value);
     }
-    if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
       if (*index >= kMaxAllocationLength) {
         return Throw("RangeError", "array index is too large");
       }
@@ -254,7 +282,7 @@ Result Interpreter::SetProperty(const Value& base, std::string_view key, const V
       return Result::Normal(value);
     }
   }
-  object->Set(std::string(key), value);
+  object->Set(key, value);
   return Result::Normal(value);
 }
 

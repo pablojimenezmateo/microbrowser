@@ -116,6 +116,8 @@ bool ToBoolean(const Value& value) {
       // Every object is truthy, including an empty array and a Boolean(false)
       // wrapper. This is the rule people are most often surprised by.
       return true;
+    case ValueType::Symbol:
+      return true;
   }
   return false;
 }
@@ -145,6 +147,11 @@ double ToNumber(const Value& value) {
       // Without valueOf/toString dispatch this is as far as it goes; an object
       // in arithmetic is NaN, which is the answer for every object that does
       // not override the conversion.
+      return std::nan("");
+    case ValueType::Symbol:
+      // The spec makes this a TypeError. There is no way to throw from here --
+      // ToNumber is a pure function with no interpreter -- so NaN stands in,
+      // and arithmetic on a symbol is quietly NaN rather than loudly wrong.
       return std::nan("");
   }
   return std::nan("");
@@ -202,6 +209,18 @@ std::string ToString(const Value& value) {
         return "function";
       }
       return "[object Object]";
+    case ValueType::Symbol: {
+      // The spec makes an implicit conversion here a TypeError, so that
+      // `'' + sym` is caught rather than producing something plausible. This
+      // function cannot throw, so it produces what `String(sym)` -- the
+      // explicit conversion, which *is* allowed -- would.
+      const Value* description =
+          value.object == nullptr ? nullptr : value.object->GetOwn("description");
+      return "Symbol(" +
+             (description == nullptr || description->IsUndefined() ? std::string()
+                                                                   : ToString(*description)) +
+             ")";
+    }
   }
   return "undefined";
 }
@@ -221,6 +240,8 @@ std::string_view TypeOf(const Value& value) {
       return "string";
     case ValueType::Object:
       return value.object->IsCallable() ? "function" : "object";
+    case ValueType::Symbol:
+      return "symbol";
   }
   return "undefined";
 }
@@ -241,6 +262,9 @@ bool StrictEquals(const Value& a, const Value& b) {
     case ValueType::String:
       return a.AsString() == b.AsString();
     case ValueType::Object:
+    case ValueType::Symbol:
+      // Identity, for both: two symbols are the same symbol only when they are
+      // the same cell, whatever their descriptions say.
       return a.object == b.object;
   }
   return false;

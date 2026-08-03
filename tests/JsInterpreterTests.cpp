@@ -910,7 +910,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("'axb'.search(/b/) + ' ' + 'axb'.search(/q/)", "2 -1");
     ExpectEval("'aaa'.match(/a/g).length", "3");
     ExpectEval("'ab12'.match(/(\\d)(\\d)/)[1]", "1");
-    ExpectEval("'a1b2'.matchAll(/\\d/g).length", "2");
+    ExpectEval("[...'a1b2'.matchAll(/\\d/g)].length", "2");
     // A pattern handed to matchAll must be global, and the spec makes that a
     // TypeError rather than an implicit `g`: the two readings of
     // `s.matchAll(/x/)` differ by an infinite loop.
@@ -927,7 +927,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("'a.b.c'.split('.').length", "3");
     ExpectEval("'axc'.search('x')", "1");
     // A converted pattern is global, because matchAll requires one.
-    ExpectEval("'a1b2'.matchAll('\\\\d').length", "2");
+    ExpectEval("[...'a1b2'.matchAll('\\\\d')].length", "2");
     // `match` with no argument matches the empty pattern at position 0 rather
     // than failing, which is what makes `''.match()` an empty match.
     ExpectEval("'abc'.match().index", "0");
@@ -973,6 +973,108 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     )");
     Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
     ExpectEqString(js::ToString(result.value), "42", "the pattern outlived the collector");
+  });
+
+  // --- Symbols and the iteration protocol -----------------------------------
+
+  AddTest(tests, "JsInterpreter/ASymbolIsAKeyThatCannotBeWrittenOut", [] {
+    ExpectEval("typeof Symbol()", "symbol");
+    ExpectEval("typeof Symbol.iterator", "symbol");
+    // Identity, not description. This is the property everything else rests on.
+    ExpectEval("Symbol('x') === Symbol('x')", "false");
+    ExpectEval("const s = Symbol('x'); s === s", "true");
+    ExpectEval("Symbol('x').description", "x");
+    ExpectEval("String(Symbol('x'))", "Symbol(x)");
+    ExpectEval("Symbol('x').toString()", "Symbol(x)");
+    // A symbol-keyed property is invisible to everything that enumerates,
+    // which is what makes a symbol safe to hang a protocol hook on.
+    ExpectEval("const s = Symbol(); const o = { plain: 1 }; o[s] = 2; "
+               "[o[s], Object.keys(o).join(''), JSON.stringify(o)].join(' ')",
+               "2 plain {\"plain\":1}");
+    // And it does not collide with the string of the same text.
+    ExpectEval("const s = Symbol('k'); const o = {}; o[s] = 1; o['Symbol(k)'] = 2; o[s]", "1");
+  });
+
+  AddTest(tests, "JsInterpreter/TheSymbolRegistryIsTheOneWayTwoSymbolsAreOne", [] {
+    ExpectEval("Symbol.for('k') === Symbol.for('k')", "true");
+    ExpectEval("Symbol.for('k') === Symbol('k')", "false");
+    ExpectEval("Symbol.keyFor(Symbol.for('k'))", "k");
+    ExpectEval("typeof Symbol.keyFor(Symbol('k'))", "undefined");
+  });
+
+  AddTest(tests, "JsInterpreter/AnythingWithASymbolIteratorCanBeIterated", [] {
+    const std::string range =
+        "const range = { from: 1, to: 4, [Symbol.iterator]() { let n = this.from, to = this.to; "
+        "return { next: () => n <= to ? { value: n++, done: false } "
+        ": { value: undefined, done: true } }; } }; ";
+    ExpectEval(range + "let s = ''; for (const v of range) s += v; s", "1234");
+    ExpectEval(range + "[...range].join('-')", "1-2-3-4");
+    ExpectEval(range + "const [a, b, ...rest] = range; a + '|' + b + '|' + rest.join(',')",
+               "1|2|3,4");
+    ExpectEval(range + "function f(...xs){ return xs.length } f(...range)", "4");
+    ExpectEval("try { for (const x of {}) {} } catch (e) { e.name }", "TypeError");
+  });
+
+  AddTest(tests, "JsInterpreter/ForOfStopsAskingAtABreak", [] {
+    // The reason `for...of` drives the protocol one value at a time instead of
+    // draining it first. An iterator with side effects must not be stepped
+    // past the break, and one that never ends must still be breakable.
+    ExpectEval("let calls = 0; const counted = { [Symbol.iterator]() { "
+               "return { next: () => ({ value: ++calls, done: false }) }; } }; "
+               "for (const v of counted) { if (v === 3) break; } calls",
+               "3");
+  });
+
+  AddTest(tests, "JsInterpreter/StringsAndArraysPublishTheSameProtocol", [] {
+    ExpectEval("[...'abc'].join('-')", "a-b-c");
+    ExpectEval("const [first] = 'xyz'; first", "x");
+    ExpectEval("[...[1, 2, 3]].join('')", "123");
+    // The iterator objects themselves, which a page can drive by hand.
+    ExpectEval("const it = [10, 20][Symbol.iterator](); "
+               "[it.next().value, it.next().value, it.next().done].join(' ')",
+               "10 20 true");
+    ExpectEval("typeof 'a'[Symbol.iterator]", "function");
+    // An iterator is itself iterable, which is what lets one be re-fed to a
+    // `for...of` or a spread.
+    ExpectEval("[...'ab'.matchAll(/./g)].length", "2");
+  });
+
+  AddTest(tests, "JsInterpreter/ReplacingTheBuiltInIteratorIsObserved", [] {
+    // The array fast path is only taken while the hook is still the built-in
+    // one. A page that replaces it gets what it asked for, not the shortcut.
+    ExpectEval("const xs = [1, 2, 3]; "
+               "xs[Symbol.iterator] = function(){ let n = 0; "
+               "return { next: () => n++ < 2 ? { value: 'x', done: false } : { done: true } }; }; "
+               "[...xs].join('')",
+               "xx");
+  });
+
+  AddTest(tests, "JsInterpreter/AHoleInADestructuringPatternStillConsumesAValue", [] {
+    // `const [, b] = xs` can only bind the second by stepping past the first,
+    // which is visible when the source is an iterator rather than an array.
+    ExpectEval("const [, b] = [1, 2]; b", "2");
+    ExpectEval("let n = 0; const source = { [Symbol.iterator]() { "
+               "return { next: () => ({ value: ++n, done: n > 5 }) }; } }; "
+               "const [, second] = source; second",
+               "2");
+  });
+
+  AddTest(tests, "JsInterpreter/ASymbolKeyedMethodSurvivesACollection", [] {
+    // A symbol whose only reference is that it is a property key has to be
+    // marked through the key. Missing that frees the cell while the map still
+    // points at it, and the next allocation lands on top of it.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(R"(
+      const key = Symbol('held');
+      const holder = {};
+      holder[key] = 'kept';
+      let sink = null;
+      for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }
+      holder[key] + ' ' + [...[1, 2]].length
+    )");
+    Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "kept 2",
+                   "the symbol and the iteration hooks outlived the collector");
   });
 
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {

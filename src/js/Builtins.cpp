@@ -246,6 +246,12 @@ void Interpreter::InstallGlobals() {
           case ValueType::Null:
             out += "null";
             return true;
+          case ValueType::Symbol:
+            // JSON has no symbol. The spec drops one wherever `undefined`
+            // would be dropped, and this writer's callers are the array and
+            // object paths that already handle that.
+            out += "null";
+            return true;
           case ValueType::Boolean:
             out += value.boolean ? "true" : "false";
             return true;
@@ -553,6 +559,8 @@ void Interpreter::InstallGlobals() {
   // After it, because the pattern-taking String methods are installed on the
   // same prototype and would otherwise be overwritten by it.
   InstallRegExpPrototype();
+  // After both prototypes exist: the iteration hooks are installed on them.
+  InstallIteration();
   global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {

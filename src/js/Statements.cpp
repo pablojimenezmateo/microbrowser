@@ -143,12 +143,16 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
           if (spread.IsAbrupt()) {
             return spread;
           }
-          if (spread.value.IsObject() &&
-              spread.value.object->GetKind() == Object::Kind::Array) {
-            for (std::size_t i = 0; i < spread.value.object->ElementCount(); ++i) {
-              elements.push_back(spread.value.object->GetElement(i));
-              present.push_back(true);
-            }
+          // Any iterable, which is what makes `[...'abc']` three characters
+          // and `[...someSet]` its members.
+          std::vector<Value> spread_values;
+          const Result collected = CollectIterable(spread.value, spread_values);
+          if (collected.IsAbrupt()) {
+            return collected;
+          }
+          for (Value& item : spread_values) {
+            elements.push_back(std::move(item));
+            present.push_back(true);
           }
           continue;
         }
@@ -192,13 +196,16 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
           }
           continue;
         }
-        std::string key = property->string;
+        // A computed key keeps whatever it evaluated to. Stringifying here is
+        // what would file `{ [Symbol.iterator]() {} }` under a name a page can
+        // write out, which would make the protocol hook forgeable.
+        PropertyKey key = property->string;
         if (property->number == 1.0 && property->Child(1) != nullptr) {
           const Result computed = Evaluate(*property->Child(1), scope);
           if (computed.IsAbrupt()) {
             return computed;
           }
-          key = ToString(computed.value);
+          key = KeyFrom(computed.value);
         }
         const Node* value_node = property->Child(0);
         if (value_node == nullptr) {
@@ -246,7 +253,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
             return key;
           }
           if (base.IsObject()) {
-            return Result::Normal(Value::Bool(base.object->Delete(ToString(key.value))));
+            return Result::Normal(Value::Bool(base.object->Delete(KeyFrom(key.value))));
           }
         }
         return Result::Normal(Value::Bool(true));
@@ -287,7 +294,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         if (key.IsAbrupt()) {
           return key;
         }
-        const Result stored = SetProperty(base, ToString(key.value), Value::Number(after));
+        const Result stored = SetProperty(base, KeyFrom(key.value), Value::Number(after));
         if (stored.IsAbrupt()) {
           return stored;
         }
@@ -425,7 +432,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         return Throw("TypeError",
                      "cannot read property '" + ToString(key.value) + "' of " + ToString(base));
       }
-      return Result::Normal(GetProperty(base, ToString(key.value)));
+      return Result::Normal(GetProperty(base, KeyFrom(key.value)));
     }
 
     case NodeKind::Sequence: {
@@ -524,36 +531,70 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
     return iterable;
   }
 
-  std::vector<Value> items;
+  // `for...in` enumerates keys and has no protocol behind it, so its items are
+  // collected up front. `for...of` runs the iteration protocol, which is
+  // observable: an iterator whose `next` has side effects must not be stepped
+  // past a `break`, so it is driven one value at a time rather than drained
+  // into a vector first.
   const bool is_of = node.string == "of";
-  if (iterable.value.IsObject()) {
+  std::vector<Value> keys;
+  Iteration cursor;
+  if (is_of) {
+    const Result opened = OpenIteration(iterable.value, cursor);
+    if (opened.IsAbrupt()) {
+      return opened;
+    }
+  } else if (iterable.value.IsObject()) {
     Object* object = iterable.value.object;
     if (object->GetKind() == Object::Kind::Array) {
       for (std::size_t i = 0; i < object->ElementCount(); ++i) {
-        // `for...of` yields values, `for...in` yields keys -- and for an array
-        // the keys are strings, which is the classic reason `for...in` over an
-        // array gives "0", "1" rather than 0, 1.
-        if (is_of) {
-          items.push_back(object->GetElement(i));
-        } else if (object->HasElement(i)) {
-          items.push_back(Value::String(std::to_string(i)));
+        // For an array the keys are strings, which is the classic reason
+        // `for...in` over one gives "0", "1" rather than 0, 1.
+        if (object->HasElement(i)) {
+          keys.push_back(Value::String(std::to_string(i)));
         }
       }
     }
-    if (!is_of) {
-      for (const std::string& key : object->Keys()) {
-        items.push_back(Value::String(key));
-      }
+    for (const std::string& key : object->Keys()) {
+      keys.push_back(Value::String(key));
     }
-  } else if (iterable.value.IsString() && is_of) {
-    for (const char c : iterable.value.AsString()) {
-      items.push_back(Value::String(std::string(1, c)));
-    }
-  } else if (!iterable.value.IsNullish() && is_of) {
-    return Throw("TypeError", ToString(iterable.value) + " is not iterable");
   }
 
-  for (const Value& item : items) {
+  // The iterator object is held on the shadow stack for as long as the loop
+  // runs: it lives in a C++ local, which the collector cannot see.
+  if (cursor.iterator.IsObject()) {
+    active_objects_.push_back(cursor.iterator.object);
+  } else if (cursor.array != nullptr) {
+    active_objects_.push_back(cursor.array);
+  }
+  struct IteratorRoot {
+    Interpreter& interpreter;
+    bool held;
+    ~IteratorRoot() {
+      if (held) {
+        interpreter.active_objects_.pop_back();
+      }
+    }
+  } root{*this, cursor.iterator.IsObject() || cursor.array != nullptr};
+
+  for (std::size_t step = 0;; ++step) {
+    Value item;
+    if (is_of) {
+      bool done = false;
+      const Result advanced = StepIteration(cursor, item, done);
+      if (advanced.IsAbrupt()) {
+        return advanced;
+      }
+      if (done) {
+        break;
+      }
+    } else {
+      if (step >= keys.size()) {
+        break;
+      }
+      item = keys[step];
+    }
+
     Environment* iteration = heap_.AllocateEnvironment(&scope);
     if (iteration == nullptr) {
       return Throw("RangeError", "out of memory");

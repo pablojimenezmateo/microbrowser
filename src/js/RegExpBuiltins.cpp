@@ -517,9 +517,6 @@ void Interpreter::InstallRegExpPrototype() {
   });
 
   install(string_prototype_, "matchAll", [](NativeCall& call) {
-    // An array rather than an iterator: `for...of` is defined over iterators,
-    // which need generators, which the engine does not have yet. An array is
-    // what a page's `[...s.matchAll(re)]` was going to build anyway.
     const std::string text = ToString(call.self);
     const Value given = Argument(call.arguments, 0);
     // A pattern handed to matchAll must be global. The spec makes this a
@@ -534,21 +531,60 @@ void Interpreter::InstallRegExpPrototype() {
     if (!ReadPatternArgument(call, given, true, argument)) {
       return Value::Undefined();
     }
-    const RegExp* expression = &argument.pattern;
-    std::vector<Value> results;
-    std::size_t at = 0;
-    while (at <= text.size()) {
-      const Step step = NextMatch(*expression, text, at);
-      if (!step.match.has_value()) {
-        break;
-      }
-      results.push_back(MakeMatchResult(call.interpreter, *expression, *step.match, text));
-      at = step.next;
-      if (results.size() >= kMaxAllocationLength) {
-        break;
-      }
+
+    // A real iterator, produced lazily. A page writes `for (const m of
+    // s.matchAll(re))` over a large document and breaks out of it, and
+    // building every match first would do all that work for nothing.
+    Value iterator = call.interpreter.NewObjectValue();
+    if (!iterator.IsObject()) {
+      return iterator;
     }
-    return call.interpreter.NewArrayValue(std::move(results));
+    // The state goes in properties rather than in a capture, because a
+    // capture is invisible to the collector -- the rule stated on NativeCall.
+    // The pattern is stored as the RegExp object it came from, or as a fresh
+    // one when the argument was a string, so the compiled program stays
+    // reachable through the heap's table.
+    iterator.object->Set("#target", Value::String(text));
+    iterator.object->Set("#index", Value::Number(0.0));
+    iterator.object->Set("#pattern",
+                         argument.object != nullptr
+                             ? Value::Obj(argument.object)
+                             : call.interpreter.NewRegExpValue(argument.pattern));
+
+    const auto step = [](NativeCall& inner) {
+      Value result = inner.interpreter.NewObjectValue();
+      if (!result.IsObject() || !inner.self.IsObject()) {
+        return result;
+      }
+      Object* state = inner.self.object;
+      const Value* target = state->GetOwn("#target");
+      const Value* at = state->GetOwn("#index");
+      const Value* pattern_value = state->GetOwn("#pattern");
+      const RegExp* pattern =
+          pattern_value == nullptr ? nullptr : inner.interpreter.RegExpOf(*pattern_value);
+      const std::string text_of = target == nullptr ? std::string() : target->AsString();
+      const std::size_t from = at == nullptr ? 0 : static_cast<std::size_t>(ToNumber(*at));
+      const Step found =
+          pattern == nullptr || from > text_of.size() ? Step{} : NextMatch(*pattern, text_of, from);
+      if (!found.match.has_value()) {
+        result.object->Set("value", Value::Undefined());
+        result.object->Set("done", Value::Bool(true));
+        return result;
+      }
+      state->Set("#index", Value::Number(static_cast<double>(found.next)));
+      result.object->Set(
+          "value", MakeMatchResult(inner.interpreter, *pattern, *found.match, text_of));
+      result.object->Set("done", Value::Bool(false));
+      return result;
+    };
+    iterator.object->Set("next", call.interpreter.NewNativeValue("next", step));
+    // An iterator is itself iterable, which is what lets its result be spread
+    // or fed straight to `for...of`.
+    iterator.object->Set(
+        PropertyKey::Symbol(call.interpreter.SymbolIterator()),
+        call.interpreter.NewNativeValue("[Symbol.iterator]",
+                                        [](NativeCall& inner) { return inner.self; }));
+    return iterator;
   });
 
   install(string_prototype_, "search", [](NativeCall& call) {

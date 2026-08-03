@@ -91,11 +91,48 @@ class Interpreter {
   // A plain object, for a builtin that has to return a record rather than a
   // list -- a match's named groups being the first of them.
   Value NewObjectValue();
+  // A native function as a value. Public because a builtin that returns an
+  // *object with methods* -- an iterator, whose `next` closes over that
+  // iterator's own state -- cannot make one otherwise.
+  Value NewNativeValue(const char* name, NativeFunction function);
 
   // Wraps a compiled pattern as the JavaScript object a regex literal
   // evaluates to. Public for the same reason NewArrayValue is: a builtin --
   // and the literal's evaluation -- has no other way to make one.
   Value NewRegExpValue(RegExp pattern);
+  // One iteration in progress.
+  //
+  // A cursor rather than a collected vector, because the protocol is
+  // observable: a `for...of` that breaks early must stop asking, and an
+  // iterator whose `next` has side effects must not be run past the break.
+  // Collecting first would be simpler and wrong in exactly the cases a page
+  // writes a custom iterator for.
+  struct Iteration {
+    // The fast path: an array whose `Symbol.iterator` is still the built-in
+    // one, walked by index. Allocating an iterator object and calling a
+    // function per element is what `for (const x of xs)` would otherwise cost,
+    // and it is the most common loop in any page.
+    Object* array = nullptr;
+    std::size_t index = 0;
+    // The general path.
+    Value iterator;
+    Value next;
+  };
+  // Begins iterating `iterable`, or throws the TypeError the spec throws for
+  // something that is not iterable.
+  Result OpenIteration(const Value& iterable, Iteration& state);
+  // The next value, with `done` set when there is none. Public alongside
+  // OpenIteration because spread, destructuring and `for...of` are three
+  // callers in three files.
+  Result StepIteration(Iteration& state, Value& value_out, bool& done);
+  // Everything an iterable yields. Spread and a rest element both consume the
+  // whole thing by definition, so draining is what the spec says there --
+  // unlike `for...of`, which must stop asking at a `break`.
+  Result CollectIterable(const Value& iterable, std::vector<Value>& out);
+  // The `Symbol.iterator` cell, so a caller can ask for the protocol hook
+  // without going through the global object -- which a page can reassign.
+  Object* SymbolIterator() const { return symbol_iterator_; }
+
   // The compiled pattern behind a RegExp object, or null for anything else.
   // This is what "is a regular expression" means here, and it is a stronger
   // question than looking for a `source` property: an ordinary object cannot
@@ -128,8 +165,8 @@ class Interpreter {
   Result BindParameters(const Node& parameters, const std::vector<Value>& arguments,
                         Environment& scope);
 
-  Value GetProperty(const Value& base, std::string_view key);
-  Result SetProperty(const Value& base, std::string_view key, const Value& value);
+  Value GetProperty(const Value& base, const PropertyKey& key);
+  Result SetProperty(const Value& base, const PropertyKey& key, const Value& value);
 
   Object* NewObject();
   Object* NewArray(std::vector<Value> elements);
@@ -149,6 +186,11 @@ class Interpreter {
   // files that already exist would put the pattern-matching logic in the file
   // whose whole point is that it has none.
   void InstallRegExpPrototype();
+  // Symbol, the well-known symbols, and the iterators the built-in types
+  // publish. One feature: symbols exist here so that the iteration protocol
+  // has a key no page can write out, and installing them apart would separate
+  // the mechanism from its only current use.
+  void InstallIteration();
 
   Heap heap_;
   Object* global_ = nullptr;
@@ -165,6 +207,10 @@ class Interpreter {
   // it is reachable through the RegExp constructor too, and a page can delete
   // that property.
   Object* regexp_prototype_ = nullptr;
+  // The well-known symbol every iteration goes through. A member rather than a
+  // lookup through the global `Symbol`, which a page can reassign -- the
+  // protocol has to keep working when it does. A GC root like the prototypes.
+  Object* symbol_iterator_ = nullptr;
   std::vector<std::string> console_;
 
   // Every scope currently on the C++ call stack, so the collector can find
