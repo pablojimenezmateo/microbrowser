@@ -6,6 +6,7 @@
 #include <string>
 
 #include "util/Parse.h"
+#include "util/PerformanceTrace.h"
 
 namespace microbrowser::layout {
 
@@ -120,6 +121,7 @@ std::optional<float> DefiniteCellWidth(const Box& cell) {
 // already too narrow for it. Doing both in one pass would let a wide spanning
 // cell inflate a column that a later single-column cell proves can be narrow.
 TableColumnWidths LayoutEngine::MeasureTableColumns(const Box& table) const {
+  util::PerformanceTrace::Scope scope("layout::MeasureTableColumns");
   const std::size_t column_count = std::max<std::size_t>(1, MaxTableColumns(table));
   TableColumnWidths widths;
   widths.min.assign(column_count, 0.0f);
@@ -237,9 +239,15 @@ std::vector<float> LayoutEngine::DistributeTableColumns(const TableColumnWidths&
 }
 
 float LayoutEngine::LayoutTableChildren(Box& box, float content_left, float content_width,
-                                        float start_y) const {
-  const std::vector<float> columns =
-      DistributeTableColumns(MeasureTableColumns(box), content_width);
+                                        float start_y,
+                                        std::optional<TableColumnWidths>& measured) const {
+  // The caller has already measured when the table's own width was
+  // shrink-to-fit. Measuring again would walk every cell in the table a second
+  // time for an answer that cannot have changed.
+  if (!measured.has_value()) {
+    measured = MeasureTableColumns(box);
+  }
+  const std::vector<float> columns = DistributeTableColumns(*measured, content_width);
   float y = start_y;
   for (const std::unique_ptr<Box>& child : box.Children()) {
     const css::Display display = child->Style().display;

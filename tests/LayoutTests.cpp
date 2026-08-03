@@ -720,6 +720,51 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "the cell's text starts at the cell's left edge");
   });
 
+  AddTest(tests, "Layout/RelayoutAtANewWidthDoesNotReuseStaleMeasurements", [] {
+    // Intrinsic widths are cached, because sizing a table's columns measures
+    // every cell's subtree and a nested table would otherwise do that once per
+    // ancestor. What this pins is that the cache is width-independent in fact
+    // and not just in intent: laying the same tree out narrow and then wide has
+    // to give what laying it out wide once gives.
+    //
+    // It does *not* catch removing the per-pass cache clear, and that is worth
+    // saying rather than implying: with both measurements now reading a
+    // replaced box's own width instead of the geometry layout last wrote, the
+    // measurement is a pure function of the tree and the clear is defence
+    // rather than a fix. It stays because it makes "the cache never outlives a
+    // pass" true by construction, which is cheaper to keep than to re-derive
+    // the next time someone measures something mutable.
+    const std::unique_ptr<dom::Document> document = html::ParseDocument(
+        "<table><tr><td>a b c d e f</td><td>x</td></tr></table>");
+    css::StyleResolver resolver;
+    resolver.AddStyleSheet(
+        css::ParseStyleSheet("body { margin: 0 } table, td { margin: 0; padding: 0; "
+                             "font-size: 20px }"),
+        css::Origin::Author);
+    const FixedTextMeasurer measurer(kAdvanceRatio);
+    const LayoutEngine engine(resolver, measurer);
+
+    const auto widths_at = [&](std::unique_ptr<Box>& root, float width) {
+      engine.Layout(*root, width);
+      std::vector<float> widths;
+      for (const Box* cell : BoxesByTag(*root, "td")) {
+        widths.push_back(cell->Geometry().content.width);
+      }
+      return widths;
+    };
+
+    std::unique_ptr<Box> reused = engine.BuildBoxTree(*document);
+    widths_at(reused, 40.0f);
+    const std::vector<float> second = widths_at(reused, 400.0f);
+
+    std::unique_ptr<Box> fresh = engine.BuildBoxTree(*document);
+    const std::vector<float> once = widths_at(fresh, 400.0f);
+
+    Expect(second.size() == once.size() && !once.empty(), "the same cells both times");
+    Expect(second == once,
+           "a tree laid out twice measures the same as one laid out once");
+  });
+
   AddTest(tests, "Layout/ATableIsNoWiderThanItsContent", [] {
     const LaidOut result =
         Run("<table><tr><td>ab</td></tr></table>",

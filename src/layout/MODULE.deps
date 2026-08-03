@@ -15,12 +15,21 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # One more member and two more methods for `background-image`: a box may carry
 # both a content image and a background one, they paint at different times, and
 # a single slot would make a replaced element with a background lose one of them.
-budget: Box             header_lines=110 public_methods=32 members=9
+# One more member and two more methods for the intrinsic width cache. It is a
+# cache rather than a computation because sizing a table's columns measures
+# every cell's subtree, and a nested table did that once per ancestor -- 70% of
+# the time to lay out a comment page, growing with nesting depth.
+budget: Box             header_lines=130 public_methods=35 members=10
 budget: ImageProvider   header_lines=25 public_methods=6  members=0
 budget: TextFragment    header_lines=25 public_methods=4  members=4
 budget: TextMeasurer    header_lines=30 public_methods=8  members=0
 budget: FontTextMeasurer header_lines=35 public_methods=8 members=1
-budget: LayoutEngine    header_lines=65 public_methods=8  members=3
+# Raised for the two intrinsic-width entry points and their measurement pair.
+# The split is the point: the cached form is what the recursion must call, and
+# a comment on one function cannot say that -- measuring through the wrong one
+# reintroduces an O(nodes x nesting depth) walk that was 70% of the time to lay
+# out a comment page.
+budget: LayoutEngine    header_lines=80 public_methods=8  members=3
 # The floats in one block formatting context. Separate from Box because it
 # belongs to the context rather than to any box in it: a float shortens line
 # boxes that belong to boxes which know nothing about it.

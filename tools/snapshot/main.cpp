@@ -28,6 +28,10 @@
 #include "gfx/TextRenderer.h"
 #include "ipc/InProcessTransport.h"
 #include "platform/SystemFonts.h"
+#include "util/PerformanceTrace.h"
+#include "util/StartupTrace.h"
+#include "util/PerformanceCounters.h"
+#include "util/TraceChannel.h"
 
 namespace {
 
@@ -172,6 +176,11 @@ bool WritePpm(const microbrowser::gfx::Canvas& canvas, const std::string& path) 
 }  // namespace
 
 int main(int argc, char** argv) {
+  // Same as the browser's main(): identify the thread whose latency a user
+  // feels before anything can record a scope, or every ranked summary is
+  // misleading in the same direction.
+  microbrowser::util::MarkTracingMainThread();
+
   Options options;
   if (!ParseOptions(argc, argv, options)) {
     std::fputs(kUsage, stderr);
@@ -236,6 +245,12 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "could not write %s\n", options.output.c_str());
     return 1;
   }
+  // MICROBROWSER_PERF_SUMMARY=1 and MICROBROWSER_STARTUP_SUMMARY=1 work here
+  // exactly as they do in the browser. Without this they read as "no scopes
+  // ran", which is the wrong answer to a question about where the time went.
+  microbrowser::util::PerformanceTrace::DumpSummaryOnce();
+  microbrowser::util::StartupTrace::DumpSummaryOnce();
+  microbrowser::util::DumpPerformanceCountersOnce();
   std::fprintf(stderr, "%s: %zu commands, %zu runs, %zu fonts, %zu images, title \"%s\" -> %s\n",
                url.c_str(), display_list.Size(), display_list.Texts().size(),
                display_list.Fonts().size(), display_list.Images().size(), title.c_str(),

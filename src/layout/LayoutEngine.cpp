@@ -497,6 +497,10 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   const float horizontal = margin_left + margin_right + padding_left + padding_right +
                            border_left + border_right;
   float content_width = available_width - horizontal;
+  // Measured here when the table's own width depends on it, and handed to
+  // LayoutTableChildren so it is measured once rather than once per question
+  // asked about it.
+  std::optional<TableColumnWidths> table_columns;
   if (!style.width.IsAuto()) {
     // A percentage width resolves against the containing block, which is the
     // one place a percentage *can* be resolved — this is why the cascade
@@ -510,12 +514,12 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     // narrower than what they need. A table that filled its containing block
     // like an ordinary block would stretch a two-word column across the page,
     // which is the single most visible way a table can be laid out wrong.
-    const TableColumnWidths bounds = MeasureTableColumns(box);
+    table_columns = MeasureTableColumns(box);
     float total_min = 0.0f;
     float total_max = 0.0f;
-    for (std::size_t i = 0; i < bounds.min.size(); ++i) {
-      total_min += bounds.min[i];
-      total_max += bounds.max[i];
+    for (std::size_t i = 0; i < table_columns->min.size(); ++i) {
+      total_min += table_columns->min[i];
+      total_max += table_columns->max[i];
     }
     content_width = std::min(std::max(total_min, content_width), total_max);
   }
@@ -578,7 +582,8 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
 
   float content_height = 0.0f;
   if (style.display == css::Display::Table) {
-    content_height = LayoutTableChildren(box, content_left, content_width, content_top);
+    content_height =
+        LayoutTableChildren(box, content_left, content_width, content_top, table_columns);
   } else if (!has_block_child && !box.Children().empty()) {
     content_height =
         LayoutInlineChildren(box, content_left, content_width, content_top, child_floats);
@@ -622,6 +627,9 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
 
 float LayoutEngine::Layout(Box& root, float width) const {
   AddPerformanceCounter(PerfCounterId::LayoutRuns);
+  // Intrinsic widths are cached within a pass and not across them: a replaced
+  // box's used width can change between two layouts of the same tree.
+  root.ClearIntrinsicWidths();
   float cursor = 0.0f;
   // The root establishes the initial block formatting context.
   FloatContext floats;
@@ -663,6 +671,15 @@ std::optional<float> DeclaredContentWidth(const Box& box) {
 // widest of its children, and an inline sequence the sum of them -- which is
 // the definition of max-content, applied to the box kinds that exist.
 float LayoutEngine::MaxContentWidth(const Box& box) const {
+  if (box.Intrinsic().max >= 0.0f) {
+    return box.Intrinsic().max;
+  }
+  const float measured = MeasureMaxContentWidth(box);
+  box.Intrinsic().max = measured;
+  return measured;
+}
+
+float LayoutEngine::MeasureMaxContentWidth(const Box& box) const {
   const css::ComputedStyle& style = box.Style();
   if (const std::optional<float> declared = DeclaredContentWidth(box)) {
     return *declared;
@@ -671,7 +688,11 @@ float LayoutEngine::MaxContentWidth(const Box& box) const {
     return measurer_->MeasureWidth(box.Text(), style);
   }
   if (box.GetKind() == Box::Kind::Replaced) {
-    return box.Geometry().content.width;
+    // The element's own width, not the geometry layout last gave it. They are
+    // the same before the first pass, and the intrinsic measurement has to stay
+    // a pure function of the tree and its styles -- it is cached, and a cache
+    // over something layout writes to is a value from the previous viewport.
+    return ReplacedWidth(box);
   }
 
   float widest = 0.0f;
@@ -708,6 +729,15 @@ float LayoutEngine::MaxContentWidth(const Box& box) const {
 // sequence can wrap between its items, so a paragraph's minimum is its longest
 // word and not the width of all of them.
 float LayoutEngine::MinContentWidth(const Box& box) const {
+  if (box.Intrinsic().min >= 0.0f) {
+    return box.Intrinsic().min;
+  }
+  const float measured = MeasureMinContentWidth(box);
+  box.Intrinsic().min = measured;
+  return measured;
+}
+
+float LayoutEngine::MeasureMinContentWidth(const Box& box) const {
   const css::ComputedStyle& style = box.Style();
   if (const std::optional<float> declared = DeclaredContentWidth(box)) {
     return *declared;
@@ -734,9 +764,10 @@ float LayoutEngine::MinContentWidth(const Box& box) const {
     return widest;
   }
   if (box.GetKind() == Box::Kind::Replaced) {
-    // A replaced box does not wrap. Its minimum is its used width, which is
-    // also why an image in a table column stops that column shrinking.
-    return box.Geometry().content.width;
+    // A replaced box does not wrap, so its minimum is its own width -- which is
+    // also why an image in a table column stops that column shrinking. Its own,
+    // not the geometry layout last wrote: see the note in the maximum.
+    return ReplacedWidth(box);
   }
 
   float widest = 0.0f;

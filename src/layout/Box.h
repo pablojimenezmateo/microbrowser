@@ -139,6 +139,28 @@ class Box {
     background_image_ = std::move(image);
   }
 
+  // The intrinsic widths this box was last measured at, cached because the
+  // answer depends only on the subtree and its styles -- both fixed for the
+  // duration of a layout pass. Without it every ancestor table re-walks every
+  // descendant's whole subtree to size its columns, which is O(nodes x nesting
+  // depth) and was 70% of the time spent laying out a Hacker News comment page.
+  //
+  // Negative means unmeasured. Cleared by LayoutEngine::Layout at the start of
+  // each pass rather than trusted across passes: a replaced box's used width
+  // can change between them, and a stale intrinsic width is a column that is
+  // the right size for the previous viewport.
+  struct IntrinsicWidths {
+    float min = -1.0f;
+    float max = -1.0f;
+  };
+  IntrinsicWidths& Intrinsic() const { return intrinsic_; }
+  void ClearIntrinsicWidths() const {
+    intrinsic_ = IntrinsicWidths{};
+    for (const std::unique_ptr<Box>& child : children_) {
+      child->ClearIntrinsicWidths();
+    }
+  }
+
   const std::vector<TextFragment>& Fragments() const { return fragments_; }
   void AddFragment(const TextFragment& fragment) { fragments_.push_back(fragment); }
   void ClearFragments() { fragments_.clear(); }
@@ -161,6 +183,9 @@ class Box {
   std::vector<TextFragment> fragments_;
   std::shared_ptr<const gfx::Image> image_;
   std::shared_ptr<const gfx::Image> background_image_;
+  // Mutable: measuring a box does not change it, and the measurement is a pure
+  // function of a tree that layout treats as const while it reads it.
+  mutable IntrinsicWidths intrinsic_;
 };
 
 // Supplies the pixels for a replaced element.

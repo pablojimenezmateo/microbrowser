@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -68,7 +69,10 @@ class LayoutEngine {
                    FloatContext& floats, bool center_in_container = false) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
                              FloatContext& floats) const;
-  float LayoutTableChildren(Box& box, float content_left, float content_width, float start_y) const;
+  // `measured` carries the column bounds in when the caller already needed
+  // them to decide the table's own width, and takes them out when it did not.
+  float LayoutTableChildren(Box& box, float content_left, float content_width, float start_y,
+                            std::optional<TableColumnWidths>& measured) const;
   float LayoutTableRowGroup(Box& group, float content_left, float content_width, float start_y,
                             const std::vector<float>& columns) const;
   float LayoutTableRow(Box& row, float content_left, float content_width, float start_y,
@@ -80,6 +84,12 @@ class LayoutEngine {
   // single unbreakable piece. The other half of shrink-to-fit, and what stops
   // a table column from being squeezed to nothing.
   float MinContentWidth(const Box& box) const;
+  // The measurements themselves. Separate from the two above, which are the
+  // memoized entry points -- keeping the recursion pointed at the cached form
+  // is the whole reason the cache helps, and calling the wrong one is the easy
+  // mistake to make.
+  float MeasureMaxContentWidth(const Box& box) const;
+  float MeasureMinContentWidth(const Box& box) const;
 
   // The bounds of every column of `table`, and the width each one is actually
   // given once the table's own width is known. Separate because the first is a
