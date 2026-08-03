@@ -561,6 +561,7 @@ void Interpreter::InstallGlobals() {
   InstallRegExpPrototype();
   // After both prototypes exist: the iteration hooks are installed on them.
   InstallIteration();
+  InstallCollections();
   global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {

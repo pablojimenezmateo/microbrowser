@@ -1077,6 +1077,90 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                    "the symbol and the iteration hooks outlived the collector");
   });
 
+  // --- Map and Set -----------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/AMapKeepsInsertionOrderAndOneEntryPerKey", [] {
+    ExpectEval("const m = new Map(); m.set('a', 1).set('b', 2).set('a', 3); "
+               "[m.size, m.get('a'), m.get('b'), typeof m.get('z')].join(' ')",
+               "2 3 2 undefined");
+    // Re-setting a key keeps its place rather than moving it to the end.
+    ExpectEval("const m = new Map([['a', 1], ['b', 2]]); m.set('a', 9); [...m.keys()].join('')",
+               "ab");
+    ExpectEval("const m = new Map([['a', 1]]); [m.has('a'), m.has('b')].join(' ')", "true false");
+    ExpectEval("JSON.stringify([...new Map([['a', 1]])])", "[[\"a\",1]]");
+  });
+
+  AddTest(tests, "JsInterpreter/MapKeysAreComparedByIdentityAndSameValueZero", [] {
+    // Two empty objects are two keys, which is the whole reason a Map exists
+    // rather than an object with string keys.
+    ExpectEval("const a = {}, b = {}; const m = new Map([[a, 1], [b, 2]]); "
+               "[m.get(a), m.get(b), typeof m.get({}), m.size].join(' ')",
+               "1 2 undefined 2");
+    // SameValueZero, which is `===` with two changes: NaN finds itself, and
+    // the two zeros are one key.
+    ExpectEval("const m = new Map([[NaN, 'n']]); m.get(NaN)", "n");
+    ExpectEval("const m = new Map([[0, 'z']]); m.get(-0)", "z");
+    ExpectEval("const m = new Map([['1', 's']]); typeof m.get(1)", "undefined");
+  });
+
+  AddTest(tests, "JsInterpreter/DeletingFromAMapDoesNotDisturbTheRest", [] {
+    ExpectEval("const m = new Map([['a', 1], ['b', 2], ['c', 3]]); "
+               "[m.delete('b'), m.delete('b'), m.size, [...m.keys()].join('')].join(' ')",
+               "true false 2 ac");
+    ExpectEval("const m = new Map([['a', 1]]); m.clear(); [m.size, m.has('a')].join(' ')",
+               "0 false");
+  });
+
+  AddTest(tests, "JsInterpreter/ASetHoldsEachMemberOnce", [] {
+    ExpectEval("const s = new Set([1, 2, 2, 3]); [s.size, [...s].join('')].join(' ')", "3 123");
+    ExpectEval("const s = new Set(); s.add(1).add(1); s.size", "1");
+    ExpectEval("[...new Set('hello')].join('')", "helo");
+    // A Set's `entries` yields each member twice, which is what makes a
+    // callback written for a Map work on one.
+    ExpectEval("JSON.stringify([...new Set([1]).entries()])", "[[1,1]]");
+    ExpectEval("let seen = ''; new Set(['a']).forEach((v, k) => seen = v + k); seen", "aa");
+  });
+
+  AddTest(tests, "JsInterpreter/BothTakeAnyIterableAndPublishOne", [] {
+    // The reason these landed after the iteration protocol rather than before.
+    ExpectEval("const src = { [Symbol.iterator]() { let n = 0; "
+               "return { next: () => n < 3 ? { value: n++, done: false } : { done: true } }; } }; "
+               "new Set(src).size",
+               "3");
+    ExpectEval("new Map(new Map([['a', 1]])).get('a')", "1");
+    ExpectEval("new Set(new Set([7])).has(7)", "true");
+    // `for...of` over a Map yields pairs, over a Set yields members.
+    ExpectEval("let out = ''; for (const [k, v] of new Map([['a', 1]])) out = k + v; out", "a1");
+    ExpectEval("let out = ''; for (const v of new Set(['x'])) out = v; out", "x");
+    ExpectEval("function f(...xs){ return xs.length } f(...new Set([1, 2]))", "2");
+  });
+
+  AddTest(tests, "JsInterpreter/ALargeMapDoesNotDegradeToAScan", [] {
+    // Not a timing assertion -- a wrong answer is what an index bug produces
+    // first. Twenty thousand entries, every one still findable after deleting
+    // all but the last, which is the case a hole-leaving delete gets wrong.
+    ExpectEval("const m = new Map(); for (let i = 0; i < 20000; i++) m.set('k' + i, i); "
+               "const before = m.get('k19999'); "
+               "for (let i = 0; i < 19999; i++) m.delete('k' + i); "
+               "[before, m.size, m.get('k19999'), typeof m.get('k0')].join(' ')",
+               "19999 1 19999 undefined");
+  });
+
+  AddTest(tests, "JsInterpreter/AMapSurvivesACollectionWithItsIndex", [] {
+    // The index lives beside the object in the heap and is dropped by the
+    // sweep that frees it. A map still live must keep both.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(R"(
+      const key = {};
+      const m = new Map([[key, 'kept'], ['s', 'also']]);
+      let sink = null;
+      for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }
+      m.get(key) + ' ' + m.get('s') + ' ' + m.size
+    )");
+    Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "kept also 2", "the map outlived the collector");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

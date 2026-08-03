@@ -18,6 +18,7 @@ namespace microbrowser::js {
 class Environment;
 class Interpreter;
 class RegExp;
+struct MapIndex;
 
 std::optional<std::size_t> ParseArrayIndex(std::string_view key);
 
@@ -297,6 +298,12 @@ class Heap {
   void AttachRegExp(const Object* object, std::shared_ptr<const RegExp> pattern);
   const RegExp* FindRegExp(const Object* object) const;
 
+  // A Map or Set's key-to-position index. Kept here for the same reason and on
+  // the same terms as the compiled pattern above: it is native state belonging
+  // to one object, and the sweep that frees the object is what drops it.
+  MapIndex* AttachMapIndex(const Object* object);
+  MapIndex* FindMapIndex(const Object* object) const;
+
   // A ceiling on live cells.
   //
   // Needed because the collector cannot run during evaluation -- see the note
@@ -325,6 +332,8 @@ class Heap {
   std::vector<std::unique_ptr<Environment>> environments_;
   // Sparse: one entry per RegExp object alive, not one slot per object.
   std::unordered_map<const Object*, std::shared_ptr<const RegExp>> regexps_;
+  // Same, for Map and Set.
+  std::unordered_map<const Object*, std::shared_ptr<MapIndex>> map_indexes_;
   std::size_t since_collection_ = 0;
   // Around 150 MB here, which is far more than any page legitimately needs and
   // far less than the machine has. Measured rather than guessed: the fuzzer's

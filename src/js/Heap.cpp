@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "js/Collections.h"
 #include "js/RegExp.h"
 
 namespace microbrowser::js {
@@ -236,6 +237,19 @@ const RegExp* Heap::FindRegExp(const Object* object) const {
   return found == regexps_.end() ? nullptr : found->second.get();
 }
 
+MapIndex* Heap::AttachMapIndex(const Object* object) {
+  std::shared_ptr<MapIndex>& slot = map_indexes_[object];
+  if (slot == nullptr) {
+    slot = std::make_shared<MapIndex>();
+  }
+  return slot.get();
+}
+
+MapIndex* Heap::FindMapIndex(const Object* object) const {
+  const auto found = map_indexes_.find(object);
+  return found == map_indexes_.end() ? nullptr : found->second.get();
+}
+
 Object* Heap::AllocateObject(Object::Kind kind) {
   if (AtLimit()) {
     return nullptr;
@@ -339,10 +353,11 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
   // Before the objects go, so the side table never holds a key that has been
   // freed -- a stale entry would be handed out as a compiled pattern the next
   // time an object happened to be allocated at the same address.
-  if (!regexps_.empty()) {
+  if (!regexps_.empty() || !map_indexes_.empty()) {
     for (const std::unique_ptr<Object>& object : objects_) {
       if (!object->marked_) {
         regexps_.erase(object.get());
+        map_indexes_.erase(object.get());
       }
     }
   }

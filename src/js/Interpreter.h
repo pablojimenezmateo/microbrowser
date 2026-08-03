@@ -166,6 +166,16 @@ class Interpreter {
                         Environment& scope);
 
   Value GetProperty(const Value& base, const PropertyKey& key);
+
+ public:
+  // The same lookup a `.` does, for a builtin that has to read a method off an
+  // object it was handed -- a Map constructor calling its own `set` is the
+  // case, and doing it any other way would miss a subclass that overrode it.
+  Value GetPropertyValue(const Value& base, const PropertyKey& key) {
+    return GetProperty(base, key);
+  }
+
+ private:
   Result SetProperty(const Value& base, const PropertyKey& key, const Value& value);
 
   Object* NewObject();
@@ -191,6 +201,9 @@ class Interpreter {
   // has a key no page can write out, and installing them apart would separate
   // the mechanism from its only current use.
   void InstallIteration();
+  // Map and Set. After InstallIteration, because both take an iterable in
+  // their constructor and both publish `Symbol.iterator`.
+  void InstallCollections();
 
   Heap heap_;
   Object* global_ = nullptr;

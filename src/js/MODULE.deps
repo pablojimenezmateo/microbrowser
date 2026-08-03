@@ -47,6 +47,12 @@ budget: Environment header_lines=40 public_methods=10 members=3
 # A string or a symbol, and never both. Two members and no room for a third:
 # if a third kind of key ever appears it should be argued for here.
 budget: PropertyKey header_lines=40 public_methods=10 members=2
+# One key, as Map and Set compare keys. Large for what it holds because the
+# comparison and the hash are written out beside it rather than derived: this
+# is SameValueZero, which is neither `===` nor Object.is, and the two places it
+# differs are worth being able to read.
+budget: ValueKey    header_lines=90 public_methods=4  members=6
+budget: MapIndex    header_lines=20 public_methods=0  members=2
 # Grew by one member and two methods for the compiled patterns behind RegExp
 # objects. They are kept beside the object rather than in it: every JavaScript
 # object would otherwise carry a pointer for a kind of object a page makes a
@@ -80,4 +86,4 @@ budget: Heap        header_lines=105 public_methods=18 members=7
 # and forgetting to list a new one there is a use-after-free -- so
 # `JsInterpreter/WellKnownPrototypesSurviveCollection` checks that the root set
 # and this list agree, for every prototype with something observable on it.
-budget: Interpreter header_lines=225 public_methods=34 members=17
+budget: Interpreter header_lines=245 public_methods=36 members=17
