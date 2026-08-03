@@ -1305,6 +1305,118 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
            "and left the rest of the work queued rather than dropping it");
   });
 
+  // --- Array.prototype -------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/ArraysSearchAndTest", [] {
+    ExpectEval("[5, 1, 4].find(x => x > 3)", "5");
+    ExpectEval("[5, 1, 4].findIndex(x => x > 3)", "0");
+    ExpectEval("[5, 1, 4].findLast(x => x > 3)", "4");
+    ExpectEval("[5, 1, 4].findLastIndex(x => x > 3)", "2");
+    ExpectEval("typeof [1].find(x => false)", "undefined");
+    ExpectEval("[1].findIndex(x => false)", "-1");
+    ExpectEval("[[1, 2].some(x => x > 1), [1, 2].every(x => x > 1)].join(' ')", "true false");
+    // Vacuously true, which is the answer that surprises people.
+    ExpectEval("[].every(x => false)", "true");
+    ExpectEval("[].some(x => true)", "false");
+    // `includes` finds NaN where `indexOf` does not, which is why it exists.
+    ExpectEval("[[NaN].includes(NaN), [NaN].indexOf(NaN)].join(' ')", "true -1");
+    ExpectEval("[[1, 2, 3].at(-1), [1, 2, 3].at(0)].join(' ')", "3 1");
+  });
+
+  AddTest(tests, "JsInterpreter/SortIsStableAndComparesStringsByDefault", [] {
+    // The default comparator is a *string* comparison, which is why this is
+    // the canonical JavaScript surprise rather than a bug here.
+    ExpectEval("[1, 10, 2].sort().join(',')", "1,10,2");
+    ExpectEval("[1, 10, 2].sort((a, b) => a - b).join(',')", "1,2,10");
+    ExpectEval("[5, 1, 4, 2].sort((a, b) => b - a).join(',')", "5,4,2,1");
+    // Stability: equal keys keep the order they were in.
+    ExpectEval("[{k:1,n:'a'},{k:0,n:'b'},{k:1,n:'c'}].sort((x, y) => x.k - y.k)"
+               ".map(x => x.n).join('')",
+               "bac");
+    // A comparator that throws stops the sort rather than corrupting it.
+    ExpectEval("try { [3, 1, 2].sort(() => { throw new Error('x') }) } catch (e) { e.message }",
+               "x");
+    ExpectEval("try { [1].sort(7) } catch (e) { e.name }", "TypeError");
+  });
+
+  AddTest(tests, "JsInterpreter/ArraysRearrangeInPlaceOrCopy", [] {
+    ExpectEval("const a = [1, 2, 3, 4, 5]; const cut = a.splice(1, 2); "
+               "cut.join(',') + ' | ' + a.join(',')",
+               "2,3 | 1,4,5");
+    ExpectEval("const a = [1]; a.splice(1, 0, 9); a.join(',')", "1,9");
+    ExpectEval("const a = [1, 2]; a.unshift(0); a.join(',')", "0,1,2");
+    ExpectEval("const a = [1, 2]; [a.shift(), a.join(',')].join(' ')", "1 2");
+    ExpectEval("[1, 2, 3].reverse().join('')", "321");
+    ExpectEval("[1, 2].concat([3, 4], 5).join('')", "12345");
+    ExpectEval("[1, 2, 3].fill(0, 1).join('')", "100");
+    ExpectEval("[1, [2, [3]]].flat().length", "3");
+    ExpectEval("[1, [2, [3]]].flat(2).join(',')", "1,2,3");
+    ExpectEval("[1, 2].flatMap(x => [x, x]).join('')", "1122");
+  });
+
+  AddTest(tests, "JsInterpreter/AHoleIsNotAnUndefinedElement", [] {
+    // The rule that is invisible until a page uses a sparse array, and then is
+    // wrong everywhere at once.
+    // map preserves holes, which JSON writes as null.
+    ExpectEval("JSON.stringify([1, , 3].map(x => x * 2))", "[2,null,6]");
+    ExpectEval("[1, , 3].filter(() => true).length", "2");
+    ExpectEval("let n = 0; [1, , 3].forEach(() => n++); n", "2");
+    ExpectEval("[1, , 3].join('-')", "1--3");
+    ExpectEval("JSON.stringify([1, , 3].slice(0, 2))", "[1,null]");
+  });
+
+  AddTest(tests, "JsInterpreter/TheArrayConstructorHasTwoMeanings", [] {
+    // One numeric argument is a length; anything else is the elements. The
+    // language's oldest wart, and pages depend on both halves.
+    ExpectEval("new Array(3).length", "3");
+    ExpectEval("new Array(1, 2).length", "2");
+    ExpectEval("try { new Array(-1) } catch (e) { e.name }", "RangeError");
+    ExpectEval("[Array.isArray([]), Array.isArray({})].join(' ')", "true false");
+    ExpectEval("Array.of(1, 2).join('')", "12");
+    ExpectEval("Array.from('abc').join('')", "abc");
+    ExpectEval("Array.from(new Set([1, 2])).join('')", "12");
+    // An array-like with a length, which is the other half of `from`.
+    ExpectEval("Array.from({ length: 3 }, (_, i) => i).join('')", "012");
+  });
+
+  AddTest(tests, "JsInterpreter/ReduceNeedsSomethingToStartFrom", [] {
+    ExpectEval("[1, 2, 3].reduce((s, x) => s + x)", "6");
+    ExpectEval("[1, 2, 3].reduce((s, x) => s + x, 10)", "16");
+    ExpectEval("[1, 2, 3].reduceRight((s, x) => s + x, '')", "321");
+    ExpectEval("[].reduce((s, x) => s + x, 0)", "0");
+    // The case that catches `[].reduce(f)`: a TypeError, not undefined.
+    ExpectEval("try { [].reduce((s, x) => s + x) } catch (e) { e.name }", "TypeError");
+  });
+
+  // --- Object statics --------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/ObjectStaticsAgreeOnWhatOwnKeysAre", [] {
+    ExpectEval("JSON.stringify(Object.entries({ a: 1, b: 2 }))", "[[\"a\",1],[\"b\",2]]");
+    ExpectEval("Object.keys({ a: 1, b: 2 }).join('')", "ab");
+    ExpectEval("Object.values({ a: 1, b: 2 }).join('')", "12");
+    ExpectEval("JSON.stringify(Object.fromEntries([['x', 1]]))", "{\"x\":1}");
+    // The call this method mostly exists for.
+    ExpectEval("JSON.stringify(Object.fromEntries(new Map([['m', 9]])))", "{\"m\":9}");
+    ExpectEval("JSON.stringify(Object.assign({}, { a: 1 }, { b: 2 }))", "{\"a\":1,\"b\":2}");
+    ExpectEval("[Object.hasOwn({ a: 1 }, 'a'), Object.hasOwn({}, 'a')].join(' ')", "true false");
+    ExpectEval("Object.getPrototypeOf([]) === Array.prototype", "true");
+  });
+
+  AddTest(tests, "JsInterpreter/FreezingActuallyFreezes", [] {
+    // A freeze that reported success and changed nothing would be worse than
+    // not having one: a page uses it to protect state it then assumes is
+    // unchanged.
+    ExpectEval("const o = Object.freeze({ v: 1 }); o.v = 99; o.v", "1");
+    ExpectEval("const o = Object.freeze({ v: 1 }); o.w = 2; typeof o.w", "undefined");
+    ExpectEval("const o = Object.freeze({ v: 1 }); delete o.v; o.v", "1");
+    // Through a builtin too, which does not go via property assignment.
+    ExpectEval("const a = Object.freeze([1, 2]); a.push(3); a.length", "2");
+    ExpectEval("[Object.isFrozen(Object.freeze({})), Object.isFrozen({})].join(' ')",
+               "true false");
+    // A primitive is frozen by definition.
+    ExpectEval("Object.isFrozen(1)", "true");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

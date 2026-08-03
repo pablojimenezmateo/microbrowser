@@ -42,7 +42,12 @@ budget: Op             header_lines=45 public_methods=0  members=0
 # and the instance field initializers. All three are per-function state that
 # has nowhere else to live -- a class *is* a function here, which is what keeps
 # `new` from having to know which of the two forms it was handed.
-budget: Object      header_lines=125 public_methods=40 members=15
+# Grew by one for the frozen flag. It is a bool beside `marked_` rather than a
+# property on the object, because a frozen object must refuse writes from a
+# *builtin* too -- `arr.push` on a frozen array does not go through
+# SetProperty -- and a property could be deleted by the page it is meant to
+# constrain.
+budget: Object      header_lines=140 public_methods=44 members=16
 budget: Environment header_lines=40 public_methods=10 members=3
 # A string or a symbol, and never both. Two members and no room for a third:
 # if a third kind of key ever appears it should be argued for here.

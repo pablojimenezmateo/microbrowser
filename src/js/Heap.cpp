@@ -71,6 +71,9 @@ const Value* Object::Get(const PropertyKey& key) const {
 }
 
 void Object::Set(PropertyKey key, Value value) {
+  if (frozen_) {
+    return;
+  }
   const auto found = properties_.find(key);
   if (found != properties_.end()) {
     found->second.value = std::move(value);
@@ -85,6 +88,9 @@ void Object::Set(PropertyKey key, Value value) {
 }
 
 void Object::DefineAccessor(PropertyKey key, Object* getter, Object* setter) {
+  if (frozen_) {
+    return;
+  }
   const auto found = properties_.find(key);
   if (found != properties_.end()) {
     // A second `get`/`set` for the same name fills in the other half rather
@@ -105,6 +111,9 @@ void Object::DefineAccessor(PropertyKey key, Object* getter, Object* setter) {
 }
 
 bool Object::Delete(const PropertyKey& key) {
+  if (frozen_) {
+    return false;
+  }
   if (kind_ == Kind::Array && !key.IsSymbol()) {
     if (key.Text() == "length") {
       return false;
@@ -165,6 +174,9 @@ void Object::ResizeElements(std::size_t size) {
 }
 
 void Object::SetElement(std::size_t index, Value value) {
+  if (frozen_) {
+    return;
+  }
   if (index >= elements_.size()) {
     elements_.resize(index + 1);
   }
@@ -172,11 +184,14 @@ void Object::SetElement(std::size_t index, Value value) {
 }
 
 void Object::PushElement(Value value) {
+  if (frozen_) {
+    return;
+  }
   elements_.push_back(ArrayElement{std::move(value), true});
 }
 
 Value Object::PopElement() {
-  if (elements_.empty()) {
+  if (frozen_ || elements_.empty()) {
     return Value::Undefined();
   }
   Value value = elements_.back().present ? elements_.back().value : Value::Undefined();

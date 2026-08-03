@@ -220,6 +220,7 @@ class Interpreter {
   // String.prototype, in its own translation unit: it is the largest single
   // group of builtins and Builtins.cpp is already near the module's TU limit.
   void InstallStringPrototype(Object* string_constructor);
+  void InstallArrayPrototype();
   void InstallFunctionPrototype();
   // RegExp.prototype and the regex-aware String methods, in their own
   // translation unit: they are one feature, and splitting them across the two

@@ -158,6 +158,18 @@ class Object {
   bool Delete(const PropertyKey& key);
   bool HasOwn(const PropertyKey& key) const;
 
+  // Frozen, by Object.freeze. Writes, deletes and new properties become
+  // silent no-ops -- which is what they are outside strict mode, and this
+  // engine is outside it.
+  //
+  // Checked in Set, Delete and the element mutators rather than only in the
+  // interpreter, so that a builtin cannot write through it either: `arr.push`
+  // on a frozen array has to fail, and it does not go through SetProperty.
+  // SetElements is the deliberate exception -- it is how a collection's own
+  // storage is rebuilt, and freezing a Map is not what a page means by it.
+  bool IsFrozen() const { return frozen_; }
+  void Freeze() { frozen_ = true; }
+
   // Insertion order, which is what `for...in` and Object.keys use for string
   // keys that are not array indices. Symbol-keyed properties are deliberately
   // absent: nothing that enumerates an object is supposed to see them, which
@@ -225,6 +237,7 @@ class Object {
   std::vector<InstanceField> instance_fields_;
 
   bool marked_ = false;
+  bool frozen_ = false;
 };
 
 // One scope.

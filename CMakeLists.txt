@@ -297,6 +297,7 @@ microbrowser_module(js
     src/js/FunctionBuiltins.cpp
     src/js/TemplateParts.cpp
     src/js/Classes.cpp
+    src/js/ArrayBuiltins.cpp
     src/js/Collections.cpp
     src/js/Iteration.cpp
     src/js/Promises.cpp

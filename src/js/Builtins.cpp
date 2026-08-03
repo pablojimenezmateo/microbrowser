@@ -387,166 +387,110 @@ void Interpreter::InstallGlobals() {
     }
     return call.interpreter.NewArrayValue(std::move(values));
   });
+  install(object_constructor, "entries", [](NativeCall& call) {
+    // Own string keys and their values, in insertion order -- which is what
+    // `Object.keys` already uses, so the three statics agree by construction.
+    std::vector<Value> pairs;
+    const Value target = Argument(call.arguments, 0);
+    if (target.IsObject()) {
+      for (const std::string& key : target.object->Keys()) {
+        pairs.push_back(call.interpreter.NewArrayValue(
+            {Value::String(key), call.interpreter.GetPropertyValue(target, key)}));
+      }
+    }
+    return call.interpreter.NewArrayValue(std::move(pairs));
+  });
+  install(object_constructor, "fromEntries", [](NativeCall& call) {
+    const Value built = call.interpreter.NewObjectValue();
+    if (!built.IsObject()) {
+      return call.Throw("RangeError", "out of memory");
+    }
+    std::vector<Value> pairs;
+    const Result collected =
+        call.interpreter.CollectIterable(Argument(call.arguments, 0), pairs);
+    if (collected.IsAbrupt()) {
+      return call.ThrowValue(collected.value);
+    }
+    for (const Value& pair : pairs) {
+      // Each pair is read with the protocol too, so `Object.fromEntries(map)`
+      // works -- which is the call this method mostly exists for.
+      std::vector<Value> parts;
+      const Result unpacked = call.interpreter.CollectIterable(pair, parts);
+      if (unpacked.IsAbrupt()) {
+        return call.ThrowValue(unpacked.value);
+      }
+      built.object->Set(KeyFrom(parts.empty() ? Value::Undefined() : parts[0]),
+                        parts.size() < 2 ? Value::Undefined() : parts[1]);
+    }
+    return built;
+  });
+  install(object_constructor, "assign", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    if (!target.IsObject()) {
+      return call.Throw("TypeError", "cannot assign to a non-object");
+    }
+    for (std::size_t i = 1; i < call.arguments.size(); ++i) {
+      const Value source = call.arguments[i];
+      if (!source.IsObject()) {
+        continue;  // null and undefined sources are skipped rather than fatal
+      }
+      if (source.object->GetKind() == Object::Kind::Array) {
+        for (std::size_t index = 0; index < source.object->ElementCount(); ++index) {
+          if (source.object->HasElement(index)) {
+            target.object->Set(std::to_string(index), source.object->GetElement(index));
+          }
+        }
+      }
+      for (const std::string& key : source.object->Keys()) {
+        // Read through GetProperty, so a getter on the source runs -- assign
+        // copies values, not accessors.
+        target.object->Set(key, call.interpreter.GetPropertyValue(source, key));
+      }
+    }
+    return target;
+  });
+  install(object_constructor, "hasOwn", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    return Value::Bool(target.IsObject() &&
+                       target.object->HasOwn(KeyFrom(Argument(call.arguments, 1))));
+  });
+  install(object_constructor, "getPrototypeOf", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    if (!target.IsObject() || target.object->Prototype() == nullptr) {
+      return Value::Null();
+    }
+    return Value::Obj(target.object->Prototype());
+  });
+  install(object_constructor, "setPrototypeOf", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    const Value prototype = Argument(call.arguments, 1);
+    if (target.IsObject()) {
+      target.object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
+    }
+    return target;
+  });
+  install(object_constructor, "freeze", [](NativeCall& call) {
+    // Real, not a no-op. A freeze that reported success and changed nothing
+    // would be worse than not having one: a page uses it to protect state it
+    // then assumes is unchanged.
+    const Value target = Argument(call.arguments, 0);
+    if (target.IsObject()) {
+      target.object->Freeze();
+    }
+    return target;
+  });
+  install(object_constructor, "isFrozen", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    // A primitive is frozen by definition, which is what the spec says and
+    // what makes `Object.isFrozen(1)` true.
+    return Value::Bool(!target.IsObject() || target.object->IsFrozen());
+  });
   global_scope_->Declare("Object", Value::Obj(object_constructor), false);
 
-  // --- Array prototype ------------------------------------------------------
-  install(well_known_.array_prototype, "push", [](NativeCall& call) {
-    if (!call.self.IsObject() || call.self.object->GetKind() != Object::Kind::Array) {
-      return Value::Undefined();
-    }
-    for (const Value& argument : call.arguments) {
-      call.self.object->PushElement(argument);
-    }
-    return Value::Number(static_cast<double>(call.self.object->ElementCount()));
-  });
-  install(well_known_.array_prototype, "pop", [](NativeCall& call) {
-    if (!call.self.IsObject() || call.self.object->ElementCount() == 0) {
-      return Value::Undefined();
-    }
-    return call.self.object->PopElement();
-  });
-  install(well_known_.array_prototype, "join", [](NativeCall& call) {
-    if (!call.self.IsObject()) {
-      return Value::String("");
-    }
-    const Value separator_value = Argument(call.arguments, 0);
-    const std::string separator =
-        separator_value.IsUndefined() ? "," : ToString(separator_value);
-    std::string joined;
-    for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
-      if (i != 0) {
-        joined += separator;
-      }
-      const Value element = call.self.object->GetElement(i);
-      if (!element.IsNullish()) {
-        joined += ToString(element);
-      }
-    }
-    return Value::String(std::move(joined));
-  });
-  install(well_known_.array_prototype, "indexOf", [](NativeCall& call) {
-    if (!call.self.IsObject()) {
-      return Value::Number(-1);
-    }
-    const Value needle = Argument(call.arguments, 0);
-    for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
-      if (call.self.object->HasElement(i) &&
-          StrictEquals(call.self.object->GetElement(i), needle)) {
-        return Value::Number(static_cast<double>(i));
-      }
-    }
-    return Value::Number(-1);
-  });
-  install(well_known_.array_prototype, "includes", [](NativeCall& call) {
-    if (!call.self.IsObject()) {
-      return Value::Bool(false);
-    }
-    const Value needle = Argument(call.arguments, 0);
-    for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
-      if (StrictEquals(call.self.object->GetElement(i), needle)) {
-        return Value::Bool(true);
-      }
-    }
-    return Value::Bool(false);
-  });
-  install(well_known_.array_prototype, "slice", [](NativeCall& call) {
-    std::vector<Value> out;
-    std::vector<bool> present;
-    if (call.self.IsObject()) {
-      const double size = static_cast<double>(call.self.object->ElementCount());
-      double begin = call.arguments.empty() ? 0.0 : ToNumber(call.arguments[0]);
-      double end = call.arguments.size() < 2 ? size : ToNumber(call.arguments[1]);
-      // A negative index counts from the end, which is what makes slice(-1)
-      // idiomatic.
-      begin = begin < 0 ? std::max(0.0, size + begin) : std::min(begin, size);
-      end = end < 0 ? std::max(0.0, size + end) : std::min(end, size);
-      for (double i = begin; i < end; ++i) {
-        const std::size_t index = static_cast<std::size_t>(i);
-        out.push_back(call.self.object->GetElement(index));
-        present.push_back(call.self.object->HasElement(index));
-      }
-    }
-    return call.interpreter.NewArrayValue(std::move(out), std::move(present));
-  });
-  install(well_known_.array_prototype, "map", [](NativeCall& call) {
-    std::vector<Value> out;
-    std::vector<bool> present;
-    if (call.self.IsObject()) {
-      const Value callback = Argument(call.arguments, 0);
-      for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
-        if (!call.self.object->HasElement(i)) {
-          out.push_back(Value::Undefined());
-          present.push_back(false);
-          continue;
-        }
-        const Result mapped = call.interpreter.CallFunction(
-            callback, Value::Undefined(),
-            {call.self.object->GetElement(i), Value::Number(static_cast<double>(i)), call.self});
-        if (mapped.IsAbrupt()) {
-          return call.ThrowValue(mapped.value);
-        }
-        out.push_back(mapped.value);
-        present.push_back(true);
-      }
-    }
-    return call.interpreter.NewArrayValue(std::move(out), std::move(present));
-  });
-  install(well_known_.array_prototype, "filter", [](NativeCall& call) {
-    std::vector<Value> out;
-    if (call.self.IsObject()) {
-      const Value callback = Argument(call.arguments, 0);
-      for (std::size_t i = 0; i < call.self.object->ElementCount(); ++i) {
-        if (!call.self.object->HasElement(i)) {
-          continue;
-        }
-        const Value element = call.self.object->GetElement(i);
-        const Result kept = call.interpreter.CallFunction(
-            callback, Value::Undefined(), {element, Value::Number(static_cast<double>(i)),
-                                           call.self});
-        if (kept.IsAbrupt()) {
-          return call.ThrowValue(kept.value);
-        }
-        if (ToBoolean(kept.value)) {
-          out.push_back(element);
-        }
-      }
-    }
-    return call.interpreter.NewArrayValue(std::move(out));
-  });
-  install(well_known_.array_prototype, "reduce", [](NativeCall& call) {
-    if (!call.self.IsObject()) {
-      return Value::Undefined();
-    }
-    const Value callback = Argument(call.arguments, 0);
-    std::size_t index = 0;
-    Value accumulator;
-    if (call.arguments.size() >= 2) {
-      accumulator = call.arguments[1];
-    } else {
-      while (index < call.self.object->ElementCount() && !call.self.object->HasElement(index)) {
-        ++index;
-      }
-      if (index >= call.self.object->ElementCount()) {
-        return Value::Undefined();
-      }
-      accumulator = call.self.object->GetElement(index);
-      ++index;
-    }
-    for (; index < call.self.object->ElementCount(); ++index) {
-      if (!call.self.object->HasElement(index)) {
-        continue;
-      }
-      const Result next = call.interpreter.CallFunction(
-          callback, Value::Undefined(),
-          {accumulator, call.self.object->GetElement(index),
-           Value::Number(static_cast<double>(index)), call.self});
-      if (next.IsAbrupt()) {
-        return call.ThrowValue(next.value);
-      }
-      accumulator = next.value;
-    }
-    return accumulator;
-  });
+  // Array.prototype and the Array constructor, in their own translation unit
+  // for the reason String.prototype has one: it is the second-largest group of
+  // builtins and this file is where everything else lands.
+  InstallArrayPrototype();
 
   // --- Errors ---------------------------------------------------------------
   // `new Error('x')` is how a page raises one, and until now there was no
