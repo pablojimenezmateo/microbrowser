@@ -66,11 +66,180 @@ std::size_t MaxTableColumns(const Box& box) {
   return count;
 }
 
+// Calls `visit(row)` for every row of `box`, in document order, descending
+// through row groups. Rows and row groups are the only children that carry
+// cells; a caption or a <col> is skipped here and handled where it is laid out.
+template <typename Visitor>
+void ForEachRow(const Box& box, Visitor&& visit) {
+  for (const std::unique_ptr<Box>& child : box.Children()) {
+    const css::Display display = child->Style().display;
+    if (IsTableRow(display)) {
+      visit(*child);
+    } else if (IsTableRowGroup(display)) {
+      ForEachRow(*child, visit);
+    }
+  }
+}
+
+// The horizontal edges a cell adds to whatever its content needs.
+float CellEdges(const Box& cell) {
+  const css::ComputedStyle& style = cell.Style();
+  return style.padding.left.Resolve(style.font_size) +
+         style.padding.right.Resolve(style.font_size) +
+         (style.has_border ? style.border_width.left.Resolve(style.font_size) +
+                                 style.border_width.right.Resolve(style.font_size)
+                           : 0.0f);
+}
+
+// A width the cell states outright, in pixels. Percentages are excluded on
+// purpose: a percentage cell width resolves against the table's used width,
+// which is the number this measurement is being taken to compute. Feeding it
+// back in is circular, and the wrong ways to break the cycle all produce a
+// table whose columns change size depending on which pass measured them.
+std::optional<float> DefiniteCellWidth(const Box& cell) {
+  const css::ComputedStyle& style = cell.Style();
+  if (style.width.IsAuto() || style.width.IsPercent()) {
+    return std::nullopt;
+  }
+  return std::max(0.0f, style.width.Resolve(style.font_size)) + CellEdges(cell);
+}
+
 }  // namespace
+
+// The narrowest and widest each column can be.
+//
+// This is CSS 2.1's automatic table layout, which is what a table with no
+// `table-layout: fixed` gets -- and what essentially every table written in
+// HTML relies on. Dividing the width evenly instead (which is what this used
+// to do) gives a rank column the same third of the page as the article titles
+// beside it.
+//
+// Two passes over the cells. Single-column cells set their column's bounds
+// directly; a cell spanning several columns can only say something about the
+// group, so it is applied afterwards and only when the columns it spans are
+// already too narrow for it. Doing both in one pass would let a wide spanning
+// cell inflate a column that a later single-column cell proves can be narrow.
+TableColumnWidths LayoutEngine::MeasureTableColumns(const Box& table) const {
+  const std::size_t column_count = std::max<std::size_t>(1, MaxTableColumns(table));
+  TableColumnWidths widths;
+  widths.min.assign(column_count, 0.0f);
+  widths.max.assign(column_count, 0.0f);
+
+  struct Spanning {
+    std::size_t column;
+    std::size_t span;
+    float min;
+    float max;
+  };
+  std::vector<Spanning> spanning;
+
+  ForEachRow(table, [&](const Box& row) {
+    std::size_t column = 0;
+    for (const std::unique_ptr<Box>& cell : row.Children()) {
+      if (!IsTableCell(cell->Style().display) || column >= column_count) {
+        continue;
+      }
+      const std::size_t span = std::min(ColumnSpan(*cell), column_count - column);
+      const float edges = CellEdges(*cell);
+      float cell_min = MinContentWidth(*cell) + edges;
+      float cell_max = MaxContentWidth(*cell) + edges;
+      if (const std::optional<float> definite = DefiniteCellWidth(*cell)) {
+        // A stated width is a floor for both bounds, not a ceiling: content
+        // wider than the declared width overflows in CSS, but a *column*
+        // narrower than its content is unreadable, and every table on the web
+        // that states a width expects to get at least it.
+        cell_min = std::max(cell_min, *definite);
+        cell_max = std::max(cell_max, *definite);
+      }
+      if (span == 1) {
+        widths.min[column] = std::max(widths.min[column], cell_min);
+        widths.max[column] = std::max(widths.max[column], cell_max);
+      } else {
+        spanning.push_back(Spanning{column, span, cell_min, cell_max});
+      }
+      column += span;
+    }
+  });
+
+  for (const Spanning& cell : spanning) {
+    const auto spread = [&](std::vector<float>& bounds, float wanted) {
+      float current = 0.0f;
+      for (std::size_t i = 0; i < cell.span; ++i) {
+        current += bounds[cell.column + i];
+      }
+      if (current >= wanted) {
+        return;
+      }
+      // Shared out evenly rather than proportionally. Proportional sharing
+      // reads better but multiplies a zero-width column by anything and leaves
+      // it at zero, so a row of empty cells under a wide spanning header stays
+      // collapsed and the header overflows all of them.
+      const float share = (wanted - current) / static_cast<float>(cell.span);
+      for (std::size_t i = 0; i < cell.span; ++i) {
+        bounds[cell.column + i] += share;
+      }
+    };
+    spread(widths.min, cell.min);
+    spread(widths.max, cell.max);
+  }
+
+  for (std::size_t i = 0; i < column_count; ++i) {
+    widths.max[i] = std::max(widths.max[i], widths.min[i]);
+  }
+  return widths;
+}
+
+std::vector<float> LayoutEngine::DistributeTableColumns(const TableColumnWidths& bounds,
+                                                        float table_width) {
+  const std::size_t count = bounds.min.size();
+  std::vector<float> used(count, 0.0f);
+  if (count == 0) {
+    return used;
+  }
+
+  float total_min = 0.0f;
+  float total_max = 0.0f;
+  for (std::size_t i = 0; i < count; ++i) {
+    total_min += bounds.min[i];
+    total_max += bounds.max[i];
+  }
+
+  if (table_width <= total_min) {
+    // Narrower than the content can go. Every column gets its minimum and the
+    // table overflows, which is what a browser does: shrinking below the
+    // minimum does not make the text fit, it only makes it unreadable.
+    used = bounds.min;
+    return used;
+  }
+  if (table_width <= total_max) {
+    // Between the two: each column gets its minimum plus a share of the slack,
+    // in proportion to how much room it could still use.
+    const float slack = table_width - total_min;
+    const float range = total_max - total_min;
+    for (std::size_t i = 0; i < count; ++i) {
+      const float want = bounds.max[i] - bounds.min[i];
+      used[i] = bounds.min[i] + (range > 0.0f ? slack * want / range : slack /
+                                                                          static_cast<float>(count));
+    }
+    return used;
+  }
+
+  // Wider than anything wants. The excess is shared in proportion to what each
+  // column already takes, so a wide column stays wide -- distributing it evenly
+  // would make a one-character rank column as wide as a headline.
+  const float excess = table_width - total_max;
+  for (std::size_t i = 0; i < count; ++i) {
+    used[i] = bounds.max[i] + (total_max > 0.0f
+                                   ? excess * bounds.max[i] / total_max
+                                   : excess / static_cast<float>(count));
+  }
+  return used;
+}
 
 float LayoutEngine::LayoutTableChildren(Box& box, float content_left, float content_width,
                                         float start_y) const {
-  const std::size_t column_count = std::max<std::size_t>(1, MaxTableColumns(box));
+  const std::vector<float> columns =
+      DistributeTableColumns(MeasureTableColumns(box), content_width);
   float y = start_y;
   for (const std::unique_ptr<Box>& child : box.Children()) {
     const css::Display display = child->Style().display;
@@ -80,11 +249,11 @@ float LayoutEngine::LayoutTableChildren(Box& box, float content_left, float cont
       continue;
     }
     if (IsTableRowGroup(display)) {
-      y += LayoutTableRowGroup(*child, content_left, content_width, y, column_count);
+      y += LayoutTableRowGroup(*child, content_left, content_width, y, columns);
       continue;
     }
     if (IsTableRow(display)) {
-      y += LayoutTableRow(*child, content_left, content_width, y, column_count);
+      y += LayoutTableRow(*child, content_left, content_width, y, columns);
       continue;
     }
     if (IsTableColumnBox(display)) {
@@ -98,7 +267,8 @@ float LayoutEngine::LayoutTableChildren(Box& box, float content_left, float cont
 }
 
 float LayoutEngine::LayoutTableRowGroup(Box& group, float content_left, float content_width,
-                                        float start_y, std::size_t column_count) const {
+                                        float start_y,
+                                        const std::vector<float>& columns) const {
   const css::ComputedStyle& style = group.Style();
   BoxGeometry& geometry = group.Geometry();
   geometry.margin = style.margin;
@@ -123,7 +293,7 @@ float LayoutEngine::LayoutTableRowGroup(Box& group, float content_left, float co
   float y = group_top;
   for (const std::unique_ptr<Box>& child : group.Children()) {
     if (IsTableRow(child->Style().display)) {
-      y += LayoutTableRow(*child, group_left, group_width, y, column_count);
+      y += LayoutTableRow(*child, group_left, group_width, y, columns);
       continue;
     }
     if (IsTableColumnBox(child->Style().display)) {
@@ -138,7 +308,7 @@ float LayoutEngine::LayoutTableRowGroup(Box& group, float content_left, float co
 }
 
 float LayoutEngine::LayoutTableRow(Box& row, float content_left, float content_width,
-                                   float start_y, std::size_t column_count) const {
+                                   float start_y, const std::vector<float>& columns) const {
   const css::ComputedStyle& style = row.Style();
   BoxGeometry& geometry = row.Geometry();
   geometry.margin = style.margin;
@@ -159,24 +329,27 @@ float LayoutEngine::LayoutTableRow(Box& row, float content_left, float content_w
                         geometry.border.top.Resolve(style.font_size) +
                         style.padding.top.Resolve(style.font_size);
   const float row_width = std::max(0.0f, content_width - horizontal);
-  const float cell_width = row_width / static_cast<float>(std::max<std::size_t>(1, column_count));
 
   float row_bottom = row_top;
   std::size_t column = 0;
+  float cell_left = row_left;
   for (const std::unique_ptr<Box>& child : row.Children()) {
     if (!IsTableCell(child->Style().display)) {
       continue;
     }
-    if (column >= column_count) {
+    if (column >= columns.size()) {
       break;
     }
-    const float cell_left = row_left + cell_width * static_cast<float>(column);
-    const std::size_t span = std::min(ColumnSpan(*child), column_count - column);
-    const float spanned_width = cell_width * static_cast<float>(span);
+    const std::size_t span = std::min(ColumnSpan(*child), columns.size() - column);
+    float spanned_width = 0.0f;
+    for (std::size_t i = 0; i < span; ++i) {
+      spanned_width += columns[column + i];
+    }
     float cell_cursor = row_top;
     FloatContext cell_floats;
     LayoutBlock(*child, cell_left, spanned_width, cell_cursor, cell_floats);
     row_bottom = std::max(row_bottom, cell_cursor);
+    cell_left += spanned_width;
     column += span;
   }
 

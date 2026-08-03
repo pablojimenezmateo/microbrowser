@@ -577,6 +577,9 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Layout/TableCellsShareARowInsteadOfStacking", [] {
+    // One character is 10px wide under the fixed measurer at this font size, so
+    // each column wants exactly 10 and the table shrinks to 20 of the 200
+    // available.
     const LaidOut result =
         Run("<table><tr><td>a</td><td>b</td></tr></table>",
             "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
@@ -584,10 +587,69 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
     ExpectEqInt(static_cast<long long>(cells.size()), 2, "two cell boxes");
     Expect(cells.at(0)->Geometry().content.x == 0.0f, "the first cell starts at the row edge");
-    Expect(cells.at(1)->Geometry().content.x == 100.0f,
+    Expect(cells.at(1)->Geometry().content.x == 10.0f,
            "the second cell is placed beside the first, not below it");
     Expect(cells.at(0)->Geometry().content.y == cells.at(1)->Geometry().content.y,
            "cells in one row share a y position");
+  });
+
+  AddTest(tests, "Layout/TableColumnsAreSizedToTheirContent", [] {
+    // The bug this guards: every column got the same share of the table, so a
+    // rank column beside an article title took a third of the page. Hacker
+    // News is one table and unreadable without this.
+    const LaidOut result =
+        Run("<table><tr><td>1.</td><td>a much longer headline</td></tr>"
+            "<tr><td>2.</td><td>short</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }",
+            600.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 4, "four cell boxes");
+    Expect(cells.at(0)->Geometry().content.width == 20.0f,
+           "the narrow column is as wide as its widest cell, not a share of the table");
+    Expect(cells.at(1)->Geometry().content.width == 220.0f,
+           "and the wide column gets what it asks for");
+    Expect(cells.at(2)->Geometry().content.width == cells.at(0)->Geometry().content.width &&
+               cells.at(3)->Geometry().content.x == cells.at(1)->Geometry().content.x,
+           "every row uses the same column grid");
+  });
+
+  AddTest(tests, "Layout/ATableIsNoWiderThanItsContent", [] {
+    const LaidOut result =
+        Run("<table><tr><td>ab</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const Box* table = FindBox(*result.root, "table");
+    Expect(table != nullptr && table->Geometry().content.width == 20.0f,
+           "a table with no stated width shrinks to fit rather than filling its container the "
+           "way an ordinary block does");
+  });
+
+  AddTest(tests, "Layout/ATableTooNarrowForItsContentUsesMinimumColumns", [] {
+    // 40px of content in a 30px table. Squeezing below the minimum does not
+    // make the text fit, so the columns stay at their minimum and the table
+    // overflows -- which is what every browser does.
+    const LaidOut result =
+        Run("<table width='30'><tr><td>abcd</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 1, "one cell");
+    Expect(cells.at(0)->Geometry().content.width == 40.0f,
+           "the column keeps its minimum width and the table overflows");
+  });
+
+  AddTest(tests, "Layout/SlackIsSharedByHowMuchEachColumnCouldUse", [] {
+    // "a b" has a min of 10 (its longest word) and a max of 30; "xy" cannot
+    // wrap, so both its bounds are 20. The table's minimum is 30 and its
+    // maximum 50, so a stated 45 leaves 15 of slack -- all of which belongs to
+    // the only column with room left to use it.
+    const LaidOut result =
+        Run("<table width='45'><tr><td>a b</td><td>xy</td></tr></table>",
+            "body { margin: 0 } table, td { margin: 0; padding: 0; font-size: 20px }", 400.0f);
+    const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
+    ExpectEqInt(static_cast<long long>(cells.size()), 2, "two cells");
+    Expect(cells.at(0)->Geometry().content.width == 25.0f,
+           "the wrappable column takes all of the slack");
+    Expect(cells.at(1)->Geometry().content.width == 20.0f,
+           "and the column that cannot use it does not grow");
   });
 
   AddTest(tests, "Layout/TableRowsAdvanceByTheirTallestCell", [] {
@@ -612,12 +674,14 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
             300.0f);
     const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
     ExpectEqInt(static_cast<long long>(cells.size()), 5, "five cell boxes");
-    Expect(cells.at(0)->Geometry().content.width == 200.0f,
+    // "wide" needs 40 across the two columns "a" and "b" would size to 10
+    // each, so the shortfall is shared evenly and both become 20.
+    Expect(cells.at(0)->Geometry().content.width == 40.0f,
            "a colspan=2 cell occupies two of the three columns");
-    Expect(cells.at(1)->Geometry().content.x == 200.0f,
+    Expect(cells.at(1)->Geometry().content.x == 40.0f,
            "the following cell starts after both columns the span consumed");
-    Expect(cells.at(3)->Geometry().content.x == 100.0f &&
-               cells.at(4)->Geometry().content.x == 200.0f,
+    Expect(cells.at(3)->Geometry().content.x == 20.0f &&
+               cells.at(4)->Geometry().content.x == 40.0f,
            "the next row still uses the same three-column grid");
   });
 
@@ -628,9 +692,9 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
             200.0f);
     const std::vector<const Box*> cells = BoxesByTag(*result.root, "td");
     ExpectEqInt(static_cast<long long>(cells.size()), 2, "two cell boxes");
-    Expect(cells.at(0)->Geometry().content.width == 100.0f,
+    Expect(cells.at(0)->Geometry().content.width == 10.0f,
            "zero is not accepted as a table span");
-    Expect(cells.at(1)->Geometry().content.x == 100.0f,
+    Expect(cells.at(1)->Geometry().content.x == 10.0f,
            "and a non-numeric span does not consume extra columns");
   });
 
@@ -663,8 +727,9 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
             400.0f);
     const Box* table = FindBox(*result.root, "table");
     Expect(table != nullptr, "the table has a box");
-    Expect(table->Geometry().content.width == 400.0f,
-           "an invalid table width attribute falls back to auto width");
+    Expect(table->Geometry().content.width == 10.0f,
+           "an invalid table width attribute falls back to auto width, which for a table is "
+           "shrink-to-fit rather than the full containing block");
   });
 
   // --- Painting -------------------------------------------------------------

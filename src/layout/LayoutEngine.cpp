@@ -174,29 +174,6 @@ std::string FormControlText(const dom::Element& element) {
   return {};
 }
 
-std::optional<float> TableAttributeWidth(const Box& box, float available_width) {
-  if (box.Origin() == nullptr || box.Origin()->TagName() != "table") {
-    return std::nullopt;
-  }
-  const std::string* attribute = box.Origin()->GetAttribute("width");
-  if (attribute == nullptr || attribute->empty()) {
-    return std::nullopt;
-  }
-  if (attribute->back() == '%') {
-    const std::string_view number(attribute->data(), attribute->size() - 1);
-    if (const std::optional<double> percent = util::ParseDouble(number)) {
-      return std::max(0.0f, available_width * static_cast<float>(*percent) / 100.0f);
-    }
-    return std::nullopt;
-  }
-  if (const std::optional<double> pixels = util::ParseDouble(*attribute)) {
-    if (*pixels >= 0.0 && *pixels < 1e6) {
-      return static_cast<float>(*pixels);
-    }
-  }
-  return std::nullopt;
-}
-
 }  // namespace
 
 gfx::FloatRect BoxGeometry::PaddingBox() const {
@@ -701,9 +678,20 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     content_width = style.width.IsPercent()
                         ? available_width * style.width.value / 100.0f
                         : style.width.Resolve(style.font_size, content_width);
-  } else if (const std::optional<float> attribute_width =
-                 TableAttributeWidth(box, available_width)) {
-    content_width = *attribute_width;
+  } else if (style.display == css::Display::Table) {
+    // Shrink-to-fit, which is what a table with no stated width gets: as wide
+    // as its columns want, but never wider than what is available and never
+    // narrower than what they need. A table that filled its containing block
+    // like an ordinary block would stretch a two-word column across the page,
+    // which is the single most visible way a table can be laid out wrong.
+    const TableColumnWidths bounds = MeasureTableColumns(box);
+    float total_min = 0.0f;
+    float total_max = 0.0f;
+    for (std::size_t i = 0; i < bounds.min.size(); ++i) {
+      total_min += bounds.min[i];
+      total_max += bounds.max[i];
+    }
+    content_width = std::min(std::max(total_min, content_width), total_max);
   }
   if (style.IsFloating() && style.width.IsAuto()) {
     // Shrink-to-fit: as wide as its content wants, but never wider than what is
@@ -814,6 +802,60 @@ float LayoutEngine::MaxContentWidth(const Box& box) const {
       inline_run += child_width;
       widest = std::max(widest, inline_run);
     }
+  }
+
+  const float edges = style.margin.left.Resolve(style.font_size) +
+                      style.margin.right.Resolve(style.font_size) +
+                      style.padding.left.Resolve(style.font_size) +
+                      style.padding.right.Resolve(style.font_size) +
+                      (style.has_border ? style.border_width.left.Resolve(style.font_size) +
+                                              style.border_width.right.Resolve(style.font_size)
+                                        : 0.0f);
+  return widest + edges;
+}
+
+// The narrowest this box can be before its content spills out.
+//
+// For text that is the widest single word, because a word is where wrapping is
+// allowed to happen and nowhere else -- which is why this measures the pieces
+// rather than scaling the whole run down. `white-space: pre` has no wrapping
+// opportunities at all, so its minimum is its maximum.
+//
+// For a box, the widest of its children rather than their sum: an inline
+// sequence can wrap between its items, so a paragraph's minimum is its longest
+// word and not the width of all of them.
+float LayoutEngine::MinContentWidth(const Box& box) const {
+  const css::ComputedStyle& style = box.Style();
+  if (box.GetKind() == Box::Kind::Text) {
+    if (style.white_space == css::WhiteSpace::Pre) {
+      return measurer_->MeasureWidth(box.Text(), style);
+    }
+    float widest = 0.0f;
+    const std::string_view text = box.Text();
+    std::size_t at = 0;
+    while (at < text.size()) {
+      while (at < text.size() && IsSpace(text[at])) {
+        ++at;
+      }
+      const std::size_t begin = at;
+      while (at < text.size() && !IsSpace(text[at])) {
+        ++at;
+      }
+      if (at > begin) {
+        widest = std::max(widest, measurer_->MeasureWidth(text.substr(begin, at - begin), style));
+      }
+    }
+    return widest;
+  }
+  if (box.GetKind() == Box::Kind::Replaced) {
+    // A replaced box does not wrap. Its minimum is its used width, which is
+    // also why an image in a table column stops that column shrinking.
+    return box.Geometry().content.width;
+  }
+
+  float widest = 0.0f;
+  for (const std::unique_ptr<Box>& child : box.Children()) {
+    widest = std::max(widest, MinContentWidth(*child));
   }
 
   const float edges = style.margin.left.Resolve(style.font_size) +

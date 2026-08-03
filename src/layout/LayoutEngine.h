@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string_view>
+#include <vector>
 
 #include "css/StyleResolver.h"
 #include "dom/Node.h"
@@ -10,6 +11,18 @@
 #include "layout/FloatContext.h"
 
 namespace microbrowser::layout {
+
+// What each column of a table can and wants to be, in table order.
+//
+// Two bounds rather than one width because a table's columns are sized against
+// the space available, and neither number alone answers that: the minimum is
+// what a column cannot go below without its text spilling out, and the maximum
+// is what it would take if nothing ever wrapped. Everything between is a
+// distribution problem.
+struct TableColumnWidths {
+  std::vector<float> min;
+  std::vector<float> max;
+};
 
 // Builds a box tree from a styled document and lays it out.
 //
@@ -49,12 +62,25 @@ class LayoutEngine {
                              FloatContext& floats) const;
   float LayoutTableChildren(Box& box, float content_left, float content_width, float start_y) const;
   float LayoutTableRowGroup(Box& group, float content_left, float content_width, float start_y,
-                            std::size_t column_count) const;
+                            const std::vector<float>& columns) const;
   float LayoutTableRow(Box& row, float content_left, float content_width, float start_y,
-                       std::size_t column_count) const;
+                       const std::vector<float>& columns) const;
   // Widest this box would be if it never wrapped. Needed for shrink-to-fit,
   // which is what `float: left` with no declared width means.
   float MaxContentWidth(const Box& box) const;
+  // Narrowest this box can be without its content spilling out: the widest
+  // single unbreakable piece. The other half of shrink-to-fit, and what stops
+  // a table column from being squeezed to nothing.
+  float MinContentWidth(const Box& box) const;
+
+  // The bounds of every column of `table`, and the width each one is actually
+  // given once the table's own width is known. Separate because the first is a
+  // measurement of the content and the second is a policy over it -- and
+  // because the table's width is decided *from* the first, so the two cannot
+  // happen in one call.
+  TableColumnWidths MeasureTableColumns(const Box& table) const;
+  static std::vector<float> DistributeTableColumns(const TableColumnWidths& bounds,
+                                                   float table_width);
   void PlaceFloat(Box& child, float content_left, float content_width, float cursor_y,
                   FloatContext& floats) const;
 
