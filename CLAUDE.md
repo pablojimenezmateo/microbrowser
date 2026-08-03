@@ -30,18 +30,20 @@ parses it, resolves its cascade, lays it out, and draws it — text included. Wh
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
 | `src/net` | HTTP/1.1, cookies, cache, sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one. |
 | `src/dom` | Node, Element, Text, Document |
-| `src/html` | Spec-literal tokenizer and tree construction |
+| `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
 | `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet |
-| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, display-list building |
-| `src/engine` | Page (one document), Loader (everything network), Engine (routes messages) |
+| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, tables, display-list building |
+| `src/engine` | Page (one document), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`. No bytecode VM, Promises, async, generators or regex engine. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype` and part of `Array.prototype`. No bytecode VM, Promises, async, generators or regex engine, and `Function.prototype` is empty — no `call`, `apply` or `bind`. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: flexbox and grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
-the process split and the sandbox (rest of M7), the JS bytecode VM, GC and builtins (rest of M8),
-integration (M9). Loading is synchronous — the loop blocks
+the process split and the sandbox (rest of M7), the JS bytecode VM and the rest of the builtins
+(rest of M8), integration (M9). The collector is written but can only run between top-level
+statements — a tree-walker cannot scan the C++ frames holding live values mid-evaluation, so the
+heap has a ceiling that surfaces as a `RangeError`. Loading is synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 
@@ -50,10 +52,12 @@ than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
-1. **Hacker News.** The first named compatibility target and the closest to working. Needs HTML
-   tables (the tree builder has no table insertion modes), navigation from a clicked link, and
-   form controls. Smallest path to a real page rendering correctly, and it will find gaps that
-   speculative work will not.
+1. **Hacker News.** The first named compatibility target and the closest to working. The three
+   things this entry used to ask for — table insertion modes, navigation from a clicked link,
+   form controls — all exist now. What is left is smaller and more specific: `<select>` is laid
+   out and submitted but not clickable (no hit test opens it), and the logo is a GIF while
+   `src/gfx` decodes only PNG. Load the real page and write down what is wrong before building
+   anything from this list; it will find gaps that speculative work will not.
 2. **The JavaScript bytecode VM.** The largest single item and the project's dominant cost. It is
    not only speed: the collector cannot run during evaluation today, because a tree-walker keeps
    live values in C++ frames it cannot scan — so the heap has a ceiling that becomes a
@@ -63,7 +67,10 @@ reasoning; this is the queue.
    changes the host event loop, which is currently a blocking wait on window events. Check it
    against the zero-idle-CPU invariant before writing any of it.
 4. **A regular expression engine.** A regex literal currently evaluates to its own source text,
-   which is a placeholder rather than a feature.
+   which is a placeholder rather than a feature. `split`, `replace` and `replaceAll` take string
+   patterns only because of it, so a regex argument reaches them as text and matches literally.
+   `Function.prototype.call`/`apply`/`bind` are missing in the same way — small next to a regex
+   engine, and reached for constantly by real script.
 5. **Flexbox, then grid.** Not optional for reddit, google, Plex or YouTube. `position:
    absolute/fixed/sticky` and a real overflow/scrolling model are in the same bucket.
 6. **DOM bindings (M9).** The seam where every same-origin check will live. Nothing interactive
