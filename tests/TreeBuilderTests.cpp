@@ -288,6 +288,23 @@ void RegisterTreeBuilderTests(std::vector<TestCase>& tests) {
     ExpectTree("<tr><td>orphan", "<html><head></head><body>orphan</body></html>");
   });
 
+  AddTest(tests, "TreeBuilder/ATrailingSolidusDoesNotCloseANonVoidElement", [] {
+    // `<div/>` is `<div>`, not `<div></div>`. HTML acknowledges the
+    // self-closing flag only on void elements and on foreign content, and this
+    // parser has no foreign content -- so honouring it anywhere else looks
+    // like a fix and is a bug.
+    ExpectTree("<div/>text</div>", "<html><head></head><body><div>text</div></body></html>");
+    ExpectTree("<br/>", "<html><head></head><body><br></body></html>");
+
+    // The case that found it. Hacker News writes a self-closing spacer row
+    // between its rows; closing it early left the following <tr> with no row
+    // to close, so every row after it was foster-parented out of the table and
+    // the page came apart below the header.
+    ExpectTree("<table><tr><td>a</td></tr><tr/><tr><td>b</td></tr></table>",
+               "<html><head></head><body><table><tbody><tr><td>a</td></tr><tr></tr>"
+               "<tr><td>b</td></tr></tbody></table></body></html>");
+  });
+
   AddTest(tests, "TreeBuilder/FindsElementsByTagName", [] {
     const std::unique_ptr<Document> document =
         ParseDocument("<div><p>a</p><p>b</p><span>c</span></div>");

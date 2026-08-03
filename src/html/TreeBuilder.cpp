@@ -198,7 +198,18 @@ dom::Element& TreeBuilder::InsertElement(const Token& token) {
   at.parent->InsertBefore(std::move(element), at.before);
   // A void element never becomes the current node, or the rest of the document
   // would nest inside it.
-  if (!dom::IsVoidElement(token.data) && !token.self_closing) {
+  //
+  // A *trailing solidus* on anything else does not close it. `<tr/>` is `<tr>`,
+  // not `<tr></tr>`: HTML acknowledges the self-closing flag only on void
+  // elements and on foreign content, and this parser has no foreign content.
+  // Honoring it here reads as a fix and is a bug -- Hacker News writes
+  // `<tr style='height:10px'/>` between its rows, and closing that row early
+  // left the next `<tr>` with no row to close, so every row after it was
+  // foster-parented out of the table and the page fell apart below the header.
+  if (!dom::IsVoidElement(token.data)) {
+    if (token.self_closing) {
+      ++errors_;
+    }
     open_elements_.push_back(raw);
   }
   return *raw;

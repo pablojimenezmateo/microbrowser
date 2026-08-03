@@ -14,7 +14,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cstddef>
 #include <optional>
+#include <variant>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -35,10 +37,54 @@ struct Options {
   int width = 1280;
   int height = 900;
   int scroll_y = 0;
+  bool dump = false;
 };
 
 const char* kUsage =
-    "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n";
+    "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll] [-v]\n"
+    "  -v  print every display list command: what was painted, where, and in what colour\n";
+
+// One line per command. The point of a dump rather than a pixel is that a rect
+// of the right colour in the wrong place and a rect that was never recorded
+// look identical in a screenshot and completely different here.
+void DumpDisplayList(const microbrowser::gfx::DisplayList& list) {
+  using namespace microbrowser::gfx;  // NOLINT(build/namespaces) -- a debug dump
+  std::size_t index = 0;
+  for (const DisplayCommand& command : list.Commands()) {
+    std::fprintf(stderr, "  [%3zu] ", index++);
+    if (const auto* fill = std::get_if<FillRectCommand>(&command)) {
+      std::fprintf(stderr, "FillRect   %d,%d %dx%d #%08X\n", fill->rect.x, fill->rect.y,
+                   fill->rect.width, fill->rect.height, fill->color.argb);
+    } else if (const auto* fill_path = std::get_if<FillPathCommand>(&command)) {
+      const Path* path = list.PathAt(fill_path->path);
+      const FloatRect bounds = path == nullptr ? FloatRect{} : path->ControlBounds();
+      std::fprintf(stderr, "FillPath   %.1f,%.1f %.1fx%.1f #%08X\n",
+                   static_cast<double>(bounds.x), static_cast<double>(bounds.y),
+                   static_cast<double>(bounds.width), static_cast<double>(bounds.height),
+                   fill_path->color.argb);
+    } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
+      const Path* path = list.PathAt(stroke->path);
+      const FloatRect bounds = path == nullptr ? FloatRect{} : path->ControlBounds();
+      std::fprintf(stderr, "StrokePath %.1f,%.1f %.1fx%.1f #%08X\n",
+                   static_cast<double>(bounds.x), static_cast<double>(bounds.y),
+                   static_cast<double>(bounds.width), static_cast<double>(bounds.height),
+                   stroke->color.argb);
+    } else if (const auto* text = std::get_if<DrawTextCommand>(&command)) {
+      const DisplayList::TextRun* run = list.TextAt(text->text);
+      std::fprintf(stderr, "Text       %.1f,%.1f w=%.1f #%08X \"%s\"\n",
+                   static_cast<double>(text->origin.x), static_cast<double>(text->origin.y),
+                   static_cast<double>(run == nullptr ? 0.0f : run->advance), text->color.argb,
+                   run == nullptr ? "" : run->text.c_str());
+    } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
+      std::fprintf(stderr, "Image      %d,%d %dx%d\n", image->destination.x, image->destination.y,
+                   image->destination.width, image->destination.height);
+    } else if (std::get_if<PushClipCommand>(&command) != nullptr) {
+      std::fprintf(stderr, "PushClip\n");
+    } else {
+      std::fprintf(stderr, "PopClip\n");
+    }
+  }
+}
 
 std::optional<int> ParseInt(std::string_view text) {
   int value = 0;
@@ -73,6 +119,8 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       const std::optional<int> parsed = ParseInt(value());
       if (!parsed) return false;
       out.height = *parsed;
+    } else if (argument == "-v") {
+      out.dump = true;
     } else if (argument == "-y") {
       const std::optional<int> parsed = ParseInt(value());
       if (!parsed) return false;
@@ -163,6 +211,9 @@ int main(int argc, char** argv) {
                options.url.c_str(), display_list.Size(), display_list.Texts().size(),
                display_list.Fonts().size(), display_list.Images().size(), title.c_str(),
                options.output.c_str());
+  if (options.dump) {
+    DumpDisplayList(display_list);
+  }
   for (const microbrowser::gfx::FontRequest& font : display_list.Fonts()) {
     std::string families;
     for (const std::string& family : font.families) {
