@@ -314,6 +314,18 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
           if (!EmptyPseudoClassMatches(element)) {
             return false;
           }
+        } else if (part.name == "link") {
+          // Every hyperlink, whether or not it has been followed. This browser
+          // has no `:visited`, and that is a privacy decision rather than a
+          // missing feature: `:visited` lets a page style a link differently
+          // depending on the user's history, and every mechanism for reading
+          // that difference back -- layout size, painted color, timing -- is a
+          // history leak. Treating every link as unvisited is the only answer
+          // that leaks nothing, so `:link` matches all of them and `:visited`
+          // falls through to the never-match case below.
+          if (element.TagName() != "a" || element.GetAttribute("href") == nullptr) {
+            return false;
+          }
         } else {
           // A pseudo-class we do not implement must not match. Matching would
           // apply a rule the author scoped to a state we cannot observe.

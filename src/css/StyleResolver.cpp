@@ -77,9 +77,113 @@ std::vector<std::string> ParseFontFamilyList(std::string_view value) {
   return families;
 }
 
-bool AcceptsBgColorAttribute(std::string_view tag_name) {
-  return tag_name == "body" || tag_name == "table" || tag_name == "tr" || tag_name == "td" ||
-         tag_name == "th";
+bool IsTablePart(std::string_view tag_name) {
+  return tag_name == "table" || tag_name == "tr" || tag_name == "td" || tag_name == "th" ||
+         tag_name == "thead" || tag_name == "tbody" || tag_name == "tfoot" ||
+         tag_name == "col" || tag_name == "colgroup";
+}
+
+// An HTML attribute that means a CSS declaration, as the value the attribute
+// carries. Empty means the attribute does not apply to this element or does not
+// parse, and no declaration is produced.
+//
+// These are *presented hints*, not author rules: they sit at the very bottom of
+// the author origin, below any stylesheet and below the style attribute, so
+// `td { text-align: left }` beats `<td align=right>`. The cascade below places
+// them there by giving them zero specificity and document order zero.
+std::string PresentationalLengthValue(std::string_view attribute_value) {
+  const std::string_view trimmed = Trim(attribute_value);
+  if (trimmed.empty()) {
+    return {};
+  }
+  // A bare number is pixels and a trailing `%` is a percentage. Anything else --
+  // including the legacy `100*` column syntax -- is not a length this browser
+  // has, so it produces nothing rather than a guess.
+  const bool percent = trimmed.back() == '%';
+  const std::string_view digits = percent ? trimmed.substr(0, trimmed.size() - 1) : trimmed;
+  if (digits.empty() ||
+      digits.find_first_not_of("0123456789") != std::string_view::npos) {
+    return {};
+  }
+  return std::string(digits) + (percent ? "%" : "px");
+}
+
+// `align` on a cell or a row is text alignment. On anything else it is a
+// float or a legacy centering behaviour, neither of which this maps: producing
+// `text-align` for `<img align=left>` would indent the following text instead
+// of wrapping it around the image, which is worse than doing nothing.
+std::string PresentationalAlignValue(std::string_view tag_name, std::string_view value) {
+  if (tag_name != "td" && tag_name != "th" && tag_name != "tr" && tag_name != "thead" &&
+      tag_name != "tbody" && tag_name != "tfoot" && tag_name != "col" &&
+      tag_name != "colgroup") {
+    return {};
+  }
+  const std::string lowered = Lowered(Trim(value));
+  if (lowered == "left" || lowered == "right" || lowered == "center" || lowered == "justify") {
+    return lowered;
+  }
+  return {};
+}
+
+// The declarations an element's presentational attributes stand for.
+std::vector<Declaration> PresentationalDeclarations(const dom::Element& element) {
+  const std::string_view tag = element.TagName();
+  std::vector<Declaration> declarations;
+  const auto add = [&declarations](const char* property, std::string value) {
+    if (!value.empty()) {
+      declarations.push_back(Declaration{property, std::move(value), false});
+    }
+  };
+  const auto attribute = [&element](const char* name) -> std::string_view {
+    const std::string* value = element.GetAttribute(name);
+    return value == nullptr ? std::string_view{} : std::string_view{*value};
+  };
+
+  if (tag == "body" || IsTablePart(tag)) {
+    if (const std::string* bgcolor = element.GetAttribute("bgcolor")) {
+      add("background-color", *bgcolor);
+    }
+  }
+  if (IsTablePart(tag) || tag == "img" || tag == "hr" || tag == "iframe") {
+    add("width", PresentationalLengthValue(attribute("width")));
+    add("height", PresentationalLengthValue(attribute("height")));
+  }
+  add("text-align", PresentationalAlignValue(tag, attribute("align")));
+
+  if (tag == "table") {
+    if (const std::string* border = element.GetAttribute("border")) {
+      const std::string length = PresentationalLengthValue(*border);
+      // `border=0` is the overwhelmingly common case and means "no rules",
+      // which is already the default -- so it produces nothing rather than an
+      // explicit zero that would then beat a stylesheet's border.
+      if (!length.empty() && length != "0px") {
+        add("border", length + " solid gray");
+      }
+    }
+  }
+  // `cellpadding` is written on the table and means padding on every cell it
+  // contains, so the cell is where it has to be read. A bounded walk: a table
+  // nested past the depth the tree builder itself allows cannot exist, and
+  // stopping is the right answer for a document that somehow contains one.
+  if (tag == "td" || tag == "th") {
+    const dom::Node* ancestor = element.Parent();
+    for (int depth = 0; ancestor != nullptr && ancestor->IsElement() && depth < 32; ++depth) {
+      const auto* ancestor_element = static_cast<const dom::Element*>(ancestor);
+      if (ancestor_element->TagName() == "table") {
+        if (const std::string* padding = ancestor_element->GetAttribute("cellpadding")) {
+          add("padding", PresentationalLengthValue(*padding));
+        }
+        break;
+      }
+      ancestor = ancestor_element->Parent();
+    }
+  }
+  // `cellspacing` is deliberately not mapped. It is the gap *between* cells,
+  // which is `border-spacing` -- a property this box model does not have, since
+  // rows lay their cells out edge to edge. Mapping it to padding would move the
+  // gap inside the cell, where it changes what the text wraps at. The common
+  // value on the web by a wide margin is 0, which is what already happens.
+  return declarations;
 }
 
 std::vector<std::string_view> SplitWords(std::string_view text) {
@@ -683,13 +787,8 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   if (const std::string* inline_style = element.GetAttribute("style")) {
     inline_declarations = ParseDeclarationList(*inline_style);
   }
-  std::vector<Declaration> presentational_declarations;
-  if (AcceptsBgColorAttribute(element.TagName())) {
-    if (const std::string* bgcolor = element.GetAttribute("bgcolor")) {
-      presentational_declarations.push_back(
-          Declaration{"background-color", *bgcolor, false});
-    }
-  }
+  const std::vector<Declaration> presentational_declarations =
+      PresentationalDeclarations(element);
 
   struct Candidate {
     const Declaration* declaration;
@@ -744,9 +843,14 @@ std::string_view UserAgentStyleSheet() {
   // values are the ones the HTML specification's rendering section gives.
   return R"CSS(
 html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, section, article,
-header, footer, nav, aside, main, blockquote, pre, form, figure, hr {
+header, footer, nav, aside, main, blockquote, pre, form, figure, figcaption,
+hr, dl, dt, dd, fieldset, legend, details, summary, dialog, address, center,
+menu, dir, optgroup, hgroup, search, noscript {
   display: block;
 }
+/* A block, not an inline: a <center> holding a table is the classic 1990s page
+   layout, and treating it as inline puts the table's rows on one line. */
+center { text-align: center }
 li { display: list-item }
 input, button, textarea, select {
   display: inline-block; background-color: white; border: 1px solid gray
@@ -771,7 +875,10 @@ h5 { font-size: 0.83em; font-weight: bold; margin: 1.67em 0 }
 h6 { font-size: 0.67em; font-weight: bold; margin: 2.33em 0 }
 b, strong { font-weight: bold }
 i, em { font-style: italic }
-a { color: #0000EE }
+small { font-size: 0.83em }
+big { font-size: 1.17em }
+code, kbd, samp, tt, pre { font-family: monospace }
+a:link { color: #0000EE }
 ul, ol { margin: 1em 0; padding-left: 40px }
 blockquote { margin: 1em 40px }
 pre { white-space: pre; margin: 1em 0 }

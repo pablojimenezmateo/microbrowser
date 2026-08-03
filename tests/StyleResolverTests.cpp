@@ -175,6 +175,68 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "an invalid bgcolor value is ignored like an invalid CSS colour");
   });
 
+  AddTest(tests, "StyleResolver/WidthAndHeightAttributesArePresentationalHints", [] {
+    Expect(StyleOf("<table width='85%'><tr><td>x</td></tr></table>", "", "table").width ==
+               (Length{85.0f, Length::Unit::Percent}),
+           "a trailing percent is a percentage");
+    Expect(StyleOf("<table width='400'><tr><td>x</td></tr></table>", "", "table").width ==
+               Length::Pixels(400.0f),
+           "and a bare number is pixels, not a unitless length CSS would reject");
+    Expect(StyleOf("<table width='100*'><tr><td>x</td></tr></table>", "", "table").width ==
+               Length::Auto(),
+           "the legacy `100*` column syntax is not a length this browser has, so it is "
+           "ignored rather than guessed at");
+    Expect(StyleOf("<p width='400'>x</p>", "", "p").width == Length::Auto(),
+           "and the attribute only applies to the elements HTML says it does");
+  });
+
+  AddTest(tests, "StyleResolver/AlignAttributeIsATextAlignHintOnCellsOnly", [] {
+    Expect(StyleOf("<table><tr><td align='right'>x</td></tr></table>", "", "td").text_align ==
+               TextAlign::Right,
+           "`align` on a cell is text alignment");
+    Expect(StyleOf("<table><tr><td align='right'>x</td></tr></table>",
+                   "td { text-align: center }", "td")
+                   .text_align == TextAlign::Center,
+           "and a stylesheet still beats it, because it is a hint and not an author rule");
+    Expect(StyleOf("<div align='right'><img align='left'>x</div>", "", "img").text_align ==
+               TextAlign::Left,
+           "`align` on an image is a float, which this does not map -- so the value seen here "
+           "is the div's, inherited, and not one invented from the attribute");
+  });
+
+  AddTest(tests, "StyleResolver/CellPaddingIsReadFromTheTable", [] {
+    Expect(StyleOf("<table cellpadding='6'><tr><td>x</td></tr></table>", "", "td")
+                   .padding.left == Length::Pixels(6.0f),
+           "`cellpadding` is written on the table and means padding on every cell in it");
+    Expect(StyleOf("<table cellpadding='6'><tr><td>x</td></tr></table>", "", "table")
+                   .padding.left == Length::Pixels(0.0f),
+           "and not padding on the table itself");
+  });
+
+  AddTest(tests, "StyleResolver/CenterIsABlock", [] {
+    // A <center> holding a table is the classic 1990s page layout. Left inline,
+    // the table's rows end up on one line and the page is unreadable.
+    Expect(StyleOf("<center>x</center>", "", "center").display == Display::Block,
+           "<center> is a block");
+    Expect(StyleOf("<center>x</center>", "", "center").text_align == TextAlign::Center,
+           "that centers its inline content");
+  });
+
+  AddTest(tests, "StyleResolver/LinkMatchesEveryHyperlinkAndVisitedMatchesNone", [] {
+    Expect(StyleOf("<a href='/x'>x</a>", "a:link { color: red }", "a").color ==
+               gfx::Color::Rgb(0xFF, 0, 0),
+           "`:link` matches a hyperlink");
+    Expect(StyleOf("<a>x</a>", "a:link { color: red }", "a").color != gfx::Color::Rgb(0xFF, 0, 0),
+           "and an anchor without an href is not one");
+    // Not a missing feature: every way a page can read back which links are
+    // styled differently -- painted colour, layout size, timing -- is a way to
+    // read the user's history. Matching nothing is the only answer that leaks
+    // nothing.
+    Expect(StyleOf("<a href='/x'>x</a>", "a:visited { color: red }", "a").color !=
+               gfx::Color::Rgb(0xFF, 0, 0),
+           "`:visited` matches nothing, because a page that can see it can read history");
+  });
+
   AddTest(tests, "StyleResolver/InheritsTheInheritedPropertiesAndNotTheOthers", [] {
     const ComputedStyle child =
         StyleOf("<div style='color: red; margin: 20px'><span>x</span></div>", "", "span");

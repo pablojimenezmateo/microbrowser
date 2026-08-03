@@ -406,7 +406,11 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load(
-        "<style>fieldset,input{margin:0;padding:0;border:0}input{width:40px;height:20px}</style>"
+        // The fieldset is a block, so the submit after it is on the next line. Its
+        // height is pinned here so the point below is a stated fact rather than a
+        // number that happens to work.
+        "<style>fieldset,input{margin:0;padding:0;border:0}fieldset{height:20px}"
+        "input{width:40px;height:20px}</style>"
         "<body style='margin:0'><form action='/search'>"
         "<fieldset disabled>"
         "<input name='q' value='hello'>"
@@ -418,7 +422,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     const std::optional<std::string> target =
-        SubmissionTarget(page, gfx::FloatPoint{85.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{20.0f, 30.0f});
     Expect(target.has_value(), "the submit control outside the fieldset activates the form");
     ExpectEqString(*target, "/search", "disabled fieldset descendants are not successful");
   });
@@ -442,7 +446,8 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load(
-        "<style>input{width:40px;height:20px;margin:0}</style>"
+        "<style>input{width:40px;height:20px;margin:0}"
+        "fieldset{margin:0;padding:0;border:0;height:20px}</style>"
         "<body style='margin:0'><form action='/search'>"
         "<fieldset disabled><input name='q' value='locked'></fieldset>"
         "<input type='submit' value='Go'>"
@@ -455,7 +460,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!page.InsertTextIntoFocusedTextControl("x"),
            "typing cannot mutate a disabled fieldset descendant");
     const std::optional<std::string> target =
-        SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f});
+        SubmissionTarget(page, gfx::FloatPoint{20.0f, 30.0f});
     Expect(target.has_value(), "the submit control outside the fieldset activates the form");
     ExpectEqString(*target, "/search", "the disabled fieldset text control was not submitted");
   });
