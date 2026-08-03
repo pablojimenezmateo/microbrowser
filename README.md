@@ -119,7 +119,7 @@ for the per-site gap analysis.
 
 | | | |
 |---|---|---|
-| `news.ycombinator.com` | server-rendered, tables, almost no script | **the first target** — needs HTML tables, links, form controls |
+| `news.ycombinator.com` | server-rendered, tables, almost no script | **renders and navigates** — the front page and a comments page both draw, and clicking a story follows it |
 | `old.reddit.com` | server-rendered, moderate CSS | needs `position`, overflow scrolling, an event loop |
 | `google.com` | real script, UA-varied markup, HTTP/2 in practice | search results before the homepage |
 | Plex web | single-page application **and** media playback | needs the JS engine and the media stack |

@@ -28,17 +28,30 @@ public rather than quietly.
 **These five are the compatibility targets, in this order.** The order is by
 what each demands, not by preference:
 
-### 1. news.ycombinator.com — reachable on the current roadmap
+### 1. news.ycombinator.com — reached
 
 Server-rendered HTML, table-based layout, a few hundred bytes of CSS, and
-almost no script. What is missing is small and already on the list:
+almost no script. The front page and a comments page both render, and clicking
+a story navigates to it.
 
-- HTML table/select edge cases beyond the covered insertion modes
-- Links and navigation from a click
-- Form controls, for the comment and search boxes
+Aiming at it deliberately did what this ADR predicted, and more bluntly than
+expected: the things it turned out to need were not the things on the list
+above. Font *stacks* were never split, so `font-family: Verdana, Geneva,
+sans-serif` matched nothing and **no page with a stylesheet rendered any text
+at all**. `text-align` was cascaded, inherited and stored and then never read.
+A self-closing `<tr>` closed its row, which foster-parented the rest of the
+page out of its table. Table columns were divided evenly rather than sized to
+their content. None of these failed a test; every one of them was obvious the
+moment a real page was on screen.
 
-This is the first target and should be treated as one — it is close enough that
-aiming at it deliberately will find real gaps.
+The lesson to carry to the next target is the method, not the fixes: load it,
+snapshot it, write down what is wrong, and work from that list.
+
+Still missing on this site, and deliberately: `<select>` is laid out and
+submitted but does not open on a click; `cellspacing` is not mapped, because
+the box model has no `border-spacing` and moving the gap inside the cell would
+change where text wraps; and `:visited` matches nothing, which is a privacy
+decision rather than an unimplemented one.
 
 ### 2. old.reddit.com — mid-project
 

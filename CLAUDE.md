@@ -18,21 +18,30 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**The browser renders real pages.** `./build/microbrowser/microbrowser <url>` fetches a document,
-parses it, resolves its cascade, lays it out, and draws it — text included. What exists:
+**The browser renders Hacker News.** `./build/microbrowser/microbrowser <url>` fetches a document,
+parses it, resolves its cascade, lays it out, and draws it — text, tables, images and all. The
+front page and a comments page both render, and clicking a story navigates to it.
+
+`./build/microbrowser/microbrowser_snapshot <url> -o out.ppm` does the same with no window, which
+is how to look at a page from a machine with no display. `-v` dumps every display list command and
+`-click x,y` follows a link before the snapshot. **Use it.** Every layout and paint bug listed in
+the git log of the last session was found by rendering a real page and looking at it; none of them
+failed a test first.
+
+What exists:
 
 | Module | State |
 |---|---|
 | `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE |
-| `src/gfx` | Geometry, transforms, Color, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog, glyph and shaped-run caches, PNG, bilinear image scaling. SDL-free. |
+| `src/gfx` | Geometry, transforms, Color and its text form, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog + font-stack matching, glyph and shaped-run caches, PNG decoding, SVG rendering (paths, shapes, groups, transforms), bilinear image scaling. SDL-free. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them |
 | `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
 | `src/net` | HTTP/1.1, cookies, cache, sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
-| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet |
-| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking, per-line text fragments, replaced elements, floats and clearance, tables, display-list building |
+| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images |
+| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
 | `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype`, `call`/`apply`/`bind`, part of `Array.prototype`. No bytecode VM, Promises, async, generators or regex engine. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
@@ -52,12 +61,14 @@ than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
-1. **Hacker News.** The first named compatibility target and the closest to working. The three
-   things this entry used to ask for — table insertion modes, navigation from a clicked link,
-   form controls — all exist now. What is left is smaller and more specific: `<select>` is laid
-   out and submitted but not clickable (no hit test opens it), and the logo is a GIF while
-   `src/gfx` decodes only PNG. Load the real page and write down what is wrong before building
-   anything from this list; it will find gaps that speculative work will not.
+1. **Reddit or google, the next compatibility targets.** Hacker News renders and works; the
+   things this entry used to ask for are done. Take the next target the same way: load it,
+   snapshot it, write down what is wrong, and fix what the page actually needs. Every fix in the
+   Hacker News run was found that way, and none of them was the thing that looked most likely
+   beforehand — the font stack, a self-closing `<tr>`, and `text-align` never being read were all
+   invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
+   `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
+   there is no `border-spacing`, and `:visited` deliberately matches nothing.
 2. **The JavaScript bytecode VM.** The largest single item and the project's dominant cost. It is
    not only speed: the collector cannot run during evaluation today, because a tree-walker keeps
    live values in C++ frames it cannot scan — so the heap has a ceiling that becomes a
@@ -79,8 +90,10 @@ reasoning; this is the queue.
 
 Known-crude spots, each with the reasoning written where the code is: loading is synchronous (the
 loop blocks for a fetch); a display list carrying an image serializes the bitmap inline rather than
-naming it in a resource table; scrolling an overflowing document repaints in full because there is
-no scroll blit in the presenter.
+naming it in a resource table, which now costs more because a background image is one more bitmap
+per frame; scrolling an overflowing document repaints in full because there is no scroll blit in
+the presenter; a background image is re-rasterized per element rather than shared; and collecting
+background images resolves the cascade a second time, before layout resolves it again.
 
 ## Development Workflow
 
