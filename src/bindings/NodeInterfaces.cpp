@@ -169,6 +169,7 @@ void DomBindings::EnsureInterfaces() {
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));
   InstallCustomElements();
+  InstallMutationObserver();
 }
 
 js::Value DomBindings::PrototypeFor(const dom::Node& node) {

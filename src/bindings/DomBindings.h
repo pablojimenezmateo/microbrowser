@@ -124,6 +124,18 @@ class DomBindings {
   // `connectedCallback` and its siblings, when the element is a custom one
   // that has been upgraded and defines the reaction.
   void RunElementReaction(dom::Element& element, const char* callback);
+  // --- MutationObserver, in MutationObserver.cpp ----------------------------
+  void InstallMutationObserver();
+  js::Value ObserverList();
+  // Queues one delivery per observer per turn, however many mutations it saw.
+  void ScheduleObserverDelivery(const js::Value& observer);
+  // Records a mutation against every observer watching `node`. `type` is
+  // "childList", "attributes" or "characterData", and is also the option name
+  // an observer had to have asked for.
+  void RecordMutation(dom::Node& node, const char* type, const std::string& name,
+                      const js::Value& old_value, const std::vector<dom::Node*>& added,
+                      const std::vector<dom::Node*>& removed);
+
   void RunAttributeReaction(dom::Element& element, const std::string& name,
                             const js::Value& old_value, const js::Value& new_value);
   // Runs connected or disconnected reactions over `node` and its subtree. The

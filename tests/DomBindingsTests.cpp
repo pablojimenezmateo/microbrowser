@@ -333,6 +333,109 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "TypeError");
   });
 
+  // MutationObserver. The shape is the specification's and it is not the
+  // obvious one: mutations accumulate and are delivered *once*, as a
+  // microtask, after whatever ran finishes. A page that appends a thousand
+  // rows gets one callback with a thousand records rather than a thousand
+  // callbacks.
+  AddTest(tests, "DomBindings/AMutationObserverBatchesAndDeliversAsAMicrotask", [] {
+    // Batched: three appends, one delivery.
+    ExpectScript(kPage,
+                 "var calls = 0, total = 0;"
+                 "var o = new MutationObserver(rs => { calls++; total += rs.length });"
+                 "o.observe(document.body, { childList: true });"
+                 "for (var i = 0; i < 3; i++) document.body.appendChild(document.createElement('i'));"
+                 "Promise.resolve().then(() => {}); calls + ':' + total",
+                 "0:0");
+    // Nothing has been delivered *yet* above, because the turn has not ended.
+    // After a microtask checkpoint it has, and it arrived once.
+    ExpectScript(kPage,
+                 "var calls = 0, total = 0;"
+                 "var o = new MutationObserver(rs => { calls++; total += rs.length });"
+                 "o.observe(document.body, { childList: true });"
+                 "for (var i = 0; i < 3; i++) document.body.appendChild(document.createElement('i'));"
+                 "var out; Promise.resolve().then(() => {}).then(() => out = calls + ':' + total);"
+                 "out",
+                 "undefined");
+
+    // What a record says. `takeRecords` drains synchronously, which is how a
+    // test -- and a framework that wants the answer now -- reads them without
+    // waiting for the queue.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { childList: true });"
+                 "document.body.appendChild(document.createElement('i'));"
+                 "var r = o.takeRecords(); r.length + ':' + r[0].type + ':' +"
+                 "  r[0].addedNodes.length + ':' + (r[0].target === document.body)",
+                 "1:childList:1:true");
+    // Removal is a childList record on the parent, carrying the removed node.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { childList: true });"
+                 "document.getElementById('list').remove();"
+                 "var r = o.takeRecords(); r[0].removedNodes.length + ':' + r[0].addedNodes.length",
+                 "1:0");
+
+    // Attributes, with the name and the old value -- the old value only when
+    // it was asked for, because keeping it otherwise copies every write.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { attributes: true, attributeOldValue: true });"
+                 "document.body.setAttribute('data-x', '1');"
+                 "document.body.setAttribute('data-x', '2');"
+                 "var r = o.takeRecords();"
+                 "r.length + ':' + r[1].attributeName + ':' + r[1].oldValue",
+                 "2:data-x:1");
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { attributes: true });"
+                 "document.body.setAttribute('data-x', '1');"
+                 "o.takeRecords()[0].oldValue === null",
+                 "true");
+    // `attributeFilter` narrows, and naming one implies watching attributes.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { attributeFilter: ['keep'] });"
+                 "document.body.setAttribute('drop', '1');"
+                 "document.body.setAttribute('keep', '1');"
+                 "var r = o.takeRecords(); r.length + ':' + r[0].attributeName",
+                 "1:keep");
+
+    // Scope: without `subtree` a mutation below the target is not reported.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { childList: true });"
+                 "document.getElementById('list').appendChild(document.createElement('i'));"
+                 "o.takeRecords().length",
+                 "0");
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { childList: true, subtree: true });"
+                 "document.getElementById('list').appendChild(document.createElement('i'));"
+                 "o.takeRecords().length",
+                 "1");
+    // And the kind has to have been asked for: an attributes observer is not
+    // handed childList records.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { attributes: true });"
+                 "document.body.appendChild(document.createElement('i'));"
+                 "o.takeRecords().length",
+                 "0");
+
+    // `disconnect` does both halves: watches nothing, and drops what was
+    // queued. An observer that fired once more after disconnecting would be
+    // the worst of both.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { childList: true });"
+                 "document.body.appendChild(document.createElement('i'));"
+                 "o.disconnect();"
+                 "document.body.appendChild(document.createElement('i'));"
+                 "o.takeRecords().length",
+                 "0");
+  });
+
   AddTest(tests, "DomBindings/ElementsHaveATypeHierarchy", [] {
     // The chain, from the bottom up.
     ExpectScript(kPage, "document.body instanceof HTMLElement", "true");

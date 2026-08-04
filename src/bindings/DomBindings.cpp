@@ -385,12 +385,23 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
                            LowerCase(js::ToString(Argument(call.arguments, 0)))));
   });
   method("removeAttribute", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
       return call.Throw("TypeError", "removeAttribute called on a non-element");
     }
-    static_cast<dom::Element*>(self)->RemoveAttribute(
-        LowerCase(js::ToString(Argument(call.arguments, 0))));
+    auto& element = *static_cast<dom::Element*>(self);
+    const std::string name = LowerCase(js::ToString(Argument(call.arguments, 0)));
+    const std::string* previous = element.GetAttribute(name);
+    const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
+    element.RemoveAttribute(name);
+    if (owner != nullptr) {
+      // Removing is an attribute mutation like any other, and the reaction is
+      // told the new value is null -- which is how a class distinguishes "set
+      // to empty" from "gone".
+      owner->RunAttributeReaction(element, name, old_value, Value::Null());
+      owner->RecordMutation(element, "attributes", name, old_value, {}, {});
+    }
     return Value::Undefined();
   });
   method("matches", [](NativeCall& call) {
@@ -489,6 +500,7 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     element.SetAttribute(name, value);
     if (owner != nullptr) {
       owner->RunAttributeReaction(element, name, old_value, Value::String(value));
+      owner->RecordMutation(element, "attributes", name, old_value, {}, {});
     }
     return Value::Undefined();
   });

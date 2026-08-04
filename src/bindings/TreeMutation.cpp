@@ -257,6 +257,7 @@ bool DomBindings::DetachFromTree(dom::Node& child) {
   // is on its way out, and asking whether it is in the document has to be
   // asked while the answer is still yes.
   NotifyConnection(child, false);
+  RecordMutation(*parent, "childList", {}, Value::Null(), {}, {&child});
   std::unique_ptr<dom::Node> owned = parent->Detach(&child);
   if (owned == nullptr) {
     return false;
@@ -322,6 +323,9 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // node: appending a detached tree connects everything in it, and a custom
   // element three levels down is as connected as the root is.
   NotifyConnection(*child, true);
+  // The record goes to observers of the *parent*, because childList is about
+  // a node's children changing rather than about the child.
+  RecordMutation(parent, "childList", {}, Value::Null(), {child}, {});
   return WrapperFor(child);
 }
 
