@@ -149,7 +149,17 @@ NodePtr ParserImpl::ParsePrimary() {
     // is a call and `async = 1` is an assignment, and both have to keep
     // working -- which is why this asks rather than assumes.
   }
-  if (current_.type == TokenType::Identifier || current_.type == TokenType::PrivateIdentifier) {
+  if (current_.type == TokenType::PrivateIdentifier) {
+    // A private name reaching here is the brand check -- `#x in o`. Every
+    // other position for one is after a `.`, which the member path reads
+    // straight off the token. Private state is stored under the written name,
+    // so the check is a property test and the name is the string form of it.
+    NodePtr node = Make(NodeKind::StringLiteral);
+    node->string = std::string(current_.lexeme);
+    Advance();
+    return node;
+  }
+  if (current_.type == TokenType::Identifier) {
     NodePtr node = Make(NodeKind::Identifier);
     node->string = std::string(current_.lexeme);
     Advance();
@@ -664,6 +674,18 @@ void ParserImpl::ParseArguments(Node& call) {
 NodePtr ParserImpl::ParseNew() {
   NodePtr node = Make(NodeKind::New);
   Advance();  // `new`
+  if (At(".")) {
+    // `new.target`. Not a construction at all -- it reads whether the running
+    // call was reached through `new`, which nothing else can answer: the
+    // receiver looks the same either way.
+    Advance();
+    if (current_.lexeme != "target") {
+      Error("expected 'target' after 'new.'");
+      return Make(NodeKind::Empty);
+    }
+    Advance();
+    return Make(NodeKind::NewTarget);
+  }
   // The callee of `new` excludes calls: `new a.b()` constructs a.b, and
   // `new a()()` calls the result of the construction.
   NodePtr callee = ParseCallOrMember(ParsePrimary(), false);

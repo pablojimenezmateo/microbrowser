@@ -748,6 +748,17 @@ class Interpreter {
   // knows to look the method up on the parent while keeping `this`. Cleared on
   // every other member access, so it cannot leak into an unrelated call.
   Value super_base_;
+  // What `new.target` is for the call about to be made.
+  //
+  // Set by Construct just before it calls the constructor, and taken by the
+  // call that follows -- so it is in effect for exactly one call and cannot
+  // leak into the next. A `super()` puts the running frame's back, which is
+  // what makes `new B()` give B inside A's constructor as well as inside B's.
+  //
+  // A member rather than an argument because both engines and four call paths
+  // reach the same place, and threading it through all of them would mean four
+  // chances to forget.
+  Value pending_new_target_;
   std::size_t steps_ = 0;
   static constexpr std::size_t kMaxSteps = 20'000'000;
 

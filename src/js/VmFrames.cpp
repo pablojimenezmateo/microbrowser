@@ -161,6 +161,13 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
     declare(kSlotHome, "__home__", Value::Obj(function->HomeObject()), true);
   }
   declare(kSlotFunction, "__function__", Value::Obj(function), true);
+  if (!function->IsArrow()) {
+    // Taken rather than read: `new.target` belongs to this call. An arrow has
+    // none of its own -- like `this` -- so its slot stays unset and the walk
+    // out finds the enclosing function's.
+    declare(kSlotNewTarget, "__newtarget__", pending_new_target_, true);
+    pending_new_target_ = Value::Undefined();
+  }
   if (code->needs_arguments) {
     std::vector<Value> arguments(vm_.stack.begin() + static_cast<std::ptrdiff_t>(callee_slot) + 2,
                                  vm_.stack.end());

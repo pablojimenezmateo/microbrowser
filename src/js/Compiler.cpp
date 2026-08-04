@@ -348,6 +348,10 @@ void Compiler::Expression(const Node& node) {
       return;
     }
 
+    case NodeKind::NewTarget:
+      Emit(Op::LoadNewTarget, 0, 1);
+      return;
+
     case NodeKind::Super:
       // Only reachable as `super(...)` or `super.x`, and both are handled where
       // the call and the member access are. Reaching here means it was used as

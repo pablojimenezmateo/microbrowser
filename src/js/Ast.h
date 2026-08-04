@@ -51,6 +51,7 @@ enum class NodeKind : std::uint8_t {
   Conditional,        // [0] = test; [1] = consequent; [2] = alternate
   Call,               // [0] = callee; rest = arguments; number = CallFlags
   New,                // [0] = callee; rest = arguments
+  NewTarget,          // `new.target`; no children
   Member,             // [0] = object; [1] = property; number = MemberFlags
   Sequence,           // children = expressions
   Spread,             // [0] = argument
@@ -137,6 +138,12 @@ enum MethodFlags : std::uint8_t {
   // a class.
   kMethodAsync = 1 << 4,
   kMethodGenerator = 1 << 5,
+  // `static { ... }`. Not a method and not a field: a block that runs once,
+  // with `this` bound to the class, after the static fields written above it
+  // and before those written below. Carried as a MethodDefinition anyway --
+  // its body is a function body and gets compiled through the same path -- so
+  // that a class body stays one list rather than two.
+  kMethodStaticBlock = 1 << 6,
 };
 
 struct Node {

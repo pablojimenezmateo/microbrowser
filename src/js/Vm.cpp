@@ -250,6 +250,14 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         vm_.stack.push_back(binding == nullptr ? Value::Undefined() : *binding);
         break;
       }
+      case Op::LoadNewTarget: {
+        // Through FrameName for the reason `this` is: an arrow's slot is
+        // reserved and unset, so the walk out finds the enclosing function's,
+        // which is what makes `new.target` readable inside an arrow.
+        Value* binding = FrameName("__newtarget__", kSlotNewTarget);
+        vm_.stack.push_back(binding == nullptr ? Value::Undefined() : *binding);
+        break;
+      }
 
       // --- Properties --------------------------------------------------------
       case Op::ThrowIfNullishName:
@@ -723,6 +731,48 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           }
         }
         vm_.stack.pop_back();
+        break;
+      }
+      case Op::ObjectRest: {
+        // `const {a, ...rest} = o`. The keys the pattern already named are
+        // under the source, in the order the pattern pushed them.
+        const std::size_t named = instruction.a;
+        if (vm_.stack.size() < named + 1) {
+          pending = Throw("RangeError", "stack underflow");
+          threw = true;
+          break;
+        }
+        Object* rest = NewObject();
+        if (rest == nullptr) {
+          pending = Throw("RangeError", "out of memory");
+          threw = true;
+          break;
+        }
+        const Value source = vm_.stack.back();
+        // The rest object goes on the stack before anything is read into it:
+        // a getter on the source can allocate, and this is the only root.
+        vm_.stack.back() = Value::Obj(rest);
+        if (source.IsObject()) {
+          const std::size_t first = vm_.stack.size() - 1 - named;
+          const std::vector<std::string> keys = source.object->Keys();
+          for (const std::string& key : keys) {
+            bool already = false;
+            for (std::size_t i = 0; i < named; ++i) {
+              const Value& taken = vm_.stack[first + i];
+              already = already || (taken.IsString() && taken.AsString() == key) ||
+                        (!taken.IsString() && !taken.IsSymbol() && ToString(taken) == key);
+            }
+            if (!already) {
+              rest->Set(key, GetProperty(source, key));
+            }
+          }
+        }
+        // Drop the keys from underneath, leaving the rest object where the
+        // source was.
+        if (named != 0) {
+          vm_.stack[vm_.stack.size() - 1 - named] = vm_.stack.back();
+          vm_.stack.resize(vm_.stack.size() - named);
+        }
         break;
       }
       case Op::Closure:

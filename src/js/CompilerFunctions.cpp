@@ -110,14 +110,18 @@ void Compiler::Function(const Node& node, bool arrow) {
   function_.frame_locals = !(body != nullptr && CreatesClosure(*body)) &&
                            !(parameters != nullptr && CreatesClosure(*parameters));
 
-  // The function's own scope, whose first four slots PushFrame fills. Reserved
-  // in the same order there and here; see kSlotThis in Bytecode.h.
+  // The function's own scope, whose first five slots PushFrame fills. Reserved
+  // in the same order there and here; see kSlotThis in Bytecode.h. The two
+  // lists agreeing is what makes a parameter's index a compile-time constant,
+  // so a slot added to one and not the other is not a slowdown -- it is every
+  // parameter reading the wrong binding.
   scopes_.emplace_back();
   scope_floor_ = 1;
   Reserve("this");
   Reserve("__home__");
   Reserve("__function__");
   Reserve("arguments");
+  Reserve("__newtarget__");
   if (parameters != nullptr) {
     for (const NodePtr& parameter : parameters->children) {
       if (parameter != nullptr) {

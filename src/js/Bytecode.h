@@ -123,6 +123,10 @@ enum class Op : std::uint8_t {
   DeclareSlot,  // a = declaration index; [value] -> []
 
   LoadThis,
+  // `new.target`. Undefined unless the running call was reached through `new`,
+  // and it is the *most derived* constructor -- `new B()` gives B inside A's
+  // constructor too, which is what the transpiled `class` guards read.
+  LoadNewTarget,
 
   // --- Properties ----------------------------------------------------------
   GetProperty,      // [base key] -> [value]
@@ -207,6 +211,13 @@ enum class Op : std::uint8_t {
   ObjectGetter,     // [object key function] -> [object]
   ObjectSetter,     // [object key function] -> [object]
   ObjectSpread,     // [object source] -> [object]
+  // The other direction: what `const {a, ...rest} = o` binds to `rest`.
+  //
+  // `a` is how many keys the pattern already named, and those keys sit *under*
+  // the source -- the pattern pushed each one as it went, because a computed
+  // key is not known until it has run.
+  // [key... source] -> [object] with every other own enumerable property.
+  ObjectRest,
   Closure,          // a = function index -> [function]
   ClosureArrow,     // a = function index -> [function]; captures `this` now
   // Three forms the compiler hands back to the tree-walking evaluator, because
@@ -336,7 +347,14 @@ inline constexpr std::uint32_t kSlotThis = 0;
 inline constexpr std::uint32_t kSlotHome = 1;
 inline constexpr std::uint32_t kSlotFunction = 2;
 inline constexpr std::uint32_t kSlotArguments = 3;
-inline constexpr std::uint32_t kReservedSlots = 4;
+// `new.target`: the constructor a `new` names, or unset for an ordinary call.
+//
+// A slot rather than something derived, because "was this called with `new`"
+// is not a question the callee can answer any other way -- the receiver looks
+// the same either way, and a class that guards on it is guarding against
+// exactly the call that looks ordinary.
+inline constexpr std::uint32_t kSlotNewTarget = 4;
+inline constexpr std::uint32_t kReservedSlots = 5;
 
 // What a DeclareSlot fills in. A record rather than more packed bits because
 // this one is not on a hot path -- a declaration runs once per scope, a read

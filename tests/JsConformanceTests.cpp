@@ -178,6 +178,77 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = {a:{}, n:null}; String(o.a?.[o.n?.k])", "undefined");
   });
 
+  // --- Destructuring --------------------------------------------------------
+
+  AddTest(tests, "JsConformance/AnObjectPatternTakesAComputedKey", [] {
+    ExpectEval("const k = 'q'; const {[k]: v} = {q: 8}; v", "8");
+    // Silently undefined before: the pattern read the *written* name, which
+    // for a computed key is empty.
+    ExpectEval("const k = 'a'; const {[k]: v = 5} = {}; v", "5");
+  });
+
+  AddTest(tests, "JsConformance/AnObjectPatternTakesARest", [] {
+    ExpectEval("const {a, ...r} = {a:1, b:2, c:3}; a + ':' + JSON.stringify(r)",
+               "1:{\"b\":2,\"c\":3}");
+    ExpectEval("const k = 'z'; const {[k]: v, ...r} = {z:1, m:2}; v + ':' + JSON.stringify(r)",
+               "1:{\"m\":2}");
+    ExpectEval("let g, h; ({g, ...h} = {g:1, k:2}); g + ':' + JSON.stringify(h)",
+               "1:{\"k\":2}");
+    ExpectEval("function f({a = 1, ...o} = {}) { return a + ':' + JSON.stringify(o) } f({a:5,b:6})",
+               "5:{\"b\":6}");
+  });
+
+  AddTest(tests, "JsConformance/ANestedPatternCanHaveADefault", [] {
+    // `{c} = {c:9}` in a binding position is a default, not an assignment.
+    // The parser reads a pattern with the expression grammar, so only the
+    // consumer can tell -- and it used to answer "invalid assignment target".
+    ExpectEval("const {b: {c} = {c: 9}} = {}; c", "9");
+    ExpectEval("const {p: {q} = {q: 7}} = {p: {q: 3}}; q", "3");
+    ExpectEval("const [x = 1, [y = 2] = []] = []; x + ':' + y", "1:2");
+  });
+
+  AddTest(tests, "JsConformance/DestructuringNullSaysSo", [] {
+    ExpectEval("try { const {a} = null } catch (e) { e instanceof TypeError }", "true");
+  });
+
+  // --- new.target, static blocks, the brand check ---------------------------
+
+  AddTest(tests, "JsConformance/NewTargetSaysWhetherTheCallWasAConstruction", [] {
+    ExpectEval("function F(){ return new.target === F } String(F())", "false");
+    ExpectEval("class G { constructor(){ if (!new.target) throw new TypeError('needs new') } }"
+               "new G() instanceof G",
+               "true");
+    ExpectEval("class G { constructor(){ if (!new.target) throw new TypeError('x') } }"
+               "try { G() } catch (e) { e.message }",
+               "x");
+  });
+
+  AddTest(tests, "JsConformance/NewTargetIsTheMostDerivedConstructor", [] {
+    ExpectEval("class A { constructor(){ this.t = new.target.name } } class B extends A {}"
+               "new A().t + ':' + new B().t",
+               "A:B");
+  });
+
+  AddTest(tests, "JsConformance/AnArrowReadsTheNewTargetAroundIt", [] {
+    // Like `this`: an arrow declares none of its own, so the walk out finds
+    // the enclosing function's.
+    ExpectEval("function H(){ this.a = (() => new.target)() === H } new H().a", "true");
+  });
+
+  AddTest(tests, "JsConformance/AStaticBlockRunsInBodyOrder", [] {
+    ExpectEval("class C { static x = 1; static { C.y = C.x + 1 } static z = 3 } "
+               "C.x + ':' + C.y + ':' + C.z",
+               "1:2:3");
+    // `this` inside one is the class.
+    ExpectEval("class C { static { C.n = this.name } } C.n", "C");
+  });
+
+  AddTest(tests, "JsConformance/ThePrivateBrandCheckIsAnOperator", [] {
+    ExpectEval("class P { #v = 1; static has(o){ return #v in o } }"
+               "P.has(new P()) + ':' + P.has({})",
+               "true:false");
+  });
+
   // --- Per-iteration bindings ----------------------------------------------
   //
   // `for (let i = ...)` makes one binding per pass, not one for the loop. The

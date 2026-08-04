@@ -94,6 +94,19 @@ NodePtr ParserImpl::ParseClass(bool declaration) {
         // `static` used as a method or field name rather than a modifier.
         lexer_.SeekTo(saved.end, saved.line);
         current_ = saved;
+      } else if (At("{")) {
+        // `static { ... }`: a block that runs once with `this` bound to the
+        // class. Carried as a method with no name, so a class body stays one
+        // list -- and so its body is compiled through the same path every
+        // other method body is.
+        flags |= kMethodStatic | kMethodStaticBlock;
+        method->number = static_cast<double>(flags);
+        NodePtr function = Make(NodeKind::FunctionExpression);
+        function->children.push_back(Make(NodeKind::Parameters));
+        function->children.push_back(ParseBlock());
+        method->children.push_back(std::move(function));
+        node->children.push_back(std::move(method));
+        continue;
       } else {
         flags |= kMethodStatic;
       }

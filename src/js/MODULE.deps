@@ -277,7 +277,12 @@ budget: WellKnown   header_lines=110 public_methods=2  members=17
 # that call can throw. Five public methods and an enum, and they are public for
 # the reason CallFunction is: the host converts values too, and a second
 # implementation of `+` is the thing this whole file argues against.
-budget: Interpreter header_lines=760 public_methods=50 members=16
+# And by one member for `new.target`: what it is for the call about to be made.
+# Set by Construct and taken by whichever call path binds the frame, so it is
+# in effect for exactly one call. A member rather than an argument because both
+# engines and four call paths reach the same place, and threading it through
+# all of them would be four chances to forget.
+budget: Interpreter header_lines=790 public_methods=50 members=17
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

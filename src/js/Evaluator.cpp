@@ -111,11 +111,67 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
     }
 
     case NodeKind::ObjectLiteral: {
+      // Destructuring an object is an error before it reads anything, because
+      // every read would be a read of a property of null.
+      if (value.IsNullish()) {
+        return Throw("TypeError", "cannot destructure " + ToString(value));
+      }
+      // The names taken by name, so a `...rest` at the end knows what to
+      // leave out. Collected rather than counted because a computed key is
+      // only known once it has been evaluated.
+      std::vector<PropertyKey> taken;
       for (const NodePtr& property : target.children) {
-        if (property == nullptr || property->kind != NodeKind::Property) {
+        if (property == nullptr) {
           continue;
         }
-        const Value item = GetProperty(value, property->string);
+        if (property->kind == NodeKind::Spread || property->kind == NodeKind::RestElement) {
+          // `const {a, ...rest} = o`: everything own and enumerable that the
+          // pattern did not already name.
+          Object* rest = NewObject();
+          if (rest == nullptr) {
+            return Throw("RangeError", "out of memory");
+          }
+          if (value.IsObject()) {
+            for (const std::string& key : value.object->Keys()) {
+              const PropertyKey named(key);
+              bool already = false;
+              for (const PropertyKey& seen : taken) {
+                already = already || seen == named;
+              }
+              if (!already) {
+                rest->Set(key, GetProperty(value, named));
+              }
+            }
+          }
+          const Node* inner = property->Child(0);
+          if (inner != nullptr) {
+            const Result bound =
+                BindPattern(*inner, Value::Obj(rest), scope, declare, is_const);
+            if (bound.IsAbrupt()) {
+              return bound;
+            }
+          }
+          continue;
+        }
+        if (property->kind != NodeKind::Property) {
+          continue;
+        }
+        // A computed key -- `const {[k]: v} = o` -- is evaluated here rather
+        // than read off `property->string`, which for one of these is empty.
+        // Reading the empty name is what made this silently bind undefined.
+        PropertyKey key = property->string;
+        if ((static_cast<int>(property->number) & 1) != 0 && property->Child(1) != nullptr) {
+          const Result computed = Evaluate(*property->Child(1), scope);
+          if (computed.IsAbrupt()) {
+            return computed;
+          }
+          const Result converted = ToKeyOf(computed.value, key);
+          if (converted.IsAbrupt()) {
+            return converted;
+          }
+        }
+        taken.push_back(key);
+        const Value item = GetProperty(value, key);
         const Node* binding = property->Child(0);
         if (binding != nullptr) {
           const Result bound = BindPattern(*binding, item, scope, declare, is_const);
@@ -125,6 +181,27 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
         }
       }
       return Result::Normal(value);
+    }
+
+    case NodeKind::Assignment: {
+      // `const {b: {c} = {c: 9}} = {}`. The parser reads a pattern with the
+      // expression grammar and only the consumer can tell the two apart, so a
+      // plain `=` reaching a binding position is a default rather than an
+      // assignment. Anything else is genuinely not a target.
+      if (target.string != "=") {
+        return Throw("SyntaxError", "invalid assignment target");
+      }
+      Value bound_value = value;
+      if (bound_value.IsUndefined() && target.Child(1) != nullptr) {
+        const Result fallback = Evaluate(*target.Child(1), scope);
+        if (fallback.IsAbrupt()) {
+          return fallback;
+        }
+        bound_value = fallback.value;
+      }
+      const Node* inner = target.Child(0);
+      return inner == nullptr ? Result::Normal(bound_value)
+                              : BindPattern(*inner, bound_value, scope, declare, is_const);
     }
 
     case NodeKind::AssignmentPattern: {

@@ -10,7 +10,7 @@ constexpr std::string_view kNames[] = {
     "Number", "String", "Template", "RegExp", "Boolean", "Null", "Id", "This", "Super",
     "Array", "Object", "Property", "Function", "Arrow", "ClassExpr", "Method",
     "Params", "Rest", "Default", "Yield", "Unary", "Update", "Binary", "Logical", "Assign",
-    "Cond", "Call", "New", "Member", "Seq", "Spread", "TaggedTemplate",
+    "Cond", "Call", "New", "NewTarget", "Member", "Seq", "Spread", "TaggedTemplate",
     "Program", "Block", "Var", "Declarator", "ExprStmt", "If", "For", "ForIn",
     "While", "DoWhile", "Return", "Break", "Continue", "Throw", "Try", "Switch",
     "Case", "Labeled", "FunctionDecl", "ClassDecl", "Empty", "Debugger",

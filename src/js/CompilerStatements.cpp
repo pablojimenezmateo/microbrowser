@@ -831,6 +831,31 @@ void Compiler::BindTarget(const Node& target, bool declare, bool is_const) {
       StoreToMember(target);
       return;
 
+    case NodeKind::Assignment:
+      // `const {b: {c} = {c: 9}} = {}`. A pattern is read with the expression
+      // grammar and only the consumer can tell the two apart, so a plain `=`
+      // reaching a binding position is a default rather than an assignment.
+      if (target.string == "=") {
+        const Node* fallback = target.Child(1);
+        if (fallback != nullptr) {
+          const std::uint32_t skip = Emit(Op::JumpIfNotUndefined, 0, 0);
+          Emit(Op::Pop, 0, -1);
+          Expression(*fallback);
+          Patch(skip, Here());
+        }
+        const Node* inner = target.Child(0);
+        if (inner == nullptr) {
+          Emit(Op::Pop, 0, -1);
+        } else {
+          BindTarget(*inner, declare, is_const);
+        }
+        return;
+      }
+      ThrowSyntax("invalid assignment target");
+      Emit(Op::Pop, 0, -1);
+      Emit(Op::Pop, 0, -1);
+      return;
+
     default:
       ThrowSyntax("invalid assignment target");
       Emit(Op::Pop, 0, -1);
@@ -872,16 +897,87 @@ void Compiler::BindArrayPattern(const Node& target, bool declare, bool is_const)
 }
 
 void Compiler::BindObjectPattern(const Node& target, bool declare, bool is_const) {
+  // A `...rest` at the end has to know which keys the pattern already named,
+  // and a computed one is not known until it has run -- so each key is left on
+  // the stack under the source as it goes, and ObjectRest reads them back.
+  // Counted here so the instruction knows how many there are.
+  std::uint32_t named = 0;
+  // Destructuring null is an error before the pattern reads anything, because
+  // every read would be a read of a property of null. Named after the first
+  // property the pattern mentions, so the message says which access it was.
+  {
+    std::string first;
+    for (const NodePtr& property : target.children) {
+      if (property != nullptr && property->kind == NodeKind::Property &&
+          (static_cast<int>(property->number) & 1) == 0) {
+        first = property->string;
+        break;
+      }
+    }
+    Emit(Op::ThrowIfNullishName, Name(first), 0);
+  }
+  const bool has_rest = [&] {
+    for (const NodePtr& property : target.children) {
+      if (property != nullptr && (property->kind == NodeKind::Spread ||
+                                  property->kind == NodeKind::RestElement)) {
+        return true;
+      }
+    }
+    return false;
+  }();
+
   for (const NodePtr& property : target.children) {
-    if (property == nullptr || property->kind != NodeKind::Property) {
+    if (property == nullptr) {
+      continue;
+    }
+    if (property->kind == NodeKind::Spread || property->kind == NodeKind::RestElement) {
+      // [key... source] -> the keys have to be under it, which is what the
+      // rotate below arranges once rather than per key.
+      Emit(Op::ObjectRest, named, -static_cast<int>(named));
+      const Node* inner = property->Child(0);
+      if (inner == nullptr) {
+        Emit(Op::Pop, 0, -1);
+      } else {
+        BindTarget(*inner, declare, is_const);
+      }
+      // ObjectRest consumed the source along with the keys, so there is
+      // nothing left for the pop at the end of the pattern to take.
+      return;
+    }
+    if (property->kind != NodeKind::Property) {
       continue;
     }
     const Node* binding = property->Child(0);
     if (binding == nullptr) {
       continue;
     }
-    Emit(Op::Dup, 0, 1);
-    Emit(Op::GetPropertyName, Name(property->string), 0);
+    const bool computed = (static_cast<int>(property->number) & 1) != 0;
+    if (computed) {
+      // `const {[k]: v} = o`. The key is an expression, and reading
+      // `property->string` -- which is empty for one of these -- is what made
+      // this bind undefined without saying anything.
+      Emit(Op::Dup, 0, 1);
+      if (property->Child(1) != nullptr) {
+        Expression(*property->Child(1));
+      } else {
+        Emit(Op::PushUndefined, 0, 1);
+      }
+      if (has_rest) {
+        // Keep a copy for ObjectRest: [source key] -> [key source key].
+        Emit(Op::Dup, 0, 1);
+        Emit(Op::RotateDown, 3, 0);
+        ++named;
+      }
+      Emit(Op::GetProperty, 0, -1);
+    } else {
+      if (has_rest) {
+        Emit(Op::PushConstant, Constant(Value::String(property->string)), 1);
+        Emit(Op::Swap);
+        ++named;
+      }
+      Emit(Op::Dup, 0, 1);
+      Emit(Op::GetPropertyName, Name(property->string), 0);
+    }
     BindTarget(*binding, declare, is_const);
   }
   Emit(Op::Pop, 0, -1);  // the object the pattern was read from

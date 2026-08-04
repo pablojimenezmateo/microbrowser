@@ -106,6 +106,13 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(binding == nullptr ? Value::Undefined() : *binding);
     }
 
+    case NodeKind::NewTarget: {
+      // An ordinary name lookup, so an arrow -- which declares none of its own
+      // -- finds the enclosing function's, the way it finds `this`.
+      Value* binding = scope.Lookup("__newtarget__");
+      return Result::Normal(binding == nullptr ? Value::Undefined() : *binding);
+    }
+
     case NodeKind::ArrayLiteral: {
       std::vector<Value> elements;
       std::vector<bool> present;

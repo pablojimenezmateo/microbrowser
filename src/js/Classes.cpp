@@ -112,6 +112,29 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope,
     const bool is_static = (flags & kMethodStatic) != 0;
     Object* target = is_static ? constructor : prototype;
 
+    if ((flags & kMethodStaticBlock) != 0) {
+      // `static { ... }`. Runs here rather than being attached, and here is
+      // where it belongs: in body order, so a block sees the static fields
+      // written above it and not those written below.
+      const Node* body = member->Child(0);
+      if (body == nullptr) {
+        continue;
+      }
+      const CompiledFunction* block_code = FindCompiled(enclosing, body);
+      const Value block = block_code != nullptr
+                              ? NewCompiledFunction(*block_code, *class_scope, false)
+                              : NewFunction(*body, *class_scope, false);
+      if (!block.IsObject()) {
+        return Throw("RangeError", "out of memory");
+      }
+      block.object->SetHomeObject(constructor);
+      const Result ran = CallFunction(block, class_value, {});
+      if (ran.IsAbrupt()) {
+        return ran;
+      }
+      continue;
+    }
+
     // Two things, because they are two things: what the member is filed
     // under, which a computed key can make a symbol, and what `fn.name`
     // reports, which is always text.

@@ -510,7 +510,9 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
     // `constructor(...args){ super(...args) }`. Without it, `class B extends A
     // { n = 5 }` runs no constructor at all and leaves both the base's state
     // and its own fields unset.
+    pending_new_target_ = callee;
     const Result base = CallFunction(Value::Obj(parent), self, arguments);
+    pending_new_target_ = Value::Undefined();
     if (base.IsAbrupt()) {
       active_objects_.pop_back();
       return base;
@@ -521,7 +523,12 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
       return fields;
     }
   }
+  // `new.target` is in effect for exactly this call. Taken by whichever call
+  // path binds the frame, and cleared there, so an ordinary call made later
+  // does not inherit it.
+  pending_new_target_ = callee;
   const Result constructed = CallFunction(callee, self, arguments);
+  pending_new_target_ = Value::Undefined();
   active_objects_.pop_back();
   if (constructed.IsAbrupt()) {
     return constructed;
@@ -582,6 +589,13 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
     scope->Declare("__home__", Value::Obj(function->HomeObject()), true);
   }
   scope->Declare("__function__", callee, true);
+  // Taken rather than read: it belongs to this call and to no other.
+  if (!function->IsArrow()) {
+    // An arrow has no `new.target` of its own, the way it has no `this` --
+    // it reads the one from where it was written, which the walk out finds.
+    scope->Declare("__newtarget__", pending_new_target_, true);
+    pending_new_target_ = Value::Undefined();
+  }
   if (Object* argument_list = NewArray(arguments)) {
     scope->Declare("arguments", Value::Obj(argument_list), false);
   }
