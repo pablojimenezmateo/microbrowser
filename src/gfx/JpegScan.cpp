@@ -1,5 +1,6 @@
 #include "gfx/JpegScan.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace microbrowser::gfx {
@@ -161,12 +162,23 @@ std::int16_t* BlockAt(JpegComponent& component, int row, int column) {
   return component.coefficients.data() + index;
 }
 
+// The DC predictor accumulates one signed difference per block, and a component
+// can hold two million blocks. Each difference fits in sixteen bits and their
+// sum does not fit in thirty-two, so the running total is clamped rather than
+// left to overflow — signed overflow is undefined behaviour, and a file that
+// reaches it is a file an attacker wrote. On any valid 8-bit JPEG the DC
+// coefficient stays inside a couple of thousand and this never fires.
+void AccumulateDc(JpegComponent& component, int difference) {
+  component.dc_prediction =
+      std::clamp(component.dc_prediction + difference, -32768, 32767);
+}
+
 bool DecodeBaselineBlock(BitReader& reader, JpegScanComponent& scan, std::int16_t* block) {
   const int category = HuffDecode(reader, *scan.dc);
   if (category < 0 || category > kMaxDcCategory) {
     return false;
   }
-  scan.component->dc_prediction += reader.Receive(category);
+  AccumulateDc(*scan.component, reader.Receive(category));
   block[0] = static_cast<std::int16_t>(scan.component->dc_prediction);
 
   for (int k = 1; k < 64;) {
@@ -200,7 +212,9 @@ bool DecodeDcFirst(BitReader& reader, JpegScanComponent& scan, ScanState& state,
   if (category < 0 || category > kMaxDcCategory) {
     return false;
   }
-  scan.component->dc_prediction += reader.Receive(category);
+  AccumulateDc(*scan.component, reader.Receive(category));
+  // At most 32767 << 13, which is well inside an int; the truncation to int16
+  // is the one the coefficient array asks for and is not undefined.
   block[0] = static_cast<std::int16_t>(scan.component->dc_prediction
                                        << state.approximation_low);
   return true;
