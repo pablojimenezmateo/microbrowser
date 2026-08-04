@@ -30,7 +30,14 @@ max_tu_lines: 700
 # placed, one for nodes script removed. Those two exist because a node's owner
 # is its parent and both of these have none; freeing either would dangle a
 # wrapper. See docs/adr/0008-dom-bindings.md.
-budget: DomBindings header_lines=110 public_methods=10 members=7
+# Eight, for the prototype table. Every wrapper used to carry its own copy of
+# every method, which cost a native function per property per node and left
+# `instanceof` with nothing to answer against -- an element was an object with
+# the right properties and no type. The eighth member is the shared interfaces
+# those wrappers now inherit from, and it is a JavaScript object for the same
+# reason the wrapper cache is: a C++ table of `Object*` would have to be a GC
+# root and there is no API to add one. See NodeInterfaces.cpp and ADR 0012.
+budget: DomBindings header_lines=140 public_methods=10 members=8
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

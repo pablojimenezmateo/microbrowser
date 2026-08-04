@@ -69,6 +69,18 @@ class DomBindings {
   js::Value MakeStyle(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
   void InstallMutationMethods(const js::Value& wrapper);
+  // The interfaces, installed once each onto a prototype rather than once per
+  // node onto every wrapper. See NodeInterfaces.cpp and ADR 0012.
+  void InstallNodeInterface(const js::Value& target);
+  void InstallElementInterface(const js::Value& target);
+  // The prototype a wrapper for `node` gets: the one its tag names, whose
+  // chain runs up through HTMLElement, Element and Node. Built on first use.
+  js::Value PrototypeFor(const dom::Node& node);
+  // Creates the whole chain and declares a constructor for each link, so that
+  // `instanceof` answers and `class X extends HTMLElement` can be written.
+  void EnsureInterfaces();
+  // One named prototype, its parent already built.
+  js::Value MakeInterface(const char* name, const js::Value& parent);
   js::Value AdoptInto(dom::Node& parent, dom::Node* child);
   js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference);
   // Detaches `child` and keeps it alive for the life of the document.
@@ -92,6 +104,10 @@ class DomBindings {
   // interpreter has no API for a third party to add one. This is reachable
   // from `document`, so the collector already sees it.
   js::Value wrappers_;
+  // The prototypes, by interface name. A JavaScript object for the same reason
+  // the wrapper cache is one: a C++ table of `Object*` would have to be a GC
+  // root and there is no API to add one. Hung off the global, which already is.
+  js::Value interfaces_;
   // Nodes made by `createElement` and not yet appended. Emptied into the tree
   // as each is adopted; whatever is left is freed with this object, which is
   // why a wrapper for one of them must not outlive the bindings.

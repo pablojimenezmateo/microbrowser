@@ -60,6 +60,57 @@ constexpr const char* kPage =
 }  // namespace
 
 void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
+  // The type hierarchy. `HTMLElement is not defined` is where youtube.com's
+  // application bundle stopped, and it is not a missing method -- it is a
+  // missing *type*, so `class X extends HTMLElement` could not be written at
+  // all. ADR 0012 puts this first because it is structural: everything after
+  // it assumes an element already has a prototype to inherit from.
+  AddTest(tests, "DomBindings/ElementsHaveATypeHierarchy", [] {
+    // The chain, from the bottom up.
+    ExpectScript(kPage, "document.body instanceof HTMLElement", "true");
+    ExpectScript(kPage, "document.body instanceof Element", "true");
+    ExpectScript(kPage, "document.body instanceof Node", "true");
+    ExpectScript(kPage, "document.createElement('div') instanceof HTMLDivElement", "true");
+    ExpectScript(kPage, "document.createElement('div') instanceof HTMLElement", "true");
+    // And what is *not* in it, which is the half that makes the answer worth
+    // anything: a div is not an anchor, and a text node is not an element.
+    ExpectScript(kPage, "document.createElement('div') instanceof HTMLAnchorElement", "false");
+    ExpectScript(kPage, "document.createTextNode('x') instanceof Element", "false");
+    ExpectScript(kPage, "document.createTextNode('x') instanceof Node", "true");
+    ExpectScript(kPage, "document instanceof Node", "true");
+
+    // A tag with no interface of its own is a plain HTMLElement, which is the
+    // right answer rather than a fallback.
+    ExpectScript(kPage, "document.createElement('marquee') instanceof HTMLElement", "true");
+
+    // The base a custom element extends. Being able to *write* this is the
+    // point; registering it needs customElements, which is later in ADR 0012.
+    ExpectScript(kPage, "typeof class X extends HTMLElement {}", "function");
+    ExpectScript(kPage, "Object.getPrototypeOf(class X extends HTMLElement {}) === HTMLElement",
+                 "true");
+
+    // Constructing one directly is a TypeError, as it is in a browser: an
+    // element is made by the document, not by calling its interface.
+    ExpectScript(kPage, "(() => { try { new HTMLElement() } catch (e) { return e.name } })()",
+                 "TypeError");
+
+    // The methods live on the prototype now, not on every wrapper. That is
+    // what makes the hierarchy possible at all, and it is separately worth
+    // asserting: an own property per method per node is what it replaced.
+    ExpectScript(kPage, "document.body.hasOwnProperty('appendChild')", "false");
+    ExpectScript(kPage, "typeof document.body.appendChild", "function");
+    ExpectScript(kPage,
+                 "HTMLElement.prototype.isPrototypeOf(document.getElementById('title'))", "true");
+    // Identity still holds, and the prototype is shared rather than copied.
+    ExpectScript(kPage,
+                 "Object.getPrototypeOf(document.createElement('div')) === "
+                 "Object.getPrototypeOf(document.createElement('div'))",
+                 "true");
+    // `constructor` names the interface, which is how a page prints a type.
+    ExpectScript(kPage, "document.body.constructor.name", "HTMLElement");
+    ExpectScript(kPage, "document.createElement('a').constructor.name", "HTMLAnchorElement");
+  });
+
   AddTest(tests, "DomBindings/ScriptCanFindElements", [] {
     ExpectScript(kPage, "document.getElementById('title').tagName", "h1");
     ExpectScript(kPage, "document.getElementById('title').textContent", "Hello");

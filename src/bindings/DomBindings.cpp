@@ -170,23 +170,35 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
     return Value::Null();
   }
   wrapper.object->Set(kNodeSlot, PointerValue(node));
+  // The interface, rather than a copy of it. Every method and accessor used to
+  // be an own property of every wrapper -- which cost one native function per
+  // property per node, and made `instanceof` unanswerable because there was no
+  // shared object to compare against. See NodeInterfaces.cpp and ADR 0012.
+  const Value prototype = PrototypeFor(*node);
+  if (prototype.IsObject()) {
+    wrapper.object->SetPrototype(prototype.object);
+  }
   wrappers_.object->Set(key, wrapper);
+  return wrapper;
+}
 
-  const auto method = [this, &wrapper](const char* name, js::NativeFunction function) {
+// The methods and accessors every node has, installed on `Node.prototype`.
+void DomBindings::InstallNodeInterface(const js::Value& target) {
+  const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
       // The bindings instance travels on the function object rather than in a
       // capture, because a capture is invisible to the collector -- the same
       // rule every other native in this engine follows.
       native.object->Set(kOwnerSlot, PointerValue(this));
-      wrapper.object->Set(name, native);
+      target.object->Set(name, native);
     }
   };
-  const auto accessor = [this, &wrapper](const char* name, js::NativeFunction get) {
+  const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, PointerValue(this));
-      wrapper.object->DefineAccessor(name, native.object, nullptr);
+      target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
 
@@ -297,150 +309,9 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
     return Value::Number(0);
   });
 
-  InstallEventMethods(wrapper);
+  InstallEventMethods(target);
 
-  InstallMutationMethods(wrapper);
-
-  // --- Elements ------------------------------------------------------------
-
-  if (node->IsElement()) {
-    accessor("tagName", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      if (self == nullptr || !self->IsElement()) {
-        return Value::Undefined();
-      }
-      return Value::String(static_cast<dom::Element*>(self)->TagName());
-    });
-    accessor("id", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      const std::string* id = self != nullptr && self->IsElement()
-                                  ? static_cast<dom::Element*>(self)->GetAttribute("id")
-                                  : nullptr;
-      return Value::String(id == nullptr ? std::string() : *id);
-    });
-    accessor("className", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      const std::string* name = self != nullptr && self->IsElement()
-                                    ? static_cast<dom::Element*>(self)->GetAttribute("class")
-                                    : nullptr;
-      return Value::String(name == nullptr ? std::string() : *name);
-    });
-    method("getAttribute", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      if (self == nullptr || !self->IsElement()) {
-        return call.Throw("TypeError", "getAttribute called on a non-element");
-      }
-      const std::string* value = static_cast<dom::Element*>(self)->GetAttribute(
-          LowerCase(js::ToString(Argument(call.arguments, 0))));
-      // Null rather than undefined for an absent attribute, which is what
-      // `el.getAttribute('x') === null` tests for.
-      return value == nullptr ? Value::Null() : Value::String(*value);
-    });
-    method("hasAttribute", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      return Value::Bool(self != nullptr && self->IsElement() &&
-                         static_cast<dom::Element*>(self)->HasAttribute(
-                             LowerCase(js::ToString(Argument(call.arguments, 0)))));
-    });
-    method("removeAttribute", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      if (self == nullptr || !self->IsElement()) {
-        return call.Throw("TypeError", "removeAttribute called on a non-element");
-      }
-      static_cast<dom::Element*>(self)->RemoveAttribute(
-          LowerCase(js::ToString(Argument(call.arguments, 0))));
-      return Value::Undefined();
-    });
-    method("matches", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      return Value::Bool(self != nullptr && self->IsElement() &&
-                         Matches(static_cast<dom::Element&>(*self),
-                                 js::ToString(Argument(call.arguments, 0))));
-    });
-    method("closest", [](NativeCall& call) {
-      // This element or the nearest ancestor that matches, which is how a
-      // click handler finds the row a button is in.
-      DomBindings* owner = OwnerOf(call);
-      dom::Node* self = NodeOf(call.self);
-      if (owner == nullptr || self == nullptr) {
-        return Value::Null();
-      }
-      const std::string selector = js::ToString(Argument(call.arguments, 0));
-      for (dom::Node* walk = self; walk != nullptr; walk = walk->Parent()) {
-        if (walk->IsElement() && Matches(static_cast<dom::Element&>(*walk), selector)) {
-          return owner->WrapperFor(walk);
-        }
-      }
-      return Value::Null();
-    });
-    // `classList`, as a fresh object per read holding the four methods a page
-    // uses. Not cached, because it reads and writes the `class` attribute on
-    // every call rather than holding a parsed copy that could go stale.
-    accessor("classList", [](NativeCall& call) {
-      DomBindings* owner = OwnerOf(call);
-      dom::Node* self = NodeOf(call.self);
-      if (owner == nullptr || self == nullptr || !self->IsElement()) {
-        return Value::Undefined();
-      }
-      return owner->MakeClassList(static_cast<dom::Element&>(*self));
-    });
-    // `el.style.display = 'none'`, backed by the `style` attribute the cascade
-    // already reads. A fresh object per read, like `classList`, and for the
-    // same reason: the attribute is the state, and a parsed copy would go
-    // stale the moment anything else wrote it.
-    accessor("style", [](NativeCall& call) {
-      DomBindings* owner = OwnerOf(call);
-      dom::Node* self = NodeOf(call.self);
-      if (owner == nullptr || self == nullptr || !self->IsElement()) {
-        return Value::Undefined();
-      }
-      return owner->MakeStyle(static_cast<dom::Element&>(*self));
-    });
-    // `data-*` attributes, under the names a page uses for them.
-    accessor("dataset", [](NativeCall& call) {
-      DomBindings* owner = OwnerOf(call);
-      dom::Node* self = NodeOf(call.self);
-      if (owner == nullptr || self == nullptr || !self->IsElement()) {
-        return Value::Undefined();
-      }
-      // A plain object rather than a live view: the set of `data-` attributes
-      // an element has does not change under a page's feet the way `class`
-      // does, and reading one is what a page overwhelmingly does with it.
-      const Value data = call.interpreter.NewObjectValue();
-      if (data.IsObject()) {
-        for (const dom::Attribute& attribute :
-             static_cast<dom::Element&>(*self).Attributes()) {
-          if (attribute.name.rfind("data-", 0) != 0) {
-            continue;
-          }
-          // `data-user-id` is `dataset.userId`, which is the same kebab-to-
-          // camel rule the style properties use.
-          std::string name;
-          bool upper = false;
-          for (const char c : attribute.name.substr(5)) {
-            if (c == '-') {
-              upper = true;
-              continue;
-            }
-            name.push_back(upper && c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c);
-            upper = false;
-          }
-          data.object->Set(name, Value::String(attribute.value));
-        }
-      }
-      return data;
-    });
-    method("setAttribute", [](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      if (self == nullptr || !self->IsElement()) {
-        return call.Throw("TypeError", "setAttribute called on a non-element");
-      }
-      static_cast<dom::Element*>(self)->SetAttribute(
-          LowerCase(js::ToString(Argument(call.arguments, 0))),
-          js::ToString(Argument(call.arguments, 1)));
-      return Value::Undefined();
-    });
-  }
+  InstallMutationMethods(target);
 
   // --- Text content --------------------------------------------------------
 
@@ -452,8 +323,164 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
     }
     return owner->AppendTextTo(*self, js::ToString(Argument(call.arguments, 0)));
   });
+}
 
-  return wrapper;
+// What an element has beyond a node, installed on `Element.prototype`.
+void DomBindings::InstallElementInterface(const js::Value& target) {
+  const auto method = [this, &target](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      // The bindings instance travels on the function object rather than in a
+      // capture, because a capture is invisible to the collector -- the same
+      // rule every other native in this engine follows.
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->Set(name, native);
+    }
+  };
+  const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(get));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->DefineAccessor(name, native.object, nullptr);
+    }
+  };
+
+  accessor("tagName", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    return Value::String(static_cast<dom::Element*>(self)->TagName());
+  });
+  accessor("id", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    const std::string* id = self != nullptr && self->IsElement()
+                                ? static_cast<dom::Element*>(self)->GetAttribute("id")
+                                : nullptr;
+    return Value::String(id == nullptr ? std::string() : *id);
+  });
+  accessor("className", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    const std::string* name = self != nullptr && self->IsElement()
+                                  ? static_cast<dom::Element*>(self)->GetAttribute("class")
+                                  : nullptr;
+    return Value::String(name == nullptr ? std::string() : *name);
+  });
+  method("getAttribute", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "getAttribute called on a non-element");
+    }
+    const std::string* value = static_cast<dom::Element*>(self)->GetAttribute(
+        LowerCase(js::ToString(Argument(call.arguments, 0))));
+    // Null rather than undefined for an absent attribute, which is what
+    // `el.getAttribute('x') === null` tests for.
+    return value == nullptr ? Value::Null() : Value::String(*value);
+  });
+  method("hasAttribute", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return Value::Bool(self != nullptr && self->IsElement() &&
+                       static_cast<dom::Element*>(self)->HasAttribute(
+                           LowerCase(js::ToString(Argument(call.arguments, 0)))));
+  });
+  method("removeAttribute", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "removeAttribute called on a non-element");
+    }
+    static_cast<dom::Element*>(self)->RemoveAttribute(
+        LowerCase(js::ToString(Argument(call.arguments, 0))));
+    return Value::Undefined();
+  });
+  method("matches", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return Value::Bool(self != nullptr && self->IsElement() &&
+                       Matches(static_cast<dom::Element&>(*self),
+                               js::ToString(Argument(call.arguments, 0))));
+  });
+  method("closest", [](NativeCall& call) {
+    // This element or the nearest ancestor that matches, which is how a
+    // click handler finds the row a button is in.
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return Value::Null();
+    }
+    const std::string selector = js::ToString(Argument(call.arguments, 0));
+    for (dom::Node* walk = self; walk != nullptr; walk = walk->Parent()) {
+      if (walk->IsElement() && Matches(static_cast<dom::Element&>(*walk), selector)) {
+        return owner->WrapperFor(walk);
+      }
+    }
+    return Value::Null();
+  });
+  // `classList`, as a fresh object per read holding the four methods a page
+  // uses. Not cached, because it reads and writes the `class` attribute on
+  // every call rather than holding a parsed copy that could go stale.
+  accessor("classList", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    return owner->MakeClassList(static_cast<dom::Element&>(*self));
+  });
+  // `el.style.display = 'none'`, backed by the `style` attribute the cascade
+  // already reads. A fresh object per read, like `classList`, and for the
+  // same reason: the attribute is the state, and a parsed copy would go
+  // stale the moment anything else wrote it.
+  accessor("style", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    return owner->MakeStyle(static_cast<dom::Element&>(*self));
+  });
+  // `data-*` attributes, under the names a page uses for them.
+  accessor("dataset", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    // A plain object rather than a live view: the set of `data-` attributes
+    // an element has does not change under a page's feet the way `class`
+    // does, and reading one is what a page overwhelmingly does with it.
+    const Value data = call.interpreter.NewObjectValue();
+    if (data.IsObject()) {
+      for (const dom::Attribute& attribute :
+           static_cast<dom::Element&>(*self).Attributes()) {
+        if (attribute.name.rfind("data-", 0) != 0) {
+          continue;
+        }
+        // `data-user-id` is `dataset.userId`, which is the same kebab-to-
+        // camel rule the style properties use.
+        std::string name;
+        bool upper = false;
+        for (const char c : attribute.name.substr(5)) {
+          if (c == '-') {
+            upper = true;
+            continue;
+          }
+          name.push_back(upper && c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c);
+          upper = false;
+        }
+        data.object->Set(name, Value::String(attribute.value));
+      }
+    }
+    return data;
+  });
+  method("setAttribute", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "setAttribute called on a non-element");
+    }
+    static_cast<dom::Element*>(self)->SetAttribute(
+        LowerCase(js::ToString(Argument(call.arguments, 0))),
+        js::ToString(Argument(call.arguments, 1)));
+    return Value::Undefined();
+  });
 }
 
 dom::Element* DomBindings::FindElement(
