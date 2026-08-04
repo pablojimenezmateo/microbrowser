@@ -309,6 +309,10 @@ NodePtr ParserImpl::ParseObjectLiteral() {
       }
     }
 
+    // `*m(){}` and `async *m(){}`. No lookahead needed: `*` cannot start a
+    // property name, so seeing one here is unambiguous.
+    const bool is_generator = Eat("*");
+
     bool getter = false;
     bool setter = false;
     if ((current_.lexeme == "get" || current_.lexeme == "set") &&
@@ -364,7 +368,8 @@ NodePtr ParserImpl::ParseObjectLiteral() {
       // that a consumer walking an object literal has one shape to handle.
       NodePtr function = Make(NodeKind::FunctionExpression);
       function->string = property->string;
-      function->number = is_async ? 1.0 : 0.0;
+      function->number = static_cast<double>((is_async ? kFunctionAsync : 0) |
+                                             (is_generator ? kFunctionGenerator : 0));
       function->children.push_back(ParseParameters());
       function->children.push_back(ParseBlock());
       property->children.push_back(std::move(function));
@@ -478,7 +483,9 @@ NodePtr ParserImpl::ParseAsyncExpression() {
   if (AtKeyword("function")) {
     NodePtr node = ParseFunction(false);
     if (node != nullptr) {
-      node->number = 1.0;
+      // Or-ed rather than assigned: ParseFunction has already recorded the
+      // star, and `async function*` is both.
+      node->number = static_cast<double>(static_cast<std::uint8_t>(node->number) | kFunctionAsync);
     }
     return node;
   }
@@ -493,7 +500,7 @@ NodePtr ParserImpl::ParseAsyncExpression() {
     }
     Advance();
     NodePtr arrow = Make(NodeKind::ArrowFunction);
-    arrow->number = 1.0;
+    arrow->number = static_cast<double>(kFunctionAsync);
     NodePtr parameters = Make(NodeKind::Parameters);
     parameters->children.push_back(std::move(parameter));
     arrow->children.push_back(std::move(parameters));
@@ -510,7 +517,7 @@ NodePtr ParserImpl::ParseAsyncExpression() {
     // exists to avoid, one production over.
     NodePtr parsed = ParseArrowFromParenthesised();
     if (parsed != nullptr && parsed->kind == NodeKind::ArrowFunction) {
-      parsed->number = 1.0;
+      parsed->number = static_cast<double>(kFunctionAsync);
       return parsed;
     }
     // The scan said arrow and the parse disagreed, which the bracket counter
@@ -843,6 +850,26 @@ NodePtr ParserImpl::ParseAssignment() {
     Error("expression nests too deeply");
     Advance();
     return Make(NodeKind::Empty);
+  }
+
+  // `yield`, which is an AssignmentExpression rather than a unary operator --
+  // `yield a + b` yields the sum, and `x = yield v` assigns what was sent back.
+  // Whether the enclosing function is a generator is not a question the parser
+  // can answer cheaply, so it parses one anywhere and the compiler rejects one
+  // outside a generator. That is exactly what `await` does one production over.
+  if (AtKeyword("yield")) {
+    NodePtr node = Make(NodeKind::Yield);
+    Advance();
+    // No line terminator between `yield` and its star: `yield\n* x` is two
+    // statements under ASI, and the spec says so explicitly.
+    const bool delegate = !current_.newline_before && Eat("*");
+    node->number = delegate ? 1.0 : 0.0;
+    // `yield` alone is legal and yields undefined, so an operand is only read
+    // when one can actually start here. A delegating yield always has one.
+    const bool has_operand = delegate || (!current_.newline_before && !AtEnd() && !At(")") &&
+                                          !At("]") && !At("}") && !At(",") && !At(";") && !At(":"));
+    node->children.push_back(has_operand ? ParseAssignment() : nullptr);
+    return node;
   }
 
   // A single-identifier arrow: `x => x + 1`. Checked before the general path

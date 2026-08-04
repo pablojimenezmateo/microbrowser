@@ -230,11 +230,21 @@ void Compiler::Function(const Node& node, bool arrow) {
   const Node* body = node.Child(1);
   function_.name = node.string;
   function_.is_arrow = arrow;
-  // An async function returns a promise and its body can suspend. Carried on
-  // the node as `number` by the parser, because `async` is a modifier on a
-  // function and not a different kind of one -- everything else about
-  // compiling the body is identical.
-  function_.is_async = node.number != 0.0;
+  // An async function returns a promise and its body can suspend; a generator
+  // returns an iterator and its body can suspend. Carried on the node as
+  // `number` by the parser, because both are modifiers on a function and not
+  // different kinds of one -- everything else about compiling the body is
+  // identical, which is why they are flags here rather than three code paths.
+  const auto flags = static_cast<std::uint8_t>(node.number);
+  function_.is_async = (flags & kFunctionAsync) != 0;
+  if ((flags & kFunctionGenerator) != 0) {
+    // Parsed but not yet compiled. Rejecting the program is what sends it to
+    // the tree-walker, which refuses to call a generator rather than running
+    // its body eagerly -- so the answer a page gets is "not implemented" and
+    // never a function that returned the wrong thing.
+    ThrowSyntax("generators are not implemented yet");
+    return;
+  }
   function_.parameter_count =
       parameters == nullptr ? 0 : static_cast<std::uint32_t>(parameters->children.size());
   function_.needs_arguments =
@@ -554,6 +564,13 @@ void Compiler::Expression(const Node& node) {
       // the call and the member access are. Reaching here means it was used as
       // a value, which it is not.
       ThrowSyntax("'super' keyword unexpected here");
+      return;
+
+    case NodeKind::Yield:
+      // Not reachable yet: a generator body is rejected above, so nothing that
+      // could legally contain a `yield` gets this far. A `yield` outside a
+      // generator lands here, and is the syntax error it is.
+      ThrowSyntax("yield is only valid inside a generator");
       return;
 
     case NodeKind::Spread:

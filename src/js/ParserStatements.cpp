@@ -57,7 +57,9 @@ NodePtr ParserImpl::ParseParameters() {
 NodePtr ParserImpl::ParseFunction(bool declaration) {
   NodePtr node = Make(declaration ? NodeKind::FunctionDeclaration : NodeKind::FunctionExpression);
   Advance();  // `function`
-  Eat("*");   // a generator; the star is recorded nowhere yet
+  if (Eat("*")) {
+    node->number = static_cast<double>(kFunctionGenerator);
+  }
   if (current_.type == TokenType::Identifier) {
     node->string = std::string(current_.lexeme);
     Advance();
@@ -107,6 +109,11 @@ NodePtr ParserImpl::ParseClass(bool declaration) {
         flags |= kMethodAsync;
       }
     }
+    // `*m(){}`, `async *m(){}`, `static *m(){}`. No lookahead needed: `*`
+    // cannot start a member name, so seeing one here is unambiguous.
+    if (Eat("*")) {
+      flags |= kMethodGenerator;
+    }
     if ((current_.lexeme == "get" || current_.lexeme == "set") &&
         current_.type == TokenType::Identifier) {
       const bool getter = current_.lexeme == "get";
@@ -135,7 +142,9 @@ NodePtr ParserImpl::ParseClass(bool declaration) {
     if (At("(")) {
       NodePtr function = Make(NodeKind::FunctionExpression);
       function->string = method->string;
-      function->number = (flags & kMethodAsync) != 0 ? 1.0 : 0.0;
+      function->number = static_cast<double>(
+          ((flags & kMethodAsync) != 0 ? kFunctionAsync : 0) |
+          ((flags & kMethodGenerator) != 0 ? kFunctionGenerator : 0));
       function->children.push_back(ParseParameters());
       function->children.push_back(ParseBlock());
       method->children.push_back(std::move(function));
@@ -410,7 +419,9 @@ NodePtr ParserImpl::ParseStatement() {
     if (AtKeyword("function") && !current_.newline_before) {
       NodePtr node = ParseFunction(true);
       if (node != nullptr) {
-        node->number = 1.0;
+        // Or-ed rather than assigned: ParseFunction has already recorded the
+        // star, and `async function*` is both.
+        node->number = static_cast<double>(static_cast<std::uint8_t>(node->number) | kFunctionAsync);
       }
       return node;
     }

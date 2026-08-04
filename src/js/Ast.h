@@ -35,13 +35,14 @@ enum class NodeKind : std::uint8_t {
   ObjectLiteral,      // children = Property
   Property,           // string = key when not computed; [0] = value, [1] = key if computed
   FunctionExpression, // string = name (may be empty); [0] = Parameters; [1] = Block;
-                      // number = 1 when async
-  ArrowFunction,      // [0] = Parameters; [1] = Block or expression body; number = 1 when async
+                      // number = FunctionFlags
+  ArrowFunction,      // [0] = Parameters; [1] = Block or expression body; number = FunctionFlags
   ClassExpression,    // string = name; [0] = superclass or null; rest = MethodDefinition
   MethodDefinition,   // string = name; [0] = FunctionExpression; number = flags
   Parameters,         // children = Identifier / RestElement / AssignmentPattern
   RestElement,        // [0] = target
   AssignmentPattern,  // [0] = target; [1] = default
+  Yield,              // [0] = argument or null; number = 1 when delegating (`yield*`)
   Unary,              // string = operator, including `await`; [0] = operand
   Update,             // string = operator; number = 1 when prefix; [0] = operand
   Binary,             // string = operator; [0] = left; [1] = right
@@ -81,6 +82,19 @@ enum class NodeKind : std::uint8_t {
   Debugger,           //
 };
 
+// What a function's body can do, in `number` on a FunctionExpression, an
+// ArrowFunction, a FunctionDeclaration or a method's function.
+//
+// Two flags rather than two fields because they compose: `async function*` is
+// both, and the compiler reads the pair to decide what a call returns and what
+// suspends the frame. An arrow can be async and can never be a generator --
+// there is no syntax for one -- so the parser sets only the first there.
+enum FunctionFlags : std::uint8_t {
+  kFunctionPlain = 0,
+  kFunctionAsync = 1 << 0,
+  kFunctionGenerator = 1 << 1,
+};
+
 // Flags on a MethodDefinition, in `number`.
 enum MethodFlags : std::uint8_t {
   kMethodPlain = 0,
@@ -88,10 +102,12 @@ enum MethodFlags : std::uint8_t {
   kMethodGetter = 1 << 1,
   kMethodSetter = 1 << 2,
   kMethodComputed = 1 << 3,
-  // Also set as `number = 1` on the method's FunctionExpression, which is what
-  // the compiler reads -- a method body is compiled through the same path an
-  // ordinary function is and should not have to know it came from a class.
+  // These two are also set as FunctionFlags on the method's FunctionExpression,
+  // which is what the compiler reads -- a method body is compiled through the
+  // same path an ordinary function is and should not have to know it came from
+  // a class.
   kMethodAsync = 1 << 4,
+  kMethodGenerator = 1 << 5,
 };
 
 struct Node {

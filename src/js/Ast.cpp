@@ -9,12 +9,18 @@ namespace {
 constexpr std::string_view kNames[] = {
     "Number", "String", "Template", "RegExp", "Boolean", "Null", "Id", "This", "Super",
     "Array", "Object", "Property", "Function", "Arrow", "ClassExpr", "Method",
-    "Params", "Rest", "Default", "Unary", "Update", "Binary", "Logical", "Assign",
+    "Params", "Rest", "Default", "Yield", "Unary", "Update", "Binary", "Logical", "Assign",
     "Cond", "Call", "New", "Member", "Seq", "Spread", "TaggedTemplate",
     "Program", "Block", "Var", "Declarator", "ExprStmt", "If", "For", "ForIn",
     "While", "DoWhile", "Return", "Break", "Continue", "Throw", "Try", "Switch",
     "Case", "Labeled", "FunctionDecl", "ClassDecl", "Empty", "Debugger",
 };
+
+// The table is positional, so a kind inserted anywhere but the end renames
+// every kind after it and a dump test starts asserting the wrong thing quietly.
+// This is the only thing that would say so.
+static_assert(std::size(kNames) == static_cast<std::size_t>(NodeKind::Debugger) + 1,
+              "kNames has one entry per NodeKind, in order");
 
 void Dump(const Node& node, std::string& out) {
   out.push_back('(');

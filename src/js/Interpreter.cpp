@@ -179,15 +179,16 @@ void Interpreter::MaybeCollect() {
 
 Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow) {
   if (node.number != 0.0) {
-    // An async function, and this is the tree-walker's function -- the machine
-    // makes its own in the Closure opcode. A tree-walker cannot run one: its
-    // state is C++ stack frames and `await` has nowhere to put one down. So
-    // calling it says so, rather than returning something that is not a
-    // promise and letting the difference surface three lines later.
+    // An async function or a generator, and this is the tree-walker's function
+    // -- the machine makes its own in the Closure opcode. A tree-walker can run
+    // neither: its state is C++ stack frames, and both `await` and `yield` need
+    // somewhere to put one down. So calling it says so, rather than returning
+    // something that is not a promise or not an iterator and letting the
+    // difference surface three lines later.
     Object* refuser = NewNative(node.string.c_str(), [](NativeCall& call) {
       return call.Throw("TypeError",
-                        "an async function needs the bytecode machine; this program fell back "
-                        "to the tree-walking interpreter");
+                        "an async function or generator needs the bytecode machine; this "
+                        "program fell back to the tree-walking interpreter");
     });
     return refuser == nullptr ? Value::Undefined() : Value::Obj(refuser);
   }

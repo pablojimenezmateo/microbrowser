@@ -382,6 +382,56 @@ void RegisterJsParserTests(std::vector<TestCase>& tests) {
            "as an expression statement and then a declaration");
   });
 
+  AddTest(tests, "JsParser/AStarMakesAFunctionAGenerator", [] {
+    ExpectClean("function* g(){}");
+    ExpectClean("const g = function*(){}");
+    ExpectClean("async function* g(){}");
+    ExpectClean("const o = { *g(){}, async *h(){} }");
+    ExpectClean("class C { *g(){} static *h(){} async *i(){} }");
+    // A star cannot start a property or member name, so unlike `async` and
+    // `get` there is nothing to put back and nothing that stops being a name.
+    ExpectClean("const o = { get: 1, set: 2, async: 3 }");
+    // There is no such thing as a generator arrow, and the star has to be
+    // rejected rather than skipped -- skipping it would silently make one.
+    ExpectError("const g = *() => 1");
+  });
+
+  AddTest(tests, "JsParser/YieldTakesAnOperandOnlyWhenOneCanStart", [] {
+    // Assignment precedence, not unary: the whole sum is yielded, and what
+    // comes back is what gets assigned.
+    ExpectParse("function* g(){ yield a + b }",
+                "(Program (FunctionDecl \"g\" (Params) (Block (ExprStmt "
+                "(Yield (Binary \"+\" (Id \"a\") (Id \"b\")))))))");
+    ExpectParse("function* g(){ x = yield v }",
+                "(Program (FunctionDecl \"g\" (Params) (Block (ExprStmt "
+                "(Assign \"=\" (Id \"x\") (Yield (Id \"v\")))))))");
+    // Bare `yield`: legal, and its argument is the null child rather than an
+    // absent one, so a consumer sees the same shape either way.
+    ExpectParse("function* g(){ yield; }",
+                "(Program (FunctionDecl \"g\" (Params) (Block (ExprStmt (Yield _)))))");
+    ExpectParse("function* g(){ f(yield) }",
+                "(Program (FunctionDecl \"g\" (Params) (Block (ExprStmt "
+                "(Call (Id \"f\") (Yield _))))))");
+    // `yield*` has the same shape as `yield` -- the star is a flag in `number`,
+    // which the dump does not print -- so the flag is read rather than the text
+    // compared. A dump assertion here would pass whether or not the star was
+    // seen at all.
+    const auto delegating = [](std::string_view source) {
+      const ParseResult parsed = js::Parse(source);
+      Expect(parsed.Ok(), std::string("a clean parse of: ") + std::string(source));
+      const Node* yield = parsed.program->Child(0)->Child(1)->Child(0)->Child(0);
+      Expect(yield != nullptr && yield->kind == NodeKind::Yield, "the statement is a yield");
+      return yield->number != 0.0;
+    };
+    Expect(delegating("function* g(){ yield* inner() }"), "`yield*` delegates");
+    Expect(!delegating("function* g(){ yield inner() }"), "and plain `yield` does not");
+    // A line terminator ends the yield, the way it ends a `return`. Without
+    // this, `yield\nx` would yield x rather than undefined.
+    ExpectParse("function* g(){ yield\nx }",
+                "(Program (FunctionDecl \"g\" (Params) (Block (ExprStmt (Yield _)) "
+                "(ExprStmt (Id \"x\")))))");
+  });
+
   AddTest(tests, "JsParser/RestAndTrailingCommasAreParameterListOnly", [] {
     ExpectClean("(a, b,) => a");
     ExpectClean("(...rest) => rest");
