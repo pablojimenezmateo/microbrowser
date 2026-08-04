@@ -216,6 +216,40 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqString(Eval("var \\u00zz = 1;").substr(0, 5), "throw", "a bad escape is an error");
   });
 
+  // The parse depth bound is memory safety -- the parser is recursive descent
+  // over attacker-controlled input -- so both of its ends are worth pinning:
+  // what it must admit, and that exceeding it is a refusal rather than a
+  // crash. ADR 0009 has the measurements the number comes from.
+  AddTest(tests, "JsInterpreter/NestingIsBoundedAndTheBoundIsARefusal", [] {
+    // 250 nested calls: the shape real generated code has, and deeper than
+    // the bound used to allow. It has to parse, compile *and* run -- the
+    // parser is the first recursion over a deep tree but not the only one.
+    std::string deep = "function f(x){return x+1} ";
+    for (int i = 0; i < 250; ++i) {
+      deep += "f(";
+    }
+    deep += "0";
+    for (int i = 0; i < 250; ++i) {
+      deep += ")";
+    }
+    ExpectEval(deep, "250");
+
+    // Past the bound: a SyntaxError, and specifically not a segmentation
+    // fault. Nothing is truncated and half-run -- a half-understood program
+    // is worse than a refused one, because the page then runs something
+    // nobody wrote.
+    std::string too_deep;
+    for (int i = 0; i < 5000; ++i) {
+      too_deep += "(";
+    }
+    too_deep += "1";
+    for (int i = 0; i < 5000; ++i) {
+      too_deep += ")";
+    }
+    ExpectEqString(Eval(too_deep).substr(0, 17), "throw SyntaxError",
+                   "nesting past the bound is refused, not crashed through");
+  });
+
   AddTest(tests, "JsInterpreter/SwitchFallsThroughUntilABreak", [] {
     ExpectEval("let r = ''; switch (2) { case 1: r += 'a'; case 2: r += 'b'; "
                "case 3: r += 'c'; break; default: r += 'd' } r",

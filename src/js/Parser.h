@@ -38,8 +38,19 @@ struct ParseResult {
 // than a stack overflow.
 ParseResult Parse(std::string_view source);
 
-// The nesting limit above. Deep enough that no human-written program reaches
-// it and shallow enough that the stack does not.
-inline constexpr int kMaxParseDepth = 256;
+// The nesting limit above, in `Depth` units rather than in levels of source:
+// the expression grammar increments it at several points, so one level of
+// nesting costs about three of these. Reading it as "1024 levels" overstates
+// what it allows by 3x, which is the kind of misreading that gets a security
+// bound raised carelessly.
+//
+// Measured rather than chosen, because the number is a stack budget and a
+// round number is not one. On the 8MB stack this runs on, the parser overflows
+// somewhere between 5,000 and 6,000 levels of nesting -- about 1.4KB each --
+// so this is a 12x margin, and about 0.4MB. The previous value of 256 was 5%
+// of the way to the failure it guards against, and real generated code sat
+// just the wrong side of it. ADR 0009 has the measurements and what has to be
+// re-measured if the engine's thread stack ever shrinks.
+inline constexpr int kMaxParseDepth = 1024;
 
 }  // namespace microbrowser::js
