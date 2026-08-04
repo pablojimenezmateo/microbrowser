@@ -51,7 +51,7 @@ What exists:
 | `src/net` | HTTP/1.1, cookies, cache, sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
-| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing |
+| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing, **custom properties and `var()`** — inherited, nested, with fallbacks and the invalid-at-computed-value rule |
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
@@ -90,14 +90,14 @@ than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
-1. **CSS custom properties, then `calc()` and `@supports`.** The measurement that reorders
-   everything: youtube.com's stylesheet uses `var(--x)` **8585 times** and grid 78. An
-   unresolvable `var()` makes a declaration invalid at computed-value time, so without it
-   essentially every colour and size on a modern page falls back to its initial value — the same
-   shape of bug as the font stack in the Hacker News run, one mechanism making everything
-   downstream wrong at once. ADR 0014 has the counts and the order; note that it costs
-   `ComputedStyle` a new *kind* of stored value (unparsed tokens), so its budget will fire and
-   should.
+1. **`calc()`, then `@supports`.** Custom properties and `var()` are **done** — substitution,
+   inheritance, fallbacks, nesting, cycle bounds, and the invalid-at-computed-value rule that
+   separates a correct implementation from one that merely skips the declaration. `calc()` is
+   next because it is nearly always found next to them and the same values need it to resolve
+   (550 uses). Then `@supports` (425), which is cheap and fails in the direction that produces a
+   wrong page rather than a missing effect — and whose one hard requirement is that it answer
+   honestly about what the engine actually supports, or it is the CSS version of ADR 0012's
+   stub problem.
 
 2. **The element type hierarchy, then `MutationObserver`.** Every remaining script failure on
    youtube.com is now a missing binding rather than a missing language feature, and
