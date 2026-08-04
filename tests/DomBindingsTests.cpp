@@ -702,11 +702,101 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "location.href", "https://example.org/a/b?q=1");
     ExpectScript(kPage, "location.protocol", "https:");
     ExpectScript(kPage, "location.host", "example.org");
-    ExpectScript(kPage, "location.pathname", "/a/b?q=1");
+    ExpectScript(kPage, "location.hostname", "example.org");
+    ExpectScript(kPage, "location.port", "");
+    // The query used to be part of the path, which is not a cosmetic error: a
+    // page that reads `location.search` off this got `undefined`, built an
+    // empty URLSearchParams from it and carried on.
+    ExpectScript(kPage, "location.pathname", "/a/b");
+    ExpectScript(kPage, "location.search", "?q=1");
+    ExpectScript(kPage, "location.hash", "");
+    ExpectScript(kPage, "location.origin", "https://example.org");
+    ExpectScript(kPage, "'' + location", "https://example.org/a/b?q=1");
+    // The same object under both names, which a page checks by identity.
+    ExpectScript(kPage, "document.location === location", "true");
     // The user agent is a fingerprinting surface before it is anything else.
     // This one says what the browser is and nothing about the machine it is
     // on, so every copy answers the same.
     ExpectScript(kPage, "navigator.userAgent", "microbrowser");
+  });
+
+  AddTest(tests, "DomBindings/LocationSplitsTheShapesAUrlComesIn", [] {
+    const auto at = [](std::string url, std::string_view source) {
+      Bound bound = Bind(kPage, std::move(url));
+      return js::ToString(bound.interpreter->Run(source).value);
+    };
+    // A port belongs to `host` and to `port`, and to neither `hostname` nor
+    // `origin`'s host half by itself.
+    ExpectEqString(at("http://example.org:8080/x", "location.host"), "example.org:8080", "host");
+    ExpectEqString(at("http://example.org:8080/x", "location.hostname"), "example.org", "hostname");
+    ExpectEqString(at("http://example.org:8080/x", "location.port"), "8080", "port");
+    ExpectEqString(at("http://example.org:8080/x", "location.origin"),
+                   "http://example.org:8080", "origin carries the port");
+    // An IPv6 host is full of colons, so the port separator is the one after
+    // the closing bracket rather than the last colon in the string.
+    ExpectEqString(at("http://[::1]:9/x", "location.hostname"), "[::1]", "IPv6 hostname");
+    ExpectEqString(at("http://[::1]:9/x", "location.port"), "9", "IPv6 port");
+    ExpectEqString(at("http://[::1]/x", "location.port"), "", "and no port when there is none");
+    // Credentials are part of the authority and part of no location property.
+    ExpectEqString(at("http://u:p@example.org/x", "location.host"), "example.org",
+                   "credentials are not the host");
+    // Fragment and query, together and apart.
+    ExpectEqString(at("https://example.org/p?a=1#top", "location.hash"), "#top", "hash");
+    ExpectEqString(at("https://example.org/p?a=1#top", "location.search"), "?a=1",
+                   "the fragment is not part of the query");
+    ExpectEqString(at("https://example.org/p#top", "location.search"), "", "no query");
+    // A URL with no authority has an opaque path and a null origin -- which is
+    // the answer the eventual pushState check must never take from here.
+    ExpectEqString(at("about:blank", "location.origin"), "null", "opaque origin");
+    ExpectEqString(at("about:blank", "location.pathname"), "blank", "opaque path");
+  });
+
+  AddTest(tests, "DomBindings/UrlSearchParamsIsTheEnginesOwnUrlencoder", [] {
+    ExpectScript(kPage, "new URLSearchParams('?a=1&b=2').get('a')", "1");
+    ExpectScript(kPage, "new URLSearchParams('a=1').get('zz') === null", "true");
+    ExpectScript(kPage, "new URLSearchParams('a=1&a=2').getAll('a').join(',')", "1,2");
+    ExpectScript(kPage, "new URLSearchParams('a=1').has('a')", "true");
+    ExpectScript(kPage, "new URLSearchParams('a=1&b=2').size", "2");
+    // `set` replaces in place and drops the duplicates, which is observable
+    // through toString and is what a page building a URL expects.
+    ExpectScript(kPage, "const p = new URLSearchParams('a=1&b=2&a=3'); p.set('a','9');"
+                        "p.toString()", "a=9&b=2");
+    ExpectScript(kPage, "const p = new URLSearchParams('a=1'); p.append('a','2');"
+                        "p.toString()", "a=1&a=2");
+    ExpectScript(kPage, "const p = new URLSearchParams('a=1&b=2'); p.delete('a');"
+                        "p.toString()", "b=2");
+    ExpectScript(kPage, "const p = new URLSearchParams('b=2&a=1&b=1'); p.sort();"
+                        "p.toString()", "a=1&b=2&b=1");
+    // The callback is `(value, name)`, and reversing it is the classic way to
+    // get this wrong -- reddit's challenge builds hidden inputs out of the two
+    // and produces a form with its names and values swapped if they are.
+    ExpectScript(kPage,
+                 "const out = []; new URLSearchParams('a=1&b=2')"
+                 ".forEach((value, name) => out.push(name + ':' + value)); out.join(',')",
+                 "a:1,b:2");
+    // Iterable, so destructuring and spread both work.
+    ExpectScript(kPage, "[...new URLSearchParams('a=1&b=2')].map(e => e.join('')).join(',')",
+                 "a1,b2");
+    ExpectScript(kPage,
+                 "let s = ''; for (const [n, v] of new URLSearchParams('a=1&b=2')) s += n + v; s",
+                 "a1b2");
+    ExpectScript(kPage, "new URLSearchParams('a=1&b=2').keys().join(',')", "a,b");
+    ExpectScript(kPage, "new URLSearchParams('a=1&b=2').values().join(',')", "1,2");
+    // The three other things a page constructs one from.
+    ExpectScript(kPage, "new URLSearchParams({x: '1', y: '2'}).toString()", "x=1&y=2");
+    ExpectScript(kPage, "new URLSearchParams([['k','v'],['k','w']]).toString()", "k=v&k=w");
+    ExpectScript(kPage, "new URLSearchParams().toString()", "");
+    // A copy, not an alias: writing to one must not show up in the other.
+    ExpectScript(kPage,
+                 "const a = new URLSearchParams('n=1'); const b = new URLSearchParams(a);"
+                 "b.set('n','2'); a.get('n') + b.get('n')", "12");
+    // The urlencoded serializer, shared with the form data set. `+` is a space
+    // going in and coming out.
+    ExpectScript(kPage, "new URLSearchParams('q=a+b').get('q')", "a b");
+    ExpectScript(kPage, "const p = new URLSearchParams(); p.set('q', \"it's\"); p.toString()",
+                 "q=it%27s");
+    // What the page actually does: read the query, and turn it into a form.
+    ExpectScript(kPage, "new URLSearchParams(location.search).get('q')", "1");
   });
 
   AddTest(tests, "DomBindings/DocumentExposesItsPartsAsAccessors", [] {

@@ -71,6 +71,10 @@ class DomBindings {
   // which would otherwise be four chances to disagree about what `.a` means.
   static bool Matches(const dom::Element& element, const std::string& selector);
   void InstallWindow();
+  // `URLSearchParams`, in UrlSearchParams.cpp. A collection with no node in it,
+  // built on the one urlencoded implementation in `util` -- which is what
+  // stops it and the engine's form data set from disagreeing about a byte.
+  void InstallUrlSearchParams();
   js::Value MakeClassList(dom::Element& element);
   js::Value MakeStyle(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);

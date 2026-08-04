@@ -308,6 +308,7 @@ microbrowser_module(bindings
     src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp
     src/bindings/TreeMutation.cpp
+    src/bindings/UrlSearchParams.cpp
     src/bindings/EventBindings.cpp
     src/bindings/WindowBindings.cpp
   DEPS microbrowser_js microbrowser_dom)
