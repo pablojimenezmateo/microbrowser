@@ -170,6 +170,38 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 1, "one line, not two");
   });
 
+  AddTest(tests, "Page/AClickReachesTheElementUnderIt", [] {
+    // An inline element has no box geometry of its own -- its text fragments
+    // carry the rectangles -- and a text box has no element. So a click on the
+    // words inside a link hits a box with no origin inside a box with no area,
+    // and testing either alone finds nothing. This is the case that found it.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><a id=link href='/next'>click the words</a>"
+        "<script>"
+        "globalThis.hits = 0;"
+        "document.getElementById('link').addEventListener('click', e => {"
+        "  hits++; e.preventDefault();"
+        "});"
+        "</script></body></html>",
+        "https://example.org/");
+    page.RunScripts();
+    page.Layout(800.0f);
+
+    // Inside the link's text, which is where a reader would click it.
+    const engine::ClickOutcome outcome = page.DispatchClickAt(gfx::FloatPoint{20.0f, 8.0f});
+    Expect(outcome.ran, "the page had handlers");
+    Expect(outcome.prevented, "and one of them prevented the default");
+
+    // The two facts are separate: a handler that changes the document needs a
+    // relayout whether or not it prevented anything, and conflating them left
+    // a page whose handler ran and whose screen did not change.
+    const engine::ClickOutcome elsewhere =
+        page.DispatchClickAt(gfx::FloatPoint{700.0f, 400.0f});
+    Expect(!elsewhere.prevented, "a click on nothing prevents nothing");
+  });
+
   AddTest(tests, "Page/AScriptChangesWhatIsLaidOut", [] {
     // The point of all of it: what a script builds is what gets laid out.
     TestFonts fonts;

@@ -184,24 +184,34 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
 // Deepest-first, and the last child first within a level: a box painted over
 // another is the one a click lands on, and the paint order is child-after-
 // parent and later-sibling-after-earlier.
-const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point) {
+//
+// `enclosing` is the nearest ancestor that came from an element, and it is
+// what makes this work at all. A text box has no element of its own, and an
+// *inline* box has no useful geometry -- its text fragments carry the
+// rectangles. So a click on the words inside `<a>hello</a>` hits a text box
+// with no origin, inside a box with no area, and testing either alone finds
+// nothing. Carrying the enclosing element down is the same shape HitTestLink
+// uses to carry an href.
+const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point,
+                                   const dom::Element* enclosing) {
+  if (box.Origin() != nullptr) {
+    enclosing = box.Origin();
+  }
   for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (const dom::Element* hit = HitTestElement(*box.Children()[i], point)) {
+    if (const dom::Element* hit = HitTestElement(*box.Children()[i], point, enclosing)) {
       return hit;
     }
   }
   if (box.GetKind() == layout::Box::Kind::Text) {
     for (const layout::TextFragment& fragment : box.Fragments()) {
       if (Contains(fragment.rect, point)) {
-        // A text box has no element of its own; the click belongs to whatever
-        // generated it, which the caller finds by walking up from here.
-        return box.Origin();
+        return enclosing;
       }
     }
     return nullptr;
   }
-  if (box.Origin() != nullptr && Contains(box.Geometry().BorderBox(), point)) {
-    return box.Origin();
+  if (enclosing != nullptr && Contains(box.Geometry().BorderBox(), point)) {
+    return enclosing;
   }
   return nullptr;
 }
@@ -491,22 +501,23 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
   return BuildFormSubmission(*form, submitter, *document_, url_);
 }
 
-bool Page::DispatchClickAt(gfx::FloatPoint document_point) {
+ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr) {
-    return false;
+    return {};
   }
-  const dom::Element* target = HitTestElement(*boxes_, document_point);
+  const dom::Element* target = HitTestElement(*boxes_, document_point, nullptr);
   if (target == nullptr) {
-    return false;
+    return {};
   }
-  const bool prevented = script_.DispatchClick(*const_cast<dom::Element*>(target));
-  if (prevented) {
-    // A handler that changed the tree has invalidated everything derived from
-    // it. Dropped rather than patched, for the reason RunScripts gives.
-    boxes_.reset();
-    CollectImages();
-  }
-  return prevented;
+  ClickOutcome outcome;
+  outcome.ran = script_.HasListeners();
+  outcome.prevented = script_.DispatchClick(*const_cast<dom::Element*>(target));
+  return outcome;
+}
+
+void Page::InvalidateLayout() {
+  boxes_.reset();
+  CollectImages();
 }
 
 bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {

@@ -17,6 +17,17 @@
 
 namespace microbrowser::engine {
 
+// What a click did, which is two separate facts.
+//
+// A handler that changed the document needs a relayout whether or not it
+// prevented anything, and a handler that prevented the default may have
+// changed nothing at all. Reporting one bit conflated the two, and the visible
+// symptom was a page whose handler ran and whose screen did not change.
+struct ClickOutcome {
+  bool ran = false;
+  bool prevented = false;
+};
+
 struct FormSubmission {
   std::string url;
   std::string method = "GET";
@@ -107,7 +118,15 @@ class Page : private layout::ImageProvider {
   // that element up to the root. Returns true when a handler called
   // `preventDefault`, which is the caller's signal not to follow the link or
   // submit the form it would otherwise have.
-  bool DispatchClickAt(gfx::FloatPoint document_point);
+  // Deliberately does not invalidate the layout: the hit tests that follow a
+  // click run against the tree as it was when the click landed, which is one
+  // hit test per click rather than one per question asked about it. The caller
+  // relays out afterwards.
+  ClickOutcome DispatchClickAt(gfx::FloatPoint document_point);
+
+  // Drops everything derived from the document, so the next Layout rebuilds
+  // it. What a script changed is not knowable from here, so nothing is patched.
+  void InvalidateLayout();
 
   // Focuses an editable text control at `document_point`.
   bool FocusTextControlAt(gfx::FloatPoint document_point);

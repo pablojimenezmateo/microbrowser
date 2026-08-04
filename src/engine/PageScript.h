@@ -62,6 +62,11 @@ class PageScript {
   // Runs the click handlers registered on `target` and its ancestors. True
   // when one called `preventDefault`.
   bool DispatchClick(dom::Element& target);
+  // Whether this page ran any script at all. A page that did cannot be assumed
+  // not to have changed the tree from a handler, and a page that did not
+  // cannot have handlers to run -- which is what keeps a click on a static
+  // document from costing a relayout.
+  bool HasListeners() const { return interpreter_ != nullptr; }
 
   const std::vector<std::string>& ConsoleOutput() const;
 

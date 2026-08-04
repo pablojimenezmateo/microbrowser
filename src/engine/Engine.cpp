@@ -172,7 +172,9 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   // below. That ordering is the whole contract of the method: a script that
   // intercepts a click on a link expects the link not to be followed, and
   // deciding to navigate before asking would make `preventDefault` a lie.
-  if (page_.DispatchClickAt(document_point)) {
+  const ClickOutcome click = page_.DispatchClickAt(document_point);
+  if (click.prevented) {
+    page_.InvalidateLayout();
     LayoutAndPaint();
     return true;
   }
@@ -193,6 +195,14 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   }
   const std::optional<std::string> href = page_.LinkAt(document_point);
   if (!href.has_value()) {
+    // Nothing to navigate to, but a handler may still have changed the
+    // document -- which is the case that used to run the handler and leave the
+    // screen alone.
+    if (click.ran) {
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+      return true;
+    }
     return false;
   }
   const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
