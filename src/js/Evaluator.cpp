@@ -132,7 +132,7 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
             return Throw("RangeError", "out of memory");
           }
           if (value.IsObject()) {
-            for (const std::string& key : value.object->EnumerableKeys()) {
+            for (const std::string& key : OwnKeys(value, true)) {
               const PropertyKey named(key);
               bool already = false;
               for (const PropertyKey& seen : taken) {

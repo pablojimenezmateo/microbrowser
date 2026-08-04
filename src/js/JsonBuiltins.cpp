@@ -571,7 +571,7 @@ class JsonWriter {
   bool WriteObject(const Value& value, int depth, std::string& out) {
     std::string body;
     bool first = true;
-    for (const std::string& key : value.object->EnumerableKeys()) {
+    for (const std::string& key : call_.interpreter.OwnKeys(value, true)) {
       if (filtering_ &&
           std::find(allowed_.begin(), allowed_.end(), key) == allowed_.end()) {
         continue;
@@ -669,7 +669,7 @@ bool Revive(NativeCall& call, const Value& holder, const std::string& key,
         }
       }
     } else {
-      const std::vector<std::string> keys = value.object->EnumerableKeys();
+      const std::vector<std::string> keys = call.interpreter.OwnKeys(value, true);
       for (const std::string& child : keys) {
         Value revived;
         if (!Revive(call, value, child, reviver, depth + 1, revived)) {

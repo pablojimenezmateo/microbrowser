@@ -178,7 +178,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
             return spread;
           }
           if (spread.value.IsObject()) {
-            for (const std::string& key : spread.value.object->EnumerableKeys()) {
+            for (const std::string& key : OwnKeys(spread.value, true)) {
               object->Set(key, GetProperty(spread.value, key));
             }
           }
@@ -266,7 +266,9 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
             if (converted.IsAbrupt()) {
               return converted;
             }
-            return Result::Normal(Value::Bool(base.object->Delete(property)));
+            // Through the interpreter, so a proxy's `deleteProperty` trap
+            // sees it.
+            return Result::Normal(Value::Bool(DeleteProperty(base, property)));
           }
         }
         return Result::Normal(Value::Bool(true));
@@ -572,7 +574,7 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
         }
       }
     }
-    for (const std::string& key : object->EnumerableKeys()) {
+    for (const std::string& key : OwnKeys(Value::Obj(object), true)) {
       keys.push_back(Value::String(key));
     }
   }

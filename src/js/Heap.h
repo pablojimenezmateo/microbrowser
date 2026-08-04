@@ -141,7 +141,22 @@ class Object {
   explicit Object(Kind kind) : kind_(kind) {}
 
   Kind GetKind() const { return kind_; }
-  bool IsCallable() const { return kind_ == Kind::Function || kind_ == Kind::Native; }
+  // The kind of whatever is behind this, looking through any number of
+  // proxies. What `Array.isArray` asks, and the reason it asks it: a proxy
+  // over an array *is* an array to the language, and a feature test that said
+  // otherwise would make every wrapper visible.
+  Kind TargetKind() const;
+  bool IsCallable() const {
+    if (kind_ == Kind::Function || kind_ == Kind::Native) {
+      return true;
+    }
+    // A proxy is callable exactly when what it wraps is -- `new Proxy(fn, {})`
+    // has to be a function to everything that looks, which is how every
+    // framework's function wrapper stays invisible. Out of line and bounded,
+    // because the walk is a chain a page can nest and this is the one branch
+    // that is not the common case.
+    return kind_ == Kind::Proxy && ProxyTargetIsCallable();
+  }
 
   Object* Prototype() const { return prototype_; }
   void SetPrototype(Object* prototype) { prototype_ = prototype; }
@@ -338,6 +353,9 @@ class Object {
   bool marked_ = false;
   // Files a new string key in enumeration order. See Keys().
   void RecordKey(const std::string& text);
+  // Whether the object behind this proxy -- possibly through more proxies --
+  // can be called. Bounded, like every chain walk here.
+  bool ProxyTargetIsCallable() const;
 
   Integrity integrity_ = Integrity::Extensible;
 };

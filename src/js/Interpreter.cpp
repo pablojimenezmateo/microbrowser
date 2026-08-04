@@ -293,6 +293,59 @@ Object* Interpreter::ProxyTrap(const Value& base, const char* trap, Value& targe
 
 
 
+bool Interpreter::DeleteProperty(const Value& base, const PropertyKey& key) {
+  if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
+    Value target;
+    if (Object* trap = ProxyTrap(base, "deleteProperty", target)) {
+      const Result asked =
+          CallFunction(Value::Obj(trap), Value::Undefined(), {target, KeyValue(key)});
+      return !asked.IsAbrupt() && ToBoolean(asked.value);
+    }
+    return !target.IsObject() || DeleteProperty(target, key);
+  }
+  return !base.IsObject() || base.object->Delete(key);
+}
+
+std::vector<std::string> Interpreter::OwnKeys(const Value& base, bool enumerable_only) {
+  if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
+    Value target;
+    if (Object* trap = ProxyTrap(base, "ownKeys", target)) {
+      std::vector<Value> listed;
+      const Result asked = CallFunction(Value::Obj(trap), Value::Undefined(), {target});
+      if (asked.IsAbrupt() || CollectIterable(asked.value, listed).IsAbrupt()) {
+        return {};
+      }
+      std::vector<std::string> out;
+      for (const Value& entry : listed) {
+        if (!entry.IsString()) {
+          continue;  // a symbol key is not something an enumeration reports
+        }
+        if (enumerable_only) {
+          // The spec asks the descriptor trap whether each key is enumerable,
+          // which is what makes a proxy able to hide one from `Object.keys`
+          // while still listing it from `getOwnPropertyNames`.
+          Value ignored;
+          if (Object* describe = ProxyTrap(base, "getOwnPropertyDescriptor", ignored)) {
+            const Result descriptor = CallFunction(Value::Obj(describe), Value::Undefined(),
+                                                   {target, entry});
+            if (descriptor.IsAbrupt() || !descriptor.value.IsObject() ||
+                !ToBoolean(GetProperty(descriptor.value, "enumerable"))) {
+              continue;
+            }
+          }
+        }
+        out.push_back(entry.AsString());
+      }
+      return out;
+    }
+    return target.IsObject() ? OwnKeys(target, enumerable_only) : std::vector<std::string>{};
+  }
+  if (!base.IsObject()) {
+    return {};
+  }
+  return enumerable_only ? base.object->EnumerableKeys() : base.object->Keys();
+}
+
 Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
   if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
     Value target;
@@ -529,6 +582,25 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
   if (!callee.IsObject() || !callee.object->IsCallable()) {
     return Throw("TypeError", ToString(callee) + " is not a constructor");
   }
+  if (callee.object->GetKind() == Object::Kind::Proxy) {
+    Value target;
+    if (Object* trap = ProxyTrap(callee, "construct", target)) {
+      // (target, argumentsList, newTarget). The trap has to hand back an
+      // object -- a construction that produced a primitive would leave `new`
+      // with nothing to be.
+      const Value list = NewArrayValue(arguments);
+      const Result made =
+          CallFunction(Value::Obj(trap), Value::Undefined(), {target, list, callee});
+      if (made.IsAbrupt()) {
+        return made;
+      }
+      if (!made.value.IsObject()) {
+        return Throw("TypeError", "a construct trap must return an object");
+      }
+      return made;
+    }
+    return Construct(target, arguments);
+  }
   const CompiledFunction* code = callee.object->Code();
   if (code != nullptr && code->is_async) {
     // An async function returns a promise, so `new` on one has nothing to hand
@@ -536,10 +608,25 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
     // place that can tell.
     return Throw("TypeError", "an async function is not a constructor");
   }
-  Object* instance = NewObject();
+  // What kind of object to allocate, which is the root constructor's business
+  // rather than this one's: `class HttpError extends Error` has to allocate an
+  // Error, because the kind is fixed at allocation and is what makes
+  // `String(e)` say "HttpError: not found" instead of "[object Object]".
+  Object::Kind kind = Object::Kind::Plain;
+  const Object* root = callee.object;
+  for (int depth = 0; root != nullptr && depth < 1000; ++depth) {
+    if (const Value* marked = root->GetOwn(kConstructsKey)) {
+      kind = static_cast<Object::Kind>(static_cast<int>(ToNumber(*marked)));
+      break;
+    }
+    root = root->SuperConstructor();
+  }
+  Object* instance =
+      kind == Object::Kind::Array ? NewArray({}) : heap_.AllocateObject(kind);
   if (instance == nullptr) {
     return Throw("RangeError", "out of memory");
   }
+  instance->SetPrototype(well_known_.object_prototype);
   const Value* prototype = callee.object->Get("prototype");
   if (prototype != nullptr && prototype->IsObject()) {
     instance->SetPrototype(prototype->object);
@@ -593,6 +680,19 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
                                  const std::vector<Value>& arguments) {
   if (!callee.IsObject() || !callee.object->IsCallable()) {
     return Throw("TypeError", ToString(callee) + " is not a function");
+  }
+  if (callee.object->GetKind() == Object::Kind::Proxy) {
+    Value target;
+    if (Object* trap = ProxyTrap(callee, "apply", target)) {
+      // (target, thisArg, argumentsList). The arguments arrive as an array
+      // rather than spread, which is what lets a wrapper read them without
+      // knowing the arity.
+      const Value list = NewArrayValue(arguments);
+      return CallFunction(Value::Obj(trap), Value::Undefined(), {target, self, list});
+    }
+    // No trap: the call goes straight through, which is what makes
+    // `new Proxy(fn, {})` behave exactly like `fn`.
+    return CallFunction(target, self, arguments);
   }
   if (call_depth_ >= kMaxCallDepth) {
     // Re-entering the interpreter from C++ -- a native calling back into

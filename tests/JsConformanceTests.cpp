@@ -395,6 +395,64 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
                "false:false:false");
   });
 
+  // --- Subclassing a builtin -------------------------------------------------
+
+  AddTest(tests, "JsConformance/AClassCanExtendError", [] {
+    ExpectEval("class E extends Error { constructor(m){ super(m); this.name = 'E' } }"
+               "const e = new E('boom');"
+               "[e instanceof Error, e instanceof E, e.message, String(e)].join('|')",
+               "true|true|boom|E: boom");
+  });
+
+  AddTest(tests, "JsConformance/AClassCanExtendArray", [] {
+    ExpectEval("class Stack extends Array {} const s = new Stack(); s.push(1);"
+               "[s.length, s instanceof Array, Array.isArray(s)].join()",
+               "1,true,true");
+  });
+
+  AddTest(tests, "JsConformance/AClassCanExtendMapAndSet", [] {
+    ExpectEval("class C extends Map {} const c = new C(); c.set(1,2); c.get(1) + ':' + c.size",
+               "2:1");
+    ExpectEval("class S extends Set {} const s = new S([1,1,2]); s.size", "2");
+  });
+
+  // --- Proxy ----------------------------------------------------------------
+  //
+  // A proxy over a function is how every framework wraps one, and it was not
+  // callable at all: only get, set and has existed.
+
+  AddTest(tests, "JsConformance/AProxyOverAFunctionIsAFunction", [] {
+    ExpectEval("const f = new Proxy(function(){}, {apply:(t,s,a)=>'applied:'+a.join()});"
+               "typeof f + ':' + f(1,2)",
+               "function:applied:1,2");
+    ExpectEval("const f = new Proxy(function(){}, {construct:()=>({v:6})}); new f().v", "6");
+    // No trap: the call goes straight through, which is what makes an empty
+    // handler invisible.
+    ExpectEval("const f = new Proxy((a,b)=>a+b, {}); f(1,2)", "3");
+  });
+
+  AddTest(tests, "JsConformance/AProxyTrapsDeletesAndEnumeration", [] {
+    ExpectEval("let removed = ''; const p = new Proxy({a:1}, "
+               "{deleteProperty:(t,k)=>{ removed = k; return true }});"
+               "delete p.a; removed",
+               "a");
+    ExpectEval("const p = new Proxy({}, {ownKeys:()=>['a','b'],"
+               "getOwnPropertyDescriptor:()=>({value:1,enumerable:true,configurable:true})});"
+               "Object.keys(p).join()",
+               "a,b");
+    ExpectEval("const p = new Proxy({a:1,b:2}, {}); Object.keys(p).join()", "a,b");
+    ExpectEval("const p = new Proxy({a:1,b:2}, {}); const seen = [];"
+               "for (const k in p) seen.push(k); seen.join()",
+               "a,b");
+  });
+
+  AddTest(tests, "JsConformance/AProxyReportsWhatItWraps", [] {
+    // A feature test must not be what reveals a wrapper.
+    ExpectEval("Array.isArray(new Proxy([], {}))", "true");
+    ExpectEval("Object.prototype.toString.call(new Proxy([], {}))", "[object Array]");
+    ExpectEval("JSON.stringify(new Proxy({m:1}, {}))", "{\"m\":1}");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {

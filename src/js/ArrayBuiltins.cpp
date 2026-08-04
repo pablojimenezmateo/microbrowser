@@ -769,6 +769,23 @@ void Interpreter::InstallArrayPrototype() {
   // --- The constructor ------------------------------------------------------
 
   Object* constructor = NewNative("Array", [](NativeCall& call) {
+    // `class Stack extends Array` reaches here with the instance already
+    // allocated -- as an array, because Construct read the root's mark -- and
+    // wants it filled in rather than replaced.
+    if (Object* target = ConstructionTarget(call)) {
+      if (call.arguments.size() == 1 && call.arguments[0].IsNumber()) {
+        const double length = call.arguments[0].number;
+        if (length < 0 || length != std::floor(length) ||
+            length > static_cast<double>(kMaxAllocationLength)) {
+          return call.Throw("RangeError", "invalid array length");
+        }
+        target->SetElements(std::vector<Value>(static_cast<std::size_t>(length)),
+                            std::vector<bool>(static_cast<std::size_t>(length), false));
+      } else if (!call.arguments.empty()) {
+        target->SetElements(call.arguments, {});
+      }
+      return Value::Obj(target);
+    }
     // `Array(5)` is five holes; `Array(1, 2)` is two elements. One argument
     // means length, which is the language's oldest wart.
     if (call.arguments.size() == 1 && call.arguments[0].IsNumber()) {
@@ -788,11 +805,19 @@ void Interpreter::InstallArrayPrototype() {
   }
   constructor->Set("prototype", Value::Obj(prototype));
   prototype->Set("constructor", Value::Obj(constructor));
+  // What `new` on this produces, so that Construct allocates an array for a
+  // subclass rather than a plain object with array methods on it -- which is
+  // an object whose `length` is undefined and whose `push` writes nowhere.
+  MarksConstructedKind(constructor, Object::Kind::Array);
   global_scope_->Declare("Array", Value::Obj(constructor), false);
 
   InstallNative(constructor, "isArray", [](NativeCall& call) {
     const Value value = Argument(call.arguments, 0);
-    return Value::Bool(value.IsObject() && value.object->GetKind() == Object::Kind::Array);
+    // Through the proxy, deliberately: a proxy over an array is an array to
+    // the language, and a page's feature test must not be what reveals a
+    // wrapper.
+    return Value::Bool(value.IsObject() &&
+                       value.object->TargetKind() == Object::Kind::Array);
   });
   InstallNative(constructor, "of", [](NativeCall& call) {
     return call.interpreter.NewArrayValue(call.arguments);

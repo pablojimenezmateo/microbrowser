@@ -514,6 +514,19 @@ class Interpreter {
   Value GetProperty(const Value& base, const PropertyKey& key);
 
  public:
+  // `delete base[key]`, and the own keys an enumeration sees.
+  //
+  // Both exist because of Proxy: a delete goes to the `deleteProperty` trap
+  // and an enumeration to `ownKeys`, and every caller that reached for
+  // `object->Delete` or `object->Keys` directly was a place a proxy became
+  // visible. Public for the reason GetPropertyValue is -- the host enumerates
+  // and deletes too.
+  bool DeleteProperty(const Value& base, const PropertyKey& key);
+  std::vector<std::string> OwnKeys(const Value& base, bool enumerable_only);
+
+ private:
+
+ public:
   // The same lookup a `.` does, for a builtin that has to read a method off an
   // object it was handed -- a Map constructor calling its own `set` is the
   // case, and doing it any other way would miss a subclass that overrode it.

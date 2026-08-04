@@ -120,14 +120,23 @@ void Interpreter::InstallCollections() {
     }
 
     Object* constructor = NewNative(name, [with_values](NativeCall& call) {
-      Value collection = call.interpreter.NewObjectValue();
-      if (!collection.IsObject()) {
-        return call.Throw("RangeError", "out of memory");
-      }
-      const Value* prototype_value =
-          call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
-      if (prototype_value != nullptr && prototype_value->IsObject()) {
-        collection.object->SetPrototype(prototype_value->object);
+      // `class Cache extends Map` reaches here through `super()` with the
+      // instance already allocated, and wants the entries and the index
+      // attached to *that* -- a second object allocated here is one nobody
+      // would ever see, and every method would then throw "not a Map".
+      Value collection = Value::Undefined();
+      if (Object* target = ConstructionTarget(call)) {
+        collection = Value::Obj(target);
+      } else {
+        collection = call.interpreter.NewObjectValue();
+        if (!collection.IsObject()) {
+          return call.Throw("RangeError", "out of memory");
+        }
+        const Value* prototype_value =
+            call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
+        if (prototype_value != nullptr && prototype_value->IsObject()) {
+          collection.object->SetPrototype(prototype_value->object);
+        }
       }
       collection.object->Set(kEntriesKey, call.interpreter.NewArrayValue({}));
       call.interpreter.GetHeap().AttachMapIndex(collection.object);

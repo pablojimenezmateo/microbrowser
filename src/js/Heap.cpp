@@ -125,6 +125,30 @@ void Object::RecordKey(const std::string& text) {
   key_order_.insert(key_order_.begin() + static_cast<std::ptrdiff_t>(at), text);
 }
 
+Object::Kind Object::TargetKind() const {
+  const Object* current = this;
+  for (int depth = 0; current != nullptr && depth < kMaxPrototypeDepth; ++depth) {
+    if (current->kind_ != Kind::Proxy) {
+      return current->kind_;
+    }
+    const Value* behind = current->GetOwn("#target");
+    current = behind != nullptr && behind->IsObject() ? behind->object : nullptr;
+  }
+  return Kind::Proxy;
+}
+
+bool Object::ProxyTargetIsCallable() const {
+  const Object* current = this;
+  for (int depth = 0; current != nullptr && depth < kMaxPrototypeDepth; ++depth) {
+    if (current->kind_ != Kind::Proxy) {
+      return current->kind_ == Kind::Function || current->kind_ == Kind::Native;
+    }
+    const Value* behind = current->GetOwn("#target");
+    current = behind != nullptr && behind->IsObject() ? behind->object : nullptr;
+  }
+  return false;
+}
+
 void Object::Define(PropertyKey key, Property property) {
   if (IsFrozen()) {
     return;

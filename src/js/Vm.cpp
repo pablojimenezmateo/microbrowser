@@ -336,7 +336,9 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           break;
         }
         const Value& base = vm_.stack[vm_.stack.size() - 2];
-        const bool removed = base.IsObject() ? base.object->Delete(key) : true;
+        // Through the interpreter rather than the object: a proxy's
+        // `deleteProperty` trap is what makes a wrapper notice a removal.
+        const bool removed = DeleteProperty(base, key);
         vm_.stack.pop_back();
         vm_.stack.back() = Value::Bool(removed);
         break;
@@ -724,7 +726,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           // The key list is copied first: reading a property can run a getter,
           // and a getter that adds a property to the source would otherwise
           // invalidate the sequence being walked.
-          const std::vector<std::string> keys = source.object->EnumerableKeys();
+          const std::vector<std::string> keys = OwnKeys(source, true);
           for (const std::string& key : keys) {
             const Value value = GetProperty(source, key);
             vm_.stack[vm_.stack.size() - 2].object->Set(key, value);
@@ -754,7 +756,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         vm_.stack.back() = Value::Obj(rest);
         if (source.IsObject()) {
           const std::size_t first = vm_.stack.size() - 1 - named;
-          const std::vector<std::string> keys = source.object->EnumerableKeys();
+          const std::vector<std::string> keys = OwnKeys(source, true);
           for (const std::string& key : keys) {
             bool already = false;
             for (std::size_t i = 0; i < named; ++i) {
@@ -1151,7 +1153,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
               }
             }
           }
-          for (const std::string& key : object->EnumerableKeys()) {
+          for (const std::string& key : OwnKeys(Value::Obj(object), true)) {
             keys.push_back(Value::String(key));
           }
         }

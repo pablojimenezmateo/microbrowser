@@ -295,7 +295,7 @@ void Interpreter::InstallGlobals() {
           }
         }
       }
-      for (const std::string& key : target.object->EnumerableKeys()) {
+      for (const std::string& key : call.interpreter.OwnKeys(target, true)) {
         keys.push_back(Value::String(key));
       }
     }
@@ -312,8 +312,8 @@ void Interpreter::InstallGlobals() {
           }
         }
       }
-      for (const std::string& key : target.object->EnumerableKeys()) {
-        values.push_back(call.interpreter.GetProperty(target, key));
+      for (const std::string& key : call.interpreter.OwnKeys(target, true)) {
+        values.push_back(call.interpreter.GetPropertyValue(target, key));
       }
     }
     return call.interpreter.NewArrayValue(std::move(values));
@@ -446,7 +446,7 @@ void Interpreter::InstallGlobals() {
         }
         names.push_back(Value::String("length"));
       }
-      for (const std::string& key : target.object->Keys()) {
+      for (const std::string& key : call.interpreter.OwnKeys(target, false)) {
         names.push_back(Value::String(key));
       }
     }
@@ -458,7 +458,7 @@ void Interpreter::InstallGlobals() {
     std::vector<Value> pairs;
     const Value target = Argument(call.arguments, 0);
     if (target.IsObject()) {
-      for (const std::string& key : target.object->EnumerableKeys()) {
+      for (const std::string& key : call.interpreter.OwnKeys(target, true)) {
         pairs.push_back(call.interpreter.NewArrayValue(
             {Value::String(key), call.interpreter.GetPropertyValue(target, key)}));
       }
@@ -506,7 +506,7 @@ void Interpreter::InstallGlobals() {
           }
         }
       }
-      for (const std::string& key : source.object->EnumerableKeys()) {
+      for (const std::string& key : call.interpreter.OwnKeys(source, true)) {
         // Read through GetProperty, so a getter on the source runs -- assign
         // copies values, not accessors.
         target.object->Set(key, call.interpreter.GetPropertyValue(source, key));
@@ -745,15 +745,18 @@ void Interpreter::InstallGlobals() {
         return Value::String("[object " + named.AsString() + "]");
       }
     }
-    switch (call.self.object->GetKind()) {
+    // Through the proxy: `Object.prototype.toString.call(new Proxy([], {}))`
+    // is "[object Array]", which is the cross-realm array test a page makes
+    // when `instanceof` cannot be trusted.
+    switch (call.self.object->TargetKind()) {
       case Object::Kind::Array: return Value::String(std::string("[object Array]"));
       case Object::Kind::Function:
       case Object::Kind::Native: return Value::String(std::string("[object Function]"));
       case Object::Kind::Error: return Value::String(std::string("[object Error]"));
       case Object::Kind::RegExp: return Value::String(std::string("[object RegExp]"));
       case Object::Kind::Symbol: return Value::String(std::string("[object Symbol]"));
-      // A proxy reports what its target is, which is what makes it transparent
-      // to the check a page uses to tell an array from a plain object.
+      // Only a proxy whose target is itself a proxy, which is a cycle a page
+      // built rather than anything with a kind to report.
       case Object::Kind::Proxy: return Value::String(std::string("[object Object]"));
       case Object::Kind::Plain: break;
     }
@@ -827,7 +830,8 @@ void Interpreter::InstallGlobals() {
       if (!target.IsObject()) {
         return call.Throw("TypeError", "Reflect.deleteProperty called on a non-object");
       }
-      return Value::Bool(target.object->Delete(KeyFrom(Argument(call.arguments, 1))));
+      return Value::Bool(
+          call.interpreter.DeleteProperty(target, KeyFrom(Argument(call.arguments, 1))));
     });
     install(reflect, "apply", [](NativeCall& call) {
       const Value target = Argument(call.arguments, 0);
@@ -899,15 +903,24 @@ void Interpreter::InstallGlobals() {
     Object* constructor = NewNative(name, [](NativeCall& call) {
       // Callable with or without `new`: `Error('x')` and `new Error('x')` are
       // the same thing, which is one of the few places the language says so.
-      Object* error = call.interpreter.GetHeap().AllocateObject(Object::Kind::Error);
+      //
+      // And callable as a *base*: `class HttpError extends Error` reaches here
+      // through `super(m)` with the instance already allocated, and has to
+      // have that one filled in rather than a second one allocated beside it.
+      Object* error = ConstructionTarget(call);
       if (error == nullptr) {
-        return call.Throw("RangeError", "out of memory");
+        error = call.interpreter.GetHeap().AllocateObject(Object::Kind::Error);
+        if (error == nullptr) {
+          return call.Throw("RangeError", "out of memory");
+        }
+        const Value* fresh =
+            call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
+        if (fresh != nullptr && fresh->IsObject()) {
+          error->SetPrototype(fresh->object);
+        }
       }
       const Value* prototype_value =
           call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
-      if (prototype_value != nullptr && prototype_value->IsObject()) {
-        error->SetPrototype(prototype_value->object);
-      }
       // AggregateError takes the errors first and the message second, which
       // is the one place the error constructors disagree about their
       // arguments. Told apart by the prototype's own `name` rather than by a
@@ -954,6 +967,7 @@ void Interpreter::InstallGlobals() {
     }
     constructor->Set("prototype", Value::Obj(prototype));
     prototype->Set("constructor", Value::Obj(constructor));
+    MarksConstructedKind(constructor, Object::Kind::Error);
     global_scope_->Declare(name, Value::Obj(constructor), false);
   };
   if (error_prototype != nullptr) {
