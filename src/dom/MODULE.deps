@@ -2,6 +2,15 @@ purpose: The document tree. Nodes, elements, text; ownership and traversal.
 
 # dom depends on util only. Style, layout and script all depend on dom, so a
 # dependency the other way would put the whole engine below the tree.
+#
+# A constraint from outside this module, recorded here because this is where it
+# will be tripped over: **adding node removal is not a small change.** The DOM
+# binding layer hands script a JavaScript object holding a raw `Node*`, and that
+# is safe today only because a node lives as long as its document -- there is
+# `Append` and `InsertBefore` and nothing that frees. The first `removeChild`
+# makes a wrapper able to outlive its node, which is a use-after-free reachable
+# from a page. Whoever adds removal owns fixing that in the same commit;
+# docs/adr/0008-dom-bindings.md says what the two acceptable fixes are.
 allow: util
 
 public: Node.h
