@@ -332,6 +332,56 @@ void RegisterJsParserTests(std::vector<TestCase>& tests) {
            "the tree is linear in the source rather than exponential in its nesting");
   });
 
+  AddTest(tests, "JsParser/NestedAsyncCallsDoNotCostExponentialTimeEither", [] {
+    // The same trap, one production over, and reached the same way: `async(x)`
+    // is a call and `async (x) => x` is an arrow, so deciding by parsing the
+    // parentheses and putting them back parses them twice per level.
+    // `async(async(async(x)))` at eighteen deep took two seconds before the
+    // decision became a token scan -- a hundred and twenty-seven bytes, which
+    // is a hang any page could serve.
+    //
+    // Counted rather than timed, for the reason the arrow case above is: an
+    // exponential parser allocates exponentially, and a timing test on a
+    // shared machine is a flake generator.
+    std::string source;
+    constexpr int kDepth = 40;
+    for (int i = 0; i < kDepth; ++i) {
+      source += "async(";
+    }
+    source += "x";
+    for (int i = 0; i < kDepth; ++i) {
+      source += ")";
+    }
+    const ParseResult result = js::Parse(source);
+    Expect(result.program != nullptr, "it parses");
+    Expect(result.errors.empty(), "as a stack of calls");
+    Expect(js::DumpAst(*result.program).size() < 100000,
+           "and the tree is linear in the source");
+  });
+
+  AddTest(tests, "JsParser/AsyncModifiesAFunctionAndIsOtherwiseAName", [] {
+    ExpectClean("async function f(){}");
+    ExpectClean("const f = async function(){}");
+    ExpectClean("const f = async () => 1");
+    ExpectClean("const f = async (a, b) => a + b");
+    ExpectClean("const f = async a => a");
+    ExpectClean("const o = { async m(){}, async: 1 }");
+    ExpectClean("class C { async m(){} static async n(){} async(){} }");
+    // Every one of these is `async` as an ordinary name, and the lookahead
+    // that decides has to put the token back for all of them.
+    ExpectClean("async(1)");
+    ExpectClean("async = 1");
+    ExpectClean("let async = 1");
+    ExpectClean("async.x");
+    ExpectClean("[async, async]");
+    // A line terminator between `async` and what it would modify separates
+    // them: ASI makes this two statements and the spec says so.
+    const ParseResult split = js::Parse("async\nfunction f(){}");
+    Expect(split.errors.empty(), "it parses");
+    Expect(js::DumpAst(*split.program).find("(ExprStmt (Id \"async\"))") != std::string::npos,
+           "as an expression statement and then a declaration");
+  });
+
   AddTest(tests, "JsParser/RestAndTrailingCommasAreParameterListOnly", [] {
     ExpectClean("(a, b,) => a");
     ExpectClean("(...rest) => rest");

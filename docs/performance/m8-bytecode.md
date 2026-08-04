@@ -205,6 +205,23 @@ a computed-goto dispatch loop, and both are large enough to want their own measu
 sets `needs_arguments`, so the array is allocated per call only where something can observe it. The
 tree-walker builds one on every call, which is part of why `js/fib` is 4× rather than 2×.
 
+## What suspending costs
+
+`await` is not on the table above, because a benchmark of it would be measuring the microtask queue
+rather than the machine. What is worth writing down is the shape of the cost, since it is the one
+place the machine does something a call does not.
+
+A suspension copies five slices out of the machine's stacks and back: the frame, its region of the
+value stack, the block scopes it pushed, the `for...of` cursors it left open, and its bindings when
+they are in the frame rather than on the heap. So an `await` costs one heap allocation for the
+promise, one for the reaction, a queue entry, and a copy proportional to how much of the frame is
+live at the point it waits — which for the shape a page writes (`const x = await f()` at statement
+level, nothing half-built) is the four prologue slots and whatever the body has declared.
+
+The copy is what a fixed-capacity register file would avoid, and it is the wrong thing to optimise
+first: a page that awaits is a page that is waiting on the network, and the turn boundary either
+side of it costs more than the copy does.
+
 ## What is not measured here
 
 Collection. The machine collects at every loop back edge and every call, and the tree-walker cannot

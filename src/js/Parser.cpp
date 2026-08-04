@@ -141,6 +141,14 @@ NodePtr ParserImpl::ParsePrimary() {
   if (current_.type == TokenType::TemplateString) {
     return ParseTemplate();
   }
+  if (current_.type == TokenType::Identifier && current_.lexeme == "async") {
+    if (NodePtr node = ParseAsyncExpression()) {
+      return node;
+    }
+    // Not a modifier after all. `async` is a contextual keyword, so `async(1)`
+    // is a call and `async = 1` is an assignment, and both have to keep
+    // working -- which is why this asks rather than assumes.
+  }
   if (current_.type == TokenType::Identifier || current_.type == TokenType::PrivateIdentifier) {
     NodePtr node = Make(NodeKind::Identifier);
     node->string = std::string(current_.lexeme);
@@ -287,6 +295,20 @@ NodePtr ParserImpl::ParseObjectLiteral() {
     // detects them: `get` and `set` are ordinary identifiers, so a property
     // *named* `get` has to still work, and the only way to tell is to read the
     // next token and put it back.
+    // `async m(){}`, detected the same way and put back the same way, so a
+    // property *named* `async` keeps working.
+    bool is_async = false;
+    if (current_.lexeme == "async" && current_.type == TokenType::Identifier) {
+      const Token saved = current_;
+      Advance();
+      if (At(":") || At("(") || At(",") || At("}") || At("=") || current_.newline_before) {
+        lexer_.SeekTo(saved.end, saved.line);
+        current_ = saved;
+      } else {
+        is_async = true;
+      }
+    }
+
     bool getter = false;
     bool setter = false;
     if ((current_.lexeme == "get" || current_.lexeme == "set") &&
@@ -342,6 +364,7 @@ NodePtr ParserImpl::ParseObjectLiteral() {
       // that a consumer walking an object literal has one shape to handle.
       NodePtr function = Make(NodeKind::FunctionExpression);
       function->string = property->string;
+      function->number = is_async ? 1.0 : 0.0;
       function->children.push_back(ParseParameters());
       function->children.push_back(ParseBlock());
       property->children.push_back(std::move(function));
@@ -425,6 +448,112 @@ bool ParserImpl::ExpressionToParameters(NodePtr expression, Node& out) {
     default:
       return false;
   }
+}
+
+NodePtr ParserImpl::ParseAsyncExpression() {
+  // `async` is a contextual keyword: it modifies what follows it only when what
+  // follows it is a function, and is an ordinary identifier otherwise. So this
+  // reads ahead and puts the token back when it was not a modifier, which is
+  // the same shape the getter/setter case in an object literal has.
+  //
+  // Null means "not a modifier here" and leaves the parser exactly where it
+  // was, including its error list -- a speculative parse that failed must not
+  // leave its complaints behind for the successful reading to carry.
+  const Token saved = current_;
+  const std::size_t errors_before = errors_.size();
+  const auto rewind = [&] {
+    lexer_.SeekTo(saved.end, saved.line);
+    current_ = saved;
+    errors_.resize(errors_before);
+  };
+
+  Advance();
+  // `async` and what it modifies cannot be separated by a line terminator: ASI
+  // would otherwise turn `async\nfunction f(){}` into two statements, and the
+  // spec says it does.
+  if (current_.newline_before) {
+    rewind();
+    return nullptr;
+  }
+  if (AtKeyword("function")) {
+    NodePtr node = ParseFunction(false);
+    if (node != nullptr) {
+      node->number = 1.0;
+    }
+    return node;
+  }
+  if (current_.type == TokenType::Identifier) {
+    // `async x => ...`, the one-parameter form with no parentheses.
+    NodePtr parameter = Make(NodeKind::Identifier);
+    parameter->string = std::string(current_.lexeme);
+    Advance();
+    if (!At("=>") || current_.newline_before) {
+      rewind();
+      return nullptr;
+    }
+    Advance();
+    NodePtr arrow = Make(NodeKind::ArrowFunction);
+    arrow->number = 1.0;
+    NodePtr parameters = Make(NodeKind::Parameters);
+    parameters->children.push_back(std::move(parameter));
+    arrow->children.push_back(std::move(parameters));
+    arrow->children.push_back(At("{") ? ParseBlock() : ParseAssignment());
+    return arrow;
+  }
+  if (At("(") && ArrowFollowsParentheses()) {
+    // `async (a, b) => ...`. Decided by scanning to the matching `)` rather
+    // than by parsing what is inside it and putting it back: `async(x)` is a
+    // call, so a speculative parse would parse the contents twice, and
+    // `async(async(async(x)))` would parse them 2^n times. Measured before
+    // this was a scan: 127 bytes of nested `async(` took two seconds, which is
+    // a hang a page can serve. It is the same trap ExpressionToParameters
+    // exists to avoid, one production over.
+    NodePtr parsed = ParseArrowFromParenthesised();
+    if (parsed != nullptr && parsed->kind == NodeKind::ArrowFunction) {
+      parsed->number = 1.0;
+      return parsed;
+    }
+    // The scan said arrow and the parse disagreed, which the bracket counter
+    // can be talked into by a regular expression literal holding a bracket.
+    // One wasted parse, and not one that nests.
+    rewind();
+    return nullptr;
+  }
+  rewind();
+  return nullptr;
+}
+
+bool ParserImpl::ArrowFollowsParentheses() {
+  // Bounded, because the scan is what keeps this linear and an unbounded one
+  // inside a bounded nesting is still quadratic. A parameter list longer than
+  // this is not something a page writes, and reading it as a call rather than
+  // as an arrow is a syntax error rather than a wrong program.
+  constexpr int kMaxScannedTokens = 2048;
+
+  const Token saved = current_;
+  const std::size_t errors_before = errors_.size();
+  int depth = 0;
+  bool arrow = false;
+  for (int scanned = 0; scanned < kMaxScannedTokens && !AtEnd(); ++scanned) {
+    if (At("(") || At("[") || At("{")) {
+      ++depth;
+    } else if (At(")") || At("]") || At("}")) {
+      --depth;
+      if (depth == 0) {
+        Advance();
+        arrow = At("=>") && !current_.newline_before;
+        break;
+      }
+      if (depth < 0) {
+        break;
+      }
+    }
+    Advance();
+  }
+  lexer_.SeekTo(saved.end, saved.line);
+  current_ = saved;
+  errors_.resize(errors_before);
+  return arrow;
 }
 
 NodePtr ParserImpl::ParseArrowFromParenthesised() {

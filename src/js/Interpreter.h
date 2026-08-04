@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "js/Ast.h"
@@ -158,6 +160,11 @@ class Interpreter {
     Value derived;
     // Whether `argument` is a rejection reason rather than a value.
     bool rejected = false;
+    // Non-zero when this job is a suspended `await` to put back rather than a
+    // handler to call. Driven from the drain directly rather than through a
+    // native, so that the resumed body runs with nothing of the drain's in a
+    // C++ local -- which is what lets a collection happen inside it.
+    std::uint64_t suspension = 0;
   };
   void EnqueueMicrotask(Microtask task);
   // Runs the queue to empty.
@@ -257,9 +264,40 @@ class Interpreter {
   // Everything the VM is holding, as roots. Appended to what MaybeCollect
   // already gathers -- and the reason it can now run mid-evaluation at all.
   void GatherVmRoots(std::vector<Object*>& objects, std::vector<Environment*>& scopes) const;
+  // The same, for the calls that are waiting. A suspended frame's values are
+  // reachable from nothing else -- they were taken off the stacks GatherVmRoots
+  // walks -- so this is the only thing keeping them alive.
+  void GatherSuspensionRoots(std::vector<Object*>& objects,
+                             std::vector<Environment*>& scopes) const;
   // The scope instructions read and write. The frame's own scope when it has
   // pushed none of its own.
   Environment* CurrentScope();
+
+  // --- Suspending a call (Async.cpp) ---------------------------------------
+  //
+  // What `await` does, and the one thing a tree-walker cannot be made to do:
+  // its state is C++ stack frames and there is nowhere to put one. Here a
+  // frame is a record and every stack it points into is a vector, so
+  // suspending is copying five slices out and putting them back later.
+  //
+  // Takes the running frame off the machine, files it, arranges for the
+  // awaited value to put it back, and leaves the call's promise where its
+  // result would have gone -- so the caller carries on with a promise from the
+  // moment the body first waits.
+  Result SuspendForAwait(const Value& awaited);
+  // Puts a filed frame back and runs it until it returns or suspends again.
+  // `rejected` throws the value at the `await` rather than handing it over,
+  // which is how `try { await p } catch` sees a rejection.
+  Result ResumeSuspended(std::uint64_t suspension, const Value& value, bool rejected);
+  // Arranges for `value` to resume suspension `id` once it settles, treating a
+  // non-promise as an already-resolved one -- so `await 1` still yields a turn,
+  // which is what the language says and what a page's ordering depends on.
+  // In Promises.cpp, where the reaction machinery lives.
+  void AwaitOn(const Value& value, std::uint64_t suspension);
+  // Settles an async call's own promise, with its return value or with what it
+  // threw. Also in Promises.cpp, and a resolve rather than a fulfil: returning
+  // a promise from an async function has to flatten.
+  void SettleAsyncResult(Object* promise, const Value& value, bool rejected);
   // The binding a resolved slot names, in whichever of the two places the
   // running frame keeps its bindings. Null when the slot was never reserved,
   // which is a compiler bug rather than a program one; an unset slot comes
@@ -390,8 +428,38 @@ class Interpreter {
     std::vector<std::unique_ptr<CompiledFunction>> programs;
   };
 
+  // One call that is waiting on an `await`.
+  //
+  // A frame and its slice of each of the machine's stacks, lifted out whole.
+  // The frame alone is not enough: an `await` can happen half way through an
+  // expression, inside three blocks, with two `for...of` cursors open, and all
+  // of that has to be there when it resumes. Which is the same list the
+  // handler table records depths of, for the same reason.
+  struct Suspension {
+    Frame frame;
+    std::vector<Value> stack;
+    std::vector<Environment*> scopes;
+    std::vector<Iteration> iterations;
+    std::vector<Binding> locals;
+  };
+
+  // Every call waiting, by id.
+  //
+  // Keyed rather than pointed at, because what holds a suspension alive is a
+  // promise reaction, and a reaction is an object a page can reach. An id is a
+  // number it can do nothing with; a pointer would be a pointer.
+  //
+  // A suspension whose promise never settles is never resumed and never freed,
+  // which is a leak a page can ask for -- so the count is capped and `await`
+  // past the cap throws, the same answer as running out of call depth.
+  struct Suspensions {
+    std::unordered_map<std::uint64_t, Suspension> live;
+    std::uint64_t next = 1;
+  };
+
   Heap heap_;
   VmState vm_;
+  Suspensions suspensions_;
   Object* global_ = nullptr;
   Environment* global_scope_ = nullptr;
   WellKnown well_known_;

@@ -32,6 +32,8 @@ constexpr const char* kValueKey = "#value";
 constexpr const char* kReactionsKey = "#reactions";
 constexpr const char* kPromiseKey = "#promise";
 constexpr const char* kAlreadyKey = "#settled";
+// On a reaction that resumes a suspended `await` rather than calling a handler.
+constexpr const char* kSuspensionKey = "#suspension";
 
 // A promise is in exactly one of these, and only ever moves out of Pending.
 enum class State : int { Pending = 0, Fulfilled = 1, Rejected = 2 };
@@ -68,11 +70,14 @@ void ScheduleReaction(Interpreter& interpreter, const Value& reaction, State sta
   const Value* handler =
       reaction.object->GetOwn(rejected ? "#onRejected" : "#onFulfilled");
   const Value* derived = reaction.object->GetOwn("#derived");
+  const Value* suspension = reaction.object->GetOwn(kSuspensionKey);
   Interpreter::Microtask task;
   task.callee = handler == nullptr ? Value::Undefined() : *handler;
   task.argument = value;
   task.derived = derived == nullptr ? Value::Undefined() : *derived;
   task.rejected = rejected;
+  task.suspension =
+      suspension == nullptr ? 0 : static_cast<std::uint64_t>(ToNumber(*suspension));
   interpreter.EnqueueMicrotask(std::move(task));
 }
 
@@ -284,6 +289,16 @@ void Interpreter::DrainMicrotasks() {
     const Microtask task = microtasks_.front();
     microtasks_.erase(microtasks_.begin());
 
+    if (task.suspension != 0) {
+      // A call waiting on an `await`. Put back and run here rather than through
+      // a handler, so that nothing of this loop's is in a C++ local while the
+      // resumed body runs -- which is what lets a collection happen inside it.
+      const Result resumed = ResumeSuspended(task.suspension, task.argument, task.rejected);
+      if (resumed.IsAbrupt()) {
+        console_.push_back("Uncaught (in async function) " + ToString(resumed.value));
+      }
+      continue;
+    }
     const bool has_handler = task.callee.IsObject() && task.callee.object->IsCallable();
     if (!task.derived.IsObject()) {
       // A plain job, from queueMicrotask or a thenable adoption. Nothing to
@@ -326,6 +341,49 @@ Value Interpreter::NewPromiseValue() {
   promise->Set(kValueKey, Value::Undefined());
   promise->Set(kReactionsKey, NewArrayValue({}));
   return Value::Obj(promise);
+}
+
+// --- What an async call waits on and settles -------------------------------
+
+void Interpreter::AwaitOn(const Value& value, std::uint64_t suspension) {
+  const Value promise = PromiseFor(*this, value);
+  if (!promise.IsObject()) {
+    return;
+  }
+  // A reaction with no handlers and no derived promise: what it does when it
+  // runs is put a frame back, and the drain does that itself rather than
+  // calling anything. Everything else about it -- when it is scheduled, that a
+  // rejection takes the other path -- is a reaction like any other, which is
+  // why it is one.
+  Value reaction = MakeReaction(*this, Value::Undefined(), Value::Undefined(),
+                                Value::Undefined());
+  if (!reaction.IsObject()) {
+    return;
+  }
+  reaction.object->Set(kSuspensionKey, Value::Number(static_cast<double>(suspension)));
+  const State state = StateOf(*promise.object);
+  if (state == State::Pending) {
+    const Value* reactions = promise.object->GetOwn(kReactionsKey);
+    if (reactions != nullptr && reactions->IsObject()) {
+      reactions->object->PushElement(reaction);
+    }
+    return;
+  }
+  const Value* settled = promise.object->GetOwn(kValueKey);
+  ScheduleReaction(*this, reaction, state, settled == nullptr ? Value::Undefined() : *settled);
+}
+
+void Interpreter::SettleAsyncResult(Object* promise, const Value& value, bool rejected) {
+  if (promise == nullptr) {
+    return;
+  }
+  if (rejected) {
+    SettlePromise(*this, Value::Obj(promise), State::Rejected, value);
+    return;
+  }
+  // Resolve rather than fulfil: `async function f(){ return g() }` where `g` is
+  // async has to hand the caller one promise rather than a promise of one.
+  ResolvePromise(*this, Value::Obj(promise), value);
 }
 
 // --- Promise ---------------------------------------------------------------

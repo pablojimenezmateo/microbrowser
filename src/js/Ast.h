@@ -34,14 +34,15 @@ enum class NodeKind : std::uint8_t {
   ArrayLiteral,       // children = elements; a hole is a null child
   ObjectLiteral,      // children = Property
   Property,           // string = key when not computed; [0] = value, [1] = key if computed
-  FunctionExpression, // string = name (may be empty); [0] = Parameters; [1] = Block
-  ArrowFunction,      // [0] = Parameters; [1] = Block or expression body
+  FunctionExpression, // string = name (may be empty); [0] = Parameters; [1] = Block;
+                      // number = 1 when async
+  ArrowFunction,      // [0] = Parameters; [1] = Block or expression body; number = 1 when async
   ClassExpression,    // string = name; [0] = superclass or null; rest = MethodDefinition
   MethodDefinition,   // string = name; [0] = FunctionExpression; number = flags
   Parameters,         // children = Identifier / RestElement / AssignmentPattern
   RestElement,        // [0] = target
   AssignmentPattern,  // [0] = target; [1] = default
-  Unary,              // string = operator; [0] = operand
+  Unary,              // string = operator, including `await`; [0] = operand
   Update,             // string = operator; number = 1 when prefix; [0] = operand
   Binary,             // string = operator; [0] = left; [1] = right
   Logical,            // string = operator (&&, ||, ??); [0] = left; [1] = right
@@ -74,7 +75,7 @@ enum class NodeKind : std::uint8_t {
   Switch,             // [0] = discriminant; rest = SwitchCase
   SwitchCase,         // [0] = test or null (default); rest = statements
   Labeled,            // string = label; [0] = body
-  FunctionDeclaration,// same shape as FunctionExpression
+  FunctionDeclaration,// same shape as FunctionExpression, number and all
   ClassDeclaration,   // same shape as ClassExpression
   Empty,              //
   Debugger,           //
@@ -87,6 +88,10 @@ enum MethodFlags : std::uint8_t {
   kMethodGetter = 1 << 1,
   kMethodSetter = 1 << 2,
   kMethodComputed = 1 << 3,
+  // Also set as `number = 1` on the method's FunctionExpression, which is what
+  // the compiler reads -- a method body is compiled through the same path an
+  // ordinary function is and should not have to know it came from a class.
+  kMethodAsync = 1 << 4,
 };
 
 struct Node {

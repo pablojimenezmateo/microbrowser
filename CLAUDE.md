@@ -47,7 +47,7 @@ What exists:
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, calls that cannot leak a scope keeping their bindings in the frame rather than on the heap, and the tree-walking interpreter kept as the fallback for anything not yet compiled and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, calls that cannot leak a scope keeping their bindings in the frame rather than on the heap, and the tree-walking interpreter kept as the fallback for anything not yet compiled and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue, and **`async`/`await`** -- a call that waits is a frame filed whole and put back by a microtask, which is the thing the machine was built for. No generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
@@ -58,10 +58,12 @@ machine's operand and frame stacks are data, so a script that recurses while all
 through rather than starved. Two things still wait on the machine rather than on the tree-walker.
 A class is still *built* by the tree-walking evaluator -- its method bodies are compiled, but the
 computed keys, the static initializers and the per-instance field initializers are walked, which is
-right for things that run once per class or once per instance rather than once per call. And
-`async`/`await` still has nowhere to suspend to — a frame is
-a record that *could* be copied somewhere and put back, but nothing does that yet. Loading is
-synchronous — the loop blocks
+right for things that run once per class or once per instance rather than once per call. The other
+was `async`/`await`, and it is done: `Await` files the running frame and every slice of the machine's
+stacks it owns, hands the caller the call's promise, and a microtask puts it all back. **The
+tree-walker refuses an async function rather than running one wrong** — a wrong answer three lines
+later is worse than a refusal at the call. Generators are the same machinery and are not built.
+Loading is synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 
@@ -78,20 +80,16 @@ reasoning; this is the queue.
    invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
    `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
    there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **Finish what the machine started: `async`/`await`, then generators.** The machine landed, the
-   collector runs during evaluation, names resolve to slots, and a call that cannot leak a scope
-   now allocates nothing — `js/fib` went from 252 to 116 ns/call and `js/class-super` from 599 to
-   279. What is left is the thing the machine was built for.
+2. **Generators, and then `for await`.** Everything the machine was built for has landed: the
+   collector runs during evaluation, names resolve to slots, a call that cannot leak a scope
+   allocates nothing, and `async`/`await` suspends a frame and puts it back. Generators are the
+   *same machinery* pointed at a different trigger — `yield` files the frame the way `await` does,
+   and `next()` resumes it the way a settled promise does, so the work is an iterator protocol on
+   top of `Interpreter::SuspendForAwait` and `ResumeSuspended` rather than anything new underneath.
+   `src/js/Async.cpp` is where both live and the file comment is the map.
 
-   **A frame is a record** — code pointer, ip, a slice of the value stack, a scope or a slice of
-   the locals stack — so suspending a call is copying one somewhere and putting it back. That was
-   impossible against C++ stack frames and is ordinary work against these. Nothing waits on it:
-   class bodies are compiled, Promises and the microtask queue exist, and a suspended frame's
-   bindings are now in one of two places that both have a base and a length. Generators are the
-   same machinery, and `await` is the one a page actually needs first.
-
-   Note the parser: `await` lexes as a keyword and parses as a unary operator that nothing
-   evaluates, and `async` is not parsed as a function modifier at all. That is the first step.
+   What async does not have yet: `for await...of` (the parser eats the `await` in a `for` header
+   and ignores it), async generators, and unhandled-rejection reporting beyond a console line.
 3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
    left that is not a pure addition: it means a check at every property access in the
    interpreter, which is a change to the hot path. Modules bring the loading they imply.

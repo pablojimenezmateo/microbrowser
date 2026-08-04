@@ -96,8 +96,10 @@ void Interpreter::GatherVmRoots(std::vector<Object*>& objects,
     }
   }
   for (const Frame& frame : vm_.frames) {
-    if (frame.function != nullptr) {
-      objects.push_back(frame.function);
+    for (Object* held : {frame.function, frame.promise}) {
+      if (held != nullptr) {
+        objects.push_back(held);
+      }
     }
     if (frame.scope != nullptr) {
       scopes.push_back(frame.scope);
@@ -193,6 +195,16 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
   frame.function = function;
   frame.scope = scope;
   frame.locals_base = locals_base;
+  if (code->is_async) {
+    // Made before a line of the body runs, because the body can suspend on its
+    // first instruction and the caller has to be handed this either way.
+    const Value promise = NewPromiseValue();
+    if (!promise.IsObject()) {
+      vm_.locals.resize(locals_base);
+      return Throw("RangeError", "out of memory");
+    }
+    frame.promise = promise.object;
+  }
   frame.stack_base = callee_slot;
   frame.argument_base = callee_slot + 2;
   frame.argument_count = argument_count;
@@ -232,6 +244,14 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
     vm_.scopes.resize(done.scope_base);
     vm_.locals.resize(done.locals_base);
     vm_.stack.resize(done.stack_base);
+    if (done.promise != nullptr) {
+      // The throw stops here. An async function does not throw at its caller,
+      // it returns a rejected promise -- which its caller already has, since
+      // the promise was handed over when the call was made.
+      SettleAsyncResult(done.promise, thrown, true);
+      vm_.stack.push_back(Value::Obj(done.promise));
+      return true;
+    }
   }
   return false;
 }
@@ -718,14 +738,41 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       }
 
       case Op::Return: {
-        const Value value = vm_.stack.back();
+        Value value = vm_.stack.back();
         const Frame done = *frame;
+        if (done.promise != nullptr) {
+          // An async call does not return its value to its caller. It settles
+          // the promise it handed over -- at the first `await` if it suspended,
+          // or right here if it never did -- and the promise is what goes back.
+          SettleAsyncResult(done.promise, value, false);
+          value = Value::Obj(done.promise);
+        }
         vm_.frames.pop_back();
         vm_.scopes.resize(done.scope_base);
         vm_.locals.resize(done.locals_base);
         vm_.iterations.resize(done.iteration_base);
         vm_.stack.resize(done.stack_base);
         vm_.stack.push_back(value);
+        if (vm_.frames.size() == entry_depth) {
+          Value out = vm_.stack.back();
+          vm_.stack.pop_back();
+          return Result::Normal(std::move(out));
+        }
+        break;
+      }
+
+      case Op::Await: {
+        const Value awaited = vm_.stack.back();
+        vm_.stack.pop_back();
+        const Result suspended = SuspendForAwait(awaited);
+        if (suspended.IsAbrupt()) {
+          pending = suspended;
+          threw = true;
+          break;
+        }
+        // `frame` is dangling from here: the frame it pointed at has been
+        // lifted off the stack and filed. Nothing below reads it, and the loop
+        // takes the top frame again from the top.
         if (vm_.frames.size() == entry_depth) {
           Value out = vm_.stack.back();
           vm_.stack.pop_back();
@@ -1103,8 +1150,17 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
     }
 
-    if (threw && !UnwindToHandler(pending.value, entry_depth)) {
-      return pending;
+    if (threw) {
+      if (!UnwindToHandler(pending.value, entry_depth)) {
+        return pending;
+      }
+      if (vm_.frames.size() == entry_depth) {
+        // An async call whose rejection the unwinder turned into its promise,
+        // with nobody left above to receive it. The promise is the result.
+        Value out = vm_.stack.back();
+        vm_.stack.pop_back();
+        return Result::Normal(std::move(out));
+      }
     }
   }
   return Result::Normal();

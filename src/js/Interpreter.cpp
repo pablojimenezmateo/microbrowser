@@ -171,10 +171,26 @@ void Interpreter::MaybeCollect() {
   // frame's scope and every value in flight are here, where a tree-walker's
   // were in C++ locals nothing could scan.
   GatherVmRoots(object_roots, environment_roots);
+  // And the calls that are waiting. A suspended frame's values came off those
+  // stacks, so nothing else can see them.
+  GatherSuspensionRoots(object_roots, environment_roots);
   heap_.Collect(object_roots, environment_roots);
 }
 
 Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow) {
+  if (node.number != 0.0) {
+    // An async function, and this is the tree-walker's function -- the machine
+    // makes its own in the Closure opcode. A tree-walker cannot run one: its
+    // state is C++ stack frames and `await` has nowhere to put one down. So
+    // calling it says so, rather than returning something that is not a
+    // promise and letting the difference surface three lines later.
+    Object* refuser = NewNative(node.string.c_str(), [](NativeCall& call) {
+      return call.Throw("TypeError",
+                        "an async function needs the bytecode machine; this program fell back "
+                        "to the tree-walking interpreter");
+    });
+    return refuser == nullptr ? Value::Undefined() : Value::Obj(refuser);
+  }
   Object* function = heap_.AllocateObject(Object::Kind::Function);
   if (function == nullptr) {
     return Value::Undefined();
@@ -443,6 +459,13 @@ Result Interpreter::BindParameters(const Node& parameters, const std::vector<Val
 Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arguments) {
   if (!callee.IsObject() || !callee.object->IsCallable()) {
     return Throw("TypeError", ToString(callee) + " is not a constructor");
+  }
+  const CompiledFunction* code = callee.object->Code();
+  if (code != nullptr && code->is_async) {
+    // An async function returns a promise, so `new` on one has nothing to hand
+    // back that is an instance. The spec says TypeError and this is the only
+    // place that can tell.
+    return Throw("TypeError", "an async function is not a constructor");
   }
   Object* instance = NewObject();
   if (instance == nullptr) {

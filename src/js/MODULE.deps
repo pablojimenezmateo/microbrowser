@@ -48,14 +48,22 @@ budget: Op              header_lines=180 public_methods=0  members=0
 # at run time because the compiler resolved every name against the answer --
 # a name in a flattened function is one hop count and a name in a scoped one is
 # another, so the two disagreeing is not a slowdown, it is a wrong slot.
-budget: CompiledFunction header_lines=62 public_methods=0 members=15
+# Grew by one for async: whether calling this returns a promise and its body
+# can suspend. On the code rather than on the function object, because it is a
+# property of the *body* -- the machine reads it in PushFrame to make the
+# promise and in Return to settle it, and both already have the code.
+budget: CompiledFunction header_lines=72 public_methods=0 members=16
 # One call in progress. Every field is something a resumed frame would need, and
 # that is the test for adding another -- this is the record `await` will have to
 # be able to copy somewhere and put back.
 # Grew by one for the flattened frame: where this call's bindings start on the
 # locals stack. Passes the test above -- a resumed frame has to know where its
 # own bindings are before it can read one.
-budget: Frame           header_lines=36 public_methods=0  members=10
+# Grew by one for async: the promise the call returns. This is the field that
+# makes the record above worth being a record -- a filed frame is found again
+# through the reaction attached to this, and settling it is what a return or a
+# throw out of an async call actually does.
+budget: Frame           header_lines=44 public_methods=0  members=11
 # The compiler. Large because the language is, and split across two translation
 # units the way the parser is: expressions in Compiler.cpp, statements and
 # patterns in CompilerStatements.cpp. The member count is what matters and it is
@@ -151,7 +159,17 @@ budget: WellKnown   header_lines=45 public_methods=2  members=8
 # seven -- every field in it is a GC root, and a root list living apart from the
 # fields is a use-after-free waiting for a page to allocate enough. GatherVmRoots
 # sits next to the struct and walks all of it.
-budget: Interpreter header_lines=410 public_methods=44 members=15
+# Grew by one member for the calls that are waiting: Suspensions groups the
+# filed frames and the counter that names them, for the reason WellKnown and
+# VmState are each one member rather than several -- every value in there is a
+# GC root, and a root list living apart from the fields is a use-after-free
+# waiting for a page to allocate enough. GatherSuspensionRoots sits next to the
+# struct and walks all of it.
+#
+# The header grew by more, because Suspension is written out where it lives:
+# what a suspended call consists of is the substance of async/await, and the
+# list is the same one the handler table records depths of.
+budget: Interpreter header_lines=475 public_methods=44 members=16
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

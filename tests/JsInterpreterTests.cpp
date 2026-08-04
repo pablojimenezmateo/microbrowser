@@ -1244,6 +1244,106 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqString(lines.at(1), "still r", "and the rejection passed through it");
   });
 
+  // --- async and await ------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/AnAsyncFunctionReturnsAPromiseAndRunsUntilItWaits", [] {
+    // The two halves of the contract. The body runs synchronously up to its
+    // first `await` -- so 'a' is logged before the call returns -- and the
+    // caller gets a promise the moment it stops, so 'b' beats 'c'.
+    const std::vector<std::string> lines =
+        Log("async function f(){ console.log('a'); await 0; console.log('c') }"
+            "console.log(typeof f().then); f(); console.log('b')");
+    ExpectEqString(lines.at(0), "a", "the body starts before the call returns");
+    ExpectEqString(lines.at(1), "function", "and the call returns a thenable");
+    ExpectEqString(lines.at(2), "a", "the second call starts synchronously too");
+    ExpectEqString(lines.at(3), "b", "the caller carries on at the first await");
+    ExpectEqString(lines.at(4), "c", "and the rest runs in a later turn");
+  });
+
+  AddTest(tests, "JsInterpreter/AnAsyncFunctionSettlesWithWhatItReturnsOrThrows", [] {
+    ExpectEqString(Log("async function f(){ return 42 } f().then(v => console.log(v))").at(0),
+                   "42", "a return with no await at all");
+    ExpectEqString(Log("async function f(){ await 0; return 42 } f().then(v => console.log(v))")
+                       .at(0),
+                   "42", "and one after waiting");
+    ExpectEqString(Log("async function f(){ throw 'boom' } f().catch(e => console.log(e))").at(0),
+                   "boom", "a throw is a rejection rather than a throw at the caller");
+    ExpectEqString(
+        Log("async function f(){ await 0; throw 'boom' } f().catch(e => console.log(e))").at(0),
+        "boom", "including one from after it waited");
+    // Returning a promise flattens, the same way it does out of a `then`.
+    ExpectEqString(
+        Log("async function f(){ return Promise.resolve('flat') } f().then(v => console.log(v))")
+            .at(0),
+        "flat", "an async function that returns a promise does not nest it");
+  });
+
+  AddTest(tests, "JsInterpreter/AwaitResumesInsideWhateverItWasWrittenIn", [] {
+    // What suspending has to preserve. Each of these has the `await` inside
+    // something the frame was holding when it stopped -- a try, a loop with a
+    // live iterator, a block with its own bindings, a call under construction.
+    ExpectEqString(Log("async function f(){ try { await Promise.reject('x') }"
+                       "catch (e) { return 'caught ' + e } } f().then(v => console.log(v))")
+                       .at(0),
+                   "caught x", "a rejection throws at the await");
+    ExpectEqString(Log("async function f(){ let t = 0; for (const x of [1, 2, 3]) { t += await x }"
+                       "return t } f().then(v => console.log(v))")
+                       .at(0),
+                   "6", "an open for...of cursor survives the wait");
+    ExpectEqString(Log("async function f(){ let out = '';"
+                       "try { for (const x of [1, 2]) { let seen = await x; out += seen } }"
+                       "finally { out += '!' } return out } f().then(v => console.log(v))")
+                       .at(0),
+                   "12!", "and so do the blocks and the finalizer");
+    ExpectEqString(Log("async function f(){ return [await 1, await 2, await 3].join('-') }"
+                       "f().then(v => console.log(v))")
+                       .at(0),
+                   "1-2-3", "an array half built when the wait began");
+    ExpectEqString(Log("function add(a, b){ return a + b }"
+                       "async function f(){ return add(await 1, await 2) }"
+                       "f().then(v => console.log(v))")
+                       .at(0),
+                   "3", "and a call whose arguments were half pushed");
+  });
+
+  AddTest(tests, "JsInterpreter/AwaitWorksThroughEveryFormAFunctionTakes", [] {
+    ExpectEqString(Log("const f = async () => { await 0; return 'arrow' };"
+                       "f().then(v => console.log(v))")
+                       .at(0),
+                   "arrow", "an async arrow");
+    ExpectEqString(Log("const f = async x => x * 2; f(21).then(v => console.log(v))").at(0),
+                   "42", "one with a bare parameter and an expression body");
+    ExpectEqString(Log("const o = { n: 5, async m(){ await 0; return this.n } };"
+                       "o.m().then(v => console.log(v))")
+                       .at(0),
+                   "5", "an object method, with its receiver still right after waiting");
+    ExpectEqString(Log("class A { async m(){ await 0; return 'a' } }"
+                       "class B extends A { async m(){ return (await super.m()) + 'b' } }"
+                       "new B().m().then(v => console.log(v))")
+                       .at(0),
+                   "ab", "a class method, including through super");
+    ExpectEqString(Log("async function g(){ await 0; return 7 }"
+                       "async function f(){ return (await g()) + 1 }"
+                       "f().then(v => console.log(v))")
+                       .at(0),
+                   "8", "and one async function awaiting another");
+  });
+
+  AddTest(tests, "JsInterpreter/AsyncIsAKeywordOnlyWhereItModifiesAFunction", [] {
+    // It is a contextual keyword, so every one of these has to keep working --
+    // and the lookahead that decides is the thing being tested.
+    ExpectEval("function async(n){ return n + 1 } async(1)", "2");
+    ExpectEval("let async = 1; async += 1; async", "2");
+    ExpectEval("const o = { async: 1 }; o.async", "1");
+    ExpectEval("const o = { async m(){ return 1 } }; typeof o.m", "function");
+    ExpectEval("class C { async(){ return 'method named async' } } new C().async()",
+               "method named async");
+    // `await` outside an async function is not a keyword either, and using it
+    // as an operator there is the error.
+    Expect(Eval("function f(){ await 1 } f()").rfind("throw", 0) == 0,
+           "await outside an async function is rejected");
+  });
+
   AddTest(tests, "JsInterpreter/APromiseOfAPromiseFlattens", [] {
     // The resolve procedure, which is not just "fulfill". Without it a handler
     // returning a promise hands the next one a promise instead of its value,

@@ -96,6 +96,17 @@ NodePtr ParserImpl::ParseClass(bool declaration) {
         flags |= kMethodStatic;
       }
     }
+    if (current_.lexeme == "async" && current_.type == TokenType::Identifier) {
+      const Token saved = current_;
+      Advance();
+      if (At("(") || At("=") || At(";") || At("}") || current_.newline_before) {
+        // `async` used as a method or field name rather than a modifier.
+        lexer_.SeekTo(saved.end, saved.line);
+        current_ = saved;
+      } else {
+        flags |= kMethodAsync;
+      }
+    }
     if ((current_.lexeme == "get" || current_.lexeme == "set") &&
         current_.type == TokenType::Identifier) {
       const bool getter = current_.lexeme == "get";
@@ -124,6 +135,7 @@ NodePtr ParserImpl::ParseClass(bool declaration) {
     if (At("(")) {
       NodePtr function = Make(NodeKind::FunctionExpression);
       function->string = method->string;
+      function->number = (flags & kMethodAsync) != 0 ? 1.0 : 0.0;
       function->children.push_back(ParseParameters());
       function->children.push_back(ParseBlock());
       method->children.push_back(std::move(function));
@@ -388,6 +400,22 @@ NodePtr ParserImpl::ParseStatement() {
     if (declares) {
       return ParseVariableDeclaration(true);
     }
+  }
+  if (current_.type == TokenType::Identifier && current_.lexeme == "async") {
+    // `async function f(){}` in statement position. Nothing else that starts
+    // with the identifier `async` is a declaration, so a rewind that finds no
+    // `function` leaves it to be parsed as the expression it is.
+    const Token saved = current_;
+    Advance();
+    if (AtKeyword("function") && !current_.newline_before) {
+      NodePtr node = ParseFunction(true);
+      if (node != nullptr) {
+        node->number = 1.0;
+      }
+      return node;
+    }
+    lexer_.SeekTo(saved.end, saved.line);
+    current_ = saved;
   }
   if (AtKeyword("function")) {
     return ParseFunction(true);

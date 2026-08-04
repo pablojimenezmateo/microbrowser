@@ -79,6 +79,14 @@ class ParserImpl {
   NodePtr ParseObjectLiteral();
   NodePtr ParseTemplate();
   NodePtr ParseArrowFromParenthesised();
+  // An `async` function, arrow or nothing. Null means the token was an
+  // ordinary identifier after all, with the parser left exactly where it was.
+  NodePtr ParseAsyncExpression();
+  // Whether the parentheses starting here are followed by `=>`. A token scan
+  // with a bracket counter, not a parse: `async(x)` is a call and `async(x) =>
+  // x` is an arrow, and deciding by parsing and putting it back is exponential
+  // when they nest. Leaves the parser exactly where it was.
+  bool ArrowFollowsParentheses();
   bool ExpressionToParameters(NodePtr expression, Node& out);
   void ParseArguments(Node& call);
 

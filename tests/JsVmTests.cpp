@@ -18,24 +18,44 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 six tests are expected to fail, and the
-// list is worth keeping short and known:
+// Under MICROBROWSER_JS_TREEWALK=1 thirteen tests are expected to fail, in
+// three groups, and the list is worth keeping known:
 //
+//   the stacks being data --
 //   JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough
 //   JsVm/ACollectionMidLoopKeepsWhatTheLoopIsHolding      (the build(150) case)
 //   JsVm/RecursionIsBoundedByFramesRatherThanByTheCppStack (the f(150) case)
+//
+//   slot resolution --
 //   JsVm/ABindingCannotBeReadBeforeItsDeclarationRuns     (the message)
 //   JsVm/AnInnerDeclarationShadowsFromTheTopOfItsBlock
 //   JsVm/AFlattenedFrameUnwindsLikeAnyOther               (the switch case)
 //
+//   a frame that can be put down and picked up --
+//   JsInterpreter/AnAsyncFunctionReturnsAPromiseAndRunsUntilItWaits
+//   JsInterpreter/AnAsyncFunctionSettlesWithWhatItReturnsOrThrows
+//   JsInterpreter/AwaitResumesInsideWhateverItWasWrittenIn
+//   JsInterpreter/AwaitWorksThroughEveryFormAFunctionTakes
+//   JsVm/ASuspendedCallKeepsWhatItWasHoldingAcrossACollection
+//   JsVm/ManySuspendedCallsResumeIndependently
+//   JsVm/ARejectedAwaitThrowsWhereTheAwaitWasWritten
+//
 // Every one is the machine doing something the tree-walker cannot. The first
-// three are the stacks being data: collecting while script runs, and recursing
+// group is the stacks being data: collecting while script runs, and recursing
 // as deep as the frame bound says rather than as deep as expression nesting
-// leaves room for. The last three are slot resolution: the compiler places a
+// leaves room for. The second is slot resolution: the compiler places a
 // block's names before the block runs, so a name means its inner binding for
 // the whole block -- which is the language's rule, and which a tree-walker that
-// learns of the binding only when the line executes cannot express. Anything
-// else appearing in that list is a difference nobody decided on.
+// learns of the binding only when the line executes cannot express. The third
+// is `await`: suspending a call means putting a frame down, and a tree-walker's
+// frames are C++ frames. It does not get that one slightly wrong -- calling an
+// async function on it throws and says why, because a wrong answer three lines
+// later is worse than a refusal here.
+//
+// (JsInterpreter/AsyncIsAKeywordOnlyWhereItModifiesAFunction is deliberately
+// not in the list: it is about the parser, which is the same either way.)
+//
+// Anything else appearing in that list is a difference nobody decided on.
 //
 // Two bugs in the tree-walker were found this way rather than by reading it: a
 // member assignment evaluated its subscript after the right-hand side and
@@ -340,6 +360,78 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
     Expect(Eval("function f(n){ switch (n) { case 1: let a = 1; case 2: return typeof a } } f(2)")
                .rfind("throw", 0) == 0,
            "a clause the switch jumped past leaves its binding in its dead zone");
+  });
+
+  // --- Suspending a call ----------------------------------------------------
+
+  AddTest(tests, "JsVm/AnAwaitCompilesRatherThanFallingBack", [] {
+    // The whole point of the machine, so a silent fallback here would be the
+    // feature not existing while its tests passed.
+    for (const std::string_view source : {
+             "async function f(){ await 1 } f()",
+             "const f = async () => { await 1 }; f()",
+             "const f = async x => await x; f(1)",
+             "const o = { async m(){ await 1 } }; o.m()",
+             "class C { async m(){ await 1 } } new C().m()",
+             "async function f(){ try { await 1 } finally { } } f()",
+             "async function f(){ for (const x of [1]) await x } f()",
+         }) {
+      Expect(Compiles(source), std::string("compiles: ") + std::string(source));
+    }
+  });
+
+  AddTest(tests, "JsVm/ASuspendedCallKeepsWhatItWasHoldingAcrossACollection", [] {
+    // A suspended frame's values came off the stacks the collector walks, so
+    // the filed copy is the only thing keeping them alive. This waits, then
+    // allocates enough to collect several times over, then reads back
+    // everything the frame was holding when it stopped: a parameter, a block
+    // binding, an open iterator, and a half-built array.
+    // Read through the console, because what the script itself evaluates to is
+    // the state before the queue drained.
+    Interpreter interpreter;
+    interpreter.Run("async function f(tag){"
+                    "  const kept = { tag };"
+                    "  let seen = [];"
+                    "  for (const x of [1, 2, 3]) {"
+                    "    seen.push(await x);"
+                    "    for (let i = 0; i < 4000; i++) { const junk = { i, s: 'x' + i } }"
+                    "  }"
+                    "  return kept.tag + ':' + seen.join('');"
+                    "}"
+                    "f('held').then(v => console.log(v))");
+    Expect(!interpreter.ConsoleOutput().empty(), "the call finished");
+    ExpectEqString(interpreter.ConsoleOutput().at(0), "held:123",
+                   "every value the frame was holding survived the collections");
+  });
+
+  AddTest(tests, "JsVm/ManySuspendedCallsResumeIndependently", [] {
+    // Each suspension is its own filed frame, so a hundred of them waiting at
+    // once must not share a slice or resume into each other's.
+    Interpreter interpreter;
+    interpreter.Run("async function f(n){ let t = n; t += await n; return t }"
+                    "let total = 0; let done = 0;"
+                    "for (let i = 0; i < 100; i++) { f(i).then(v => { total += v; done++ }) }"
+                    "queueMicrotask(() => {});");
+    const Result total = interpreter.Run("total + ':' + done");
+    ExpectEqString(js::ToString(total.value), "9900:100",
+                   "a hundred waiting calls each came back with its own value");
+  });
+
+  AddTest(tests, "JsVm/ARejectedAwaitThrowsWhereTheAwaitWasWritten", [] {
+    // The resumed frame's ip is one past the Await, which is what the handler
+    // table reads back to -- so a `try` the await sits inside catches it even
+    // though the throw crossed a turn.
+    Interpreter interpreter;
+    interpreter.Run("async function f(){"
+                    "  let out = '';"
+                    "  try { out += 'a'; await Promise.reject('x'); out += 'never' }"
+                    "  catch (e) { out += 'c' + e }"
+                    "  finally { out += 'f' }"
+                    "  return out }"
+                    "f().then(v => console.log(v))");
+    Expect(!interpreter.ConsoleOutput().empty(), "the call finished");
+    ExpectEqString(interpreter.ConsoleOutput().at(0), "acxf",
+                   "the catch and the finalizer both ran on the resumed frame");
   });
 
   // --- The handler table ----------------------------------------------------

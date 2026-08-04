@@ -230,6 +230,11 @@ void Compiler::Function(const Node& node, bool arrow) {
   const Node* body = node.Child(1);
   function_.name = node.string;
   function_.is_arrow = arrow;
+  // An async function returns a promise and its body can suspend. Carried on
+  // the node as `number` by the parser, because `async` is a modifier on a
+  // function and not a different kind of one -- everything else about
+  // compiling the body is identical.
+  function_.is_async = node.number != 0.0;
   function_.parameter_count =
       parameters == nullptr ? 0 : static_cast<std::uint32_t>(parameters->children.size());
   function_.needs_arguments =
@@ -612,6 +617,17 @@ void Compiler::Unary(const Node& node) {
     Emit(Op::TypeofValue);
   } else if (node.string == "void") {
     Emit(Op::Discard);
+  } else if (node.string == "await") {
+    if (!function_.is_async) {
+      // `await` is a unary operator everywhere the parser is concerned and a
+      // keyword only inside an async function. Rejected here rather than
+      // there, because whether it is one is a scope question -- the same
+      // arrangement `super` has.
+      Emit(Op::Pop, 0, -1);
+      ThrowSyntax("await is only valid inside an async function");
+      return;
+    }
+    Emit(Op::Await);
   } else {
     Emit(Op::Pop, 0, -1);
     ThrowSyntax("unsupported unary operator '" + node.string + "'");

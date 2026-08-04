@@ -165,7 +165,16 @@ enum class Op : std::uint8_t {
   CallApply,  // [callee self argumentArray] -> [result]; the spread form
   New,        // a = argument count; [callee args...] -> [instance]
   NewApply,   // [callee argumentArray] -> [instance]
-  Return,     // [value] -> unwinds the frame
+  Return,     // [value] -> unwinds the frame, or settles its promise when async
+  // Suspends the running call. The frame comes off the machine and is filed
+  // whole -- code pointer, ip, its slice of every stack -- and the promise the
+  // call returns is left where its result would have gone, so the caller
+  // continues with a promise the moment the body first waits. When the awaited
+  // value settles, a microtask puts the frame back and pushes the value here.
+  //
+  // This is the instruction the machine was built for. Against C++ stack
+  // frames there was nowhere to put one.
+  Await,      // [value] -> [awaited value], eventually and in another turn
   LoadArgument,   // a = index -> [value]; undefined past the end
   RestArguments,  // a = index -> [array] of the arguments from there on
 
@@ -344,6 +353,9 @@ struct CompiledFunction {
   // program tree, which outlives this for exactly the same reason.
   std::vector<const Node*> nodes;
   std::uint32_t parameter_count = 0;
+  // Whether calling this returns a promise and its body can suspend. Read by
+  // PushFrame, which makes the promise, and by Return, which settles it.
+  bool is_async = false;
   // How many slots this function needs. The four reserved above plus one per
   // parameter binding -- and, when `frame_locals` is set, one per binding
   // every block in the body declares as well, because those live here too.
@@ -422,6 +434,11 @@ struct Frame {
   Environment* scope = nullptr;
   // Where this frame's bindings start on the locals stack, when it has any.
   std::size_t locals_base = 0;
+  // The promise an async call returns, made when the frame is pushed and
+  // settled when it returns or throws. Null for an ordinary call, and the
+  // thing that makes a frame's identity outlive the machine's stacks: a filed
+  // frame is found again through the reaction this is attached to.
+  Object* promise = nullptr;
   std::uint32_t ip = 0;
   // Where the callee was pushed. The result is written here and the stack is
   // truncated to just past it, so a return needs no arithmetic on the caller.
