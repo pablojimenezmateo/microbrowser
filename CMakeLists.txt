@@ -322,6 +322,7 @@ microbrowser_module(js
     src/js/ArrayBuiltins.cpp
     src/js/Collections.cpp
   src/js/DateBuiltins.cpp
+  src/js/RegExpUnicode.cpp
   src/js/StringUnits.cpp
   src/js/TypedArrayBuiltins.cpp
     src/js/Iteration.cpp

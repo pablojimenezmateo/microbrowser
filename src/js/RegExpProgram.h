@@ -30,6 +30,40 @@ struct CharSet {
   bool Empty() const;
 };
 
+// A run of code points, inclusive at both ends.
+//
+// The byte bitmap above cannot express one: a code point above U+007F is
+// several bytes, and a set of bytes says nothing about which sequences they
+// form. So `.` under `/u`, `\p{...}`, and a character class with a non-ASCII
+// range in it compile to a list of these instead -- tested against a decoded
+// code point rather than against a byte.
+struct CodeRange {
+  std::uint32_t low = 0;
+  std::uint32_t high = 0;
+};
+
+// A set of code points, as sorted runs, with a flag for the negated form.
+//
+// Runs rather than a bitmap because the space is 1.1 million wide and the sets
+// that matter are a handful of blocks: a bitmap would be 140KB per class and a
+// linear scan over eight runs is faster than the cache miss.
+struct CodeSet {
+  std::vector<CodeRange> ranges;
+  bool negated = false;
+
+  bool Test(std::uint32_t code) const {
+    bool inside = false;
+    for (const CodeRange& range : ranges) {
+      inside = inside || (code >= range.low && code <= range.high);
+    }
+    return inside != negated;
+  }
+};
+
+// The ranges a `\\p{...}` escape names, or false when the property is not one
+// this engine has. In RegExpUnicode.cpp, which is a table and a lookup over it.
+bool PropertyRanges(std::string_view name, std::vector<CodeRange>& out);
+
 // The matcher's instruction set, distinct from the machine's in Bytecode.h.
 //
 // The names carry the `Match` prefix because both are instruction sets in one
@@ -67,6 +101,14 @@ enum class MatchOp : std::uint8_t {
   // Runs sub-program `x`. `y` is 1 for a negative assertion, `z` is 1 for a
   // lookbehind.
   Look,
+  // Consumes one whole *code point* if it is in `code_classes[x]`.
+  //
+  // The one instruction that is not byte-oriented, and it has to exist: under
+  // `/u` a `.` matches an emoji, which is four bytes, and a byte-at-a-time
+  // match would consume one of them and leave the other three to be matched by
+  // whatever came next. `\p{...}` is the same problem read the other way --
+  // the sets it names are ranges of code points, not of bytes.
+  CodePoint,
   Match,
 };
 
@@ -82,6 +124,10 @@ struct MatchInstruction {
 struct RegExpProgram {
   std::vector<MatchInstruction> code;
   std::vector<CharSet> classes;
+  // The sets CodePoint tests against. Kept apart from `classes` rather than
+  // unified, because the two are tested differently and the byte path is the
+  // one that runs on every ASCII pattern.
+  std::vector<CodeSet> code_classes;
   // Lookaround bodies. They share the caller's register file, because the
   // captures a positive lookahead makes are observable after it succeeds.
   std::vector<RegExpProgram> subs;

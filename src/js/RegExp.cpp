@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "js/RegExpProgram.h"
+#include "util/StringUtil.h"
 
 // Pattern syntax, and the compiler from it to the instruction list the matcher
 // runs.
@@ -44,6 +45,10 @@ enum class RxKind : std::uint8_t {
   // they differ only in which bytes are in the set, and collapsing them means
   // the matcher has one instruction to be correct about instead of four.
   Class,
+  // A set of code *points*, for `.` under `/u` and for `\p{...}`. Distinct
+  // from Class because the two are matched differently -- one byte against a
+  // bitmap, one whole UTF-8 sequence against a list of ranges.
+  CodeClass,
   Concat,
   Alternate,
   Repeat,
@@ -59,6 +64,7 @@ using RxPtr = std::unique_ptr<RxNode>;
 struct RxNode {
   RxKind kind = RxKind::Empty;
   CharSet set;
+  CodeSet code_set;
   std::size_t low = 0;
   std::size_t high = 0;
   bool greedy = true;
@@ -77,23 +83,11 @@ RxPtr MakeNode(RxKind kind) {
   return node;
 }
 
+// One code point's bytes. Through util rather than written again here, which
+// is where every other encoder in the engine went.
 std::string EncodeUtf8(unsigned int code) {
   std::string out;
-  if (code < 0x80) {
-    out.push_back(static_cast<char>(code));
-  } else if (code < 0x800) {
-    out.push_back(static_cast<char>(0xC0 | (code >> 6)));
-    out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
-  } else if (code < 0x10000) {
-    out.push_back(static_cast<char>(0xE0 | (code >> 12)));
-    out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
-    out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
-  } else {
-    out.push_back(static_cast<char>(0xF0 | (code >> 18)));
-    out.push_back(static_cast<char>(0x80 | ((code >> 12) & 0x3F)));
-    out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
-    out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
-  }
+  util::AppendUtf8(out, code);
   return out;
 }
 
@@ -176,6 +170,9 @@ struct ClassAtom {
   bool is_set = false;
   CharSet set;
   unsigned int code = 0;
+  // Set by `\p{...}`, which names a set of code points rather than of bytes.
+  bool is_code_set = false;
+  CodeSet code_set;
 };
 
 class PatternParser {
@@ -403,6 +400,23 @@ class PatternParser {
       }
       case '.': {
         ++at_;
+        // Under `/u`, `.` is one *code point*: an emoji is one match rather
+        // than four, which is the whole reason the flag exists. Without it a
+        // byte-at-a-time `.` is what every pre-ES6 engine did and what a
+        // pattern written without the flag still expects.
+        if (flags_.unicode) {
+          RxPtr node = MakeNode(RxKind::CodeClass);
+          node->code_set.negated = true;
+          if (!flags_.dot_all) {
+            // Everything except the four line terminators, which is what the
+            // negation is for.
+            node->code_set.ranges.push_back(CodeRange{'\n', '\n'});
+            node->code_set.ranges.push_back(CodeRange{'\r', '\r'});
+            node->code_set.ranges.push_back(CodeRange{0x2028, 0x2028});
+            node->code_set.ranges.push_back(CodeRange{0x2029, 0x2029});
+          }
+          return node;
+        }
         RxPtr node = MakeNode(RxKind::Class);
         node->set = AnySet(flags_.dot_all);
         return node;
@@ -589,6 +603,11 @@ class PatternParser {
     if (!ReadEscape(atom, false)) {
       return nullptr;
     }
+    if (atom.is_code_set) {
+      RxPtr node = MakeNode(RxKind::CodeClass);
+      node->code_set = std::move(atom.code_set);
+      return node;
+    }
     if (!atom.is_set) {
       return LiteralCode(atom.code);
     }
@@ -627,6 +646,38 @@ class PatternParser {
           atom.set.Negate();
         }
         return true;
+      case 'p':
+      case 'P': {
+        // `\p{...}` is a property escape only under `/u`; without the flag it
+        // is the letter p, which is what a pattern written before ES6 meant.
+        if (!flags_.unicode) {
+          atom.code = static_cast<unsigned char>(c);
+          return true;
+        }
+        if (at_ >= pattern_.size() || pattern_[at_] != '{') {
+          error_ = "expected '{' after \\p";
+          return false;
+        }
+        const std::size_t close = pattern_.find('}', at_ + 1);
+        if (close == std::string_view::npos) {
+          error_ = "unterminated \\p{}";
+          return false;
+        }
+        const std::string_view name = pattern_.substr(at_ + 1, close - at_ - 1);
+        std::vector<CodeRange> ranges;
+        if (!PropertyRanges(name, ranges)) {
+          // Named rather than silently empty: a pattern that matches nothing
+          // is a validator that accepts nothing, and a page would find that as
+          // a rejected form rather than as a broken regex.
+          error_ = "unsupported unicode property";
+          return false;
+        }
+        at_ = close + 1;
+        atom.is_code_set = true;
+        atom.code_set.ranges = std::move(ranges);
+        atom.code_set.negated = c == 'P';
+        return true;
+      }
       case 'b':
         atom.code = in_class ? 0x08 : 'b';
         return true;
@@ -878,6 +929,14 @@ class Compiler {
     return index;
   }
 
+  // No interning: a pattern has a handful of these at most, and the key would
+  // be a vector of ranges rather than the four words a byte set is.
+  std::uint32_t AddCodeClass(const CodeSet& set) {
+    const auto index = static_cast<std::uint32_t>(program_.code_classes.size());
+    program_.code_classes.push_back(set);
+    return index;
+  }
+
   void CompileNode(const RxNode& node) {
     if (overflow_) {
       return;
@@ -887,6 +946,9 @@ class Compiler {
         return;
       case RxKind::Class:
         Emit(MatchOp::Class, AddClass(node.set));
+        return;
+      case RxKind::CodeClass:
+        Emit(MatchOp::CodePoint, AddCodeClass(node.code_set));
         return;
       case RxKind::Concat:
         for (const RxPtr& child : node.children) {

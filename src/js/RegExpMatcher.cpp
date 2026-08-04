@@ -6,6 +6,7 @@
 
 #include "js/RegExp.h"
 #include "js/RegExpProgram.h"
+#include "util/StringUtil.h"
 
 // The matcher.
 //
@@ -88,6 +89,30 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
       case MatchOp::Class: {
         if (pos < size &&
             program.classes[instruction.x].Test(static_cast<unsigned char>(input[pos]))) {
+          ++pos;
+          ++pc;
+        } else {
+          failed = true;
+        }
+        break;
+      }
+
+      case MatchOp::CodePoint: {
+        // One whole UTF-8 sequence, decoded and tested as a code point. The
+        // decode has to be here rather than in the set, because a failure
+        // consumes nothing and the position is what a backtrack restores.
+        std::size_t at = pos;
+        std::uint32_t code = 0;
+        if (pos < size && util::DecodeUtf8(input, at, code) &&
+            program.code_classes[instruction.x].Test(code)) {
+          pos = at;
+          ++pc;
+        } else if (pos < size && !program.code_classes[instruction.x].negated) {
+          failed = true;
+        } else if (pos < size) {
+          // A malformed byte under a negated set matches it: the set says
+          // "anything but these", and a byte that decodes to nothing is not
+          // one of them.
           ++pos;
           ++pc;
         } else {

@@ -668,6 +668,39 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("class C { #x = 1; y = 2 } JSON.stringify(new C())", "{\"y\":2}");
   });
 
+  // --- Regular expressions over code points ---------------------------------
+
+  AddTest(tests, "JsConformance/DotUnderUMatchesAWholeCodePoint", [] {
+    // Four bytes, one match. Without `/u` a `.` is one byte, which is what a
+    // pattern written before ES6 expects and what still happens.
+    ExpectEval("/^.$/u.test('\\u{1F600}')", "true");
+    ExpectEval("/^.$/.test('\\u{1F600}')", "false");
+    ExpectEval("/^.$/u.test('é')", "true");
+    ExpectEval("'a\\u{1F600}b'.replace(/./gu, 'X')", "XXX");
+  });
+
+  AddTest(tests, "JsConformance/PropertyEscapesNameSetsOfCodePoints", [] {
+    ExpectEval("[/\\p{L}/u.test('a'), /\\p{L}/u.test('é'), /\\p{L}/u.test('日'),"
+               "/\\p{L}/u.test('1')].join()",
+               "true,true,true,false");
+    ExpectEval("[/^\\p{Lu}+$/u.test('ABC'), /^\\p{Ll}+$/u.test('abc')].join()", "true,true");
+    ExpectEval("'a1é日'.replace(/\\p{L}/gu, 'X')", "X1XX");
+    ExpectEval("/\\P{L}/u.test('1')", "true");
+    ExpectEval("[/\\p{Script=Han}/u.test('日'), /\\p{Script=Han}/u.test('a')].join()",
+               "true,false");
+    // Without the flag it is the letter p, which is what a pattern written
+    // before ES6 meant.
+    ExpectEval("/\\p{L}/.test('p')", "false");
+    ExpectEval("/\\p{L}/.test('p{L}')", "true");
+  });
+
+  AddTest(tests, "JsConformance/AnUnknownPropertyIsRefusedRatherThanEmpty", [] {
+    // A pattern that matches nothing is a validator that accepts nothing, and
+    // a page would find that as a rejected form rather than as a broken regex.
+    ExpectEval("try { new RegExp('\\\\p{Nope}', 'u') } catch (e) { e instanceof SyntaxError }",
+               "true");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {

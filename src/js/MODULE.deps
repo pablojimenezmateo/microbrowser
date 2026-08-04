@@ -138,13 +138,19 @@ budget: Handler        header_lines=25 public_methods=0 members=7
 
 # The instruction list, its constant pools, and the flags the matcher reads off
 # it. Data, with no behaviour of its own -- every member is one of those three.
-budget: RegExpProgram  header_lines=30 public_methods=0  members=11
+# Grew by one for the code-point classes: `.` under `/u` and `\p{...}` are
+# sets of code points rather than of bytes, and the two are tested differently
+# -- kept apart rather than unified, because the byte path is the one that runs
+# on every ASCII pattern.
+budget: RegExpProgram  header_lines=40 public_methods=0  members=12
+budget: CodeSet        header_lines=25 public_methods=2  members=2
+budget: CodeRange      header_lines=15 public_methods=0  members=2
 budget: CharSet        header_lines=20 public_methods=6  members=1
 budget: MatchState     header_lines=15 public_methods=0  members=3
 budget: MatchInstruction    header_lines=10 public_methods=0  members=4
 # One entry per thing the matcher can do, with what each field means written
 # next to it. It grows with the pattern syntax and nothing else.
-budget: MatchOp             header_lines=45 public_methods=0  members=0
+budget: MatchOp             header_lines=60 public_methods=0  members=0
 # Grew for classes: the home object `super` resolves against, the superclass,
 # and the instance field initializers. All three are per-function state that
 # has nowhere else to live -- a class *is* a function here, which is what keeps
