@@ -261,6 +261,9 @@ microbrowser_module(gfx
     src/gfx/Geometry.cpp
     src/gfx/GlyphCache.cpp
     src/gfx/Image.cpp
+    src/gfx/JpegDecoder.cpp
+    src/gfx/JpegPixels.cpp
+    src/gfx/JpegScan.cpp
     src/gfx/Painter.cpp
     src/gfx/Path.cpp
     src/gfx/PngDecoder.cpp
@@ -427,6 +430,7 @@ add_executable(microbrowser_tests
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
   tests/IsoBmffTests.cpp
+  tests/JpegDecoderTests.cpp
   tests/JsConformanceTests.cpp
   tests/JsInterpreterTests.cpp
   tests/JsLexerTests.cpp
@@ -452,6 +456,7 @@ add_executable(microbrowser_tests
   tests/UrlEncodedTests.cpp
   tests/UrlTests.cpp
   tests/ReferenceImageTests.cpp
+  tests/support/JpegFixtures.cpp
   tests/support/ReferenceImage.cpp
   tests/support/ScriptedTransport.cpp
   tests/support/SyntheticFont.cpp
@@ -496,6 +501,7 @@ if(MICROBROWSER_FUZZ)
 
   microbrowser_fuzzer(inflate_fuzzer fuzz/InflateFuzzer.cpp microbrowser_util)
   microbrowser_fuzzer(png_fuzzer fuzz/PngFuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(jpeg_fuzzer fuzz/JpegFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(isobmff_fuzzer fuzz/IsoBmffFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
@@ -525,7 +531,7 @@ if(MICROBROWSER_PERF_HARNESS_BUILD)
     bench/GfxBenchmarks.cpp
     bench/JsBenchmarks.cpp
     tests/support/SyntheticFont.cpp
-  tests/support/SyntheticPng.cpp)
+    tests/support/SyntheticPng.cpp)
   target_link_libraries(microbrowser_bench PRIVATE microbrowser_gfx microbrowser_js)
   target_include_directories(microbrowser_bench PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/bench" "${CMAKE_CURRENT_SOURCE_DIR}/tests")

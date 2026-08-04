@@ -70,6 +70,9 @@ namespace microbrowser::util {
   X(GfxPngDecodes, "gfx.png_decodes")                                            \
   X(GfxPngDecodeFailures, "gfx.png_decode_failures")                             \
   X(GfxPngPixelsDecoded, "gfx.png_pixels_decoded")                               \
+  X(GfxJpegDecodes, "gfx.jpeg_decodes")                                          \
+  X(GfxJpegDecodeFailures, "gfx.jpeg_decode_failures")                           \
+  X(GfxJpegPixelsDecoded, "gfx.jpeg_pixels_decoded")                             \
   X(GfxImagesDrawn, "gfx.images_drawn")                                          \
   /* --- url ----------------------------------------------------------------- */ \
   X(UrlParses, "url.parses")                                                     \
