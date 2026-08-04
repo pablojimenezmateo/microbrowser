@@ -19,3 +19,10 @@ max_tu_lines: 800
 # gfx::FontProvider rather than finding one -- which is what keeps "the engine
 # does not know what machine it is on" true.
 budget: Application header_lines=115 public_methods=6 members=18
+# Damage for the surface holes in a frame, which the display-list diff cannot
+# compute: two frames of a playing video are byte-identical as commands, so the
+# only thing that says the pixels changed is the surface's generation counter.
+# One member -- what was composited last frame, and at what generation. ADR 0013
+# puts this in src/app rather than in gfx precisely because it is a policy about
+# what to repaint rather than anything paint can see.
+budget: SurfaceDamageTracker header_lines=55 public_methods=8 members=1

@@ -1,3 +1,4 @@
+#include <variant>
 #include <vector>
 
 #include "TestSupport.h"
@@ -216,6 +217,59 @@ void RegisterDisplayListTests(std::vector<TestCase>& tests) {
     Expect(list.PathAt(1) == nullptr, "one past the end does not");
     Expect(list.PathAt(0xFFFFFFFFu) == nullptr, "and neither does an absurd index");
     Expect(DisplayList{}.PathAt(0) == nullptr, "an empty list resolves nothing at all");
+  });
+
+  // ADR 0013's surface, and the two properties that make it a surface rather
+  // than a very large image: nothing about the pixels is recorded here, and the
+  // command survives Execute untouched.
+  AddTest(tests, "DisplayList/ASurfaceIsRecordedAsAHoleAndNotAsPixels", [] {
+    DisplayList list;
+    list.DrawSurface(7u, IntRect{10, 20, 320, 240});
+    ExpectEqInt(static_cast<long long>(list.Size()), 1, "one command");
+    const auto* hole = std::get_if<gfx::DrawSurfaceCommand>(&list.Commands()[0]);
+    Expect(hole != nullptr, "and it is a surface hole");
+    ExpectEqInt(static_cast<long long>(hole->surface), 7, "naming the surface it was given");
+    Expect(hole->destination == IntRect{10, 20, 320, 240}, "at the geometry it was given");
+    ExpectEqInt(static_cast<long long>(list.Images().size()), 0,
+                "and no image was stored: a surface is named, never carried");
+    Expect(list.Bounds() == IntRect{10, 20, 320, 240},
+           "its rectangle is still part of what this list determines");
+  });
+
+  AddTest(tests, "DisplayList/ASurfaceHoleRecordsNothingWhenItNamesNothing", [] {
+    DisplayList list;
+    list.DrawSurface(gfx::kNoSurface, IntRect{0, 0, 8, 8});
+    Expect(list.IsEmpty(), "surface zero is not a surface");
+    list.DrawSurface(3u, IntRect{});
+    Expect(list.IsEmpty(), "and an empty destination is not a placement");
+  });
+
+  // The clip is resolved by the producer of placements, because the consumer is
+  // the presenter and it has the placements and not the list. A video that
+  // ignored the clip around it would paint over the browser chrome above the
+  // page it is in.
+  AddTest(tests, "DisplayList/SurfacePlacementsCarryTheClipTheyWereRecordedUnder", [] {
+    DisplayList list;
+    list.PushClip(IntRect{0, 50, 200, 100});
+    list.DrawSurface(2u, IntRect{0, 0, 200, 200});
+    list.PopClip();
+    list.DrawSurface(3u, IntRect{300, 0, 20, 20});
+
+    const std::vector<gfx::SurfacePlacement> placements = gfx::SurfacePlacements(list);
+    ExpectEqInt(static_cast<long long>(placements.size()), 2, "both holes are placements");
+    Expect(placements[0].destination == IntRect{0, 50, 200, 100},
+           "the clipped one is intersected with its clip");
+    Expect(placements[1].destination == IntRect{300, 0, 20, 20},
+           "and the unclipped one is not narrowed");
+  });
+
+  AddTest(tests, "DisplayList/ASurfaceClippedAwayIsNotAPlacement", [] {
+    DisplayList list;
+    list.PushClip(IntRect{0, 0, 10, 10});
+    list.DrawSurface(2u, IntRect{500, 500, 20, 20});
+    list.PopClip();
+    Expect(gfx::SurfacePlacements(list).empty(),
+           "a caller counting placements is counting things it has to composite");
   });
 }
 

@@ -1,5 +1,7 @@
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <variant>
 #include <limits>
 #include <string>
 #include <utility>
@@ -204,6 +206,7 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       ipc::ByteWriter writer;
       writer.WriteU32(ipc::kProtocolVersion);
       writer.WriteU8(1);   // PaintFrame
+      writer.WriteU32(0);  // empty image table
       writer.WriteU32(1);  // one command
       writer.WriteU8(6);   // DrawText
       writer.WriteU32(0xFF000000);
@@ -346,6 +349,7 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       ipc::ByteWriter writer;
       writer.WriteU32(ipc::kProtocolVersion);
       writer.WriteU8(1);   // PaintFrame
+      writer.WriteU32(0);  // empty image table
       writer.WriteU32(1);  // one command
       fill_body(writer);
       writer.WriteU32(0);  // damage rect count, which closes the message
@@ -435,6 +439,7 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     ipc::ByteWriter writer;
     writer.WriteU32(ipc::kProtocolVersion);
     writer.WriteU8(1);
+    writer.WriteU32(0);  // empty image table
     writer.WriteU32(1);
     writer.WriteU8(4);
     writer.WriteU32(0xFF000000);
@@ -466,6 +471,7 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       ipc::ByteWriter writer;
       writer.WriteU32(ipc::kProtocolVersion);
       writer.WriteU8(1);   // PaintFrame
+      writer.WriteU32(0);  // empty image table
       writer.WriteU32(1);  // one command
       writer.WriteU8(1);   // FillRect
       writer.WriteI32(x);
@@ -515,6 +521,87 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     Expect(!channel.Ui().TryReceive().has_value(),
            "a message sent by the UI must not be receivable by the UI");
     ExpectEqInt(static_cast<long long>(channel.PendingForUi()), 0, "the reverse queue is empty");
+  });
+
+  // The resource table. One decoded bitmap drawn many times used to be
+  // serialized once per command, which on a real page meant the same background
+  // image copied dozens of times into a single frame.
+  AddTest(tests, "Ipc/ARepeatedImageCrossesOnceRatherThanPerCommand", [] {
+    auto image = std::make_shared<gfx::Image>();
+    Expect(image->Adopt(32, 32, std::vector<std::uint32_t>(32 * 32, 0xFF102030u)),
+           "a 32x32 image");
+
+    ipc::PaintFrameMessage one;
+    one.display_list.DrawImage(image, gfx::IntRect{0, 0, 32, 32});
+    ipc::PaintFrameMessage twenty = one;
+    for (int i = 1; i < 20; ++i) {
+      twenty.display_list.DrawImage(image, gfx::IntRect{i * 32, 0, 32, 32});
+    }
+
+    const std::size_t one_size = ipc::Serialize(ipc::EngineToUi{one}).size();
+    const std::size_t twenty_size = ipc::Serialize(ipc::EngineToUi{twenty}).size();
+    const std::size_t pixels = 32 * 32 * sizeof(std::uint32_t);
+
+    Expect(twenty_size < one_size + pixels,
+           "nineteen more draws of the same bitmap cost less than one more copy of it");
+
+    // And it still decodes to the same picture, sharing one image.
+    const auto decoded = ipc::DeserializeEngineToUi(ipc::Serialize(ipc::EngineToUi{twenty}));
+    Expect(decoded.has_value(), "the frame decodes");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    ExpectEqInt(static_cast<long long>(list.Size()), 20, "all twenty commands survive");
+    ExpectEqInt(static_cast<long long>(list.Images().size()), 1,
+                "and they share the one image the table carried");
+  });
+
+  // An index is the one thing this seam otherwise refuses to put on the wire.
+  // It is allowed for images because it never escapes the decoder -- so the
+  // decoder is where a bad one has to be harmless.
+  AddTest(tests, "Ipc/AnImageIndexPastTheTableDrawsNothing", [] {
+    ipc::ByteWriter writer;
+    writer.WriteU32(ipc::kProtocolVersion);
+    writer.WriteU8(1);   // PaintFrame
+    writer.WriteU32(0);  // empty image table
+    writer.WriteU32(2);  // two commands
+    writer.WriteU8(1);   // FillRect, so the list is not empty for the wrong reason
+    writer.WriteI32(0);
+    writer.WriteI32(0);
+    writer.WriteI32(4);
+    writer.WriteI32(4);
+    writer.WriteU32(0xFF000000);
+    writer.WriteU8(7);  // DrawImage
+    writer.WriteI32(0);
+    writer.WriteI32(0);
+    writer.WriteI32(8);
+    writer.WriteI32(8);
+    writer.WriteU32(0xFFFFFFFFu);  // an index no table could hold
+    writer.WriteU32(0);            // damage rect count
+
+    const auto decoded = ipc::DeserializeEngineToUi(writer.Bytes());
+    Expect(decoded.has_value(),
+           "one bad index is a missing picture, not a reason to blank the window");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    ExpectEqInt(static_cast<long long>(list.Size()), 1, "the image command recorded nothing");
+    ExpectEqInt(static_cast<long long>(list.Images().size()), 0, "and no image was invented");
+  });
+
+  // A surface crosses as a name, and a name that resolves to nothing is not the
+  // decoder's problem: it has no registry, and a frame that arrives one turn
+  // before the surface it names is legitimate. ADR 0013.
+  AddTest(tests, "Ipc/ASurfaceHoleRoundTripsAsANameAndNotAsPixels", [] {
+    ipc::PaintFrameMessage frame;
+    frame.display_list.DrawSurface(9u, gfx::IntRect{4, 8, 320, 240});
+    const std::vector<std::byte> bytes = ipc::Serialize(ipc::EngineToUi{frame});
+    Expect(bytes.size() < 128,
+           "a 320x240 hole is a handful of bytes; if it ever is not, pixels got in");
+
+    const auto decoded = ipc::DeserializeEngineToUi(bytes);
+    Expect(decoded.has_value(), "it decodes");
+    const auto& list = std::get<ipc::PaintFrameMessage>(*decoded).display_list;
+    ExpectEqInt(static_cast<long long>(list.Size()), 1, "one command");
+    const auto* hole = std::get_if<gfx::DrawSurfaceCommand>(&list.Commands()[0]);
+    Expect(hole != nullptr && hole->surface == 9u, "naming the same surface");
+    Expect(hole != nullptr && hole->destination == gfx::IntRect{4, 8, 320, 240}, "in the same place");
   });
 }
 

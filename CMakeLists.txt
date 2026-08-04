@@ -254,6 +254,7 @@ microbrowser_module(gfx
     src/gfx/PngDecoder.cpp
     src/gfx/Rasterizer.cpp
     src/gfx/Stroker.cpp
+    src/gfx/Surface.cpp
     src/gfx/SvgDecoder.cpp
     src/gfx/SvgPath.cpp
     src/gfx/TextShaper.cpp
@@ -262,6 +263,7 @@ microbrowser_module(gfx
 
 microbrowser_module(ipc
   SOURCES
+    src/ipc/DisplayListCodec.cpp
     src/ipc/InProcessTransport.cpp
     src/ipc/Message.cpp
   DEPS microbrowser_util microbrowser_gfx)

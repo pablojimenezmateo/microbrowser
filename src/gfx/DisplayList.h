@@ -15,6 +15,7 @@
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
 #include "gfx/Stroker.h"
+#include "gfx/Surface.h"
 
 namespace microbrowser::gfx {
 
@@ -119,9 +120,29 @@ struct DrawImageCommand {
   friend bool operator==(const DrawImageCommand&, const DrawImageCommand&) = default;
 };
 
+// A hole. The one command in this vocabulary that does not describe pixels.
+//
+// `surface` is a name in a SurfaceRegistry both the recorder and the compositor
+// can reach, not an index into a table on this list — see gfx/Surface.h for why
+// that distinction is the whole security argument. Executing a list *skips*
+// this command: nothing is rasterized into the rectangle, because the pixels
+// come from the surface and the presenter puts them there.
+//
+// It is deliberately diff-stable. Two frames of a playing video produce two
+// byte-identical DrawSurfaceCommands, so ComputeDamage reports no damage for
+// them and is right to: nothing about the *list* changed. Damage for the
+// contents comes from the surface's generation counter instead, which is a
+// policy in src/app rather than anything paint can see. ADR 0013.
+struct DrawSurfaceCommand {
+  SurfaceId surface = kNoSurface;
+  IntRect destination;
+
+  friend bool operator==(const DrawSurfaceCommand&, const DrawSurfaceCommand&) = default;
+};
+
 using DisplayCommand =
     std::variant<FillRectCommand, PushClipCommand, PopClipCommand, FillPathCommand,
-                 StrokePathCommand, DrawTextCommand, DrawImageCommand>;
+                 StrokePathCommand, DrawTextCommand, DrawImageCommand, DrawSurfaceCommand>;
 
 class DisplayList {
  public:
@@ -180,6 +201,13 @@ class DisplayList {
   // nothing, which is what a page whose <img> has not loaded should paint.
   void DrawImage(std::shared_ptr<const Image> image, const IntRect& destination);
 
+  // Records a hole for `surface` at `destination`. No pixels are read here and
+  // none are copied: this list does not need the surface to exist, and will not
+  // notice if it stops existing. An empty destination or kNoSurface records
+  // nothing, so that "the video element has no box yet" costs a command nobody
+  // has to skip later.
+  void DrawSurface(SurfaceId surface, const IntRect& destination);
+
   // Union of the device pixels this list can touch. Used to seed damage when
   // there is no previous list to diff against.
   IntRect Bounds() const;
@@ -216,6 +244,19 @@ class DisplayList {
 // passing nothing.
 void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
              TextRenderer* text = nullptr);
+
+// Every surface hole in `list`, in paint order, with each destination already
+// intersected against the clips that were open around it.
+//
+// Separate from Execute because compositing a surface is a copy rather than a
+// rasterization (ADR 0013), so it does not belong in the painter's cost model
+// or in its arena. The presenter takes these and blits; the rasterizer never
+// learns that video exists.
+//
+// The clips are resolved here rather than by the caller because the caller has
+// the placements and not the list -- and a placement whose clip was not applied
+// would let a video paint over the browser chrome above the page it is in.
+std::vector<SurfacePlacement> SurfacePlacements(const DisplayList& list);
 
 // A command is copied into a vector per paint; keeping it small keeps a
 // complex page's display list in cache. See docs/adr/0002-growth-budgets.md.

@@ -27,7 +27,11 @@ namespace microbrowser::ipc {
 // test is what catches it on the commit that introduces it rather than a year
 // later.
 
-inline constexpr std::uint32_t kProtocolVersion = 1;
+// Bumped to 2 when a display list gained a resource table for its images and a
+// hole for a compositor surface. Both are wire-format changes rather than
+// additions, so an old peer must be refused rather than left to misread a
+// length: the version check is the whole mechanism for that.
+inline constexpr std::uint32_t kProtocolVersion = 2;
 
 // --- UI -> Engine ------------------------------------------------------------
 

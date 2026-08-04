@@ -58,6 +58,8 @@ IntRect CommandBounds(const DisplayList& list, const DisplayCommand& command) {
     if (image->image < list.Images().size()) {
       single.DrawImage(list.Images()[image->image], image->destination);
     }
+  } else if (const auto* surface = std::get_if<DrawSurfaceCommand>(&command)) {
+    single.DrawSurface(surface->surface, surface->destination);
   }
   return single.Bounds();
 }
@@ -105,8 +107,15 @@ bool CommandsPaintTheSame(const DisplayList& list_a, const DisplayCommand& a,
     // changed", which is the conservative direction.
     return list_a.Images()[index_a] == list_b.Images()[index_b];
   }
-  // FillRect, PushClip and PopClip carry no indices, so their own equality is
-  // the whole answer.
+  // FillRect, PushClip, PopClip and DrawSurface carry no indices, so their own
+  // equality is the whole answer.
+  //
+  // For DrawSurface that is not a shortcut, it is the design: a surface id is a
+  // name rather than an index, so two identical commands in two lists really do
+  // name the same surface. Two frames of a playing video therefore compare
+  // equal and produce no damage here -- which is correct, because the *list*
+  // did not change. What changed is the surface's contents, and that damage
+  // comes from its generation counter in app/DirtyRegionPolicy.h. ADR 0013.
   return a == b;
 }
 

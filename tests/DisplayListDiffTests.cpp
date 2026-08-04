@@ -223,6 +223,51 @@ void RegisterDisplayListDiffTests(std::vector<TestCase>& tests) {
            "damage outside the surface is not damage; a rect larger than the window would "
            "make every later intersection do the clamping instead");
   });
+
+  // The load-bearing property of ADR 0013: two frames of a playing video are
+  // the *same display list*, so the diff reports nothing and is right to. If
+  // this ever starts reporting damage, the surface has stopped being a hole and
+  // has become a very expensive image.
+  AddTest(tests, "Diff/ASurfaceHoleIsStableAcrossFrames", [] {
+    DisplayList before;
+    before.FillRect(IntRect{0, 0, 100, 100}, Color::Rgb(9, 9, 9));
+    before.DrawSurface(5u, IntRect{10, 10, 320, 240});
+
+    DisplayList after;
+    after.FillRect(IntRect{0, 0, 100, 100}, Color::Rgb(9, 9, 9));
+    after.DrawSurface(5u, IntRect{10, 10, 320, 240});
+
+    DirtyRegion damage;
+    Expect(gfx::ComputeDamage(before, after, kViewport, damage), "bounded");
+    Expect(damage.IsEmpty(),
+           "nothing about the list changed, so the diff must find nothing; the surface's own "
+           "contents are tracked by its generation counter in src/app instead");
+  });
+
+  // The other half: the diff still has to notice when the *hole* moves, or a
+  // resized video leaves its old rectangle on screen.
+  AddTest(tests, "Diff/AMovedSurfaceHoleIsDamage", [] {
+    DisplayList before;
+    before.DrawSurface(5u, IntRect{10, 10, 320, 240});
+    DisplayList after;
+    after.DrawSurface(5u, IntRect{10, 60, 320, 240});
+
+    DirtyRegion damage;
+    Expect(gfx::ComputeDamage(before, after, kViewport, damage), "bounded");
+    Expect(!damage.IsEmpty(), "a hole that moved is a change to the list");
+  });
+
+  AddTest(tests, "Diff/ADifferentSurfaceInTheSamePlaceIsDamage", [] {
+    DisplayList before;
+    before.DrawSurface(5u, IntRect{10, 10, 320, 240});
+    DisplayList after;
+    after.DrawSurface(6u, IntRect{10, 10, 320, 240});
+
+    DirtyRegion damage;
+    Expect(gfx::ComputeDamage(before, after, kViewport, damage), "bounded");
+    Expect(!damage.IsEmpty(),
+           "an id is a name, so two different names are two different pictures");
+  });
 }
 
 }  // namespace microbrowser::tests

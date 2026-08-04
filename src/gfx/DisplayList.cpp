@@ -138,6 +138,19 @@ void DisplayList::DrawImage(std::shared_ptr<const Image> image, const IntRect& d
   AddPerformanceCounter(PerfCounterId::DisplayListCommands);
 }
 
+void DisplayList::DrawSurface(SurfaceId surface, const IntRect& destination) {
+  // No registry lookup, deliberately. A display list is a value that outlives
+  // the moment it was built and may be compared against a list built when a
+  // different set of surfaces existed; resolving the id here would make the
+  // list's contents depend on when it was recorded rather than on what was
+  // recorded.
+  if (surface == kNoSurface || destination.IsEmpty() || !IsWithinDeviceRange(destination)) {
+    return;
+  }
+  commands_.emplace_back(DrawSurfaceCommand{surface, destination});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
 IntRect DisplayList::Bounds() const {
   IntRect bounds;
   // A clipped command cannot paint outside its clip, so the bound must not
@@ -189,9 +202,45 @@ IntRect DisplayList::Bounds() const {
       }
     } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
       add(image->destination);
+    } else if (const auto* surface = std::get_if<DrawSurfaceCommand>(&command)) {
+      // A hole is still a rectangle of the frame that this list determines the
+      // contents of, so it belongs in the bounds even though Execute paints
+      // nothing there. Leaving it out would mean a first frame seeded from
+      // Bounds() never composited the video at all.
+      add(surface->destination);
     }
   }
   return bounds;
+}
+
+std::vector<SurfacePlacement> SurfacePlacements(const DisplayList& list) {
+  std::vector<SurfacePlacement> placements;
+  std::vector<IntRect> clips;
+  for (const DisplayCommand& command : list.Commands()) {
+    if (const auto* push = std::get_if<PushClipCommand>(&command)) {
+      clips.push_back(clips.empty() ? push->rect : clips.back().Intersected(push->rect));
+      continue;
+    }
+    if (std::holds_alternative<PopClipCommand>(command)) {
+      if (!clips.empty()) {
+        clips.pop_back();
+      }
+      continue;
+    }
+    const auto* surface = std::get_if<DrawSurfaceCommand>(&command);
+    if (surface == nullptr) {
+      continue;
+    }
+    const IntRect placed =
+        clips.empty() ? surface->destination : surface->destination.Intersected(clips.back());
+    if (placed.IsEmpty()) {
+      // Entirely clipped away. Dropped rather than reported empty, so that a
+      // caller counting placements is counting things it has to composite.
+      continue;
+    }
+    placements.push_back(SurfacePlacement{surface->surface, placed});
+  }
+  return placements;
 }
 
 void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
@@ -244,6 +293,15 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
       if (const Image* pixels = list.ImageAt(image->image)) {
         painter.DrawImage(*pixels, image->destination);
       }
+    } else if (std::holds_alternative<DrawSurfaceCommand>(command)) {
+      // A hole: nothing is rasterized here. The presenter composites the
+      // surface into this rectangle afterwards, from SurfacePlacements().
+      //
+      // Matched explicitly rather than left to the trailing `else`, which is
+      // PopClip: falling through would pop a clip that was never pushed, and
+      // the effect of that is a video widening the clip for everything painted
+      // after it.
+      continue;
     } else {
       // PopClip. Refuse to pop past our own damage clip: an unbalanced list
       // would otherwise widen the clip beyond the damage region and paint
