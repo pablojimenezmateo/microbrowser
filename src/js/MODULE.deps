@@ -63,7 +63,12 @@ budget: MapIndex    header_lines=20 public_methods=0  members=2
 # object would otherwise carry a pointer for a kind of object a page makes a
 # handful of, and the collector is already what knows when an object dies, so
 # the sweep that frees the object drops the entry.
-budget: Heap        header_lines=105 public_methods=18 members=7
+# Grew again for the weak tables. They are here and not on the object for the
+# reason the compiled patterns are, only more so: a weak entry survives exactly
+# when its key does, and only the collector can answer that. The ephemeron pass
+# in Collect is what makes it true -- marking a value can make another table's
+# key live, so the mark runs to a fixpoint rather than once.
+budget: Heap        header_lines=130 public_methods=22 members=8
 # The tree-walking interpreter.
 #
 # The member count went *down* at the commit that raised these numbers, from

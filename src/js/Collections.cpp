@@ -330,6 +330,123 @@ void Interpreter::InstallCollections() {
     return call.self;
   });
 
+  // --- WeakMap and WeakSet --------------------------------------------------
+  //
+  // Nothing above is reused, and that is the point. A Map holds its keys
+  // alive; a WeakMap does not, and the difference is not a policy on top of
+  // the same storage but a different place to store things -- the collector's,
+  // because only the collector can say whether a key is still reachable.
+  //
+  // What they cannot do follows from that: there is no `size`, no iteration
+  // and no `clear`. Every one of those would let a page observe *when* a
+  // collection ran, which is exactly the observation weak references exist to
+  // withhold.
+  const auto weak = [this](const char* name, bool with_values) {
+    Object* prototype = NewObject();
+    if (prototype == nullptr) {
+      return;
+    }
+    Object* constructor = NewNative(name, [with_values](NativeCall& call) {
+      Value collection = call.interpreter.NewObjectValue();
+      if (!collection.IsObject()) {
+        return call.Throw("RangeError", "out of memory");
+      }
+      const Value* prototype_value =
+          call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
+      if (prototype_value != nullptr && prototype_value->IsObject()) {
+        collection.object->SetPrototype(prototype_value->object);
+      }
+      call.interpreter.GetHeap().MakeWeakTable(collection.object);
+
+      const Value source = Argument(call.arguments, 0);
+      if (source.IsNullish()) {
+        return collection;
+      }
+      std::vector<Value> initial;
+      const Result collected = call.interpreter.CollectIterable(source, initial);
+      if (collected.IsAbrupt()) {
+        return call.ThrowValue(collected.value);
+      }
+      for (const Value& item : initial) {
+        Value key = item;
+        Value value = Value::Bool(true);
+        if (with_values) {
+          std::vector<Value> pair;
+          const Result unpacked = call.interpreter.CollectIterable(item, pair);
+          if (unpacked.IsAbrupt()) {
+            return call.ThrowValue(unpacked.value);
+          }
+          key = pair.empty() ? Value::Undefined() : pair[0];
+          value = pair.size() < 2 ? Value::Undefined() : pair[1];
+        }
+        if (!key.IsObject()) {
+          return call.Throw("TypeError", "a weak key must be an object");
+        }
+        call.interpreter.GetHeap().WeakSet(collection.object, key.object, value);
+      }
+      return collection;
+    });
+    if (constructor == nullptr) {
+      return;
+    }
+    prototype->SetPrototype(well_known_.object_prototype);
+    constructor->Set("prototype", Value::Obj(prototype));
+    prototype->Set("constructor", Value::Obj(constructor));
+    global_scope_->Declare(name, Value::Obj(constructor), false);
+
+    // A key must be an object. A primitive has no identity to be weak about --
+    // there is nothing for the collector to notice the death of -- so the spec
+    // makes it a TypeError rather than a key that never collects.
+    const auto key_of = [](NativeCall& call) -> Object* {
+      const Value key = Argument(call.arguments, 0);
+      return key.IsObject() ? key.object : nullptr;
+    };
+    InstallNative(prototype, "has", [key_of](NativeCall& call) {
+      Object* key = key_of(call);
+      return Value::Bool(key != nullptr && call.self.IsObject() &&
+                         call.interpreter.GetHeap().WeakGet(call.self.object, key) != nullptr);
+    });
+    InstallNative(prototype, "delete", [key_of](NativeCall& call) {
+      Object* key = key_of(call);
+      return Value::Bool(key != nullptr && call.self.IsObject() &&
+                         call.interpreter.GetHeap().WeakDelete(call.self.object, key));
+    });
+    if (with_values) {
+      InstallNative(prototype, "get", [key_of](NativeCall& call) {
+        Object* key = key_of(call);
+        if (key == nullptr || !call.self.IsObject()) {
+          return Value::Undefined();
+        }
+        const Value* found = call.interpreter.GetHeap().WeakGet(call.self.object, key);
+        return found == nullptr ? Value::Undefined() : *found;
+      });
+      InstallNative(prototype, "set", [key_of](NativeCall& call) {
+        Object* key = key_of(call);
+        if (key == nullptr) {
+          return call.Throw("TypeError", "a WeakMap key must be an object");
+        }
+        if (call.self.IsObject()) {
+          call.interpreter.GetHeap().WeakSet(call.self.object, key,
+                                             Argument(call.arguments, 1));
+        }
+        return call.self;
+      });
+    } else {
+      InstallNative(prototype, "add", [key_of](NativeCall& call) {
+        Object* key = key_of(call);
+        if (key == nullptr) {
+          return call.Throw("TypeError", "a WeakSet member must be an object");
+        }
+        if (call.self.IsObject()) {
+          call.interpreter.GetHeap().WeakSet(call.self.object, key, Value::Bool(true));
+        }
+        return call.self;
+      });
+    }
+  };
+  weak("WeakMap", true);
+  weak("WeakSet", false);
+
   // --- The iterators --------------------------------------------------------
 
   // What one step yields: the key, the value, or both as a pair. A Set's

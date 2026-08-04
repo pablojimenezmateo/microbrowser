@@ -265,6 +265,30 @@ MapIndex* Heap::FindMapIndex(const Object* object) const {
   return found == map_indexes_.end() ? nullptr : found->second.get();
 }
 
+void Heap::MakeWeakTable(const Object* table) { weak_tables_[table]; }
+
+void Heap::WeakSet(const Object* table, const Object* key, Value value) {
+  const auto found = weak_tables_.find(table);
+  if (found == weak_tables_.end()) {
+    return;  // not a WeakMap; the caller turns that into a TypeError
+  }
+  found->second[key] = std::move(value);
+}
+
+const Value* Heap::WeakGet(const Object* table, const Object* key) const {
+  const auto table_entry = weak_tables_.find(table);
+  if (table_entry == weak_tables_.end()) {
+    return nullptr;
+  }
+  const auto found = table_entry->second.find(key);
+  return found == table_entry->second.end() ? nullptr : &found->second;
+}
+
+bool Heap::WeakDelete(const Object* table, const Object* key) {
+  const auto table_entry = weak_tables_.find(table);
+  return table_entry != weak_tables_.end() && table_entry->second.erase(key) != 0;
+}
+
 Object* Heap::AllocateObject(Object::Kind kind) {
   if (AtLimit()) {
     return nullptr;
@@ -309,27 +333,16 @@ void Heap::Mark(Environment* environment) {
   environment_worklist_.push_back(environment);
 }
 
-std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
-                          const std::vector<Environment*>& environment_roots) {
-  for (const std::unique_ptr<Object>& object : objects_) {
-    object->marked_ = false;
-  }
-  for (const std::unique_ptr<Environment>& environment : environments_) {
-    environment->marked_ = false;
-  }
-
-  object_worklist_.clear();
-  environment_worklist_.clear();
-  for (Object* root : object_roots) {
-    Mark(root);
-  }
-  for (Environment* root : environment_roots) {
-    Mark(root);
-  }
-
-  // Iterative, not recursive: an object graph's depth is under the control of
-  // whoever wrote the page, and a recursive tracer would put the collector's
-  // stack depth there too.
+// Traces everything reachable from what is already marked.
+//
+// Iterative, not recursive: an object graph's depth is under the control of
+// whoever wrote the page, and a recursive tracer would put the collector's
+// stack depth there too.
+//
+// A method rather than a loop inside Collect because the ephemeron pass has to
+// run it again: marking a WeakMap's value can reach a new object, which can
+// make another table's key live.
+void Heap::DrainWorklists() {
   while (!object_worklist_.empty() || !environment_worklist_.empty()) {
     while (!object_worklist_.empty()) {
       Object* object = object_worklist_.back();
@@ -363,6 +376,65 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
       }
     }
   }
+}
+
+// Whether a value is already reachable, which the ephemeron pass asks before
+// marking so that it can tell when it has reached a fixpoint.
+bool Heap::IsMarked(const Value& value) const {
+  return (value.type != ValueType::Object && value.type != ValueType::Symbol) ||
+         value.object == nullptr || value.object->marked_;
+}
+
+std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
+                          const std::vector<Environment*>& environment_roots) {
+  for (const std::unique_ptr<Object>& object : objects_) {
+    object->marked_ = false;
+  }
+  for (const std::unique_ptr<Environment>& environment : environments_) {
+    environment->marked_ = false;
+  }
+
+  object_worklist_.clear();
+  environment_worklist_.clear();
+  for (Object* root : object_roots) {
+    Mark(root);
+  }
+  for (Environment* root : environment_roots) {
+    Mark(root);
+  }
+
+  DrainWorklists();
+
+  // Ephemerons.
+  //
+  // A WeakMap's value is reachable only through its key, so marking cannot be
+  // done in one pass: marking a value can make another table's key reachable,
+  // which makes *that* entry's value reachable in turn. Iterate until nothing
+  // new is marked -- bounded by the number of entries, since every round marks
+  // at least one key or is the last.
+  //
+  // Doing this in the main mark loop instead would mark every value whether
+  // its key was live or not, which is a WeakMap that leaks -- the one thing it
+  // exists not to do.
+  for (bool changed = true; changed;) {
+    changed = false;
+    for (const auto& table : weak_tables_) {
+      if (table.first->marked_) {
+        for (const auto& entry : table.second) {
+          if (entry.first->marked_ && !IsMarked(entry.second)) {
+            MarkValue(entry.second);
+            changed = true;
+          }
+        }
+      }
+    }
+    // Marking a value can reach new objects, which can make another table's
+    // key live.
+    while (!object_worklist_.empty() || !environment_worklist_.empty()) {
+      DrainWorklists();
+      changed = true;
+    }
+  }
 
   const std::size_t before = objects_.size() + environments_.size();
   // Before the objects go, so the side table never holds a key that has been
@@ -373,6 +445,7 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
       if (!object->marked_) {
         regexps_.erase(object.get());
         map_indexes_.erase(object.get());
+        weak_tables_.erase(object.get());
       }
     }
   }

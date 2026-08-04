@@ -317,6 +317,18 @@ class Heap {
   MapIndex* AttachMapIndex(const Object* object);
   MapIndex* FindMapIndex(const Object* object) const;
 
+  // A WeakMap's entries.
+  //
+  // Here rather than in the object because they have to be *weak*, and only
+  // the collector can say whether a key is still reachable. An entry survives
+  // a collection exactly when its key does: the key holds the value alive and
+  // not the other way round, which is the whole difference from a Map and the
+  // reason a WeakMap does not leak the objects it is keyed on.
+  void WeakSet(const Object* table, const Object* key, Value value);
+  const Value* WeakGet(const Object* table, const Object* key) const;
+  bool WeakDelete(const Object* table, const Object* key);
+  void MakeWeakTable(const Object* table);
+
   // A ceiling on live cells.
   //
   // Needed because the collector cannot run during evaluation -- see the note
@@ -337,6 +349,8 @@ class Heap {
   std::size_t AllocationsSinceCollection() const { return since_collection_; }
 
  private:
+  void DrainWorklists();
+  bool IsMarked(const Value& value) const;
   void Mark(Object* object);
   void Mark(Environment* environment);
   void MarkValue(const Value& value);
@@ -347,6 +361,9 @@ class Heap {
   std::unordered_map<const Object*, std::shared_ptr<const RegExp>> regexps_;
   // Same, for Map and Set.
   std::unordered_map<const Object*, std::shared_ptr<MapIndex>> map_indexes_;
+  // One inner table per WeakMap. Keyed by the object rather than held on it,
+  // for the reason above.
+  std::unordered_map<const Object*, std::unordered_map<const Object*, Value>> weak_tables_;
   std::size_t since_collection_ = 0;
   // Around 150 MB here, which is far more than any page legitimately needs and
   // far less than the machine has. Measured rather than guessed: the fuzzer's

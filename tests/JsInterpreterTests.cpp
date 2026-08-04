@@ -1594,6 +1594,54 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("Reflect.getPrototypeOf([]) === Array.prototype", "true");
   });
 
+  AddTest(tests, "JsInterpreter/WeakCollectionsHoldKeysThatAreObjects", [] {
+    ExpectEval("const m = new WeakMap(); const k = {}; m.set(k, 'v'); m.get(k)", "v");
+    ExpectEval("const m = new WeakMap(); const k = {}; m.set(k, 1); "
+               "[m.has(k), m.has({})].join(' ')",
+               "true false");
+    ExpectEval("const m = new WeakMap(); const k = {}; m.set(k, 1); "
+               "[m.delete(k), m.has(k)].join(' ')",
+               "true false");
+    ExpectEval("const k = {}; new WeakMap([[k, 1]]).get(k)", "1");
+    ExpectEval("const s = new WeakSet(); const k = {}; s.add(k); [s.has(k), s.has({})].join(' ')",
+               "true false");
+    // A primitive has no identity to be weak about -- there is nothing for the
+    // collector to notice the death of -- so it is a TypeError rather than a
+    // key that never collects.
+    ExpectEval("try { new WeakMap().set(1, 2) } catch (e) { e.name }", "TypeError");
+    // No size, no iteration, no clear. Every one of those would let a page
+    // observe *when* a collection ran, which is the observation weak
+    // references exist to withhold.
+    ExpectEval("[typeof new WeakMap().size, typeof new WeakMap().forEach].join(' ')",
+               "undefined undefined");
+  });
+
+  AddTest(tests, "JsInterpreter/AWeakEntryGoesWhenItsKeyDoes", [] {
+    // The property the whole design is for, and the only one a test can tell
+    // apart from a Map: an entry whose key is unreachable stops holding its
+    // value alive. Measured on the heap rather than through the language,
+    // because the language deliberately offers no way to ask.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(R"(
+      const table = new WeakMap();
+      const held = {};
+      table.set(held, { kept: true });
+      for (let i = 0; i < 5000; i++) {
+        // The key goes out of scope on the next iteration, so nothing but the
+        // table refers to it -- and the table must not be what keeps it.
+        table.set({}, { i, padding: [1, 2, 3, 4] });
+      }
+      table.get(held).kept
+    )");
+    Expect(!result.IsAbrupt(), "the program ran: " + js::ToString(result.value));
+    ExpectEqString(js::ToString(result.value), "true", "the held entry survived");
+    // Five thousand dead keys, each with a value holding an array. If the
+    // table held them, the heap would still have tens of thousands of objects.
+    Expect(interpreter.GetHeap().ObjectCount() < 5000,
+           "the dead entries were collected, leaving " +
+               std::to_string(interpreter.GetHeap().ObjectCount()) + " objects");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.
