@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -63,7 +65,27 @@ class Interpreter {
   // The same, on the machine. Public alongside RunProgram because they are the
   // two answers to the same question and a caller that has one should be able
   // to reach the other.
-  Result RunCompiled(const CompiledFunction& program);
+  // `scope` is where the chunk's top-level names go. The global one for a
+  // script; a module's own for a module, which is the first thing modules
+  // were added to the language for.
+  Result RunCompiled(const CompiledFunction& program, Environment* scope = nullptr);
+
+  // --- Modules (Modules.cpp) ------------------------------------------------
+  //
+  // How a specifier becomes source. Loading is the *host's* job: a specifier's
+  // meaning is a URL question -- relative to what, over which protocol, past
+  // which privacy verdict -- and none of that belongs in a language engine.
+  // The engine takes this and does the linking.
+  //
+  // False when the specifier does not resolve, which the engine turns into the
+  // TypeError the language throws at the import.
+  using ModuleResolver = std::function<bool(std::string_view specifier,
+                                            std::string_view referrer,
+                                            std::string& resolved, std::string& source)>;
+  void SetModuleResolver(ModuleResolver resolver);
+  // Runs `source` as a module named `specifier`, loading and evaluating what it
+  // imports first. Answers the module's namespace object.
+  Result RunModule(std::string_view source, std::string_view specifier);
 
   Heap& GetHeap() { return heap_; }
   Object* Global() { return global_; }
@@ -840,6 +862,48 @@ class Interpreter {
   // knows to look the method up on the parent while keeping `this`. Cleared on
   // every other member access, so it cannot leak into an unrelated call.
   Value super_base_;
+
+  // --- Modules --------------------------------------------------------------
+  //
+  // One record per resolved specifier. Keyed by the *resolved* name, so two
+  // specifiers naming one file are one module -- which is what makes a shared
+  // dependency shared rather than run twice, and is the property a cycle is
+  // broken by.
+  struct Module {
+    std::string specifier;
+    const Node* program = nullptr;
+    // The module's own top-level scope, whose parent is the global one. A
+    // module's declarations are not globals, which is the first thing modules
+    // were added to the language for.
+    Environment* scope = nullptr;
+    // What it publishes, as an object with no prototype: `ns.toString` must be
+    // the module's export of that name or undefined, never Object.prototype's.
+    Object* exports = nullptr;
+    // Each `import`/`from` specifier and what it resolved to, in source order.
+    std::vector<std::pair<std::string, Module*>> requests;
+    enum class Status : std::uint8_t { New, Evaluating, Evaluated, Failed };
+    Status status = Status::New;
+    Value error;
+  };
+  ModuleResolver module_resolver_;
+  std::unordered_map<std::string, std::unique_ptr<Module>> modules_;
+
+  Module* FindModule(const std::string& specifier);
+  Result LoadModule(const std::string& specifier, const std::string& referrer, int depth,
+                    Module*& out);
+  Result EvaluateModule(Module& module);
+  // What one `export` declaration publishes, read out of the module's scope
+  // after the body has run. Separate from the body because the compiler
+  // compiles an export's *declaration* and nothing else -- only this knows
+  // what a module is.
+  Result PublishExports(const Node& statement, Module& module);
+  // `import(spec)`. Answers a promise, which is what the language says even
+  // though loading here is synchronous -- a page cannot tell the difference
+  // except in ordering, and the ordering is the one every `then` sees.
+  Value ImportDynamically(const std::string& specifier, const std::string& referrer);
+  // Every name a declaration binds, so `export const {a, b} = o` publishes
+  // both. The same walk a binding pattern does.
+  static void CollectDeclaredNames(const Node& node, std::vector<std::string>& out);
   // What `new.target` is for the call about to be made.
   //
   // Set by Construct just before it calls the constructor, and taken by the

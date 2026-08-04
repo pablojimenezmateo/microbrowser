@@ -352,6 +352,17 @@ void Compiler::Expression(const Node& node) {
       Emit(Op::LoadNewTarget, 0, 1);
       return;
 
+    case NodeKind::ImportMeta:
+      // The linker bound it in the module's scope under a name no source can
+      // write, so this is an ordinary load. Outside a module the name is not
+      // bound, which is the ReferenceError the language gives there.
+      EmitLoad("*meta*");
+      return;
+
+    case NodeKind::ImportCall:
+      ImportCall(node);
+      return;
+
     case NodeKind::Super:
       // Only reachable as `super(...)` or `super.x`, and both are handled where
       // the call and the member access are. Reaching here means it was used as
@@ -953,6 +964,21 @@ void Compiler::ObjectLiteral(const Node& node) {
     Expression(*value);
     Emit(Op::ObjectSetName, Name(property->string), -1);
   }
+}
+
+void Compiler::ImportCall(const Node& node) {
+  // `import(spec)`. Compiled as a call to the host hook the linker installed,
+  // which is what keeps a *dynamic* import -- whose specifier is not known
+  // until it runs -- from needing anything of the machine that a static one
+  // does not.
+  EmitLoad("*import*");
+  Emit(Op::PushUndefined, 0, 1);  // no receiver
+  if (node.Child(0) == nullptr) {
+    Emit(Op::PushUndefined, 0, 1);
+  } else {
+    Expression(*node.Child(0));
+  }
+  Emit(Op::Call, 1, -2);
 }
 
 void Compiler::TemplateLiteral(const Node& node) {

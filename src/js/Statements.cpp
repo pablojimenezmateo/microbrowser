@@ -107,6 +107,30 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(binding == nullptr ? Value::Undefined() : *binding);
     }
 
+    case NodeKind::ImportMeta: {
+      Value* binding = scope.Lookup("*meta*");
+      if (binding == nullptr) {
+        return Throw("SyntaxError", "import.meta is only valid inside a module");
+      }
+      return Result::Normal(*binding);
+    }
+
+    case NodeKind::ImportCall: {
+      Value* hook = scope.Lookup("*import*");
+      if (hook == nullptr) {
+        return Throw("TypeError", "dynamic import is not available here");
+      }
+      Value specifier;
+      if (node.Child(0) != nullptr) {
+        const Result evaluated = Evaluate(*node.Child(0), scope);
+        if (evaluated.IsAbrupt()) {
+          return evaluated;
+        }
+        specifier = evaluated.value;
+      }
+      return CallFunction(*hook, Value::Undefined(), {specifier});
+    }
+
     case NodeKind::NewTarget: {
       // An ordinary name lookup, so an arrow -- which declares none of its own
       // -- finds the enclosing function's, the way it finds `this`.
@@ -732,6 +756,43 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
     case NodeKind::Empty:
     case NodeKind::Debugger:
       return Result::Normal();
+
+    case NodeKind::ImportDeclaration:
+      // Nothing at run time: the names were declared in the module's scope
+      // before the body ran, which is what linking is.
+      return Result::Normal();
+
+    case NodeKind::ExportDeclaration: {
+      // The declaration half. What it publishes is read out of the scope
+      // afterwards by the linker.
+      const auto flags = static_cast<std::uint8_t>(node.number);
+      const Node* target = node.Child(0);
+      if (target == nullptr) {
+        return Result::Normal();
+      }
+      if ((flags & kExportDefault) != 0) {
+        if (target->kind == NodeKind::FunctionDeclaration ||
+            target->kind == NodeKind::ClassDeclaration) {
+          const Result declared = EvaluateStatement(*target, scope);
+          if (declared.IsAbrupt()) {
+            return declared;
+          }
+          Value* bound = scope.Lookup(target->string);
+          scope.Declare("*default*", bound == nullptr ? Value::Undefined() : *bound, true);
+          return Result::Normal();
+        }
+        const Result value = Evaluate(*target, scope);
+        if (value.IsAbrupt()) {
+          return value;
+        }
+        scope.Declare("*default*", value.value, true);
+        return Result::Normal();
+      }
+      if ((flags & kExportDeclaration) != 0) {
+        return EvaluateStatement(*target, scope);
+      }
+      return Result::Normal();
+    }
 
     case NodeKind::ExpressionStatement: {
       const Node* expression = node.Child(0);

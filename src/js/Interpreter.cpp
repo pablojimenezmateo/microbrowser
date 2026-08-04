@@ -864,7 +864,7 @@ Result Interpreter::Run(std::string_view source) {
   return RunProgram(program);
 }
 
-Result Interpreter::RunCompiled(const CompiledFunction& program) {
+Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* scope) {
   steps_ = 0;
   const std::size_t entry_depth = vm_.frames.size();
   const std::size_t callee_slot = vm_.stack.size();
@@ -875,7 +875,7 @@ Result Interpreter::RunCompiled(const CompiledFunction& program) {
   vm_.stack.push_back(Value::Undefined());
   Frame frame;
   frame.code = &program;
-  frame.scope = global_scope_;
+  frame.scope = scope == nullptr ? global_scope_ : scope;
   frame.stack_base = callee_slot;
   frame.argument_base = callee_slot + 2;
   frame.scope_base = vm_.scopes.size();

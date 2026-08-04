@@ -58,6 +58,13 @@ class ParserImpl {
 
   // --- Statements ----------------------------------------------------------
   NodePtr ParseStatement();
+  // `import` and `export`, which are declarations and only at the top level of
+  // a module. Parsed unconditionally rather than behind a mode flag: whether a
+  // script is a module is the *host's* answer -- a `type="module"` attribute
+  // -- and a parser that refused the syntax could not tell the host what the
+  // file needs before the host has decided what the file is.
+  NodePtr ParseImportDeclaration();
+  NodePtr ParseExportDeclaration();
   NodePtr ParseBlock();
   NodePtr ParseVariableDeclaration(bool eat_semicolon);
   NodePtr ParseIf();

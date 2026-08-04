@@ -14,12 +14,13 @@ constexpr std::string_view kNames[] = {
     "Program", "Block", "Var", "Declarator", "ExprStmt", "If", "For", "ForIn",
     "While", "DoWhile", "Return", "Break", "Continue", "Throw", "Try", "Switch",
     "Case", "Labeled", "FunctionDecl", "ClassDecl", "Empty", "Debugger",
+    "Import", "ImportName", "Export", "ExportName", "ImportMeta", "ImportCall",
 };
 
 // The table is positional, so a kind inserted anywhere but the end renames
 // every kind after it and a dump test starts asserting the wrong thing quietly.
 // This is the only thing that would say so.
-static_assert(std::size(kNames) == static_cast<std::size_t>(NodeKind::Debugger) + 1,
+static_assert(std::size(kNames) == static_cast<std::size_t>(NodeKind::ImportCall) + 1,
               "kNames has one entry per NodeKind, in order");
 
 void Dump(const Node& node, std::string& out) {

@@ -19,7 +19,11 @@ budget: Lexer  header_lines=60 public_methods=12 members=3
 budget: Node     header_lines=30 public_methods=4  members=6
 # One entry per production the grammar has, with the shape of each written next
 # to it. It grows with the language and nothing else.
-budget: NodeKind header_lines=70 public_methods=0  members=0
+# Grew for the module syntax. Six kinds, and they are the language growing:
+# `import` and `export` are declarations the parser accepts unconditionally,
+# because whether a file is a module is the *host's* answer and a parser that
+# refused the syntax could not tell the host what the file needs.
+budget: NodeKind header_lines=95 public_methods=0  members=0
 # The parser's shared state, split across two translation units: expressions in
 # Parser.cpp and statements in ParserStatements.cpp.
 # Grew for named evaluation: an anonymous function takes the name of the
@@ -313,7 +317,18 @@ budget: WellKnown   header_lines=130 public_methods=2  members=19
 # in effect for exactly one call. A member rather than an argument because both
 # engines and four call paths reach the same place, and threading it through
 # all of them would be four chances to forget.
-budget: Interpreter header_lines=830 public_methods=54 members=17
+# And by two members for modules: the host's resolver, and the table of
+# records keyed by resolved specifier. The table is what makes a shared
+# dependency shared rather than run twice, and is what a cycle is broken by.
+# The resolver is a member because loading is the host's job -- a specifier's
+# meaning is a URL question, and a language engine has no business answering
+# one.
+budget: Interpreter header_lines=900 public_methods=58 members=19
+# One module, as the engine sees it: what it is called, its tree, its own
+# top-level scope, what it publishes, what it asked for, and how far it has
+# got. Six fields and a status, and every one of them is something the
+# evaluation order needs -- which is the test for adding a seventh.
+budget: Module      header_lines=30 public_methods=0  members=7
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

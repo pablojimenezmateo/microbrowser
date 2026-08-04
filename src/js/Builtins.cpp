@@ -6,6 +6,7 @@
 
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
+#include "js/StringUnits.h"
 #include <cstdio>
 
 #include "util/Parse.h"
@@ -1140,6 +1141,10 @@ void Interpreter::InstallGlobals() {
           }
           std::string out;
           if (!encoding) {
+            // Through AppendCodeUnit, which holds a high surrogate until its
+            // partner arrives: `%uD83D%uDE00` is one character and writing the
+            // halves separately would make it two broken ones.
+            std::uint32_t pending = 0;
             for (std::size_t at = 0; at < text.size();) {
               // `%uXXXX` first: it is the longer form and shares its prefix.
               if (text[at] == '%' && at + 5 < text.size() && text[at + 1] == 'u') {
@@ -1151,7 +1156,7 @@ void Interpreter::InstallGlobals() {
                   value = value * 16 + (digit < 0 ? 0 : digit);
                 }
                 if (ok) {
-                  util::AppendUtf8(out, static_cast<std::uint32_t>(value));
+                  AppendCodeUnit(out, static_cast<std::uint16_t>(value), pending);
                   at += 6;
                   continue;
                 }
@@ -1160,13 +1165,15 @@ void Interpreter::InstallGlobals() {
                 const int high = util::HexDigit(text[at + 1]);
                 const int low = util::HexDigit(text[at + 2]);
                 if (high >= 0 && low >= 0) {
-                  util::AppendUtf8(out, static_cast<std::uint32_t>(high * 16 + low));
+                  AppendCodeUnit(out, static_cast<std::uint16_t>(high * 16 + low), pending);
                   at += 3;
                   continue;
                 }
               }
+              FlushCodeUnit(out, pending);
               out.push_back(text[at++]);
             }
+            FlushCodeUnit(out, pending);
             return Value::String(std::move(out));
           }
           // The unreserved set is the one Annex B names, and it is not the
@@ -1182,14 +1189,22 @@ void Interpreter::InstallGlobals() {
                 (code >= 'A' && code <= 'Z') || (code >= 'a' && code <= 'z') ||
                 (code >= '0' && code <= '9') || code == '@' || code == '*' ||
                 code == '_' || code == '+' || code == '-' || code == '.' || code == '/';
-            char buffer[8];
+            char buffer[16];
             if (plain) {
               out.push_back(static_cast<char>(code));
             } else if (code < 256) {
               std::snprintf(buffer, sizeof(buffer), "%%%02X", code);
               out += buffer;
-            } else {
+            } else if (code < 0x10000u) {
               std::snprintf(buffer, sizeof(buffer), "%%u%04X", code);
+              out += buffer;
+            } else {
+              // `%uXXXX` names a *code unit*, so an astral character is two of
+              // them -- the surrogate pair, which is what `unescape` puts back
+              // together.
+              const std::uint32_t offset = code - 0x10000u;
+              std::snprintf(buffer, sizeof(buffer), "%%u%04X%%u%04X",
+                            0xD800u + (offset >> 10), 0xDC00u + (offset & 0x3FFu));
               out += buffer;
             }
             at = next;

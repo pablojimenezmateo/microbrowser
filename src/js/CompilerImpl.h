@@ -177,6 +177,10 @@ class Compiler {
   void ObjectLiteral(const Node& node);
   void ArrayLiteral(const Node& node);
   void TemplateLiteral(const Node& node);
+  // `import(spec)`, as a call to the hook the linker installed. A dynamic
+  // import resolves at run time and answers a promise, so it is a call and
+  // not a declaration -- which is what lets it be compiled at all.
+  void ImportCall(const Node& node);
   void TaggedTemplate(const Node& node);
   void FunctionValue(const Node& node, bool arrow);
   // Compiles a function into this chunk without emitting anything, and returns

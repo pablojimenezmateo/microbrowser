@@ -36,11 +36,18 @@ void Compiler::Hoist(const Node& list) {
   // is what makes mutually recursive functions work without forward
   // declarations. `var` hoisting is deliberately absent, as in the tree-walker.
   for (const NodePtr& statement : list.children) {
-    if (statement == nullptr || statement->kind != NodeKind::FunctionDeclaration) {
+    const Node* declaration = statement.get();
+    // Through an `export`, which wraps the declaration rather than replacing
+    // it: `export function f(){}` is hoisted exactly as `function f(){}` is,
+    // and missing that made every exported function undefined at its own use.
+    if (declaration != nullptr && declaration->kind == NodeKind::ExportDeclaration) {
+      declaration = declaration->Child(0);
+    }
+    if (declaration == nullptr || declaration->kind != NodeKind::FunctionDeclaration) {
       continue;
     }
-    FunctionValue(*statement, false);
-    EmitDeclare(statement->string, false);
+    FunctionValue(*declaration, false);
+    EmitDeclare(declaration->string, false);
   }
 }
 
@@ -109,6 +116,42 @@ void Compiler::Statement(const Node& node) {
     case NodeKind::Empty:
     case NodeKind::Debugger:
       return;
+
+    case NodeKind::ImportDeclaration:
+      // Nothing at run time. The names it brings in were declared in the
+      // module's scope before this chunk was compiled, which is what linking
+      // is -- so a use of one resolves like any other name.
+      return;
+
+    case NodeKind::ExportDeclaration: {
+      // An export is a declaration that also publishes, and only the first
+      // half is code. What it publishes is read out of the module scope
+      // afterwards, by the linker, which is the only thing that knows what a
+      // module *is*.
+      const auto flags = static_cast<std::uint8_t>(node.number);
+      const Node* target = node.Child(0);
+      if (target == nullptr) {
+        return;  // `export { a, b }` and `export * from` emit nothing
+      }
+      if ((flags & kExportDefault) != 0) {
+        if (target->kind == NodeKind::FunctionDeclaration ||
+            target->kind == NodeKind::ClassDeclaration) {
+          Statement(*target);
+          // The declaration keeps its own name; the default is a second
+          // binding to the same value, under a name no source can write.
+          EmitLoad(target->string);
+          EmitDeclare("*default*", true);
+          return;
+        }
+        Expression(*target);
+        EmitDeclare("*default*", true);
+        return;
+      }
+      if ((flags & kExportDeclaration) != 0) {
+        Statement(*target);
+      }
+      return;
+    }
 
     case NodeKind::ExpressionStatement: {
       const Node* expression = node.Child(0);

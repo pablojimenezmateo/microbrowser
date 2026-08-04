@@ -110,7 +110,14 @@ void Compiler::ReservePattern(const Node& target) {
 }
 
 void Compiler::ReserveDeclarations(const Node& list) {
-  for (const NodePtr& statement : list.children) {
+  for (const NodePtr& entry : list.children) {
+    const Node* statement = entry.get();
+    // Through an `export`, which wraps a declaration rather than replacing
+    // one: `export const x = 1` declares `x` here exactly as `const x = 1`
+    // does, and the export is what happens to it afterwards.
+    if (statement != nullptr && statement->kind == NodeKind::ExportDeclaration) {
+      statement = statement->Child(0);
+    }
     if (statement == nullptr) {
       continue;
     }

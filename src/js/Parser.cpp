@@ -191,6 +191,25 @@ NodePtr ParserImpl::ParsePrimary() {
     node->kind = NodeKind::NullLiteral;
     return node;
   }
+  if (AtKeyword("import")) {
+    Advance();
+    if (Eat(".")) {
+      if (current_.lexeme != "meta") {
+        Error("expected 'meta' after 'import.'");
+      } else {
+        Advance();
+      }
+      return Make(NodeKind::ImportMeta);
+    }
+    // `import(spec)`. A call rather than a declaration: it resolves at run
+    // time and answers a promise, which is what makes a lazily loaded chunk
+    // possible.
+    NodePtr node = Make(NodeKind::ImportCall);
+    Expect("(", "after 'import'");
+    node->children.push_back(ParseAssignment());
+    Expect(")", "to close a dynamic import");
+    return node;
+  }
   if (AtKeyword("this")) {
     NodePtr node = Make(NodeKind::ThisExpression);
     Advance();

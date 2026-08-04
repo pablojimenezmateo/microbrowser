@@ -13,7 +13,12 @@ void Interpreter::HoistDeclarations(const Node& list, Environment& scope) {
   // is what makes mutually recursive functions work without forward
   // declarations. `var` hoisting is deliberately absent: it is a source of
   // bugs the language itself moved away from, and nothing here needs it.
-  for (const NodePtr& statement : list.children) {
+  for (const NodePtr& entry : list.children) {
+    const Node* statement = entry.get();
+    // Through an `export`, which wraps a declaration rather than replacing it.
+    if (statement != nullptr && statement->kind == NodeKind::ExportDeclaration) {
+      statement = statement->Child(0);
+    }
     if (statement != nullptr && statement->kind == NodeKind::FunctionDeclaration) {
       scope.Declare(statement->string, NewFunction(*statement, scope, false), false);
     }

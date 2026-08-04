@@ -2,6 +2,8 @@
 #include <string_view>
 #include <vector>
 
+#include <map>
+
 #include "TestSupport.h"
 #include "js/Interpreter.h"
 
@@ -39,6 +41,40 @@ std::string Eval(std::string_view source) {
 void ExpectEval(std::string_view source, std::string_view expected) {
   ExpectEqString(Eval(source), std::string(expected),
                  std::string("evaluating: ") + std::string(source));
+}
+
+// Runs a module graph given as a map from specifier to source, entered at
+// "main". The resolver is the whole seam: the engine never looks at a file,
+// and a test never needs one.
+std::string EvalModules(const std::map<std::string, std::string>& files) {
+  Interpreter interpreter;
+  interpreter.SetModuleResolver(
+      [&files](std::string_view specifier, std::string_view, std::string& resolved,
+               std::string& source) {
+        const auto found = files.find(std::string(specifier));
+        if (found == files.end()) {
+          return false;
+        }
+        resolved = found->first;
+        source = found->second;
+        return true;
+      });
+  const auto entry = files.find("main");
+  if (entry == files.end()) {
+    return "no entry";
+  }
+  const Result result = interpreter.RunModule(entry->second, "main");
+  if (result.completion == Completion::Throw) {
+    return "throw " + js::ToString(result.value);
+  }
+  std::string out;
+  for (const std::string& line : interpreter.ConsoleOutput()) {
+    if (!out.empty()) {
+      out += "|";
+    }
+    out += line;
+  }
+  return out;
 }
 
 }  // namespace
@@ -734,6 +770,104 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("let z; z = () => {}; z.name", "z");
     // Already named wins: `const f = function g(){}` is still `g`.
     ExpectEval("const f = function g(){}; f.name", "g");
+  });
+
+  // --- Modules --------------------------------------------------------------
+  //
+  // Loading is the host's job -- a specifier's meaning is a URL question -- so
+  // the engine takes a resolver and does the linking. These tests are the
+  // resolver being a map.
+
+  AddTest(tests, "JsConformance/AModuleImportsWhatAnotherExports", [] {
+    ExpectEqString(EvalModules({
+                       {"main", "import { add, PI } from 'm';"
+                                "console.log(add(1,2), PI)"},
+                       {"m", "export const PI = 3.14;"
+                             "export function add(a,b){ return a+b }"},
+                   }),
+                   "3 3.14", "named imports");
+    ExpectEqString(EvalModules({
+                       {"main", "import d, * as all from 'm';"
+                                "console.log(d, Object.keys(all).sort().join())"},
+                       {"m", "export const x = 1; export default 'D'"},
+                   }),
+                   "D default,x", "default and namespace imports");
+  });
+
+  AddTest(tests, "JsConformance/ADependencyRunsBeforeTheModuleThatNeedsIt", [] {
+    ExpectEqString(EvalModules({
+                       {"main", "import 'a'; import 'b'; console.log('main')"},
+                       {"a", "console.log('a')"},
+                       {"b", "import 'a'; console.log('b')"},
+                   }),
+                   "a|b|main", "post-order, and a shared dependency runs once");
+  });
+
+  AddTest(tests, "JsConformance/AModuleRunsOnTheMachine", [] {
+    // Not the tree-walker: a module whose body was walked would create
+    // functions with AST bodies, and an async function among them would be
+    // refused at the call. A module is where a page's real code lives.
+    ExpectEqString(EvalModules({
+                       {"main", "import { go } from 'm';"
+                                "go().then(v => console.log('awaited', v));"
+                                "function* g(){ yield 1; yield 2 }"
+                                "console.log('gen', [...g()].join())"},
+                       {"m", "export async function go(){ return 'value' }"},
+                   }),
+                   "gen 1,2|awaited value", "async and generators inside a module");
+  });
+
+  AddTest(tests, "JsConformance/ExportStarRepublishesEverythingButDefault", [] {
+    ExpectEqString(EvalModules({
+                       {"main", "import * as s from 'r';"
+                                "console.log(Object.keys(s).sort().join())"},
+                       {"r", "export * from 'm'; export { PI as TAU } from 'm'"},
+                       {"m", "export const PI = 1; export default 'd'"},
+                   }),
+                   "PI,TAU", "no default through a star");
+  });
+
+  AddTest(tests, "JsConformance/AMissingModuleFailsAtTheImport", [] {
+    ExpectEqString(EvalModules({{"main", "import 'nope'; console.log('never')"}}),
+                   "throw TypeError: cannot resolve module 'nope'", "unresolved specifier");
+    ExpectEqString(EvalModules({
+                       {"main", "import 'boom'; console.log('never')"},
+                       {"boom", "throw new Error('blew up')"},
+                   }),
+                   "throw Error: blew up", "a dependency that throws");
+  });
+
+  AddTest(tests, "JsConformance/ACycleIsBrokenRatherThanHung", [] {
+    // `b` runs first because `a` imports it, and sees `a`'s export as
+    // undefined -- the documented deviation, and not a hang.
+    ExpectEqString(EvalModules({
+                       {"main", "import 'a'"},
+                       {"a", "import { b } from 'b'; export const a = 'A';"
+                             "console.log('a sees', String(b))"},
+                       {"b", "import { a } from 'a'; export const b = 'B';"
+                             "console.log('b sees', String(a))"},
+                   }),
+                   "b sees undefined|a sees B", "a cycle terminates");
+  });
+
+  AddTest(tests, "JsConformance/ImportMetaAndDynamicImport", [] {
+    ExpectEqString(EvalModules({
+                       {"main", "console.log(import.meta.url);"
+                                "import('m').then(m => console.log('dynamic', m.x));"
+                                "import('nope').catch(e => console.log('rejected'))"},
+                       {"m", "export const x = 7"},
+                   }),
+                   "main|dynamic 7|rejected", "import.meta and import()");
+  });
+
+  AddTest(tests, "JsConformance/AModulesNamesAreNotGlobals", [] {
+    // The first thing modules were added to the language for.
+    ExpectEqString(EvalModules({
+                       {"main", "import 'm';"
+                                "console.log(typeof globalThis.hidden)"},
+                       {"m", "const hidden = 1; export {}"},
+                   }),
+                   "undefined", "a module's declarations stay in it");
   });
 
   // --- Recursion ------------------------------------------------------------

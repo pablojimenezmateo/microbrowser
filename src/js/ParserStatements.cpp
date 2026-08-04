@@ -232,6 +232,183 @@ NodePtr ParserImpl::ParseVariableDeclaration(bool eat_semicolon) {
   return node;
 }
 
+// The `{ a, b as c }` list both forms share. `local_first` says which side of
+// an `as` is the local name: for an import it is the second, for an export the
+// first, and that inversion is the only difference between the two lists.
+NodePtr ParserImpl::ParseImportDeclaration() {
+  NodePtr node = Make(NodeKind::ImportDeclaration);
+  Advance();  // `import`
+
+  if (current_.type == TokenType::StringLiteral) {
+    // `import "side-effects"`. No names, and the module is still loaded and
+    // evaluated -- which is the whole point of the form.
+    node->string = current_.value;
+    Advance();
+    ConsumeSemicolon();
+    return node;
+  }
+
+  bool expect_from = false;
+  if (current_.type == TokenType::Identifier) {
+    // `import x from "m"`, which is `import { default as x }` written shorter.
+    NodePtr entry = Make(NodeKind::Import);
+    entry->string = std::string(current_.lexeme);
+    entry->number = kImportDefault;
+    node->children.push_back(std::move(entry));
+    Advance();
+    expect_from = true;
+    Eat(",");
+  }
+  if (At("*")) {
+    Advance();
+    if (!(current_.type == TokenType::Identifier && current_.lexeme == "as")) {
+      Error("expected 'as' after '*' in an import");
+    } else {
+      Advance();
+    }
+    NodePtr entry = Make(NodeKind::Import);
+    entry->string = std::string(current_.lexeme);
+    entry->number = kImportNamespace;
+    node->children.push_back(std::move(entry));
+    Advance();
+    expect_from = true;
+  } else if (At("{")) {
+    Advance();
+    while (!At("}") && !AtEnd()) {
+      NodePtr entry = Make(NodeKind::Import);
+      NodePtr exported = Make(NodeKind::Identifier);
+      exported->string = std::string(current_.type == TokenType::StringLiteral
+                                         ? current_.value
+                                         : std::string(current_.lexeme));
+      Advance();
+      entry->string = exported->string;
+      if (current_.type == TokenType::Identifier && current_.lexeme == "as") {
+        Advance();
+        entry->string = std::string(current_.lexeme);
+        Advance();
+      }
+      entry->number = kImportNamed;
+      entry->children.push_back(std::move(exported));
+      node->children.push_back(std::move(entry));
+      if (!Eat(",")) {
+        break;
+      }
+    }
+    Expect("}", "to close an import list");
+    expect_from = true;
+  }
+
+  if (expect_from) {
+    if (!(current_.type == TokenType::Identifier && current_.lexeme == "from")) {
+      Error("expected 'from' in an import declaration");
+    } else {
+      Advance();
+    }
+    if (current_.type != TokenType::StringLiteral) {
+      Error("expected a module specifier");
+    } else {
+      node->string = current_.value;
+      Advance();
+    }
+  }
+  ConsumeSemicolon();
+  return node;
+}
+
+NodePtr ParserImpl::ParseExportDeclaration() {
+  NodePtr node = Make(NodeKind::ExportDeclaration);
+  Advance();  // `export`
+  std::uint8_t flags = kExportPlain;
+
+  if (At("*")) {
+    // `export * from "m"` and `export * as ns from "m"`.
+    Advance();
+    flags |= kExportAll;
+    if (current_.type == TokenType::Identifier && current_.lexeme == "as") {
+      Advance();
+      NodePtr entry = Make(NodeKind::Export);
+      entry->string = std::string(current_.lexeme);
+      Advance();
+      node->children.push_back(std::move(entry));
+    }
+    if (!(current_.type == TokenType::Identifier && current_.lexeme == "from")) {
+      Error("expected 'from' after 'export *'");
+    } else {
+      Advance();
+    }
+    if (current_.type != TokenType::StringLiteral) {
+      Error("expected a module specifier");
+    } else {
+      node->string = current_.value;
+      Advance();
+    }
+    node->number = static_cast<double>(flags);
+    ConsumeSemicolon();
+    return node;
+  }
+
+  if (AtKeyword("default")) {
+    Advance();
+    flags |= kExportDefault;
+    node->number = static_cast<double>(flags);
+    // A declaration keeps its name *and* is exported as `default`; anything
+    // else is an expression whose value is the export.
+    if (AtKeyword("function") || AtKeyword("class") ||
+        (current_.type == TokenType::Identifier && current_.lexeme == "async")) {
+      node->children.push_back(ParseStatement());
+      return node;
+    }
+    node->children.push_back(ParseAssignment());
+    ConsumeSemicolon();
+    return node;
+  }
+
+  if (At("{")) {
+    // `export { a, b as c }`, optionally re-exported from another module.
+    Advance();
+    node->children.push_back(nullptr);  // no declaration
+    while (!At("}") && !AtEnd()) {
+      NodePtr entry = Make(NodeKind::Export);
+      entry->string = std::string(current_.type == TokenType::StringLiteral
+                                      ? current_.value
+                                      : std::string(current_.lexeme));
+      Advance();
+      if (current_.type == TokenType::Identifier && current_.lexeme == "as") {
+        Advance();
+        NodePtr exported = Make(NodeKind::Identifier);
+        exported->string = std::string(current_.type == TokenType::StringLiteral
+                                           ? current_.value
+                                           : std::string(current_.lexeme));
+        Advance();
+        entry->children.push_back(std::move(exported));
+      }
+      node->children.push_back(std::move(entry));
+      if (!Eat(",")) {
+        break;
+      }
+    }
+    Expect("}", "to close an export list");
+    if (current_.type == TokenType::Identifier && current_.lexeme == "from") {
+      Advance();
+      if (current_.type != TokenType::StringLiteral) {
+        Error("expected a module specifier");
+      } else {
+        node->string = current_.value;
+        Advance();
+      }
+    }
+    node->number = static_cast<double>(flags);
+    ConsumeSemicolon();
+    return node;
+  }
+
+  // `export const x = 1`, `export function f(){}`, `export class C {}`.
+  flags |= kExportDeclaration;
+  node->number = static_cast<double>(flags);
+  node->children.push_back(ParseStatement());
+  return node;
+}
+
 NodePtr ParserImpl::ParseIf() {
   NodePtr node = Make(NodeKind::If);
   Advance();
@@ -411,6 +588,22 @@ NodePtr ParserImpl::ParseStatement() {
     return Make(NodeKind::Empty);
   }
 
+  if (AtKeyword("import")) {
+    // `import(` and `import.` are expressions -- a dynamic import and
+    // `import.meta` -- and everything else beginning with the keyword is a
+    // declaration. One token of lookahead tells them apart.
+    const Token saved = current_;
+    Advance();
+    const bool declaration = !At("(") && !At(".");
+    lexer_.SeekTo(saved.end, saved.line);
+    current_ = saved;
+    if (declaration) {
+      return ParseImportDeclaration();
+    }
+  }
+  if (AtKeyword("export")) {
+    return ParseExportDeclaration();
+  }
   if (At("{")) {
     return ParseBlock();
   }

@@ -82,6 +82,49 @@ enum class NodeKind : std::uint8_t {
   ClassDeclaration,   // same shape as ClassExpression
   Empty,              //
   Debugger,           //
+
+  // --- Modules -------------------------------------------------------------
+  // `import ... from "spec"`. string = the specifier; children = Import.
+  // A bare `import "spec"` has no children and is loaded for its side effects.
+  ImportDeclaration,
+  // One name an import brings in. string = the local binding; number =
+  // ImportKind; [0] = the exported name as an Identifier, for Named only.
+  Import,
+  // `export ...`. string = the specifier for a re-export and empty otherwise;
+  // number = ExportFlags; [0] = the declaration for a declaration export, or
+  // the expression for `export default expr`; children after that = Export.
+  ExportDeclaration,
+  // One name an export publishes. string = the local name; [0] = the exported
+  // name as an Identifier when it differs.
+  Export,
+  // `import.meta`, which is the module's own record as an object.
+  ImportMeta,
+  // `import(spec)`, which is a *call* rather than a declaration: it resolves
+  // at run time and answers a promise. [0] = the specifier expression.
+  ImportCall,
+};
+
+// What one entry of an import declaration brings in.
+enum ImportKind : std::uint8_t {
+  // `import { a }` and `import { a as b }`.
+  kImportNamed = 0,
+  // `import a from`, which is sugar for `import { default as a }` and is kept
+  // apart because the name `default` is a keyword and cannot be written.
+  kImportDefault = 1,
+  // `import * as ns from`, which binds the namespace object itself.
+  kImportNamespace = 2,
+};
+
+enum ExportFlags : std::uint8_t {
+  kExportPlain = 0,
+  // `export default ...`. The thing exported is [0] and its name is "default".
+  kExportDefault = 1 << 0,
+  // `export * from "spec"`, which re-publishes every name the other module has
+  // except `default`.
+  kExportAll = 1 << 1,
+  // `export const x = 1` and friends: [0] is the declaration, and the names it
+  // binds are exported as well as declared.
+  kExportDeclaration = 1 << 2,
 };
 
 // What a function's body can do, in `number` on a FunctionExpression, an
