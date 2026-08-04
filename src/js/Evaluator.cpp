@@ -149,7 +149,12 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
       if (member.IsAbrupt()) {
         return member;
       }
-      return SetProperty(base, KeyFrom(member.value), value);
+      PropertyKey key;
+      const Result converted = ToKeyOf(member.value, key);
+      if (converted.IsAbrupt()) {
+        return converted;
+      }
+      return SetProperty(base, key, value);
     }
 
     default:
@@ -254,7 +259,11 @@ Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
     if (key.IsAbrupt()) {
       return key;
     }
-    const PropertyKey property = KeyFrom(key.value);
+    PropertyKey property;
+    const Result converted_key = ToKeyOf(key.value, property);
+    if (converted_key.IsAbrupt()) {
+      return converted_key;
+    }
     // The receiver has to outlive the right-hand side, which can run anything.
     if (base.IsObject()) {
       active_objects_.push_back(base.object);
@@ -412,7 +421,12 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     // stays the receiver -- which is the whole point of the two being separate.
     const Value lookup_base = super_base_.IsObject() ? super_base_ : base;
     super_base_ = Value::Undefined();
-    callee = Result::Normal(GetProperty(lookup_base, KeyFrom(key.value)));
+    PropertyKey property;
+    const Result converted = ToKeyOf(key.value, property);
+    if (converted.IsAbrupt()) {
+      return converted;
+    }
+    callee = Result::Normal(GetProperty(lookup_base, property));
   } else {
     callee = Evaluate(*callee_node, scope);
   }

@@ -269,7 +269,14 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // Read in place: GetProperty can run a getter, which can call, which can
         // collect. Popping first would take the receiver out of the root set
         // for exactly the duration of the call that needs it alive.
-        const Value value = GetProperty(vm_.stack[vm_.stack.size() - 2], KeyFrom(vm_.stack.back()));
+        PropertyKey key;
+        const Result converted = ToKeyOf(vm_.stack.back(), key);
+        if (converted.IsAbrupt()) {
+          pending = converted;
+          threw = true;
+          break;
+        }
+        const Value value = GetProperty(vm_.stack[vm_.stack.size() - 2], key);
         vm_.stack.pop_back();
         vm_.stack.back() = value;
         break;
@@ -280,9 +287,15 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
       }
       case Op::SetProperty: {
-        const Result stored = SetProperty(vm_.stack[vm_.stack.size() - 3],
-                                          KeyFrom(vm_.stack[vm_.stack.size() - 2]),
-                                          vm_.stack.back());
+        PropertyKey key;
+        const Result converted = ToKeyOf(vm_.stack[vm_.stack.size() - 2], key);
+        if (converted.IsAbrupt()) {
+          pending = converted;
+          threw = true;
+          break;
+        }
+        const Result stored =
+            SetProperty(vm_.stack[vm_.stack.size() - 3], key, vm_.stack.back());
         if (stored.IsAbrupt()) {
           pending = stored;
           threw = true;
@@ -307,8 +320,15 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
       }
       case Op::DeleteProperty: {
+        PropertyKey key;
+        const Result converted = ToKeyOf(vm_.stack.back(), key);
+        if (converted.IsAbrupt()) {
+          pending = converted;
+          threw = true;
+          break;
+        }
         const Value& base = vm_.stack[vm_.stack.size() - 2];
-        const bool removed = base.IsObject() ? base.object->Delete(KeyFrom(vm_.stack.back())) : true;
+        const bool removed = base.IsObject() ? base.object->Delete(key) : true;
         vm_.stack.pop_back();
         vm_.stack.back() = Value::Bool(removed);
         break;
@@ -331,15 +351,37 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         vm_.stack.back() = Value::Bool(!ToBoolean(vm_.stack.back()));
         break;
       case Op::Negate:
-        vm_.stack.back() = Value::Number(-ToNumber(vm_.stack.back()));
-        break;
       case Op::UnaryPlus:
       case Op::ToNumberOp:
-        vm_.stack.back() = Value::Number(ToNumber(vm_.stack.back()));
+      case Op::BitNot: {
+        // Through ToNumberOf, which can run a page's `valueOf` and therefore
+        // can throw. Reading in place rather than popping first, for the
+        // reason GetProperty does: the operand is the only thing rooting what
+        // that call needs.
+        double number = 0;
+        const Result converted = ToNumberOf(vm_.stack.back(), number);
+        if (converted.IsAbrupt()) {
+          pending = converted;
+          threw = true;
+          break;
+        }
+        vm_.stack.back() =
+            instruction.op == Op::Negate ? Value::Number(-number)
+            : instruction.op == Op::BitNot ? Value::Number(~ToInt32(number))
+                                           : Value::Number(number);
         break;
-      case Op::BitNot:
-        vm_.stack.back() = Value::Number(~ToInt32(ToNumber(vm_.stack.back())));
+      }
+      case Op::ToStringOp: {
+        std::string text;
+        const Result converted = ToStringOf(vm_.stack.back(), text);
+        if (converted.IsAbrupt()) {
+          pending = converted;
+          threw = true;
+          break;
+        }
+        vm_.stack.back() = Value::String(std::move(text));
         break;
+      }
       case Op::TypeofValue:
         vm_.stack.back() = Value::String(std::string(TypeOf(vm_.stack.back())));
         break;

@@ -145,6 +145,13 @@ enum class Op : std::uint8_t {
   TypeofValue,
   Discard,      // `void`: [a] -> [undefined]
   ToNumberOp,   // what `++` does to its operand before adding to it
+  // What a template substitution does to its value before it is joined on.
+  //
+  // Not the same as letting `+` do it. `+` converts with the *default* hint,
+  // which tries `valueOf` first; a substitution is ToString, which tries
+  // `toString` first. An object with both is the only thing that can tell, and
+  // a page that writes one has written it precisely so that it can.
+  ToStringOp,   // [a] -> [string]
 
   // --- Jumps ---------------------------------------------------------------
   // The peeking forms leave their operand where it is, which is what makes

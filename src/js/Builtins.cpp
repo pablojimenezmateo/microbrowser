@@ -637,9 +637,33 @@ void Interpreter::InstallGlobals() {
   install(well_known_.object_prototype, "toString", [](NativeCall& call) {
     // The `[object Kind]` form, which is what a page uses to tell an array
     // from a plain object without trusting `instanceof` across realms.
+    //
+    // `null` and `undefined` are the two the spec answers before looking at
+    // anything, and they are *different* answers -- a library that feature-
+    // detects by calling this on null gets "[object Null]" and nothing else.
+    if (call.self.IsNull()) {
+      return Value::String(std::string("[object Null]"));
+    }
+    if (call.self.IsUndefined()) {
+      return Value::String(std::string("[object Undefined]"));
+    }
     if (!call.self.IsObject()) {
-      return Value::String(std::string("[object ") +
-                           (call.self.IsNullish() ? "Undefined" : "Object") + "]");
+      switch (call.self.type) {
+        case ValueType::Boolean: return Value::String(std::string("[object Boolean]"));
+        case ValueType::Number: return Value::String(std::string("[object Number]"));
+        case ValueType::String: return Value::String(std::string("[object String]"));
+        case ValueType::Symbol: return Value::String(std::string("[object Symbol]"));
+        default: return Value::String(std::string("[object Object]"));
+      }
+    }
+    // `Symbol.toStringTag` overrides the kind, which is how a class names
+    // itself to a feature test it cannot otherwise reach.
+    if (Object* tag = call.interpreter.SymbolToStringTag()) {
+      const Value named =
+          call.interpreter.GetPropertyValue(call.self, PropertyKey::Symbol(tag));
+      if (named.IsString()) {
+        return Value::String("[object " + named.AsString() + "]");
+      }
     }
     switch (call.self.object->GetKind()) {
       case Object::Kind::Array: return Value::String(std::string("[object Array]"));
@@ -848,11 +872,26 @@ void Interpreter::InstallGlobals() {
         return Value::Number(ToNumber(Argument(call.arguments, 0)));
       })),
       false);
-  global_scope_->Declare(
-      "Boolean", Value::Obj(native("Boolean", [](NativeCall& call) {
-        return Value::Bool(ToBoolean(Argument(call.arguments, 0)));
-      })),
-      false);
+  Object* boolean_constructor = native("Boolean", [](NativeCall& call) {
+    return Value::Bool(ToBoolean(Argument(call.arguments, 0)));
+  });
+  if (boolean_constructor != nullptr) {
+    // Two methods, and both are reached by conversion far more often than by
+    // a page writing them: `true.toString()` is what ToPrimitive calls, and
+    // without it a boolean in a string context is a TypeError.
+    well_known_.boolean_prototype = NewObject();
+    if (well_known_.boolean_prototype != nullptr) {
+      well_known_.boolean_prototype->SetPrototype(well_known_.object_prototype);
+      install(well_known_.boolean_prototype, "toString", [](NativeCall& call) {
+        return Value::String(std::string(ToBoolean(call.self) ? "true" : "false"));
+      });
+      install(well_known_.boolean_prototype, "valueOf",
+              [](NativeCall& call) { return Value::Bool(ToBoolean(call.self)); });
+      boolean_constructor->Set("prototype", Value::Obj(well_known_.boolean_prototype));
+      well_known_.boolean_prototype->Set("constructor", Value::Obj(boolean_constructor));
+    }
+    global_scope_->Declare("Boolean", Value::Obj(boolean_constructor), false);
+  }
   global_scope_->Declare(
       "parseInt", Value::Obj(native("parseInt", [](NativeCall& call) {
         // Unlike Number(), parseInt stops at the first character it cannot use

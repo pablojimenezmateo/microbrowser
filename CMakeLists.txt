@@ -386,6 +386,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
+  tests/JsConformanceTests.cpp
   tests/JsInterpreterTests.cpp
   tests/JsLexerTests.cpp
   tests/JsRegExpTests.cpp

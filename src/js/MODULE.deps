@@ -212,7 +212,15 @@ budget: Heap        header_lines=145 public_methods=24 members=9
 # two forced returns can be in flight at once -- a `finally` can make another
 # generator return -- so the marker has to be on the value rather than beside
 # the machine.
-budget: WellKnown   header_lines=72 public_methods=2  members=12
+# Grew by three for the symbols an *operator* consults: `Symbol.toPrimitive`
+# for `+`, `Symbol.hasInstance` for `instanceof`, and `Symbol.toStringTag` for
+# `Object.prototype.toString`. Held here for the reason `Symbol.iterator` is --
+# a page can assign to the global `Symbol`, and an operator may not stop
+# working when it does.
+# And by one for Boolean.prototype, which is the same category the string and
+# number prototypes are: a boolean is a primitive here, so its methods live on
+# a shared object GetProperty consults rather than on a wrapper.
+budget: WellKnown   header_lines=95 public_methods=2  members=16
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -244,7 +252,16 @@ budget: WellKnown   header_lines=72 public_methods=2  members=12
 # its own, because every promise in it is a GC root and the root walk for those
 # already exists. Five methods and the record they pass around are the growth,
 # and the record is written out where it lives for the reason Suspension is.
-budget: Interpreter header_lines=655 public_methods=44 members=16
+#
+# Grew again for the conversions that can run script. `ToNumber` and `ToString`
+# in Value.h are pure functions with no interpreter, so they answer NaN and
+# "[object Object]" for every object -- which makes `[] + {}`, `+[]`, `[1] == 1`
+# and `date - date` all quietly wrong. ToPrimitive and the four built on it are
+# methods because they call a page's `valueOf`, and they return a Result because
+# that call can throw. Five public methods and an enum, and they are public for
+# the reason CallFunction is: the host converts values too, and a second
+# implementation of `+` is the thing this whole file argues against.
+budget: Interpreter header_lines=700 public_methods=50 members=16
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

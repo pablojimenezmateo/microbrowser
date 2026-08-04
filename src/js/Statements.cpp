@@ -70,7 +70,14 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         if (value.IsAbrupt()) {
           return value;
         }
-        out += ToString(value.value);
+        // ToString with its own hint, not whatever `+` would have picked: a
+        // substitution tries `toString` before `valueOf`.
+        std::string text;
+        const Result converted = ToStringOf(value.value, text);
+        if (converted.IsAbrupt()) {
+          return converted;
+        }
+        out += text;
       }
       return Result::Normal(Value::String(std::move(out)));
     }
@@ -185,7 +192,10 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
           if (evaluated_key.IsAbrupt()) {
             return evaluated_key;
           }
-          key = KeyFrom(evaluated_key.value);
+          const Result converted = ToKeyOf(evaluated_key.value, key);
+          if (converted.IsAbrupt()) {
+            return converted;
+          }
         }
         const Node* value_node = property->Child(0);
         if (value_node == nullptr) {
@@ -244,7 +254,12 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
             return key;
           }
           if (base.IsObject()) {
-            return Result::Normal(Value::Bool(base.object->Delete(KeyFrom(key.value))));
+            PropertyKey property;
+            const Result converted = ToKeyOf(key.value, property);
+            if (converted.IsAbrupt()) {
+              return converted;
+            }
+            return Result::Normal(Value::Bool(base.object->Delete(property)));
           }
         }
         return Result::Normal(Value::Bool(true));
@@ -255,10 +270,18 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         return value;
       }
       if (node.string == "!") return Result::Normal(Value::Bool(!ToBoolean(value.value)));
-      if (node.string == "-") return Result::Normal(Value::Number(-ToNumber(value.value)));
-      if (node.string == "+") return Result::Normal(Value::Number(ToNumber(value.value)));
-      if (node.string == "~") {
-        return Result::Normal(Value::Number(~ToInt32(ToNumber(value.value))));
+      if (node.string == "-" || node.string == "+" || node.string == "~") {
+        // Through ToNumberOf rather than ToNumber: `-obj` runs the object's
+        // `valueOf`, and `+[]` is 0 rather than NaN because of it.
+        double number = 0;
+        const Result converted = ToNumberOf(value.value, number);
+        if (converted.IsAbrupt()) {
+          return converted;
+        }
+        if (node.string == "~") {
+          return Result::Normal(Value::Number(~ToInt32(number)));
+        }
+        return Result::Normal(Value::Number(node.string == "-" ? -number : number));
       }
       if (node.string == "typeof") {
         return Result::Normal(Value::String(std::string(TypeOf(value.value))));
@@ -276,7 +299,11 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       if (current.IsAbrupt()) {
         return current;
       }
-      const double before = ToNumber(current.value);
+      double before = 0;
+      const Result converted = ToNumberOf(current.value, before);
+      if (converted.IsAbrupt()) {
+        return converted;
+      }
       const double after = node.string == "++" ? before + 1 : before - 1;
 
       if (operand->kind == NodeKind::Member) {
@@ -285,7 +312,12 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         if (key.IsAbrupt()) {
           return key;
         }
-        const Result stored = SetProperty(base, KeyFrom(key.value), Value::Number(after));
+        PropertyKey property;
+        const Result converted_key = ToKeyOf(key.value, property);
+        if (converted_key.IsAbrupt()) {
+          return converted_key;
+        }
+        const Result stored = SetProperty(base, property, Value::Number(after));
         if (stored.IsAbrupt()) {
           return stored;
         }
@@ -394,7 +426,12 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         return Throw("TypeError",
                      "cannot read property '" + ToString(key.value) + "' of " + ToString(base));
       }
-      return Result::Normal(GetProperty(base, KeyFrom(key.value)));
+      PropertyKey property;
+      const Result converted = ToKeyOf(key.value, property);
+      if (converted.IsAbrupt()) {
+        return converted;
+      }
+      return Result::Normal(GetProperty(base, property));
     }
 
     case NodeKind::Sequence: {
@@ -1033,7 +1070,12 @@ Result Interpreter::EvaluateTaggedTemplate(const Node& node, Environment& scope)
         if (key.IsAbrupt()) {
           return key;
         }
-        tag = Result::Normal(GetProperty(self, KeyFrom(key.value)));
+        PropertyKey property;
+        const Result converted = ToKeyOf(key.value, property);
+        if (converted.IsAbrupt()) {
+          return converted;
+        }
+        tag = Result::Normal(GetProperty(self, property));
       } else {
         tag = Evaluate(*tag_node, scope);
         if (tag.IsAbrupt()) {

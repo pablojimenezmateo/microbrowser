@@ -206,6 +206,10 @@ class Interpreter {
   // The `Symbol.iterator` cell, so a caller can ask for the protocol hook
   // without going through the global object -- which a page can reassign.
   Object* SymbolIterator() const { return well_known_.symbol_iterator; }
+  // The same, for the two hooks a builtin rather than an operator consults:
+  // `Object.prototype.toString` reads the tag, and `Array.prototype.concat`
+  // will read the spread flag.
+  Object* SymbolToStringTag() const { return well_known_.symbol_to_string_tag; }
 
   // The compiled pattern behind a RegExp object, or null for anything else.
   // This is what "is a regular expression" means here, and it is a stronger
@@ -270,6 +274,37 @@ class Interpreter {
   // the compiler's `Binary` opcode, so `+` has one answer rather than two that
   // can drift. Lives in Operators.cpp.
   Result ApplyBinary(BinaryOp op, const Value& a, const Value& b);
+
+ public:
+  // --- The conversions that can run script (Operators.cpp) -----------------
+  //
+  // `ToNumber` and `ToString` in Value.h are pure functions and answer NaN and
+  // "[object Object]" for every object, because they have no interpreter to
+  // call `valueOf` with. That is the wrong answer for `[] + {}`, for `+[]`,
+  // for `date - date` and for every page that defines one -- and it is wrong
+  // *quietly*, which is worse than throwing.
+  //
+  // These four are the spec's versions: they can call into script, so they can
+  // throw, so they return a Result. The pure ones stay for the places that
+  // genuinely have a primitive already -- a number's own `toString`, a
+  // console line -- and calling one of those on a value that might be an
+  // object is now the bug to look for.
+  enum class Hint : std::uint8_t { Default, Number, String };
+  // OrdinaryToPrimitive with the `Symbol.toPrimitive` override in front of it.
+  // The hint decides the order `valueOf` and `toString` are tried in, and
+  // Default means Number for everything except a Date.
+  Result ToPrimitive(const Value& value, Hint hint, Value& out);
+  Result ToNumberOf(const Value& value, double& out);
+  Result ToStringOf(const Value& value, std::string& out);
+  // ToPropertyKey: a computed access converts its key through ToPrimitive with
+  // a string hint, so `o[{toString(){return 'a'}}]` reads `o.a`.
+  Result ToKeyOf(const Value& value, PropertyKey& out);
+  // `==` where either side may be an object. The pure LooseEquals in Value.h
+  // answers false for every object it is not identical to; this one coerces,
+  // which is what makes `[1] == 1` true.
+  Result LooseEqualsOf(const Value& a, const Value& b, bool& out);
+
+ private:
 
   // --- The virtual machine -------------------------------------------------
   //
@@ -517,6 +552,11 @@ class Interpreter {
     // Where a number's methods live. A number is a primitive here, like a
     // string, so GetProperty consults this directly rather than boxing.
     Object* number_prototype = nullptr;
+    // And a boolean's, on exactly the same terms. Two methods live on it and
+    // both matter more than their size suggests: `true.toString()` is what
+    // ToPrimitive reaches for, so without this a boolean in a string context
+    // is a TypeError rather than "true".
+    Object* boolean_prototype = nullptr;
     // Where `next`, `throw` and `return` live, and the `Symbol.iterator` that
     // returns the generator itself. One object shared by every generator
     // rather than one per generator function -- so `Object.getPrototypeOf(g())`
@@ -547,12 +587,19 @@ class Interpreter {
     Object* symbol_iterator = nullptr;
     // What `for await` resolves against, held for the reason above.
     Object* symbol_async_iterator = nullptr;
+    // The three hooks an *operator* consults, held for the reason the two
+    // above are: `+`, `instanceof` and `Object.prototype.toString` have to
+    // find them whatever a page did to the global `Symbol`.
+    Object* symbol_to_primitive = nullptr;
+    Object* symbol_has_instance = nullptr;
+    Object* symbol_to_string_tag = nullptr;
 
     std::vector<Object*> Roots() const {
       return {object_prototype,    array_prototype,   function_prototype,  string_prototype,
               regexp_prototype,    promise_prototype, symbol_iterator,     number_prototype,
               generator_prototype, symbol_async_iterator, async_generator_prototype,
-              return_signal};
+              return_signal,       symbol_to_primitive, symbol_has_instance,
+              symbol_to_string_tag, boolean_prototype};
     }
   };
 

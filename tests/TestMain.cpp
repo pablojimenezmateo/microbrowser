@@ -29,6 +29,7 @@ void RegisterDisplayListDiffTests(std::vector<TestCase>& tests);
 void RegisterEngineTests(std::vector<TestCase>& tests);
 void RegisterFloatTests(std::vector<TestCase>& tests);
 void RegisterDomBindingsTests(std::vector<TestCase>& tests);
+void RegisterJsConformanceTests(std::vector<TestCase>& tests);
 void RegisterJsInterpreterTests(std::vector<TestCase>& tests);
 void RegisterJsLexerTests(std::vector<TestCase>& tests);
 void RegisterJsRegExpTests(std::vector<TestCase>& tests);
@@ -150,6 +151,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterEngineTests(tests);
   microbrowser::tests::RegisterFloatTests(tests);
   microbrowser::tests::RegisterDomBindingsTests(tests);
+  microbrowser::tests::RegisterJsConformanceTests(tests);
   microbrowser::tests::RegisterJsInterpreterTests(tests);
   microbrowser::tests::RegisterJsLexerTests(tests);
   microbrowser::tests::RegisterJsRegExpTests(tests);

@@ -941,6 +941,11 @@ void Compiler::TemplateLiteral(const Node& node) {
       continue;  // an empty `${}` contributes nothing
     }
     Expression(*substitution);
+    // ToString before the concatenation rather than through it. `+` would
+    // convert with the default hint and try `valueOf` first; a substitution is
+    // ToString and tries `toString` first, and an object with both is written
+    // that way on purpose.
+    Emit(Op::ToStringOp, 0, 0);
     Emit(Op::Binary, static_cast<std::uint32_t>(BinaryOp::Add), -1);
   }
 }

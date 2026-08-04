@@ -92,9 +92,25 @@ void Interpreter::InstallIteration() {
   // and a page can reassign the global `Symbol` but cannot make another cell
   // that compares equal to this one.
   well_known_.symbol_async_iterator = well_known("asyncIterator");
-  well_known("hasInstance");
-  well_known("toPrimitive");
-  well_known("toStringTag");
+  // The three an operator consults. Held for the reason the two above are:
+  // `+` looks for `Symbol.toPrimitive`, `instanceof` for `Symbol.hasInstance`
+  // and `Object.prototype.toString` for `Symbol.toStringTag`, and none of
+  // those may stop working because a page assigned to the global `Symbol`.
+  well_known_.symbol_has_instance = well_known("hasInstance");
+  well_known_.symbol_to_primitive = well_known("toPrimitive");
+  well_known_.symbol_to_string_tag = well_known("toStringTag");
+  // The pattern-protocol symbols. Nothing consults them yet -- the String
+  // methods still test for a RegExp object rather than for these -- but a page
+  // that reads one must get the same cell every time, and `Symbol.species`
+  // is read by library code that never calls it.
+  well_known("species");
+  well_known("match");
+  well_known("matchAll");
+  well_known("replace");
+  well_known("search");
+  well_known("split");
+  well_known("isConcatSpreadable");
+  well_known("unscopables");
 
   // The registry behind `Symbol.for`, which is the one way two symbols with
   // the same description *are* the same symbol.

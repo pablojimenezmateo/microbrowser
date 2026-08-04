@@ -305,6 +305,16 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
             : well_known_.number_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
+  if (base.type == ValueType::Boolean) {
+    // A boolean is a primitive here too, so its two methods come off the
+    // shared prototype rather than off a wrapper. Small, and load-bearing:
+    // ToPrimitive calls `toString` on whatever it is handed.
+    const Object::Property* method =
+        well_known_.boolean_prototype == nullptr
+            ? nullptr
+            : well_known_.boolean_prototype->GetProperty(key);
+    return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
+  }
   if (base.IsSymbol()) {
     // A symbol is a primitive, but its cell is an object, so `sym.description`
     // and `sym.toString` are an ordinary prototype walk from the cell. No

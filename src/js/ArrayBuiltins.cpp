@@ -244,10 +244,14 @@ void Interpreter::InstallArrayPrototype() {
     return self->GetElement(static_cast<std::size_t>(index));
   });
 
-  method("join", [](NativeCall& call) {
+  // `join`, and the `toString` that is the same thing with a fixed separator.
+  //
+  // `toString` matters far past printing: it is what ToPrimitive reaches for,
+  // so it is the reason `[] + {}` is "[object Object]" and `+[1]` is 1. Without
+  // it an array inherits Object.prototype.toString and every one of those
+  // answers is "[object Array]" instead.
+  const auto join = [](NativeCall& call, const std::string& separator) {
     Object* self = Self(call);
-    const Value separator_value = Argument(call.arguments, 0);
-    const std::string separator = separator_value.IsUndefined() ? "," : ToString(separator_value);
     std::string joined;
     for (std::size_t i = 0; self != nullptr && i < self->ElementCount(); ++i) {
       if (i != 0) {
@@ -256,11 +260,37 @@ void Interpreter::InstallArrayPrototype() {
       const Value element = self->GetElement(i);
       // A hole, a null and an undefined all contribute nothing -- which is why
       // `[null, 1].join('-')` is "-1" rather than "null-1".
-      if (!element.IsNullish()) {
-        joined += ToString(element);
+      if (element.IsNullish()) {
+        continue;
+      }
+      // Through the interpreter's conversion, not the pure one: an element
+      // with its own `toString` has to run it, and it can throw.
+      std::string text;
+      const Result converted = call.interpreter.ToStringOf(element, text);
+      if (converted.IsAbrupt()) {
+        call.ThrowValue(converted.value);
+        return std::string();
+      }
+      joined += text;
+    }
+    return joined;
+  };
+  method("join", [join](NativeCall& call) {
+    const Value separator_value = Argument(call.arguments, 0);
+    std::string separator = ",";
+    if (!separator_value.IsUndefined()) {
+      const Result converted = call.interpreter.ToStringOf(separator_value, separator);
+      if (converted.IsAbrupt()) {
+        return call.ThrowValue(converted.value);
       }
     }
-    return Value::String(std::move(joined));
+    return Value::String(join(call, separator));
+  });
+  method("toString", [join](NativeCall& call) {
+    return Value::String(join(call, ","));
+  });
+  method("toLocaleString", [join](NativeCall& call) {
+    return Value::String(join(call, ","));
   });
 
   method("indexOf", [](NativeCall& call) {
