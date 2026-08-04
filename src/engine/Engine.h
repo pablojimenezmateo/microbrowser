@@ -59,9 +59,9 @@ class Engine {
   // animation frame, or the point at which a silent server is given up on.
   // Nothing when it has none -- which is the answer that lets the loop block.
   std::optional<std::uint32_t> NextDeadlineMs() const;
-  // Runs every timer that is due, and repaints when one changed the page.
-  // True when anything ran.
-  bool RunDueTimers();
+  // Runs every timer that is due and the animation frame if its boundary has
+  // arrived, and repaints when one changed the page. True when anything ran.
+  bool RunDueWork();
 
   // What the loop's single blocking wait must watch for this engine to make
   // progress. Appends rather than assigns, because the loop waits on more than

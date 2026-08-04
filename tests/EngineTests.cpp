@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "bindings/AnimationFrames.h"
 #include "engine/Engine.h"
 #include "net/RequestQueue.h"
 #include "engine/Loader.h"
@@ -2034,6 +2035,43 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     // engine claiming the page is malformed.
     Expect(errors.at(1).find("modules are not available") != std::string::npos,
            "and an import says there is no resolver rather than reporting a parse error");
+  });
+
+  AddTest(tests, "Engine/AStaticPageSchedulesNothing", [] {
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl("<p>ABC</p>")});
+    Expect(!session.engine.NextDeadlineMs().has_value(),
+           "a loaded page with no timer, no frame and nothing outstanding must hand the loop "
+           "no deadline at all -- this is the zero-idle-CPU invariant at the seam");
+  });
+
+  AddTest(tests, "Page/AnAnimationFrameIsADeadlineAndAStoppedOneIsNot", [] {
+    // At Page rather than Engine because time is a parameter here: a test that
+    // had to wait 16ms of real time per frame to assert a scheduling property
+    // would be a slow test that is also a flaky one.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><p>ABC</p><script>"
+        "globalThis.left = 2;"
+        "globalThis.tick = () => { if (--left > 0) requestAnimationFrame(tick); };"
+        "requestAnimationFrame(tick);"
+        "</" "script></body></html>",
+        "https://example.org/");
+    page.RunScripts(0);
+
+    Expect(page.NextWakeDelay(0).has_value(),
+           "a page with a frame pending wakes the loop at the frame boundary");
+    // Two frames, and then the page stops asking. A browser that kept a 60Hz
+    // loop running past this point is one that costs a core to leave open.
+    std::int64_t now = 0;
+    for (int frame = 0; frame < 4 && page.NextWakeDelay(now).has_value(); ++frame) {
+      now += bindings::kFrameIntervalMs;
+      page.RunDueWork(now);
+    }
+    Expect(!page.NextWakeDelay(now).has_value(),
+           "and stops scheduling the moment the page stops asking");
   });
 }
 

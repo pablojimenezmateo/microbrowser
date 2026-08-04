@@ -1,5 +1,6 @@
 #include "engine/PageScript.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -114,6 +115,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url);
   bindings_->Install();
   timers_.Install(*interpreter_, now_ms);
+  frames_.Install(*interpreter_, now_ms);
 }
 
 bool PageScript::RunTiming(Timing timing) {
@@ -185,14 +187,31 @@ bool PageScript::RunReadyAsync() {
   return interpreter_ != nullptr && RunTiming(Timing::Async);
 }
 
-std::optional<std::uint32_t> PageScript::NextTimerDelay(std::int64_t now_ms) const {
-  // A page that ran no script can have no timers, and asking costs nothing --
-  // which is what keeps a static document from ever waking the loop.
-  return interpreter_ == nullptr ? std::nullopt : timers_.NextDelay(now_ms);
+std::optional<std::uint32_t> PageScript::NextWakeDelay(std::int64_t now_ms) const {
+  // A page that ran no script can have neither timers nor frames, and asking
+  // costs nothing -- which is what keeps a static document from ever waking
+  // the loop.
+  if (interpreter_ == nullptr) {
+    return std::nullopt;
+  }
+  const std::optional<std::uint32_t> timer = timers_.NextDelay(now_ms);
+  const std::optional<std::uint32_t> frame = frames_.NextDelay(now_ms);
+  if (!timer.has_value()) {
+    return frame;
+  }
+  return frame.has_value() ? std::optional<std::uint32_t>(std::min(*timer, *frame)) : timer;
 }
 
-bool PageScript::RunDueTimers(std::int64_t now_ms) {
-  return interpreter_ != nullptr && timers_.RunDue(*interpreter_, now_ms);
+bool PageScript::RunDueWork(std::int64_t now_ms) {
+  if (interpreter_ == nullptr) {
+    return false;
+  }
+  // Timers first, then the frame. That is the order the event loop defines and
+  // it is the useful one: a timer that moves something should be reflected by
+  // the frame that draws it, in the same turn rather than 16ms later.
+  const bool timers = timers_.RunDue(*interpreter_, now_ms);
+  const bool frame = frames_.RunDue(*interpreter_, now_ms);
+  return timers || frame;
 }
 
 bool PageScript::DispatchClick(dom::Element& target) {

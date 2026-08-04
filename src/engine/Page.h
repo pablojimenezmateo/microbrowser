@@ -94,12 +94,13 @@ class Page : private layout::ImageProvider {
   // subresources first and one that does not can both end with it.
   void RunScripts(std::int64_t now_ms);
 
-  // Milliseconds until the page's soonest timer, or nothing when it has none.
-  // The loop asks this to decide how long it may sleep.
-  std::optional<std::uint32_t> NextTimerDelay(std::int64_t now_ms) const;
-  // Runs every timer due now. True when any ran and the page needs laying out
-  // again.
-  bool RunDueTimers(std::int64_t now_ms);
+  // Milliseconds until the page's soonest timer or animation frame, or nothing
+  // when it has asked for neither. The loop asks this to decide how long it may
+  // sleep.
+  std::optional<std::uint32_t> NextWakeDelay(std::int64_t now_ms) const;
+  // Runs every timer that is due and the animation frame if its boundary has
+  // arrived. True when any ran and the page needs laying out again.
+  bool RunDueWork(std::int64_t now_ms);
 
   // Adds the fetched stylesheet for `PendingStyleSheets()[pending_index]`.
   // Author-origin cascade order is the document order of <style> and <link>,

@@ -5,6 +5,7 @@
 
 #include "TestSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/AnimationFrames.h"
 #include "bindings/Timers.h"
 #include "html/TreeBuilder.h"
 #include "js/Interpreter.h"
@@ -806,6 +807,74 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // inline arrow cannot be removed -- and is what every browser does.
     ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "10",
                    "the named handler was removed and the other still ran");
+  });
+
+  // ADR 0011 states the line these guard: *a page with no pending animation
+  // frame does not schedule a frame at all.* That is the point where a browser
+  // normally starts burning a core on an idle page, and a change that starts
+  // doing it has to make one of these fail first.
+  AddTest(tests, "AnimationFrames/NoRequestMeansNoFrameIsScheduled", [] {
+    js::Interpreter interpreter;
+    bindings::AnimationFrames frames;
+    frames.Install(interpreter, 1000);
+    Expect(!frames.NextDelay(1000).has_value(),
+           "nothing asked for a frame, so no frame is scheduled and the loop may block");
+
+    interpreter.Run("requestAnimationFrame(() => {});");
+    Expect(frames.NextDelay(1000).has_value(), "one request, one frame deadline");
+    Expect(frames.RunDue(interpreter, 1000), "and it runs at the boundary");
+    Expect(!frames.NextDelay(1000).has_value(),
+           "after which nothing is scheduled again -- a settled page must not keep a 60Hz "
+           "loop running behind it");
+  });
+
+  AddTest(tests, "AnimationFrames/ACallbackThatAsksAgainGetsTheNextFrameAndNotThisOne", [] {
+    js::Interpreter interpreter;
+    bindings::AnimationFrames frames;
+    frames.Install(interpreter, 0);
+    interpreter.Run(
+        "globalThis.n = 0;"
+        "globalThis.again = () => { n++; requestAnimationFrame(again); };"
+        "requestAnimationFrame(again);");
+
+    Expect(frames.RunDue(interpreter, 0), "the first frame runs");
+    ExpectEqString(js::ToString(interpreter.Run("String(n)").value), "1",
+                   "exactly once: a callback that asks for another frame is asking for the "
+                   "next one, and running it now would spin the loop inside a single turn");
+    const std::optional<std::uint32_t> next = frames.NextDelay(0);
+    Expect(next.has_value(), "the next frame is scheduled");
+    ExpectEqInt(static_cast<long long>(*next),
+                static_cast<long long>(bindings::kFrameIntervalMs),
+                "a frame interval away, so the cadence does not depend on how long the "
+                "callback took");
+    Expect(!frames.RunDue(interpreter, 1), "and it does not run before its boundary");
+  });
+
+  AddTest(tests, "AnimationFrames/EveryCallbackInAFrameSeesTheSameTimestamp", [] {
+    js::Interpreter interpreter;
+    bindings::AnimationFrames frames;
+    frames.Install(interpreter, 500);
+    interpreter.Run(
+        "globalThis.seen = [];"
+        "requestAnimationFrame(t => seen.push(t));"
+        "requestAnimationFrame(t => seen.push(t));");
+    Expect(frames.RunDue(interpreter, 700), "the frame runs");
+    ExpectEqString(js::ToString(interpreter.Run("seen.join(',')").value), "200,200",
+                   "one frame is one moment, measured from when the page loaded -- two "
+                   "callbacks handed two different times is how animations desynchronise");
+  });
+
+  AddTest(tests, "AnimationFrames/CancellingLeavesNothingScheduled", [] {
+    js::Interpreter interpreter;
+    bindings::AnimationFrames frames;
+    frames.Install(interpreter, 0);
+    interpreter.Run(
+        "globalThis.n = 0;"
+        "const id = requestAnimationFrame(() => { n++ });"
+        "cancelAnimationFrame(id);");
+    Expect(!frames.NextDelay(0).has_value(), "the request is gone");
+    Expect(!frames.RunDue(interpreter, 100), "and nothing runs");
+    ExpectEqString(js::ToString(interpreter.Run("String(n)").value), "0", "the callback did not");
   });
 
   AddTest(tests, "Timers/NothingScheduledMeansTheLoopMayBlock", [] {

@@ -147,9 +147,10 @@ bool Application::RunOneIteration() {
   // drain because it is driven by the network rather than by the UI, and after
   // the process split the two arrive on different descriptors.
   engine_.Advance();
-  // Due timers run at the top of a turn, before anything is painted, so a
-  // callback that changes the page is on screen in the same frame.
-  engine_.RunDueTimers();
+  // Due timers and the animation frame run at the top of a turn, before
+  // anything is painted, so a callback that changes the page is on screen in
+  // the same frame.
+  engine_.RunDueWork();
   ConsumeEngineMessages();
 
   if (repaint_pending_) {

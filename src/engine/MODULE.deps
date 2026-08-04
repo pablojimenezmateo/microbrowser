@@ -85,4 +85,9 @@ budget: Page   header_lines=170 public_methods=36 members=12
 # waits for, and run the ones that landed late -- and the same eight members:
 # the slot became a struct rather than the timings becoming three more
 # vectors. See ADR 0011.
-budget: PageScript header_lines=145 public_methods=17 members=8
+# The ninth member is the animation frames, and it is deliberately not part of
+# the timer queue: a timer is a deadline the page chose and a frame is one the
+# browser chose. Both are asked for behind one question -- NextWakeDelay --
+# because the loop having to remember to ask twice is how one of them ends up
+# not being waited for. See ADR 0011.
+budget: PageScript header_lines=155 public_methods=17 members=9

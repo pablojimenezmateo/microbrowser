@@ -292,6 +292,7 @@ microbrowser_module(bindings
     src/bindings/CustomElements.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
+    src/bindings/AnimationFrames.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/NodeInterfaces.cpp

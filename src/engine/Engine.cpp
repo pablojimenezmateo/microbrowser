@@ -206,7 +206,7 @@ bool Engine::HasRunnableWork() const {
 
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   const std::int64_t now_ms = NowMilliseconds();
-  const std::optional<std::uint32_t> timers = page_.NextTimerDelay(now_ms);
+  const std::optional<std::uint32_t> timers = page_.NextWakeDelay(now_ms);
   const std::optional<std::uint32_t> network =
       load_.active ? loader_.NextDeadlineMs(now_ms) : std::nullopt;
   if (!timers.has_value()) {
@@ -218,8 +218,8 @@ std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   return std::min(*timers, *network);
 }
 
-bool Engine::RunDueTimers() {
-  if (!page_.RunDueTimers(NowMilliseconds())) {
+bool Engine::RunDueWork() {
+  if (!page_.RunDueWork(NowMilliseconds())) {
     return false;
   }
   LayoutAndPaint();

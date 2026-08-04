@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "bindings/AnimationFrames.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Timers.h"
 #include "dom/Node.h"
@@ -91,12 +92,16 @@ class PageScript {
   // to build one.
   bool RunReadyAsync();
 
-  // Milliseconds until the soonest timer, or nothing when none is pending --
-  // which is the answer that lets the loop block rather than wake.
-  std::optional<std::uint32_t> NextTimerDelay(std::int64_t now_ms) const;
-  // Runs every timer due now. True when any ran, which is the caller's signal
-  // that the document may have changed.
-  bool RunDueTimers(std::int64_t now_ms);
+  // Milliseconds until the soonest thing this page has asked to be woken for:
+  // a timer, or an animation frame. Nothing when it has asked for neither --
+  // which is the answer that lets the loop block rather than wake, and the
+  // reason both live behind one question instead of the loop having to
+  // remember to ask twice.
+  std::optional<std::uint32_t> NextWakeDelay(std::int64_t now_ms) const;
+  // Runs every timer that is due and, if the frame boundary has arrived, the
+  // animation frame. True when any ran, which is the caller's signal that the
+  // document may have changed.
+  bool RunDueWork(std::int64_t now_ms);
 
   // Runs the click handlers registered on `target` and its ancestors. True
   // when one called `preventDefault`.
@@ -162,6 +167,10 @@ class PageScript {
   std::vector<std::size_t> pending_slots_;
   bool ran_ = false;
   bindings::TimerQueue timers_;
+  // Not folded into the timers. A timer is a deadline the page chose; a frame
+  // is one the browser chose, shared by every callback, and existing only
+  // while something has asked for it. See AnimationFrames.
+  bindings::AnimationFrames frames_;
   std::vector<std::string> errors_;
 };
 

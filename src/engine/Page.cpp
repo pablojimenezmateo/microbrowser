@@ -517,12 +517,12 @@ ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
   return outcome;
 }
 
-std::optional<std::uint32_t> Page::NextTimerDelay(std::int64_t now_ms) const {
-  return script_.NextTimerDelay(now_ms);
+std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
+  return script_.NextWakeDelay(now_ms);
 }
 
-bool Page::RunDueTimers(std::int64_t now_ms) {
-  if (!script_.RunDueTimers(now_ms)) {
+bool Page::RunDueWork(std::int64_t now_ms) {
+  if (!script_.RunDueWork(now_ms)) {
     return false;
   }
   InvalidateLayout();
