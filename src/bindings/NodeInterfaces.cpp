@@ -168,6 +168,35 @@ void DomBindings::EnsureInterfaces() {
   // A Document is a ParentNode too: `document.querySelector` and
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));
+  // `new Image()` is `document.createElement('img')` with a nicer spelling,
+  // and `new Image(w, h)` sets the two attributes. Honest to have: it is the
+  // element's constructor and nothing more. That a *detached* image does not
+  // fetch is the synchronous-loading gap in ADR 0011, which an `<img>` added
+  // by script after the load has equally -- not something this introduces.
+  DomBindings* self = this;
+  const Value image = interpreter_->NewNativeValue("Image", [self](js::NativeCall& call) {
+    const Value made = self->CreateElement("img");
+    if (made.IsObject() && !call.arguments.empty()) {
+      if (dom::Node* made_node = NodeOf(made)) {
+        auto& img = static_cast<dom::Element&>(*made_node);
+        img.SetAttribute("width", js::ToString(call.arguments[0]));
+        if (call.arguments.size() > 1) {
+          img.SetAttribute("height", js::ToString(call.arguments[1]));
+        }
+      }
+    }
+    return made;
+  });
+  if (image.IsObject()) {
+    // Its prototype is HTMLImageElement's, so `new Image() instanceof
+    // HTMLImageElement` is true -- which is what a page checks.
+    if (const Value* prototype = interfaces_.object->GetOwn("HTMLImageElement")) {
+      image.object->Set("prototype", *prototype);
+    }
+    interpreter_->Global()->Set("Image", image);
+    interpreter_->GlobalScope()->Declare("Image", image, false);
+  }
+
   InstallCustomElements();
   InstallMutationObserver();
   InstallWindowEvents();

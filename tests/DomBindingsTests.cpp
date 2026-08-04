@@ -479,6 +479,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // right answer rather than a fallback.
     ExpectScript(kPage, "document.createElement('marquee') instanceof HTMLElement", "true");
 
+    // `new Image()` is the img element's constructor and nothing more, which
+    // is what makes it honest to have: the loading a detached image does not
+    // do is the synchronous-loading gap, which an `<img>` added by script has
+    // equally.
+    ExpectScript(kPage, "new Image() instanceof HTMLImageElement", "true");
+    ExpectScript(kPage, "new Image().tagName", "img");
+    ExpectScript(kPage, "new Image(4, 5).getAttribute('height')", "5");
+
     // The base a custom element extends. Being able to *write* this is the
     // point; registering it needs customElements, which is later in ADR 0012.
     ExpectScript(kPage, "typeof class X extends HTMLElement {}", "function");
