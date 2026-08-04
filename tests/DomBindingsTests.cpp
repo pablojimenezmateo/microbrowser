@@ -261,6 +261,94 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "hi");
   });
 
+  AddTest(tests, "DomBindings/ClickHandlersRunAndBubble", [] {
+    Bound bound = Bind("<div id=outer><span id=inner>x</span></div>");
+    const js::Result setup = bound.interpreter->Run(
+        "globalThis.seen = [];"
+        "document.getElementById('inner').addEventListener('click', function(e) {"
+        "  seen.push('inner:' + e.type + ':' + (e.target === this));"
+        "});"
+        "document.getElementById('outer').addEventListener('click', function(e) {"
+        "  seen.push('outer:' + (e.currentTarget === this) + ':' + (e.target.id === 'inner'));"
+        "});"
+        "'ready'");
+    Expect(!setup.IsAbrupt(), "the listeners registered: " + js::ToString(setup.value));
+
+    dom::Element* inner = nullptr;
+    bound.document->ForEachDescendant([&](const dom::Node& node) {
+      const std::string* id = node.IsElement()
+                                  ? static_cast<const dom::Element&>(node).GetAttribute("id")
+                                  : nullptr;
+      if (id != nullptr && *id == "inner") {
+        inner = const_cast<dom::Element*>(&static_cast<const dom::Element&>(node));
+      }
+    });
+    Expect(inner != nullptr, "the inner element exists");
+    const bool prevented = bound.dom_bindings->DispatchClick(*inner);
+    Expect(!prevented, "nothing called preventDefault");
+
+    // From the target up, which is what bubbling is -- and `this` is the node
+    // the listener was registered on, not the one that was clicked.
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen.join(' ')").value),
+                   "inner:click:true outer:true:true", "both ran, target first");
+  });
+
+  AddTest(tests, "DomBindings/PreventDefaultAndStopPropagationDoDifferentThings", [] {
+    // One stops the browser's own behaviour and the other stops the walk. A
+    // page uses them for opposite purposes and confusing them is silent.
+    const auto dispatch = [](std::string_view setup) {
+      Bound bound = Bind("<div id=outer><span id=inner>x</span></div>");
+      bound.interpreter->Run(std::string("globalThis.seen = [];") + std::string(setup));
+      dom::Element* inner = nullptr;
+      bound.document->ForEachDescendant([&](const dom::Node& node) {
+        const std::string* id = node.IsElement()
+                                    ? static_cast<const dom::Element&>(node).GetAttribute("id")
+                                    : nullptr;
+        if (id != nullptr && *id == "inner") {
+          inner = const_cast<dom::Element*>(&static_cast<const dom::Element&>(node));
+        }
+      });
+      const bool prevented = inner != nullptr && bound.dom_bindings->DispatchClick(*inner);
+      return std::string(prevented ? "prevented " : "allowed ") +
+             js::ToString(bound.interpreter->Run("seen.join(',')").value);
+    };
+    ExpectEqString(
+        dispatch("document.getElementById('inner').addEventListener('click', e => {"
+                 "  seen.push('a'); e.preventDefault();"
+                 "});"
+                 "document.getElementById('outer').addEventListener('click', () => seen.push('b'));"),
+        "prevented a,b", "preventDefault stops the default, not the bubble");
+    ExpectEqString(
+        dispatch("document.getElementById('inner').addEventListener('click', e => {"
+                 "  seen.push('a'); e.stopPropagation();"
+                 "});"
+                 "document.getElementById('outer').addEventListener('click', () => seen.push('b'));"),
+        "allowed a", "stopPropagation stops the bubble, not the default");
+  });
+
+  AddTest(tests, "DomBindings/ListenersAreRemovedByIdentity", [] {
+    Bound bound = Bind("<div id=d>x</div>");
+    bound.interpreter->Run(
+        "globalThis.n = 0;"
+        "globalThis.handler = () => { n++ };"
+        "const d = document.getElementById('d');"
+        "d.addEventListener('click', handler);"
+        "d.addEventListener('click', () => { n += 10 });"
+        "d.removeEventListener('click', handler);");
+    dom::Element* target = nullptr;
+    bound.document->ForEachDescendant([&](const dom::Node& node) {
+      if (node.IsElement() && static_cast<const dom::Element&>(node).TagName() == "div") {
+        target = const_cast<dom::Element*>(&static_cast<const dom::Element&>(node));
+      }
+    });
+    Expect(target != nullptr, "the div exists");
+    bound.dom_bindings->DispatchClick(*target);
+    // Only the anonymous one is left. Removal is by identity, which is why an
+    // inline arrow cannot be removed -- and is what every browser does.
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "10",
+                   "the named handler was removed and the other still ran");
+  });
+
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {
     // The point of the whole layer: a change made by script is a change to the
     // document, not to a copy of it.

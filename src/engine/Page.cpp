@@ -179,6 +179,33 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
   return const_cast<dom::Element*>(element);
 }
 
+// The innermost element whose box contains `point`, or null.
+//
+// Deepest-first, and the last child first within a level: a box painted over
+// another is the one a click lands on, and the paint order is child-after-
+// parent and later-sibling-after-earlier.
+const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point) {
+  for (std::size_t i = box.Children().size(); i-- > 0;) {
+    if (const dom::Element* hit = HitTestElement(*box.Children()[i], point)) {
+      return hit;
+    }
+  }
+  if (box.GetKind() == layout::Box::Kind::Text) {
+    for (const layout::TextFragment& fragment : box.Fragments()) {
+      if (Contains(fragment.rect, point)) {
+        // A text box has no element of its own; the click belongs to whatever
+        // generated it, which the caller finds by walking up from here.
+        return box.Origin();
+      }
+    }
+    return nullptr;
+  }
+  if (box.Origin() != nullptr && Contains(box.Geometry().BorderBox(), point)) {
+    return box.Origin();
+  }
+  return nullptr;
+}
+
 std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
                                        const std::string* active_href) {
   if (const std::string* href = AnchorHref(box.Origin())) {
@@ -462,6 +489,24 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
     return std::nullopt;
   }
   return BuildFormSubmission(*form, submitter, *document_, url_);
+}
+
+bool Page::DispatchClickAt(gfx::FloatPoint document_point) {
+  if (boxes_ == nullptr) {
+    return false;
+  }
+  const dom::Element* target = HitTestElement(*boxes_, document_point);
+  if (target == nullptr) {
+    return false;
+  }
+  const bool prevented = script_.DispatchClick(*const_cast<dom::Element*>(target));
+  if (prevented) {
+    // A handler that changed the tree has invalidated everything derived from
+    // it. Dropped rather than patched, for the reason RunScripts gives.
+    boxes_.reset();
+    CollectImages();
+  }
+  return prevented;
 }
 
 bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {

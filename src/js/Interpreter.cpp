@@ -484,14 +484,27 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
 }
 
 Result Interpreter::Run(std::string_view source) {
-  const ParseResult parsed = Parse(source);
+  ParseResult parsed = Parse(source);
   if (!parsed.errors.empty()) {
     // A syntax error is a thrown SyntaxError, so a caller has one failure path
     // rather than two.
     return Throw("SyntaxError", parsed.errors.front().message + " (line " +
                                     std::to_string(parsed.errors.front().line) + ")");
   }
-  return RunProgram(*parsed.program);
+  // The tree is kept for as long as the interpreter lives, and it has to be.
+  //
+  // A function object holds raw `Node*` at its parameters and its body -- the
+  // tree is the code. So a function that outlives the call that created it
+  // outlives its own source unless the source is kept, and *every* callback is
+  // one of those: an event listener, a promise reaction, a `setTimeout`. Until
+  // something invoked one of them after its script had finished, this was a
+  // use-after-free nobody had reached.
+  //
+  // The cost is one AST per script for the life of the page, which is what
+  // every engine pays for the same reason. A bytecode VM changes the shape of
+  // what is retained, not whether something is.
+  programs_.push_back(std::move(parsed.program));
+  return RunProgram(*programs_.back());
 }
 
 Result Interpreter::RunProgram(const Node& program) {

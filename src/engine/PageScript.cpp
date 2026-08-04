@@ -79,6 +79,13 @@ void PageScript::Run(dom::Document& document, const std::string& url) {
   }
 }
 
+bool PageScript::DispatchClick(dom::Element& target) {
+  // No script, no handlers: a page that ran nothing cannot have registered
+  // anything, and building an interpreter to find that out would make every
+  // click on a static page cost one.
+  return bindings_ != nullptr && bindings_->DispatchClick(target);
+}
+
 const std::vector<std::string>& PageScript::ConsoleOutput() const {
   static const std::vector<std::string> kNone;
   return interpreter_ == nullptr ? kNone : interpreter_->ConsoleOutput();

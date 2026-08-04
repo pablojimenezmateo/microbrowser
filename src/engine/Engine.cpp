@@ -168,6 +168,14 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   const gfx::FloatPoint document_point{
       static_cast<float>(pointer.position.x) / device_scale_,
       static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(scroll_y_)};
+  // The page's own handlers run first, and a `preventDefault` stops everything
+  // below. That ordering is the whole contract of the method: a script that
+  // intercepts a click on a link expects the link not to be followed, and
+  // deciding to navigate before asking would make `preventDefault` a lie.
+  if (page_.DispatchClickAt(document_point)) {
+    LayoutAndPaint();
+    return true;
+  }
   if (const std::optional<FormSubmission> submission =
           page_.FormSubmissionRequestAt(document_point)) {
     return Navigate(*submission);

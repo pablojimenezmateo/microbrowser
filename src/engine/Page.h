@@ -103,6 +103,12 @@ class Page : private layout::ImageProvider {
   // supported form control was activated.
   std::optional<FormSubmission> FormSubmissionRequestAt(gfx::FloatPoint document_point) const;
 
+  // Runs the page's click handlers for whatever is at `document_point`, from
+  // that element up to the root. Returns true when a handler called
+  // `preventDefault`, which is the caller's signal not to follow the link or
+  // submit the form it would otherwise have.
+  bool DispatchClickAt(gfx::FloatPoint document_point);
+
   // Focuses an editable text control at `document_point`.
   bool FocusTextControlAt(gfx::FloatPoint document_point);
 

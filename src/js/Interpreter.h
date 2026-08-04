@@ -301,6 +301,10 @@ class Interpreter {
   WellKnown well_known_;
   // Pending jobs, oldest first. A GC root while queued.
   std::vector<Microtask> microtasks_;
+  // Every program this interpreter has run. Kept because a function object
+  // points at its own parameters and body in the tree, so a callback that
+  // outlives its script would otherwise outlive its code. See Run.
+  std::vector<NodePtr> programs_;
   std::vector<std::string> console_;
 
   // Every scope currently on the C++ call stack, so the collector can find

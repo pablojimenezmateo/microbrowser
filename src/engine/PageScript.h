@@ -59,6 +59,10 @@ class PageScript {
   // Anything the page wrote with `console.log`, in order. Collected rather
   // than printed: a page must not be able to write to the terminal the browser
   // was started from.
+  // Runs the click handlers registered on `target` and its ancestors. True
+  // when one called `preventDefault`.
+  bool DispatchClick(dom::Element& target);
+
   const std::vector<std::string>& ConsoleOutput() const;
 
  private:

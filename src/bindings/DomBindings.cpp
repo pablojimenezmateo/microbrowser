@@ -331,6 +331,8 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
     return Value::Number(0);
   });
 
+  InstallEventMethods(wrapper);
+
   method("appendChild", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);

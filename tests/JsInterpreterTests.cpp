@@ -1678,6 +1678,33 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("const p = new Proxy({}, { get(t, k, r){ return r === p } }); p.anything", "true");
   });
 
+  AddTest(tests, "JsInterpreter/AFunctionOutlivesTheScriptThatDefinedIt", [] {
+    // A function object points at its parameters and its body in the parse
+    // tree -- the tree *is* the code -- so the interpreter has to keep every
+    // program it has run. Without that, a callback registered by one script
+    // and called after it finished reads freed memory, and *every* callback is
+    // one of those: an event listener, a promise reaction, a timer.
+    //
+    // Nothing reached it until something invoked a listener after its script
+    // was over, which is why this test exists at the language level rather
+    // than only where it was found.
+    Interpreter interpreter;
+    const Result defined = interpreter.Run("globalThis.later = (a, b) => a + b + 'ok';");
+    Expect(!defined.IsAbrupt(), "the first script ran: " + js::ToString(defined.value));
+    const Result called = interpreter.Run("later(1, 2)");
+    Expect(!called.IsAbrupt(), "the second script ran: " + js::ToString(called.value));
+    ExpectEqString(js::ToString(called.value), "3ok",
+                   "the function still had its body a script later");
+
+    // And through a collection, which is the other way a body could go.
+    const Result survived = interpreter.Run(
+        "let sink = null;"
+        "for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }"
+        "later(4, 5)");
+    Expect(!survived.IsAbrupt(), "and after a collection: " + js::ToString(survived.value));
+    ExpectEqString(js::ToString(survived.value), "9ok", "still callable");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

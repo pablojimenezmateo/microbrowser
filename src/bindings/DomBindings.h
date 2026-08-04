@@ -42,6 +42,14 @@ class DomBindings {
   // will need it to hand an event its target.
   js::Value WrapperFor(dom::Node* node);
 
+  // Runs the `click` handlers on `target` and then on each ancestor, which is
+  // what bubbling is. True when one called `preventDefault`.
+  //
+  // A C++ entry point rather than something script can reach, because the only
+  // thing allowed to say a click happened is the thing that saw one. A page
+  // that could dispatch its own trusted events could make a form submit itself.
+  bool DispatchClick(dom::Element& target);
+
  private:
   // The first element, in document order, that answers to `matches`.
   dom::Element* FindElement(const std::function<bool(const dom::Element&)>& matches) const;
@@ -58,6 +66,7 @@ class DomBindings {
   static bool Matches(const dom::Element& element, const std::string& selector);
   void InstallWindow();
   js::Value MakeClassList(dom::Element& element);
+  void InstallEventMethods(const js::Value& wrapper);
   js::Value AdoptInto(dom::Node& parent, dom::Node* child);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 
