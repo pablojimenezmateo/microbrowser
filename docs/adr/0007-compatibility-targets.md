@@ -73,6 +73,20 @@ engine is real and the media stack exists.
 
 ### 5. youtube.com — the hardest, and worth stating why
 
+**Surveyed 2026-08-04**, by the method this ADR recommends: load it, look at what breaks, write it
+down. The result was the same lesson Hacker News taught — what it needed was not what was on the
+list. Fourteen scripts failed, and after the engine bugs behind them were fixed (`var` scope and
+hoisting, top-level `this`, the `for-in` grammar, escaped identifiers, the parse depth bound) the
+whole 10.7MB application bundle parses and every remaining failure is a missing *binding* rather
+than a missing language feature.
+
+The survey turned into five ADRs, which between them are the plan this section used to gesture at:
+**0010** (transport — the page costs 15 TLS handshakes and 5x the bytes it should), **0011**
+(asynchronous loading, which is the structural blocker), **0012** (the binding surface, and the rule
+that a stub is worse than an absence), **0013** (media and the codec dependency), and **0014** (CSS,
+where the measurement says custom properties matter roughly a hundred times more than grid).
+
+
 The page is a web-components single-page application of several megabytes of
 minified script. The video is fragmented MP4/WebM over DASH, fed to the decoder
 by script through Media Source Extensions, in VP9/AV1/H.264 with Opus or AAC

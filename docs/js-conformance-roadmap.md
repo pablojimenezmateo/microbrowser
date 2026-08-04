@@ -86,6 +86,34 @@ These are not gaps to be closed by accident. Each is a decision with a reason at
 7. **Wiring the module resolver to the loader** — an import is a fetch, and a fetch has to pass
    the privacy layer. Engine work rather than language work.
 
+## What a real site's script found next
+
+The audit above was probes. The pass after it was youtube.com — fourteen scripts, loaded and run
+with their errors surfaced — and it is worth recording separately because the two methods found
+different *kinds* of bug. Probes find what you thought to ask about. A real bundle finds what
+everybody's minifier emits.
+
+Every one of these was a wrong answer, not a missing feature, and none of them was on the list
+above:
+
+| What | Was | Is |
+|---|---|---|
+| **`var` scope** | block-scoped: `{ var n = 1 }` was invisible outside the block, and `for (var i…) {} return i` was a ReferenceError | function-scoped |
+| **`var` hoisting** | absent: a read before the declaration's line was a *TDZ error* | the binding exists from function entry, holding undefined |
+| Top-level `this` | undefined, in scripts and modules alike | the global object in a script; undefined only in a module |
+| `for (k in o)` | `in` parsed as a relational operator, so the head never matched — seven of the fourteen scripts died here | the grammar's `[~In]` parameter |
+| `for (k in a = a \|\| {}, o)` | a for-in's right side parsed as an `AssignmentExpression` | an `Expression`, as the grammar says; for-of keeps the narrower form |
+| `ɵprov` | a lexer error | an identifier; escaped and unescaped spellings are one name |
+| Parse depth | 256 `Depth` units, ~85 levels of nesting — a round number | 1024, measured at a 12x margin from where the stack actually overflows (ADR 0009) |
+
+The `var` pair is the one to take a lesson from. Both engines were wrong **identically**, so the
+differential — the tool that has found every other engine disagreement in this project — could not
+say a word about it. Two engines agreeing is evidence, and it is not proof.
+
+The tool that did find them is `tools/jsshell`: it runs one file, and its `-p` mode reports a
+syntax error by *offset* with sixty characters of source either side. A minified bundle is one line
+of 200KB, so a line number locates nothing. With it, the whole 10.7MB application bundle now parses.
+
 ## How to check any of this
 
 The probes are not in the repository — they were a scratch harness, and the ones worth keeping

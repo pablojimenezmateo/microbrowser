@@ -27,10 +27,17 @@ parses it, resolves its cascade, lays it out, and draws it — text, tables, ima
 front page and a comments page both render, and clicking a story navigates to it.
 
 `./build/microbrowser/microbrowser_snapshot <url> -o out.ppm` does the same with no window, which
-is how to look at a page from a machine with no display. `-v` dumps every display list command and
-`-click x,y` follows a link before the snapshot. **Use it.** Every layout and paint bug listed in
-the git log of the last session was found by rendering a real page and looking at it; none of them
-failed a test first.
+is how to look at a page from a machine with no display. `-v` dumps every display list command,
+`-click x,y` follows a link before the snapshot, and it always prints any script that threw.
+**Use it.** Every layout and paint bug listed in the git log of the last session was found by
+rendering a real page and looking at it; none of them failed a test first.
+
+`./build/microbrowser/microbrowser_jsshell <file.js>` is the same argument for `src/js`: it runs one
+file and prints what it said and what it threw, and **`-p` parses only and reports each error by
+*offset* with the source around it** — a minified bundle is one line of 200KB, so a line number
+locates nothing. Every JavaScript bug in the youtube.com pass was found with it in minutes.
+`MICROBROWSER_JS_TREEWALK=1` selects the tree-walker here too, so running a file twice and diffing
+is a differential test.
 
 What exists:
 
@@ -83,39 +90,69 @@ than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
-1. **Reddit or google, the next compatibility targets.** Hacker News renders and works; the
-   things this entry used to ask for are done. Take the next target the same way: load it,
-   snapshot it, write down what is wrong, and fix what the page actually needs. Every fix in the
-   Hacker News run was found that way, and none of them was the thing that looked most likely
-   beforehand — the font stack, a self-closing `<tr>`, and `text-align` never being read were all
-   invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
-   `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
-   there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **Wire modules to the loader.** The VM half is done: `Interpreter::SetModuleResolver` takes a
-   callback, and everything after resolution — loading depth-first, keying by resolved name,
-   post-order evaluation, cycles — is in `src/js/Modules.cpp`. What is missing is the *engine*
-   side of that callback: an import is a fetch, and a fetch has to pass the privacy layer and the
-   site isolation model. `docs/adr/0004` and `guidelines/privacy.md` are the constraints, and
-   `Loader` is where it goes. Until then `<script type="module">` parses and links but cannot
-   reach the network.
+1. **CSS custom properties, then `calc()` and `@supports`.** The measurement that reorders
+   everything: youtube.com's stylesheet uses `var(--x)` **8585 times** and grid 78. An
+   unresolvable `var()` makes a declaration invalid at computed-value time, so without it
+   essentially every colour and size on a modern page falls back to its initial value — the same
+   shape of bug as the font stack in the Hacker News run, one mechanism making everything
+   downstream wrong at once. ADR 0014 has the counts and the order; note that it costs
+   `ComputedStyle` a new *kind* of stored value (unparsed tokens), so its budget will fire and
+   should.
 
-   The language itself is done. What is left is listed in
-   `docs/js-conformance-roadmap.md` and is small: Annex B block-function hoisting, the two BigInt
-   typed arrays, `Intl`, and the Unicode tables that `normalize` and the rest of `\p{...}` need.
-   Unhandled rejections still get a console line and nothing more.
-3. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
-   `IdleWaitState::next_deadline_ms` — a page with nothing pending still lets the loop block.
-   `fetch` needs Promises (done) joined to the loader and its privacy verdict; `rAF` needs the
-   same deadline machinery pointed at a frame rather than a timer.
-4. **Grid, and the rest of overflow.** Flexbox, `position` and overflow *clipping* are in.
-   What is not: grid, and scrolling an overflow container — which needs a scroll offset per box
-   and an input path to move it, and is engine work rather than layout's. `position: sticky`
-   parses as relative because there is no scroll offset to compare against.
-5. **The rest of the DOM bindings.** Events, external scripts, removal, `style` and timers are
-   all in. What is left: writing `innerHTML`, which needs *fragment* parsing rather than document
-   parsing — `<td>` inside a table is a cell and anywhere else is nothing, so a setter using the
-   document parser would build wrong trees quietly. Then `cloneNode`, `getBoundingClientRect`
-   (which is layout asking a question of itself), and the events that are not clicks.
+2. **The element type hierarchy, then `MutationObserver`.** Every remaining script failure on
+   youtube.com is now a missing binding rather than a missing language feature, and
+   `HTMLElement is not defined` is the one to read twice: it is not a missing method, it is a
+   missing *type*, so `class X extends HTMLElement` cannot be written at all. It goes first
+   because retrofitting a prototype chain under bindings that hand back plain objects means
+   revisiting all of them. Then `MutationObserver`, which is the highest-leverage single binding
+   there is — it is what the web-components polyfill is built on, and it is a queue of records
+   delivered as a microtask, which already exists. **ADR 0012's rule is the important part: a
+   stub is worse than an absence**, because feature detection makes a present-but-wrong binding
+   fail three files away.
+
+3. **Asynchronous loading — ADR 0011.** The structural blocker, and what `fetch`, `XHR`,
+   `requestAnimationFrame` and the module loader are all waiting on. The loop stays *blocking*:
+   the platform wait gains file descriptors alongside the deadline it already takes, which is the
+   same trick that let `setTimeout` land without costing idle CPU. One page currently costs 15
+   serialised round trips. Test the *ordering*, not the throughput — the failure mode of
+   concurrency here is a page that differs by arrival order.
+
+4. **Transport — ADR 0010.** `Accept-Encoding: identity` and `Connection: close` are both one-line
+   requests we send. Measured on one page: **5x the bytes** and **15 TLS handshakes for 15
+   resources.** gzip needs no new dependency at all — `util::Inflate` is already there and already
+   fuzzed — but it does need a bounded inflate and a fuzz target on the same commit, because a
+   compressed response is a decompression bomb by default. Connection reuse must be keyed by the
+   ADR 0005 partition key, not by host; that is the whole privacy content of it.
+
+5. **`transform`, and with it stacking contexts.** 1391 uses. `AffineTransform` and path
+   transforms already exist in `src/gfx`; what is missing is the property, the computed value and
+   the display-list command. `transform` creates a stacking context, which is what finally pulls
+   M6's remainder in. Animations come *after* it — animating a property that does not apply gains
+   nothing — and must not leave a 60Hz loop running on a settled page.
+
+6. **Grid, and scrolling an overflow container.** Real, and sixth on the measurement. Scrolling
+   needs a scroll offset per box and an input path to move it, which is engine work rather than
+   layout's; `position: sticky` parses as relative because there is no offset to compare against.
+
+7. **Wire modules to the loader.** Follows (3) rather than preceding it: the VM half is done —
+   `SetModuleResolver`, depth-first loading, post-order evaluation, cycles — and the missing host
+   half is a fetch whose answer arrives later, which is exactly what (3) builds. Until then
+   `<script type="module">` parses and links but cannot reach the network.
+
+   The language itself is done. What is left is in `docs/js-conformance-roadmap.md` and is small:
+   Annex B block-function hoisting, the two BigInt typed arrays, `Intl`, and the Unicode tables
+   `normalize` and the rest of `\p{...}` need. Unhandled rejections still get a console line and
+   nothing more.
+
+**Use `tools/jsshell`.** It runs one JavaScript file, and `-p` reports a syntax error by *offset*
+with the source around it — a minified bundle is one line of 200KB, so a line number locates
+nothing. Every engine bug in the youtube.com pass was found with it in minutes. Its lesson is worth
+keeping: `var` was block-scoped and un-hoisted in **both** engines, so the differential could not
+see it. Two engines agreeing is evidence, not proof.
+
+Known remaining gaps on Hacker News itself: `<select>` is laid out and submitted but not clickable,
+`cellspacing` is not mapped because there is no `border-spacing`, and `:visited` deliberately
+matches nothing.
 
 Known-crude spots, each with the reasoning written where the code is: loading is synchronous (the
 loop blocks for a fetch); a display list carrying an image serializes the bitmap inline rather than
@@ -235,6 +272,12 @@ limit. Run it before a refactor to see what is about to blow.
 - `guidelines/testing.md` — test strategy, reference tests, control fixtures
 - `docs/adr/` — durable decisions and their reasoning
 - `docs/adr/0007-compatibility-targets.md` — the five sites that must eventually work, and what they cost
+- `docs/adr/0009` — the parse depth bound, and the measurements it comes from
+- `docs/adr/0010` — transport: content coding, connection reuse, HTTP/2
+- `docs/adr/0011` — asynchronous loading and the event loop, against zero-idle-CPU
+- `docs/adr/0012` — which web APIs get built, in what order, and why a stub is worse than an absence
+- `docs/adr/0013` — media, the video surface, and the codec dependency
+- `docs/adr/0014` — the CSS features a real page actually uses, counted
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot
 - `docs/performance/m6-damage.md` — what incremental repaint saves, and what it does not
