@@ -14,7 +14,11 @@ allow:
 # handoff between three modules that may not include each other: net produces
 # descriptors, app puts them in the idle-wait decision, and platform waits on
 # them. See ADR 0011.
-public: Env.h Inflate.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h WaitDescriptor.h
+# UserAgent.h is public for the same reason WaitDescriptor.h is: it is the
+# vocabulary of a handoff between two modules that may not include each other.
+# net sends the string and bindings tells script the string, and they have to be
+# the same string -- a page that sniffs both would otherwise get two answers.
+public: Env.h Inflate.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h WaitDescriptor.h UserAgent.h
 
 extern:
 

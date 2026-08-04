@@ -378,8 +378,17 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // block with no inline content simply vanishes, taking its background and its
   // borders with it. That is a wrong render with no error, which is the worst
   // kind.
-  const bool inline_level = declared_inline && !any_block;
-  auto box = std::make_unique<Box>(inline_level ? Box::Kind::Inline : Box::Kind::Block, style);
+  // An atomic inline is exempt from the promotion above, and that is the whole
+  // difference between it and an inline box: `inline-block` is *defined* as
+  // "block on the inside", so a block child is what it is for rather than a
+  // contradiction to resolve. Promoting it would take it off the line it
+  // belongs on.
+  const bool atomic = style.IsAtomicInline();
+  const bool inline_level = atomic || (declared_inline && !any_block);
+  const Box::Kind kind = atomic          ? Box::Kind::InlineBlock
+                         : inline_level  ? Box::Kind::Inline
+                                         : Box::Kind::Block;
+  auto box = std::make_unique<Box>(kind, style);
   box->SetOrigin(&element);
   attach_background(*box);
   produced_inline = inline_level;
@@ -389,7 +398,11 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // same anonymous-block wrapping mixed content already needs, applied
   // unconditionally.
   const bool wrap_inline_runs = style.IsFlexContainer() ? any_inline : (any_inline && any_block);
-  if (!inline_level && wrap_inline_runs) {
+  // `kind != Inline` rather than `!inline_level`: an atomic inline is
+  // inline-level on the outside and a block container on the inside, so it
+  // needs the anonymous wrapping that a block container needs and an inline box
+  // does not.
+  if (kind != Box::Kind::Inline && wrap_inline_runs) {
     // Mixed content. Consecutive inline children are wrapped in anonymous
     // blocks, which is the only way the two kinds can be siblings — a block
     // formatting context contains blocks, and inline content needs one of its
@@ -534,10 +547,12 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     // a second time here.
     content_width = *forced->content_width;
   }
-  if (style.IsFloating() && style.width.IsAuto()) {
-    // Shrink-to-fit: as wide as its content wants, but never wider than what is
-    // left. A float that filled its containing block would leave nothing to
-    // flow beside it, which is the one thing a float is for.
+  // Shrink-to-fit: as wide as its content wants, but never wider than what is
+  // left. A float that filled its containing block would leave nothing to flow
+  // beside it, which is the one thing a float is for; an inline-block that
+  // filled it would push everything after it onto the next line, which is the
+  // one thing an inline-block is for. Same rule, same reason, so one condition.
+  if ((style.IsFloating() || box.IsAtomicInline()) && style.width.IsAuto()) {
     content_width = std::clamp(MaxContentWidth(box) - horizontal, 0.0f, content_width);
   }
   // The bounds apply to whatever decided the width above -- a declared one,
@@ -552,7 +567,11 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // The leftover can be negative -- a percentage width is a percentage of the
   // containing block and margins are added *outside* it, so `width: 100%` with
   // a margin legitimately overflows. Only a positive leftover is shared.
-  if (!style.IsFloating()) {
+  // Neither a float nor an atomic inline gets any of this: both are placed by
+  // something other than their containing block's margin arithmetic -- the
+  // float context and the line, respectively -- and an `auto` margin on either
+  // computes to zero rather than absorbing the leftover.
+  if (!style.IsFloating() && !box.IsAtomicInline()) {
     const float leftover = available_width - horizontal - content_width;
     if (leftover > 0.0f) {
       const bool auto_left = style.margin.left.IsAuto();
@@ -584,9 +603,13 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
       geometry.border.top.Resolve(style.font_size) + style.padding.top.Resolve(style.font_size);
 
   // A float establishes a formatting context of its own, so a float inside a
-  // sidebar does not shorten the lines of the article beside it.
+  // sidebar does not shorten the lines of the article beside it. An atomic
+  // inline does the same, and for the same reason: it is a rectangle on
+  // somebody else's line, and a float inside it must not reach out and shorten
+  // that line.
   FloatContext own_floats;
-  FloatContext& child_floats = style.IsFloating() ? own_floats : floats;
+  FloatContext& child_floats =
+      (style.IsFloating() || box.IsAtomicInline()) ? own_floats : floats;
 
   // Inline children are laid out as lines; block children stack.
   bool has_block_child = false;

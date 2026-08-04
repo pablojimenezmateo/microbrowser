@@ -277,6 +277,12 @@ struct ComputedStyle {
   // value but `visible`, including the scrolling ones -- a scroller clips
   // what is outside it and offers the rest back, which is two behaviours and
   // only one of them belongs to paint.
+  //
+  // This is the declaration, not the used behaviour: `overflow` does not apply
+  // to a non-replaced inline box at all, and only the *box* knows whether it is
+  // one. Ask `layout::Box::ClipsOverflow()`, which asks this and then checks.
+  // Getting that backwards cost every story title on old.reddit.com, whose
+  // stylesheet puts `overflow: hidden` on an `<a>`.
   bool ClipsOverflow() const {
     return overflow_x != Overflow::Visible || overflow_y != Overflow::Visible;
   }
@@ -305,6 +311,15 @@ struct ComputedStyle {
     // places and forgotten in a fourth.
     return !IsFloating() && (display == Display::Inline || display == Display::InlineBlock ||
                              display == Display::InlineFlex);
+  }
+  // Laid out inside like a block, placed outside like a replaced element.
+  //
+  // The float and absolute exclusions are the same blockification rule
+  // IsInlineLevel states: an out-of-flow box is not on a line at all, so
+  // "atomic inline" is not a thing it can be.
+  bool IsAtomicInline() const {
+    return !IsFloating() && !IsAbsolutelyPositioned() &&
+           (display == Display::InlineBlock || display == Display::InlineFlex);
   }
   // A flex container lays its children out itself, so the box tree has to make
   // every one of them an item -- which is a different question from how the

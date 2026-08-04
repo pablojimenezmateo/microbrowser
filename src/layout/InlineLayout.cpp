@@ -24,6 +24,12 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   struct LineItem {
     Box* box = nullptr;
     bool is_text = false;
+    // An atomic inline: laid out inside like a block, so its final position is
+    // not something to *write* into its geometry but something to lay it out
+    // *at*. Writing the rectangle would move the box and leave every descendant
+    // where the measuring pass put it -- geometry here is absolute, so a box
+    // that moves takes its whole subtree with it or it takes none of it.
+    bool is_atomic = false;
     std::uint32_t begin = 0;
     std::uint32_t length = 0;
     float x = 0.0f;
@@ -52,6 +58,14 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         probe_height = std::max(probe_height, measurer_->LineHeight(node.Style()));
       } else if (node.GetKind() == Box::Kind::Replaced) {
         probe_height = std::max(probe_height, node.Geometry().content.height);
+      } else if (node.IsAtomicInline()) {
+        // A declared height if there is one, and otherwise the ordinary line
+        // height: the box has not been measured yet at this point, and probing
+        // is allowed to be wrong in the direction of more clearance.
+        probe_height = std::max(probe_height, node.Style().height.IsAuto()
+                                                  ? measurer_->LineHeight(node.Style())
+                                                  : node.Style().height.Resolve(
+                                                        node.Style().font_size));
       }
       for (const std::unique_ptr<Box>& child : node.Children()) {
         self(*child, self);
@@ -108,6 +122,19 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         item.box->Geometry().content = item.box->Fragments().size() == 1
                                            ? fragment.rect
                                            : item.box->Geometry().content.United(fragment.rect);
+      } else if (item.is_atomic) {
+        // Laid out again, at the place the line gave it, rather than moved
+        // there. Geometry is absolute, so moving the box alone would leave
+        // every descendant at the coordinates the measuring pass produced --
+        // the same reason PlaceFloat runs LayoutBlock twice instead of
+        // translating the subtree it already has.
+        //
+        // The origin handed over is the *margin box* corner, because that is
+        // what LayoutBlock adds its own margins to. `item.x` was advanced by
+        // the margin box width for exactly this reason.
+        float top = baseline - item.above;
+        FloatContext inner;
+        LayoutBlock(*item.box, item.x + align_offset, content_width, top, inner);
       } else {
         // A replaced element's baseline is its bottom edge, per CSS 2.1
         // §10.8.1. That is why an image on a line of text sits *on* the text
@@ -148,7 +175,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       const float ascent = measurer_->Ascent(break_style);
       const float descent = std::max(0.0f, measurer_->LineHeight(break_style) - ascent);
       item->Geometry().content = gfx::FloatRect{x, y, 0.0f, ascent + descent};
-      line.push_back(LineItem{item, false, 0, 0, x, 0.0f, ascent, descent});
+      line.push_back(LineItem{.box = item, .x = x, .above = ascent, .below = descent});
       finish_line();
       continue;
     }
@@ -161,7 +188,54 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       if (!line.empty() && x + width > line_right) {
         finish_line();
       }
-      line.push_back(LineItem{item, false, 0, 0, x, width, height, 0.0f});
+      line.push_back(LineItem{.box = item, .x = x, .width = width, .above = height});
+      x += width;
+      continue;
+    }
+    if (item->IsAtomicInline()) {
+      // Measured before it can be placed, and its size depends on nothing the
+      // line knows -- an inline-block is shrink-to-fit against the containing
+      // block, not against what is left of the current line. Measuring against
+      // the remaining space would make the same box a different width depending
+      // on how much text preceded it, and then a different width again after it
+      // wrapped.
+      float probe = y;
+      FloatContext detached;
+      LayoutBlock(*item, content_left, content_width, probe, detached);
+      const gfx::FloatRect margin_box = item->Geometry().MarginBox();
+      const float width = margin_box.width;
+
+      // CSS 2.1 s10.8.1: an inline-block sits on the baseline of its own last
+      // line box -- which is what puts a bordered `<span>` of text level with
+      // the text beside it rather than a border-width too high. Two cases fall
+      // back to the bottom margin edge: no in-flow line boxes to have a
+      // baseline, and `overflow` other than `visible`, because a scroller's
+      // last line is not a fixed thing to align to.
+      float above = margin_box.height;
+      if (!item->ClipsOverflow()) {
+        float last_baseline = 0.0f;
+        bool any = false;
+        const auto find = [&](const Box& node, auto& self) -> void {
+          for (const TextFragment& fragment : node.Fragments()) {
+            last_baseline = any ? std::max(last_baseline, fragment.baseline) : fragment.baseline;
+            any = true;
+          }
+          for (const std::unique_ptr<Box>& child : node.Children()) {
+            self(*child, self);
+          }
+        };
+        find(*item, find);
+        if (any) {
+          above = std::max(0.0f, last_baseline - margin_box.y);
+        }
+      }
+      const float below = std::max(0.0f, margin_box.height - above);
+
+      if (!line.empty() && x + width > line_right) {
+        finish_line();
+      }
+      line.push_back(LineItem{
+          .box = item, .is_atomic = true, .x = x, .width = width, .above = above, .below = below});
       x += width;
       continue;
     }
@@ -220,9 +294,14 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       }
 
       const float advance = measurer_->MeasureWidth(piece, style);
-      line.push_back(LineItem{text_box, true, static_cast<std::uint32_t>(offset),
-                              static_cast<std::uint32_t>(piece.size()), x, advance, ascent,
-                              descent});
+      line.push_back(LineItem{.box = text_box,
+                              .is_text = true,
+                              .begin = static_cast<std::uint32_t>(offset),
+                              .length = static_cast<std::uint32_t>(piece.size()),
+                              .x = x,
+                              .width = advance,
+                              .above = ascent,
+                              .below = descent});
       x += advance;
 
       offset += piece.size();

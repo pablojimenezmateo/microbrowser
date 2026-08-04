@@ -33,6 +33,11 @@ budget: Length           header_lines=35 public_methods=10 members=2
 # *kind* of stored value rather than one more property: unparsed text, kept as
 # text because what `--x: 20px` means depends on where it is substituted. ADR
 # 0014 has the measurement that made them the first CSS work to do.
-budget: ComputedStyle    header_lines=210 public_methods=24 members=31
+# One method and its reasoning for `display: inline-block`: IsAtomicInline,
+# which carries the blockification rule -- a float or an absolutely positioned
+# box is not on a line at all, so it is not an atomic inline whatever it was
+# declared as. It sits beside IsInlineLevel, which states the same rule for the
+# same reason: applied at each call site, one of them eventually forgets.
+budget: ComputedStyle    header_lines=225 public_methods=25 members=31
 budget: FlexStyle        header_lines=50  public_methods=2  members=12
 budget: StyleResolver    header_lines=60 public_methods=12 members=2

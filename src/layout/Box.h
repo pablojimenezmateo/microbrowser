@@ -86,6 +86,21 @@ class Box {
     // whether a newline in text means a break -- which depends on
     // `white-space` -- and answer differently for the same character.
     LineBreak,
+    // `display: inline-block` and `display: inline-flex`: a box that is laid
+    // out inside like a block and placed outside like one unbreakable
+    // rectangle.
+    //
+    // A kind rather than a flag on Inline, because the two are opposites in
+    // every pass that matters. Line layout walks *through* an Inline box to
+    // reach the text inside it, so an Inline box never gets geometry of its
+    // own; an InlineBlock is a leaf as far as the line is concerned, and its
+    // geometry is the whole point. Treating one as the other is what made
+    // `display: inline-block` a no-op: every such box on old.reddit.com --
+    // its post flair, its domain links, the whole `.buttons` row -- was laid
+    // out as plain inline, so its width, padding and background went nowhere
+    // and an `overflow: hidden` on it clipped to a rectangle that was never
+    // filled in.
+    InlineBlock,
   };
 
   Box(Kind kind, css::ComputedStyle style) : kind_(kind), style_(std::move(style)) {}
@@ -117,9 +132,30 @@ class Box {
   // Placed on a line as one unbreakable rectangle: text and replaced content
   // that is still in flow.
   bool IsInlineLevel() const {
-    return !IsFloating() &&
-           (kind_ == Kind::Text || kind_ == Kind::Replaced || kind_ == Kind::LineBreak);
+    return !IsFloating() && (kind_ == Kind::Text || kind_ == Kind::Replaced ||
+                             kind_ == Kind::LineBreak || kind_ == Kind::InlineBlock);
   }
+
+  // Sized and laid out inside like a block, placed outside like a replaced
+  // element. Its contents are its own business: it establishes a block
+  // formatting context, so a float inside it does not shorten the lines of the
+  // paragraph it sits in.
+  bool IsAtomicInline() const { return kind_ == Kind::InlineBlock; }
+
+  // Does this box cut its content off at its padding box?
+  //
+  // Asked of the box rather than of its style because `overflow` **does not
+  // apply to a non-replaced inline box** (CSS 2.1 s11.1.1), and only the box
+  // knows whether it is one -- an element with `display: inline` that contains
+  // a block is promoted to a block box here, and then it does clip.
+  //
+  // Found on old.reddit.com, whose stylesheet says `.thing .title { overflow:
+  // hidden }` and whose titles are `<a>` elements. Clipping them to an inline
+  // box's geometry -- which is empty, because an inline box's content lives in
+  // its container's line boxes -- deleted every story title on the front page.
+  // They were all in the display list, in the right place, in the right
+  // colour; the clip around them was 0x0.
+  bool ClipsOverflow() const { return kind_ != Kind::Inline && style_.ClipsOverflow(); }
 
   // Participates in the block layout pass: stacked, or placed as a float.
   bool IsOutOfLineFlow() const { return IsBlockLevel() || IsFloating(); }

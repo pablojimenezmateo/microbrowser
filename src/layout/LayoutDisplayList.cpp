@@ -250,7 +250,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
     // clipping half is paint's. Until there is a scroll offset per box, a
     // `scroll` box shows its first screenful, which is what it shows before
     // anyone scrolls it anyway.
-    const bool clips = style.ClipsOverflow();
+    const bool clips = box.ClipsOverflow();
     if (clips) {
       const gfx::FloatRect padding = box.Geometry().PaddingBox();
       out.PushClip(gfx::IntRect{

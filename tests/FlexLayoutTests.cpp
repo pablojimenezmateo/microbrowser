@@ -60,6 +60,17 @@ std::vector<const Box*> Items(const Box& root, std::string_view tag) {
   return boxes;
 }
 
+// Every text box under `root`, in tree order.
+std::vector<const Box*> TextBoxesIn(const Box& root) {
+  std::vector<const Box*> boxes;
+  root.ForEachDescendant([&](const Box& box) {
+    if (box.GetKind() == Box::Kind::Text) {
+      boxes.push_back(&box);
+    }
+  });
+  return boxes;
+}
+
 // The items' content rectangles as "x,w" pairs, which is what nearly every
 // expectation below is about. Rounded, because a distributed remainder is not
 // a number a test should be pinned to the last bit of.
@@ -439,6 +450,140 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
       unclipped_pushes += std::holds_alternative<gfx::PushClipCommand>(command) ? 1 : 0;
     }
     ExpectEqInt(unclipped_pushes, 0, "and visible content is not clipped");
+  });
+
+  // From old.reddit.com, which is ADR 0007's second compatibility target. Its
+  // stylesheet says `.thing .title { overflow: hidden }` and the title is an
+  // `<a>`, so the rule lands on a non-replaced inline box. CSS says `overflow`
+  // does not apply there at all. We applied it, clipped to the inline's own
+  // border-box geometry -- which an inline box does not have, because an inline
+  // box's content lives in the line boxes of its container -- and the clip came
+  // out empty. Every story title on the front page vanished, and every one of
+  // them was in the display list at the right place in the right colour.
+  //
+  // The failure mode is the reason this is a paint-side test and not a
+  // screenshot: a text command that is recorded and then clipped away is
+  // indistinguishable from one that was never recorded, unless you look here.
+  AddTest(tests, "Position/OverflowDoesNotApplyToAnInlineBox", [] {
+    const Flexed result = Run("<body><span id=t>title</span></body>",
+                              "body { margin: 0 } #t { overflow: hidden }");
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    int pushes = 0;
+    bool saw_text = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      pushes += std::holds_alternative<gfx::PushClipCommand>(command) ? 1 : 0;
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_text = saw_text || (run != nullptr && run->text == "title");
+      }
+    }
+    ExpectEqInt(pushes, 0, "an inline box does not clip: overflow does not apply to it");
+    Expect(saw_text, "and its text survives to the display list");
+  });
+
+  // The other half of the same reddit line. `.domain a` *is* an inline-block,
+  // so overflow genuinely applies -- and it must clip to the box's own padding
+  // box rather than to nothing. This is the case that keeps the fix above from
+  // being "inline-ish boxes never clip", which would be the easy over-correction
+  // and would silently drop `text-overflow: ellipsis` containers everywhere.
+  AddTest(tests, "Position/OverflowAppliesToAnInlineBlock", [] {
+    const Flexed result = Run("<body><span id=d>i.redd.it</span></body>",
+                              "body { margin: 0 } "
+                              "#d { display: inline-block; overflow: hidden; width: 60px }");
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    int pushes = 0;
+    gfx::IntRect clip;
+    bool saw_text = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* push = std::get_if<gfx::PushClipCommand>(&command)) {
+        ++pushes;
+        clip = push->rect;
+      }
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        saw_text = saw_text || (run != nullptr && run->text == "i.redd.it");
+      }
+    }
+    ExpectEqInt(pushes, 1, "an inline-block clips, because overflow applies to it");
+    Expect(saw_text, "its text is recorded");
+    ExpectEqInt(clip.width, 60, "and the clip is the box's own padding box, not an empty rect");
+    Expect(clip.height > 0, "with a real height rather than zero");
+  });
+
+  // `display: inline-block` was accepted by the cascade and then laid out as
+  // plain `inline`, which meant it had no geometry of its own: no width, no
+  // height, no padding, and a background that painted a 0x0 rectangle. These
+  // are the four things that distinguish it from an inline box, so they are the
+  // four things asserted.
+  AddTest(tests, "InlineBlock/HasABoxOfItsOwn", [] {
+    const Flexed result =
+        Run("<body><span id=a>ab</span><span id=b>cd</span></body>",
+            "body { margin: 0 } span { display: inline-block; width: 40px; height: 25px }");
+    const std::vector<const Box*> spans = Items(*result.root, "span");
+    ExpectEqInt(static_cast<long long>(spans.size()), 2, "two boxes");
+    ExpectEqInt(static_cast<long long>(spans[0]->Geometry().content.width), 40,
+                "a declared width is used rather than ignored");
+    ExpectEqInt(static_cast<long long>(spans[0]->Geometry().content.height), 25,
+                "and so is a declared height");
+    // Side by side on one line: that is the half of inline-block that is
+    // *inline*. Two blocks would stack.
+    ExpectEqInt(static_cast<long long>(spans[1]->Geometry().content.x), 40,
+                "the second sits beside the first, not under it");
+    ExpectEqInt(static_cast<long long>(spans[1]->Geometry().content.y),
+                static_cast<long long>(spans[0]->Geometry().content.y),
+                "on the same line");
+  });
+
+  // The other half: block on the inside. A shrink-to-fit width comes from the
+  // content, not from the containing block -- an inline-block that filled its
+  // container would push everything after it onto the next line, which is the
+  // one thing an inline-block exists not to do.
+  AddTest(tests, "InlineBlock/ShrinksToFitItsContent", [] {
+    // Ten pixels per character: kAdvance is 0.5 em and the font is 20px, which
+    // is the convention every measurement in this file is stated in.
+    const Flexed result = Run("<body><span id=s>abcd</span>xy</body>",
+                              "body { margin: 0; font-size: 20px } #s { display: inline-block }");
+    const std::vector<const Box*> spans = Items(*result.root, "span");
+    ExpectEqInt(static_cast<long long>(spans.size()), 1, "one box");
+    ExpectEqInt(static_cast<long long>(spans[0]->Geometry().content.width + 0.5f), 40,
+                "as wide as its four characters, not as wide as the 400px body");
+  });
+
+  // Its contents move with it. Geometry here is absolute, so the second pass
+  // has to re-lay-out the subtree rather than translate the box -- exactly what
+  // PlaceFloat does and for exactly the same reason. Getting this wrong leaves
+  // the box in the right place and its text at the coordinates the *measuring*
+  // pass produced, which is a page whose words are all in the top-left corner.
+  AddTest(tests, "InlineBlock/ItsContentsMoveWithIt", [] {
+    const Flexed result = Run("<body>xxxx<span id=s>ab</span></body>",
+                              "body { margin: 0 } #s { display: inline-block }");
+    const std::vector<const Box*> spans = Items(*result.root, "span");
+    ExpectEqInt(static_cast<long long>(spans.size()), 1, "one box");
+    const float box_left = spans[0]->Geometry().content.x;
+    Expect(box_left > 0.0f, "the box was pushed right by the text before it");
+    const std::vector<const Box*> texts = TextBoxesIn(*spans[0]);
+    Expect(!texts.empty(), "its text survived the second pass");
+    Expect(!texts[0]->Fragments().empty(), "and has a fragment");
+    ExpectEqInt(static_cast<long long>(texts[0]->Fragments()[0].rect.x),
+                static_cast<long long>(box_left),
+                "which sits where the box ended up, not where it was measured");
+  });
+
+  // An inline-block establishes a block formatting context, so a float inside
+  // it is its own business: it must not shorten the lines of the paragraph the
+  // inline-block is sitting on.
+  AddTest(tests, "InlineBlock/EstablishesItsOwnFormattingContext", [] {
+    const Flexed with = Run(
+        "<body><span id=s><i id=f>ab</i>cd</span>tail</body>",
+        "body { margin: 0 } #s { display: inline-block; width: 60px } #f { float: left }");
+    const std::vector<const Box*> spans = Items(*with.root, "span");
+    ExpectEqInt(static_cast<long long>(spans.size()), 1, "one inline-block");
+    ExpectEqInt(static_cast<long long>(spans[0]->Geometry().content.width), 60,
+                "the float inside does not change the inline-block's own width");
+    ExpectEqInt(static_cast<long long>(spans[0]->Geometry().content.x), 0,
+                "and the inline-block still starts at the left edge of its line");
   });
 
   AddTest(tests, "Flex/AContainerIsAsTallAsItsLines", [] {

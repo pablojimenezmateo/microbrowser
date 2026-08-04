@@ -5,6 +5,7 @@
 
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
+#include "util/UserAgent.h"
 
 namespace microbrowser::net {
 
@@ -64,7 +65,9 @@ std::string RequestTarget(const url::Url& url) {
 // Assembled here rather than taken from the caller so that no header can be
 // sent because a field happened to be left set. Anti-fingerprinting lives here
 // too: `Accept-Language` is `en-US` regardless of the system locale, because
-// the system locale is an identifying bit the user did not choose to reveal.
+// the system locale is an identifying bit the user did not choose to reveal,
+// and `User-Agent` is one constant naming the browser and nothing about the
+// machine — see util/UserAgent.h, which is also what script is told.
 HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
                          const privacy::Verdict& verdict, const std::string& cookie_header) {
   HttpHeaders headers;
@@ -74,6 +77,7 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
     host += std::to_string(*url.Port());
   }
   headers.Add("Host", host);
+  headers.Add("User-Agent", util::kUserAgent);
   headers.Add("Accept-Language", "en-US");
   headers.Add("Accept-Encoding", "identity");
   headers.Add("Connection", "close");

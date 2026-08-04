@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <string>
 
+#include "util/UserAgent.h"
+
 // `window`, `location` and `navigator`: what a page reads about its
 // environment rather than about its document.
 //
@@ -69,9 +71,14 @@ void DomBindings::InstallWindow() {
   // is on -- no platform, no version of anything installed, no build date. A
   // page that varies its markup by user agent gets one answer from every copy
   // of this browser, which is the point.
+  //
+  // It is the same constant net sends as the `User-Agent` header, and it is
+  // shared rather than repeated because a page may sniff both: two constants
+  // would eventually disagree, and a page that renders one way and scripts
+  // another is a bug nobody would look for here.
   const Value navigator = interpreter_->NewObjectValue();
   if (navigator.IsObject()) {
-    navigator.object->Set("userAgent", Value::String(std::string("microbrowser")));
+    navigator.object->Set("userAgent", Value::String(std::string(util::kUserAgent)));
     global->Set("navigator", navigator);
     interpreter_->GlobalScope()->Declare("navigator", navigator, false);
   }

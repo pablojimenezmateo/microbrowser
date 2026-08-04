@@ -17,6 +17,7 @@
 #include "privacy/PrivacyPolicy.h"
 #include "url/PartitionKey.h"
 #include "url/Url.h"
+#include "util/UserAgent.h"
 
 namespace microbrowser::tests {
 
@@ -131,6 +132,32 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     Expect(request.find("Accept-Language: en-US\r\n") != std::string::npos,
            "Accept-Language is en-US regardless of the system locale; the locale is an "
            "identifying bit the user did not choose to reveal");
+    Expect(request.find("User-Agent: microbrowser\r\n") != std::string::npos,
+           "User-Agent names the browser and nothing about the machine");
+  });
+
+  // A request with no User-Agent at all is what old.reddit.com's edge blocks --
+  // it served a 'Blocked' page until this header existed, which is how ADR
+  // 0007's second compatibility target began. The value is asserted against the
+  // shared constant rather than a literal so that changing the string cannot
+  // silently desynchronize the header from `navigator.userAgent`.
+  AddTest(tests, "Fetch/SendsTheSameUserAgentScriptIsTold", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    Run(policy, factory, cookies, cache, "https://example.com/page");
+
+    const std::string& request = factory.log.requests.at(0);
+    const std::string expected = "User-Agent: " + std::string(util::kUserAgent) + "\r\n";
+    Expect(request.find(expected) != std::string::npos,
+           "the header carries util::kUserAgent verbatim");
+    Expect(request.find("Linux") == std::string::npos &&
+               request.find("X11") == std::string::npos &&
+               request.find("Mozilla") == std::string::npos,
+           "and says nothing about the machine, and does not claim to be another browser");
   });
 
   AddTest(tests, "Fetch/RefusesToTouchTheNetworkWhenThePolicyRefused", [] {
@@ -340,7 +367,10 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     Expect(request.find("Accept-Encoding: identity\r\n") != std::string::npos,
            "content coding stays explicit");
     Expect(request.find("Connection: close\r\n") != std::string::npos, "one connection policy");
-    Expect(request.find("User-Agent:") == std::string::npos, "no caller-supplied user agent");
+    Expect(request.find("User-Agent: fingerprint\r\n") == std::string::npos,
+           "no caller-supplied user agent");
+    ExpectEqInt(static_cast<long long>(CountOccurrences(request, "User-Agent:")), 1,
+                "exactly one, and it is the one Fetch owns");
     Expect(request.find("X-Keep: yes\r\n") != std::string::npos,
            "ordinary application headers still travel");
   });

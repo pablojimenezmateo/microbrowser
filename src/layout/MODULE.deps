@@ -24,7 +24,17 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # mutable accessors are what the second pass needs -- a relative offset and an
 # absolute placement both move a subtree that already has geometry, and
 # geometry is absolute, so a box that moves takes everything under it.
-budget: Box             header_lines=145 public_methods=39 members=10
+# Raised for `display: inline-block`. Two methods and a kind: IsAtomicInline,
+# which every pass that distinguishes "walked through" from "placed as a
+# rectangle" has to ask, and ClipsOverflow, which moved here from
+# css::ComputedStyle because `overflow` does not apply to a non-replaced inline
+# box and only the box knows whether it is one. Asking the style instead
+# deleted every story title on old.reddit.com.
+budget: Box             header_lines=175 public_methods=41 members=10
+# The kinds are documented rather than listed, because each one exists to make
+# a distinction some pass would otherwise have to rediscover from style. The
+# budget is here so that growth in the vocabulary is a decision.
+budget: Kind            header_lines=40 public_methods=0 members=0
 budget: ImageProvider   header_lines=25 public_methods=6  members=0
 budget: TextFragment    header_lines=25 public_methods=4  members=4
 budget: TextMeasurer    header_lines=30 public_methods=8  members=0
