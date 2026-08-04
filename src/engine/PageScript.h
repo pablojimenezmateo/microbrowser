@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,21 @@ namespace microbrowser::engine {
 // which is a same-origin violation rather than a stale stylesheet.
 class PageScript {
  public:
+  // Finds the document's scripts and records them in document order, inline
+  // text filled in and external ones left as a URL for the caller to fetch.
+  //
+  // Two steps rather than one because ordering is the whole problem: a page's
+  // scripts must run in the order they appear whether each is inline or
+  // external, so nothing can run until every external one has arrived. The
+  // same shape the stylesheets already use.
+  void Collect(dom::Document& document);
+  // The external scripts, in the order they were found. The caller fetches
+  // them, because what a URL turns into is the loader's problem -- and because
+  // a fetch needs a privacy verdict, which this layer has no business
+  // producing.
+  const std::vector<std::string>& PendingUrls() const { return pending_urls_; }
+  // Supplies the source for `PendingUrls()[index]`.
+  void AddFetched(std::size_t index, std::string source);
   // Runs the document's inline scripts, in document order.
   //
   // After parsing rather than during it, which is a real difference from the
@@ -35,6 +51,9 @@ class PageScript {
   // `<script src>` is skipped. An external script means a fetch, and a fetch
   // means a privacy verdict and a same-origin decision; that is its own
   // commit, not a line slipped into this one.
+  // Runs everything Collect found, in document order. Idempotent: calling it
+  // twice runs nothing the second time, so a caller that fetches subresources
+  // and a caller that does not can both end with it.
   void Run(dom::Document& document);
 
   // Anything the page wrote with `console.log`, in order. Collected rather
@@ -45,6 +64,13 @@ class PageScript {
  private:
   std::unique_ptr<js::Interpreter> interpreter_;
   std::unique_ptr<bindings::DomBindings> bindings_;
+  // One slot per script in document order. Empty until an external one is
+  // fetched, which is what makes a script that fails to load a script that is
+  // skipped rather than one that shifts every later script's turn.
+  std::vector<std::optional<std::string>> slots_;
+  std::vector<std::string> pending_urls_;
+  std::vector<std::size_t> pending_slots_;
+  bool ran_ = false;
 };
 
 }  // namespace microbrowser::engine

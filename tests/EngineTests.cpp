@@ -114,6 +114,90 @@ std::optional<std::string> FocusedSubmissionTarget(const engine::Page& page) {
 }  // namespace
 
 void RegisterEngineTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Page/ScriptsRunInDocumentOrderAcrossInlineAndExternal", [] {
+    // The whole reason nothing runs until every external script has arrived: a
+    // page's scripts must run in the order they appear, and an external one in
+    // the middle cannot be skipped and caught up with later.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body>"
+        "<script>globalThis.log = 'a';</script>"
+        "<script src='b.js'></script>"
+        "<script>globalThis.log += 'c';</script>"
+        "</body></html>",
+        "https://example.org/");
+
+    const std::vector<std::string>& pending = page.PendingScripts();
+    ExpectEqInt(static_cast<long long>(pending.size()), 1, "one external script");
+    ExpectEqString(pending[0], "b.js", "named as it was written");
+
+    page.AddScript(0, "globalThis.log += 'b'; console.log('external ran');");
+    page.RunScripts();
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    Expect(!output.empty(), "the external script ran");
+    ExpectEqString(output.front(), "external ran", "and it was the fetched source");
+  });
+
+  AddTest(tests, "Page/AScriptThatNeverArrivesDoesNotStopTheOnesAfterIt", [] {
+    // Its slot stays empty rather than shifting every later script's turn. A
+    // page whose analytics tag is blocked is still a page, which is the whole
+    // reason the blocking engine can be pointed at one.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body>"
+        "<script src='missing.js'></script>"
+        "<script>console.log('still ran');</script>"
+        "</body></html>",
+        "https://example.org/");
+    ExpectEqInt(static_cast<long long>(page.PendingScripts().size()), 1, "one external");
+    // Nothing supplies it, which is what a failed fetch looks like from here.
+    page.RunScripts();
+    Expect(!page.ConsoleOutput().empty(), "the inline script after it still ran");
+    ExpectEqString(page.ConsoleOutput().front(), "still ran", "with its own output");
+  });
+
+  AddTest(tests, "Page/RunningScriptsTwiceRunsThemOnce", [] {
+    // Idempotent, so a caller that fetches subresources first and one that
+    // does not can both end with it.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<html><body><script>console.log('once');</script></body></html>",
+              "https://example.org/");
+    page.RunScripts();
+    page.RunScripts();
+    ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 1, "one line, not two");
+  });
+
+  AddTest(tests, "Page/AScriptChangesWhatIsLaidOut", [] {
+    // The point of all of it: what a script builds is what gets laid out.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><div id=host></div>"
+        "<script>"
+        "for (let i = 0; i < 3; i++) {"
+        "  const el = document.createElement('p');"
+        "  el.appendText('row ' + i);"
+        "  document.getElementById('host').appendChild(el);"
+        "}"
+        "</script></body></html>",
+        "https://example.org/");
+    page.RunScripts();
+    page.Layout(800.0f);
+    gfx::DisplayList list;
+    page.Paint(list, 0.0f);
+    int rows = 0;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
+        const gfx::DisplayList::TextRun* run = list.TextAt(text->text);
+        rows += run != nullptr && run->text.rfind("row ", 0) == 0 ? 1 : 0;
+      }
+    }
+    ExpectEqInt(rows, 3, "three rows, built by script and painted");
+  });
+
   // --- The loader -----------------------------------------------------------
 
   AddTest(tests, "Loader/DecodesPercentEncodedDataUrls", [] {

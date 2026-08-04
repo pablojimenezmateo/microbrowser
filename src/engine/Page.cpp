@@ -214,6 +214,22 @@ Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {}
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
 
+void Page::AddScript(std::size_t pending_index, std::string source) {
+  script_.AddFetched(pending_index, std::move(source));
+}
+
+void Page::RunScripts() {
+  if (document_ == nullptr) {
+    return;
+  }
+  script_.Run(*document_);
+  // A script can change the tree, so anything derived from it is stale. The
+  // box tree is dropped rather than patched: incremental layout is a later
+  // decision and a wrong one made early here would be invisible.
+  boxes_.reset();
+  CollectImages();
+}
+
 void Page::Load(std::string_view html, std::string url) {
   util::PerformanceTrace::Scope scope("engine::Page::Load");
 
@@ -232,7 +248,10 @@ void Page::Load(std::string_view html, std::string url) {
   CollectStyleSheets();
   CollectImages();
   if (document_ != nullptr) {
-    script_.Run(*document_);
+    // Found now, run later: an external script has to arrive before anything
+    // after it in the document may run, and what a URL turns into is the
+    // loader's problem rather than this one's.
+    script_.Collect(*document_);
   }
   if (document_ != nullptr) {
     document_->ForEachDescendant([&](const dom::Node& node) {

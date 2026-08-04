@@ -40,7 +40,14 @@ budget: Loader header_lines=80 public_methods=10 members=6
 # lint refused -- correctly, since Page is the class most at risk of becoming
 # "the browser". PageScript owns that pair; Page coordinates it.
 budget: Page   header_lines=150 public_methods=32 members=12
-# The script half of a page: one interpreter, one binding layer, one document.
-# Two members is the whole of it, and a third would be a reason to ask what
-# else it had started doing.
-budget: PageScript header_lines=40 public_methods=4 members=2
+# The script half of a page: the interpreter, the binding layer, and the
+# scripts themselves in document order.
+#
+# Four of the six members are that ordering problem, and they are the reason
+# this is a class rather than a function: a page's scripts must run in the
+# order they appear whether each is inline or external, so nothing can run
+# until every external one has arrived. A slot per script keeps the order, a
+# parallel list says which slots are still owed, and a flag makes Run
+# idempotent so a caller that fetches and one that does not can both end with
+# it. The stylesheets solve the same problem the same way.
+budget: PageScript header_lines=75 public_methods=10 members=6

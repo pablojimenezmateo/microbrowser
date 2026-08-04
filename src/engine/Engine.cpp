@@ -279,6 +279,25 @@ void Engine::LoadSubresources(bool bypass_cache) {
     }
   }
 
+  // Scripts after stylesheets and before images, which is the order that makes
+  // a script see the styles it may ask about and lets it add elements whose
+  // images are then collected.
+  const std::vector<std::string>& scripts = page_.PendingScripts();
+  for (std::size_t i = 0; i < scripts.size(); ++i) {
+    const Loader::Result script = loader_.LoadSubresource(
+        scripts[i], *document, privacy::ResourceType::Script, NowSeconds(), options);
+    if (script.ok) {
+      page_.AddScript(i, script.body);
+      AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
+    } else {
+      // A script that does not load leaves its slot empty and the ones after
+      // it still run. A page whose analytics tag is blocked is a page, which
+      // is the whole reason the blocking engine can be pointed at one.
+      AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+    }
+  }
+  page_.RunScripts();
+
   for (const std::string& src : page_.PendingImages()) {
     const Loader::Result fetched =
         loader_.LoadSubresource(src, *document, privacy::ResourceType::Image, NowSeconds(),

@@ -65,6 +65,15 @@ class Page : private layout::ImageProvider {
   // it is the loader that knows what a base URL is for.
   const std::vector<std::string>& PendingStyleSheets() const { return resources_.pending_sheets; }
 
+  // The external scripts this document referenced, in document order. Fetched
+  // by the caller for the same reason a stylesheet is: a fetch needs a privacy
+  // verdict, and producing one is the loader's job.
+  const std::vector<std::string>& PendingScripts() const { return script_.PendingUrls(); }
+  void AddScript(std::size_t pending_index, std::string source);
+  // Runs the document's scripts. Idempotent, so a caller that fetches
+  // subresources first and one that does not can both end with it.
+  void RunScripts();
+
   // Adds the fetched stylesheet for `PendingStyleSheets()[pending_index]`.
   // Author-origin cascade order is the document order of <style> and <link>,
   // so the index fills a slot rather than appending at load completion time.

@@ -110,6 +110,8 @@ namespace microbrowser::util {
   X(CssStylesResolved, "css.styles_resolved")                                    \
   X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \
   X(EngineStyleSheetsFailed, "engine.stylesheets_failed")                          \
+  X(EngineScriptsLoaded, "engine.scripts_loaded")                                  \
+  X(EngineScriptsFailed, "engine.scripts_failed")                                  \
   X(EngineImagesLoaded, "engine.images_loaded")                                    \
   X(EngineImagesFailed, "engine.images_failed")                                    \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
