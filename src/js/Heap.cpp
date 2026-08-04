@@ -213,6 +213,13 @@ void Object::MakeFunction(const Node* parameters, const Node* body, Environment*
   arrow_ = arrow;
 }
 
+void Object::MakeCompiled(const CompiledFunction* code, Environment* closure, bool arrow) {
+  kind_ = Kind::Function;
+  code_ = code;
+  closure_ = closure;
+  arrow_ = arrow;
+}
+
 Value* Environment::Lookup(std::string_view name) {
   Environment* current = this;
   while (current != nullptr) {
@@ -450,9 +457,30 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
       if (!object->marked_) {
         regexps_.erase(object.get());
         map_indexes_.erase(object.get());
-        weak_tables_.erase(object.get());
       }
     }
+  }
+  // The weak tables, separately, because a table has two things that can die
+  // and only one of them is the table.
+  //
+  // A dead *entry* was the bug: dropping the table when its own object died
+  // left every entry whose key had died still holding that key's address, and
+  // the next collection's ephemeron pass reads `entry.first->marked_` on it.
+  // That is a read of freed memory driven by a page, and it stayed invisible
+  // for as long as collection only ran between top-level statements -- there
+  // was rarely a *next* pass. The machine collects at every loop back edge, and
+  // a `for` loop putting five thousand short-lived keys in a WeakMap found it
+  // on the second one.
+  for (auto table = weak_tables_.begin(); table != weak_tables_.end();) {
+    if (!table->first->marked_) {
+      table = weak_tables_.erase(table);
+      continue;
+    }
+    std::unordered_map<const Object*, Value>& entries = table->second;
+    for (auto entry = entries.begin(); entry != entries.end();) {
+      entry = entry->first->marked_ ? std::next(entry) : entries.erase(entry);
+    }
+    ++table;
   }
   objects_.erase(std::remove_if(objects_.begin(), objects_.end(),
                                 [](const std::unique_ptr<Object>& object) {
