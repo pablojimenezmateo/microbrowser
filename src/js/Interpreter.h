@@ -227,6 +227,17 @@ class Interpreter {
   Result EvaluateAssignment(const Node& node, Environment& scope);
   Result EvaluateBinary(const Node& node, Environment& scope);
   Result EvaluateMember(const Node& node, Environment& scope, Value& base_out);
+  // Whether a value is the marker a short-circuited optional chain travels
+  // as, and the marker itself. Every link in a chain checks the first before
+  // doing anything with what it was handed, and the link the parser marked as
+  // the chain's root turns it into undefined.
+  bool IsChainSignal(const Value& value) const {
+    return value.IsObject() && value.object == well_known_.chain_signal;
+  }
+  Value ChainSignal() const {
+    return well_known_.chain_signal == nullptr ? Value::Undefined()
+                                               : Value::Obj(well_known_.chain_signal);
+  }
   Result EvaluateForIn(const Node& node, Environment& scope);
   // `enclosing` is the chunk the class literal was compiled into, or null when
   // the tree-walker is building it. When it is there, each method's body is
@@ -587,6 +598,18 @@ class Interpreter {
     Object* symbol_iterator = nullptr;
     // What `for await` resolves against, held for the reason above.
     Object* symbol_async_iterator = nullptr;
+    // What a short-circuited optional chain travels as, in the tree-walker.
+    //
+    // `a?.b.c` with a nullish `a` is undefined for the whole expression, so
+    // the innermost link has to tell the ones outside it to give up too --
+    // and a tree-walker's links are C++ frames, which can only say so with a
+    // value. One shared object rather than one per short-circuit, compared by
+    // identity; the parser marks where the chain ends, and that mark is where
+    // it turns back into undefined.
+    //
+    // A page cannot reach it: it is never a property of anything nameable,
+    // and every path that could return it converts it first.
+    Object* chain_signal = nullptr;
     // The three hooks an *operator* consults, held for the reason the two
     // above are: `+`, `instanceof` and `Object.prototype.toString` have to
     // find them whatever a page did to the global `Symbol`.
@@ -599,7 +622,7 @@ class Interpreter {
               regexp_prototype,    promise_prototype, symbol_iterator,     number_prototype,
               generator_prototype, symbol_async_iterator, async_generator_prototype,
               return_signal,       symbol_to_primitive, symbol_has_instance,
-              symbol_to_string_tag, boolean_prototype};
+              symbol_to_string_tag, boolean_prototype,  chain_signal};
     }
   };
 

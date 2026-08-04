@@ -197,7 +197,7 @@ Result Interpreter::EvaluateMember(const Node& node, Environment& scope, Value& 
   }
   base_out = base.value;
 
-  const bool computed = node.number == 1.0;
+  const bool computed = (static_cast<std::uint8_t>(node.number) & kMemberComputed) != 0;
   if (!computed) {
     return Result::Normal(Value::String(property_node->string));
   }
@@ -413,8 +413,15 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     if (key.IsAbrupt()) {
       return key;
     }
-    if (callee_node->number == 2.0 && base.IsNullish()) {
-      return Result::Normal(Value::Undefined());  // optional chaining
+    const auto callee_flags = static_cast<std::uint8_t>(callee_node->number);
+    // A link further in gave up, or this one does. Either way nothing after
+    // it runs; whether the marker or undefined comes out depends on whether
+    // this call is where the chain ends.
+    if (IsChainSignal(base) ||
+        ((callee_flags & kMemberOptional) != 0 && base.IsNullish())) {
+      return Result::Normal((static_cast<std::uint8_t>(node.number) & kCallChainRoot) != 0
+                                ? Value::Undefined()
+                                : ChainSignal());
     }
     self = base;
     // For `super.m()`, the lookup happens on the parent prototype and `this`
@@ -433,8 +440,12 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
   if (callee.IsAbrupt()) {
     return callee;
   }
-  if (node.number == 1.0 && callee.value.IsNullish()) {
-    return Result::Normal(Value::Undefined());  // `f?.()`
+  const auto call_flags = static_cast<std::uint8_t>(node.number);
+  if (IsChainSignal(callee.value) ||
+      ((call_flags & kCallOptional) != 0 && callee.value.IsNullish())) {
+    // `f?.()`, or a chain that gave up before the callee was even read.
+    return Result::Normal((call_flags & kCallChainRoot) != 0 ? Value::Undefined()
+                                                             : ChainSignal());
   }
 
   std::vector<Value> arguments;

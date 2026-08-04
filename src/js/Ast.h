@@ -49,9 +49,9 @@ enum class NodeKind : std::uint8_t {
   Logical,            // string = operator (&&, ||, ??); [0] = left; [1] = right
   Assignment,         // string = operator; [0] = target; [1] = value
   Conditional,        // [0] = test; [1] = consequent; [2] = alternate
-  Call,               // [0] = callee; rest = arguments; number = 1 when optional (?.())
+  Call,               // [0] = callee; rest = arguments; number = CallFlags
   New,                // [0] = callee; rest = arguments
-  Member,             // [0] = object; [1] = property; number: 1 computed, 2 optional
+  Member,             // [0] = object; [1] = property; number = MemberFlags
   Sequence,           // children = expressions
   Spread,             // [0] = argument
   TaggedTemplate,     // [0] = tag; [1] = TemplateLiteral
@@ -94,6 +94,34 @@ enum FunctionFlags : std::uint8_t {
   kFunctionPlain = 0,
   kFunctionAsync = 1 << 0,
   kFunctionGenerator = 1 << 1,
+};
+
+// What a Member access is, in `number`.
+//
+// Bits rather than three values, because they compose: `a?.[k]` is computed
+// *and* optional, and treating them as alternatives is exactly why that form
+// used to be a syntax error.
+enum MemberFlags : std::uint8_t {
+  kMemberPlain = 0,
+  kMemberComputed = 1 << 0,
+  // This link is written `?.`, so a nullish base gives up.
+  kMemberOptional = 1 << 1,
+  // The outermost link of a chain that contains an optional one.
+  //
+  // Short-circuiting is a property of the *chain*, not of the link: in
+  // `a?.b.c.d`, a nullish `a` makes the whole expression undefined rather than
+  // making `.b` undefined and then reading `.c` off it. Only the parser knows
+  // where a chain ends -- by the time either engine has a node it has lost the
+  // surrounding syntax -- so the parser marks it, and both engines read the
+  // mark instead of keeping a chain-in-progress flag of their own.
+  kMemberChainRoot = 1 << 2,
+};
+
+// The same, for a Call.
+enum CallFlags : std::uint8_t {
+  kCallPlain = 0,
+  kCallOptional = 1 << 0,
+  kCallChainRoot = 1 << 1,
 };
 
 // Flags on a MethodDefinition, in `number`.

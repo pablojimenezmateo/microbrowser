@@ -108,7 +108,13 @@ budget: Frame           header_lines=56 public_methods=0  members=12
 # three together are the model of the run-time scope chain, and it has to be a
 # model rather than a lookup because the whole point is to answer "how many
 # scopes out, which slot" without running anything.
-budget: Compiler        header_lines=175 public_methods=4  members=14
+# Grew by one member and one method for optional chains. Short-circuiting is a
+# property of the *chain* rather than of the link -- `a?.b.c` with a nullish
+# `a` is undefined for the whole expression -- so the exits are collected while
+# the spine compiles and merged once at the end. The member is where they are
+# collected, and it is suspended around a computed key and around call
+# arguments, because an optional chain written inside one of those is its own.
+budget: Compiler        header_lines=205 public_methods=5  members=15
 # One scope the compiler created, and therefore one whose layout it knows. A map
 # and a count; if it ever needs a third field, what it is modelling has changed.
 # Grew by one, and what it is modelling did change, which is what that line
@@ -226,7 +232,11 @@ budget: Heap        header_lines=145 public_methods=24 members=9
 # And by one for Boolean.prototype, which is the same category the string and
 # number prototypes are: a boolean is a primitive here, so its methods live on
 # a shared object GetProperty consults rather than on a wrapper.
-budget: WellKnown   header_lines=95 public_methods=2  members=16
+# And by one for the marker a short-circuited optional chain travels as in the
+# tree-walker. It is here rather than beside the interpreter for the reason
+# return_signal is: it is a value, and a value that has to survive a collection
+# is a root.
+budget: WellKnown   header_lines=110 public_methods=2  members=17
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -267,7 +277,7 @@ budget: WellKnown   header_lines=95 public_methods=2  members=16
 # that call can throw. Five public methods and an enum, and they are public for
 # the reason CallFunction is: the host converts values too, and a second
 # implementation of `+` is the thing this whole file argues against.
-budget: Interpreter header_lines=720 public_methods=50 members=16
+budget: Interpreter header_lines=760 public_methods=50 members=16
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

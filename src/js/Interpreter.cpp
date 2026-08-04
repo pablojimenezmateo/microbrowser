@@ -37,6 +37,10 @@ Interpreter::Interpreter() {
   well_known_.generator_prototype = heap_.AllocateObject(Object::Kind::Plain);
   well_known_.async_generator_prototype = heap_.AllocateObject(Object::Kind::Plain);
   well_known_.return_signal = heap_.AllocateObject(Object::Kind::Plain);
+  // One object, compared by identity. What a short-circuited optional chain
+  // travels as in the tree-walker, where a link is a C++ frame and can only
+  // tell the ones outside it to give up with a value.
+  well_known_.chain_signal = heap_.AllocateObject(Object::Kind::Plain);
   InstallGlobals();
 }
 

@@ -136,6 +136,48 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = {}; o[[1,2]] = 5; o['1,2']", "5");
   });
 
+  // --- Optional chaining ----------------------------------------------------
+  //
+  // Two things were wrong: `a?.[k]` was a syntax error, because computed and
+  // optional were treated as alternatives rather than as bits; and only the
+  // link short-circuited rather than the chain, so `(null)?.a.b` threw.
+
+  AddTest(tests, "JsConformance/AnOptionalChainGivesUpAsAWhole", [] {
+    ExpectEval("const o = {n: null}; String(o.n?.a.b.c)", "undefined");
+    ExpectEval("String((null)?.a.b.c.d)", "undefined");
+    ExpectEval("const o = {a:{b:{c:5}}}; o?.a.b.c", "5");
+    // A nullish link that is not optional still throws -- `a?.b` being
+    // undefined does not make `.c` on it legal.
+    ExpectEval("const o = {}; try { o?.a.b } catch (e) { e instanceof TypeError }", "true");
+  });
+
+  AddTest(tests, "JsConformance/AnOptionalComputedAccessParses", [] {
+    ExpectEval("const o = {}; String(o.z?.[0])", "undefined");
+    ExpectEval("const o = {a:{b:{c:5}}}; o?.['a']?.['b']?.['c']", "5");
+    ExpectEval("const o = {a:[1,2]}; o?.a?.[1]", "2");
+  });
+
+  AddTest(tests, "JsConformance/AnOptionalCallGivesUpTheChainToo", [] {
+    ExpectEval("const o = {}; String(o.miss?.())", "undefined");
+    ExpectEval("const o = {n:null}; String(o.n?.x(1,2).y)", "undefined");
+    ExpectEval("const o = {a:{b:{c:5}}, f(){ return this.a }}; o.f?.().b.c", "5");
+  });
+
+  AddTest(tests, "JsConformance/ThePartsOfAChainAreEvaluatedOnce", [] {
+    ExpectEval("let n = 0; function side(){ n++; return null }"
+               "String(side()?.a.b.c) + ':' + n",
+               "undefined:1");
+  });
+
+  AddTest(tests, "JsConformance/AChainInsideAnArgumentIsItsOwnChain", [] {
+    // The inner chain's short-circuit belongs to the inner chain: the outer
+    // call still happens, with undefined as its argument.
+    ExpectEval("const o = {n:null}; function g(x){ return x === undefined ? 'inner' : 'outer' }"
+               "g(o.n?.a.b)",
+               "inner");
+    ExpectEval("const o = {a:{}, n:null}; String(o.a?.[o.n?.k])", "undefined");
+  });
+
   // --- Per-iteration bindings ----------------------------------------------
   //
   // `for (let i = ...)` makes one binding per pass, not one for the loop. The

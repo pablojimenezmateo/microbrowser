@@ -196,6 +196,26 @@ class Compiler {
   // Reads a member's base and key onto the stack. `key_on_stack` comes back
   // false for `o.x`, whose name is an operand instead.
   void MemberOperands(const Node& node, bool& key_on_stack, std::uint32_t& name);
+  // One place an optional chain can give up, and how much it is holding when
+  // it does. Every link in `a?.b?.()?.c` abandons with a different amount on
+  // the stack, so each records its own depth rather than sharing a cleanup
+  // that would be right for whichever was written last.
+  struct ChainExit {
+    std::uint32_t jump = 0;
+    std::uint32_t depth = 0;
+  };
+  // Compiles a Member or Call that the parser marked as the root of an
+  // optional chain, and lands every short-circuit inside it here.
+  //
+  // The chain is what short-circuits, not the link: `a?.b.c` with a nullish
+  // `a` is undefined, and does not read `.c` off undefined. So the exits are
+  // collected while the whole spine compiles and merged once at the end.
+  void OptionalChain(const Node& node);
+  // Where the chain being compiled collects its exits, or null when nothing
+  // is being compiled inside one. Suspended around a computed key and around
+  // call arguments -- those are separate expressions, and an optional chain
+  // written inside one is its own chain.
+  std::vector<ChainExit>* chain_ = nullptr;
   void ThrowSyntax(std::string message);
 
   // --- Statements (CompilerStatements.cpp) ---------------------------------

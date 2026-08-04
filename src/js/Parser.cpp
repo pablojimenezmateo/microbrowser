@@ -681,23 +681,43 @@ NodePtr ParserImpl::ParseCallOrMember(NodePtr base, bool allow_call) {
     return base;
   }
 
+  // Whether anything in this chain was written `?.`, which is what decides
+  // where the short-circuit lands. `a?.b.c` gives up on the *whole* expression
+  // when `a` is nullish -- so the outermost link is marked, and both engines
+  // read the mark rather than tracking a chain of their own. Only here is the
+  // surrounding syntax still available to say where the chain ends.
+  bool chain_is_optional = false;
+
   while (!AtEnd()) {
     if (At(".") || At("?.")) {
       const bool optional = At("?.");
+      chain_is_optional = chain_is_optional || optional;
       Advance();
       if (optional && At("(")) {
         if (!allow_call) {
           break;
         }
         NodePtr call = Make(NodeKind::Call);
-        call->number = 1.0;
+        call->number = kCallOptional;
         call->children.push_back(std::move(base));
         ParseArguments(*call);
         base = std::move(call);
         continue;
       }
+      if (optional && At("[")) {
+        // `a?.[k]`. Computed *and* optional, which is why the flags are bits:
+        // treating the two as alternatives is what made this a syntax error.
+        Advance();
+        NodePtr member = Make(NodeKind::Member);
+        member->number = kMemberComputed | kMemberOptional;
+        member->children.push_back(std::move(base));
+        member->children.push_back(ParseExpression());
+        Expect("]", "to close a computed member access");
+        base = std::move(member);
+        continue;
+      }
       NodePtr member = Make(NodeKind::Member);
-      member->number = optional ? 2.0 : 0.0;
+      member->number = optional ? kMemberOptional : kMemberPlain;
       member->children.push_back(std::move(base));
       NodePtr property = Make(NodeKind::Identifier);
       if (current_.type == TokenType::Identifier || current_.type == TokenType::Keyword ||
@@ -714,7 +734,7 @@ NodePtr ParserImpl::ParseCallOrMember(NodePtr base, bool allow_call) {
     if (At("[")) {
       Advance();
       NodePtr member = Make(NodeKind::Member);
-      member->number = 1.0;
+      member->number = kMemberComputed;
       member->children.push_back(std::move(base));
       member->children.push_back(ParseExpression());
       Expect("]", "to close a computed member access");
@@ -736,6 +756,15 @@ NodePtr ParserImpl::ParseCallOrMember(NodePtr base, bool allow_call) {
       continue;
     }
     break;
+  }
+  if (chain_is_optional && base != nullptr) {
+    if (base->kind == NodeKind::Member) {
+      base->number = static_cast<double>(static_cast<std::uint8_t>(base->number) |
+                                         kMemberChainRoot);
+    } else if (base->kind == NodeKind::Call) {
+      base->number =
+          static_cast<double>(static_cast<std::uint8_t>(base->number) | kCallChainRoot);
+    }
   }
   return base;
 }

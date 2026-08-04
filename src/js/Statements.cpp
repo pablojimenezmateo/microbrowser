@@ -414,13 +414,22 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
     }
 
     case NodeKind::Member: {
+      const auto flags = static_cast<std::uint8_t>(node.number);
       Value base;
       const Result key = EvaluateMember(node, scope, base);
       if (key.IsAbrupt()) {
         return key;
       }
-      if (node.number == 2.0 && base.IsNullish()) {
-        return Result::Normal(Value::Undefined());  // `a?.b`
+      // A link further in already gave up. Nothing here runs, and the mark on
+      // the root is what turns this back into undefined.
+      if (IsChainSignal(base)) {
+        return Result::Normal((flags & kMemberChainRoot) != 0 ? Value::Undefined() : base);
+      }
+      if ((flags & kMemberOptional) != 0 && base.IsNullish()) {
+        // `a?.b`. The whole chain gives up, not just this access -- so unless
+        // this *is* the whole chain, the marker goes out rather than undefined.
+        return Result::Normal((flags & kMemberChainRoot) != 0 ? Value::Undefined()
+                                                              : ChainSignal());
       }
       if (base.IsNullish()) {
         return Throw("TypeError",

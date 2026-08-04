@@ -318,13 +318,16 @@ void Compiler::Expression(const Node& node) {
     }
 
     case NodeKind::Call:
-      CallExpression(node);
+      OptionalChain(node);
       return;
     case NodeKind::New:
       NewExpression(node);
       return;
     case NodeKind::Member:
-      MemberExpression(node);
+      // Through OptionalChain whether or not this one is optional: it is what
+      // knows whether a chain is already open, and a plain member inside an
+      // optional chain is still part of it.
+      OptionalChain(node);
       return;
 
     case NodeKind::Sequence: {
@@ -581,7 +584,7 @@ void Compiler::MemberOperands(const Node& node, bool& key_on_stack, std::uint32_
     // on, while `this` stays the receiver. Reading from the receiver's
     // prototype instead is what makes a three-level hierarchy call itself.
     Emit(Op::LoadSuperBase, 0, 1);
-    key_on_stack = node.number == 1.0;
+    key_on_stack = (static_cast<std::uint8_t>(node.number) & kMemberComputed) != 0;
     if (key_on_stack) {
       Expression(*property);
       name = 0;
@@ -591,34 +594,80 @@ void Compiler::MemberOperands(const Node& node, bool& key_on_stack, std::uint32_
     return;
   }
   Expression(*object);
-  key_on_stack = node.number == 1.0;
+  key_on_stack = (static_cast<std::uint8_t>(node.number) & kMemberComputed) != 0;
   if (key_on_stack) {
     // Left as it evaluated rather than stringified: `o[Symbol.iterator]` must
     // stay a symbol key, which is a key no page can write out.
+    //
+    // The chain is suspended across it: `a?.b[c?.d]` has two chains, and the
+    // inner one's short-circuit belongs to the key rather than to `a`.
+    std::vector<ChainExit>* outer = chain_;
+    chain_ = nullptr;
     Expression(*property);
+    chain_ = outer;
     name = 0;
     return;
   }
   name = Name(property->string);
 }
 
+void Compiler::OptionalChain(const Node& node) {
+  if (chain_ != nullptr) {
+    // Already inside one. This node is a link rather than a root -- the mark
+    // says which, and a nested chain would only arise from a key or an
+    // argument, both of which suspend the outer one.
+    if (node.kind == NodeKind::Member) {
+      MemberExpression(node);
+    } else {
+      CallExpression(node);
+    }
+    return;
+  }
+  std::vector<ChainExit> exits;
+  chain_ = &exits;
+  if (node.kind == NodeKind::Member) {
+    MemberExpression(node);
+  } else {
+    CallExpression(node);
+  }
+  chain_ = nullptr;
+  if (exits.empty()) {
+    return;
+  }
+  // Every exit unwinds to the same place: whatever the chain would have left
+  // behind, replaced by undefined. `merged` is the depth the chain actually
+  // finished at, and each exit pops down to one below it.
+  const std::uint32_t merged = stack_depth_;
+  std::vector<std::uint32_t> to_end{Emit(Op::Jump, 0, 0)};
+  for (const ChainExit& exit : exits) {
+    Patch(exit.jump, Here());
+    stack_depth_ = exit.depth;
+    while (stack_depth_ + 1 > merged) {
+      Emit(Op::Pop, 0, -1);
+    }
+    Emit(Op::PushUndefined, 0, 1);
+    to_end.push_back(Emit(Op::Jump, 0, 0));
+  }
+  PatchAll(to_end, Here());
+  stack_depth_ = merged;
+}
+
 void Compiler::MemberExpression(const Node& node) {
   bool key_on_stack = false;
   std::uint32_t name = 0;
   MemberOperands(node, key_on_stack, name);
-  const bool optional = node.number == 2.0;
-  std::uint32_t skip = 0;
-  if (optional) {
-    // `a?.b`. Only this access short-circuits, not the rest of the chain --
-    // which is what the tree-walker does, so `a?.b.c` still throws on the
-    // second access. Making the whole chain short-circuit is a change to make
-    // deliberately, with a test, and not as a side effect of compiling it.
+  const auto flags = static_cast<std::uint8_t>(node.number);
+  const bool optional = (flags & kMemberOptional) != 0;
+  if (optional && chain_ != nullptr) {
+    // `a?.b`. The jump goes to the end of the *chain*, not to the end of this
+    // access -- so `a?.b.c` gives up on the whole expression rather than
+    // reading `.c` off undefined.
     if (key_on_stack) {
       Emit(Op::Swap);
-      skip = Emit(Op::JumpIfNullish, 0, 0);
+      chain_->push_back(ChainExit{Emit(Op::JumpIfNullish, 0, 0), stack_depth_});
       Emit(Op::Swap);
     } else {
-      skip = Emit(Op::JumpIfNullish, 0, 0);
+      chain_->push_back(ChainExit{Emit(Op::JumpIfNullish, 0, 0), stack_depth_});
     }
   } else if (key_on_stack) {
     Emit(Op::ThrowIfNullishKey);
@@ -630,27 +679,19 @@ void Compiler::MemberExpression(const Node& node) {
   } else {
     Emit(Op::GetPropertyName, name, 0);
   }
-  if (optional) {
-    const std::uint32_t merged = stack_depth_;
-    const std::uint32_t to_end = Emit(Op::Jump, 0, 0);
-    Patch(skip, Here());
-    // The path that jumped never ran the access, so the operands it pushed are
-    // still there. Restoring the compiler's idea of the depth to what that
-    // path actually has is the whole reason this is written out: the two
-    // branches must agree at the merge, and only one of them is the one the
-    // emitter walked.
-    stack_depth_ = key_on_stack ? merged + 1 : merged;
-    Emit(Op::Pop, 0, -1);
-    if (key_on_stack) {
-      Emit(Op::Pop, 0, -1);
-    }
-    Emit(Op::PushUndefined, 0, 1);
-    Patch(to_end, Here());
-    stack_depth_ = merged;
-  }
 }
 
 bool Compiler::CallArguments(const Node& node, std::size_t first, std::uint32_t& count) {
+  // An argument is its own expression: an optional chain written inside one
+  // short-circuits to the end of *that* chain, not to the end of the call it
+  // is an argument to.
+  std::vector<ChainExit>* outer = chain_;
+  chain_ = nullptr;
+  struct Restore {
+    std::vector<ChainExit>*& slot;
+    std::vector<ChainExit>* value;
+    ~Restore() { slot = value; }
+  } restore{chain_, outer};
   bool spread = false;
   for (std::size_t i = first; i < node.children.size(); ++i) {
     const Node* argument = node.Child(i);
@@ -751,24 +792,20 @@ void Compiler::CallExpression(const Node& node) {
     return;
   }
 
-  // The two short-circuits a call can carry, kept apart because they abandon
-  // the call at different points with different things on the stack: `a?.b()`
-  // gives up before the method is even read, and `f?.()` after.
-  std::vector<std::pair<std::uint32_t, std::uint32_t>> abandoned;
-
   if (callee->kind == NodeKind::Member) {
     // A method call's receiver is the object it was read from, and that object
     // must be evaluated once -- `f().g()` calls f once.
     bool key_on_stack = false;
     std::uint32_t name = 0;
     MemberOperands(*callee, key_on_stack, name);
-    if (callee->number == 2.0) {
+    if ((static_cast<std::uint8_t>(callee->number) & kMemberOptional) != 0 &&
+        chain_ != nullptr) {
       if (key_on_stack) {
         Emit(Op::Swap);
-        abandoned.emplace_back(Emit(Op::JumpIfNullish, 0, 0), stack_depth_);
+        chain_->push_back(ChainExit{Emit(Op::JumpIfNullish, 0, 0), stack_depth_});
         Emit(Op::Swap);
       } else {
-        abandoned.emplace_back(Emit(Op::JumpIfNullish, 0, 0), stack_depth_);
+        chain_->push_back(ChainExit{Emit(Op::JumpIfNullish, 0, 0), stack_depth_});
       }
     } else if (key_on_stack) {
       Emit(Op::ThrowIfNullishKey);
@@ -790,11 +827,11 @@ void Compiler::CallExpression(const Node& node) {
     Emit(Op::PushUndefined, 0, 1);  // called plainly: no receiver
   }
 
-  if (node.number == 1.0) {
+  if ((static_cast<std::uint8_t>(node.number) & kCallOptional) != 0 && chain_ != nullptr) {
     // `f?.()`. The receiver is on top by now, so the callee is brought up to be
     // tested and put back.
     Emit(Op::Swap);
-    abandoned.emplace_back(Emit(Op::JumpIfNullish, 0, 0), stack_depth_);
+    chain_->push_back(ChainExit{Emit(Op::JumpIfNullish, 0, 0), stack_depth_});
     Emit(Op::Swap);
   }
 
@@ -806,25 +843,6 @@ void Compiler::CallExpression(const Node& node) {
     Emit(Op::Call, count, -static_cast<int>(count) - 1);
   }
 
-  if (!abandoned.empty()) {
-    // Each abandonment gives up with a different amount on the stack --
-    // `a?.b?.()` has two, one before the method is read and one after -- so
-    // each gets its own cleanup rather than a shared one that would be right
-    // for whichever was written last.
-    const std::uint32_t merged = stack_depth_;
-    std::vector<std::uint32_t> to_end{Emit(Op::Jump, 0, 0)};
-    for (const auto& [at, depth] : abandoned) {
-      Patch(at, Here());
-      stack_depth_ = depth;
-      while (stack_depth_ + 1 > merged) {
-        Emit(Op::Pop, 0, -1);
-      }
-      Emit(Op::PushUndefined, 0, 1);
-      to_end.push_back(Emit(Op::Jump, 0, 0));
-    }
-    PatchAll(to_end, Here());
-    stack_depth_ = merged;
-  }
 }
 
 void Compiler::NewExpression(const Node& node) {
