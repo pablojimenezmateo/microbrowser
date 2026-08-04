@@ -18,6 +18,17 @@ bool IsJavaScript(const dom::Element& element) {
 
 }  // namespace
 
+std::string PageScript::SourceName(std::size_t slot) const {
+  // An external script is worth naming by its URL: on a page that loads nine
+  // of them, "the fourth script" is not something anyone can act on.
+  for (std::size_t i = 0; i < pending_slots_.size(); ++i) {
+    if (pending_slots_[i] == slot) {
+      return pending_urls_[i];
+    }
+  }
+  return "inline script #" + std::to_string(slot);
+}
+
 void PageScript::Collect(dom::Document& document) {
   slots_.clear();
   pending_urls_.clear();
@@ -62,6 +73,7 @@ void PageScript::Run(dom::Document& document, const std::string& url,
     return;
   }
   ran_ = true;
+  errors_.clear();
   if (slots_.empty()) {
     return;  // no script, no interpreter: a document that runs nothing costs nothing
   }
@@ -70,14 +82,22 @@ void PageScript::Run(dom::Document& document, const std::string& url,
   bindings_->Install();
   timers_.Install(*interpreter_, now_ms);
 
-  for (const std::optional<std::string>& source : slots_) {
+  for (std::size_t slot = 0; slot < slots_.size(); ++slot) {
+    const std::optional<std::string>& source = slots_[slot];
     if (!source.has_value()) {
       continue;  // an external script that did not arrive
     }
     // A script that throws does not stop the page: the next one still runs,
     // and so does the rest of the load. That is what a browser does, and it is
     // why one broken analytics tag does not blank a site.
-    (void)interpreter_->Run(*source);
+    //
+    // It is also why the throw has to be recorded. Continuing past a failure
+    // and saying nothing about it is how nine failed scripts and no scripts at
+    // all come to look the same from outside.
+    const js::Result result = interpreter_->Run(*source);
+    if (result.completion == js::Completion::Throw) {
+      errors_.push_back(SourceName(slot) + ": " + js::ToString(result.value));
+    }
   }
 }
 

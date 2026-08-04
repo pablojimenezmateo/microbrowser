@@ -64,6 +64,8 @@ class Page : private layout::ImageProvider {
   // rather than printed: a page must not be able to write to the terminal the
   // browser was started from.
   const std::vector<std::string>& ConsoleOutput() const;
+  // Every script on this page that ended on a throw. See PageScript.
+  const std::vector<std::string>& ScriptErrors() const;
 
   // Records the page into `out`, translated by `scroll_y`. The scroll offset is
   // baked into the geometry rather than expressed as a transform command,

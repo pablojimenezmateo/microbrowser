@@ -177,6 +177,45 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("let s = ''; for (const c of 'abc') s += c + '.'; s", "a.b.c.");
   });
 
+  // The grammar's `[~In]` parameter. Every line here was a SyntaxError, and
+  // between them they took out seven of the fourteen scripts on youtube.com's
+  // front page -- including the application bundle -- because a minifier that
+  // has already hoisted the loop variable emits the declaration-free form.
+  AddTest(tests, "JsInterpreter/AForInHeadIsNotARelationalExpression", [] {
+    // The shape that broke: no `var`, so the initializer is an expression, and
+    // `in` was consumed as an operator until the head had none left.
+    ExpectEval("let s = ''; let k; for (k in { a: 1, b: 2 }) s += k; s", "ab");
+    ExpectEval("let s = ''; let k; const o = { x: 1 }; for (k in o) s += k; s", "x");
+    // `in` is only special at the top of the head. Inside parentheses it is
+    // the operator again, which is what makes this a grammar parameter rather
+    // than a mode.
+    ExpectEval("let r; for (r = ('a' in { a: 1 }); false; ) {} r", "true");
+    ExpectEval("let n = 0; for (let i = 0; i < 3; i++) n++; n", "3");
+    // The right side of a for-in is an `Expression`, so it takes a comma --
+    // where a for-of takes an `AssignmentExpression` and does not. Real
+    // minifier output: initialise the object and iterate it in one head.
+    ExpectEval("let s = ''; let k; let d; for (k in d = d || {}, { p: 1, q: 2 }) s += k; s", "pq");
+    // `instanceof` sits at the same precedence and must be unaffected.
+    ExpectEval("let r; for (r = [] instanceof Array; false; ) {} r", "true");
+  });
+
+  // An identifier may be spelled with `\uXXXX` escapes, and the two spellings
+  // are one name. Angular emits its `ɵ` prefix this way, so any bundle
+  // carrying Angular-derived code -- youtube.com's is one -- fails to parse
+  // without it.
+  AddTest(tests, "JsInterpreter/AnIdentifierMayBeWrittenWithUnicodeEscapes", [] {
+    ExpectEval("var \\u0061bc = 7; abc", "7");
+    ExpectEval("var abc = 7; \\u0061bc", "7");
+    // Beginning with the escape, which is the form that reaches a bundle: the
+    // backslash has to route to the identifier lexer rather than fall through
+    // to the punctuators.
+    ExpectEval("const o = { \\u0275x: 5 }; o.\\u0275x", "5");
+    ExpectEval("const o = {}; o.\\u0275x = 5; o.ɵx", "5");
+    ExpectEval("const \\u{1F600} = 3; \\u{1F600}", "3");
+    // A malformed escape is not a name nobody wrote.
+    ExpectEqString(Eval("var \\u00zz = 1;").substr(0, 5), "throw", "a bad escape is an error");
+  });
+
   AddTest(tests, "JsInterpreter/SwitchFallsThroughUntilABreak", [] {
     ExpectEval("let r = ''; switch (2) { case 1: r += 'a'; case 2: r += 'b'; "
                "case 3: r += 'c'; break; default: r += 'd' } r",

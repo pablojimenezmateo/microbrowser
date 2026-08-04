@@ -47,6 +47,11 @@ class Engine {
   // True when anything ran.
   bool RunDueTimers();
 
+  // What the page's script threw, so a host that is debugging one can say why
+  // a document rendered the way it did. Forwarded rather than exposing the
+  // Page, which would put the whole engine on the wrong side of the seam.
+  const std::vector<std::string>& ScriptErrors() const { return page_.ScriptErrors(); }
+
   const std::string& Title() const { return page_.Title(); }
   const std::string& Url() const { return page_.Url(); }
   gfx::IntSize ViewportSize() const { return viewport_size_; }

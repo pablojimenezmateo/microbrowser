@@ -251,6 +251,8 @@ Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {}
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
 
+const std::vector<std::string>& Page::ScriptErrors() const { return script_.ScriptErrors(); }
+
 void Page::AddScript(std::size_t pending_index, std::string source) {
   script_.AddFetched(pending_index, std::move(source));
 }

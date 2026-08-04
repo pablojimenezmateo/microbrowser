@@ -12,7 +12,10 @@ extern:
 max_tu_lines: 1300
 
 budget: Token  header_lines=40 public_methods=8  members=9
-budget: Lexer  header_lines=60 public_methods=12 members=3
+# Grew by one member for identifiers written with `\uXXXX` escapes: the decoded
+# names are owned here because a token's lexeme is a view and the escaped and
+# unescaped spellings have to be one name by the time the parser sees them.
+budget: Lexer  header_lines=75 public_methods=12 members=4
 # One tagged node rather than forty classes. The trade is written out at the
 # top of Ast.h: a uniform tree to walk, at the cost of "which fields does this
 # kind use" living in comments and in the parser rather than in types.
@@ -29,7 +32,13 @@ budget: NodeKind header_lines=95 public_methods=0  members=0
 # Grew for named evaluation: an anonymous function takes the name of the
 # binding it is assigned to, which is a *syntactic* rule -- so it is applied
 # here, once, rather than by each engine at run time.
-budget: ParserImpl header_lines=110 public_methods=6 members=5
+# Grew by one member for the grammar's `[~In]` parameter. The alternative was
+# threading it through five expression levels as a parameter, which is the
+# spec's own shape and would have cost more here in signatures than it saves
+# in state -- and the flag has the better property anyway: ParseBinary clears
+# it before descending, so `[+In]` comes back inside parentheses with no reset
+# written anywhere.
+budget: ParserImpl header_lines=118 public_methods=6 members=6
 # Grew by lines for the bigint, and by no members: its digits live beside the
 # heap keyed by the cell in `object`, which is the arrangement a symbol's
 # identity already has.

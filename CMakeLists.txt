@@ -366,6 +366,13 @@ add_executable(microbrowser_snapshot tools/snapshot/main.cpp)
 target_link_libraries(microbrowser_snapshot PRIVATE microbrowser_engine microbrowser_gfx
                                                     microbrowser_ipc microbrowser_platform)
 
+# Runs one JavaScript file, with a parse-only mode that reports an error by
+# offset rather than by line. The snapshot tool's argument applied to src/js:
+# real script from a real site is where the bugs are, and a megabyte of it on
+# one line needs a tool that can say *where*.
+add_executable(microbrowser_jsshell tools/jsshell/main.cpp)
+target_link_libraries(microbrowser_jsshell PRIVATE microbrowser_js)
+
 add_executable(microbrowser_tests
   tests/TestMain.cpp
   tests/TestSupport.cpp

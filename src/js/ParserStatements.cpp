@@ -432,6 +432,9 @@ NodePtr ParserImpl::ParseFor() {
   Expect("(", "after 'for'");
 
   NodePtr init;
+  // `[~In]` for the initializer only. The condition and the update that follow
+  // are ordinary expressions, so the flag is put back before either is read.
+  no_in_ = true;
   if (At(";")) {
     // No initializer.
   } else if (AtKeyword("var") || AtKeyword("let") || AtKeyword("const")) {
@@ -439,6 +442,7 @@ NodePtr ParserImpl::ParseFor() {
   } else {
     init = ParseExpression();
   }
+  no_in_ = false;
 
   if (AtKeyword("in") || (current_.type == TokenType::Identifier && current_.lexeme == "of")) {
     NodePtr node = std::make_unique<Node>();
@@ -447,9 +451,15 @@ NodePtr ParserImpl::ParseFor() {
     node->line = line;
     node->string = std::string(current_.lexeme);
     node->number = is_await ? 1.0 : 0.0;
+    const bool is_of = node->string == "of";
     Advance();
     node->children.push_back(std::move(init));
-    node->children.push_back(ParseAssignment());
+    // The two heads take different grammars on the right, and the difference
+    // is the comma: for-in takes an `Expression`, for-of an
+    // `AssignmentExpression`. `for (k in a = a || {}, b)` is real minifier
+    // output, and reading its right side as an assignment stops at the comma
+    // and then fails on the `)` that is not there yet.
+    node->children.push_back(is_of ? ParseAssignment() : ParseExpression());
     Expect(")", "after a for-in head");
     node->children.push_back(ParseStatement());
     return node;

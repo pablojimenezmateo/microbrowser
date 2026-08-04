@@ -8,6 +8,7 @@
 #include <string>
 
 #include "util/Parse.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::js {
 
@@ -180,18 +181,103 @@ Token Lexer::LexIdentifierOrKeyword(std::size_t start, bool newline) {
   if (is_private) {
     ++offset_;
   }
-  while (offset_ < source_.size() && IsIdentifierPart(source_[offset_])) {
-    ++offset_;
+  // An identifier may be written with `\uXXXX` escapes, and the escaped and
+  // unescaped spellings are the same name. Angular's output uses it -- the
+  // `ɵ` prefix it marks its own properties with is emitted as `ɵ` --
+  // so a bundle carrying any Angular-derived code fails to parse without it.
+  //
+  // Two passes rather than one: nearly every identifier has no escape at all,
+  // and that case must stay a pointer bump per character with nothing owned.
+  bool escaped = false;
+  while (offset_ < source_.size()) {
+    const char c = source_[offset_];
+    if (IsIdentifierPart(c)) {
+      ++offset_;
+    } else if (c == '\\' && offset_ + 1 < source_.size() && source_[offset_ + 1] == 'u') {
+      escaped = true;
+      offset_ += 2;
+      // The digits themselves are validated on the decoding pass; here it is
+      // enough to get past them, and `IsHexDigit` is the only thing that can
+      // end the escape either way.
+      if (offset_ < source_.size() && source_[offset_] == '{') {
+        while (offset_ < source_.size() && source_[offset_] != '}') {
+          ++offset_;
+        }
+        offset_ += offset_ < source_.size() ? std::size_t{1} : std::size_t{0};
+      } else {
+        while (offset_ < source_.size() && IsHexDigit(source_[offset_])) {
+          ++offset_;
+        }
+      }
+    } else {
+      break;
+    }
   }
   if (is_private && offset_ == start + 1) {
     return MakeToken(TokenType::Invalid, start, newline);
   }
   Token token = MakeToken(is_private ? TokenType::PrivateIdentifier : TokenType::Identifier, start,
                           newline);
+  if (escaped) {
+    if (!DecodeIdentifier(token)) {
+      token.type = TokenType::Invalid;
+    }
+    // An escaped identifier is never a keyword. The spec makes `if` an
+    // early error rather than `if`; treating it as an ordinary name is the
+    // lenient half of that and cannot turn one construct into another.
+    return token;
+  }
   if (!is_private && IsReservedWord(token.lexeme)) {
     token.type = TokenType::Keyword;
   }
   return token;
+}
+
+bool Lexer::DecodeIdentifier(Token& token) {
+  std::string decoded;
+  decoded.reserve(token.lexeme.size());
+  const std::string_view raw = token.lexeme;
+  for (std::size_t i = 0; i < raw.size();) {
+    if (raw[i] != '\\') {
+      decoded.push_back(raw[i++]);
+      continue;
+    }
+    // `\` in an identifier introduces a unicode escape and nothing else: there
+    // is no `\n` here the way there is in a string.
+    if (i + 1 >= raw.size() || raw[i + 1] != 'u') {
+      return false;
+    }
+    i += 2;
+    std::uint32_t code = 0;
+    if (i < raw.size() && raw[i] == '{') {
+      ++i;
+      std::size_t digits = 0;
+      for (; i < raw.size() && raw[i] != '}'; ++i, ++digits) {
+        if (!IsHexDigit(raw[i]) || code > 0x10FFFF) {
+          return false;  // saturates rather than wraps: the input is hostile
+        }
+        code = code * 16 + static_cast<std::uint32_t>(HexValue(raw[i]));
+      }
+      if (digits == 0 || i >= raw.size() || code > 0x10FFFF) {
+        return false;
+      }
+      ++i;  // the '}'
+    } else {
+      if (i + 4 > raw.size()) {
+        return false;
+      }
+      for (std::size_t digit = 0; digit < 4; ++digit, ++i) {
+        if (!IsHexDigit(raw[i])) {
+          return false;
+        }
+        code = code * 16 + static_cast<std::uint32_t>(HexValue(raw[i]));
+      }
+    }
+    util::AppendUtf8(decoded, code);
+  }
+  decoded_names_.push_back(std::move(decoded));
+  token.lexeme = decoded_names_.back();
+  return true;
 }
 
 Token Lexer::LexNumber(std::size_t start, bool newline) {
@@ -418,7 +504,10 @@ Token Lexer::Next() {
   }
 
   const char c = source_[offset_];
-  if (IsIdentifierStart(c) || c == '#') {
+  // `ɵprov` is an identifier that begins with its escape, which is how
+  // Angular's `ɵ` prefix reaches a bundle. Without the third test here the
+  // backslash falls through to the punctuators and is simply invalid.
+  if (IsIdentifierStart(c) || c == '#' || (c == '\\' && Peek(1) == 'u')) {
     return LexIdentifierOrKeyword(start, newline);
   }
   if (IsDecimalDigit(c) || (c == '.' && IsDecimalDigit(Peek(1)))) {

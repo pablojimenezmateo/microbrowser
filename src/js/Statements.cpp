@@ -941,7 +941,16 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
       ScopeGuard guard(*this, loop_scope);
 
       if (node.Child(0) != nullptr) {
-        const Result init = EvaluateStatement(*node.Child(0), *loop_scope);
+        // The head is either a declaration or a bare expression, and the two
+        // are evaluated by different halves of this class. Sending an
+        // expression to EvaluateStatement reaches its default and refuses the
+        // whole loop -- so `for (i = 0; ...)`, with the variable already
+        // hoisted, was a construct the tree-walker could not run. Found by the
+        // differential rather than by reading it, which is what it is for.
+        const Node& init_node = *node.Child(0);
+        const Result init = init_node.kind == NodeKind::VariableDeclaration
+                                ? EvaluateStatement(init_node, *loop_scope)
+                                : Evaluate(init_node, *loop_scope);
         if (init.IsAbrupt()) {
           return init;
         }

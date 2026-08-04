@@ -890,12 +890,23 @@ NodePtr ParserImpl::ParseBinary(int min_precedence) {
     return Make(NodeKind::Empty);
   }
 
+  // `[~In]` binds at this level and nowhere below it: `for (a in b)` must not
+  // read `in` as an operator, but `for (k = ('x' in o);;)` must. Taking the
+  // flag and clearing it before ParseUnary descends gives both, because
+  // everything nested -- parentheses, arguments, array and object literals --
+  // is parsed with it already false.
+  const bool no_in = no_in_;
+  no_in_ = false;
+
   NodePtr left = ParseUnary();
   while (!AtEnd()) {
     std::string_view text = current_.lexeme;
     // `in` and `instanceof` are keywords that behave as binary operators. They
     // sit at the relational level, with `<` and friends.
     const bool keyword_operator = AtKeyword("in") || AtKeyword("instanceof");
+    if (no_in && AtKeyword("in")) {
+      break;  // the head of a for-in, and the caller's to consume
+    }
     if (!keyword_operator && current_.type != TokenType::Punctuator) {
       break;
     }

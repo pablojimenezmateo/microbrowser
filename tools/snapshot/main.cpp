@@ -255,6 +255,12 @@ int main(int argc, char** argv) {
                url.c_str(), display_list.Size(), display_list.Texts().size(),
                display_list.Fonts().size(), display_list.Images().size(), title.c_str(),
                options.output.c_str());
+  // Always, not behind -v. A script that threw is the most likely reason a
+  // page rendered less than it should have, and a debugging tool that makes
+  // you pass a flag to learn that is one you find out about too late.
+  for (const std::string& error : engine.ScriptErrors()) {
+    std::fprintf(stderr, "  script error: %s\n", error.c_str());
+  }
   if (options.dump) {
     DumpDisplayList(display_list);
   }

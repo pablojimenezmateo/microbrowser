@@ -81,8 +81,23 @@ class PageScript {
   bool HasListeners() const { return interpreter_ != nullptr; }
 
   const std::vector<std::string>& ConsoleOutput() const;
+  // Every script that ended on a throw, in the order they ran, each named by
+  // the script it came from.
+  //
+  // Kept rather than dropped because `Run` deliberately continues past a
+  // throw -- which is what a browser does, and which without this makes a page
+  // that fails nine scripts in a row indistinguishable from one that ran none.
+  // A blank render then has no signal at all behind it, and finding out why
+  // means adding this line by hand. It is the same reasoning as ConsoleOutput:
+  // collected, never printed, because a page must not be able to write to the
+  // terminal the browser was started from.
+  const std::vector<std::string>& ScriptErrors() const { return errors_; }
 
  private:
+  // How `ScriptErrors()` names the script in slot `slot`: its URL when it came
+  // from one, its position when it was inline.
+  std::string SourceName(std::size_t slot) const;
+
   std::unique_ptr<js::Interpreter> interpreter_;
   std::unique_ptr<bindings::DomBindings> bindings_;
   // One slot per script in document order. Empty until an external one is
@@ -93,6 +108,7 @@ class PageScript {
   std::vector<std::size_t> pending_slots_;
   bool ran_ = false;
   bindings::TimerQueue timers_;
+  std::vector<std::string> errors_;
 };
 
 }  // namespace microbrowser::engine

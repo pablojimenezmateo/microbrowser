@@ -124,6 +124,12 @@ class ParserImpl {
   Token current_;
   std::vector<ParseError> errors_;
   int depth_ = 0;
+  // The grammar's `[~In]` parameter: true while parsing a `for` initializer,
+  // where `in` opens a for-in head rather than being a relational operator.
+  // A flag rather than a parameter threaded through five expression levels,
+  // and cleared by ParseBinary before it descends -- which is what restores
+  // `[+In]` inside parentheses without a single reset written by hand.
+  bool no_in_ = false;
 };
 
 }  // namespace microbrowser::js

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <deque>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -56,6 +58,10 @@ class Lexer {
 
   Token MakeToken(TokenType type, std::size_t start, bool newline) const;
   Token LexIdentifierOrKeyword(std::size_t start, bool newline);
+  // Rewrites `token.lexeme` to the name its `\uXXXX` escapes denote. False
+  // when one of them is malformed, which makes the token Invalid rather than a
+  // name nobody wrote.
+  bool DecodeIdentifier(Token& token);
   Token LexNumber(std::size_t start, bool newline);
   Token LexString(std::size_t start, bool newline);
   Token LexTemplate(std::size_t start, bool newline);
@@ -64,6 +70,15 @@ class Lexer {
   std::string_view source_;
   std::size_t offset_ = 0;
   std::size_t line_ = 1;
+  // Decoded names for identifiers written with `\uXXXX` escapes, which are the
+  // same identifier as the characters they denote -- `ɵprov` and `ɵprov`
+  // must resolve to one binding.
+  //
+  // Owned here, and a deque because the addresses have to stay put: a token's
+  // `lexeme` is a view, and pointing it at the decoded name is what keeps the
+  // escape invisible to the parser rather than adding a second spelling to
+  // twenty-five identifier sites. The lexer outlives every token it made.
+  std::deque<std::string> decoded_names_;
 };
 
 // Every token in `source`, for a test or a tool. Stops at the first EndOfFile.

@@ -57,4 +57,9 @@ budget: Page   header_lines=170 public_methods=36 members=12
 # scripts in document order, and the timer queue. The timers are here rather
 # than on Page because they belong to the script that scheduled them and go
 # with it on the next navigation.
-budget: PageScript header_lines=95 public_methods=14 members=7
+# Eight, for the errors a script threw. Run deliberately continues past a
+# throw, so without somewhere to put them a page whose every script failed and
+# a page with no script at all render identically and report the same thing --
+# which is exactly the position youtube.com was diagnosed from, and the reason
+# the eighth member is worth more than the budget it costs.
+budget: PageScript header_lines=110 public_methods=15 members=8
