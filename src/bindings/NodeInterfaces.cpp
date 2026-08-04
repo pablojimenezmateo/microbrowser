@@ -201,6 +201,7 @@ void DomBindings::EnsureInterfaces() {
   // prototype of the tag it belongs to.
   InstallReflections();
 
+  InstallFormApis();
   InstallCustomElements();
   InstallMutationObserver();
   InstallWindowEvents();

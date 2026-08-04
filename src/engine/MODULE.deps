@@ -26,7 +26,13 @@ max_tu_lines: 800
 # questions rather than the browser's, which is why they are on the router.
 # The ninth member is the navigation in flight -- predicted by name in ADR 0011,
 # and a value of its own type so that Engine gained one member and not eight.
-budget: Engine header_lines=115 public_methods=13 members=9
+# The two extra lines are FollowScriptNavigation, and the comment on it is the
+# reason it exists at all rather than a navigation happening where the script
+# asked for one: a navigation replaces the document, and doing that with the
+# interpreter on the stack is the use-after-free ADR 0026 §3 is written to
+# prevent. No new members -- the pending submission lives in the binding layer,
+# which is where the script that asked for it is.
+budget: Engine header_lines=120 public_methods=13 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -61,7 +67,12 @@ budget: Loader header_lines=105 public_methods=14 members=6
 # frame is a state the load passes through rather than the state it ends in.
 budget: PendingLoad header_lines=70 public_methods=6 members=16
 
-budget: Page   header_lines=170 public_methods=36 members=12
+# 185 lines and 38 methods for the form lifecycle: taking the submission a
+# script asked for, firing `load`, and the private SubmitForm every route to a
+# submission now goes through -- a click, the Enter key and a script -- so that
+# `preventDefault` on a `submit` event means the same thing to all three. No
+# new members: a pending submission is the binding layer's until it is taken.
+budget: Page   header_lines=185 public_methods=38 members=12
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -93,4 +104,8 @@ budget: Page   header_lines=170 public_methods=36 members=12
 # The eighteenth method is Detach, and the lines are its comment. It is worth
 # them: a binding layer that outlives its document is a use-after-free on the
 # next page's first tree read, and that bug shipped once already.
-budget: PageScript header_lines=170 public_methods=18 members=9
+# Three more methods and the lines are their comments: dispatch a `submit`,
+# take the submission a script asked for, and fire `load`. All three are the
+# same shape as DispatchClick -- the browser calling into the page, through the
+# one layer allowed to. Members did not move.
+budget: PageScript header_lines=185 public_methods=21 members=9

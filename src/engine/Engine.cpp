@@ -222,6 +222,9 @@ bool Engine::RunDueWork() {
   if (!page_.RunDueWork(NowMilliseconds())) {
     return false;
   }
+  if (FollowScriptNavigation()) {
+    return true;
+  }
   LayoutAndPaint();
   return true;
 }
@@ -271,6 +274,9 @@ void Engine::OnCompletion(Loader::Completion completion) {
           // It landed after the page was already up. Running it can have
           // changed the tree, so the page is laid out again -- which is what
           // an async script arriving late looks like in every browser.
+          if (FollowScriptNavigation()) {
+            return;
+          }
           page_.InvalidateLayout();
           LayoutAndPaint();
         }
@@ -365,6 +371,13 @@ void Engine::AdvanceLoad() {
   if (load_.MayRunScripts()) {
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
+    // A script that submitted a form navigates now, which throws this load
+    // away -- so nothing below may touch `load_`. reddit's front door is this
+    // line: its interstitial fills in a form from `DOMContentLoaded` and
+    // submits it, and the answer to that submission is the real page.
+    if (FollowScriptNavigation()) {
+      return;
+    }
   }
   if (load_.MayPaint()) {
     Paint();
@@ -374,6 +387,17 @@ void Engine::AdvanceLoad() {
     // for the `async` scripts the page said it would not wait for, which is
     // the difference between not blocking on one and dropping it.
     load_ = PendingLoad{};
+    // And only now does `load` fire: it means the document *and its
+    // subresources*, which is the difference between it and DOMContentLoaded.
+    // The relayout happens only when something was listening, so a page with
+    // no handler does not pay for having finished.
+    if (page_.NotifyLoad()) {
+      if (FollowScriptNavigation()) {
+        return;
+      }
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+    }
   }
 }
 
@@ -436,6 +460,12 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   // intercepts a click on a link expects the link not to be followed, and
   // deciding to navigate before asking would make `preventDefault` a lie.
   const ClickOutcome click = page_.DispatchClickAt(document_point);
+  // Before the default action, and before `preventDefault` is consulted: a
+  // handler that submitted a form asked for a navigation of its own, and that
+  // is what happens whether or not it also stopped the click.
+  if (FollowScriptNavigation()) {
+    return true;
+  }
   if (click.prevented) {
     page_.InvalidateLayout();
     LayoutAndPaint();
@@ -529,7 +559,17 @@ void Engine::NavigateFromCurrentDocument(const std::string& url,
   Navigate(url, options, referrer.has_value() ? &*referrer : nullptr);
 }
 
+bool Engine::FollowScriptNavigation() {
+  const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission();
+  if (!submission.has_value()) {
+    return false;
+  }
+  AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
+  return Navigate(*submission);
+}
+
 bool Engine::Navigate(const FormSubmission& submission) {
+  AddPerformanceCounter(PerfCounterId::EngineFormSubmissions);
   const std::optional<std::string> resolved = ResolveLink(submission.url, page_.Url());
   if (!resolved.has_value()) {
     return false;

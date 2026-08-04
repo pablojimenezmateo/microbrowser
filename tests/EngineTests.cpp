@@ -102,7 +102,7 @@ std::size_t TextRunCount(const gfx::DisplayList& list) {
   return runs;
 }
 
-std::optional<std::string> SubmissionTarget(const engine::Page& page,
+std::optional<std::string> SubmissionTarget(engine::Page& page,
                                             gfx::FloatPoint point) {
   const std::optional<engine::FormSubmission> submission = page.FormSubmissionRequestAt(point);
   if (!submission.has_value() || submission->method != "GET") {
@@ -111,7 +111,7 @@ std::optional<std::string> SubmissionTarget(const engine::Page& page,
   return submission->url;
 }
 
-std::optional<std::string> FocusedSubmissionTarget(const engine::Page& page) {
+std::optional<std::string> FocusedSubmissionTarget(engine::Page& page) {
   const std::optional<engine::FormSubmission> submission = page.FocusedFormSubmission();
   if (!submission.has_value() || submission->method != "GET") {
     return std::nullopt;
@@ -122,6 +122,37 @@ std::optional<std::string> FocusedSubmissionTarget(const engine::Page& page) {
 }  // namespace
 
 void RegisterEngineTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Page/TheDocumentLifecycleIsAStateMachineAPageCanSee", [] {
+    // A page that registers a `DOMContentLoaded` listener and is never told is
+    // a page that does nothing at all, which is the state reddit's interstitial
+    // was in. `readyState` moves with the events rather than beside them: a
+    // handler that reads it must not be told the parse is still going.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><script>"
+        "console.log('running: ' + document.readyState);"
+        "document.addEventListener('DOMContentLoaded',"
+        "  () => console.log('dcl: ' + document.readyState), {once: true});"
+        "addEventListener('load', () => console.log('load: ' + document.readyState));"
+        "</script></body></html>",
+        "https://example.org/");
+    page.RunScripts(0);
+    Expect(page.NotifyLoad(), "something was listening for load");
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    ExpectEqInt(static_cast<long long>(output.size()), 3, "three lines, in order");
+    ExpectEqString(output.at(0), "running: loading", "a script runs while the document loads");
+    ExpectEqString(output.at(1), "dcl: interactive", "DOMContentLoaded means interactive");
+    ExpectEqString(output.at(2), "load: complete", "and load means complete");
+
+    // A page listening for nothing costs nothing, which is what keeps `load`
+    // from relaying out every document that ever finished.
+    engine::Page quiet(fonts.catalog);
+    quiet.Load("<html><body><script>1</script></body></html>", "https://example.org/");
+    quiet.RunScripts(0);
+    Expect(!quiet.NotifyLoad(), "nothing was listening, so nothing is reported");
+  });
+
   AddTest(tests, "Page/ScriptsRunInDocumentOrderAcrossInlineAndExternal", [] {
     // The whole reason nothing runs until every external script has arrived: a
     // page's scripts must run in the order they appear, and an external one in
@@ -1493,6 +1524,64 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(factory.log.requests.at(1).find("Referer: https://example.org/start\r\n") !=
                std::string::npos,
            "the clicked navigation carries the policy-computed referrer");
+  });
+
+  // The interstitial, end to end.
+  //
+  // This is `docs/surveys/2026-08-04-reddit-youtube-plex.md` §1 reduced to what
+  // it exercises, and every line of it was a hole a month ago: DOMContentLoaded
+  // firing at all, `{once: true}`, `document.forms`, `location.search`,
+  // `URLSearchParams`, `Object.assign` onto an element setting IDL attributes,
+  // `form.onsubmit` as a property, `elements.namedItem`, and `requestSubmit()`
+  // being distinct from `submit()` -- plus the cookie from the first response
+  // being sent on the second, which already worked and is what the whole
+  // exercise is for.
+  AddTest(tests, "Engine/AScriptedFormSubmissionIsANavigation", [] {
+    Session session;
+    ScriptedFactory factory;
+    const std::string interstitial =
+        "<title>Please wait</title><form action='/challenge'>"
+        "<input type='hidden' name='token' value='t0'>"
+        "<input type='hidden' name='solution' value=''>"
+        "</form><script>"
+        "document.addEventListener('DOMContentLoaded', function () {"
+        "  var f = document.forms[0];"
+        "  f.onsubmit = function (e) {"
+        "    new URLSearchParams(document.location.search).forEach((v, n) =>"
+        "      e.target.appendChild(Object.assign(document.createElement('input'),"
+        "        {name: n, type: 'hidden', value: v})));"
+        "    return true;"
+        "  };"
+        "  f.elements.namedItem('solution').value = 'answered';"
+        "  f.requestSubmit();"
+        "}, {once: true});"
+        "</script>";
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+        "Set-Cookie: gate=passed; Path=/\r\nContent-Length: " +
+            std::to_string(interstitial.size()) + "\r\n\r\n" + interstitial});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>The real page</title><body>content</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/?jsc=1&r=abc"});
+
+    ExpectEqString(session.LastTitle(), "The real page",
+                   "the challenge submitted itself and the answer committed");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "one request for the interstitial and one for its answer");
+    const std::string& submitted = factory.log.requests.at(1);
+    Expect(submitted.find("GET /challenge?token=t0&solution=answered&jsc=1&r=abc ") !=
+               std::string::npos,
+           "the submission carries the form's own fields, the value the script "
+           "set through elements.namedItem, and the two the onsubmit handler "
+           "copied out of location.search -- which is the whole point of "
+           "requestSubmit firing the event that submit() does not");
+    Expect(submitted.find("Cookie: gate=passed\r\n") != std::string::npos,
+           "and the cookie the first response set");
   });
 
   AddTest(tests, "Engine/ClickingAGetFormSubmitNavigatesToTheSerializedQuery", [] {

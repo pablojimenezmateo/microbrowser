@@ -193,6 +193,15 @@ void PageScript::Run(dom::Document& document, const std::string& url,
   // have arrived -- the rest run through RunReadyAsync when they do.
   RunTiming(Timing::Blocking);
   RunTiming(Timing::Deferred);
+  // Then the parse is over as far as a page can tell: `readyState` becomes
+  // "interactive" and `DOMContentLoaded` fires. Before the `async` scripts,
+  // which is what the attribute means -- an async script is one the page said
+  // the document need not wait for, so it must not hold this back.
+  //
+  // A page that registers a `DOMContentLoaded` listener and is never told is
+  // a page that does nothing at all, which is the state reddit's interstitial
+  // was in.
+  bindings_->NotifyDomContentLoaded();
   RunTiming(Timing::Async);
 }
 
@@ -225,6 +234,18 @@ bool PageScript::RunDueWork(std::int64_t now_ms) {
   const bool timers = timers_.RunDue(*interpreter_, now_ms);
   const bool frame = frames_.RunDue(*interpreter_, now_ms);
   return timers || frame;
+}
+
+bool PageScript::DispatchSubmit(dom::Element& form) {
+  return bindings_ != nullptr && bindings_->DispatchSubmit(form);
+}
+
+std::optional<bindings::PendingSubmit> PageScript::TakePendingSubmit() {
+  return bindings_ == nullptr ? std::nullopt : bindings_->TakePendingSubmit();
+}
+
+bool PageScript::NotifyLoad() {
+  return bindings_ != nullptr && bindings_->NotifyLoad();
 }
 
 bool PageScript::DispatchClick(dom::Element& target) {

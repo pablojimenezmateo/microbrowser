@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -9,6 +10,22 @@
 #include "js/Interpreter.h"
 
 namespace microbrowser::bindings {
+
+// A form submission a script asked for and has not had yet.
+//
+// Recorded rather than performed, for two reasons and the second is the one
+// that matters. This module cannot navigate: it cannot see a URL, a loader or
+// a network, which is the module contract working. And a navigation started
+// from inside a running script would tear down the interpreter that is running
+// it -- ADR 0026 §3 makes document teardown the most safety-critical routine in
+// the engine, and "not while script is on the stack" is the first rule of it.
+// So the engine takes this after the turn ends.
+struct PendingSubmit {
+  dom::Element* form = nullptr;
+  // The button that submitted, or null. It decides `formaction`, `formmethod`
+  // and which submit control appears in the form data set.
+  dom::Element* submitter = nullptr;
+};
 
 // Gives a script a document to act on.
 //
@@ -50,6 +67,29 @@ class DomBindings {
   // that could dispatch its own trusted events could make a form submit itself.
   bool DispatchClick(dom::Element& target);
 
+  // Fires `submit` at `form`. True when a handler called `preventDefault`,
+  // which is the caller's signal not to submit.
+  //
+  // A C++ entry point for the same reason DispatchClick is: the browser
+  // dispatching an event as part of an algorithm is what makes it trusted, and
+  // a page must not be able to forge one. What a page *can* do is ask for the
+  // algorithm -- `requestSubmit()` -- which runs this on its way through.
+  bool DispatchSubmit(dom::Element& form);
+
+  // The submission a script asked for, taken. Empty when it asked for none.
+  std::optional<PendingSubmit> TakePendingSubmit();
+
+  // The document lifecycle. `readyState` moves loading -> interactive ->
+  // complete, and the two events fire on the transitions rather than being
+  // announced separately: a page that hears `DOMContentLoaded` and then reads
+  // `readyState` must not be told the parse is still going.
+  //
+  // Both return whether anything was listening, which is the caller's signal
+  // that the document may have changed and needs laying out again. A page with
+  // no `load` handler must not cost a relayout for having been loaded.
+  bool NotifyDomContentLoaded();
+  bool NotifyLoad();
+
  private:
   // The first element, in document order, that answers to `matches`.
   dom::Element* FindElement(const std::function<bool(const dom::Element&)>& matches) const;
@@ -75,6 +115,19 @@ class DomBindings {
   // built on the one urlencoded implementation in `util` -- which is what
   // stops it and the engine's form data set from disagreeing about a byte.
   void InstallUrlSearchParams();
+  // `document.forms`, `form.elements` with `namedItem`, `submit` and
+  // `requestSubmit`, and `control.form`. In FormBindings.cpp.
+  void InstallFormApis();
+  // The named-and-indexed collection both `document.forms` and `form.elements`
+  // are: an array, plus `namedItem` and the names as properties.
+  js::Value MakeNamedCollection(const std::vector<dom::Element*>& elements);
+  // Files a submission for the engine to act on when the turn ends.
+  void RecordSubmit(dom::Element& form, dom::Element* submitter);
+  // Fires `type` at the window, which is where a page listens for the events
+  // that are about the document rather than about a node. True when something
+  // was listening.
+  bool DispatchAtWindow(const char* type);
+  void SetReadyState(const char* state);
   js::Value MakeClassList(dom::Element& element);
   js::Value MakeStyle(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
@@ -197,6 +250,8 @@ class DomBindings {
   // Nodes script removed. Held rather than freed, for the reason on
   // DetachFromTree.
   std::vector<std::unique_ptr<dom::Node>> detached_;
+  // The submission a script asked for. See PendingSubmit for why it waits.
+  std::optional<PendingSubmit> pending_submit_;
 };
 
 }  // namespace microbrowser::bindings

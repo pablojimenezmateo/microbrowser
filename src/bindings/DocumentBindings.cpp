@@ -137,18 +137,29 @@ void DomBindings::Install() {
     DomBindings* owner = OwnerOf(call);
     return owner == nullptr ? Value::Null() : owner->CreateLegacyEvent();
   });
-  // Always "complete": scripts run after the parse here, which is written down
-  // in PageScript.h as a deviation. Reporting "loading" would be a lie a page
-  // acts on -- it would wait for a DOMContentLoaded that already happened.
-  // A property rather than a method, and always "complete": scripts run after
-  // the parse here, which PageScript.h writes down as a deviation. Reporting
-  // "loading" would be a lie a page acts on -- it would wait for a
-  // DOMContentLoaded that has already been and gone.
+  // `readyState`, and now it moves.
+  //
+  // It used to answer "complete" always, on the reasoning that scripts run
+  // after the parse here so reporting "loading" would be a lie. That was the
+  // wrong half of the trade: the two states are read by pages that write
+  // `if (readyState === 'loading') addEventListener('DOMContentLoaded', go);
+  // else go()`, and answering "complete" while `DOMContentLoaded` had not yet
+  // fired sent the *other* half of them -- the ones that only listen -- into a
+  // wait for an event that never came. reddit's interstitial is one of those.
+  //
+  // So the lifecycle is real: "loading" while the scripts run, "interactive"
+  // when DOMContentLoaded fires, "complete" when the load does. What is still
+  // a deviation is *when* the scripts run relative to the parse, which
+  // PageScript.h records.
   const Value ready = interpreter_->NewNativeValue("readyState", [](NativeCall& call) {
-    (void)call;
-    return Value::String(std::string("complete"));
+    if (!call.self.IsObject()) {
+      return Value::String(std::string("loading"));
+    }
+    const Value* state = call.self.object->GetOwn(kReadyStateSlot);
+    return state == nullptr ? Value::String(std::string("loading")) : *state;
   });
   if (ready.IsObject()) {
+    document.object->SetHidden(kReadyStateSlot, Value::String(std::string("loading")));
     document.object->DefineAccessor("readyState", ready.object, nullptr);
   }
 
@@ -193,6 +204,13 @@ void DomBindings::Install() {
   interpreter_->GlobalScope()->Declare("document", document, false);
   InstallEventConstructors();
   InstallWindow();
+}
+
+void DomBindings::SetReadyState(const char* state) {
+  const Value document = WrapperFor(document_);
+  if (document.IsObject()) {
+    document.object->SetHidden(kReadyStateSlot, Value::String(std::string(state)));
+  }
 }
 
 }  // namespace microbrowser::bindings

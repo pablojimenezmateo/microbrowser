@@ -20,6 +20,10 @@ namespace microbrowser::bindings {
 // class fields and the engine's other internal slots already use.
 inline constexpr const char* kNodeSlot = "#node";
 inline constexpr const char* kOwnerSlot = "#bindings";
+// Where the document wrapper keeps its `readyState`. A hidden property rather
+// than a C++ member, because the collector can see a property and cannot see a
+// `js::Value` in a field -- the same rule the wrapper cache follows.
+inline constexpr const char* kReadyStateSlot = "#readyState";
 
 // A C++ pointer, as a value script can hold but not usefully forge. It travels
 // as a double, which holds a 53-bit integer exactly -- more than any address on

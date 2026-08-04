@@ -492,7 +492,29 @@ std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
   return HitTestLink(*boxes_, document_point, nullptr);
 }
 
-std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) const {
+std::optional<FormSubmission> Page::SubmitForm(const dom::Element& form,
+                                               const dom::Element* submitter) {
+  // The event first. A page that adds fields in `onsubmit` -- which is what
+  // reddit's interstitial does -- has to have run before the data set is
+  // built, and one that calls `preventDefault` must not be submitted at all.
+  if (script_.DispatchSubmit(const_cast<dom::Element&>(form))) {
+    return std::nullopt;
+  }
+  return BuildFormSubmission(form, submitter, *document_, url_);
+}
+
+std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
+  const std::optional<bindings::PendingSubmit> pending = script_.TakePendingSubmit();
+  if (!pending.has_value() || pending->form == nullptr || document_ == nullptr) {
+    return std::nullopt;
+  }
+  // No `submit` event here: `requestSubmit()` already fired one on its way
+  // through and `submit()` fires none by definition. Firing one now would run
+  // a page's handler twice for one submission.
+  return BuildFormSubmission(*pending->form, pending->submitter, *document_, url_);
+}
+
+std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
@@ -505,7 +527,7 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
   if (form == nullptr) {
     return std::nullopt;
   }
-  return BuildFormSubmission(*form, submitter, *document_, url_);
+  return SubmitForm(*form, submitter);
 }
 
 ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
@@ -666,7 +688,7 @@ bool Page::DeleteBackwardFromFocusedTextControl() {
   return true;
 }
 
-std::optional<FormSubmission> Page::FocusedFormSubmission() const {
+std::optional<FormSubmission> Page::FocusedFormSubmission() {
   if (focused_text_control_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
@@ -674,7 +696,7 @@ std::optional<FormSubmission> Page::FocusedFormSubmission() const {
   if (form == nullptr) {
     return std::nullopt;
   }
-  return BuildFormSubmission(*form, nullptr, *document_, url_);
+  return SubmitForm(*form, nullptr);
 }
 
 }  // namespace microbrowser::engine

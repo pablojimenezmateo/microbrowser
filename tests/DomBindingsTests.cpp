@@ -223,7 +223,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.getElementById('title').dispatchEvent(e); seen",
                  "go");
     ExpectScript(kPage, "document.createEvent('Event').type", "");
-    ExpectScript(kPage, "document.readyState", "complete");
+    // "loading" here rather than "complete": these bindings are installed with
+    // no lifecycle run over them, which is exactly the state a document is in
+    // while its scripts run. The transitions are PageScript's -- see
+    // DomBindings/TheDocumentLifecycleIsAStateMachine.
+    ExpectScript(kPage, "document.readyState", "loading");
     ExpectScript(kPage, "document.createComment('hi').nodeType", "8");
     ExpectScript(kPage, "document.createElementNS('http://www.w3.org/1999/xhtml','div').tagName",
                  "div");
@@ -798,6 +802,97 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // the answer the eventual pushState check must never take from here.
     ExpectEqString(at("about:blank", "location.origin"), "null", "opaque origin");
     ExpectEqString(at("about:blank", "location.pathname"), "blank", "opaque path");
+  });
+
+  AddTest(tests, "DomBindings/FormsAreReachableAndOwnTheirControls", [] {
+    // Ownership rather than containment: `form="login"` puts a control in a
+    // form it is nowhere near, and the engine's form data set already knows
+    // that. Two answers to "which controls does this form own" is the bug this
+    // is written against.
+    constexpr const char* kForms =
+        "<body><form id=login name=login action='/in'>"
+        "<input name=user value=u><input name=pass value=p>"
+        "<img src=x.png></form>"
+        "<input name=extra form=login value=e>"
+        "<form id=other></form></body>";
+    ExpectScript(kForms, "document.forms.length", "2");
+    ExpectScript(kForms, "document.forms[0].tagName", "form");
+    ExpectScript(kForms, "document.forms.namedItem('login').id", "login");
+    ExpectScript(kForms, "document.forms.namedItem('nothing') === null", "true");
+    ExpectScript(kForms, "document.forms[0].elements.length", "3");
+    ExpectScript(kForms, "document.forms[0].elements.namedItem('extra').getAttribute('value')",
+                 "e");
+    ExpectScript(kForms, "document.forms[0].elements.namedItem('user').tagName", "input");
+    // An `<img>` inside a form is not one of its elements.
+    ExpectScript(kForms,
+                 "[...document.forms[0].elements].map(e => e.tagName).join(',')",
+                 "input,input,input");
+    ExpectScript(kForms, "document.forms[0].elements.namedItem('user').form.id", "login");
+    ExpectScript(kForms, "document.body.form === null", "true");
+  });
+
+  AddTest(tests, "DomBindings/RequestSubmitIsNotAnAliasForSubmit", [] {
+    // The distinction with a page-shaped consequence: `requestSubmit()` fires
+    // `submit` and `submit()` does not. A browser that aliases them submits the
+    // form without the fields the page's own handler was going to add, and
+    // reports nothing anywhere. See ADR 0026 §4.
+    constexpr const char* kForm = "<body><form id=f action='/go'><input name=a value=1>"
+                                  "<input type=submit id=go></form></body>";
+    ExpectScript(kForm,
+                 "let fired = 0; const f = document.getElementById('f');"
+                 "f.addEventListener('submit', () => fired++); f.submit(); fired",
+                 "0");
+    ExpectScript(kForm,
+                 "let fired = 0; const f = document.getElementById('f');"
+                 "f.addEventListener('submit', () => fired++); f.requestSubmit(); fired",
+                 "1");
+    // The handler as a property, which is how reddit's interstitial writes it.
+    ExpectScript(kForm,
+                 "let seen = ''; const f = document.getElementById('f');"
+                 "f.onsubmit = e => { seen = e.type + ':' + e.target.id + ':' + e.isTrusted };"
+                 "f.requestSubmit(); seen",
+                 "submit:f:true");
+    // The submitter has to be a submit button belonging to this form, and
+    // neither check is a warning.
+    ExpectScript(kForm,
+                 "document.getElementById('f').requestSubmit(document.body)",
+                 "throw TypeError: the submitter must be a submit button");
+    ExpectScript(kForm,
+                 "const b = document.createElement('input'); b.type = 'submit';"
+                 "document.getElementById('f').requestSubmit(b)",
+                 "throw NotFoundError: the submitter does not belong to this form");
+  });
+
+  AddTest(tests, "DomBindings/AListenerCanAskToRunOnce", [] {
+    ExpectScript(kPage,
+                 "let n = 0; const b = document.body;"
+                 "b.addEventListener('x', () => n++, {once: true});"
+                 "b.dispatchEvent(new Event('x')); b.dispatchEvent(new Event('x')); n",
+                 "1");
+    ExpectScript(kPage,
+                 "let n = 0; const b = document.body;"
+                 "b.addEventListener('x', () => n++);"
+                 "b.dispatchEvent(new Event('x')); b.dispatchEvent(new Event('x')); n",
+                 "2");
+    // Removable before it fires, which needs the wrapper to be transparent to
+    // identity.
+    ExpectScript(kPage,
+                 "let n = 0; const f = () => n++; const b = document.body;"
+                 "b.addEventListener('x', f, {once: true}); b.removeEventListener('x', f);"
+                 "b.dispatchEvent(new Event('x')); n",
+                 "0");
+    // An event handler *attribute* that returns false has prevented the
+    // default; a listener returning false has not.
+    ExpectScript(kPage,
+                 "const b = document.body; b.onx = () => false;"
+                 "const e = new Event('x', {cancelable: true}); b.dispatchEvent(e);"
+                 "e.defaultPrevented",
+                 "true");
+    ExpectScript(kPage,
+                 "const b = document.body; b.addEventListener('x', () => false);"
+                 "const e = new Event('x', {cancelable: true}); b.dispatchEvent(e);"
+                 "e.defaultPrevented",
+                 "false");
   });
 
   AddTest(tests, "DomBindings/UrlSearchParamsIsTheEnginesOwnUrlencoder", [] {

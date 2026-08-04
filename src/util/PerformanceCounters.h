@@ -150,6 +150,17 @@ namespace microbrowser::util {
   X(IpcBytesDeserialized, "ipc.bytes_deserialized")                              \
   /* --- engine ------------------------------------------------------------- */ \
   X(EngineNavigations, "engine.navigations")                                     \
+  /* A navigation a page asked for rather than the user: a form a script       */ \
+  /* submitted. Counted apart because it is the one kind that starts with the  */ \
+  /* interpreter still on the stack, and the count going up while the          */ \
+  /* navigation count does not is the shape of a page that asked and was       */ \
+  /* refused.                                                                  */ \
+  X(EngineScriptNavigations, "engine.script_navigations")                        \
+  /* The two lifecycle events, so a page that hangs waiting for one can be     */ \
+  /* told apart from one that heard it and did nothing.                        */ \
+  X(EngineDomContentLoaded, "engine.dom_content_loaded")                         \
+  X(EngineLoadEvents, "engine.load_events")                                      \
+  X(EngineFormSubmissions, "engine.form_submissions")                            \
   X(EnginePaintsProduced, "engine.paints_produced")
 
 enum class PerfCounterId : std::size_t {

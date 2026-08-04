@@ -9,7 +9,18 @@ purpose: The seam between script and the document. The only module that sees bot
 #
 # Widening this line widens the browser's security model. See
 # docs/adr/0008-dom-bindings.md.
-allow: util js dom
+#
+# `html` was added for the form APIs, and it is worth writing down why it does
+# not widen the model. The invariant above is about js and dom: js cannot
+# include dom, dom knows nothing about script, so every path from a page's code
+# to its tree passes through here. `html` cannot see `js` either, so nothing
+# about that changes. What it buys is that `form.elements` answers with the
+# specification's form ownership -- the `form=` attribute as well as
+# containment -- rather than with a descendant walk that is wrong in a way
+# nothing would notice. The engine already computes it from html::FormOwner,
+# and two answers to "which controls does this form own" is exactly the class
+# of bug ADR 0012 calls worse than an absence.
+allow: util js dom html
 
 public: AnimationFrames.h DomBindings.h Timers.h
 
@@ -49,7 +60,12 @@ max_tu_lines: 700
 # exists once, where every reflected property reaches it too. A getter-only
 # `id` meant `el.id = 'x'` was a silent no-op; the whole class of that bug is
 # what this pays for. See ReflectedAttributes.cpp.
-budget: DomBindings header_lines=190 public_methods=10 members=8
+# The ninth member is the form submission a script asked for and has not had
+# yet. Recorded rather than performed: this module cannot navigate -- it cannot
+# see a URL, a loader or a network -- and, more to the point, a navigation
+# started from inside a running script would tear down the interpreter that is
+# running it. The engine takes it after the turn ends. See FormBindings.cpp.
+budget: DomBindings header_lines=220 public_methods=12 members=9
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

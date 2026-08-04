@@ -311,8 +311,9 @@ microbrowser_module(bindings
     src/bindings/TreeMutation.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/EventBindings.cpp
+    src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp
-  DEPS microbrowser_js microbrowser_dom)
+  DEPS microbrowser_js microbrowser_dom microbrowser_html)
 
 microbrowser_module(js
   SOURCES

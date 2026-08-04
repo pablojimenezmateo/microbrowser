@@ -119,6 +119,20 @@ class PageScript {
   // Runs the click handlers registered on `target` and its ancestors. True
   // when one called `preventDefault`.
   bool DispatchClick(dom::Element& target);
+  // Fires `submit` at `form`. True when a handler called `preventDefault`,
+  // which is the caller's signal not to submit.
+  bool DispatchSubmit(dom::Element& form);
+  // The submission this page's script asked for through `submit()` or
+  // `requestSubmit()` and has not had yet. Taken after the script turn ends
+  // rather than performed during it: a navigation tears down the interpreter,
+  // and doing that while it is on the stack is the use-after-free ADR 0026 §3
+  // is written to prevent.
+  std::optional<bindings::PendingSubmit> TakePendingSubmit();
+  // Fires `load` at the window and moves `readyState` to "complete". True when
+  // something was listening, which is the caller's signal that the document
+  // may have changed. A page with no `load` handler must not cost a relayout
+  // for having finished loading.
+  bool NotifyLoad();
   // Whether this page ran any script at all. A page that did cannot be assumed
   // not to have changed the tree from a handler, and a page that did not
   // cannot have handlers to run -- which is what keeps a click on a static

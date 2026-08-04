@@ -128,8 +128,19 @@ class Page : private layout::ImageProvider {
   std::optional<std::string> LinkAt(gfx::FloatPoint document_point) const;
 
   // The form submission activated at `document_point`, or nullopt when no
-  // supported form control was activated.
-  std::optional<FormSubmission> FormSubmissionRequestAt(gfx::FloatPoint document_point) const;
+  // supported form control was activated -- or when a `submit` handler called
+  // `preventDefault`, which is why this is not const.
+  std::optional<FormSubmission> FormSubmissionRequestAt(gfx::FloatPoint document_point);
+
+  // The submission this page's script asked for with `submit()` or
+  // `requestSubmit()`, built. Taken after the script turn rather than during
+  // it: a navigation replaces the document, and doing that with the
+  // interpreter on the stack is a use-after-free. See ADR 0026 §3.
+  std::optional<FormSubmission> TakeScriptFormSubmission();
+
+  // Fires `load` and moves `readyState` to "complete". True when something was
+  // listening and the document may therefore have changed.
+  bool NotifyLoad() { return script_.NotifyLoad(); }
 
   // Runs the page's click handlers for whatever is at `document_point`, from
   // that element up to the root. Returns true when a handler called
@@ -164,7 +175,7 @@ class Page : private layout::ImageProvider {
 
   // The form submission for the currently focused text control's owning form,
   // or nullopt when no supported form can be submitted.
-  std::optional<FormSubmission> FocusedFormSubmission() const;
+  std::optional<FormSubmission> FocusedFormSubmission();
 
   const std::string& Url() const { return url_; }
   // The document's <title>, or the URL when it has none -- which is what a tab
@@ -189,6 +200,12 @@ class Page : private layout::ImageProvider {
   // image, and nobody else has business calling this.
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
 
+  // One route from "this form is being submitted" to a submission: fire the
+  // `submit` event, and build the data set only if nothing prevented it. A
+  // click, the Enter key and a script all arrive here, so `preventDefault`
+  // means the same thing to all three.
+  std::optional<FormSubmission> SubmitForm(const dom::Element& form,
+                                           const dom::Element* submitter);
   void ExtractTitle();
   // Collects <style> elements and stylesheet links in document order.
   void CollectStyleSheets();

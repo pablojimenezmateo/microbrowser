@@ -96,6 +96,12 @@ class Engine {
                 const url::Url* referrer_document);
   void NavigateFromCurrentDocument(const std::string& url, const net::FetchOptions& options);
   bool Navigate(const FormSubmission& submission);
+  // Acts on the submission a script asked for, if it asked for one. Called
+  // after every point where a page's script can have run -- its scripts, a
+  // timer, an animation frame, a click handler -- because a navigation started
+  // from inside one would tear down the interpreter running it. True when a
+  // navigation started, which also means `load_` is now a different load.
+  bool FollowScriptNavigation();
   void SetViewport(const gfx::IntSize& size, float device_scale);
   void ScrollBy(int delta_x, int delta_y);
   bool HandlePointer(const ipc::PointerMessage& pointer);
