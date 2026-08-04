@@ -1,9 +1,11 @@
 #include "css/StyleSheet.h"
 
+#include <optional>
 #include <utility>
 
 #include "css/CssText.h"
 #include "css/Selectors.h"
+#include "css/StyleResolver.h"
 #include "css/Tokenizer.h"
 #include "util/PerformanceCounters.h"
 
@@ -180,6 +182,164 @@ std::vector<Declaration> ParseDeclarations(const std::vector<Token>& tokens, std
   return declarations;
 }
 
+// --- @supports ---------------------------------------------------------------
+//
+// The condition grammar of CSS Conditional 3 §2, over the token run between
+// `@supports` and its block.
+//
+// What makes this feature worth having is also what makes it dangerous: it is
+// the page asking what we can do, and every wrong answer sends it down a branch
+// written for a different browser. So there is exactly one source for the
+// answer -- SupportsDeclaration, which applies the declaration and reports
+// whether it took. Nothing here has a list of properties in it.
+
+// How deep a condition may nest. Same reasoning and same order of magnitude as
+// kMaxSelectorNestingDepth: this is a recursive descent over a stylesheet, and
+// a stylesheet is hostile input.
+constexpr int kMaxSupportsNestingDepth = 8;
+
+bool SupportsConditionMatches(const std::vector<Token>& tokens, std::size_t& at, std::size_t to,
+                              int depth);
+
+void SkipWhitespace(const std::vector<Token>& tokens, std::size_t& at, std::size_t to) {
+  while (at < to && tokens[at].kind == Token::Kind::Whitespace) {
+    ++at;
+  }
+}
+
+// The index just past the parenthesis or function opened at `open`. Nullopt
+// when it is never closed — which is a syntax error rather than a condition
+// that happens to end at the block, and the difference is the whole prelude:
+// `@supports (display: flex {` must not apply its block.
+std::optional<std::size_t> MatchingParen(const std::vector<Token>& tokens, std::size_t open,
+                                         std::size_t to) {
+  int depth = 0;
+  for (std::size_t at = open; at < to; ++at) {
+    if (tokens[at].kind == Token::Kind::LeftParen || tokens[at].kind == Token::Kind::Function) {
+      ++depth;
+    } else if (tokens[at].kind == Token::Kind::RightParen) {
+      if (--depth == 0) {
+        return at + 1;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+// `(property: value)`, which is the only thing in this grammar that consults
+// the engine. Unsupported when it is not a declaration at all.
+bool SupportsDeclarationInParens(const std::vector<Token>& tokens, std::size_t from,
+                                 std::size_t to) {
+  SkipWhitespace(tokens, from, to);
+  if (from >= to || tokens[from].kind != Token::Kind::Ident) {
+    return false;
+  }
+  const std::string property = tokens[from++].value;
+  SkipWhitespace(tokens, from, to);
+  if (from >= to || tokens[from].kind != Token::Kind::Colon) {
+    return false;
+  }
+  ++from;
+  return SupportsDeclaration(property, Reconstruct(tokens, from, to));
+}
+
+// `( … )` or `function( … )`. The second is `<general-enclosed>`: a form this
+// engine does not recognize, which the specification says evaluates to unknown
+// and which a boolean context reads as false. `selector()` and `font-tech()`
+// land there, and false is the answer that sends a page to its fallback rather
+// than into a branch nothing here implements.
+bool SupportsInParens(const std::vector<Token>& tokens, std::size_t& at, std::size_t to,
+                      int depth) {
+  SkipWhitespace(tokens, at, to);
+  if (at >= to) {
+    return false;
+  }
+  if (tokens[at].kind == Token::Kind::Function) {
+    at = MatchingParen(tokens, at, to).value_or(to);
+    return false;
+  }
+  if (tokens[at].kind != Token::Kind::LeftParen) {
+    return false;
+  }
+  const std::optional<std::size_t> close = MatchingParen(tokens, at, to);
+  const std::size_t inner_from = at + 1;
+  at = close.value_or(to);
+  if (!close.has_value() || depth >= kMaxSupportsNestingDepth) {
+    return false;
+  }
+  const std::size_t inner_to = *close > inner_from ? *close - 1 : inner_from;
+
+  // Inside the parentheses is either a declaration or another condition. The
+  // two are told apart by what a condition must start with -- `not`, or another
+  // parenthesis -- because a declaration always starts with an ident followed
+  // by a colon, and `not` is not a property.
+  std::size_t probe = inner_from;
+  SkipWhitespace(tokens, probe, inner_to);
+  const bool nested = probe < inner_to &&
+                      (tokens[probe].kind == Token::Kind::LeftParen ||
+                       tokens[probe].kind == Token::Kind::Function ||
+                       (tokens[probe].kind == Token::Kind::Ident &&
+                        Lowered(tokens[probe].value) == "not"));
+  if (!nested) {
+    return SupportsDeclarationInParens(tokens, inner_from, inner_to);
+  }
+  std::size_t inner_at = inner_from;
+  const bool result = SupportsConditionMatches(tokens, inner_at, inner_to, depth + 1);
+  SkipWhitespace(tokens, inner_at, inner_to);
+  return inner_at == inner_to && result;
+}
+
+// `not X`, `X and Y and …`, `X or Y or …`. The specification forbids mixing
+// `and` with `or` without parentheses, and a mixed prelude is a syntax error
+// rather than a precedence question -- which is why the first keyword seen
+// fixes the operator and a different one ends the condition unconsumed, leaving
+// the caller to reject the trailing tokens.
+bool SupportsConditionMatches(const std::vector<Token>& tokens, std::size_t& at, std::size_t to,
+                              int depth) {
+  SkipWhitespace(tokens, at, to);
+  if (at < to && tokens[at].kind == Token::Kind::Ident &&
+      Lowered(tokens[at].value) == "not") {
+    ++at;
+    return !SupportsInParens(tokens, at, to, depth);
+  }
+
+  bool result = SupportsInParens(tokens, at, to, depth);
+  std::string op;
+  while (true) {
+    const std::size_t mark = at;
+    SkipWhitespace(tokens, at, to);
+    if (at >= to || tokens[at].kind != Token::Kind::Ident) {
+      at = mark;
+      return result;
+    }
+    const std::string keyword = Lowered(tokens[at].value);
+    if (keyword != "and" && keyword != "or") {
+      at = mark;
+      return result;
+    }
+    if (op.empty()) {
+      op = keyword;
+    } else if (op != keyword) {
+      at = mark;
+      return result;  // mixed without parentheses; the caller rejects the rest
+    }
+    ++at;
+    // Both sides are evaluated: there is no cost to it, and short-circuiting
+    // would leave the token cursor mid-condition on the side not taken.
+    const bool right = SupportsInParens(tokens, at, to, depth);
+    result = op == "and" ? (result && right) : (result || right);
+  }
+}
+
+bool SupportsPreludeMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
+  std::size_t at = from;
+  const bool result = SupportsConditionMatches(tokens, at, to, 0);
+  SkipWhitespace(tokens, at, to);
+  // Trailing tokens mean the prelude is not a condition this grammar accepts,
+  // and an unparsable prelude is false rather than "whatever we got so far".
+  return at == to && result;
+}
+
 bool MediaListItemMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
   while (from < to && tokens[from].kind == Token::Kind::Whitespace) {
     ++from;
@@ -260,7 +420,12 @@ void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size
         ++at;
       }
 
-      if (at_rule == "media" && MediaPreludeMatches(tokens, prelude_start, block_start - 1)) {
+      const bool conditional_holds =
+          at_rule == "media" ? MediaPreludeMatches(tokens, prelude_start, block_start - 1)
+          : at_rule == "supports"
+              ? SupportsPreludeMatches(tokens, prelude_start, block_start - 1)
+              : false;
+      if (conditional_holds) {
         ParseRuleList(tokens, block_start, block_end, sheet);
       } else {
         ++sheet.skipped;

@@ -22,6 +22,7 @@ using css::ParseColor;
 using css::ParseLength;
 using css::ParseStyleSheet;
 using css::StyleResolver;
+using css::SupportsDeclaration;
 using css::TextAlign;
 using css::WhiteSpace;
 using dom::Element;
@@ -128,6 +129,32 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(!ParseLength("calc(1e400px)").has_value(), "nor a number outside a double's range");
     Expect(!ParseLength("calc(1e30px * 1e30)").has_value(),
            "nor a product outside a float's, which would otherwise reach layout as infinity");
+  });
+
+  // The half of `@supports` that has to stay true as the engine changes. A
+  // wrong answer here does not produce a missing effect, it produces a page
+  // that styles itself for a browser this is not -- ADR 0014 §3.
+  AddTest(tests, "StyleResolver/AnswersSupportsFromWhatItActuallyApplies", [] {
+    Expect(SupportsDeclaration("display", "flex"), "flexbox is implemented, and says so");
+    Expect(!SupportsDeclaration("display", "grid"),
+           "grid is not, and a `display` branch that shrugged at an unknown value would "
+           "have claimed it was");
+    Expect(SupportsDeclaration("display", "inline-block"), "and inline-block is");
+    Expect(!SupportsDeclaration("float", "inline-start"), "an unknown keyword on a known "
+           "property is a no");
+    Expect(!SupportsDeclaration("nosuchproperty", "1px"), "and so is an unknown property");
+    Expect(SupportsDeclaration("width", "calc(100% - 20px)"),
+           "a value's own grammar is part of the question");
+    Expect(!SupportsDeclaration("width", "calc(100% - 1em)"),
+           "including the calc forms this engine cannot represent");
+    Expect(!SupportsDeclaration("width", "1vw"), "and the units it does not have");
+    Expect(SupportsDeclaration("--anything", "whatever it likes"),
+           "a custom property has no grammar to fail");
+    Expect(!SupportsDeclaration("background", "linear-gradient(red, blue)"),
+           "a gradient is not painted, so claiming the declaration works would send a page "
+           "past the flat colour it offered as a fallback");
+    Expect(SupportsDeclaration("BACKGROUND-COLOR", " red "),
+           "the property name is folded and the value is trimmed, as in a stylesheet");
   });
 
   // Without a user-agent stylesheet a div is inline and the whole document is

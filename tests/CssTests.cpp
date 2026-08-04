@@ -199,6 +199,50 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
                    "unsupported media entries do not poison a matching one");
   });
 
+  // `@supports` is the page asking what this engine can do, and every wrong
+  // answer sends it down a branch written for a browser this is not. The
+  // property side of that is checked in StyleResolverTests/AnswersSupports;
+  // this is the condition grammar around it.
+  AddTest(tests, "CssParser/EvaluatesSupportsConditions", [] {
+    const auto selectors = [](std::string_view css) {
+      std::string names;
+      for (const auto& rule : ParseStyleSheet(css).rules) {
+        names += rule.selectors.at(0).compounds.at(0).parts.at(0).name + " ";
+      }
+      return names;
+    };
+    ExpectEqString(selectors("@supports (display: flex) { a { color: red } }"), "a ",
+                   "a condition this engine meets applies its block");
+    ExpectEqString(selectors("@supports (display: grid) { a { color: red } }"), "",
+                   "and one it does not is dropped, not applied");
+    ExpectEqString(selectors("@supports not (display: grid) { a { color: red } }"), "a ", "not");
+    ExpectEqString(selectors("@supports (display: flex) and (color: red) { a { x: y } }"), "a ",
+                   "and, with both true");
+    ExpectEqString(selectors("@supports (display: flex) and (display: grid) { a { x: y } }"), "",
+                   "and, with one false");
+    ExpectEqString(selectors("@supports (display: grid) or (display: flex) { a { x: y } }"), "a ",
+                   "or");
+    ExpectEqString(
+        selectors("@supports ((display: grid) or (display: flex)) and (color: red) { a{x:y} }"),
+        "a ", "a condition may hold another");
+    ExpectEqString(selectors("@supports (display:grid) and (color:red) or (color:blue) {a{x:y}}"),
+                   "",
+                   "`and` mixed with `or` and no parentheses is a syntax error, not a "
+                   "precedence question -- and a prelude that does not parse is false");
+    ExpectEqString(selectors("@supports selector(a > b) { a { x: y } }"), "",
+                   "an enclosed form this grammar does not recognize is unknown, which reads "
+                   "as false and sends the page to its fallback");
+    ExpectEqString(selectors("@supports (display: flex) garbage { a { x: y } }"), "",
+                   "and so does a prelude with something left over");
+    ExpectEqString(selectors("@supports (--x: 1) { a { x: y } }"), "a ",
+                   "a custom property has no grammar to fail, so it is always supported");
+    ExpectEqString(
+        selectors("@supports ((((((((((display: flex)))))))))) { a { x: y } }"), "",
+        "nesting past the bound is false rather than a deeper recursion over hostile input");
+    ExpectEqString(selectors("@supports (display: flex { a { x: y } }"), "",
+                   "an unclosed condition consumes the rest of the prelude and answers no");
+  });
+
   AddTest(tests, "CssParser/SkipsUnsupportedAtRulesAndCountsThem", [] {
     const StyleSheet sheet =
         ParseStyleSheet("@media print { p { color: red } } "

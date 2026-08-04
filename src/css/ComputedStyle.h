@@ -403,9 +403,11 @@ std::optional<gfx::Color> ParseColor(std::string_view text);
 // Parses a length. Nullopt when the text is not one.
 std::optional<Length> ParseLength(std::string_view text);
 
-// The flex properties and the sizing bounds. True when `property` was one of
-// them, whether or not its value was usable -- an unusable value is a dropped
-// declaration, not an unrecognized property.
+// The flex properties and the sizing bounds. True when the declaration was
+// *applied* -- which means both that `property` is one of these and that its
+// value was one this engine has. False covers both an unrecognized property and
+// an unusable value, because CSS treats them the same and `@supports` has to
+// answer for both: see ApplyDeclaration.
 //
 // Separate from ApplyDeclaration because Declarations.cpp is at its module's
 // line cap, and the cap means a missing translation unit rather than a bigger

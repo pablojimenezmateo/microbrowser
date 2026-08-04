@@ -91,7 +91,25 @@ std::string_view UserAgentStyleSheet();
 // Applies one declaration to a style. Exposed because it is the single place a
 // property name becomes a value, and a property that parses but is not applied
 // is invisible without a direct test.
-void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
+//
+// True when the declaration was applied: the property is one this engine
+// implements *and* the value is one it understands. False is every other case,
+// and the two are deliberately one answer, because CSS makes no distinction --
+// an unknown property and a bad value are both dropped, and `@supports` reports
+// no for both. This return value is what makes SupportsDeclaration honest: it
+// cannot drift from the property table because it *is* the property table.
+bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
                       ComputedStyle& style);
+
+// Whether this engine supports `property: value` -- the question `@supports`
+// asks, answered by trying it.
+//
+// A custom property is always supported; it has no grammar to fail. Anything
+// else is applied to a scratch style, and the answer is whether it took. A
+// table of supported names maintained beside the implementation would be the
+// obvious alternative and is the trap ADR 0014 §3 names: it starts correct and
+// then a property is added without it, and the page is told no about something
+// that works -- or, worse, yes about something that does not.
+bool SupportsDeclaration(std::string_view property, std::string_view value);
 
 }  // namespace microbrowser::css

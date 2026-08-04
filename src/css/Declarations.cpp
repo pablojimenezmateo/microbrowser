@@ -119,7 +119,7 @@ std::optional<BackgroundRepeat> ParseBackgroundRepeat(std::string_view word) {
 // A `background-position` component. The keywords are percentages of the space
 // the image does not fill, which is what makes `center` centre rather than
 // offset by half the box.
-Length ParseBackgroundPosition(std::string_view word, bool horizontal) {
+std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizontal) {
   const std::string lowered = Lowered(Trim(word));
   if (lowered == "center") {
     return Length{50.0f, Length::Unit::Percent};
@@ -130,7 +130,7 @@ Length ParseBackgroundPosition(std::string_view word, bool horizontal) {
   if (lowered == (horizontal ? "right" : "bottom")) {
     return Length{100.0f, Length::Unit::Percent};
   }
-  return ParseLength(word).value_or(Length::Pixels(0.0f));
+  return ParseLength(word);
 }
 
 // Splits a `font-family` value into its candidates, in order.
@@ -316,10 +316,10 @@ bool IsBorderStyleKeyword(std::string_view value) {
          value == "inset" || value == "outset";
 }
 
-void ApplyBorder(std::string_view value, ComputedStyle& style) {
+bool ApplyBorder(std::string_view value, ComputedStyle& style) {
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty()) {
-    return;
+    return false;
   }
 
   std::optional<Edges> width;
@@ -329,21 +329,21 @@ void ApplyBorder(std::string_view value, ComputedStyle& style) {
   for (const std::string_view part : parts) {
     if (const auto length = ParseLength(part)) {
       if (width.has_value() || !EdgeLengthAllowed(*length, false, false, false)) {
-        return;
+        return false;
       }
       width = Edges{*length, *length, *length, *length};
     } else if (const auto parsed_color = ParseColor(part)) {
       if (color.has_value()) {
-        return;
+        return false;
       }
       color = *parsed_color;
     } else {
       const std::string lowered = Lowered(part);
       if (!IsBorderStyleKeyword(lowered)) {
-        return;
+        return false;
       }
       if (saw_style) {
-        return;
+        return false;
       }
       saw_style = true;
       style_disables_border = lowered == "none" || lowered == "hidden";
@@ -357,11 +357,12 @@ void ApplyBorder(std::string_view value, ComputedStyle& style) {
     style.border_color = *color;
   }
   style.has_border = !style_disables_border;
+  return true;
 }
 
 }  // namespace
 
-void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
+bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
                       ComputedStyle& style) {
   const std::string& property = declaration.property;
   const std::string value = Lowered(declaration.value);
@@ -399,20 +400,29 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.display = Display::TableCell;
     } else if (value == "none") {
       style.display = Display::None;
+    } else {
+      // `grid`, `inline-grid`, `contents`, `table-caption`'s missing cousins.
+      // Answering no here is what makes `@supports (display: grid)` false, and
+      // it is why this chain has no default case that shrugs.
+      return false;
     }
-    return;
+    return true;
   }
   if (property == "color") {
-    if (const auto color = ParseColor(declaration.value)) {
-      style.color = *color;
+    const auto color = ParseColor(declaration.value);
+    if (!color.has_value()) {
+      return false;
     }
-    return;
+    style.color = *color;
+    return true;
   }
   if (property == "background-color") {
-    if (const auto color = ParseColor(declaration.value)) {
-      style.background_color = *color;
+    const auto color = ParseColor(declaration.value);
+    if (!color.has_value()) {
+      return false;
     }
-    return;
+    style.background_color = *color;
+    return true;
   }
   if (property == "background") {
     // The shorthand, read for the parts this renderer has. Every longhand it
@@ -424,49 +434,60 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     style.background.repeat = BackgroundRepeat::Repeat;
     if (const auto color = ParseColor(declaration.value)) {
       style.background_color = *color;
-      return;
+      return true;
     }
     // A layer list: `url(a), linear-gradient(...)`. The first layer that is an
     // image this renderer can fetch wins; a gradient layer is skipped rather
     // than approximated, and a value that is nothing but gradients leaves the
     // element with no background at all -- which is what it looks like here,
     // and is more honest than a flat colour nobody chose.
+    bool understood = false;
     for (const std::string_view layer : SplitTopLevel(declaration.value, ',')) {
       if (std::string url = ParseUrlFunction(layer); !url.empty()) {
         style.background.image = std::move(url);
+        understood = true;
         break;
       }
     }
     for (const std::string_view word : SplitWords(declaration.value)) {
       if (const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(word)) {
         style.background.repeat = *repeat;
+        understood = true;
       } else if (const auto color = ParseColor(word)) {
         style.background_color = *color;
+        understood = true;
       }
     }
-    return;
+    // A value made entirely of things this renderer does not have -- a
+    // `linear-gradient()`, say -- is reported as unsupported rather than as an
+    // element with no background, because that is the honest answer and because
+    // it is the one a page's `@supports` fallback is waiting for.
+    return understood;
   }
   if (property == "background-image") {
     style.background.image.clear();
     for (const std::string_view layer : SplitTopLevel(declaration.value, ',')) {
       if (std::string url = ParseUrlFunction(layer); !url.empty()) {
         style.background.image = std::move(url);
-        break;
+        return true;
       }
     }
-    return;
+    return Lowered(Trim(declaration.value)) == "none";
   }
   if (property == "background-repeat") {
     // Two values are the per-axis form; one applies to both. Only the first is
     // read, because `repeat no-repeat` is spelled `repeat-x` far more often
     // and the pair adds a second way to say the same four things.
     const std::vector<std::string_view> words = SplitWords(declaration.value);
-    if (!words.empty()) {
-      if (const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(words.front())) {
-        style.background.repeat = *repeat;
-      }
+    if (words.empty()) {
+      return false;
     }
-    return;
+    const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(words.front());
+    if (!repeat.has_value()) {
+      return false;
+    }
+    style.background.repeat = *repeat;
+    return true;
   }
   if (property == "background-size") {
     // `contain` and `cover` are not lengths and are not supported: both need
@@ -475,30 +496,39 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     // what keeps an icon's proportions.
     const std::vector<std::string_view> words = SplitWords(declaration.value);
     if (words.empty() || words.size() > 2) {
-      return;
+      return false;
     }
     const std::optional<Length> first = ParseLength(words.front());
     if (!first.has_value()) {
-      return;
+      return false;  // `contain` and `cover` land here, and are honestly a no
+    }
+    const std::optional<Length> second =
+        words.size() == 2 ? ParseLength(words[1]) : std::optional<Length>(Length::Auto());
+    if (!second.has_value()) {
+      return false;
     }
     style.background.size_x = *first;
-    style.background.size_y =
-        words.size() == 2 ? ParseLength(words[1]).value_or(Length::Auto()) : Length::Auto();
-    return;
+    style.background.size_y = *second;
+    return true;
   }
   if (property == "background-position") {
     const std::vector<std::string_view> words = SplitWords(declaration.value);
     if (words.empty() || words.size() > 2) {
-      return;
+      return false;
     }
     // A single value sets the horizontal position and centres the vertical,
     // which is what CSS says and is the difference between an icon on the left
     // edge and one halfway down it.
-    style.background.position_x = ParseBackgroundPosition(words.front(), true);
-    style.background.position_y =
+    const std::optional<Length> x = ParseBackgroundPosition(words.front(), true);
+    const std::optional<Length> y =
         words.size() == 2 ? ParseBackgroundPosition(words[1], false)
-                          : Length{50.0f, Length::Unit::Percent};
-    return;
+                          : std::optional<Length>(Length{50.0f, Length::Unit::Percent});
+    if (!x.has_value() || !y.has_value()) {
+      return false;
+    }
+    style.background.position_x = *x;
+    style.background.position_y = *y;
+    return true;
   }
   if (property == "font-size") {
     // Resolved to absolute pixels during the cascade, because `em` on every
@@ -506,38 +536,45 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     // the *parent's* size, not its own.
     if (value == "smaller") {
       style.font_size = parent.font_size * 0.8f;
-      return;
+      return true;
     }
     if (value == "larger") {
       style.font_size = parent.font_size * 1.25f;
-      return;
+      return true;
     }
-    if (const auto length = ParseLength(declaration.value)) {
-      float resolved = -1.0f;
-      if (length->unit == Length::Unit::Percent) {
-        resolved = parent.font_size * length->value / 100.0f;
-      } else if (length->unit == Length::Unit::Em) {
-        resolved = parent.font_size * length->value;
-      } else if (!length->IsAuto()) {
-        resolved = length->Resolve(parent.font_size);
-      }
-      if (resolved >= 0.0f) {
-        style.font_size = std::clamp(resolved, 1.0f, 1000.0f);
-      }
+    const auto length = ParseLength(declaration.value);
+    if (!length.has_value()) {
+      return false;
     }
-    return;
+    float resolved = -1.0f;
+    if (length->unit == Length::Unit::Percent) {
+      resolved = parent.font_size * length->value / 100.0f + length->offset;
+    } else if (length->unit == Length::Unit::Em) {
+      resolved = parent.font_size * length->value + length->offset;
+    } else if (!length->IsAuto()) {
+      resolved = length->Resolve(parent.font_size);
+    }
+    if (resolved < 0.0f) {
+      return false;
+    }
+    style.font_size = std::clamp(resolved, 1.0f, 1000.0f);
+    return true;
   }
   if (property == "font-weight") {
     if (value == "bold") {
       style.font_weight = 700.0f;
-    } else if (value == "normal") {
-      style.font_weight = 400.0f;
-    } else if (const auto weight = util::ParseInt(value)) {
-      if (*weight >= 1 && *weight <= 1000) {
-        style.font_weight = static_cast<float>(*weight);
-      }
+      return true;
     }
-    return;
+    if (value == "normal") {
+      style.font_weight = 400.0f;
+      return true;
+    }
+    const auto weight = util::ParseInt(value);
+    if (!weight.has_value() || *weight < 1 || *weight > 1000) {
+      return false;  // `bolder` and `lighter` are relative to the parent, and are not done
+    }
+    style.font_weight = static_cast<float>(*weight);
+    return true;
   }
   // The flex properties and the sizing bounds, in their own translation unit.
   // Not a stylistic split: this file is at its module's line cap, and the cap
@@ -545,7 +582,7 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
   // that arrived together and are read together, so they are the ones that
   // move.
   if (ApplyBoxDeclaration(property, value, parent, style)) {
-    return;
+    return true;
   }
 
   if (property == "float") {
@@ -555,8 +592,10 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.css_float = Float::Right;
     } else if (value == "none") {
       style.css_float = Float::None;
+    } else {
+      return false;
     }
-    return;
+    return true;
   }
   if (property == "clear") {
     if (value == "left") {
@@ -567,50 +606,58 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.clear = Clear::Both;
     } else if (value == "none") {
       style.clear = Clear::None;
+    } else {
+      return false;
     }
-    return;
+    return true;
   }
   if (property == "font-style") {
     if (value == "italic" || value == "oblique") {
       style.font_style = FontStyle::Italic;
     } else if (value == "normal") {
       style.font_style = FontStyle::Normal;
+    } else {
+      return false;
     }
-    return;
+    return true;
   }
   if (property == "font-family") {
     // A value that parses to nothing (`font-family: ,`) leaves the inherited
     // list alone rather than clearing it, which is what an invalid declaration
     // is supposed to do.
-    if (std::vector<std::string> families = ParseFontFamilyList(declaration.value);
-        !families.empty()) {
-      style.font_family = std::move(families);
+    std::vector<std::string> families = ParseFontFamilyList(declaration.value);
+    if (families.empty()) {
+      return false;
     }
-    return;
+    style.font_family = std::move(families);
+    return true;
   }
   if (property == "line-height") {
     if (value == "normal") {
       style.line_height = 0.0f;
-      return;
+      return true;
     }
     if (const auto length = ParseLength(declaration.value)) {
       const float resolved = length->unit == Length::Unit::Percent
-                                 ? style.font_size * length->value / 100.0f
+                                 ? style.font_size * length->value / 100.0f + length->offset
                                  : length->Resolve(style.font_size, -1.0f);
-      if (resolved >= 0.0f) {
-        style.line_height = resolved;
+      if (resolved < 0.0f) {
+        return false;
       }
-    } else if (const auto multiple = util::ParseDouble(value)) {
-      if (*multiple >= 0.0) {
-        style.line_height = static_cast<float>(*multiple) * style.font_size;
-      }
+      style.line_height = resolved;
+      return true;
     }
-    return;
+    const auto multiple = util::ParseDouble(value);
+    if (!multiple.has_value() || *multiple < 0.0) {
+      return false;
+    }
+    style.line_height = static_cast<float>(*multiple) * style.font_size;
+    return true;
   }
   if (property == "text-align") {
-    // Every value also settles whether block children are centred, so that
-    // `text-align: left` after a <center> undoes all of it rather than half.
-    style.centers_block_children = false;
+    // Every *valid* value also settles whether block children are centred, so
+    // that `text-align: left` after a <center> undoes all of it rather than
+    // half. An invalid one settles nothing: it is not a declaration.
     if (value == "center") {
       style.text_align = TextAlign::Center;
     } else if (value == "right") {
@@ -624,8 +671,12 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       // note on ComputedStyle::centers_block_children.
       style.text_align = TextAlign::Center;
       style.centers_block_children = true;
+      return true;
+    } else {
+      return false;
     }
-    return;
+    style.centers_block_children = false;
+    return true;
   }
   if (property == "white-space") {
     if (value == "pre") {
@@ -636,40 +687,43 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.white_space = WhiteSpace::PreWrap;
     } else if (value == "normal") {
       style.white_space = WhiteSpace::Normal;
+    } else {
+      return false;
     }
-    return;
+    return true;
   }
   if (property == "margin") {
-    ApplyEdges(declaration.value, style.margin, true, true, true);
-    return;
+    return ApplyEdges(declaration.value, style.margin, true, true, true);
   }
   if (property == "padding") {
-    ApplyEdges(declaration.value, style.padding, false, false, true);
-    return;
+    return ApplyEdges(declaration.value, style.padding, false, false, true);
   }
   if (property == "width" || property == "height") {
-    if (const auto length = ParseLength(declaration.value);
-        length.has_value() && EdgeLengthAllowed(*length, false, true, true)) {
-      (property == "width" ? style.width : style.height) = *length;
+    const auto length = ParseLength(declaration.value);
+    if (!length.has_value() || !EdgeLengthAllowed(*length, false, true, true)) {
+      return false;
     }
-    return;
+    (property == "width" ? style.width : style.height) = *length;
+    return true;
   }
   if (property == "border-color") {
-    if (const auto color = ParseColor(declaration.value)) {
-      style.border_color = *color;
-      style.has_border = true;
+    const auto color = ParseColor(declaration.value);
+    if (!color.has_value()) {
+      return false;
     }
-    return;
+    style.border_color = *color;
+    style.has_border = true;
+    return true;
   }
   if (property == "border-width") {
-    if (ApplyEdges(declaration.value, style.border_width, false, false, false)) {
-      style.has_border = true;
+    if (!ApplyEdges(declaration.value, style.border_width, false, false, false)) {
+      return false;
     }
-    return;
+    style.has_border = true;
+    return true;
   }
   if (property == "border") {
-    ApplyBorder(declaration.value, style);
-    return;
+    return ApplyBorder(declaration.value, style);
   }
 
   // Individual edge properties. Written as a loop rather than sixteen branches.
@@ -682,15 +736,28 @@ void ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       const bool is_margin = property == margin_name;
       if (!length.has_value() ||
           !EdgeLengthAllowed(*length, is_margin, is_margin, true)) {
-        return;
+        return false;
       }
       Edges& edges = is_margin ? style.margin : style.padding;
       (&edges.top)[i] = *length;
-      return;
+      return true;
     }
   }
   // Anything else is a property we do not implement. Ignored rather than
-  // guessed at.
+  // guessed at -- and said so, which is the whole of what `@supports` reads.
+  return false;
+}
+
+bool SupportsDeclaration(std::string_view property, std::string_view value) {
+  const std::string name = Lowered(Trim(property));
+  if (name.rfind("--", 0) == 0) {
+    // A custom property has no grammar to fail: any token stream is a legal
+    // value, so `@supports (--x: anything)` is true wherever they exist at all.
+    return !Trim(value).empty();
+  }
+  const ComputedStyle initial;
+  ComputedStyle scratch;
+  return ApplyDeclaration(Declaration{name, std::string(Trim(value)), false}, initial, scratch);
 }
 
 }  // namespace microbrowser::css

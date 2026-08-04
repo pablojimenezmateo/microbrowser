@@ -103,7 +103,11 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
       // Sticky is relative until it would scroll out of view, and there is no
       // scroll position here to compare against. Relative is what it looks
       // like before it sticks, which is the right half to be wrong about.
+      // Reported as supported, because it is: the approximation is in what it
+      // does, not in whether the declaration parsed.
       style.position = Position::Relative;
+    } else {
+      return false;
     }
     return true;
   }
@@ -116,7 +120,7 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     } else if (value == "auto") {
       parsed = Overflow::Auto;
     } else if (value != "visible") {
-      return true;  // an unrecognized value is a dropped declaration
+      return false;  // an unrecognized value is a dropped declaration
     }
     if (property != "overflow-y") {
       style.overflow_x = parsed;
@@ -134,7 +138,7 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     if (value != "auto") {
       const std::optional<Length> length = ParseLength(value);
       if (!length.has_value()) {
-        return true;
+        return false;
       }
       parsed = *length;
     }
@@ -153,14 +157,19 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     // One to four values, in the order every other edge shorthand uses.
     const std::vector<std::string_view> parts = SplitWords(value);
     static constexpr const char* kSides[] = {"top", "right", "bottom", "left"};
-    for (std::size_t side = 0; side < 4 && !parts.empty(); ++side) {
+    if (parts.empty() || parts.size() > 4) {
+      return false;
+    }
+    bool applied = true;
+    for (std::size_t side = 0; side < 4; ++side) {
       const std::size_t at = parts.size() == 1   ? 0
                              : parts.size() == 2 ? side % 2
                              : parts.size() == 3 ? (side == 3 ? 1 : side)
                                                  : side;
-      ApplyBoxDeclaration(kSides[side], std::string(parts[at]), parent, style);
+      applied = ApplyBoxDeclaration(kSides[side], std::string(parts[at]), parent, style) &&
+                applied;
     }
-    return true;
+    return applied;
   }
   if (property == "min-width" || property == "max-width" || property == "min-height" ||
       property == "max-height") {
@@ -172,7 +181,7 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     if (value != "none" && value != "auto") {
       const std::optional<Length> length = ParseLength(value);
       if (!length.has_value()) {
-        return true;
+        return false;
       }
       parsed = *length;
     }
@@ -200,6 +209,8 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
       style.flex.direction = FlexDirection::Column;
     } else if (value == "column-reverse") {
       style.flex.direction = FlexDirection::ColumnReverse;
+    } else {
+      return false;
     }
     return true;
   }
@@ -210,6 +221,8 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
       style.flex.wrap = FlexWrap::Wrap;
     } else if (value == "wrap-reverse") {
       style.flex.wrap = FlexWrap::WrapReverse;
+    } else {
+      return false;
     }
     return true;
   }
@@ -217,16 +230,23 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     // Direction and wrap in either order, which is all this shorthand is.
     // Each part is offered to both, and the one it is not a value for ignores
     // it -- which is why neither needs to know what the other accepts.
-    for (const std::string_view part : SplitWords(value)) {
-      ApplyBoxDeclaration("flex-direction", std::string(part), parent, style);
-      ApplyBoxDeclaration("flex-wrap", std::string(part), parent, style);
+    const std::vector<std::string_view> parts = SplitWords(value);
+    if (parts.empty()) {
+      return false;
     }
-    return true;
+    bool applied = true;
+    for (const std::string_view part : parts) {
+      const bool direction = ApplyBoxDeclaration("flex-direction", std::string(part), parent,
+                                                 style);
+      const bool wrap = ApplyBoxDeclaration("flex-wrap", std::string(part), parent, style);
+      applied = (direction || wrap) && applied;
+    }
+    return applied;
   }
   if (property == "justify-content" || property == "align-content") {
     const std::optional<Distribution> parsed = ParseDistribution(value);
     if (!parsed.has_value()) {
-      return true;
+      return false;
     }
     if (property == "justify-content") {
       style.flex.justify_content = *parsed;
@@ -238,14 +258,15 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
   if (property == "align-items" || property == "align-self") {
     const std::optional<Alignment> parsed = ParseAlignment(value);
     if (!parsed.has_value()) {
-      return true;
+      return false;
     }
     if (property == "align-items") {
       // `auto` is only meaningful on align-self; on align-items it is not a
       // value at all, so it is dropped rather than stored.
-      if (*parsed != Alignment::Auto) {
-        style.flex.align_items = *parsed;
+      if (*parsed == Alignment::Auto) {
+        return false;
       }
+      style.flex.align_items = *parsed;
     } else {
       style.flex.align_self = *parsed;
     }
@@ -254,7 +275,7 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
   if (property == "flex-grow" || property == "flex-shrink") {
     const std::optional<double> number = util::ParseDouble(value);
     if (!number.has_value() || *number < 0.0) {
-      return true;  // negative is invalid, and an invalid declaration is dropped
+      return false;  // negative is invalid, and an invalid declaration is dropped
     }
     (property == "flex-grow" ? style.flex.grow : style.flex.shrink) =
         static_cast<float>(*number);
@@ -265,6 +286,8 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
       style.flex.basis = Length::Auto();
     } else if (const std::optional<Length> length = ParseLength(value)) {
       style.flex.basis = *length;
+    } else {
+      return false;
     }
     return true;
   }
@@ -289,9 +312,10 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
       return true;
     }
     const std::vector<std::string_view> parts = SplitWords(value);
-    if (parts.empty()) {
-      return true;
+    if (parts.empty() || parts.size() > 3) {
+      return false;
     }
+    bool applied = true;
     bool saw_basis = false;
     int numbers = 0;
     // A bare number is grow then shrink; anything with a unit is the basis.
@@ -299,12 +323,13 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     for (const std::string_view part : parts) {
       const bool numeric = util::ParseDouble(part).has_value();
       if (numeric && numbers < 2) {
-        ApplyBoxDeclaration(numbers == 0 ? "flex-grow" : "flex-shrink", std::string(part),
-                            parent, style);
+        applied = ApplyBoxDeclaration(numbers == 0 ? "flex-grow" : "flex-shrink",
+                                      std::string(part), parent, style) &&
+                  applied;
         ++numbers;
         continue;
       }
-      ApplyBoxDeclaration("flex-basis", std::string(part), parent, style);
+      applied = ApplyBoxDeclaration("flex-basis", std::string(part), parent, style) && applied;
       saw_basis = true;
     }
     if (numbers > 0 && !saw_basis) {
@@ -315,7 +340,7 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     if (numbers == 1) {
       style.flex.shrink = 1.0f;
     }
-    return true;
+    return applied;
   }
   if (property == "gap" || property == "row-gap" || property == "column-gap") {
     const std::vector<std::string_view> parts = SplitWords(value);
@@ -326,30 +351,35 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
       }
       return length->Resolve(style.font_size);
     };
+    if (parts.empty() || parts.size() > 2) {
+      return false;
+    }
+    const std::optional<float> first = pixels(parts[0]);
+    if (!first.has_value()) {
+      return false;
+    }
     if (property == "row-gap" || property == "column-gap") {
-      if (const std::optional<float> size = parts.empty() ? std::nullopt : pixels(parts[0])) {
-        (property == "row-gap" ? style.flex.row_gap : style.flex.column_gap) = *size;
-      }
-      return true;
+      (property == "row-gap" ? style.flex.row_gap : style.flex.column_gap) = *first;
+      return parts.size() == 1;
     }
     // `gap: a` sets both; `gap: a b` is row then column.
-    if (!parts.empty()) {
-      if (const std::optional<float> row = pixels(parts[0])) {
-        style.flex.row_gap = *row;
-        style.flex.column_gap = *row;
+    style.flex.row_gap = *first;
+    style.flex.column_gap = *first;
+    if (parts.size() == 2) {
+      const std::optional<float> column = pixels(parts[1]);
+      if (!column.has_value()) {
+        return false;
       }
-    }
-    if (parts.size() >= 2) {
-      if (const std::optional<float> column = pixels(parts[1])) {
-        style.flex.column_gap = *column;
-      }
+      style.flex.column_gap = *column;
     }
     return true;
   }
   if (property == "order") {
-    if (const std::optional<long long> number = util::ParseInt(value)) {
-      style.flex.order = static_cast<int>(*number);
+    const std::optional<int> number = util::ParseInt(value);
+    if (!number.has_value()) {
+      return false;
     }
+    style.flex.order = *number;
     return true;
   }
 
