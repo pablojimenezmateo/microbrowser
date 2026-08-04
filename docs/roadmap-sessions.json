@@ -12,7 +12,7 @@
     "Do not expand `scope` into a copy of the roadmap; two copies diverge and then neither is true."
   ],
   "source": "docs/roadmap-to-any-page.md",
-  "updated": "2026-08-04",
+  "updated": "2026-08-05",
   "sessions": [
     {
       "id": 1,
@@ -44,7 +44,8 @@
       "anchor": "### Session 3 — the selectors",
       "scope": ":not(), :is(), :where(), :nth-child()/:nth-of-type() with the full An+B grammar, and the specificity rules — :where() contributes zero.",
       "check": "A snapshot of reddit before and after, side by side. This is a colour-and-spacing session and the diff should be obvious.",
-      "status": "not_started"
+      "status": "done",
+      "notes": "Landed :not(), :is(), :where() and all four :nth-*() with the full An+B grammar, plus the specificity rules (:where() is zero). :has() and `An+B of S` are NOT implemented and parse as failures, so their rules drop as before -- ADR 0016 prices :has() behind a measurement nobody has taken. The check's premise is wrong about which reddit: ADR 0016's 212 misses are www.reddit.com's bundle, behind the Phase A JavaScript challenge. old.reddit.com's ten sheets use these features 43 times (31 :not, 8 :nth-child, 1 :nth-of-type, zero :is/:where), so the diff is small rather than obvious. Measured deterministically by parsing the served sheets out of process: rules 3127->3153, skipped 122->96, nothing lost; on 13 sheets from github/wikipedia/MDN/HN, 233/72 -> 250/55. Visible: spoiler text on an r/television comments page is now hidden as its stylesheet intends, and wikipedia's skip link is hidden until focused (125,612 pixels). Do NOT use MICROBROWSER_PERF_COUNTERS for a before/after on reddit: css.tokens and css.rules_parsed also count every ParseSelectorList and ParseDeclarationList a script causes, and reddit's scripts die at a different point on every load -- the same counters varied 1.7x between two runs of the same binary."
     },
     {
       "id": 4,

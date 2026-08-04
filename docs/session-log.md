@@ -171,3 +171,98 @@ Two things a next agent should know before touching this code:
 - **`net.bytes_coded` alongside `net.bytes_decoded` is what makes the check reproducible from a
   single run.** Without the input side, "how much did compression save" needs a build of the
   previous commit to answer. It cost one line.
+
+## Session 3 — the selectors that are silently not matching · 2026-08-05
+
+**Status:** done
+
+**Check:** the ledger asks for "a snapshot of reddit before and after, side by side… the diff
+should be obvious." It is not obvious, and the reason is a finding rather than a failure — see
+below. Three measurements, taken against the pre-session binary built from `9ee2a2b` in a git
+worktree:
+
+1. **Rules that now parse, deterministic.** Old reddit's ten stylesheets as served
+   (`reddit.Gsb42QVNY6g.css` and nine others, 368KB total), parsed directly by
+   `ParseStyleSheet` linked against each build:
+
+   ```
+   BEFORE: rules=3127 skipped=122
+   AFTER : rules=3153 skipped=96
+   ```
+
+   +26 rules, −26 skipped, and **nothing lost**. On a wider sample — thirteen sheets from
+   github, wikipedia, MDN and Hacker News — `233/72` became `250/55`, +17.
+
+2. **A visible reddit diff, where the feature is actually used.**
+   `https://old.reddit.com/r/television/comments/1vbtdij/…` renders the spoiler markup that
+   `.md .md-spoiler-text:not(.revealed){background:#4f4f4f;cursor:pointer;color:transparent}`
+   is for. Before: the spoiler text reads plainly. After: it is gone, as the author intended.
+   A threshold difference mask over the two snapshots picks out exactly three words — the two
+   `Spoiler`s and the `Television` inside a spoiler span — plus vote counts that drifted
+   between the two fetches.
+
+3. **A more obvious diff on a page that uses them heavily.** `en.wikipedia.org/wiki/CSS`:
+   125,612 pixels differ, because the "Jump to content" skip link is now hidden until focused
+   and the whole page moves up with it.
+
+`tools/run-checks.sh tests`, `asan` and `ubsan`: 100% of 24 shards each. `css_fuzzer` over the
+corpus plus five new seeds for this grammar: 774,879 runs in 91 seconds, no crash.
+
+**Landed:** *A selector list may hold a selector list, and `:where()` is worth nothing.*
+
+**Left:**
+
+- `:has()` is the fifth selector of ADR 0016 §1 and is not implemented; it parses as a failure,
+  so a rule using it is dropped exactly as before. The ADR prices it separately and behind a
+  measurement, and this session did not take that measurement.
+- `:nth-child(An+B of S)` is likewise not implemented and drops its rule. It appears zero times
+  in the 23 stylesheets measured.
+- **`background` on an inline box is not painted.** Found while looking at the spoiler fix: the
+  rule applies — `color: transparent` took effect — but no `FillRect` with `#4f4f4f` appears in
+  the display list, so a spoiler is invisible text on white rather than a grey bar. That is a
+  paint gap, not a selector gap, and it is on no session's list.
+- **`Selector::Matches` recurses once per compound and is not bounded.** Parsing is now bounded
+  at eight levels of nesting, but a selector with a hundred thousand descendant combinators
+  would still recurse a hundred thousand deep at *match* time. Pre-existing, and unreachable
+  from `CssFuzzer` because the fuzzer parses without matching.
+
+**Found:**
+
+- **The 212 misses ADR 0016 counts are `www.reddit.com`'s stylesheet, not `old.reddit.com`'s.**
+  The ADR's table (`:not(` 136, `:is(`/`:where(` 52) is from `styles-css-CSasxzfw.css`, the new
+  reddit bundle, which is behind the JavaScript challenge that Phase A of the roadmap exists to
+  get past. Counted directly, old reddit's sheets use these features **43 times**: 31 `:not(`,
+  8 `:nth-child(`, 1 `:nth-of-type(`, and **zero** `:is(` or `:where(`. So the session's check
+  as written could not have produced an obvious diff on the page it names, and the next agent
+  should read a check that says "reddit" as "which reddit".
+- **Most of the 43 gate a state the page is not in.** Collapsed comments, revealed spoilers,
+  the traffic table, `body:not(.loggedin) .give-gold-button` (whose target is injected by
+  script that never runs). +26 rules parsing is the honest measure; +26 rules *visibly firing*
+  is not what happened.
+- **Counter-based before/after on reddit is worthless, and it took two rounds to see why.**
+  `css.rules_parsed` on the same comments page with the same binary gave 7,599 then 12,981;
+  `css.tokens` gave 181,494 then 306,207. `css.sheets_parsed` was 90 both times. The cause is
+  that `Tokenize` is also reached from `ParseSelectorList` and `ParseDeclarationList`, so every
+  `querySelector` and every `style=""` assignment a script makes lands in those counters — and
+  reddit's scripts die at a different point on every load (the masked `r is not defined`). The
+  same comparison on Hacker News is bit-identical across runs. **A counter that a page's
+  scripts can move is not a measurement of the parser.** Parsing the sheets directly, out of
+  process, is.
+- **`2n-1` and `n-1` are one token each, not three.** A CSS name may contain a hyphen and a
+  digit, so `2n-1` tokenizes as a dimension whose *unit* is `n-1`. Every implementation splits
+  that back apart by hand, and it is why `ParseNSuffix` exists. `2n- 1` is a third spelling
+  again — unit `n-`, then a signless integer.
+- **`Token` had thrown away the one bit this grammar needs.** `2n 1` is not a selector and
+  `2n +1` is; the difference is an explicit `+` that the tokenizer discarded because the value
+  is the same either way. One bool on `Token`, and the alternative was accepting an invalid
+  selector — which applies a rule to elements nobody named.
+- **The line cap pointed at a real missing module.** `StyleSheet.cpp` reached 1,224 lines and
+  splitting it three ways was not busywork: `SelectorMatch.cpp` is now a pure function of
+  (element, selector) that cannot see a token, which is exactly the shape ADR 0016 §2 needs
+  when it puts `:hover` on the element rather than in the matcher.
+- **`:not()` of an unimplemented pseudo-class is now true, and that is a decision.** It is right
+  for `:hover`, `:active`, `:focus` and `:visited`, whose honest value in a static snapshot is
+  false — reddit's video controls say `:not(:hover):not(:active)` and mean the resting state.
+  It is wrong for `:checked` and `:disabled`, whose value is derivable from the DOM and is not
+  being derived. Session 11 is where that stops being wrong. A test records it either way, so
+  the day it changes, something says so.
