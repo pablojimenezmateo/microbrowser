@@ -99,8 +99,18 @@ js::Value DomBindings::MakeInterface(const char* name, const js::Value& parent) 
   // element needs `customElements.define` and the upgrade lifecycle, which is
   // a later item in ADR 0012.
   const std::string message = std::string("Illegal constructor: ") + name;
+  DomBindings* self = this;
   const Value constructor =
-      interpreter_->NewNativeValue(name, [message](js::NativeCall& call) {
+      interpreter_->NewNativeValue(name, [message, self](js::NativeCall& call) {
+        // The one case where calling an interface is legal: `super()` inside a
+        // custom element's constructor, during an upgrade. Returning the
+        // element the document already has is what makes the class run *on*
+        // it -- a derived class's `this` is whatever its base produced. See
+        // CustomElements.cpp.
+        const Value pending = self->PendingUpgrade();
+        if (pending.IsObject()) {
+          return pending;
+        }
         return call.Throw("TypeError", message);
       });
   if (!constructor.IsObject()) {
@@ -158,6 +168,7 @@ void DomBindings::EnsureInterfaces() {
   // A Document is a ParentNode too: `document.querySelector` and
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));
+  InstallCustomElements();
 }
 
 js::Value DomBindings::PrototypeFor(const dom::Node& node) {

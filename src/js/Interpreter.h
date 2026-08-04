@@ -872,6 +872,18 @@ class Interpreter {
   std::vector<Environment*> active_scopes_;
   // Same, for values held across a call.
   std::vector<Object*> active_objects_;
+  // The object each in-flight `new` is building, innermost last.
+  //
+  // A stack rather than a field because constructors nest, and separate from
+  // `active_objects_` because that one is a GC root list shared with iteration
+  // cursors -- its back() is not reliably the thing being constructed.
+  //
+  // It exists because `super()` may *replace* what is being constructed: a
+  // base constructor that returns an object makes that object the derived
+  // class's `this`, which is the rule custom elements are built on -- an
+  // element is upgraded by having HTMLElement hand back the element the
+  // document already has. Construct reads this back after the body runs.
+  std::vector<Object*> constructing_;
   int call_depth_ = 0;
   // Evaluation depth, which is not the same as call depth and has to be
   // bounded separately: sixty nested unary operators inside a function that

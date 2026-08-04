@@ -249,6 +249,90 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.createTextNode('x') instanceof Comment", "false");
   });
 
+  // Custom elements, natively. The mechanism worth knowing is that a derived
+  // class's `this` is whatever its base produced, so `super()` inside the
+  // page's class takes its object from HTMLElement -- which is how the class
+  // comes to run *on* the element the document already has, rather than on a
+  // second object that would have to be kept in step with it.
+  AddTest(tests, "DomBindings/CustomElementsUpgradeAndReact", [] {
+    // Defined first, then created.
+    ExpectScript(kPage,
+                 "class Thing extends HTMLElement { constructor(){ super(); this.made = 1 } }"
+                 "customElements.define('my-thing', Thing);"
+                 "var e = document.createElement('my-thing'); [e.made, e instanceof Thing].join()",
+                 "1,true");
+    // Created first, then defined -- which is the usual order on a real page,
+    // since the script is at the end of the body. Everything already in the
+    // document is upgraded when the class arrives.
+    ExpectScript("<html><body><my-box></my-box></body></html>",
+                 "class Box extends HTMLElement { constructor(){ super(); this.tag = 'up' } }"
+                 "customElements.define('my-box', Box);"
+                 "document.getElementsByTagName('my-box')[0].tag",
+                 "up");
+    ExpectScript("<html><body><my-box></my-box></body></html>",
+                 "class Box extends HTMLElement { hello(){ return 'hi' } }"
+                 "customElements.define('my-box', Box);"
+                 "document.getElementsByTagName('my-box')[0].hello()",
+                 "hi");
+    // A class body with only methods still gets its prototype, whether or not
+    // its constructor set anything.
+    ExpectScript("<html><body><my-box></my-box></body></html>",
+                 "class Box extends HTMLElement {}"
+                 "customElements.define('my-box', Box);"
+                 "document.getElementsByTagName('my-box')[0] instanceof Box",
+                 "true");
+    ExpectScript(kPage,
+                 "class T extends HTMLElement {} customElements.define('x-t', T);"
+                 "customElements.get('x-t') === T",
+                 "true");
+
+    // The reactions. Connected when it enters the document, disconnected when
+    // it leaves -- and the subtree counts, because appending a detached tree
+    // connects everything in it.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { connectedCallback(){ log.push('in') }"
+                 "  disconnectedCallback(){ log.push('out') } }"
+                 "customElements.define('x-t', T);"
+                 "var e = document.createElement('x-t');"
+                 "document.body.appendChild(e); e.remove(); log.join()",
+                 "in,out");
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { connectedCallback(){ log.push('in') } }"
+                 "customElements.define('x-t', T);"
+                 "var holder = document.createElement('div');"
+                 "holder.appendChild(document.createElement('x-t'));"
+                 "log.length + ':' + (document.body.appendChild(holder), log.join())",
+                 "0:in");
+    // `observedAttributes` is read once, when the class is defined, and an
+    // attribute outside it produces no call at all.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { static get observedAttributes(){ return ['v'] }"
+                 "  attributeChangedCallback(n, o, v){ log.push(n + ':' + o + '->' + v) } }"
+                 "customElements.define('x-t', T);"
+                 "var e = document.createElement('x-t');"
+                 "e.setAttribute('v', '1'); e.setAttribute('v', '2');"
+                 "e.setAttribute('other', 'z'); log.join('|')",
+                 "v:null->1|v:1->2");
+
+    // The dash rule, enforced: without it a page could redefine `div` and
+    // every element in the document would be upgraded.
+    ExpectScript(kPage,
+                 "(() => { try { customElements.define('div', class extends HTMLElement {}) }"
+                 "  catch (e) { return e.name } })()",
+                 "SyntaxError");
+    ExpectScript(kPage,
+                 "(() => { class A extends HTMLElement {} customElements.define('x-a', A);"
+                 "  try { customElements.define('x-a', A) } catch (e) { return e.name } })()",
+                 "NotSupportedError");
+    // Constructing an interface directly is still the error it was; the
+    // upgrade path is the only thing that may hand one back.
+    ExpectScript(kPage, "(() => { try { new HTMLElement() } catch (e) { return e.name } })()",
+                 "TypeError");
+  });
+
   AddTest(tests, "DomBindings/ElementsHaveATypeHierarchy", [] {
     // The chain, from the bottom up.
     ExpectScript(kPage, "document.body instanceof HTMLElement", "true");

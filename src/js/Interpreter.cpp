@@ -701,6 +701,7 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
   }
   const Value self = Value::Obj(instance);
   active_objects_.push_back(instance);
+  constructing_.push_back(instance);
   // A base class initializes its fields before the constructor body runs. A
   // derived one does it after its super() call instead, which is the ordering
   // that lets a derived field read a base one.
@@ -709,6 +710,7 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
     const Result fields = InitializeFields(instance, callee.object);
     if (fields.IsAbrupt()) {
       active_objects_.pop_back();
+      constructing_.pop_back();
       return fields;
     }
   } else if (callee.object->Body() == nullptr && callee.object->Code() == nullptr) {
@@ -721,11 +723,15 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
     pending_new_target_ = Value::Undefined();
     if (base.IsAbrupt()) {
       active_objects_.pop_back();
+      constructing_.pop_back();
       return base;
     }
-    const Result fields = InitializeFields(instance, callee.object);
+    // An implicit `constructor(...args){ super(...args) }` is still a super
+    // call, so it too may have been handed a different object to be.
+    const Result fields = InitializeFields(constructing_.back(), callee.object);
     if (fields.IsAbrupt()) {
       active_objects_.pop_back();
+      constructing_.pop_back();
       return fields;
     }
   }
@@ -735,13 +741,20 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
   pending_new_target_ = callee;
   const Result constructed = CallFunction(callee, self, arguments);
   pending_new_target_ = Value::Undefined();
+  // What `super()` left, which is `instance` unless a base constructor
+  // returned an object of its own and became what this class is.
+  Object* built = constructing_.empty() ? instance : constructing_.back();
   active_objects_.pop_back();
+  if (!constructing_.empty()) {
+    constructing_.pop_back();
+  }
   if (constructed.IsAbrupt()) {
     return constructed;
   }
   // A constructor returning an object replaces the instance; returning a
   // primitive does not. The rule exists so a factory can be a constructor.
-  return Result::Normal(constructed.value.IsObject() ? constructed.value : self);
+  return Result::Normal(constructed.value.IsObject() ? constructed.value
+                                                     : Value::Obj(built));
 }
 
 Result Interpreter::CallFunction(const Value& callee, const Value& self,

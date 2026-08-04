@@ -880,10 +880,29 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // C++ locals while they run, so no safepoint fires underneath them.
         ++call_depth_;
         Result done = CallFunction(Value::Obj(parent), instance, arguments);
-        if (!done.IsAbrupt() && instance.IsObject()) {
+        // A base constructor that returns an object *is* what this class is.
+        // The derived `this` is whatever super() produced -- which is the rule
+        // custom elements are built on: HTMLElement hands back the element the
+        // document already has, and the page's class then runs on it rather
+        // than on a second object nobody can reach.
+        Value bound = instance;
+        if (!done.IsAbrupt() && done.value.IsObject() &&
+            (!instance.IsObject() || done.value.object != instance.object)) {
+          bound = done.value;
+          if (Value* slot = FrameName("this", kSlotThis)) {
+            *slot = bound;
+          }
+          // What the enclosing `new` hands back, which is no longer the object
+          // it allocated.
+          if (!constructing_.empty()) {
+            constructing_.back() = bound.object;
+          }
+        }
+        if (!done.IsAbrupt() && bound.IsObject()) {
           // Fields of *this* class initialize after the super call, which is
-          // the ordering that makes a derived field see a base one.
-          done = InitializeFields(instance.object, current.object);
+          // the ordering that makes a derived field see a base one -- and they
+          // initialize on whatever the class turned out to be.
+          done = InitializeFields(bound.object, current.object);
         }
         --call_depth_;
         vm_.stack.resize(first);

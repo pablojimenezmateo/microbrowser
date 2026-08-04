@@ -253,6 +253,10 @@ bool DomBindings::DetachFromTree(dom::Node& child) {
   if (parent == nullptr) {
     return false;
   }
+  // Before the detach, not after: `disconnectedCallback` runs on a node that
+  // is on its way out, and asking whether it is in the document has to be
+  // asked while the answer is still yes.
+  NotifyConnection(child, false);
   std::unique_ptr<dom::Node> owned = parent->Detach(&child);
   if (owned == nullptr) {
     return false;
@@ -314,7 +318,36 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   } else {
     parent.Append(std::move(owned));
   }
+  // Connected now, if this put it in the document. The subtree as well as the
+  // node: appending a detached tree connects everything in it, and a custom
+  // element three levels down is as connected as the root is.
+  NotifyConnection(*child, true);
   return WrapperFor(child);
+}
+
+void DomBindings::NotifyConnection(dom::Node& node, bool connected) {
+  const Value registry = CustomElementRegistry();
+  if (!registry.IsObject() || registry.object->Keys().empty()) {
+    return;  // no custom elements defined: nothing to tell, and no walk to do
+  }
+  bool in_document = false;
+  for (const dom::Node* at = &node; at != nullptr; at = at->Parent()) {
+    in_document = in_document || at == document_;
+  }
+  // For a connect, the node has to be in the document now. For a disconnect,
+  // it has to be in it *still* -- this runs before the detach, so a node being
+  // removed from a detached subtree correctly gets no reaction at all.
+  if (!in_document) {
+    return;
+  }
+  // The node and everything under it, because a reaction is owed to each.
+  if (node.IsElement()) {
+    RunElementReaction(static_cast<dom::Element&>(node),
+                       connected ? "connectedCallback" : "disconnectedCallback");
+  }
+  for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+    NotifyConnection(*child, connected);
+  }
 }
 
 js::Value DomBindings::AdoptInto(dom::Node& parent, dom::Node* child) {
@@ -342,7 +375,13 @@ js::Value DomBindings::CreateElement(const std::string& tag_name) {
   // parent and this one has none yet. Script gets the wrapper; the node stays
   // owned by C++ until something appends it.
   unattached_.push_back(std::move(element));
-  return WrapperFor(raw);
+  const js::Value wrapper = WrapperFor(raw);
+  // Upgraded here rather than on insertion, because the specification says a
+  // custom element is constructed when it is created -- a page that does
+  // `document.createElement('my-thing')` and reads a property its constructor
+  // set expects it to be there before anything is appended.
+  UpgradeElement(*raw);
+  return wrapper;
 }
 
 js::Value DomBindings::CreateText(const std::string& text) {

@@ -37,7 +37,12 @@ max_tu_lines: 700
 # those wrappers now inherit from, and it is a JavaScript object for the same
 # reason the wrapper cache is: a C++ table of `Object*` would have to be a GC
 # root and there is no API to add one. See NodeInterfaces.cpp and ADR 0012.
-budget: DomBindings header_lines=140 public_methods=10 members=8
+# Header lines grew for custom elements: the registry, the upgrade, and the
+# three reactions. They are declarations rather than state -- the registry and
+# the in-flight upgrade both live as properties of the interfaces object, which
+# is already a GC root, because a `js::Value` in a C++ field is invisible to
+# the collector and this module has had that bug once already.
+budget: DomBindings header_lines=175 public_methods=10 members=8
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

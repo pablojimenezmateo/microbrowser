@@ -348,7 +348,15 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # The resolver is a member because loading is the host's job -- a specifier's
 # meaning is a URL question, and a language engine has no business answering
 # one.
-budget: Interpreter header_lines=930 public_methods=61 members=19
+# Grew by one member for `constructing_`: the object each in-flight `new` is
+# building, innermost last. It exists because `super()` may *replace* what is
+# being constructed -- a base constructor that returns an object becomes the
+# derived class's `this`, which the engine did not implement and which is the
+# rule custom elements are built on. A stack rather than a field because
+# constructors nest, and separate from `active_objects_` because that one is a
+# root list shared with iteration cursors, so its back() is not reliably the
+# thing being constructed.
+budget: Interpreter header_lines=960 public_methods=61 members=20
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

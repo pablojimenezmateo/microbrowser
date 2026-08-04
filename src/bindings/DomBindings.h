@@ -110,6 +110,25 @@ class DomBindings {
   void EnsureInterfaces();
   // One named prototype, its parent already built.
   js::Value MakeInterface(const char* name, const js::Value& parent);
+
+  // --- Custom elements, in CustomElements.cpp -------------------------------
+  void InstallCustomElements();
+  js::Value CustomElementRegistry();
+  // The wrapper an upgrade is currently running for, which is what
+  // HTMLElement's constructor returns so that `super()` inside a page's class
+  // yields the element the document already has. Undefined outside an upgrade,
+  // which is when calling an interface directly is the error it should be.
+  js::Value PendingUpgrade();
+  // Runs `element`'s class over the element the document already holds.
+  void UpgradeElement(dom::Element& element);
+  // `connectedCallback` and its siblings, when the element is a custom one
+  // that has been upgraded and defines the reaction.
+  void RunElementReaction(dom::Element& element, const char* callback);
+  void RunAttributeReaction(dom::Element& element, const std::string& name,
+                            const js::Value& old_value, const js::Value& new_value);
+  // Runs connected or disconnected reactions over `node` and its subtree. The
+  // subtree matters: appending a detached tree connects everything in it.
+  void NotifyConnection(dom::Node& node, bool connected);
   js::Value AdoptInto(dom::Node& parent, dom::Node* child);
   js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference);
   // Detaches `child` and keeps it alive for the life of the document.

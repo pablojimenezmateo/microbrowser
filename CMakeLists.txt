@@ -287,6 +287,8 @@ microbrowser_module(platform
 
 microbrowser_module(bindings
   SOURCES
+    src/bindings/CustomElements.cpp
+    src/bindings/DocumentBindings.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/NodeInterfaces.cpp
