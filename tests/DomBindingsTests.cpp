@@ -138,12 +138,15 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // A created node is owned by the bindings until it is attached, so
     // creating one and dropping it leaks nothing and dangles nothing.
     ExpectScript(kPage, "document.createElement('div').tagName", "div");
-    // Moving an attached node would mean detaching it, which is the operation
-    // this slice deliberately has no caller for -- see ADR 0008.
+    // Appending an attached node *moves* it. That was a TypeError while
+    // removal did not exist, because moving means detaching and detaching
+    // meant destroying; it is the ordinary DOM behaviour now that detaching
+    // hands the node over instead.
     ExpectScript(kPage,
-                 "try { document.body.appendChild(document.getElementById('title')) } "
-                 "catch (e) { e.name }",
-                 "TypeError");
+                 "const t = document.getElementById('title');"
+                 "document.body.appendChild(t);"
+                 "document.body.children[document.body.children.length - 1] === t",
+                 "true");
   });
 
   AddTest(tests, "DomBindings/ABindingCalledOnSomethingElseIsATypeError", [] {
@@ -441,6 +444,93 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectEqString(js::ToString(
                        interpreter.Run("try { setTimeout('n++', 0) } catch (e) { e.name }").value),
                    "TypeError", "a string is not a callback");
+  });
+
+  AddTest(tests, "DomBindings/ARemovedNodeStaysAliveAndUsable", [] {
+    // The reason removal was not in the first slice. A wrapper holds a raw
+    // `dom::Node*`, so freeing a node script still refers to is a
+    // use-after-free reachable from a page. Removal detaches and keeps.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const first = list.children[0];"
+                 "list.removeChild(first);"
+                 "list.children.length + ' ' + first.tagName + ' ' + first.textContent",
+                 "1 p one");
+    // And it can be put back somewhere else, which is what a page does when it
+    // reorders a list.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const first = list.children[0];"
+                 "list.removeChild(first);"
+                 "document.body.appendChild(first);"
+                 "document.body.children[document.body.children.length - 1].textContent",
+                 "one");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.remove(); "
+                 "document.getElementById('title') === null",
+                 "true");
+    // Removing something that is not a child is the caller's bug, and removing
+    // it from wherever it actually is would be worse.
+    ExpectScript(kPage,
+                 "try { document.body.removeChild(document.createElement('x')) } "
+                 "catch (e) { e.name }",
+                 "TypeError");
+  });
+
+  AddTest(tests, "DomBindings/AWrapperForARemovedNodeSurvivesACollection", [] {
+    // The exact hazard ADR 0008 was written about, on the path that creates
+    // it. If the node were freed on removal, this would read reclaimed memory
+    // -- and the collection in the middle is what makes the test fail loudly
+    // rather than by luck.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const gone = list.children[0];"
+                 "list.removeChild(gone);"
+                 "let sink = null;"
+                 "for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }"
+                 "gone.textContent + ':' + gone.tagName + ':' + (gone.parentNode === null)",
+                 "one:p:true");
+  });
+
+  AddTest(tests, "DomBindings/NodesCanBeInsertedAndReplacedInPlace", [] {
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const fresh = document.createElement('em');"
+                 "list.insertBefore(fresh, list.children[0]);"
+                 "list.children[0].tagName + ' ' + list.children.length",
+                 "em 3");
+    // A null reference appends, which is what the specification says and what
+    // a page relies on when it inserts before "nothing".
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.insertBefore(document.createElement('em'), null);"
+                 "list.children[list.children.length - 1].tagName",
+                 "em");
+    // In before out, so the replacement lands where the old node was rather
+    // than at the end -- the whole difference from remove-then-append.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const fresh = document.createElement('em');"
+                 "const old = list.children[0];"
+                 "const returned = list.replaceChild(fresh, old);"
+                 "list.children[0].tagName + ' ' + list.children.length + ' ' + "
+                 "(returned === old) + ' ' + returned.textContent",
+                 "em 2 true one");
+  });
+
+  AddTest(tests, "DomBindings/AppendingAnAttachedNodeMovesIt", [] {
+    // Which works only because detaching hands the node over rather than
+    // destroying it. This is how a page reorders a list.
+    ExpectScript("<div id=box><a></a><b></b><c></c></div>",
+                 "const box = document.getElementById('box');"
+                 "box.appendChild(box.children[0]);"
+                 "Array.from(box.children).map(e => e.tagName).join('')",
+                 "bca");
+    ExpectScript("<div id=box><a></a></div><div id=other></div>",
+                 "const box = document.getElementById('box');"
+                 "document.getElementById('other').appendChild(box.children[0]);"
+                 "box.children.length + ' ' + document.getElementById('other').children.length",
+                 "0 1");
   });
 
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {

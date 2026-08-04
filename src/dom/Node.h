@@ -58,7 +58,24 @@ class Node {
 
   // Detaches and destroys `child`. Returns false if it is not a child of this
   // node, which is a caller bug rather than a routine outcome.
+  //
+  // **Nothing calls this, and the first caller has an obligation.** The DOM
+  // binding layer hands script a JavaScript object holding a raw `Node*`, and
+  // that is safe only because no node is freed before its document. Whoever
+  // gives this a caller owns fixing that in the same commit --
+  // docs/adr/0008-dom-bindings.md says how. `Detach` below is the version that
+  // does not have the problem, because it hands the node over rather than
+  // destroying it.
   bool Remove(Node* child);
+
+  // Detaches `child` and returns ownership of it. Null when it is not a child
+  // here.
+  //
+  // The difference from `Remove` is the whole point: a detached node is still
+  // alive, so a wrapper script is holding does not dangle. Whoever takes it
+  // owns it, and the DOM binding layer keeps removed nodes for the life of the
+  // document for exactly that reason.
+  std::unique_ptr<Node> Detach(Node* child);
 
   // Concatenated text of this subtree, which is `textContent`.
   std::string TextContent() const;

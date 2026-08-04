@@ -87,6 +87,22 @@ bool Node::Remove(Node* child) {
   return true;
 }
 
+std::unique_ptr<Node> Node::Detach(Node* child) {
+  const auto found = std::find_if(
+      children_.begin(), children_.end(),
+      [child](const std::unique_ptr<Node>& candidate) { return candidate.get() == child; });
+  if (found == children_.end()) {
+    return nullptr;
+  }
+  std::unique_ptr<Node> owned = std::move(*found);
+  children_.erase(found);
+  // The parent link goes with the ownership. A node that still claimed a
+  // parent it is no longer a child of is the shape every "it disappeared but
+  // is still in the list" bug takes.
+  owned->parent_ = nullptr;
+  return owned;
+}
+
 std::string Node::TextContent() const {
   std::string out;
   ForEachDescendant([&out](const Node& node) {

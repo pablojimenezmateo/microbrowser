@@ -67,7 +67,18 @@ class DomBindings {
   void InstallWindow();
   js::Value MakeClassList(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
+  void InstallMutationMethods(const js::Value& wrapper);
   js::Value AdoptInto(dom::Node& parent, dom::Node* child);
+  js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference);
+  // Detaches `child` and keeps it alive for the life of the document.
+  //
+  // This is the whole reason removal was not in the first slice. A wrapper
+  // holds a raw `dom::Node*`, so a node freed while script still refers to it
+  // is a use-after-free reachable from a page. Keeping it instead is the
+  // second of the two fixes ADR 0008 names -- it leaks a removed subtree until
+  // navigation, which for a browser that navigates away from a page is a
+  // bounded leak rather than an unbounded one.
+  bool DetachFromTree(dom::Node& child);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 
   js::Interpreter* interpreter_;
@@ -82,6 +93,9 @@ class DomBindings {
   // as each is adopted; whatever is left is freed with this object, which is
   // why a wrapper for one of them must not outlive the bindings.
   std::vector<std::unique_ptr<dom::Node>> unattached_;
+  // Nodes script removed. Held rather than freed, for the reason on
+  // DetachFromTree.
+  std::vector<std::unique_ptr<dom::Node>> detached_;
 };
 
 }  // namespace microbrowser::bindings

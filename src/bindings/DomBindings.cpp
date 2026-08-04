@@ -17,34 +17,6 @@ using js::NativeCall;
 using js::Object;
 using js::Value;
 
-// The node behind a wrapper, or null for anything that is not one.
-//
-// Every binding starts here rather than trusting its receiver, because a page
-// can call one on anything: `Element.prototype.appendChild.call(7, x)` is legal
-// JavaScript and must be a TypeError rather than a jump through a bad pointer.
-dom::Node* NodeOf(const Value& value) {
-  if (!value.IsObject()) {
-    return nullptr;
-  }
-  const Value* slot = value.object->GetOwn(kNodeSlot);
-  if (slot == nullptr || !slot->IsNumber()) {
-    return nullptr;
-  }
-  // The pointer travels as a double, which holds a 53-bit integer exactly --
-  // more than any address on a 64-bit machine with a canonical-form pointer.
-  // A page can write to `#node`, which is why this is checked against the
-  // cache below rather than dereferenced on the strength of the number alone.
-  return reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(slot->number));
-}
-
-DomBindings* OwnerOf(const NativeCall& call) {
-  const Value* slot = call.callee == nullptr ? nullptr : call.callee->GetOwn(kOwnerSlot);
-  if (slot == nullptr || !slot->IsNumber()) {
-    return nullptr;
-  }
-  return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
-}
-
 }  // namespace
 
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
@@ -162,12 +134,6 @@ js::Value DomBindings::MakeClassList(dom::Element& element) {
   return list;
 }
 
-js::Value DomBindings::CreateText(const std::string& text) {
-  auto node = std::make_unique<dom::Text>(text);
-  dom::Node* raw = node.get();
-  unattached_.push_back(std::move(node));
-  return WrapperFor(raw);
-}
 
 js::Value DomBindings::WrapperFor(dom::Node* node) {
   if (node == nullptr) {
@@ -333,22 +299,7 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
 
   InstallEventMethods(wrapper);
 
-  method("appendChild", [](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    dom::Node* child = NodeOf(Argument(call.arguments, 0));
-    if (owner == nullptr || self == nullptr || child == nullptr) {
-      return call.Throw("TypeError", "appendChild requires a node");
-    }
-    // Only a node this layer made and has not yet placed can be appended.
-    // Moving an existing one means detaching it from its parent, and detaching
-    // is what `Node::Remove` does -- the operation this slice deliberately
-    // does not have a caller for. See the note on the class.
-    if (child->Parent() != nullptr) {
-      return call.Throw("TypeError", "moving a node that already has a parent is not supported");
-    }
-    return owner->AdoptInto(*self, child);
-  });
+  InstallMutationMethods(wrapper);
 
   // --- Elements ------------------------------------------------------------
 
@@ -487,40 +438,10 @@ void DomBindings::ForEachElement(const std::function<void(dom::Element&)>& visit
   });
 }
 
-js::Value DomBindings::CreateElement(const std::string& tag_name) {
-  if (tag_name.empty()) {
-    return Value::Null();
-  }
-  auto element = std::make_unique<dom::Element>(tag_name);
-  dom::Element* raw = element.get();
-  // Held here rather than handed to script, because a node's owner is its
-  // parent and this one has none yet. Script gets the wrapper; the node stays
-  // owned by C++ until something appends it.
-  unattached_.push_back(std::move(element));
-  return WrapperFor(raw);
-}
 
-js::Value DomBindings::AdoptInto(dom::Node& parent, dom::Node* child) {
-  for (std::size_t i = 0; i < unattached_.size(); ++i) {
-    if (unattached_[i].get() != child) {
-      continue;
-    }
-    std::unique_ptr<dom::Node> owned = std::move(unattached_[i]);
-    unattached_.erase(unattached_.begin() + static_cast<std::ptrdiff_t>(i));
-    parent.Append(std::move(owned));
-    return WrapperFor(child);
-  }
-  // Not one of ours to give away. Appending it would mean taking it from its
-  // current owner, which is the detach this slice deliberately cannot do.
-  return Value::Null();
-}
 
-js::Value DomBindings::AppendTextTo(dom::Node& parent, const std::string& text) {
-  auto node = std::make_unique<dom::Text>(text);
-  dom::Node* raw = node.get();
-  parent.Append(std::move(node));
-  return WrapperFor(raw);
-}
+
+
 
 void DomBindings::Install() {
   const Value document = WrapperFor(document_);

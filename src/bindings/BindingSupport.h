@@ -5,6 +5,8 @@
 #include <string_view>
 #include <vector>
 
+#include "dom/Node.h"
+#include "js/Heap.h"
 #include "js/Value.h"
 
 // Shared by the binding translation units, and private to the module: a
@@ -35,6 +37,35 @@ inline js::Value PointerValue(const void* pointer) {
 // manifest calls a security boundary.
 inline js::Value Argument(const std::vector<js::Value>& arguments, std::size_t index) {
   return index < arguments.size() ? arguments[index] : js::Value::Undefined();
+}
+
+class DomBindings;
+
+// The node behind a wrapper, or null for anything that is not one.
+//
+// Every binding starts here rather than trusting its receiver, because a page
+// can call one on anything: `Element.prototype.appendChild.call(7, x)` is legal
+// JavaScript and must be a TypeError rather than a jump through a bad pointer.
+inline dom::Node* NodeOf(const js::Value& value) {
+  if (!value.IsObject()) {
+    return nullptr;
+  }
+  const js::Value* slot = value.object->GetOwn(kNodeSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return nullptr;
+  }
+  return reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(slot->number));
+}
+
+// The bindings instance a native belongs to. Carried on the function object
+// rather than captured, because a capture is invisible to the collector and a
+// raw pointer in one is a lifetime nobody is tracking.
+inline DomBindings* OwnerOf(const js::NativeCall& call) {
+  const js::Value* slot = call.callee == nullptr ? nullptr : call.callee->GetOwn(kOwnerSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return nullptr;
+  }
+  return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
 }
 
 inline std::string LowerCase(std::string_view text) {

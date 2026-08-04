@@ -25,7 +25,12 @@ max_tu_lines: 700
 # that nothing has appended yet. The last exists because a node's owner is its
 # parent, so one without a parent needs somewhere to live -- and handing script
 # a node it owns would put a raw pointer's lifetime in a page's hands.
-budget: DomBindings header_lines=90 public_methods=8 members=6
+# Seven members: the two it borrows, the document's URL, the wrapper cache,
+# and the two lists of nodes it owns -- one for nodes script made and has not
+# placed, one for nodes script removed. Those two exist because a node's owner
+# is its parent and both of these have none; freeing either would dangle a
+# wrapper. See docs/adr/0008-dom-bindings.md.
+budget: DomBindings header_lines=110 public_methods=10 members=7
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it
