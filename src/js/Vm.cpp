@@ -1068,6 +1068,18 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
 
       // --- Iteration ---------------------------------------------------------
       case Op::IterateOpen: {
+        if (vm_.iterations.size() >= kIterationCapacity) {
+          pending = Throw("RangeError", "too many open iterations");
+          threw = true;
+          break;
+        }
+        // Reserved on the first cursor rather than in the constructor, the way
+        // the locals stack is: a page that opens none should not pay for the
+        // vector. From here it never grows, which is what keeps the reference
+        // a stepping instruction holds valid across the page's own `next`.
+        if (vm_.iterations.capacity() < kIterationCapacity) {
+          vm_.iterations.reserve(kIterationCapacity);
+        }
         Iteration cursor;
         const Result opened = OpenIteration(vm_.stack.back(), cursor);
         if (opened.IsAbrupt()) {

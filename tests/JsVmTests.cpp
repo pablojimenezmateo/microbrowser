@@ -549,6 +549,50 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
     ExpectEval("let out = ''; switch (9) { default: out += 'd'; case 1: out += 'a' } out", "da");
   });
 
+  AddTest(tests, "JsVm/AnIteratorThatIteratesKeepsTheOuterCursorValid", [] {
+    // The cursors live on one shared vector, and stepping one runs the page's
+    // own `next` -- which can open another. Without a reserved capacity that
+    // push reallocates the vector the running instruction holds a reference
+    // into, and the write-back lands in freed memory. Reachable from any page
+    // that writes a custom iterator with a loop in it, which is most of them.
+    //
+    // Only ASan calls this a crash; without it the value is usually still
+    // readable and the test passes for the wrong reason. It is here so the
+    // sanitized run has something to catch.
+    ExpectEval(
+        "const inner = [1, 2, 3];\n"
+        "const outer = { [Symbol.iterator]() {\n"
+        "  let n = 0;\n"
+        "  return { next() {\n"
+        "    for (const x of inner) { if (x < 0) break; }\n"
+        "    return n++ < 2 ? { value: n, done: false } : { value: undefined, done: true };\n"
+        "  } };\n"
+        "} };\n"
+        "let total = 0;\n"
+        "for (const v of outer) { total += v; }\n"
+        "total",
+        "3");
+    // Deeper, so the reallocation is not a one-off: each level opens a cursor
+    // while every level above it is holding one.
+    ExpectEval(
+        "function nest(depth) {\n"
+        "  return { [Symbol.iterator]() {\n"
+        "    let sent = false;\n"
+        "    return { next() {\n"
+        "      if (sent) return { value: undefined, done: true };\n"
+        "      sent = true;\n"
+        "      let sum = depth;\n"
+        "      if (depth > 0) { for (const v of nest(depth - 1)) sum += v; }\n"
+        "      return { value: sum, done: false };\n"
+        "    } };\n"
+        "  } };\n"
+        "}\n"
+        "let out = 0;\n"
+        "for (const v of nest(20)) out += v;\n"
+        "out",
+        "210");
+  });
+
   // --- The safepoints -------------------------------------------------------
 
   AddTest(tests, "JsVm/ACollectionMidLoopKeepsWhatTheLoopIsHolding", [] {

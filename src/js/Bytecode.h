@@ -424,6 +424,15 @@ inline constexpr std::size_t kFrameCapacity = 256;
 // with thousands of bindings runs out of depth sooner, which is the same answer
 // a page gets for recursing too far.
 inline constexpr std::size_t kLocalsCapacity = 1u << 16;
+// The `for...of` cursor stack, on exactly the same terms, and it earned them
+// the hard way. A stepping instruction holds an `Iteration&` into this while it
+// runs, and stepping runs the page's own `next` -- which can open another
+// cursor. Growing the vector under that reference is a write into freed memory,
+// reachable from any page whose custom iterator has a loop in it. Reserved once
+// so the reference cannot be invalidated, and overflowing it is the RangeError
+// that running out of any other bounded resource is. Sized well past any real
+// nesting: cursors nest with loops inside iterators, not with data.
+inline constexpr std::size_t kIterationCapacity = 1u << 12;
 
 // Compiles a parsed program, or returns null when some construct in it has no
 // compiled form yet.

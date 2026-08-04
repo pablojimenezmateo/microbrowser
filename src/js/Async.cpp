@@ -152,8 +152,16 @@ std::uint64_t Interpreter::FileRunningFrame(Value result) {
 bool Interpreter::PutFrameBack(Suspension& held) {
   if (vm_.stack.size() + held.stack.size() + 2 > kValueStackCapacity ||
       vm_.locals.size() + held.locals.size() > kLocalsCapacity ||
+      vm_.iterations.size() + held.iterations.size() > kIterationCapacity ||
       vm_.frames.size() >= kFrameCapacity) {
     return false;
+  }
+  // A frame filed with cursors open is put back with them open, and this is the
+  // one push onto the cursor stack that does not go through IterateOpen -- so
+  // the reservation has to happen here too, or a resume is where the vector
+  // first grows.
+  if (!held.iterations.empty() && vm_.iterations.capacity() < kIterationCapacity) {
+    vm_.iterations.reserve(kIterationCapacity);
   }
   // Rebased: the machine's stacks are wherever this turn left them, so every
   // base the frame recorded moves by the same delta.
