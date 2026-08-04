@@ -54,7 +54,7 @@ What exists:
 | `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing, **custom properties and `var()`** — inherited, nested, with fallbacks and the invalid-at-computed-value rule |
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
-| `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
+| `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **MutationObserver**, batched and delivered as a microtask. `window` is an event target. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
 | `src/js` | JavaScript, and as near complete as the language gets here. Lexer, parser, a bytecode compiler and machine (names resolved to slots, calls that cannot leak a scope keeping bindings in the frame, the tree-walker kept as the differential engine behind `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass. **Modules** — every `import`/`export` form, `import.meta`, `import()` — with the host supplying the resolver. Classes with accessors, `super`, private fields and methods, static blocks, `new.target`, the brand check. `Proxy` with every trap, and subclassing a builtin. Full `ToPrimitive`. **UTF-16 string indexing over UTF-8 storage.** Property attributes and integrity levels. `ArrayBuffer`, the nine typed arrays and `DataView`. A real `Date` with a computed calendar and a parser. `JSON` with replacer, reviver, indent and `toJSON`. A backtracking regular expression engine with `/u` code points and `\p{...}`. Symbols, iteration, `Map`/`Set`/`Weak*`/`WeakRef`, Promises and the microtask queue, and **every form of suspending a call** — `async`/`await`, generators, `yield*` with real delegation, async generators, `for await`. No `eval` and no `Function(source)`, and a test says so. Knows nothing about the DOM. Deviations are listed in `docs/js-conformance-roadmap.md`, each with its reason. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
@@ -99,23 +99,22 @@ reasoning; this is the queue.
    honestly about what the engine actually supports, or it is the CSS version of ADR 0012's
    stub problem.
 
-2. **`MutationObserver`, then `getBoundingClientRect`.** The binding layer got a lot this
-   session and the ordering below is what is left of ADR 0012's list. **Done:** the element type
-   hierarchy (Node/CharacterData/Element/HTMLElement and the per-tag interfaces, with
-   `instanceof` answering and methods on prototypes rather than on every wrapper); events a page
-   makes and dispatches, untrusted by construction, with `Event`/`CustomEvent`/`MouseEvent` and
-   the older `createEvent` form; element-scoped `querySelector` and the element-only walk;
-   `DocumentFragment`; and **custom elements** — `define`, `get`, upgrade-on-create and
-   upgrade-on-define, plus connected, disconnected and attributeChanged.
+2. **`getBoundingClientRect`, then `requestAnimationFrame`.** ADR 0012's list is now mostly
+   done: the element type hierarchy, `MutationObserver`, custom elements (registry, upgrade,
+   reactions), events a page makes and dispatches including on `window`, element-scoped queries,
+   `DocumentFragment`, `CharacterData`, `Image`. What is left of it either needs layout to answer
+   a geometry question — `getBoundingClientRect`, and `IntersectionObserver` behind it — or needs
+   (3) below.
 
-   `MutationObserver` is next because it is what a framework watches the tree with and it is
-   self-contained: a queue of records delivered as a microtask, and the microtask queue already
-   exists. Then `getBoundingClientRect`, which is layout asking a question of itself and is what
-   `IntersectionObserver` needs too.
+   `getBoundingClientRect` is the awkward one and worth knowing before starting: `src/bindings`
+   may see `js` and `dom` and **not `layout`**, which is a security boundary rather than an
+   oversight (ADR 0008). So the answer has to come through the engine, not by widening
+   `MODULE.deps`.
 
-   **ADR 0012's rule is the important part and it is easy to break under pressure: a stub is
-   worse than an absence**, because feature detection sends a page down the native path into a
-   wall where a missing name would have sent it to a polyfill that works.
+   **ADR 0012's rule stays the important part: a stub is worse than an absence**, because
+   feature detection sends a page down the native path into a wall where a missing name would
+   have sent it to a polyfill that works. The amendment at the end of that ADR is the other half:
+   a *deep* polyfill is not the cheap path it looks like.
 
 3. **Asynchronous loading — ADR 0011.** The structural blocker, and what `fetch`, `XHR`,
    `requestAnimationFrame` and the module loader are all waiting on. The loop stays *blocking*:
