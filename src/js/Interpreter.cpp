@@ -1,10 +1,12 @@
 #include "js/Interpreter.h"
 
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <utility>
 
 #include "js/BuiltinSupport.h"
+#include "util/Env.h"
 
 namespace microbrowser::js {
 
@@ -18,6 +20,12 @@ constexpr std::size_t kCollectionThreshold = 4096;
 }  // namespace
 
 Interpreter::Interpreter() {
+  // Reserved once, and never allowed to grow past it. The machine takes
+  // references into the value stack and a reallocation would invalidate every
+  // one of them, so a fixed capacity makes that safe by construction; see the
+  // note at the top of Vm.cpp.
+  vm_.stack.reserve(kValueStackCapacity);
+  vm_.frames.reserve(kFrameCapacity);
   global_ = heap_.AllocateObject(Object::Kind::Plain);
   global_scope_ = heap_.AllocateEnvironment(nullptr);
   well_known_.object_prototype = heap_.AllocateObject(Object::Kind::Plain);
@@ -158,6 +166,11 @@ void Interpreter::MaybeCollect() {
   }
   std::vector<Environment*> environment_roots{global_scope_};
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());
+  // The machine's stacks. This is the addition that makes collection possible
+  // while script is running rather than only between top-level statements: a
+  // frame's scope and every value in flight are here, where a tree-walker's
+  // were in C++ locals nothing could scan.
+  GatherVmRoots(object_roots, environment_roots);
   heap_.Collect(object_roots, environment_roots);
 }
 
@@ -408,18 +421,79 @@ Result Interpreter::BindParameters(const Node& parameters, const std::vector<Val
   return Result::Normal();
 }
 
+Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arguments) {
+  if (!callee.IsObject() || !callee.object->IsCallable()) {
+    return Throw("TypeError", ToString(callee) + " is not a constructor");
+  }
+  Object* instance = NewObject();
+  if (instance == nullptr) {
+    return Throw("RangeError", "out of memory");
+  }
+  const Value* prototype = callee.object->Get("prototype");
+  if (prototype != nullptr && prototype->IsObject()) {
+    instance->SetPrototype(prototype->object);
+  }
+  const Value self = Value::Obj(instance);
+  active_objects_.push_back(instance);
+  // A base class initializes its fields before the constructor body runs. A
+  // derived one does it after its super() call instead, which is the ordering
+  // that lets a derived field read a base one.
+  Object* parent = callee.object->SuperConstructor();
+  if (parent == nullptr) {
+    const Result fields = InitializeFields(instance, callee.object);
+    if (fields.IsAbrupt()) {
+      active_objects_.pop_back();
+      return fields;
+    }
+  } else if (callee.object->Body() == nullptr && callee.object->Code() == nullptr) {
+    // A derived class with no explicit constructor gets an implicit
+    // `constructor(...args){ super(...args) }`. Without it, `class B extends A
+    // { n = 5 }` runs no constructor at all and leaves both the base's state
+    // and its own fields unset.
+    const Result base = CallFunction(Value::Obj(parent), self, arguments);
+    if (base.IsAbrupt()) {
+      active_objects_.pop_back();
+      return base;
+    }
+    const Result fields = InitializeFields(instance, callee.object);
+    if (fields.IsAbrupt()) {
+      active_objects_.pop_back();
+      return fields;
+    }
+  }
+  const Result constructed = CallFunction(callee, self, arguments);
+  active_objects_.pop_back();
+  if (constructed.IsAbrupt()) {
+    return constructed;
+  }
+  // A constructor returning an object replaces the instance; returning a
+  // primitive does not. The rule exists so a factory can be a constructor.
+  return Result::Normal(constructed.value.IsObject() ? constructed.value : self);
+}
+
 Result Interpreter::CallFunction(const Value& callee, const Value& self,
                                  const std::vector<Value>& arguments) {
   if (!callee.IsObject() || !callee.object->IsCallable()) {
     return Throw("TypeError", ToString(callee) + " is not a function");
   }
-  if (call_depth_ >= kMaxCallDepth) {
+  if (call_depth_ + static_cast<int>(vm_.frames.size()) >= kMaxCallDepth) {
     // A page can write unbounded recursion, and the C++ stack is what would
     // run out. A RangeError is what the language says happens.
     return Throw("RangeError", "maximum call stack size exceeded");
   }
 
   Object* function = callee.object;
+  if (function->Code() != nullptr) {
+    // A compiled body, entered from C++ -- a native calling a callback, the
+    // host dispatching an event, or the tree-walker calling a function the
+    // compiler got to. The depth goes up for the duration because the C++
+    // frame underneath holds values the collector cannot see, and that is
+    // exactly what makes it unsafe to collect at a safepoint inside.
+    ++call_depth_;
+    Result result = CallCompiled(function, self, arguments);
+    --call_depth_;
+    return result;
+  }
   if (function->GetKind() == Object::Kind::Native) {
     ++call_depth_;
     NativeCall call{*this, function, self, arguments};
@@ -504,7 +578,58 @@ Result Interpreter::Run(std::string_view source) {
   // every engine pays for the same reason. A bytecode VM changes the shape of
   // what is retained, not whether something is.
   programs_.push_back(std::move(parsed.program));
-  return RunProgram(*programs_.back());
+  const Node& program = *programs_.back();
+
+  // The compiler is the default and the tree-walker is the fallback, in that
+  // order and for two reasons. Compilation can fail -- a construct with no
+  // opcode yet rejects the whole program, since half a chunk is not runnable --
+  // and something has to run it. And the two engines answering the same suite
+  // is the only way to know they agree: MICROBROWSER_JS_TREEWALK=1 runs
+  // everything through the old one, which is how a difference gets found on
+  // purpose rather than by a page.
+  static const bool tree_walk = util::EnvFlagEnabled("MICROBROWSER_JS_TREEWALK");
+  if (!tree_walk) {
+    if (std::unique_ptr<CompiledFunction> compiled = Compile(program)) {
+      vm_.programs.push_back(std::move(compiled));
+      return RunCompiled(*vm_.programs.back());
+    }
+  }
+  return RunProgram(program);
+}
+
+Result Interpreter::RunCompiled(const CompiledFunction& program) {
+  steps_ = 0;
+  const std::size_t entry_depth = vm_.frames.size();
+  const std::size_t callee_slot = vm_.stack.size();
+  // The top level gets the same frame shape as a call, so that one set of
+  // arithmetic serves both: a callee slot to write the result into, a receiver,
+  // and no arguments.
+  vm_.stack.push_back(Value::Undefined());
+  vm_.stack.push_back(Value::Undefined());
+  Frame frame;
+  frame.code = &program;
+  frame.scope = global_scope_;
+  frame.stack_base = callee_slot;
+  frame.argument_base = callee_slot + 2;
+  frame.scope_base = vm_.scopes.size();
+  frame.iteration_base = vm_.iterations.size();
+  vm_.frames.push_back(frame);
+
+  // The chunk ends by returning its completion slot, so what comes back here is
+  // already the value a console would print.
+  Result result = RunFrames(entry_depth);
+  vm_.stack.resize(callee_slot);
+
+  if (result.IsAbrupt()) {
+    // The queue is drained even when the script threw. A promise settled before
+    // the throw still has handlers owed to it, and dropping them would leave a
+    // page half-run rather than merely broken.
+    DrainMicrotasks();
+    return result;
+  }
+  DrainMicrotasks();
+  MaybeCollect();
+  return result;
 }
 
 Result Interpreter::RunProgram(const Node& program) {

@@ -223,114 +223,11 @@ Result Interpreter::EvaluateBinary(const Node& node, Environment& scope) {
     return right;
   }
 
-  const std::string& op = node.string;
-  const Value& a = left.value;
-  const Value& b = right.value;
-
-  if (op == "+") {
-    // The one operator that is not arithmetic-only: if either side is a string
-    // after conversion, it concatenates. This asymmetry is the source of most
-    // surprise in the language and is written out rather than folded in.
-    if (a.IsString() || b.IsString()) {
-      return Result::Normal(Value::String(ToString(a) + ToString(b)));
-    }
-    return Result::Normal(Value::Number(ToNumber(a) + ToNumber(b)));
+  BinaryOp op = BinaryOp::Add;
+  if (!ParseBinaryOp(node.string, op)) {
+    return Throw("SyntaxError", "unsupported operator '" + node.string + "'");
   }
-  if (op == "-") return Result::Normal(Value::Number(ToNumber(a) - ToNumber(b)));
-  if (op == "*") return Result::Normal(Value::Number(ToNumber(a) * ToNumber(b)));
-  if (op == "/") return Result::Normal(Value::Number(ToNumber(a) / ToNumber(b)));
-  if (op == "%") return Result::Normal(Value::Number(std::fmod(ToNumber(a), ToNumber(b))));
-  if (op == "**") return Result::Normal(Value::Number(std::pow(ToNumber(a), ToNumber(b))));
-
-  if (op == "==") return Result::Normal(Value::Bool(LooseEquals(a, b)));
-  if (op == "!=") return Result::Normal(Value::Bool(!LooseEquals(a, b)));
-  if (op == "===") return Result::Normal(Value::Bool(StrictEquals(a, b)));
-  if (op == "!==") return Result::Normal(Value::Bool(!StrictEquals(a, b)));
-
-  if (op == "<" || op == ">" || op == "<=" || op == ">=") {
-    // Two strings compare lexicographically; anything else compares as
-    // numbers, and a NaN on either side makes every comparison false.
-    if (a.IsString() && b.IsString()) {
-      const std::string& x = a.AsString();
-      const std::string& y = b.AsString();
-      if (op == "<") return Result::Normal(Value::Bool(x < y));
-      if (op == ">") return Result::Normal(Value::Bool(x > y));
-      if (op == "<=") return Result::Normal(Value::Bool(x <= y));
-      return Result::Normal(Value::Bool(x >= y));
-    }
-    const double x = ToNumber(a);
-    const double y = ToNumber(b);
-    if (op == "<") return Result::Normal(Value::Bool(x < y));
-    if (op == ">") return Result::Normal(Value::Bool(x > y));
-    if (op == "<=") return Result::Normal(Value::Bool(x <= y));
-    return Result::Normal(Value::Bool(x >= y));
-  }
-
-  if (op == "&") return Result::Normal(Value::Number(ToInt32(ToNumber(a)) & ToInt32(ToNumber(b))));
-  if (op == "|") return Result::Normal(Value::Number(ToInt32(ToNumber(a)) | ToInt32(ToNumber(b))));
-  if (op == "^") return Result::Normal(Value::Number(ToInt32(ToNumber(a)) ^ ToInt32(ToNumber(b))));
-  if (op == "<<") {
-    return Result::Normal(
-        Value::Number(ToInt32(ToNumber(a)) << (ToUint32(ToNumber(b)) & 31)));
-  }
-  if (op == ">>") {
-    return Result::Normal(
-        Value::Number(ToInt32(ToNumber(a)) >> (ToUint32(ToNumber(b)) & 31)));
-  }
-  if (op == ">>>") {
-    return Result::Normal(
-        Value::Number(ToUint32(ToNumber(a)) >> (ToUint32(ToNumber(b)) & 31)));
-  }
-
-  if (op == "in") {
-    if (!b.IsObject()) {
-      return Throw("TypeError", "'in' requires an object");
-    }
-    if (b.object->GetKind() == Object::Kind::Proxy) {
-      Value target;
-      if (Object* trap = ProxyTrap(b, "has", target)) {
-        const Result asked = CallFunction(Value::Obj(trap), Value::Undefined(), {target, a});
-        return asked.IsAbrupt() ? asked : Result::Normal(Value::Bool(ToBoolean(asked.value)));
-      }
-      // No `has` trap: the question goes straight to the target, which is
-      // what makes a handler that defines nothing transparent.
-      return Result::Normal(Value::Bool(
-          target.IsObject() && target.object->GetProperty(KeyFrom(a)) != nullptr));
-    }
-    const std::string key = ToString(a);
-    if (b.object->GetKind() == Object::Kind::Array) {
-      if (key == "length") {
-        return Result::Normal(Value::Bool(true));
-      }
-      if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
-        return Result::Normal(Value::Bool(b.object->HasElement(*index)));
-      }
-    }
-    return Result::Normal(Value::Bool(b.object->GetProperty(key) != nullptr));
-  }
-  if (op == "instanceof") {
-    if (!b.IsObject() || !b.object->IsCallable()) {
-      return Throw("TypeError", "right-hand side of 'instanceof' is not callable");
-    }
-    if (!a.IsObject()) {
-      return Result::Normal(Value::Bool(false));
-    }
-    const Value* prototype = b.object->Get("prototype");
-    if (prototype == nullptr || !prototype->IsObject()) {
-      return Result::Normal(Value::Bool(false));
-    }
-    // Bounded, like every prototype walk: the chain can be a cycle.
-    const Object* current = a.object->Prototype();
-    for (int depth = 0; current != nullptr && depth < 1000; ++depth) {
-      if (current == prototype->object) {
-        return Result::Normal(Value::Bool(true));
-      }
-      current = current->Prototype();
-    }
-    return Result::Normal(Value::Bool(false));
-  }
-
-  return Throw("SyntaxError", "unsupported operator '" + op + "'");
+  return ApplyBinary(op, left.value, right.value);
 }
 
 Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
@@ -372,34 +269,16 @@ Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
     if (current.IsAbrupt()) {
       return current;
     }
-    Node synthetic;
-    synthetic.kind = NodeKind::Binary;
-    synthetic.string = op.substr(0, op.size() - 1);
     // A compound assignment is defined as the binary operator applied to the
-    // already-evaluated operands. Rebuilding a node to reuse EvaluateBinary
-    // keeps one implementation of `+` rather than two that can disagree.
-    auto left = std::make_unique<Node>();
-    left->kind = NodeKind::NumberLiteral;
-    auto right = std::make_unique<Node>();
-    right->kind = NodeKind::NumberLiteral;
-    synthetic.children.push_back(std::move(left));
-    synthetic.children.push_back(std::move(right));
-
-    Environment* temporary = heap_.AllocateEnvironment(&scope);
-
-    if (temporary == nullptr) {
-
-      return Throw("RangeError", "out of memory");
-
+    // already-evaluated operands. This used to build a synthetic Binary node
+    // over two temporary bindings so that one implementation of `+` served
+    // both; ApplyBinary is that implementation, reachable directly, so the
+    // scaffolding went with it.
+    BinaryOp binary = BinaryOp::Add;
+    if (!ParseBinaryOp(std::string_view(op).substr(0, op.size() - 1), binary)) {
+      return Throw("SyntaxError", "unsupported operator '" + op + "'");
     }
-    const ScopeGuard guard(*this, temporary);
-    temporary->Declare("__lhs", current.value, false);
-    temporary->Declare("__rhs", value.value, false);
-    synthetic.children[0]->kind = NodeKind::Identifier;
-    synthetic.children[0]->string = "__lhs";
-    synthetic.children[1]->kind = NodeKind::Identifier;
-    synthetic.children[1]->string = "__rhs";
-    value = EvaluateBinary(synthetic, *temporary);
+    value = ApplyBinary(binary, current.value, value.value);
     if (value.IsAbrupt()) {
       return value;
     }

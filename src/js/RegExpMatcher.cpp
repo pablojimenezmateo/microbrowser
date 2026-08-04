@@ -83,9 +83,9 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
     }
 
     bool failed = false;
-    const Instruction& instruction = program.code[pc];
+    const MatchInstruction& instruction = program.code[pc];
     switch (instruction.op) {
-      case Op::Class: {
+      case MatchOp::Class: {
         if (pos < size &&
             program.classes[instruction.x].Test(static_cast<unsigned char>(input[pos]))) {
           ++pos;
@@ -96,7 +96,7 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         break;
       }
 
-      case Op::RepeatClass: {
+      case MatchOp::RepeatClass: {
         const CharSet& set = program.classes[instruction.x];
         const std::size_t low = instruction.y;
         const std::size_t high = instruction.z;
@@ -123,7 +123,7 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         break;
       }
 
-      case Op::Split: {
+      case MatchOp::Split: {
         if (stack.size() >= kMaxStackFrames) {
           return give_up();
         }
@@ -132,23 +132,23 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         break;
       }
 
-      case Op::Jump:
+      case MatchOp::Jump:
         pc = instruction.x;
         break;
 
-      case Op::Save:
+      case MatchOp::Save:
         write(instruction.x, pos);
         ++pc;
         break;
 
-      case Op::Clear:
+      case MatchOp::Clear:
         for (std::uint32_t reg = instruction.x; reg <= instruction.y; ++reg) {
           write(reg, kAbsent);
         }
         ++pc;
         break;
 
-      case Op::Progress:
+      case MatchOp::Progress:
         // The loop head recorded where this iteration started. Matching
         // nothing means the next iteration would do the same forever.
         if (instruction.x < state.registers.size() &&
@@ -159,7 +159,7 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         }
         break;
 
-      case Op::Assert: {
+      case MatchOp::Assert: {
         bool holds = false;
         switch (static_cast<AssertKind>(instruction.x)) {
           case AssertKind::Begin:
@@ -187,7 +187,7 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         break;
       }
 
-      case Op::Backref: {
+      case MatchOp::Backref: {
         const std::size_t begin = state.registers[2 * instruction.x];
         const std::size_t end = state.registers[2 * instruction.x + 1];
         if (begin == kAbsent || end == kAbsent || end < begin) {
@@ -217,7 +217,7 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         break;
       }
 
-      case Op::Look: {
+      case MatchOp::Look: {
         const RegExpProgram& sub = program.subs[instruction.x];
         const bool negated = instruction.y != 0;
         const std::size_t mark = state.log.size();
@@ -248,7 +248,7 @@ bool RunProgram(const RegExpProgram& program, std::string_view input, std::size_
         break;
       }
 
-      case Op::Match:
+      case MatchOp::Match:
         if (required_end != kNoEnd && pos != required_end) {
           failed = true;
           break;

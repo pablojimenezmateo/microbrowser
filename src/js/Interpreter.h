@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "js/Ast.h"
+#include "js/Bytecode.h"
 #include "js/Heap.h"
 #include "js/Parser.h"
 #include "js/RegExp.h"
@@ -57,6 +58,10 @@ class Interpreter {
   // failure path rather than two.
   Result Run(std::string_view source);
   Result RunProgram(const Node& program);
+  // The same, on the machine. Public alongside RunProgram because they are the
+  // two answers to the same question and a caller that has one should be able
+  // to reach the other.
+  Result RunCompiled(const CompiledFunction& program);
 
   Heap& GetHeap() { return heap_; }
   Object* Global() { return global_; }
@@ -120,6 +125,11 @@ class Interpreter {
     // The general path.
     Value iterator;
     Value next;
+    // Set once the iterator has reported done. A destructuring pattern longer
+    // than its iterable keeps asking for values, and asking a custom iterator
+    // again after it finished is observable -- so it is asked once and the
+    // answer remembered.
+    bool done = false;
   };
   // Begins iterating `iterable`, or throws the TypeError the spec throws for
   // something that is not iterable.
@@ -191,6 +201,11 @@ class Interpreter {
   // from the outside.
   Result EvaluateRegExpLiteral(const Node& node);
   Result EvaluateTaggedTemplate(const Node& node, Environment& scope);
+  // `new C(...)`: a fresh instance with C's prototype, the field ordering a
+  // class needs, and the rule that a constructor returning an object replaces
+  // the instance. Shared by the tree-walker's New and the machine's, so the
+  // ordering that lets a derived field read a base one is written once.
+  Result Construct(const Value& callee, const std::vector<Value>& arguments);
   // Runs a class's instance field initializers against a fresh instance.
   // Separate from the constructor because fields run *before* the constructor
   // body and after any super() call, and folding them in loses that ordering.
@@ -204,6 +219,35 @@ class Interpreter {
                      bool is_const);
   Result BindParameters(const Node& parameters, const std::vector<Value>& arguments,
                         Environment& scope);
+
+  // One binary operator applied to two already-evaluated operands. Shared with
+  // the compiler's `Binary` opcode, so `+` has one answer rather than two that
+  // can drift. Lives in Operators.cpp.
+  Result ApplyBinary(BinaryOp op, const Value& a, const Value& b);
+
+  // --- The virtual machine -------------------------------------------------
+  //
+  // In Vm.cpp. The loop runs frames until the one it was entered for pops,
+  // which is what makes a JavaScript-to-JavaScript call an ordinary push
+  // rather than C++ recursion.
+  Result RunFrames(std::size_t entry_depth);
+  // Pushes a frame for a compiled function, with the callee, the receiver and
+  // the arguments already on the value stack at `callee_slot`.
+  Result PushFrame(Object* function, std::size_t callee_slot, std::uint32_t argument_count);
+  // Runs a compiled function to completion from a C++ caller -- a native that
+  // called back into script, the host dispatching an event. Re-entrant: it
+  // pushes a frame on the same stacks and runs until that one returns.
+  Result CallCompiled(Object* function, const Value& self,
+                      const std::vector<Value>& arguments);
+  // Unwinds to the innermost handler that covers the throw, or out of the VM
+  // when there is none. False when nothing caught it.
+  bool UnwindToHandler(const Value& thrown, std::size_t entry_depth);
+  // Everything the VM is holding, as roots. Appended to what MaybeCollect
+  // already gathers -- and the reason it can now run mid-evaluation at all.
+  void GatherVmRoots(std::vector<Object*>& objects, std::vector<Environment*>& scopes) const;
+  // The scope instructions read and write. The frame's own scope when it has
+  // pushed none of its own.
+  Environment* CurrentScope();
 
   // A proxy's handler, and the target behind it. Null for anything else, which
   // is what every property operation checks before doing its ordinary work.
@@ -295,7 +339,33 @@ class Interpreter {
     }
   };
 
+  // Everything the machine holds while it runs, grouped.
+  //
+  // One member rather than five, for the reason WellKnown is one member rather
+  // than seven: every field here is also a GC root, and a root list that lives
+  // apart from the fields is a use-after-free waiting for a page to allocate
+  // enough. GatherVmRoots is next to these and walks all of them.
+  //
+  // The value stack is reserved once and never grows, so that a Value* taken
+  // into it stays valid across a push. Overflowing it is the same RangeError
+  // as running out of call depth, because from a page's side it is.
+  struct VmState {
+    std::vector<Value> stack;
+    std::vector<Frame> frames;
+    // Block scopes pushed by the running frames, innermost last. One vector
+    // shared by every frame, with each frame recording where its own start --
+    // a vector per frame would be a heap allocation per call.
+    std::vector<Environment*> scopes;
+    // Open `for...of` cursors, the same way.
+    std::vector<Iteration> iterations;
+    // Every program compiled so far. Held for the life of the interpreter for
+    // the reason the ASTs are: a function object points at its code, and every
+    // callback outlives the script that made it.
+    std::vector<std::unique_ptr<CompiledFunction>> programs;
+  };
+
   Heap heap_;
+  VmState vm_;
   Object* global_ = nullptr;
   Environment* global_scope_ = nullptr;
   WellKnown well_known_;

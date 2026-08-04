@@ -5,7 +5,7 @@ purpose: JavaScript. Lexing, parsing, and execution. Knows nothing about the DOM
 # same-origin check will live. Bindings arrive in M9 as a separate seam.
 allow: util
 
-public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h
+public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h Bytecode.h
 
 extern:
 
@@ -29,15 +29,37 @@ budget: Value       header_lines=60 public_methods=20 members=5
 budget: RegExp         header_lines=40 public_methods=10 members=3
 budget: RegExpFlags    header_lines=30 public_methods=2  members=7
 budget: RegExpMatch    header_lines=30 public_methods=6  members=1
+# --- The machine ------------------------------------------------------------
+# One entry per thing the machine can do, with its effect on the operand stack
+# written beside it. That comment is the contract the compiler and the VM have
+# with each other, so the lines here are description rather than surface: the
+# member and method counts are what would say this is growing behaviour, and an
+# enum has neither. It grows with the language and nothing else.
+budget: Op              header_lines=180 public_methods=0  members=0
+# One function's code and everything it names. Data: seven vectors, three
+# scalars, and no behaviour. It grows when a chunk has to remember one more
+# kind of thing, which has happened twice and should be argued for each time.
+budget: CompiledFunction header_lines=40 public_methods=0 members=11
+# One call in progress. Every field is something a resumed frame would need, and
+# that is the test for adding another -- this is the record `await` will have to
+# be able to copy somewhere and put back.
+budget: Frame           header_lines=30 public_methods=0  members=9
+# The compiler. Large because the language is, and split across two translation
+# units the way the parser is: expressions in Compiler.cpp, statements and
+# patterns in CompilerStatements.cpp. The member count is what matters and it is
+# small -- three tables, three depths and two flags, all of them state that
+# exists only while one function is being emitted.
+budget: Compiler        header_lines=130 public_methods=4  members=10
+
 # The instruction list, its constant pools, and the flags the matcher reads off
 # it. Data, with no behaviour of its own -- every member is one of those three.
 budget: RegExpProgram  header_lines=30 public_methods=0  members=11
 budget: CharSet        header_lines=20 public_methods=6  members=1
 budget: MatchState     header_lines=15 public_methods=0  members=3
-budget: Instruction    header_lines=10 public_methods=0  members=4
+budget: MatchInstruction    header_lines=10 public_methods=0  members=4
 # One entry per thing the matcher can do, with what each field means written
 # next to it. It grows with the pattern syntax and nothing else.
-budget: Op             header_lines=45 public_methods=0  members=0
+budget: MatchOp             header_lines=45 public_methods=0  members=0
 # Grew for classes: the home object `super` resolves against, the superclass,
 # and the instance field initializers. All three are per-function state that
 # has nowhere else to live -- a class *is* a function here, which is what keeps
@@ -47,7 +69,13 @@ budget: Op             header_lines=45 public_methods=0  members=0
 # *builtin* too -- `arr.push` on a frozen array does not go through
 # SetProperty -- and a property could be deleted by the page it is meant to
 # constrain.
-budget: Object      header_lines=140 public_methods=44 members=16
+# Grew by one member and two methods for the compiled body. A function has
+# either an AST body or a chunk and never both -- they are two spellings of the
+# same thing, and which one a function got is what CallFunction dispatches on.
+# The pointer is on the object rather than in a table beside the heap, which is
+# where compiled patterns and the weak tables live, because this one is read on
+# every call and a hash lookup per call is the one place that cost would show.
+budget: Object      header_lines=160 public_methods=46 members=17
 budget: Environment header_lines=40 public_methods=10 members=3
 # A string or a symbol, and never both. Two members and no room for a third:
 # if a third kind of key ever appears it should be argued for here.
@@ -87,4 +115,14 @@ budget: Heap        header_lines=130 public_methods=22 members=8
 # exist and one `Roots()` that cannot disagree with the fields -- which is the
 # whole reason it is a struct. It grows as the language does.
 budget: WellKnown   header_lines=45 public_methods=2  members=8
-budget: Interpreter header_lines=320 public_methods=42 members=14
+# Grew by one member for the machine: VmState groups the value stack, the frame
+# stack, the block scopes, the open iteration cursors and the compiled programs.
+# One member rather than five, for the reason WellKnown above is one rather than
+# seven -- every field in it is a GC root, and a root list living apart from the
+# fields is a use-after-free waiting for a page to allocate enough. GatherVmRoots
+# sits next to the struct and walks all of it.
+budget: Interpreter header_lines=390 public_methods=44 members=15
+# The machine's state, grouped. Five vectors and nothing else: it is a bag of
+# stacks by design, and anything that wants to be a *method* on it belongs on
+# Interpreter, next to the property lookups the opcodes call.
+budget: VmState     header_lines=30 public_methods=0  members=5

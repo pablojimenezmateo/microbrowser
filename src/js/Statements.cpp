@@ -348,9 +348,6 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       if (callee.IsAbrupt()) {
         return callee;
       }
-      if (!callee.value.IsObject() || !callee.value.object->IsCallable()) {
-        return Throw("TypeError", ToString(callee.value) + " is not a constructor");
-      }
       std::vector<Value> arguments;
       for (std::size_t i = 1; i < node.children.size(); ++i) {
         const Node* argument = node.Child(i);
@@ -381,51 +378,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
         }
         arguments.push_back(value.value);
       }
-
-      Object* instance = NewObject();
-      if (instance == nullptr) {
-        return Throw("RangeError", "out of memory");
-      }
-      const Value* prototype = callee.value.object->Get("prototype");
-      if (prototype != nullptr && prototype->IsObject()) {
-        instance->SetPrototype(prototype->object);
-      }
-      const Value self = Value::Obj(instance);
-      active_objects_.push_back(instance);
-      // A base class initializes its fields before the constructor body runs.
-      // A derived one does it after its super() call instead, which is the
-      // ordering that lets a derived field read a base one.
-      Object* parent = callee.value.object->SuperConstructor();
-      if (parent == nullptr) {
-        const Result fields = InitializeFields(instance, callee.value.object);
-        if (fields.IsAbrupt()) {
-          active_objects_.pop_back();
-          return fields;
-        }
-      } else if (callee.value.object->Body() == nullptr) {
-        // A derived class with no explicit constructor gets an implicit
-        // `constructor(...args){ super(...args) }`. Without it, `class B
-        // extends A { n = 5 }` runs no constructor at all and leaves both the
-        // base's state and its own fields unset.
-        const Result base = CallFunction(Value::Obj(parent), self, arguments);
-        if (base.IsAbrupt()) {
-          active_objects_.pop_back();
-          return base;
-        }
-        const Result fields = InitializeFields(instance, callee.value.object);
-        if (fields.IsAbrupt()) {
-          active_objects_.pop_back();
-          return fields;
-        }
-      }
-      const Result constructed = CallFunction(callee.value, self, arguments);
-      active_objects_.pop_back();
-      if (constructed.IsAbrupt()) {
-        return constructed;
-      }
-      // A constructor returning an object replaces the instance; returning a
-      // primitive does not. The rule exists so a factory can be a constructor.
-      return Result::Normal(constructed.value.IsObject() ? constructed.value : self);
+      return Construct(callee.value, arguments);
     }
 
     case NodeKind::Member: {

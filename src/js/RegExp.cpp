@@ -846,10 +846,10 @@ class Compiler {
 
   bool Compile(const RxNode& root) {
     next_register_ = 2 * (program_.group_count + 1);
-    Emit(Op::Save, 0);
+    Emit(MatchOp::Save, 0);
     CompileNode(root);
-    Emit(Op::Save, 1);
-    Emit(Op::Match);
+    Emit(MatchOp::Save, 1);
+    Emit(MatchOp::Match);
     program_.register_count = next_register_;
     if (overflow_) {
       return false;
@@ -859,8 +859,8 @@ class Compiler {
   }
 
  private:
-  std::size_t Emit(Op op, std::uint32_t x = 0, std::uint32_t y = 0, std::uint32_t z = 0) {
-    program_.code.push_back(Instruction{op, x, y, z});
+  std::size_t Emit(MatchOp op, std::uint32_t x = 0, std::uint32_t y = 0, std::uint32_t z = 0) {
+    program_.code.push_back(MatchInstruction{op, x, y, z});
     if (program_.code.size() > kMaxProgramSize) {
       overflow_ = true;
     }
@@ -886,7 +886,7 @@ class Compiler {
       case RxKind::Empty:
         return;
       case RxKind::Class:
-        Emit(Op::Class, AddClass(node.set));
+        Emit(MatchOp::Class, AddClass(node.set));
         return;
       case RxKind::Concat:
         for (const RxPtr& child : node.children) {
@@ -903,15 +903,15 @@ class Compiler {
         CompileRepeat(node);
         return;
       case RxKind::Group:
-        Emit(Op::Save, static_cast<std::uint32_t>(2 * node.group));
+        Emit(MatchOp::Save, static_cast<std::uint32_t>(2 * node.group));
         CompileNode(*node.children.front());
-        Emit(Op::Save, static_cast<std::uint32_t>(2 * node.group + 1));
+        Emit(MatchOp::Save, static_cast<std::uint32_t>(2 * node.group + 1));
         return;
       case RxKind::Backref:
-        Emit(Op::Backref, static_cast<std::uint32_t>(node.group));
+        Emit(MatchOp::Backref, static_cast<std::uint32_t>(node.group));
         return;
       case RxKind::Assert:
-        Emit(Op::Assert, static_cast<std::uint32_t>(node.assertion));
+        Emit(MatchOp::Assert, static_cast<std::uint32_t>(node.assertion));
         return;
       case RxKind::Look:
         CompileLook(node);
@@ -922,10 +922,10 @@ class Compiler {
   void CompileAlternate(const RxNode& node) {
     std::vector<std::size_t> exits;
     for (std::size_t i = 0; i + 1 < node.children.size(); ++i) {
-      const std::size_t split = Emit(Op::Split);
+      const std::size_t split = Emit(MatchOp::Split);
       program_.code[split].x = static_cast<std::uint32_t>(program_.code.size());
       CompileNode(*node.children[i]);
-      exits.push_back(Emit(Op::Jump));
+      exits.push_back(Emit(MatchOp::Jump));
       program_.code[split].y = static_cast<std::uint32_t>(program_.code.size());
       if (overflow_) {
         return;
@@ -946,7 +946,7 @@ class Compiler {
     std::size_t high = 0;
     CollectGroupRange(body, low, high);
     if (low <= high) {
-      Emit(Op::Clear, static_cast<std::uint32_t>(2 * low),
+      Emit(MatchOp::Clear, static_cast<std::uint32_t>(2 * low),
            static_cast<std::uint32_t>(2 * high + 1));
     }
   }
@@ -957,7 +957,7 @@ class Compiler {
     // `[0-9]+`, `.*` -- and the one instruction for it is what keeps a greedy
     // match over a large document from pushing one backtrack frame per byte.
     if (node.greedy && body.kind == RxKind::Class) {
-      Emit(Op::RepeatClass, AddClass(body.set), static_cast<std::uint32_t>(node.low),
+      Emit(MatchOp::RepeatClass, AddClass(body.set), static_cast<std::uint32_t>(node.low),
            static_cast<std::uint32_t>(node.high));
       return;
     }
@@ -971,13 +971,13 @@ class Compiler {
 
     if (node.high == kUnbounded) {
       const auto marker = static_cast<std::uint32_t>(next_register_++);
-      const std::size_t split = Emit(Op::Split);
+      const std::size_t split = Emit(MatchOp::Split);
       const auto body_start = static_cast<std::uint32_t>(program_.code.size());
-      Emit(Op::Save, marker);
+      Emit(MatchOp::Save, marker);
       ClearGroupsIn(body);
       CompileNode(body);
-      Emit(Op::Progress, marker);
-      Emit(Op::Jump, static_cast<std::uint32_t>(split));
+      Emit(MatchOp::Progress, marker);
+      Emit(MatchOp::Jump, static_cast<std::uint32_t>(split));
       const auto end = static_cast<std::uint32_t>(program_.code.size());
       program_.code[split].x = node.greedy ? body_start : end;
       program_.code[split].y = node.greedy ? end : body_start;
@@ -986,7 +986,7 @@ class Compiler {
 
     std::vector<std::size_t> splits;
     for (std::size_t i = node.low; i < node.high && !overflow_; ++i) {
-      const std::size_t split = Emit(Op::Split);
+      const std::size_t split = Emit(MatchOp::Split);
       splits.push_back(split);
       const auto body_start = static_cast<std::uint32_t>(program_.code.size());
       (node.greedy ? program_.code[split].x : program_.code[split].y) = body_start;
@@ -1011,7 +1011,7 @@ class Compiler {
     Compiler inner(sub);
     inner.next_register_ = next_register_;
     inner.CompileNode(*node.children.front());
-    inner.Emit(Op::Match);
+    inner.Emit(MatchOp::Match);
     next_register_ = inner.next_register_;
     if (inner.overflow_) {
       overflow_ = true;
@@ -1020,7 +1020,7 @@ class Compiler {
     sub.register_count = next_register_;
     const auto index = static_cast<std::uint32_t>(program_.subs.size());
     program_.subs.push_back(std::move(sub));
-    Emit(Op::Look, index, node.negated ? 1u : 0u, node.behind ? 1u : 0u);
+    Emit(MatchOp::Look, index, node.negated ? 1u : 0u, node.behind ? 1u : 0u);
   }
 
   // The bytes a match can start with, when the first thing the program does is
@@ -1030,23 +1030,23 @@ class Compiler {
   void ComputeFirstSet() {
     std::size_t at = 0;
     for (int steps = 0; steps < 64 && at < program_.code.size(); ++steps) {
-      const Instruction& instruction = program_.code[at];
+      const MatchInstruction& instruction = program_.code[at];
       switch (instruction.op) {
-        case Op::Save:
-        case Op::Clear:
+        case MatchOp::Save:
+        case MatchOp::Clear:
           ++at;
           continue;
-        case Op::Assert:
+        case MatchOp::Assert:
           if (static_cast<AssertKind>(instruction.x) == AssertKind::Begin &&
               !program_.multiline) {
             program_.anchored_at_start = true;
           }
           return;
-        case Op::Class:
+        case MatchOp::Class:
           program_.has_first_set = true;
           program_.first_set = program_.classes[instruction.x];
           return;
-        case Op::RepeatClass:
+        case MatchOp::RepeatClass:
           if (instruction.y >= 1) {
             program_.has_first_set = true;
             program_.first_set = program_.classes[instruction.x];

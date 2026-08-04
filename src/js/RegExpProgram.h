@@ -30,7 +30,14 @@ struct CharSet {
   bool Empty() const;
 };
 
-enum class Op : std::uint8_t {
+// The matcher's instruction set, distinct from the machine's in Bytecode.h.
+//
+// The names carry the `Match` prefix because both are instruction sets in one
+// namespace and the collision is silent: two definitions of `js::Op` in two
+// translation units compiles, links, and then makes the matcher read the wrong
+// opcode numbers. That is how it was found -- `[0-9]+` stopped matching the
+// day a second `Op` appeared.
+enum class MatchOp : std::uint8_t {
   // Consumes one byte if it is in `classes[x]`.
   Class,
   // Consumes `x`'s class greedily, between `y` and `z` times, and backtracks
@@ -65,15 +72,15 @@ enum class Op : std::uint8_t {
 
 enum class AssertKind : std::uint8_t { Begin, End, WordBoundary, NotWordBoundary };
 
-struct Instruction {
-  Op op = Op::Match;
+struct MatchInstruction {
+  MatchOp op = MatchOp::Match;
   std::uint32_t x = 0;
   std::uint32_t y = 0;
   std::uint32_t z = 0;
 };
 
 struct RegExpProgram {
-  std::vector<Instruction> code;
+  std::vector<MatchInstruction> code;
   std::vector<CharSet> classes;
   // Lookaround bodies. They share the caller's register file, because the
   // captures a positive lookahead makes are observable after it succeeds.

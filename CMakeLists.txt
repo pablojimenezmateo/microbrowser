@@ -305,6 +305,10 @@ microbrowser_module(js
     src/js/Heap.cpp
     src/js/Interpreter.cpp
     src/js/Evaluator.cpp
+    src/js/Operators.cpp
+    src/js/Compiler.cpp
+    src/js/CompilerStatements.cpp
+    src/js/Vm.cpp
     src/js/Statements.cpp
     src/js/Builtins.cpp
     src/js/StringBuiltins.cpp

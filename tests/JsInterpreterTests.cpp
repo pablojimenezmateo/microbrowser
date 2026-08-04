@@ -211,14 +211,25 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     Expect(Eval("if (").rfind("throw SyntaxError", 0) == 0, "a syntax error throws");
   });
 
-  AddTest(tests, "JsInterpreter/AScriptCannotExhaustMemory", [] {
-    // Found by the fuzzer. The collector cannot run during evaluation -- a
-    // tree-walker keeps live values in C++ frames it cannot scan -- so a script
-    // that recurses while allocating grows the heap with nothing able to shrink
-    // it. Past a limit, allocation fails and that becomes a RangeError, which
-    // is what a real engine says when it cannot grow.
+  AddTest(tests, "JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough", [] {
+    // Found by the fuzzer, and the clearest single measure of what the machine
+    // bought. This used to be "throw RangeError: out of memory": the collector
+    // could not run during evaluation, because a tree-walker keeps live values
+    // in C++ frames it cannot scan, so a script that recursed while allocating
+    // grew the heap with nothing able to shrink it.
+    //
+    // Every one of those values is on the machine's value stack now, and the
+    // safepoint at each call and each loop back edge collects them. So the
+    // script no longer runs out of heap -- it runs out of *time*, which is the
+    // bound that was supposed to catch it, and reports the reason it actually
+    // stopped.
+    //
+    // This is the one test in the suite that is expected to fail under
+    // MICROBROWSER_JS_TREEWALK=1, and that is what makes it worth having: the
+    // two engines agree on all nine hundred and seventy two others, and differ
+    // here because here is where they are supposed to.
     ExpectEval("function f(n){ return n < 6 ? n : f(n-1) * f(n-2) } f(73)",
-               "throw RangeError: out of memory");
+               "throw RangeError: script ran too long");
   });
 
   AddTest(tests, "JsInterpreter/ABlockThatDeclaresNothingAllocatesNoScope", [] {

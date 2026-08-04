@@ -19,6 +19,10 @@ class Environment;
 class Interpreter;
 class RegExp;
 struct MapIndex;
+// One compiled function body, from Bytecode.h. Forward-declared rather than
+// included: a function object points at its code, and nothing about the heap
+// depends on what an instruction looks like.
+struct CompiledFunction;
 
 std::optional<std::size_t> ParseArrayIndex(std::string_view key);
 
@@ -209,6 +213,15 @@ class Object {
   bool IsArrow() const { return arrow_; }
   const NativeFunction& Native() const { return native_; }
   void MakeFunction(const Node* parameters, const Node* body, Environment* closure, bool arrow);
+  // The compiled body, when there is one. A function has either this or the
+  // two AST pointers above and never both: they are two spellings of the same
+  // thing, and which one a function got is what CallFunction dispatches on.
+  //
+  // Here rather than in a table beside the heap -- which is where compiled
+  // regular expressions and the weak tables live -- because this is read on
+  // every call. A hash lookup per call is the one place that cost would show.
+  const CompiledFunction* Code() const { return code_; }
+  void MakeCompiled(const CompiledFunction* code, Environment* closure, bool arrow);
   void MakeNative(NativeFunction native) {
     kind_ = Kind::Native;
     native_ = std::move(native);
@@ -245,6 +258,10 @@ class Object {
 
   const Node* parameters_ = nullptr;
   const Node* body_ = nullptr;
+  // Owned by the interpreter's list of compiled programs, which outlives every
+  // function made from one -- the same arrangement, and the same reason, as the
+  // AST pointers above it.
+  const CompiledFunction* code_ = nullptr;
   Environment* closure_ = nullptr;
   bool arrow_ = false;
   Value bound_this_;
