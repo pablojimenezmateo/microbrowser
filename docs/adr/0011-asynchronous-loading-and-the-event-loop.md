@@ -1,6 +1,6 @@
 # ADR 0011 — Asynchronous loading and the event loop
 
-**Status:** accepted · **Date:** 2026-08-04
+**Status:** accepted, implemented · **Date:** 2026-08-04 · **Implemented:** 2026-08-04
 
 ## Context
 
@@ -123,3 +123,34 @@ zero-idle-CPU means, and a design that polls is not repairable later by making t
 
 **Keep loading synchronous and special-case `fetch`.** Rejected. It would mean two loading paths,
 and the one used by script — the hostile one — would be the newer and less exercised of the two.
+
+## Addendum — what implementing it found
+
+Written after the fact, because two things turned out to be true that this decision did not
+anticipate, and a reader who only has the decision would be surprised by the code.
+
+**Name resolution still blocks.** `getaddrinfo` has no non-blocking form. The two ways out are a
+thread — rejected above, and the reasons have not changed — or a resolver library, which is a
+third-party dependency and therefore ADR 0001's problem rather than this one's. It costs one
+blocking call per *host* rather than one per resource, which is why it did not hold the rest up.
+It is written down in `SocketTransport.h`, where someone adding a DNS cache will find it.
+
+**"One blocking call" is approximated, and the approximation is bounded.** SDL exposes no
+descriptor for its own event queue, so there is no single call that can wait on both window events
+and sockets. With requests outstanding the loop waits on the sockets and caps that wait at one
+frame, so a socket wakes it the instant it is ready and an input event waits at worst 16ms. It
+costs a wakeup every 16ms *while a load is in flight and nothing else is happening*, and nothing at
+all when none is — which is the case the zero-idle-CPU invariant is about, and the case the
+decision above scopes it to. Removing the cap needs the display connection's descriptor, which SDL
+offers only through platform-specific window properties: that would make X11 or Wayland a build
+dependency, and so an ADR rather than a patch. `SdlWindow::WaitEventOrDescriptors` says all of this
+where the cap is.
+
+**One thing the decision did not mention and should have:** with nothing below the request layer
+blocking, nothing below it can time out either. A server that accepts a connection and then says
+nothing would hold a descriptor in the loop's wait forever. `RequestQueue` therefore keeps an
+inactivity deadline — measured from the last byte that moved, so a large download is not killed for
+being large — and feeds it to the same `next_deadline_ms` the timers use. That is not a new
+mechanism; it is the one this ADR already relies on, used for the case the ADR created.
+
+Measured on news.ycombinator.com, five requests: 4.3s to 2.1s.

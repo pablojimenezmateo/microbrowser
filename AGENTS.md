@@ -177,7 +177,8 @@ Not a feature area — a constraint on every other area. See `guidelines/privacy
 - CPU before memory, especially idle CPU and the redraw path.
 - **Idle CPU is zero.** The process sleeps in exactly one place — the platform event wait. Any
   feature that wants a timer must justify it and must go through `IdleWaitState::next_deadline_ms`,
-  never a poll loop. This is the property most likely to be lost by accident, so
+  never a poll loop; anything waiting on a descriptor hands the loop a `util::WaitDescriptor` and
+  the wait watches it, which is how loading became asynchronous without becoming a poll (ADR 0011). This is the property most likely to be lost by accident, so
   `IdleWaitStrategyTests` guards the policy and the M0 baseline records the measurement.
 - Measure before and after performance-sensitive changes. See `guidelines/performance.md`.
 - Prefer deleting redundant work over adding speculative caching.

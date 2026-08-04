@@ -48,17 +48,17 @@ What exists:
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them |
 | `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
-| `src/net` | HTTP/1.1, cookies, cache, sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one. |
+| `src/net` | HTTP/1.1, cookies, cache, non-blocking sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one, and **starts** a request rather than returning a response. `RequestQueue` runs them concurrently, bounded **per partition key**, and drops them all on a navigation. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
 | `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing, **custom properties and `var()`** — inherited, nested, with fallbacks and the invalid-at-computed-value rule |
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
-| `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
-| `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **MutationObserver**, batched and delivered as a microtask. `window` is an event target. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
-| `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
+| `src/engine` | Page (one document), PageScript (its interpreter, bindings, timers and animation frames), Loader (everything network, started/completed), PendingLoad (one navigation in flight), Engine (routes messages, drives the load). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches a document's subresources **concurrently** and runs its scripts at the three points `defer`, `async` and `type=module` actually mean. |
+| `src/bindings` | **`requestAnimationFrame`**, which schedules a frame only while something has asked for one. The seam between script and the document, and the only module that sees both `js` and `dom`. **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **MutationObserver**, batched and delivered as a microtask. `window` is an event target. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
+| `src/platform` | The only module that knows what a window is, and the only place the process sleeps. SDL, the system font database, and the descriptor wait live here. |
 | `src/js` | JavaScript, and as near complete as the language gets here. Lexer, parser, a bytecode compiler and machine (names resolved to slots, calls that cannot leak a scope keeping bindings in the frame, the tree-walker kept as the differential engine behind `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass. **Modules** — every `import`/`export` form, `import.meta`, `import()` — with the host supplying the resolver. Classes with accessors, `super`, private fields and methods, static blocks, `new.target`, the brand check. `Proxy` with every trap, and subclassing a builtin. Full `ToPrimitive`. **UTF-16 string indexing over UTF-8 storage.** Property attributes and integrity levels. `ArrayBuffer`, the nine typed arrays and `DataView`. A real `Date` with a computed calendar and a parser. `JSON` with replacer, reviver, indent and `toJSON`. A backtracking regular expression engine with `/u` code points and `\p{...}`. Symbols, iteration, `Map`/`Set`/`Weak*`/`WeakRef`, Promises and the microtask queue, and **every form of suspending a call** — `async`/`await`, generators, `yield*` with real delegation, async generators, `for await`. No `eval` and no `Function(source)`, and a test says so. Knows nothing about the DOM. Deviations are listed in `docs/js-conformance-roadmap.md`, each with its reason. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
-| `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
+| `src/app` | Main loop: idle-wait policy fed by the page's soonest deadline **and the sockets it is waiting on**, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
 the process split and the sandbox (rest of M7), integration (M9). M8 is done. **The collector runs during evaluation**, at every loop back edge and every call: the
@@ -81,9 +81,12 @@ One thing still delegates rather than compiles: a class is *built* by the tree-w
 static initializers and the per-instance field initializers are walked, which is right for things
 that run once per class or once per instance rather than once per call.
 
-Loading is synchronous — the loop blocks
-for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
-than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
+**Loading is asynchronous and the loop still blocks in one place** — ADR 0011 landed. A request is
+started and completes on a later turn; the platform wait takes sockets alongside the deadline it
+already took; concurrency is bounded per partition key. Name resolution is the one call left that
+blocks, and it is one per host rather than one per resource. A display list carrying an image still
+serializes the bitmap inline rather than naming it in a resource table. Roadmap in `README.md` and
+`AGENTS.md`.
 
 ## Where To Pick Up
 
@@ -99,8 +102,8 @@ reasoning; this is the queue.
    honestly about what the engine actually supports, or it is the CSS version of ADR 0012's
    stub problem.
 
-2. **`getBoundingClientRect`, then `requestAnimationFrame`.** ADR 0012's list is now mostly
-   done: the element type hierarchy, `MutationObserver`, custom elements (registry, upgrade,
+2. **`getBoundingClientRect`.** `requestAnimationFrame` is **done** (ADR 0011). ADR 0012's list
+   is now mostly done: the element type hierarchy, `MutationObserver`, custom elements (registry, upgrade,
    reactions), events a page makes and dispatches including on `window`, element-scoped queries,
    `DocumentFragment`, `CharacterData`, `Image`. What is left of it either needs layout to answer
    a geometry question — `getBoundingClientRect`, and `IntersectionObserver` behind it — or needs
@@ -116,36 +119,42 @@ reasoning; this is the queue.
    have sent it to a polyfill that works. The amendment at the end of that ADR is the other half:
    a *deep* polyfill is not the cheap path it looks like.
 
-3. **Asynchronous loading — ADR 0011.** The structural blocker, and what `fetch`, `XHR`,
-   `requestAnimationFrame` and the module loader are all waiting on. The loop stays *blocking*:
-   the platform wait gains file descriptors alongside the deadline it already takes, which is the
-   same trick that let `setTimeout` land without costing idle CPU. One page currently costs 15
-   serialised round trips. Test the *ordering*, not the throughput — the failure mode of
-   concurrency here is a page that differs by arrival order.
+3. **`fetch`, `XHR`, and wiring modules to the loader.** ADR 0011 is **done** — a request is
+   started and completes later, the loop waits on sockets, and Hacker News went from 4.3s to
+   2.1s — so all three are now bindings over machinery that exists rather than structural work.
+   The module half needs one thing the others do not: `Interpreter::SetModuleResolver` is
+   synchronous, so wiring it means either a pre-pass that fetches the graph or a resolver that
+   can answer later. Decide that before writing code.
+
+   What is *not* done from ADR 0011 and is worth knowing: **`getaddrinfo` still blocks**, one
+   call per host; the wait watching sockets caps itself at 16ms because SDL exposes no
+   descriptor for its own event queue (see `SdlWindow::WaitEventOrDescriptors`, which names what
+   removing the cap would cost); and there is still no incremental parse or paint, so a page
+   appears when it is finished rather than as it arrives. The ADR is explicit that the last of
+   those is enabled by this work rather than performed by it.
 
 4. **Transport — ADR 0010.** `Accept-Encoding: identity` and `Connection: close` are both one-line
-   requests we send. Measured on one page: **5x the bytes** and **15 TLS handshakes for 15
-   resources.** gzip needs no new dependency at all — `util::Inflate` is already there and already
+   requests we send, and now that requests run concurrently the second one costs a handshake per
+   resource in parallel rather than in series. Measured on one page: **5x the bytes** and
+   **15 TLS handshakes for 15 resources.** gzip needs no new dependency at all — `util::Inflate` is already there and already
    fuzzed — but it does need a bounded inflate and a fuzz target on the same commit, because a
    compressed response is a decompression bomb by default. Connection reuse must be keyed by the
-   ADR 0005 partition key, not by host; that is the whole privacy content of it.
+   ADR 0005 partition key, not by host; that is the whole privacy content of it, and
+   `net::RequestQueue` already keys its concurrency bound that way, so the shape is there.
 
 5. **`transform`, and with it stacking contexts.** 1391 uses. `AffineTransform` and path
    transforms already exist in `src/gfx`; what is missing is the property, the computed value and
    the display-list command. `transform` creates a stacking context, which is what finally pulls
    M6's remainder in. Animations come *after* it — animating a property that does not apply gains
    nothing — and must not leave a 60Hz loop running on a settled page.
+   `bindings::AnimationFrames` is the model for that: it schedules a frame only while something
+   has asked for one, and four tests say so.
 
 6. **Grid, and scrolling an overflow container.** Real, and sixth on the measurement. Scrolling
    needs a scroll offset per box and an input path to move it, which is engine work rather than
    layout's; `position: sticky` parses as relative because there is no offset to compare against.
 
-7. **Wire modules to the loader.** Follows (3) rather than preceding it: the VM half is done —
-   `SetModuleResolver`, depth-first loading, post-order evaluation, cycles — and the missing host
-   half is a fetch whose answer arrives later, which is exactly what (3) builds. Until then
-   `<script type="module">` parses and links but cannot reach the network.
-
-   The language itself is done. What is left is in `docs/js-conformance-roadmap.md` and is small:
+7. **The language itself is done.** What is left is in `docs/js-conformance-roadmap.md` and is small:
    Annex B block-function hoisting, the two BigInt typed arrays, `Intl`, and the Unicode tables
    `normalize` and the rest of `\p{...}` need. Unhandled rejections still get a console line and
    nothing more.
@@ -160,8 +169,9 @@ Known remaining gaps on Hacker News itself: `<select>` is laid out and submitted
 `cellspacing` is not mapped because there is no `border-spacing`, and `:visited` deliberately
 matches nothing.
 
-Known-crude spots, each with the reasoning written where the code is: loading is synchronous (the
-loop blocks for a fetch); a display list carrying an image serializes the bitmap inline rather than
+Known-crude spots, each with the reasoning written where the code is: a page appears when its load
+finishes rather than as it arrives, because there is no incremental parse or paint; `getaddrinfo`
+is the one call in the network stack that still blocks; a display list carrying an image serializes the bitmap inline rather than
 naming it in a resource table, which now costs more because a background image is one more bitmap
 per frame; scrolling an overflowing document repaints in full because there is no scroll blit in
 the presenter; a background image is re-rasterized per element rather than shared; and collecting

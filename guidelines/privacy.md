@@ -16,13 +16,19 @@ configuration, no update pings, no safe-browsing lookups, no search suggestions,
 no speculative connections, no favicon fetches to third parties. If you cannot point at the user
 action that caused a packet, it must not be sent.
 
-**Every request passes `src/privacy` before `src/net` sees it.** `net::Fetch` will take a
-`privacy::Verdict` by value, and there will be no overload without one. That is deliberately not a
-convention: it is a signature that cannot be bypassed without editing the signature.
+**Every request passes `src/privacy` before `src/net` sees it.** `net::Fetch` takes a
+`privacy::Verdict` by value, and there is no overload without one. That is deliberately not a
+convention: it is a signature that cannot be bypassed without editing the signature. It stayed true
+through ADR 0011, which changed `Fetch` from a call that returns a response into one that starts a
+request — the verdict is computed before the request exists, so there is still no state in which
+one has been skipped. `net::RequestQueue` schedules requests in front of it and takes a verdict for
+the same reason; it is a scheduler, not a second entrance.
 
 **Everything is partitioned by `(container, top-level site, origin)`.** Cookies, storage, cache
 entries, connection pool entries, DNS cache entries, TLS session tickets, HSTS state, permission
-grants. Total Cookie Protection by construction rather than by policy flag, because a flag can be
+grants — and, since ADR 0011, **how many connections may be open at once**. A global limit would let
+one site's requests starve another's, which is a cross-site interaction the key exists to prevent
+and an observable one, because the starved site can time it. Total Cookie Protection by construction rather than by policy flag, because a flag can be
 off and a data structure cannot. The container component is the user's own chosen identity — see
 `docs/adr/0005-contextual-identities-and-the-partition-key.md`.
 

@@ -93,9 +93,11 @@ enforced on the decode side regardless of what the peer claims.
 
 **Priority: 2 before 3.** Connection reuse gets most of the handshake cost back under HTTP/1.1
 already, and it is a fraction of the code. HTTP/2's remaining win over pooled HTTP/1.1 on these
-pages is multiplexing, which matters once loading is concurrent — and loading is synchronous today
-(ADR 0011). Doing HTTP/2 before concurrency would build the multiplexing and then use one stream at
-a time.
+pages is multiplexing, which matters once loading is concurrent. That condition is now met: ADR 0011
+landed and a page's subresources are fetched at once, bounded per partition key. The ordering still
+holds and the reason has shifted — reuse is a fraction of the code and gets most of the handshake
+cost back, and concurrency has made the handshakes parallel rather than serial rather than making
+them go away.
 
 ## Consequences
 

@@ -21,12 +21,16 @@ Each costs a fraction of a percent. Together they are why a browser with ten idl
 laptop battery.
 
 The rule here is that **the process sleeps in exactly one place**: the platform event wait, in
-`platform::SdlWindow::WaitEvent`. Everything else follows:
+`platform::SdlWindow`. Everything else follows:
 
 - `app::IdleWaitStrategy` decides *how* to wait, as a pure function of `IdleWaitState`. It blocks
   indefinitely unless there is a specific, named reason not to.
 - Work that must happen later does not get a poll loop. It sets `IdleWaitState::next_deadline_ms`,
   and the loop sleeps exactly that long.
+- Work that is waiting on *something else* does not get a poll loop either. It hands the loop a
+  `util::WaitDescriptor` and the wait watches it, which is how ADR 0011 made loading asynchronous
+  without making it a poll. A browser with nothing outstanding hands over no descriptors and the
+  wait is exactly what it was before.
 - VSync is off. A frame is presented because something changed, never because the display refreshed.
 - SDL is initialized with `SDL_INIT_VIDEO` only. A browser that has not been asked to play media has
   no business opening the sound device.
@@ -35,9 +39,12 @@ The rule here is that **the process sleeps in exactly one place**: the platform 
 that a zero deadline still yields one sleep rather than a spin. If that test starts failing in the
 "must block" direction, something is spinning.
 
-**Any feature that wants a wakeup must justify it.** CSS animations, `setTimeout`, and a blinking
-caret are all legitimate; each must arrive as a deadline, must stop when it is no longer needed, and
-must not wake the loop while the tab is not visible.
+**Any feature that wants a wakeup must justify it.** CSS animations, `setTimeout`,
+`requestAnimationFrame` and a blinking caret are all legitimate; each must arrive as a deadline,
+must stop when it is no longer needed, and must not wake the loop while the tab is not visible.
+`bindings::AnimationFrames` is the worked example of "stops when it is no longer needed": a page
+with no pending frame schedules no frame, which is the line ADR 0011 drew and where a browser
+normally starts burning a core on an idle page.
 
 ## When To Measure
 
