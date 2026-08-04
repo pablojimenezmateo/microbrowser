@@ -28,6 +28,17 @@ bindings were still names in a hash map, which is what that change bought.
 | `js/loop-arithmetic` — `t += i * 3 - 1` | 121 ns | 158 ns | 181 ns | 1.5× |
 | `js/string-build` — `s += 'x'` | 284 ns | 332 ns | 377 ns | 1.3× |
 
+Class bodies were the last construct handed back to the tree-walker, so until
+they were compiled a page written in classes ran its method bodies on the old
+engine however the caller got there — the machine's number for `js/class-methods`
+was 555 ns against the tree-walker's 579 ns, which is to say it was not doing
+anything.
+
+| Workload | Machine | Before class bodies | Tree-walker |
+|---|---|---|---|
+| `js/class-methods` — `c.step()` 100k times | 331 ns/call | 555 ns/call | 583 ns/call |
+| `js/class-super` — `super.m(v)` through one level | 605 ns/call | 1098 ns/call | 1921 ns/call |
+
 The three `js/name-*` rows are not workloads anybody writes; they exist to
 isolate one number. They differ only in how many names a loop iteration reads,
 so the marginal cost of a name operation falls out of the differences — and
@@ -101,6 +112,11 @@ prologue slots. Most calls do not need one at all: only a function some closure 
 its scope outlive the call, and the compiler already knows which those are, because it knows where
 every `Closure` op is. That is the next thing worth measuring — `js/fib` and `js/method-calls` are
 the two rows slot resolution did not move, and this is why.
+
+**A class is still built by the tree-walking `EvaluateClass`.** Its method bodies are compiled and
+that is where the time is, but the builder itself — computed keys, static field initializers, and
+the per-instance field initializers `InitializeFields` runs — still walks the tree. Those run once
+per class or once per instance rather than once per call, so they are the right things to have left.
 
 **Dispatch and `Value` are the floor.** At 4-5 ns per instruction with a 40-byte `Value` carrying a
 `shared_ptr`, a good share of every opcode is copying values around. Narrowing that is NaN-boxing or

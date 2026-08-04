@@ -157,6 +157,16 @@ class Compiler {
   void TemplateLiteral(const Node& node);
   void TaggedTemplate(const Node& node);
   void FunctionValue(const Node& node, bool arrow);
+  // Compiles a function into this chunk without emitting anything, and returns
+  // its index. FunctionValue is this plus a Closure instruction; a class body
+  // needs the first half alone, because its methods are attached by the builder
+  // rather than pushed on the stack.
+  std::uint32_t CompileNested(const Node& node, bool arrow);
+  // Compiles every method body in a class, inside a scope standing for the one
+  // EvaluateClass creates at run time. Modelling that scope is what keeps a
+  // method's hop counts right: at run time a method's scope has the class scope
+  // as its parent, so the compiler has to count it too.
+  void ClassMethods(const Node& node);
   // Pushes the arguments of a call or a `new` starting at `first`. Returns true
   // when one of them was a spread, in which case a single array was pushed and
   // the caller wants the Apply form of the opcode.

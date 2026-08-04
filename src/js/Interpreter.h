@@ -190,7 +190,19 @@ class Interpreter {
   Result EvaluateBinary(const Node& node, Environment& scope);
   Result EvaluateMember(const Node& node, Environment& scope, Value& base_out);
   Result EvaluateForIn(const Node& node, Environment& scope);
-  Result EvaluateClass(const Node& node, Environment& scope);
+  // `enclosing` is the chunk the class literal was compiled into, or null when
+  // the tree-walker is building it. When it is there, each method's body is
+  // taken from it already compiled; the *building* is the same either way,
+  // because the ordering a class needs is the subtle part and there should be
+  // one of it.
+  Result EvaluateClass(const Node& node, Environment& scope,
+                       const CompiledFunction* enclosing = nullptr);
+  // The compiled chunk inside `enclosing` that came from `source`, or null.
+  static const CompiledFunction* FindCompiled(const CompiledFunction* enclosing,
+                                              const Node* source);
+  // A function object over a compiled body. The counterpart of NewFunction,
+  // which makes one over an AST body.
+  Value NewCompiledFunction(const CompiledFunction& code, Environment& scope, bool arrow);
   // Two cases lifted out of Evaluate's switch, and not for tidiness.
   //
   // Evaluate recurses, so every local in it is paid for at every level of

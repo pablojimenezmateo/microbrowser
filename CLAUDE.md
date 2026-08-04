@@ -47,7 +47,7 @@ What exists:
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with the tree-walking interpreter kept as the fallback for anything not yet compiled, and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, and the tree-walking interpreter kept as the fallback for anything not yet compiled and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
@@ -56,8 +56,10 @@ the process split and the sandbox (rest of M7), the rest of the builtins (rest o
 (M9). **The collector now runs during evaluation**, at every loop back edge and every call: the
 machine's operand and frame stacks are data, so a script that recurses while allocating is collected
 through rather than starved. Two things still wait on the machine rather than on the tree-walker.
-Class bodies are handed back to the tree-walking evaluator by a delegating opcode, which is what
-`super` in compiled code waits on. And `async`/`await` still has nowhere to suspend to — a frame is
+A class is still *built* by the tree-walking evaluator -- its method bodies are compiled, but the
+computed keys, the static initializers and the per-instance field initializers are walked, which is
+right for things that run once per class or once per instance rather than once per call. And
+`async`/`await` still has nowhere to suspend to — a frame is
 a record that *could* be copied somewhere and put back, but nothing does that yet. Loading is
 synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
@@ -90,8 +92,7 @@ reasoning; this is the queue.
    **Then `async`/`await`.** A frame is a record now — code pointer, ip, a slice of the value
    stack, a scope — so suspending a call is copying one somewhere and putting it back. That was
    impossible against C++ stack frames and is ordinary work against these. Generators are the same
-   machinery. Compiling class bodies (rather than delegating to the tree-walker) is what `super`
-   in compiled code waits on, and is smaller than either.
+   machinery. Class bodies are compiled now, so nothing waits on that.
 3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
    left that is not a pure addition: it means a check at every property access in the
    interpreter, which is a change to the hot path. Modules bring the loading they imply.

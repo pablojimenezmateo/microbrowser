@@ -11,7 +11,24 @@ namespace microbrowser::js {
 // given. What classes add on top of that is ordering: fields initialize after
 // a super() call and before the constructor body, and getting that wrong shows
 // up as a field that is undefined in the constructor of a derived class.
-Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
+const CompiledFunction* Interpreter::FindCompiled(const CompiledFunction* enclosing,
+                                                  const Node* source) {
+  if (enclosing == nullptr || source == nullptr) {
+    return nullptr;
+  }
+  // A linear scan, once per method at class-definition time. A class is defined
+  // once and its methods are called many times; the cost that matters is the
+  // second one, and that is a pointer on the function object.
+  for (const std::unique_ptr<CompiledFunction>& candidate : enclosing->functions) {
+    if (candidate->source == source) {
+      return candidate.get();
+    }
+  }
+  return nullptr;
+}
+
+Result Interpreter::EvaluateClass(const Node& node, Environment& scope,
+                                  const CompiledFunction* enclosing) {
   Object* superclass = nullptr;
   if (node.Child(0) != nullptr) {
     const Result parent = Evaluate(*node.Child(0), scope);
@@ -50,6 +67,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
   // everything else is attached to it.
   const Node* constructor_body = nullptr;
   const Node* constructor_parameters = nullptr;
+  const Node* constructor_node = nullptr;
   for (const NodePtr& member : node.children) {
     if (member == nullptr || member->kind != NodeKind::MethodDefinition) {
       continue;
@@ -58,6 +76,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
     if (member->string == "constructor" && (flags & kMethodStatic) == 0) {
       const Node* function = member->Child(0);
       if (function != nullptr && function->kind == NodeKind::FunctionExpression) {
+        constructor_node = function;
         constructor_parameters = function->Child(0);
         constructor_body = function->Child(1);
       }
@@ -69,7 +88,11 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
     return Throw("RangeError", "out of memory");
   }
   constructor->SetPrototype(superclass != nullptr ? superclass : well_known_.function_prototype);
-  constructor->MakeFunction(constructor_parameters, constructor_body, class_scope, false);
+  if (const CompiledFunction* code = FindCompiled(enclosing, constructor_node)) {
+    constructor->MakeCompiled(code, class_scope, false);
+  } else {
+    constructor->MakeFunction(constructor_parameters, constructor_body, class_scope, false);
+  }
   constructor->Set("name", Value::String(node.string));
   constructor->Set("prototype", Value::Obj(prototype));
   constructor->SetHomeObject(prototype);
@@ -132,7 +155,10 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope) {
       continue;  // already the class object
     }
 
-    Value method = NewFunction(*function_node, *class_scope, false);
+    const CompiledFunction* method_code = FindCompiled(enclosing, function_node);
+    Value method = method_code != nullptr
+                       ? NewCompiledFunction(*method_code, *class_scope, false)
+                       : NewFunction(*function_node, *class_scope, false);
     if (!method.IsObject()) {
       return Throw("RangeError", "out of memory");
     }

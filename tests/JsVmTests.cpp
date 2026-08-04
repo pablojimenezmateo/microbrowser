@@ -62,6 +62,18 @@ bool Compiles(std::string_view source) {
   return js::Compile(*parsed.program) != nullptr;
 }
 
+// How many function bodies a program compiled into. The point of counting is
+// that a body the compiler skipped still runs -- on the tree-walker -- so "the
+// answer was right" does not say the machine produced it.
+std::size_t CompiledBodies(std::string_view source) {
+  js::ParseResult parsed = js::Parse(source);
+  if (!parsed.errors.empty() || parsed.program == nullptr) {
+    return 0;
+  }
+  const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program);
+  return compiled == nullptr ? 0 : compiled->functions.size();
+}
+
 std::string Eval(std::string_view source) {
   Interpreter interpreter;
   const Result result = interpreter.Run(source);
@@ -141,6 +153,54 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
          }) {
       Expect(Compiles(source), std::string("compiles: ") + std::string(source));
     }
+  });
+
+  AddTest(tests, "JsVm/AClassBodyIsCompiledEvenThoughTheClassIsBuiltByHand", [] {
+    // The class is *built* by EvaluateClass, which holds the ordering a class
+    // needs. What is compiled is every method body, which is where a page
+    // actually spends its time -- and until this landed, a page written in
+    // classes ran entirely on the tree-walker while every test still passed.
+    ExpectEqInt(static_cast<long long>(CompiledBodies("class C { a(){} b(){} }")), 2,
+                "one compiled body per method");
+    ExpectEqInt(static_cast<long long>(
+                    CompiledBodies("class C { constructor(){} get x(){ return 1 } set x(v){} }")),
+                3, "a constructor and both halves of an accessor");
+    ExpectEqInt(static_cast<long long>(CompiledBodies("class C { static m(){} }")), 1,
+                "a static method");
+    // A field initializer is an expression the builder runs per instance, not a
+    // body, so it is not one of these.
+    ExpectEqInt(static_cast<long long>(CompiledBodies("class C { n = 1 }")), 0,
+                "a field is not a body");
+  });
+
+  AddTest(tests, "JsVm/SuperResolvesAgainstWhereTheMethodWasDefined", [] {
+    // `super` only ever appears in a class body, so these opcodes could not
+    // exist until class bodies were compiled. The rule they encode is that
+    // `super` is about the *defining* object, not the receiver -- using the
+    // receiver's prototype makes a three-level hierarchy recurse into itself.
+    ExpectEval("class A { m(){ return 'a' } } class B extends A { m(){ return super.m() + 'b' } }"
+               "class C extends B { m(){ return super.m() + 'c' } } new C().m()",
+               "abc");
+    // The receiver stays the instance, which is the whole reason the base and
+    // the receiver are two things.
+    ExpectEval("class A { who(){ return this.tag } }"
+               "class B extends A { constructor(){ super(); this.tag = 'B' }"
+               "who(){ return super.who() } } new B().who()",
+               "B");
+    // A computed super member, which reads the key off the stack rather than
+    // out of the instruction.
+    ExpectEval("class A { m(){ return 'a' } }"
+               "class B extends A { m(){ const k = 'm'; return super[k]() + 'b' } } new B().m()",
+               "ab");
+    // super() runs the parent constructor against the instance already being
+    // built, and this class's fields initialize after it.
+    ExpectEval("class A { constructor(n){ this.n = n } }"
+               "class B extends A { doubled = this.n * 2; constructor(n){ super(n) } }"
+               "new B(4).doubled",
+               "8");
+    // Used as a value rather than called or read through, which is neither.
+    Expect(Eval("class A { m(){ return super } } new A().m()").rfind("throw", 0) == 0,
+           "bare super is rejected");
   });
 
   AddTest(tests, "JsVm/AConstructWithNoOpcodeRejectsTheWholeProgram", [] {

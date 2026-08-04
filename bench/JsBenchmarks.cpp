@@ -59,6 +59,15 @@ constexpr Workload kWorkloads[] = {
     {"js/method-calls", 100000, "call",
      "(function(){ const o = { n: 0, step(){ return ++this.n } };"
      "for (let i = 0; i < 100000; i++) o.step(); return o.n })()"},
+    // A class method and a `super` chain, which until class bodies were
+    // compiled ran entirely on the tree-walker however the caller got there.
+    {"js/class-methods", 100000, "call",
+     "(function(){ class Counter { constructor(){ this.n = 0 } step(){ return ++this.n } }"
+     "const c = new Counter(); for (let i = 0; i < 100000; i++) c.step(); return c.n })()"},
+    {"js/class-super", 50000, "call",
+     "(function(){ class A { m(v){ return v + 1 } }"
+     "class B extends A { m(v){ return super.m(v) + 1 } }"
+     "const b = new B(); let t = 0; for (let i = 0; i < 50000; i++) t = b.m(t); return t })()"},
     {"js/closures", 50000, "closure",
      "(function(){ let t = 0; for (let i = 0; i < 50000; i++) { const f = () => i + 1; t += f() }"
      "return t })()"},

@@ -134,6 +134,9 @@ void Compiler::Statement(const Node& node) {
       return;
 
     case NodeKind::ClassDeclaration:
+      // Same two halves as the expression form: the method bodies compiled
+      // here, the class itself built by EvaluateClass.
+      ClassMethods(node);
       Emit(Op::ClassLiteral, NodeIndex(node), 1);
       EmitDeclare(node.string, false);
       return;

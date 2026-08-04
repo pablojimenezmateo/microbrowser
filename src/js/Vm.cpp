@@ -774,7 +774,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // Handed to the tree-walking evaluator, which holds values in C++
         // locals -- so the depth goes up and no safepoint fires underneath.
         ++call_depth_;
-        const Result value = EvaluateClass(*code.nodes[instruction.a], *CurrentScope());
+        const Result value = EvaluateClass(*code.nodes[instruction.a], *CurrentScope(), &code);
         --call_depth_;
         if (value.IsAbrupt()) {
           pending = value;
@@ -782,6 +782,50 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           break;
         }
         vm_.stack.push_back(value.value);
+        break;
+      }
+      case Op::LoadSuperBase: {
+        // The prototype of the object the method was *defined* on, not the one
+        // it was called through. Using the receiver instead makes a three-level
+        // hierarchy recurse into itself.
+        Value* home = CurrentScope()->Lookup("__home__");
+        if (home == nullptr || !home->IsObject() || home->object->Prototype() == nullptr) {
+          pending = Throw("SyntaxError", "'super' is only valid inside a method");
+          threw = true;
+          break;
+        }
+        vm_.stack.push_back(Value::Obj(home->object->Prototype()));
+        break;
+      }
+      case Op::SuperCall: {
+        Value* current = CurrentScope()->Lookup("__function__");
+        Value* self = CurrentScope()->Lookup("this");
+        if (current == nullptr || !current->IsObject() ||
+            current->object->SuperConstructor() == nullptr) {
+          pending = Throw("SyntaxError", "'super' keyword unexpected here");
+          threw = true;
+          break;
+        }
+        const std::size_t first = vm_.stack.size() - instruction.a;
+        const std::vector<Value> arguments(
+            vm_.stack.begin() + static_cast<std::ptrdiff_t>(first), vm_.stack.end());
+        const Value instance = self == nullptr ? Value::Undefined() : *self;
+        Object* parent = current->object->SuperConstructor();
+        // The parent constructor and the field initializers both hold values in
+        // C++ locals while they run, so no safepoint fires underneath them.
+        ++call_depth_;
+        Result done = CallFunction(Value::Obj(parent), instance, arguments);
+        if (!done.IsAbrupt() && instance.IsObject()) {
+          // Fields of *this* class initialize after the super call, which is
+          // the ordering that makes a derived field see a base one.
+          done = InitializeFields(instance.object, current->object);
+        }
+        --call_depth_;
+        vm_.stack.resize(first);
+        if (done.IsAbrupt()) {
+          pending = done;
+          threw = true;
+        }
         break;
       }
       case Op::RegExpLiteral: {

@@ -199,6 +199,25 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
   return Value::Obj(function);
 }
 
+Value Interpreter::NewCompiledFunction(const CompiledFunction& code, Environment& scope,
+                                       bool arrow) {
+  Object* function = heap_.AllocateObject(Object::Kind::Function);
+  if (function == nullptr) {
+    return Value::Undefined();
+  }
+  function->SetPrototype(well_known_.function_prototype);
+  function->MakeCompiled(&code, &scope, arrow);
+  function->Set("name", Value::String(code.name));
+  function->Set("length", Value::Number(static_cast<double>(code.parameter_count)));
+  if (!arrow) {
+    if (Object* prototype = NewObject()) {
+      prototype->Set("constructor", Value::Obj(function));
+      function->Set("prototype", Value::Obj(prototype));
+    }
+  }
+  return Value::Obj(function);
+}
+
 // --- Property access -------------------------------------------------------
 
 Object* Interpreter::ProxyTrap(const Value& base, const char* trap, Value& target) const {

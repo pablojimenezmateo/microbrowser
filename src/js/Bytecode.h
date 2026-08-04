@@ -187,6 +187,10 @@ enum class Op : std::uint8_t {
   // methods are still walked; compiling them is the next step and is what
   // `super` waits on.
   ClassLiteral,     // a = node index -> [constructor]
+  // `super.x` and `super(...)`, which only a class body can contain -- so these
+  // exist because class methods are compiled, and could not before.
+  LoadSuperBase,    // -> [the prototype of the object the method was defined on]
+  SuperCall,        // a = argument count; [args...] -> []
   RegExpLiteral,    // a = node index -> [regexp]
   TemplateStrings,  // a = node index -> [array] with `raw`, for a tagged template
 
@@ -314,6 +318,11 @@ struct CompiledFunction {
   std::vector<Handler> handlers;
   std::vector<SlotDeclaration> declarations;
   std::vector<std::unique_ptr<CompiledFunction>> functions;
+  // The node this was compiled from, when something has to find it again by
+  // node rather than by index. A class body is the case: its builder is still
+  // the tree-walking EvaluateClass, which walks the members and asks for each
+  // one's compiled body as it goes.
+  const Node* source = nullptr;
   // The AST nodes the three delegating opcodes point at. Borrowed from the
   // program tree, which outlives this for exactly the same reason.
   std::vector<const Node*> nodes;

@@ -55,136 +55,6 @@ bool NamesArguments(const Node& node) {
 Compiler::Compiler(CompileState& state, CompiledFunction& function, Compiler* parent)
     : state_(state), function_(function), parent_(parent) {}
 
-// --- Placing names ----------------------------------------------------------
-
-void Compiler::Reserve(std::string_view name) {
-  if (scopes_.empty() || name.empty()) {
-    // The top level of a program. Its scope is the global one, which other
-    // scripts and every builtin also write to, so there is no layout to know
-    // and the name form is the right answer rather than a missed one.
-    return;
-  }
-  CompiledScope& scope = scopes_.back();
-  if (scope.slots.count(std::string(name)) != 0 || scope.count > kMaxSlotIndex) {
-    return;
-  }
-  scope.slots.emplace(std::string(name), scope.count);
-  ++scope.count;
-}
-
-void Compiler::ReservePattern(const Node& target) {
-  switch (target.kind) {
-    case NodeKind::Identifier:
-      Reserve(target.string);
-      return;
-    case NodeKind::ArrayLiteral:
-      for (const NodePtr& element : target.children) {
-        if (element != nullptr) {
-          ReservePattern(*element);
-        }
-      }
-      return;
-    case NodeKind::ObjectLiteral:
-      for (const NodePtr& property : target.children) {
-        if (property != nullptr && property->kind == NodeKind::Property &&
-            property->Child(0) != nullptr) {
-          ReservePattern(*property->Child(0));
-        }
-      }
-      return;
-    case NodeKind::AssignmentPattern:
-    case NodeKind::RestElement:
-    case NodeKind::Spread:
-      if (target.Child(0) != nullptr) {
-        ReservePattern(*target.Child(0));
-      }
-      return;
-    default:
-      return;  // a member target assigns through something that already exists
-  }
-}
-
-void Compiler::ReserveDeclarations(const Node& list) {
-  for (const NodePtr& statement : list.children) {
-    if (statement == nullptr) {
-      continue;
-    }
-    switch (statement->kind) {
-      case NodeKind::FunctionDeclaration:
-      case NodeKind::ClassDeclaration:
-        Reserve(statement->string);
-        break;
-      case NodeKind::VariableDeclaration:
-        for (const NodePtr& declarator : statement->children) {
-          if (declarator != nullptr && declarator->Child(0) != nullptr) {
-            ReservePattern(*declarator->Child(0));
-          }
-        }
-        break;
-      default:
-        break;
-    }
-  }
-}
-
-bool Compiler::ResolveSlot(std::string_view name, std::uint32_t& packed) {
-  std::uint32_t hops = 0;
-  for (const Compiler* compiler = this; compiler != nullptr; compiler = compiler->parent_) {
-    for (std::size_t i = compiler->scopes_.size(); i > 0; --i) {
-      const CompiledScope& scope = compiler->scopes_[i - 1];
-      const auto found = scope.slots.find(std::string(name));
-      if (found != scope.slots.end()) {
-        if (hops > kMaxSlotHops || found->second > kMaxSlotIndex) {
-          return false;  // too deep or too wide to pack; the name form still works
-        }
-        const std::uint32_t index = Name(name);
-        if (index > kMaxSlotName) {
-          return false;
-        }
-        packed = PackSlot(hops, found->second, index);
-        return true;
-      }
-      ++hops;
-      if (hops > kMaxSlotHops) {
-        return false;
-      }
-    }
-  }
-  return false;
-}
-
-void Compiler::EmitLoad(std::string_view name) {
-  std::uint32_t packed = 0;
-  if (ResolveSlot(name, packed)) {
-    Emit(Op::LoadSlot, packed, 1);
-    return;
-  }
-  Emit(Op::LoadName, Name(name), 1);
-}
-
-void Compiler::EmitStore(std::string_view name) {
-  std::uint32_t packed = 0;
-  if (ResolveSlot(name, packed)) {
-    Emit(Op::StoreSlot, packed, 0);
-    return;
-  }
-  Emit(Op::StoreName, Name(name), 0);
-}
-
-void Compiler::EmitDeclare(std::string_view name, bool is_const) {
-  if (!scopes_.empty()) {
-    const CompiledScope& scope = scopes_.back();
-    const auto found = scope.slots.find(std::string(name));
-    if (found != scope.slots.end()) {
-      function_.declarations.push_back(SlotDeclaration{found->second, Name(name), is_const});
-      Emit(Op::DeclareSlot,
-           static_cast<std::uint32_t>(function_.declarations.size() - 1), -1);
-      return;
-    }
-  }
-  Emit(is_const ? Op::DeclareConst : Op::DeclareLet, Name(name), -1);
-}
-
 // --- Emitting ---------------------------------------------------------------
 
 std::uint32_t Compiler::Emit(Op op, std::uint32_t a, int delta) {
@@ -409,19 +279,47 @@ void Compiler::Function(const Node& node, bool arrow) {
   Emit(Op::Return, 0, -1);
 }
 
-void Compiler::FunctionValue(const Node& node, bool arrow) {
+std::uint32_t Compiler::CompileNested(const Node& node, bool arrow) {
   auto nested = std::make_unique<CompiledFunction>();
+  nested->source = &node;
   // The nested compiler knows this one, because the run-time chain does: a
   // frame's scope has the defining scope as its parent, so a name the inner
   // function does not declare is found by counting scopes out through here.
   Compiler inner(state_, *nested, this);
   inner.Function(node, arrow);
   if (state_.failed) {
-    return;
+    return 0;
   }
   function_.functions.push_back(std::move(nested));
-  const auto index = static_cast<std::uint32_t>(function_.functions.size() - 1);
+  return static_cast<std::uint32_t>(function_.functions.size() - 1);
+}
+
+void Compiler::FunctionValue(const Node& node, bool arrow) {
+  const std::uint32_t index = CompileNested(node, arrow);
+  if (state_.failed) {
+    return;
+  }
   Emit(arrow ? Op::ClosureArrow : Op::Closure, index, 1);
+}
+
+void Compiler::ClassMethods(const Node& node) {
+  // One scope, standing for the one EvaluateClass makes at run time so that a
+  // method can name its own class. It holds exactly one binding -- the class
+  // name -- and nothing when the class is anonymous, in which case the scope
+  // still exists and still counts as a hop.
+  scopes_.emplace_back();
+  Reserve(node.string);
+  for (const NodePtr& member : node.children) {
+    if (member == nullptr || member->kind != NodeKind::MethodDefinition ||
+        member->children.empty()) {
+      continue;
+    }
+    const Node* body = member->children.back().get();
+    if (body != nullptr && body->kind == NodeKind::FunctionExpression) {
+      CompileNested(*body, false);
+    }
+  }
+  scopes_.pop_back();
 }
 
 // --- Expressions ------------------------------------------------------------
@@ -495,8 +393,12 @@ void Compiler::Expression(const Node& node) {
       FunctionValue(node, true);
       return;
     case NodeKind::ClassExpression:
-      // Handed back to the tree-walking evaluator: a class body's methods are
-      // still walked, which is what `super` in a compiled function waits on.
+      // The class is *built* by the tree-walking EvaluateClass, which holds the
+      // ordering a class needs -- fields after a super() call and before the
+      // constructor body, a home object per method, static members on the
+      // constructor. What used to be handed over with it was the method bodies,
+      // and those are compiled here now: the builder asks for each one by node.
+      ClassMethods(node);
       Emit(Op::ClassLiteral, NodeIndex(node), 1);
       return;
 
@@ -742,11 +644,17 @@ void Compiler::MemberOperands(const Node& node, bool& key_on_stack, std::uint32_
     return;
   }
   if (object->kind == NodeKind::Super) {
-    // Only reachable in a class body, which is still tree-walked, so a
-    // compiled function can never legitimately contain one.
-    ThrowSyntax("'super' is only valid inside a method");
-    key_on_stack = false;
-    name = Name("");
+    // `super.x` reads from the prototype of the object the *method* was defined
+    // on, while `this` stays the receiver. Reading from the receiver's
+    // prototype instead is what makes a three-level hierarchy call itself.
+    Emit(Op::LoadSuperBase, 0, 1);
+    key_on_stack = node.number == 1.0;
+    if (key_on_stack) {
+      Expression(*property);
+      name = 0;
+    } else {
+      name = Name(property->string);
+    }
     return;
   }
   Expression(*object);
@@ -862,8 +770,51 @@ void Compiler::CallExpression(const Node& node) {
     return;
   }
   if (callee->kind == NodeKind::Super) {
-    // Only legal inside a constructor, and every constructor is still walked.
-    ThrowSyntax("'super' keyword unexpected here");
+    // `super(...)` runs the parent constructor against the instance already
+    // being built rather than making a second one, and then initializes this
+    // class's own fields -- which is the ordering that lets a derived field
+    // read a base one.
+    std::uint32_t count = 0;
+    if (CallArguments(node, 1, count)) {
+      ThrowSyntax("a spread argument to super() is not supported");
+      return;
+    }
+    Emit(Op::SuperCall, count, -static_cast<int>(count));
+    Emit(Op::PushUndefined, 0, 1);
+    return;
+  }
+
+  if (callee->kind == NodeKind::Member && callee->Child(0) != nullptr &&
+      callee->Child(0)->kind == NodeKind::Super) {
+    // `super.m()` is the one call whose lookup and whose receiver come from
+    // different places: the method is found on the prototype of the object this
+    // method was *defined* on, and it runs with the instance as `this`. Those
+    // being two things is the whole reason `super` exists -- binding the
+    // receiver to the base instead would make an override invisible to itself.
+    const Node* property = callee->Child(1);
+    if (property == nullptr) {
+      ThrowSyntax("malformed member access");
+      return;
+    }
+    Emit(Op::LoadSuperBase, 0, 1);
+    if (callee->number == 1.0) {
+      Expression(*property);
+      Emit(Op::GetProperty, 0, -1);
+    } else {
+      Emit(Op::GetPropertyName, Name(property->string), 0);
+    }
+    std::uint32_t packed = 0;
+    if (ResolveSlot("this", packed)) {
+      Emit(Op::LoadSlot, packed, 1);
+    } else {
+      Emit(Op::LoadThis, 0, 1);
+    }
+    std::uint32_t count = 0;
+    if (CallArguments(node, 1, count)) {
+      Emit(Op::CallApply, 0, -2);
+    } else {
+      Emit(Op::Call, count, -static_cast<int>(count) - 1);
+    }
     return;
   }
 
