@@ -18,7 +18,9 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**The browser renders Hacker News, and runs a page against it.** External and inline scripts,
+**The browser renders Hacker News, and runs a page against it. The JavaScript engine is
+essentially complete** — see `docs/js-conformance-roadmap.md` for what is done, what is
+deliberately approximate, and the short list of what is left (BigInt is the largest). External and inline scripts,
 DOM reads and writes, `style`, event handlers, and timers — a click reaches the page's own
 handlers, and `preventDefault` stops the navigation it would otherwise have caused. `./build/microbrowser/microbrowser <url>` fetches a document,
 parses it, resolves its cascade, lays it out, and draws it — text, tables, images and all. The
@@ -47,13 +49,13 @@ What exists:
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, calls that cannot leak a scope keeping their bindings in the frame rather than on the heap, and the tree-walking interpreter kept as the differential engine, reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates, `Proxy`. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue, and **every form of suspending a call**: `async`/`await`, generators, `yield*`, async generators and `for await`. All of them are one mechanism — a frame is filed whole and put back later — with different triggers. No modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript, and as near complete as the language gets here. Lexer, parser, a bytecode compiler and machine (names resolved to slots, calls that cannot leak a scope keeping bindings in the frame, the tree-walker kept as the differential engine behind `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass. **Modules** — every `import`/`export` form, `import.meta`, `import()` — with the host supplying the resolver. Classes with accessors, `super`, private fields and methods, static blocks, `new.target`, the brand check. `Proxy` with every trap, and subclassing a builtin. Full `ToPrimitive`. **UTF-16 string indexing over UTF-8 storage.** Property attributes and integrity levels. `ArrayBuffer`, the nine typed arrays and `DataView`. A real `Date` with a computed calendar and a parser. `JSON` with replacer, reviver, indent and `toJSON`. A backtracking regular expression engine with `/u` code points and `\p{...}`. Symbols, iteration, `Map`/`Set`/`Weak*`/`WeakRef`, Promises and the microtask queue, and **every form of suspending a call** — `async`/`await`, generators, `yield*` with real delegation, async generators, `for await`. No `eval` and no `Function(source)`, and a test says so. Knows nothing about the DOM. Deviations are listed in `docs/js-conformance-roadmap.md`, each with its reason. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
-the process split and the sandbox (rest of M7), modules (rest of M8), integration
-(M9). **The collector runs during evaluation**, at every loop back edge and every call: the
+the process split and the sandbox (rest of M7), integration (M9). M8 is done bar
+BigInt. **The collector runs during evaluation**, at every loop back edge and every call: the
 machine's operand and frame stacks are data, so a script that recurses while allocating is collected
 through rather than starved.
 
@@ -90,16 +92,17 @@ reasoning; this is the queue.
    invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
    `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
    there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **Modules.** The last language feature the engine does not have, and the one that is a
-   *loader* question as much as a VM one — an import is a fetch, and a fetch has to pass the
-   privacy layer and the site isolation model. `docs/adr/0004` and `guidelines/privacy.md` are the
-   constraints; the VM side is a second kind of program and a second kind of scope.
+2. **Wire modules to the loader.** The VM half is done: `Interpreter::SetModuleResolver` takes a
+   callback, and everything after resolution — loading depth-first, keying by resolved name,
+   post-order evaluation, cycles — is in `src/js/Modules.cpp`. What is missing is the *engine*
+   side of that callback: an import is a fetch, and a fetch has to pass the privacy layer and the
+   site isolation model. `docs/adr/0004` and `guidelines/privacy.md` are the constraints, and
+   `Loader` is where it goes. Until then `<script type="module">` parses and links but cannot
+   reach the network.
 
-   Smaller gaps, each written where the code is rather than only here: `yield*` does not forward
-   `throw` and `return` to its delegate (it is a loop over the iterator, not a relationship the
-   resume path can see); a throw that unwinds past a `for...of` does not close the iterator, on
-   either engine, and the two agree on purpose; unhandled rejections get a console line and
-   nothing more.
+   The one remaining language gap is **BigInt**, which is a new value type and therefore a case in
+   `typeof`, in every operator and in every conversion. Unhandled rejections still get a console
+   line and nothing more.
 3. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
    `IdleWaitState::next_deadline_ms` — a page with nothing pending still lets the loop block.
    `fetch` needs Promises (done) joined to the loader and its privacy verdict; `rAF` needs the
