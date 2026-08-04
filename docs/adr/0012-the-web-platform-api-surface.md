@@ -91,12 +91,10 @@ Both are frame-timing shaped, and both need the frame deadline from ADR 0011.
 `IntersectionObserver` additionally needs layout to answer a geometry question about a box, which is
 the same capability `getBoundingClientRect` needs — so those two arrive together or not at all.
 
-**5. Custom elements and Shadow DOM, natively.**
+**5. Custom elements, natively.** Then Shadow DOM, separately and later.
 
-Last, and deliberately: with `MutationObserver` in place the polyfill covers this, and doing it
-natively means the upgrade lifecycle, the reaction queue, and a second tree that the cascade and
-layout both have to understand. That is a large amount of engine surface for a capability that is
-already reachable, and the sequencing here is the reason the polyfill path is worth having.
+Originally this said "last, because the polyfill covers it". That turned out to be wrong, and the
+amendment at the end of this ADR records what was measured and what the order became.
 
 ### What is refused, and why it is refused rather than deferred
 
@@ -145,3 +143,33 @@ page.
 error. The full graph is enormous and most of it is unreachable from any real page. What is needed
 is that the parts a page can *observe* — `instanceof`, the prototype an element gets, the base a
 custom element extends — are right.
+
+## Amendment, 2026-08-04: the polyfill is not the cheap path
+
+That reasoning was tested by running youtube.com's copy of
+`webcomponents-all-noPatch.js` directly against the bindings and fixing whatever it stopped on. It
+got materially further each time — `document.createEvent`, then `Event.prototype`, then
+`DocumentFragment`, then `CharacterData` — and each fix was worth having on its own merits. But the
+list it still wants is:
+
+    Window, ShadowRoot, SVGElement, XMLHttpRequest, MutationObserver, customElements,
+    NodeFilter, Range, TreeWalker, NodeIterator, DOMTokenList, NamedNodeMap, Attr,
+    HTMLCollection, NodeList
+
+That is not a polyfill filling a gap in the platform. It is a polyfill **reimplementing the DOM**,
+and to run it the engine has to provide almost everything a native implementation would have needed
+anyway — plus `Range`, `TreeWalker` and `NodeIterator`, which nothing else on the roadmap wants.
+
+So the prediction in this ADR was wrong in a specific and useful way: it treated a polyfill as
+buying a capability cheaply, when a *deep* polyfill is closer to a second implementation that has to
+be hosted. A shallow polyfill — `fetch` over `XMLHttpRequest` — really is the cheap trade this ADR
+described. A polyfill that patches `Node.prototype` and `Element.prototype` is not.
+
+**The revised order is to implement `customElements` natively** — a registry, the upgrade
+lifecycle, and the four reactions — and to leave Shadow DOM where it was. Native custom elements
+need none of `Range`, `TreeWalker`, `NodeIterator` or `ShadowRoot`, which makes it the smaller of
+the two paths as well as the honest one.
+
+The general lesson is worth keeping separately from the decision: **"a polyfill exists" is not by
+itself evidence that a capability is cheap.** What decides it is how deep the polyfill reaches, and
+that is answerable in an afternoon by running the thing rather than by reasoning about it.
