@@ -271,9 +271,10 @@ microbrowser_module(engine
     src/engine/FormAlgorithms.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
+    src/engine/PageScript.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
        microbrowser_privacy microbrowser_net microbrowser_dom microbrowser_html
-       microbrowser_css microbrowser_layout)
+       microbrowser_css microbrowser_layout microbrowser_js microbrowser_bindings)
 
 microbrowser_module(platform
   SOURCES

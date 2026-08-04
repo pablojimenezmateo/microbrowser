@@ -12,6 +12,7 @@
 #include "gfx/DisplayList.h"
 #include "gfx/TextRenderer.h"
 #include "layout/FontTextMeasurer.h"
+#include "engine/PageScript.h"
 #include "layout/LayoutEngine.h"
 
 namespace microbrowser::engine {
@@ -47,6 +48,11 @@ class Page : private layout::ImageProvider {
   // Lays out at `width` CSS pixels and returns the content height, which is
   // what a scrollbar needs.
   float Layout(float width);
+
+  // Anything the page's script wrote with `console.log`, in order. Collected
+  // rather than printed: a page must not be able to write to the terminal the
+  // browser was started from.
+  const std::vector<std::string>& ConsoleOutput() const;
 
   // Records the page into `out`, translated by `scroll_y`. The scroll offset is
   // baked into the geometry rather than expressed as a transform command,
@@ -142,6 +148,10 @@ class Page : private layout::ImageProvider {
   layout::FontTextMeasurer measurer_;
   css::StyleResolver resolver_;
   std::unique_ptr<dom::Document> document_;
+  // One member rather than an interpreter and a binding layer, which is what
+  // the fan-out lint asked for the moment script arrived: Page coordinates,
+  // and each thing it coordinates owns itself.
+  PageScript script_;
   std::unique_ptr<layout::Box> boxes_;
   std::string url_;
   std::string title_;

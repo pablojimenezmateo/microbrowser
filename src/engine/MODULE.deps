@@ -3,7 +3,10 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # Notably absent: platform. The engine has no window, no renderer, and no way
 # to acquire one. That is what makes moving it into a sandboxed process a
 # scheduling decision rather than a rewrite.
-allow: util gfx ipc url privacy net dom html css layout
+# `bindings` and not `js`: the engine owns the interpreter but reaches the
+# document through the binding layer like everything else, so there is still
+# exactly one path from script to the tree. See docs/adr/0008-dom-bindings.md.
+allow: util gfx ipc url privacy net dom html css layout js bindings
 
 public: Engine.h Loader.h Page.h
 
@@ -32,4 +35,12 @@ budget: Loader header_lines=80 public_methods=10 members=6
 # a second parallel store. Page collects the URLs and the Loader fetches them,
 # because resolving a relative href against a base URL is the loader's job and
 # parsing is this one's.
-budget: Page   header_lines=145 public_methods=30 members=11
+# Grew by one for the page's script. One member and not two: an interpreter
+# and a binding layer would have taken Page's fan-out to six modules, which the
+# lint refused -- correctly, since Page is the class most at risk of becoming
+# "the browser". PageScript owns that pair; Page coordinates it.
+budget: Page   header_lines=150 public_methods=32 members=12
+# The script half of a page: one interpreter, one binding layer, one document.
+# Two members is the whole of it, and a third would be a reason to ask what
+# else it had started doing.
+budget: PageScript header_lines=40 public_methods=4 members=2

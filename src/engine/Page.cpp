@@ -212,6 +212,8 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
 
 Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {}
 
+const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
+
 void Page::Load(std::string_view html, std::string url) {
   util::PerformanceTrace::Scope scope("engine::Page::Load");
 
@@ -229,6 +231,9 @@ void Page::Load(std::string_view html, std::string url) {
 
   CollectStyleSheets();
   CollectImages();
+  if (document_ != nullptr) {
+    script_.Run(*document_);
+  }
   if (document_ != nullptr) {
     document_->ForEachDescendant([&](const dom::Node& node) {
       if (!node.IsElement()) {
