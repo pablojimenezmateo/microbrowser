@@ -274,6 +274,26 @@ class Object {
   bool frozen_ = false;
 };
 
+// Heterogeneous lookup for a scope's bindings.
+//
+// Without it, `bindings_.find(std::string(name))` builds a std::string -- and
+// for anything past the small-string limit, calls the allocator -- once per
+// scope in the chain, on every read of every variable. That is a malloc in the
+// inner loop of the language. Measured at 165ns per iteration of
+// `t += i * 3 - 1` before, and the benchmark is what found it: calls were three
+// times faster on the machine and loops were barely faster at all, which is the
+// shape of a cost neither engine had anything to do with.
+struct NameHash {
+  using is_transparent = void;
+  std::size_t operator()(std::string_view text) const {
+    return std::hash<std::string_view>{}(text);
+  }
+};
+struct NameEqual {
+  using is_transparent = void;
+  bool operator()(std::string_view a, std::string_view b) const { return a == b; }
+};
+
 // One scope.
 //
 // Collected like an object, and for the same reason: a closure keeps its
@@ -292,7 +312,7 @@ class Environment {
   bool Declare(std::string name, Value value, bool is_const);
   // False when the binding is const, which the caller turns into a TypeError.
   bool Assign(std::string_view name, const Value& value);
-  bool HasOwn(std::string_view name) const { return bindings_.count(std::string(name)) != 0; }
+  bool HasOwn(std::string_view name) const { return bindings_.count(name) != 0; }
 
  private:
   friend class Heap;
@@ -303,7 +323,7 @@ class Environment {
   };
 
   Environment* parent_ = nullptr;
-  std::unordered_map<std::string, Binding> bindings_;
+  std::unordered_map<std::string, Binding, NameHash, NameEqual> bindings_;
   bool marked_ = false;
 };
 

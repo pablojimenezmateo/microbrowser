@@ -9,6 +9,7 @@
 
 namespace microbrowser::bench {
 void RegisterGfxBenchmarks(std::vector<Benchmark>& benchmarks);
+void RegisterJsBenchmarks(std::vector<Benchmark>& benchmarks);
 }  // namespace microbrowser::bench
 
 namespace {
@@ -20,6 +21,7 @@ using microbrowser::bench::Measurement;
 std::vector<Benchmark> CollectBenchmarks() {
   std::vector<Benchmark> benchmarks;
   microbrowser::bench::RegisterGfxBenchmarks(benchmarks);
+  microbrowser::bench::RegisterJsBenchmarks(benchmarks);
   return benchmarks;
 }
 

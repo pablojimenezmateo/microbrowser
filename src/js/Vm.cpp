@@ -363,7 +363,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
       }
       case Op::GetPropertyName: {
-        const Value value = GetProperty(vm_.stack.back(), code.names[instruction.a]);
+        const Value value = GetProperty(vm_.stack.back(), code.keys[instruction.a]);
         vm_.stack.back() = value;
         break;
       }
@@ -383,7 +383,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       }
       case Op::SetPropertyName: {
         const Result stored = SetProperty(vm_.stack[vm_.stack.size() - 2],
-                                          code.names[instruction.a], vm_.stack.back());
+                                          code.keys[instruction.a], vm_.stack.back());
         if (stored.IsAbrupt()) {
           pending = stored;
           threw = true;
@@ -656,7 +656,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         vm_.stack.resize(vm_.stack.size() - 2);
         break;
       case Op::ObjectSetName:
-        vm_.stack[vm_.stack.size() - 2].object->Set(code.names[instruction.a], vm_.stack.back());
+        vm_.stack[vm_.stack.size() - 2].object->Set(code.keys[instruction.a], vm_.stack.back());
         vm_.stack.pop_back();
         break;
       case Op::ObjectGetter:

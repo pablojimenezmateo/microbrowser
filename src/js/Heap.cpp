@@ -223,7 +223,7 @@ void Object::MakeCompiled(const CompiledFunction* code, Environment* closure, bo
 Value* Environment::Lookup(std::string_view name) {
   Environment* current = this;
   while (current != nullptr) {
-    const auto found = current->bindings_.find(std::string(name));
+    const auto found = current->bindings_.find(name);
     if (found != current->bindings_.end()) {
       return &found->second.value;
     }
@@ -240,7 +240,7 @@ bool Environment::Declare(std::string name, Value value, bool is_const) {
 bool Environment::Assign(std::string_view name, const Value& value) {
   Environment* current = this;
   while (current != nullptr) {
-    const auto found = current->bindings_.find(std::string(name));
+    const auto found = current->bindings_.find(name);
     if (found != current->bindings_.end()) {
       if (found->second.is_const) {
         return false;

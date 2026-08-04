@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "js/Ast.h"
+#include "js/Heap.h"
 #include "js/Value.h"
 
 namespace microbrowser::js {
@@ -245,6 +246,15 @@ struct CompiledFunction {
   // evaluation anyway so that `lastIndex` starts over.
   std::vector<Value> constants;
   std::vector<std::string> names;
+  // The same names, already built as property keys.
+  //
+  // A named access used to pass `names[a]` to GetProperty, which takes a
+  // PropertyKey -- so every `o.x` copied the name into a fresh key, which for
+  // anything past the small-string limit is a malloc per property read. The
+  // name is known at compile time and so is the key; building it once is the
+  // whole fix. Indices match `names` exactly, which is what lets one operand
+  // serve both.
+  std::vector<PropertyKey> keys;
   std::vector<Handler> handlers;
   std::vector<std::unique_ptr<CompiledFunction>> functions;
   // The AST nodes the three delegating opcodes point at. Borrowed from the

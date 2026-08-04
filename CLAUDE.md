@@ -47,17 +47,19 @@ What exists:
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No bytecode VM, async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with the tree-walking interpreter kept as the fallback for anything not yet compiled, and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: flexbox and grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
-the process split and the sandbox (rest of M7), the JS bytecode VM and the rest of the builtins
-(rest of M8), integration (M9). The collector runs between top-level statements and between
-microtasks — both are points where nothing is in progress and every live value is reachable from
-the roots — but not during evaluation, because a tree-walker cannot scan the C++ frames holding
-live values. The heap still has a ceiling that surfaces as a `RangeError`, and `async`/`await`
-still has nowhere to suspend to. Loading is synchronous — the loop blocks
+the process split and the sandbox (rest of M7), the rest of the builtins (rest of M8), integration
+(M9). **The collector now runs during evaluation**, at every loop back edge and every call: the
+machine's operand and frame stacks are data, so a script that recurses while allocating is collected
+through rather than starved. Two things still wait on the machine rather than on the tree-walker.
+Class bodies are handed back to the tree-walking evaluator by a delegating opcode, which is what
+`super` in compiled code waits on. And `async`/`await` still has nowhere to suspend to — a frame is
+a record that *could* be copied somewhere and put back, but nothing does that yet. Loading is
+synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
 
@@ -74,15 +76,22 @@ reasoning; this is the queue.
    invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
    `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
    there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **The JavaScript bytecode VM, and async/await with it.** The largest single item and the
-   project's dominant cost. It is not only speed, and it is no longer only about the collector
-   either. Two things now wait on it. The collector cannot run during evaluation, because a
-   tree-walker keeps live values in C++ frames it cannot scan — so the heap has a ceiling that
-   becomes a `RangeError` instead of a collection. And **an async function has to suspend**,
-   which a tree-walker cannot do: its state is C++ stack frames. Promises landed without it
-   because a promise only ever *schedules* a call; `await` is the one that needs the stack to be
-   data. A VM's value stack is explicit, so precise collection, generators, `async`/`await` and
-   the speed all arrive together. See the note at the top of `src/js/Heap.h`.
+2. **Finish what the machine started: slot resolution, then async/await.** The machine landed
+   and the collector runs during evaluation now. Two follow-ons, in this order.
+
+   **Bindings are still names in a hash map.** `LoadName` walks the scope chain doing a hash
+   lookup per level, and `PushFrame` allocates an `Environment` per call. That is the deliberate
+   first cut — keeping `Environment` meant closures, `this`, `arguments` and every builtin worked
+   unchanged, so the change was about the stack becoming data and nothing else. It is also the
+   single largest remaining cost, and the benchmark says so plainly: calls got 4× faster and loop
+   iterations 1.2×, because what is inside a loop is name lookup and that did not change. Resolve
+   a name to a (depth, slot) pair while compiling. See `docs/performance/m8-bytecode.md`.
+
+   **Then `async`/`await`.** A frame is a record now — code pointer, ip, a slice of the value
+   stack, a scope — so suspending a call is copying one somewhere and putting it back. That was
+   impossible against C++ stack frames and is ordinary work against these. Generators are the same
+   machinery. Compiling class bodies (rather than delegating to the tree-walker) is what `super`
+   in compiled code waits on, and is smaller than either.
 3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
    left that is not a pure addition: it means a check at every property access in the
    interpreter, which is a change to the hot path. Modules bring the loading they imply.
@@ -159,7 +168,13 @@ MICROBROWSER_PERF_SUMMARY=1    # per-label scope table ranked by self time
 MICROBROWSER_PERF_TRACE=1      # one stderr line per scope (a firehose; distorts what it measures)
 MICROBROWSER_STARTUP_SUMMARY=1 # same, for startup scopes
 MICROBROWSER_TRACE_REDRAW=1    # one line per presented frame: full/partial, rects, coverage
+MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the bytecode machine
 ```
+
+`MICROBROWSER_JS_TREEWALK=1` is the differential switch, not a debug print: the two engines
+answering the same suite is the only way to know they agree. Three tests are expected to fail under
+it and the list is at the top of `tests/JsVmTests.cpp`; anything else appearing there is a
+difference nobody decided on. Two tree-walker bugs were found this way rather than by reading it.
 
 **Read the main-thread column of a summary first.** Self time ranks CPU cost; main time ranks what
 the user waits on, and the two routinely disagree. See `guidelines/observability.md`.
@@ -214,3 +229,4 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot
 - `docs/performance/m6-damage.md` — what incremental repaint saves, and what it does not
+- `docs/performance/m8-bytecode.md` — the machine against the tree-walker, and where the time still goes

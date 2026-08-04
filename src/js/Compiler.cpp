@@ -105,6 +105,7 @@ std::uint32_t Compiler::Name(std::string_view text) {
     return found->second;
   }
   function_.names.push_back(key);
+  function_.keys.emplace_back(key);
   const auto index = static_cast<std::uint32_t>(function_.names.size() - 1);
   names_.emplace(key, index);
   return index;

@@ -142,7 +142,7 @@ so in detail rather than leaving it to be discovered at the end.
 | M5 | Layout: block, inline, line breaking, floats, flexbox, grid | **in progress** — box tree, the block box model, line boxes with baseline alignment, line breaking, replaced elements, floats, clearance and basic table row/cell layout done; flexbox and grid not |
 | M6 | Paint: display-list building, stacking contexts, incremental repaint | **in progress** — display-list building and incremental repaint from a two-frame diff done; stacking contexts not |
 | M7 | Browser UI: tabs, omnibox, history, downloads, plus the process split and sandbox. **First usable browser.** | **in progress** — toolbar, omnibox with editing and keyboard shortcuts, back/forward history done; tabs, downloads, the process split and the sandbox not |
-| M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | **in progress** — lexer, parser, tree-walking interpreter, mark-sweep GC, classes and a small standard library done; the bytecode VM, Promises, async/await, generators and a regex engine not. See ADR 0007 — this is now the project's dominant cost. |
+| M8 | JavaScript: lexer, parser, bytecode VM, GC, builtins | **in progress** — lexer, parser, a bytecode compiler and machine, mark-sweep GC that now runs *during* evaluation, classes, regular expressions, Promises and a standard library done; async/await, generators, `Proxy` and modules not. The machine is what the remaining three wait on: a frame is a record that can be suspended, which C++ stack frames were not. See ADR 0007. |
 | M9 | Integration: DOM bindings, events, forms, fetch, dynamic relayout | |
 
 ## Performance and Benchmark Methodology
