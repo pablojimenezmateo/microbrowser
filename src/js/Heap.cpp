@@ -428,7 +428,7 @@ void Heap::DrainWorklists() {
       Environment* environment = environment_worklist_.back();
       environment_worklist_.pop_back();
       Mark(environment->parent_);
-      for (const Environment::Binding& binding : environment->slots_) {
+      for (const Binding& binding : environment->slots_) {
         // A reserved-but-unset slot holds a default-constructed value, which
         // marks as nothing. Tracing it anyway is cheaper than the branch.
         MarkValue(binding.value);

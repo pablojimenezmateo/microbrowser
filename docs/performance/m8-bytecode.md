@@ -11,30 +11,76 @@ cmake --build --preset microbrowser-perf --target microbrowser_bench
 ./build/microbrowser-perf/microbrowser/microbrowser_bench js/
 ```
 
+## Read one benchmark at a time
+
+**A number from a run of the whole table is not comparable with a number from
+another run of the whole table**, and the tree-walker column is the half that
+shows it. The benchmarks share a process and therefore share an allocator, and a
+workload that allocates heavily leaves free lists warm for whatever runs next.
+Two measurements of code that did not change between them:
+
+- `js/fib [tree-walker]` reports 561 ns/call when the machine's `js/fib` ran
+  before it in the same process, and 1760 ns/call when run on its own. The
+  machine's `fib` used to allocate 150k environments and now allocates none, so
+  it stopped warming the run after it.
+- `js/class-super [tree-walker]` reports 1460 ns/call against one build of the
+  harness and 4610 against another. Linked into a bare program that runs the
+  same source through `RunProgram` and nothing else, the two builds are 0.67 and
+  0.68 seconds — the same. What moved was the thirteen compiled chunks the
+  harness builds at registration and never runs.
+
+The harness warms each benchmark against itself (one untimed run, a pilot, then
+best of five rounds). What it cannot warm is the process it was handed. So every
+number below was taken one benchmark per process, best of five, on the perf
+preset:
+
+```
+./build/microbrowser-perf/microbrowser/microbrowser_bench "js/fib [machine]"
+```
+
+Compare a machine number against a machine number. The ratio column is the
+weakest thing in the table.
+
 ## The numbers
 
 Per unit of work, lower is better. Ratio is tree-walker ÷ machine. Taken after
-slot resolution; the "before slots" column is the machine's own number when
-bindings were still names in a hash map, which is what that change bought.
+frames without scopes; the two middle columns are the machine's own numbers
+before each of the two changes that moved them, so what each bought reads off
+one row. The "before slots" column was taken by the older whole-table protocol
+and is comparable in shape rather than digit for digit.
 
-| Workload | Machine | Before slots | Tree-walker | Ratio |
-|---|---|---|---|---|
-| `js/closures` — an arrow made and called per iteration | 597 ns | 611 ns | 3900 ns | **6.5×** |
-| `js/fib` — `fib(24)`, 150k calls | 259 ns/call | 255 ns/call | 573 ns/call | **2.2×** |
-| `js/method-calls` — `o.step()` 100k times | 330 ns/call | 330 ns/call | 762 ns/call | **2.3×** |
-| `js/property-reads` — `o.a + o.b + o.c` | 169 ns | 239 ns | 349 ns | **2.1×** |
-| `js/array-index` — `a[i % 1000]` | 215 ns | 265 ns | 328 ns | 1.5× |
-| `js/try-catch` — throw and catch per iteration | 216 ns | 252 ns | 336 ns | 1.6× |
-| `js/loop-arithmetic` — `t += i * 3 - 1` | 121 ns | 158 ns | 181 ns | 1.5× |
-| `js/string-build` — `s += 'x'` | 284 ns | 332 ns | 377 ns | 1.3× |
+| Workload | Machine | Before frames | Before slots | Tree-walker | Ratio |
+|---|---|---|---|---|---|
+| `js/fib` — `fib(24)`, 150k calls | 116 ns/call | 252 ns/call | 255 ns/call | 1760 ns/call | **15×** |
+| `js/class-super` — `super.m(v)` through one level | 279 ns/call | 599 ns/call | — | 4610 ns/call | **17×** |
+| `js/class-methods` — `c.step()` 100k times | 203 ns/call | 336 ns/call | — | 1205 ns/call | **6×** |
+| `js/method-calls` — `o.step()` 100k times | 202 ns/call | 313 ns/call | 330 ns/call | 722 ns/call | **3.6×** |
+| `js/try-catch` — throw and catch per iteration | 115 ns | 193 ns | 252 ns | 291 ns | **2.5×** |
+| `js/closures` — an arrow made and called per iteration | 460 ns | 612 ns | 611 ns | 3605 ns | **7.8×** |
+| `js/array-index` — `a[i % 1000]` | 203 ns | 211 ns | 265 ns | 294 ns | 1.4× |
+| `js/loop-arithmetic` — `t += i * 3 - 1` | 110 ns | 111 ns | 158 ns | 178 ns | 1.6× |
+| `js/property-reads` — `o.a + o.b + o.c` | 157 ns | 157 ns | 239 ns | 339 ns | 2.2× |
+| `js/string-build` — `s += 'x'` | 265 ns | 264 ns | 332 ns | 342 ns | 1.3× |
+
+**Calls stopped allocating, and that is the whole of the "before frames"
+column.** `js/fib` is calls and nothing else and it halved — the row slot
+resolution did not move. `js/class-super` and `js/class-methods` halved for the
+same reason. `js/try-catch` nearly halved because the block scope a `try` sits
+in went with the call's own. The rows that are arithmetic in a loop did not
+move at all, because they were never allocating.
+
+`js/closures` is the row that says what is left: an arrow is a closure, so the
+function that makes one still allocates a scope, and 612 → 460 ns is the arrow's
+*own* call being flattened rather than the maker's.
 
 Class bodies were the last construct handed back to the tree-walker, so until
 they were compiled a page written in classes ran its method bodies on the old
 engine however the caller got there — the machine's number for `js/class-methods`
 was 555 ns against the tree-walker's 579 ns, which is to say it was not doing
-anything.
+anything. Both of those were taken by the whole-table protocol and are here for
+the shape of the change rather than for their digits.
 
-| Workload | Machine | Before class bodies | Tree-walker |
+| Workload | Machine, then | Before class bodies | Tree-walker, then |
 |---|---|---|---|
 | `js/class-methods` — `c.step()` 100k times | 331 ns/call | 555 ns/call | 583 ns/call |
 | `js/class-super` — `super.m(v)` through one level | 605 ns/call | 1098 ns/call | 1921 ns/call |
@@ -80,6 +126,38 @@ deliberately differ is a `finally` block, which is emitted at each exit path and
 blocks between it and the jump have been popped — so `RunFinalizers` truncates the model for the
 duration.
 
+## How a frame without scopes works
+
+A scope has to outlive its call only when something can still reach it afterwards, and the only
+thing that can reach one is a closure made inside it. So a function that makes none cannot leak a
+scope, and none of its scopes needs to be on the heap: its bindings go in a slice of a locals stack
+the machine owns, and the call allocates nothing at all.
+
+Three things make it work:
+
+- **The question is syntactic, and is answered before anything is emitted.** "Can this leak a scope"
+  is "is there a function node in the body" — a nested function, an arrow, a class, an object
+  literal with a method. There is no other way to make a function here: `eval` and `Function(source)`
+  do not exist, and a test says so. It has to be answered first because every name in the body
+  resolves against the answer.
+- **Every block in such a function is flattened into the one slice.** Slot indices are function-wide
+  rather than per-block, so `hops = 0` means the frame however many blocks deep the reference is,
+  and `hops = 1` means the scope the function was defined in. No `PushScope` is emitted at all.
+- **A block still has to be undeclared again each time it is entered.** That is the one thing a
+  fresh Environment gave for free. `ClearLocals` puts a block's run of slots back in their reserved
+  state, so `x` before its own `let x` is a ReferenceError on the second time round a loop as much
+  as on the first.
+
+It follows that a flattened function never has a nested one, so a flattened scope is never something
+an inner function resolves *through* — which is what keeps the hop counting to one rule rather than
+two.
+
+Two limits fall out. The slice is a fixed-capacity stack for the reason the value stack is —
+an instruction holds a `Binding*` into it while it runs — so overflowing it is the RangeError a
+page gets for recursing too far. And a flattened function has no name-based fallback: a name form
+walks Environments and there is no Environment holding this, so a function with four thousand
+block-scoped names abandons the compile and the tree-walker takes the program.
+
 ## What the shape of the table said
 
 **Calls got much faster and loops barely did.** That was the finding after the machine landed, and
@@ -107,11 +185,12 @@ overstate nothing.
 
 ## Where the time still goes
 
-**A call still allocates an `Environment`.** `PushFrame` allocates one per call and fills four
-prologue slots. Most calls do not need one at all: only a function some closure captures has to have
-its scope outlive the call, and the compiler already knows which those are, because it knows where
-every `Closure` op is. That is the next thing worth measuring — `js/fib` and `js/method-calls` are
-the two rows slot resolution did not move, and this is why.
+**A call that makes a closure still allocates.** `js/closures` is the row: an arrow is a function, so
+the scope of whatever makes one has to be able to outlive the call, and it goes on the heap. The
+present rule is all-or-nothing per function — one arrow anywhere in a body puts every block in that
+body back on the heap — where what is actually required is that the scopes the closure can *reach*
+survive. Narrowing it means asking which scopes a given `Closure` op is inside rather than whether
+there is one, and it is worth doing only against a page that spends its time there.
 
 **A class is still built by the tree-walking `EvaluateClass`.** Its method bodies are compiled and
 that is where the time is, but the builder itself — computed keys, static field initializers, and

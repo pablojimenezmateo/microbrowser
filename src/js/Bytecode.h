@@ -197,6 +197,13 @@ enum class Op : std::uint8_t {
   // --- Scopes --------------------------------------------------------------
   PushScope,  // a = slots to reserve
   PopScope,   // a = how many
+  // What a function whose scopes nothing can capture emits instead of the two
+  // above: its bindings are already in the frame, so entering a block is
+  // putting that block's slots back in their undeclared state rather than
+  // allocating anything. Needed because a block can be entered twice -- the
+  // second time round a loop, `x` before its own `let x` must still be a
+  // ReferenceError.
+  ClearLocals,  // a = packed base and count; see PackLocals
 
   // --- Iteration -----------------------------------------------------------
   // The cursor lives on the interpreter's iteration stack rather than on the
@@ -248,6 +255,16 @@ inline constexpr std::uint32_t PackSlot(std::uint32_t hops, std::uint32_t slot,
 inline constexpr std::uint32_t SlotHops(std::uint32_t packed) { return packed >> 28; }
 inline constexpr std::uint32_t SlotIndex(std::uint32_t packed) { return (packed >> 16) & 0xFFFu; }
 inline constexpr std::uint32_t SlotName(std::uint32_t packed) { return packed & 0xFFFFu; }
+
+// The packing behind ClearLocals: a contiguous run of frame slots, which is
+// what a block's bindings are because they are all reserved when it opens.
+// Both halves are bounded by kMaxSlotIndex, so twelve bits each is exact
+// rather than generous.
+inline constexpr std::uint32_t PackLocals(std::uint32_t base, std::uint32_t count) {
+  return (base << 12) | count;
+}
+inline constexpr std::uint32_t LocalsBase(std::uint32_t packed) { return packed >> 12; }
+inline constexpr std::uint32_t LocalsCount(std::uint32_t packed) { return packed & 0xFFFu; }
 
 // The first four slots of every compiled function's own scope.
 //
@@ -327,11 +344,30 @@ struct CompiledFunction {
   // program tree, which outlives this for exactly the same reason.
   std::vector<const Node*> nodes;
   std::uint32_t parameter_count = 0;
-  // How many slots this function's own scope needs: the four reserved above,
-  // plus one per parameter binding. PushFrame reserves them before the
-  // prologue runs.
+  // How many slots this function needs. The four reserved above plus one per
+  // parameter binding -- and, when `frame_locals` is set, one per binding
+  // every block in the body declares as well, because those live here too.
+  // PushFrame reserves them before the prologue runs.
   std::uint32_t scope_slots = kReservedSlots;
   bool is_arrow = false;
+  // Whether this function's scopes live in the frame instead of on the heap.
+  //
+  // A scope has to outlive its call only when something can still reach it
+  // afterwards, and the only thing that can is a closure made inside it. A
+  // function that creates none -- no nested function, no arrow, no class, so
+  // no `Closure`, `ClosureArrow` or `ClassLiteral` op anywhere in its body --
+  // cannot leak a scope, so its bindings go in a slice of the machine's locals
+  // stack and the call allocates nothing. Every block in such a function is
+  // flattened into that one slice, which is why the slot indices here are
+  // function-wide rather than per-block.
+  //
+  // Decided from the syntax before anything is emitted, because the compiler
+  // has to know it to resolve names: a name in a flattened function is one hop
+  // count and a name in a scoped one is another. That it can be decided from
+  // the syntax at all is the point -- a nested function is a node, and there
+  // is no other way to make one. `eval` and `Function(source)` do not exist
+  // here, and a test says so.
+  bool frame_locals = false;
   // Set when the body names `arguments`, so the array is built per call only
   // where something can observe it. The scan stops at a nested ordinary
   // function, which has an `arguments` of its own, and does not stop at an
@@ -348,6 +384,13 @@ struct CompiledFunction {
 // from a page's side it is the same thing.
 inline constexpr std::size_t kValueStackCapacity = 1u << 16;
 inline constexpr std::size_t kFrameCapacity = 256;
+// The locals stack, on the same terms and for the same reason: a frame holds a
+// pointer into it while an instruction runs, so it is reserved once and
+// overflowing it is a RangeError rather than a reallocation. Sized so that a
+// full call stack of ordinary functions fits several times over; a function
+// with thousands of bindings runs out of depth sooner, which is the same answer
+// a page gets for recursing too far.
+inline constexpr std::size_t kLocalsCapacity = 1u << 16;
 
 // Compiles a parsed program, or returns null when some construct in it has no
 // compiled form yet.
@@ -371,7 +414,14 @@ struct Frame {
   // The call's own scope, holding `this` and the parameters. Block scopes go on
   // the interpreter's shared scope stack above it, so that a handler can
   // truncate to a depth instead of walking a chain.
+  //
+  // When the code has `frame_locals`, no such scope was allocated and this is
+  // the defining scope instead -- the one a name that is not the frame's own
+  // resolves through. Both cases want the same thing from it, which is why it
+  // is one field: it is where the scope chain continues.
   Environment* scope = nullptr;
+  // Where this frame's bindings start on the locals stack, when it has any.
+  std::size_t locals_base = 0;
   std::uint32_t ip = 0;
   // Where the callee was pushed. The result is written here and the stack is
   // truncated to just past it, so a return needs no arithmetic on the caller.

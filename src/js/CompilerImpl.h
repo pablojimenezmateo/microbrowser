@@ -87,6 +87,12 @@ struct CompiledScope {
   // where the compiler said.
   std::unordered_map<std::string, std::uint32_t> slots;
   std::uint32_t count = 0;
+  // Where those indices start. Zero in a function whose scopes are real
+  // Environments, because each one is indexed from its own base. In a
+  // flattened function every scope shares the frame's one slice, so a block
+  // has to say where in it its own run of slots begins -- which is what
+  // ClearLocals needs to put them back in their undeclared state.
+  std::uint32_t base = 0;
 };
 
 class Compiler {
@@ -122,6 +128,18 @@ class Compiler {
   // the global scope, which other scripts and every builtin also write to, and
   // which therefore has no layout to know.
   void Reserve(std::string_view name);
+  // Opens, enters and leaves one scope, in that order and always all three.
+  // The reservations happen between the first two, which is why entering is
+  // not part of opening: a block's slots are all known before any of it runs.
+  //
+  // These are also the only place that knows a flattened function emits
+  // ClearLocals where a scoped one emits PushScope and PopScope. Everything
+  // else -- the depths a handler records, what a `break` unwinds -- is the
+  // same either way, which is why `scope_depth_` counts scopes the compiler
+  // modelled rather than instructions it emitted.
+  void OpenScope();
+  void EnterScope();
+  void LeaveScope();
   // Reserves every name a statement list declares, before any of it is
   // emitted. The two passes are the point: `switch` can jump past a `let` and
   // the one after it must still land where the compiler said.
@@ -227,6 +245,9 @@ class Compiler {
   // `scopes_.size() == scope_floor_ + scope_depth_`.
   std::size_t scope_floor_ = 0;
   std::uint32_t iteration_depth_ = 0;
+  // Slots handed out so far in a flattened function, across every scope in it.
+  // Unused otherwise, where each scope numbers its own from zero.
+  std::uint32_t frame_slots_ = 0;
   // Carried from a Labeled statement to the loop it wraps. A labelled
   // `continue` names a loop rather than a label, and the loop is the only
   // thing that can act on it.

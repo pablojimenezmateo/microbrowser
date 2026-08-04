@@ -47,11 +47,52 @@ Environment* Interpreter::CurrentScope() {
   return vm_.scopes.size() > frame.scope_base ? vm_.scopes.back() : frame.scope;
 }
 
+Binding* Interpreter::SlotBinding(const Frame& frame, std::uint32_t packed) {
+  const std::uint32_t hops = SlotHops(packed);
+  const std::uint32_t index = SlotIndex(packed);
+  if (frame.code->frame_locals) {
+    if (hops == 0) {
+      // The frame's own bindings, and every block's inside it: a flattened
+      // function has one slice and the compiler numbered it function-wide.
+      const std::size_t at = frame.locals_base + index;
+      return at < vm_.locals.size() ? &vm_.locals[at] : nullptr;
+    }
+    // Past the frame, the chain is ordinary scopes again, starting at the one
+    // the function was defined in -- so one hop of the compiler's count has
+    // already been spent getting out of the frame.
+    Environment* scope = frame.scope == nullptr ? nullptr : frame.scope->Ancestor(hops - 1);
+    return scope == nullptr ? nullptr : scope->Slot(index);
+  }
+  Environment* scope = CurrentScope()->Ancestor(hops);
+  return scope == nullptr ? nullptr : scope->Slot(index);
+}
+
+Value* Interpreter::FrameName(std::string_view name, std::uint32_t slot) {
+  if (!vm_.frames.empty()) {
+    const Frame& frame = vm_.frames.back();
+    if (frame.code->frame_locals) {
+      const std::size_t at = frame.locals_base + slot;
+      if (at < vm_.locals.size() && vm_.locals[at].live) {
+        return &vm_.locals[at].value;
+      }
+      return frame.scope == nullptr ? nullptr : frame.scope->Lookup(name);
+    }
+  }
+  return CurrentScope()->Lookup(name);
+}
+
 void Interpreter::GatherVmRoots(std::vector<Object*>& objects,
                                 std::vector<Environment*>& scopes) const {
   for (const Value& value : vm_.stack) {
     if (value.IsObject() || value.IsSymbol()) {
       objects.push_back(value.object);
+    }
+  }
+  // A flattened frame's bindings are reachable from nothing else -- there is no
+  // Environment holding them -- so this is the only thing keeping them alive.
+  for (const Binding& binding : vm_.locals) {
+    if (binding.live && (binding.value.IsObject() || binding.value.IsSymbol())) {
+      objects.push_back(binding.value.object);
     }
   }
   for (const Frame& frame : vm_.frames) {
@@ -90,37 +131,68 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
     return Throw("RangeError", "maximum call stack size exceeded");
   }
   const CompiledFunction* code = function->Code();
-  Environment* scope = heap_.AllocateEnvironment(function->Closure());
-  if (scope == nullptr) {
-    return Throw("RangeError", "out of memory");
+  Environment* scope = nullptr;
+  const std::size_t locals_base = vm_.locals.size();
+  if (code->frame_locals) {
+    // Nothing made inside this call can outlive it, so its bindings go on the
+    // locals stack and the call allocates nothing at all. The chain continues
+    // at the scope the function was defined in.
+    if (locals_base + code->scope_slots > kLocalsCapacity) {
+      return Throw("RangeError", "maximum call stack size exceeded");
+    }
+    // Reserved on the first call that needs it rather than in the constructor.
+    // The rule is the value stack's -- fixed capacity, because an instruction
+    // holds a Binding* into this while it runs -- but the cost is three
+    // megabytes, and a page that runs no script should not pay it. Measured:
+    // the benchmark harness holds twenty-six interpreters and only one of them
+    // ever pushes a frame.
+    if (vm_.locals.capacity() < kLocalsCapacity) {
+      vm_.locals.reserve(kLocalsCapacity);
+    }
+    vm_.locals.resize(locals_base + code->scope_slots);
+    scope = function->Closure();
+  } else {
+    scope = heap_.AllocateEnvironment(function->Closure());
+    if (scope == nullptr) {
+      return Throw("RangeError", "out of memory");
+    }
+    // The prologue, at the four fixed slots Compiler::Function reserved. The
+    // two agreeing is what lets a parameter's index be a compile-time
+    // constant; see kSlotThis in Bytecode.h.
+    scope->Reserve(code->scope_slots);
   }
 
-  // The prologue, at the four fixed slots Compiler::Function reserved. The two
-  // agreeing is what lets a parameter's index be a compile-time constant; see
-  // kSlotThis in Bytecode.h.
-  scope->Reserve(code->scope_slots);
   // An arrow function has no `this` of its own: it uses the one captured where
   // it was written. That is the whole difference between the two forms.
   const Value self = vm_.stack[callee_slot + 1];
-  scope->DeclareSlot(kSlotThis, "this", function->IsArrow() ? function->BoundThis() : self, true);
+  const auto declare = [&](std::uint32_t index, const char* name, Value value, bool is_const) {
+    if (code->frame_locals) {
+      vm_.locals[locals_base + index] = Binding{std::move(value), is_const, true};
+      return;
+    }
+    scope->DeclareSlot(index, name, std::move(value), is_const);
+  };
+  declare(kSlotThis, "this", function->IsArrow() ? function->BoundThis() : self, true);
   if (function->HomeObject() != nullptr) {
-    scope->DeclareSlot(kSlotHome, "__home__", Value::Obj(function->HomeObject()), true);
+    declare(kSlotHome, "__home__", Value::Obj(function->HomeObject()), true);
   }
-  scope->DeclareSlot(kSlotFunction, "__function__", Value::Obj(function), true);
+  declare(kSlotFunction, "__function__", Value::Obj(function), true);
   if (code->needs_arguments) {
     std::vector<Value> arguments(vm_.stack.begin() + static_cast<std::ptrdiff_t>(callee_slot) + 2,
                                  vm_.stack.end());
     Object* list = NewArray(std::move(arguments));
     if (list == nullptr) {
+      vm_.locals.resize(locals_base);
       return Throw("RangeError", "out of memory");
     }
-    scope->DeclareSlot(kSlotArguments, "arguments", Value::Obj(list), false);
+    declare(kSlotArguments, "arguments", Value::Obj(list), false);
   }
 
   Frame frame;
   frame.code = code;
   frame.function = function;
   frame.scope = scope;
+  frame.locals_base = locals_base;
   frame.stack_base = callee_slot;
   frame.argument_base = callee_slot + 2;
   frame.argument_count = argument_count;
@@ -158,6 +230,7 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
     vm_.frames.pop_back();
     vm_.iterations.resize(done.iteration_base);
     vm_.scopes.resize(done.scope_base);
+    vm_.locals.resize(done.locals_base);
     vm_.stack.resize(done.stack_base);
   }
   return false;
@@ -214,6 +287,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       vm_.stack.resize(frame->stack_base);
       vm_.stack.push_back(Value::Undefined());
       vm_.scopes.resize(frame->scope_base);
+      vm_.locals.resize(frame->locals_base);
       vm_.iterations.resize(frame->iteration_base);
       vm_.frames.pop_back();
       if (vm_.frames.size() == entry_depth) {
@@ -338,9 +412,8 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
       }
       case Op::LoadSlot: {
-        Environment* scope = CurrentScope()->Ancestor(SlotHops(instruction.a));
-        Value* binding = scope == nullptr ? nullptr : scope->SlotValue(SlotIndex(instruction.a));
-        if (binding == nullptr) {
+        const Binding* binding = SlotBinding(*frame, instruction.a);
+        if (binding == nullptr || !binding->live) {
           // The slot is reserved but its declaration has not run. Reading a
           // binding before its own `let` is a ReferenceError, and reserving the
           // slot up front must not quietly turn that into undefined.
@@ -350,38 +423,46 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           threw = true;
           break;
         }
-        vm_.stack.push_back(*binding);
+        vm_.stack.push_back(binding->value);
         break;
       }
       case Op::StoreSlot: {
-        Environment* scope = CurrentScope()->Ancestor(SlotHops(instruction.a));
-        const std::uint32_t index = SlotIndex(instruction.a);
-        Value* binding = scope == nullptr ? nullptr : scope->SlotValue(index);
-        if (binding == nullptr) {
+        Binding* binding = SlotBinding(*frame, instruction.a);
+        if (binding == nullptr || !binding->live) {
           pending = Throw("ReferenceError",
                           "cannot access '" + code.names[SlotName(instruction.a)] +
                               "' before it is declared");
           threw = true;
           break;
         }
-        if (scope->SlotIsConst(index)) {
+        if (binding->is_const) {
           pending = Throw("TypeError", "assignment to constant variable '" +
                                            code.names[SlotName(instruction.a)] + "'");
           threw = true;
           break;
         }
-        *binding = vm_.stack.back();
+        binding->value = vm_.stack.back();
         break;
       }
       case Op::DeclareSlot: {
         const SlotDeclaration& declaration = code.declarations[instruction.a];
-        CurrentScope()->DeclareSlot(declaration.slot, code.names[declaration.name],
-                                    vm_.stack.back(), declaration.is_const);
+        if (code.frame_locals) {
+          // Bounded rather than trusted: the index comes from the compiler and
+          // not from a page, but a write past the slice would be someone
+          // else's binding, and this is the only place that writes by index.
+          const std::size_t at = frame->locals_base + declaration.slot;
+          if (at < vm_.locals.size()) {
+            vm_.locals[at] = Binding{vm_.stack.back(), declaration.is_const, true};
+          }
+        } else {
+          CurrentScope()->DeclareSlot(declaration.slot, code.names[declaration.name],
+                                      vm_.stack.back(), declaration.is_const);
+        }
         vm_.stack.pop_back();
         break;
       }
       case Op::LoadThis: {
-        Value* binding = CurrentScope()->Lookup("this");
+        Value* binding = FrameName("this", kSlotThis);
         vm_.stack.push_back(binding == nullptr ? Value::Undefined() : *binding);
         break;
       }
@@ -641,6 +722,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         const Frame done = *frame;
         vm_.frames.pop_back();
         vm_.scopes.resize(done.scope_base);
+        vm_.locals.resize(done.locals_base);
         vm_.iterations.resize(done.iteration_base);
         vm_.stack.resize(done.stack_base);
         vm_.stack.push_back(value);
@@ -788,7 +870,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // The prototype of the object the method was *defined* on, not the one
         // it was called through. Using the receiver instead makes a three-level
         // hierarchy recurse into itself.
-        Value* home = CurrentScope()->Lookup("__home__");
+        Value* home = FrameName("__home__", kSlotHome);
         if (home == nullptr || !home->IsObject() || home->object->Prototype() == nullptr) {
           pending = Throw("SyntaxError", "'super' is only valid inside a method");
           threw = true;
@@ -798,10 +880,14 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
       }
       case Op::SuperCall: {
-        Value* current = CurrentScope()->Lookup("__function__");
-        Value* self = CurrentScope()->Lookup("this");
-        if (current == nullptr || !current->IsObject() ||
-            current->object->SuperConstructor() == nullptr) {
+        // Copied out rather than pointed at, because everything below this
+        // runs a constructor and a set of field initializers -- and a binding
+        // read out of the frame is a pointer into a stack those can push onto.
+        const Value* found = FrameName("__function__", kSlotFunction);
+        const Value current = found == nullptr ? Value::Undefined() : *found;
+        const Value* self = FrameName("this", kSlotThis);
+        const Value instance = self == nullptr ? Value::Undefined() : *self;
+        if (!current.IsObject() || current.object->SuperConstructor() == nullptr) {
           pending = Throw("SyntaxError", "'super' keyword unexpected here");
           threw = true;
           break;
@@ -809,8 +895,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         const std::size_t first = vm_.stack.size() - instruction.a;
         const std::vector<Value> arguments(
             vm_.stack.begin() + static_cast<std::ptrdiff_t>(first), vm_.stack.end());
-        const Value instance = self == nullptr ? Value::Undefined() : *self;
-        Object* parent = current->object->SuperConstructor();
+        Object* parent = current.object->SuperConstructor();
         // The parent constructor and the field initializers both hold values in
         // C++ locals while they run, so no safepoint fires underneath them.
         ++call_depth_;
@@ -818,7 +903,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         if (!done.IsAbrupt() && instance.IsObject()) {
           // Fields of *this* class initialize after the super call, which is
           // the ordering that makes a derived field see a base one.
-          done = InitializeFields(instance.object, current->object);
+          done = InitializeFields(instance.object, current.object);
         }
         --call_depth_;
         vm_.stack.resize(first);
@@ -876,6 +961,18 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::PopScope:
         vm_.scopes.resize(vm_.scopes.size() - instruction.a);
         break;
+      case Op::ClearLocals: {
+        // Entering a block in a flattened function. Its slots go back to
+        // reserved-but-unset, which is what makes the second time round a loop
+        // behave like the first: `x` before its own `let x` is a
+        // ReferenceError every iteration, not just the one that declared it.
+        const std::size_t first = frame->locals_base + LocalsBase(instruction.a);
+        const std::size_t last = std::min(first + LocalsCount(instruction.a), vm_.locals.size());
+        for (std::size_t i = first; i < last; ++i) {
+          vm_.locals[i] = Binding{};
+        }
+        break;
+      }
 
       // --- Iteration ---------------------------------------------------------
       case Op::IterateOpen: {

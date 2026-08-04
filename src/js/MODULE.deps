@@ -43,11 +43,19 @@ budget: Op              header_lines=180 public_methods=0  members=0
 # declaration records DeclareSlot reads, and the size of the function's own
 # scope. All three are things the compiler worked out once so the machine does
 # not have to work them out per execution, which is what this whole struct is.
-budget: CompiledFunction header_lines=50 public_methods=0 members=14
+# Grew by one for the flattened frame: whether this function's scopes live in
+# the frame or on the heap. One bit, and it has to be here rather than derived
+# at run time because the compiler resolved every name against the answer --
+# a name in a flattened function is one hop count and a name in a scoped one is
+# another, so the two disagreeing is not a slowdown, it is a wrong slot.
+budget: CompiledFunction header_lines=62 public_methods=0 members=15
 # One call in progress. Every field is something a resumed frame would need, and
 # that is the test for adding another -- this is the record `await` will have to
 # be able to copy somewhere and put back.
-budget: Frame           header_lines=30 public_methods=0  members=9
+# Grew by one for the flattened frame: where this call's bindings start on the
+# locals stack. Passes the test above -- a resumed frame has to know where its
+# own bindings are before it can read one.
+budget: Frame           header_lines=36 public_methods=0  members=10
 # The compiler. Large because the language is, and split across two translation
 # units the way the parser is: expressions in Compiler.cpp, statements and
 # patterns in CompilerStatements.cpp. The member count is what matters and it is
@@ -58,10 +66,14 @@ budget: Frame           header_lines=30 public_methods=0  members=9
 # three together are the model of the run-time scope chain, and it has to be a
 # model rather than a lookup because the whole point is to answer "how many
 # scopes out, which slot" without running anything.
-budget: Compiler        header_lines=150 public_methods=4  members=13
+budget: Compiler        header_lines=175 public_methods=4  members=14
 # One scope the compiler created, and therefore one whose layout it knows. A map
 # and a count; if it ever needs a third field, what it is modelling has changed.
-budget: CompiledScope   header_lines=20 public_methods=0  members=2
+# Grew by one, and what it is modelling did change, which is what that line
+# asked for. A scope used to be indexed from its own base because it was its
+# own Environment; in a flattened function every scope shares the frame's one
+# slice, so a block has to say where in it its own run of slots begins.
+budget: CompiledScope   header_lines=28 public_methods=0  members=3
 
 # The instruction list, its constant pools, and the flags the matcher reads off
 # it. Data, with no behaviour of its own -- every member is one of those three.
@@ -139,8 +151,13 @@ budget: WellKnown   header_lines=45 public_methods=2  members=8
 # seven -- every field in it is a GC root, and a root list living apart from the
 # fields is a use-after-free waiting for a page to allocate enough. GatherVmRoots
 # sits next to the struct and walks all of it.
-budget: Interpreter header_lines=390 public_methods=44 members=15
+budget: Interpreter header_lines=410 public_methods=44 members=15
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.
-budget: VmState     header_lines=30 public_methods=0  members=5
+# Grew by one for the locals stack: the bindings of every frame whose scopes
+# nothing can capture, one contiguous slice per frame. A sixth stack rather
+# than a vector per frame, for the reason the other five are shared -- a vector
+# per frame is a heap allocation per call, which is the cost this whole change
+# exists to remove. It is a GC root like the rest, and GatherVmRoots walks it.
+budget: VmState     header_lines=36 public_methods=0  members=6

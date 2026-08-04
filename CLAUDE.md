@@ -47,7 +47,7 @@ What exists:
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, and the tree-walking interpreter kept as the fallback for anything not yet compiled and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, calls that cannot leak a scope keeping their bindings in the frame rather than on the heap, and the tree-walking interpreter kept as the fallback for anything not yet compiled and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
@@ -78,21 +78,20 @@ reasoning; this is the queue.
    invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
    `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
    there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **Finish what the machine started: slot resolution, then async/await.** The machine landed
-   and the collector runs during evaluation now. Two follow-ons, in this order.
+2. **Finish what the machine started: `async`/`await`, then generators.** The machine landed, the
+   collector runs during evaluation, names resolve to slots, and a call that cannot leak a scope
+   now allocates nothing — `js/fib` went from 252 to 116 ns/call and `js/class-super` from 599 to
+   279. What is left is the thing the machine was built for.
 
-   **A call still allocates an `Environment`.** Slot resolution is done: bindings live in a vector
-   and compiled code indexes straight in, which took a name operation from 15.6ns to 4.3ns — the
-   cost of any instruction, so the premium is gone rather than reduced. What it did *not* move is
-   `js/fib` and `js/method-calls`, because `PushFrame` still allocates a scope per call and fills
-   four prologue slots. Most calls need no scope at all: only a function some closure captures has
-   to have its scope outlive the call, and the compiler already knows which those are because it
-   knows where every `Closure` op is. See `docs/performance/m8-bytecode.md`.
+   **A frame is a record** — code pointer, ip, a slice of the value stack, a scope or a slice of
+   the locals stack — so suspending a call is copying one somewhere and putting it back. That was
+   impossible against C++ stack frames and is ordinary work against these. Nothing waits on it:
+   class bodies are compiled, Promises and the microtask queue exist, and a suspended frame's
+   bindings are now in one of two places that both have a base and a length. Generators are the
+   same machinery, and `await` is the one a page actually needs first.
 
-   **Then `async`/`await`.** A frame is a record now — code pointer, ip, a slice of the value
-   stack, a scope — so suspending a call is copying one somewhere and putting it back. That was
-   impossible against C++ stack frames and is ordinary work against these. Generators are the same
-   machinery. Class bodies are compiled now, so nothing waits on that.
+   Note the parser: `await` lexes as a keyword and parses as a unary operator that nothing
+   evaluates, and `async` is not parsed as a function modifier at all. That is the first step.
 3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
    left that is not a pure addition: it means a check at every property access in the
    interpreter, which is a change to the hot path. Modules bring the loading they imply.

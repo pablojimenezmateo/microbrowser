@@ -631,6 +631,7 @@ Result Interpreter::RunCompiled(const CompiledFunction& program) {
   frame.stack_base = callee_slot;
   frame.argument_base = callee_slot + 2;
   frame.scope_base = vm_.scopes.size();
+  frame.locals_base = vm_.locals.size();
   frame.iteration_base = vm_.iterations.size();
   vm_.frames.push_back(frame);
 

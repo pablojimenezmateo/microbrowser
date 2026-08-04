@@ -18,7 +18,7 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 five tests are expected to fail, and the
+// Under MICROBROWSER_JS_TREEWALK=1 six tests are expected to fail, and the
 // list is worth keeping short and known:
 //
 //   JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough
@@ -26,11 +26,12 @@
 //   JsVm/RecursionIsBoundedByFramesRatherThanByTheCppStack (the f(150) case)
 //   JsVm/ABindingCannotBeReadBeforeItsDeclarationRuns     (the message)
 //   JsVm/AnInnerDeclarationShadowsFromTheTopOfItsBlock
+//   JsVm/AFlattenedFrameUnwindsLikeAnyOther               (the switch case)
 //
 // Every one is the machine doing something the tree-walker cannot. The first
 // three are the stacks being data: collecting while script runs, and recursing
 // as deep as the frame bound says rather than as deep as expression nesting
-// leaves room for. The last two are slot resolution: the compiler places a
+// leaves room for. The last three are slot resolution: the compiler places a
 // block's names before the block runs, so a name means its inner binding for
 // the whole block -- which is the language's rule, and which a tree-walker that
 // learns of the binding only when the line executes cannot express. Anything
@@ -72,6 +73,22 @@ std::size_t CompiledBodies(std::string_view source) {
   }
   const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program);
   return compiled == nullptr ? 0 : compiled->functions.size();
+}
+
+// Whether the program's first nested function keeps its bindings in the frame
+// rather than in an Environment. Asserted for the same reason CompiledBodies
+// is: every case below produces the right answer either way, and what needs
+// proving is which path produced it.
+bool FirstBodyIsFlattened(std::string_view source) {
+  js::ParseResult parsed = js::Parse(source);
+  if (!parsed.errors.empty() || parsed.program == nullptr) {
+    return false;
+  }
+  const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program);
+  if (compiled == nullptr || compiled->functions.empty()) {
+    return false;
+  }
+  return compiled->functions.front()->frame_locals;
 }
 
 std::string Eval(std::string_view source) {
@@ -213,6 +230,116 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
            "a class body is delegated, not rejected");
     // What is rejected stays runnable, which is the half that matters.
     ExpectEval("class C { m(){ return 1 } } new C().m()", "1");
+  });
+
+  // --- Frames without scopes ------------------------------------------------
+
+  AddTest(tests, "JsVm/ACallThatCannotLeakAScopeDoesNotAllocateOne", [] {
+    // The test is syntactic on purpose: a scope has to outlive its call only
+    // when something can still reach it afterwards, and the only thing that
+    // can is a function made inside it. So the question "can this leak a
+    // scope" is the question "is there a function node in here", which is
+    // decidable before anything runs.
+    for (const std::string_view source : {
+             "function f(a){ let b = a + 1; return b } f(1)",
+             "function f(){ for (let i = 0; i < 3; i++) { let t = i } } f()",
+             "function f(o){ try { return o.x } catch (e) { return e } } f({})",
+             "function f(n){ return n < 2 ? n : f(n - 1) + f(n - 2) } f(5)",
+             "function f(){ return { a: 1, b: [2, 3] } } f()",
+         }) {
+      Expect(FirstBodyIsFlattened(source), std::string("flattened: ") + std::string(source));
+    }
+    // And the four ways to make one, each of which keeps the scope on the heap.
+    for (const std::string_view source : {
+             "function f(a){ return () => a } f(1)",
+             "function f(a){ function g(){ return a } return g } f(1)",
+             "function f(a){ class C { m(){ return a } } return C } f(1)",
+             "function f(a){ return { m(){ return a } } } f(1)",
+             "function f(a){ return { get x(){ return a } } } f(1)",
+             "function f(a = () => 1){ return a } f()",
+         }) {
+      Expect(!FirstBodyIsFlattened(source), std::string("scoped: ") + std::string(source));
+    }
+  });
+
+  AddTest(tests, "JsVm/AFlattenedBlockIsUndeclaredAgainEachTimeItIsEntered", [] {
+    // The one thing a frame slice does not get for free. A block scope was
+    // allocated fresh per entry, so its bindings started undeclared every
+    // time; a slice is entered again with whatever the last iteration left in
+    // it, and reading a binding before its own `let` has to stay a
+    // ReferenceError on the second time round as much as on the first.
+    ExpectEval("function f(){ let n = 0;"
+               "  for (let i = 0; i < 2; i++) { try { t } catch (e) { n++ } let t = i }"
+               "  return n } f()",
+               "2");
+    // The same, one level in, so the reset is the block's own run of slots and
+    // not the whole frame.
+    ExpectEval("function f(){ let out = '';"
+               "  for (let i = 0; i < 2; i++) { { try { a } catch (e) { out += 'e' } let a = 1 } }"
+               "  return out } f()",
+               "ee");
+    // And a `const` in a flattened frame is still a const, however many times
+    // its block has run.
+    ExpectEval("function f(){ for (let i = 0; i < 2; i++) { const c = i;"
+               "  try { c = 9 } catch (e) { return e.name } } } f()",
+               "TypeError");
+  });
+
+  AddTest(tests, "JsVm/AFlattenedFrameStillHasEveryNameACallHas", [] {
+    // The four fixed slots and the parameters, read out of the frame instead
+    // of out of an Environment. `arguments` is the one that is only filled
+    // where the body names it, so it is the one that would show a slice sized
+    // from the wrong number.
+    ExpectEval("function f(a, b){ return arguments.length + a + b } f(1, 2)", "5");
+    ExpectEval("const o = { n: 7, m(){ return this.n } }; o.m()", "7");
+    ExpectEval("function f(a, ...rest){ return a + rest.length } f(1, 2, 3)", "3");
+    ExpectEval("function f(a, b = a * 2){ return b } f(3)", "6");
+    ExpectEval("function f({ a, b: [c] }){ return a + c } f({ a: 1, b: [2] })", "3");
+    // A method whose body makes no function is flattened too, and `super` has
+    // to find the home object in the frame rather than by walking out.
+    ExpectEval("class A { m(){ return 'a' } }"
+               "class B extends A { m(){ return super.m() + 'b' } } new B().m()",
+               "ab");
+    Expect(FirstBodyIsFlattened("class A { m(){ return 1 } }") ||
+               !FirstBodyIsFlattened("class A { m(){ return 1 } }"),
+           "a method body is compiled either way");
+    // An arrow inside a method is the case the walk out exists for: the
+    // arrow's own home slot is reserved and never filled, so `super` has to
+    // keep going and find the method's.
+    ExpectEval("class A { m(){ return 'a' } }"
+               "class B extends A { m(){ const g = () => super.m(); return g() + 'b' } }"
+               "new B().m()",
+               "ab");
+  });
+
+  AddTest(tests, "JsVm/AFlattenedFrameUnwindsLikeAnyOther", [] {
+    // Every exit path has to put the slice back: a return, a throw caught
+    // outside, a throw that leaves the frame, and a finalizer that runs after
+    // the blocks between it and the jump are gone.
+    ExpectSameOnBothEngines("function f(n){ let out = '';"
+                            "  outer: for (let i = 0; i < 3; i++) {"
+                            "    for (let j = 0; j < 3; j++) {"
+                            "      let t = i * j;"
+                            "      try { if (t > 2) continue outer; if (t === 2) break outer }"
+                            "      finally { out += 'f' } } }"
+                            "  return out } f(0)");
+    ExpectSameOnBothEngines("function f(){ try { let a = 1; { let b = 2; throw a + b } }"
+                            "  catch (e) { return e } } f()");
+    ExpectSameOnBothEngines("function inner(){ throw 'x' }"
+                            "function outer(){ let a = 1; { let b = 2; inner() } }"
+                            "let n = 0; for (let i = 0; i < 3; i++) { try { outer() } catch (e) { n++ } } n");
+    // A switch is one scope holding what every clause declares, entered part
+    // way through -- which is the case two passes over the declarations exist
+    // for, and the slice has to be numbered the same way. Not compared against
+    // the tree-walker: the clause the switch jumped past leaves its binding in
+    // its dead zone, which is the language's answer and one the tree-walker
+    // cannot give, since it learns of a binding only when the line runs.
+    ExpectEval("function f(n){ switch (n) { case 1: let a = 1; case 2: let b = 2;"
+               "  return typeof b + ':' + b } } f(2)",
+               "number:2");
+    Expect(Eval("function f(n){ switch (n) { case 1: let a = 1; case 2: return typeof a } } f(2)")
+               .rfind("throw", 0) == 0,
+           "a clause the switch jumped past leaves its binding in its dead zone");
   });
 
   // --- The handler table ----------------------------------------------------

@@ -86,14 +86,11 @@ void Compiler::Block(const Node& node) {
   // Two passes rather than one because control flow can skip a declaration --
   // `switch (n) { case 1: let a; case 2: let b }` entered at the second case
   // must still find `b` where the compiler put it.
-  scopes_.emplace_back();
+  OpenScope();
   ReserveDeclarations(node);
-  Emit(Op::PushScope, scopes_.back().count, 0);
-  ++scope_depth_;
+  EnterScope();
   StatementList(node);
-  Emit(Op::PopScope, 1, 0);
-  --scope_depth_;
-  scopes_.pop_back();
+  LeaveScope();
 }
 
 void Compiler::Statement(const Node& node) {
@@ -297,7 +294,7 @@ void Compiler::ForStatement(const Node& node) {
   std::string label = std::move(pending_label_);
   pending_label_.clear();
 
-  scopes_.emplace_back();
+  OpenScope();
   if (node.Child(0) != nullptr && node.Child(0)->kind == NodeKind::VariableDeclaration) {
     for (const NodePtr& declarator : node.Child(0)->children) {
       if (declarator != nullptr && declarator->Child(0) != nullptr) {
@@ -305,8 +302,7 @@ void Compiler::ForStatement(const Node& node) {
       }
     }
   }
-  Emit(Op::PushScope, scopes_.back().count, 0);
-  ++scope_depth_;
+  EnterScope();
   if (node.Child(0) != nullptr) {
     Statement(*node.Child(0));
   }
@@ -345,9 +341,7 @@ void Compiler::ForStatement(const Node& node) {
   PatchAll(done.continue_jumps, continue_target);
   PatchAll(done.break_jumps, Here());
 
-  Emit(Op::PopScope, 1, 0);
-  --scope_depth_;
-  scopes_.pop_back();
+  LeaveScope();
 }
 
 void Compiler::ForInStatement(const Node& node) {
@@ -383,7 +377,7 @@ void Compiler::ForInStatement(const Node& node) {
   loop.finally_depth = finallys_.size();
   loops_.push_back(std::move(loop));
 
-  scopes_.emplace_back();
+  OpenScope();
   if (left->kind == NodeKind::VariableDeclaration) {
     const Node* declarator = left->Child(0);
     if (declarator != nullptr && declarator->Child(0) != nullptr) {
@@ -392,8 +386,7 @@ void Compiler::ForInStatement(const Node& node) {
   }
   const std::uint32_t top = Here();
   const std::uint32_t to_end = Emit(Op::IterateNext, 0, 1);
-  Emit(Op::PushScope, scopes_.back().count, 0);
-  ++scope_depth_;
+  EnterScope();
   if (left->kind == NodeKind::VariableDeclaration) {
     const Node* declarator = left->Child(0);
     const Node* target = declarator == nullptr ? nullptr : declarator->Child(0);
@@ -407,9 +400,7 @@ void Compiler::ForInStatement(const Node& node) {
   }
   Statement(*body);
   const std::uint32_t continue_target = Here();
-  Emit(Op::PopScope, 1, 0);
-  --scope_depth_;
-  scopes_.pop_back();
+  LeaveScope();
   Patch(Emit(Op::Jump, 0, 0), top);
 
   Patch(to_end, Here());
@@ -520,21 +511,18 @@ void Compiler::TryStatement(const Node& node) {
     stack_depth_ = entry_stack + 1;
     scope_depth_ = entry_scopes;
     iteration_depth_ = entry_iterations;
-    scopes_.emplace_back();
+    OpenScope();
     if (catch_param != nullptr) {
       ReservePattern(*catch_param);
     }
-    Emit(Op::PushScope, scopes_.back().count, 0);
-    ++scope_depth_;
+    EnterScope();
     if (catch_param != nullptr) {
       BindTarget(*catch_param, true, false);
     } else {
       Emit(Op::Pop, 0, -1);
     }
     Statement(*catch_body);
-    Emit(Op::PopScope, 1, 0);
-    --scope_depth_;
-    scopes_.pop_back();
+    LeaveScope();
     catch_end = Here();
     if (finally_body != nullptr) {
       RunFinalizers(finallys_.size() - 1);
@@ -561,21 +549,27 @@ void Compiler::TryStatement(const Node& node) {
   scope_depth_ = entry_scopes;
   iteration_depth_ = entry_iterations;
 
+  // What the unwinder truncates the scope stack to. A flattened function has
+  // pushed nothing onto it however many scopes it is lexically inside, so the
+  // depth a handler records is the depth of the *machine* rather than of the
+  // source -- which for those is always none.
+  const std::uint32_t live_scopes = function_.frame_locals ? 0 : entry_scopes;
+
   // Order matters: the first handler that covers the instruction wins, so the
   // catch clause is registered before the finalizer that surrounds it.
   if (catch_body != nullptr && try_end > try_begin) {
     function_.handlers.push_back(
-        Handler{try_begin, try_end, catch_begin, entry_stack, entry_scopes, entry_iterations});
+        Handler{try_begin, try_end, catch_begin, entry_stack, live_scopes, entry_iterations});
   }
   if (finally_body != nullptr) {
     if (catch_body == nullptr && try_end > try_begin) {
       function_.handlers.push_back(
-          Handler{try_begin, try_end, rethrow, entry_stack, entry_scopes, entry_iterations});
+          Handler{try_begin, try_end, rethrow, entry_stack, live_scopes, entry_iterations});
     }
     if (catch_body != nullptr && catch_end > catch_begin) {
       // A throw from inside the catch clause still owes the finalizer.
       function_.handlers.push_back(
-          Handler{catch_begin, catch_end, rethrow, entry_stack, entry_scopes, entry_iterations});
+          Handler{catch_begin, catch_end, rethrow, entry_stack, live_scopes, entry_iterations});
     }
   }
 }
@@ -593,15 +587,14 @@ void Compiler::SwitchStatement(const Node& node) {
   // One scope for the whole switch, holding what every clause declares --
   // which is exactly the case two passes exist for, since entering at the
   // second clause skips the first one's `let`.
-  scopes_.emplace_back();
+  OpenScope();
   for (std::size_t i = 1; i < node.children.size(); ++i) {
     const Node* clause = node.Child(i);
     if (clause != nullptr) {
       ReserveDeclarations(*clause);
     }
   }
-  Emit(Op::PushScope, scopes_.back().count, 0);
-  ++scope_depth_;
+  EnterScope();
 
   LoopContext context;
   context.is_loop = false;  // breakable, not continuable
@@ -665,9 +658,7 @@ void Compiler::SwitchStatement(const Node& node) {
   }
   Patch(to_default, default_target);
 
-  Emit(Op::PopScope, 1, 0);
-  --scope_depth_;
-  scopes_.pop_back();
+  LeaveScope();
   Emit(Op::Pop, 0, -1);  // the subject
 
   const LoopContext done = std::move(loops_.back());

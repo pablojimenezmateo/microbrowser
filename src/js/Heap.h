@@ -294,6 +294,23 @@ struct NameEqual {
   bool operator()(std::string_view a, std::string_view b) const { return a == b; }
 };
 
+// One binding, wherever it lives.
+//
+// Named here rather than inside Environment because a binding no longer always
+// lives in one. A call whose scopes nothing can capture keeps them in a slice
+// of the machine's locals stack instead, and that slice holds these -- so the
+// two storage places hold the same record and a slot means the same thing in
+// both. See CompiledFunction::frame_locals.
+struct Binding {
+  Value value;
+  bool is_const = false;
+  // Whether the declaration has run. Reserved-but-unset is a third state,
+  // distinct from both "absent" and "undefined": reading a binding before its
+  // own `let` is a ReferenceError, and reserving the slot up front must not
+  // quietly turn that into undefined.
+  bool live = false;
+};
+
 // One scope.
 //
 // Collected like an object, and for the same reason: a closure keeps its
@@ -341,20 +358,19 @@ class Environment {
   // must not turn it into undefined.
   Value* SlotValue(std::uint32_t index);
   bool SlotIsConst(std::uint32_t index) const;
+  // The whole record, for the machine, which needs all three fields and would
+  // otherwise range-check the same index three times. Null only when the slot
+  // was never reserved -- an unset slot comes back with `live` false, which is
+  // the state SlotValue reports as null.
+  Binding* Slot(std::uint32_t index) {
+    return index < slots_.size() ? &slots_[index] : nullptr;
+  }
   // Fills a reserved slot and registers its name, so a name lookup from
   // outside compiled code finds it from this point on and not before.
   void DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const);
 
  private:
   friend class Heap;
-
-  struct Binding {
-    Value value;
-    bool is_const = false;
-    // Whether the declaration has run. Reserved-but-unset is a third state,
-    // distinct from both "absent" and "undefined".
-    bool live = false;
-  };
 
   Environment* parent_ = nullptr;
   std::vector<Binding> slots_;

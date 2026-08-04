@@ -260,6 +260,16 @@ class Interpreter {
   // The scope instructions read and write. The frame's own scope when it has
   // pushed none of its own.
   Environment* CurrentScope();
+  // The binding a resolved slot names, in whichever of the two places the
+  // running frame keeps its bindings. Null when the slot was never reserved,
+  // which is a compiler bug rather than a program one; an unset slot comes
+  // back with `live` false, which is the language's temporal dead zone.
+  Binding* SlotBinding(const Frame& frame, std::uint32_t packed);
+  // One of the four names a frame's own scope always has room for -- `this`,
+  // `__home__`, `__function__` -- looked up where it lives and then outwards.
+  // The walk out is what makes `super` work inside an arrow inside a method:
+  // the arrow's own slot is reserved and unset, so the method's is found.
+  Value* FrameName(std::string_view name, std::uint32_t slot);
 
   // A proxy's handler, and the target behind it. Null for anything else, which
   // is what every property operation checks before doing its ordinary work.
@@ -364,6 +374,10 @@ class Interpreter {
   struct VmState {
     std::vector<Value> stack;
     std::vector<Frame> frames;
+    // The bindings of every frame whose scopes nothing can capture, one
+    // contiguous slice per frame. Reserved once like the value stack, and for
+    // the same reason: an instruction holds a Binding* into it while it runs.
+    std::vector<Binding> locals;
     // Block scopes pushed by the running frames, innermost last. One vector
     // shared by every frame, with each frame recording where its own start --
     // a vector per frame would be a heap allocation per call.

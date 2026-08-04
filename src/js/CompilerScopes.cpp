@@ -28,11 +28,53 @@ void Compiler::Reserve(std::string_view name) {
     return;
   }
   CompiledScope& scope = scopes_.back();
-  if (scope.slots.count(std::string(name)) != 0 || scope.count > kMaxSlotIndex) {
+  if (scope.slots.count(std::string(name)) != 0) {
     return;
   }
-  scope.slots.emplace(std::string(name), scope.count);
+  if (!function_.frame_locals) {
+    if (scope.count > kMaxSlotIndex) {
+      return;  // too wide to pack; the name form still finds it
+    }
+    scope.slots.emplace(std::string(name), scope.count);
+    ++scope.count;
+    return;
+  }
+  // Flattened: one run of slots per scope, all of them in the frame's slice.
+  // Falling back to the name form is not available here -- a name lookup walks
+  // Environments and there is no Environment holding this -- so running out of
+  // indices abandons the compile and the tree-walker takes the program. A
+  // function with four thousand block-scoped names is the only way to get
+  // there.
+  if (frame_slots_ >= kMaxSlotIndex) {
+    Fail();
+    return;
+  }
+  if (scope.count == 0) {
+    scope.base = frame_slots_;
+  }
+  scope.slots.emplace(std::string(name), frame_slots_);
+  ++frame_slots_;
   ++scope.count;
+}
+
+void Compiler::OpenScope() { scopes_.emplace_back(); }
+
+void Compiler::EnterScope() {
+  const CompiledScope& scope = scopes_.back();
+  if (!function_.frame_locals) {
+    Emit(Op::PushScope, scope.count, 0);
+  } else if (scope.count > 0) {
+    Emit(Op::ClearLocals, PackLocals(scope.base, scope.count), 0);
+  }
+  ++scope_depth_;
+}
+
+void Compiler::LeaveScope() {
+  if (!function_.frame_locals) {
+    Emit(Op::PopScope, 1, 0);
+  }
+  --scope_depth_;
+  scopes_.pop_back();
 }
 
 void Compiler::ReservePattern(const Node& target) {
@@ -93,20 +135,38 @@ void Compiler::ReserveDeclarations(const Node& list) {
 bool Compiler::ResolveSlot(std::string_view name, std::uint32_t& packed) {
   std::uint32_t hops = 0;
   for (const Compiler* compiler = this; compiler != nullptr; compiler = compiler->parent_) {
+    // Every scope of a flattened function is the frame's one slice, so all of
+    // them are zero hops out and getting past them costs a single hop -- to
+    // the scope the function was defined in, where the chain is Environments
+    // again. Only `this` can be flattened: a function containing another
+    // creates a closure, which is exactly what disqualifies it.
+    const bool flat = compiler->function_.frame_locals;
     for (std::size_t i = compiler->scopes_.size(); i > 0; --i) {
       const CompiledScope& scope = compiler->scopes_[i - 1];
       const auto found = scope.slots.find(std::string(name));
       if (found != scope.slots.end()) {
-        if (hops > kMaxSlotHops || found->second > kMaxSlotIndex) {
-          return false;  // too deep or too wide to pack; the name form still works
-        }
         const std::uint32_t index = Name(name);
-        if (index > kMaxSlotName) {
+        if (hops > kMaxSlotHops || found->second > kMaxSlotIndex || index > kMaxSlotName) {
+          // Too deep or too wide to pack. The name form still finds a binding
+          // that lives in an Environment, and finds nothing at all when the
+          // binding is in a frame -- so where that is the answer, the compile
+          // is abandoned and the tree-walker takes the program instead.
+          if (flat) {
+            Fail();
+          }
           return false;
         }
         packed = PackSlot(hops, found->second, index);
         return true;
       }
+      if (!flat) {
+        ++hops;
+        if (hops > kMaxSlotHops) {
+          return false;
+        }
+      }
+    }
+    if (flat) {
       ++hops;
       if (hops > kMaxSlotHops) {
         return false;
@@ -144,6 +204,16 @@ void Compiler::EmitDeclare(std::string_view name, bool is_const) {
            static_cast<std::uint32_t>(function_.declarations.size() - 1), -1);
       return;
     }
+  }
+  if (function_.frame_locals) {
+    // The name form declares into an Environment, and a flattened function has
+    // none of its own -- the binding would land in the enclosing scope, where
+    // nothing in this function would ever find it again. Every declaration
+    // here is supposed to have been reserved when its scope opened, so this is
+    // a gap in the reserving rather than a program the language allows; the
+    // tree-walker takes the program and the difference is speed.
+    Fail();
+    return;
   }
   Emit(is_const ? Op::DeclareConst : Op::DeclareLet, Name(name), -1);
 }

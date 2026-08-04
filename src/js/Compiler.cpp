@@ -50,6 +50,34 @@ bool NamesArguments(const Node& node) {
   return false;
 }
 
+// Whether a subtree can make a function object, which is the only way a scope
+// created inside a call can outlive it.
+//
+// The walk stops at the first one it finds rather than descending: a function
+// nested three deep is still a function this one contains, and what matters is
+// that there is one at all. A class counts because its methods are functions
+// and because its body is built by the tree-walking evaluator, which captures
+// the scope it is handed.
+bool CreatesClosure(const Node& node) {
+  switch (node.kind) {
+    case NodeKind::FunctionExpression:
+    case NodeKind::FunctionDeclaration:
+    case NodeKind::ArrowFunction:
+    case NodeKind::ClassExpression:
+    case NodeKind::ClassDeclaration:
+    case NodeKind::MethodDefinition:
+      return true;
+    default:
+      break;
+  }
+  for (const NodePtr& child : node.children) {
+    if (child != nullptr && CreatesClosure(*child)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 Compiler::Compiler(CompileState& state, CompiledFunction& function, Compiler* parent)
@@ -130,7 +158,10 @@ void Compiler::UnwindTo(std::uint32_t stack, std::uint32_t scopes, std::uint32_t
   if (iteration_depth_ > iterations) {
     Emit(Op::IterateClose, iteration_depth_ - iterations, 0);
   }
-  if (scope_depth_ > scopes) {
+  if (scope_depth_ > scopes && !function_.frame_locals) {
+    // A flattened function has no scopes to pop. Leaving a block means nothing
+    // at run time there: its slots stay where they are and are put back in
+    // their undeclared state by the ClearLocals that re-enters it.
     Emit(Op::PopScope, scope_depth_ - scopes, 0);
   }
   for (std::uint32_t i = stack_depth_; i > stack; --i) {
@@ -159,7 +190,9 @@ void Compiler::RunFinalizers(std::size_t depth) {
       iteration_depth_ = context.iteration_depth;
     }
     if (scope_depth_ > context.scope_depth) {
-      Emit(Op::PopScope, scope_depth_ - context.scope_depth, 0);
+      if (!function_.frame_locals) {
+        Emit(Op::PopScope, scope_depth_ - context.scope_depth, 0);
+      }
       scope_depth_ = context.scope_depth;
     }
     if (context.body != nullptr) {
@@ -202,6 +235,12 @@ void Compiler::Function(const Node& node, bool arrow) {
   function_.needs_arguments =
       !arrow && ((body != nullptr && NamesArguments(*body)) ||
                  (parameters != nullptr && NamesArguments(*parameters)));
+  // Nothing this call makes can outlive it unless it makes a function, so a
+  // body with none in it keeps its bindings in the frame and allocates no
+  // scope at all. Decided here, before a single instruction is emitted,
+  // because every name in the body resolves differently depending on it.
+  function_.frame_locals = !(body != nullptr && CreatesClosure(*body)) &&
+                           !(parameters != nullptr && CreatesClosure(*parameters));
 
   // The function's own scope, whose first four slots PushFrame fills. Reserved
   // in the same order there and here; see kSlotThis in Bytecode.h.
@@ -218,6 +257,9 @@ void Compiler::Function(const Node& node, bool arrow) {
       }
     }
   }
+  // How many slots the frame reserves. In a scoped function that is this one
+  // scope; in a flattened one it is every scope in the body as well, so it is
+  // not known until the body has been compiled and is set again at the end.
   function_.scope_slots = scopes_.back().count;
 
   // Slot zero of every frame is the completion value. Reserved here so that a
@@ -266,17 +308,19 @@ void Compiler::Function(const Node& node, bool arrow) {
   if (body == nullptr) {
     Emit(Op::PushUndefined, 0, 1);
     Emit(Op::Return, 0, -1);
-    return;
-  }
-  if (body->kind == NodeKind::Block) {
+  } else if (body->kind == NodeKind::Block) {
     Block(*body);
     Emit(Op::PushUndefined, 0, 1);
     Emit(Op::Return, 0, -1);
-    return;
+  } else {
+    // An expression-bodied arrow returns its expression.
+    Expression(*body);
+    Emit(Op::Return, 0, -1);
   }
-  // An expression-bodied arrow returns its expression.
-  Expression(*body);
-  Emit(Op::Return, 0, -1);
+
+  if (function_.frame_locals) {
+    function_.scope_slots = frame_slots_;
+  }
 }
 
 std::uint32_t Compiler::CompileNested(const Node& node, bool arrow) {
