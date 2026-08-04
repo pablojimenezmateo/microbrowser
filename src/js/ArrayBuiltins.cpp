@@ -83,8 +83,22 @@ bool MergeSort(NativeCall& call, std::vector<Value>& items, const Value& compara
     }
     if (!IsCallable(comparator)) {
       // The default is a *string* comparison, which is why [1, 10, 2] sorts to
-      // [1, 10, 2] and surprises everyone.
-      less = ToString(a) < ToString(b);
+      // [1, 10, 2] and surprises everyone. Through the interpreter's
+      // conversion, so an element with its own `toString` sorts by what it
+      // says rather than by "[object Object]".
+      std::string left;
+      std::string right;
+      const Result first = call.interpreter.ToStringOf(a, left);
+      if (first.IsAbrupt()) {
+        call.ThrowValue(first.value);
+        return false;
+      }
+      const Result second = call.interpreter.ToStringOf(b, right);
+      if (second.IsAbrupt()) {
+        call.ThrowValue(second.value);
+        return false;
+      }
+      less = left < right;
       return true;
     }
     const Result decided = call.interpreter.CallFunction(comparator, Value::Undefined(), {a, b});

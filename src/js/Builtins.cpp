@@ -179,6 +179,10 @@ void Interpreter::InstallGlobals() {
       if (i != 0) {
         line.push_back(' ');
       }
+      // The pure conversion, deliberately: a console line must not be able to
+      // run a page's `toString`. Logging is a thing the *host* does, often
+      // while inspecting a value it does not trust, and a getter that runs
+      // there would be a page choosing when the browser executes its code.
       line += ToString(call.arguments[i]);
     }
     console_.push_back(std::move(line));
@@ -241,7 +245,10 @@ void Interpreter::InstallGlobals() {
   global_scope_->Declare("Math", Value::Obj(math), false);
   // Deferred: it reads `Number`, `parseInt` and `parseFloat` back out of the
   // global scope, and none of them is declared yet at this point.
-  const auto install_numbers = [this, math] { InstallNumbers(math); };
+  const auto install_numbers = [this, math] {
+    InstallNumbers(math);
+    InstallDate();
+  };
 
   // --- JSON -----------------------------------------------------------------
   Object* json = NewObject();
@@ -262,7 +269,20 @@ void Interpreter::InstallGlobals() {
       return call.Throw("RangeError", "out of memory");
     }
     object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
-    return Value::Obj(object);
+    const Value made = Value::Obj(object);
+    // The second argument is a descriptor map, and it goes through
+    // `defineProperties` rather than being read here -- so a descriptor means
+    // one thing in the engine rather than two.
+    const Value descriptors = Argument(call.arguments, 1);
+    if (descriptors.IsObject()) {
+      const Value define = call.interpreter.GetPropertyValue(call.self, "defineProperties");
+      const Result defined =
+          call.interpreter.CallFunction(define, call.self, {made, descriptors});
+      if (defined.IsAbrupt()) {
+        return call.ThrowValue(defined.value);
+      }
+    }
+    return made;
   });
   install(object_constructor, "keys", [](NativeCall& call) {
     const Value target = Argument(call.arguments, 0);
@@ -275,7 +295,7 @@ void Interpreter::InstallGlobals() {
           }
         }
       }
-      for (const std::string& key : target.object->Keys()) {
+      for (const std::string& key : target.object->EnumerableKeys()) {
         keys.push_back(Value::String(key));
       }
     }
@@ -292,7 +312,7 @@ void Interpreter::InstallGlobals() {
           }
         }
       }
-      for (const std::string& key : target.object->Keys()) {
+      for (const std::string& key : target.object->EnumerableKeys()) {
         values.push_back(call.interpreter.GetProperty(target, key));
       }
     }
@@ -300,11 +320,11 @@ void Interpreter::InstallGlobals() {
   });
   install(object_constructor, "defineProperty", [](NativeCall& call) {
     // The workhorse of every transpiled module and every framework's own
-    // property machinery. Only the parts that mean something here are read:
-    // `value`, `get` and `set`. `writable`, `enumerable` and `configurable`
-    // have nowhere to be stored -- a property has no attributes in this object
-    // model -- so they are accepted and ignored rather than refused, which is
-    // the behaviour a page survives.
+    // property machinery -- and the attributes are the point of it. An
+    // omitted attribute defaults to *false* here, which is the opposite of
+    // what an ordinary assignment leaves: `Object.defineProperty(exports,
+    // '__esModule', {value: true})` is non-enumerable, and every module a
+    // bundler emits contains that line.
     const Value target = Argument(call.arguments, 0);
     if (!target.IsObject()) {
       return call.Throw("TypeError", "Object.defineProperty called on a non-object");
@@ -313,17 +333,31 @@ void Interpreter::InstallGlobals() {
     if (!descriptor.IsObject()) {
       return call.Throw("TypeError", "a property descriptor must be an object");
     }
-    const PropertyKey key = KeyFrom(Argument(call.arguments, 1));
-    const Value* getter = descriptor.object->GetOwn("get");
-    const Value* setter = descriptor.object->GetOwn("set");
-    if (getter != nullptr || setter != nullptr) {
-      target.object->DefineAccessor(
-          key, getter != nullptr && getter->IsObject() ? getter->object : nullptr,
-          setter != nullptr && setter->IsObject() ? setter->object : nullptr);
+    PropertyKey key;
+    const Result converted = call.interpreter.ToKeyOf(Argument(call.arguments, 1), key);
+    if (converted.IsAbrupt()) {
+      return call.ThrowValue(converted.value);
+    }
+    const auto flag = [&call, &descriptor](const char* name) {
+      const Value read = call.interpreter.GetPropertyValue(descriptor, name);
+      return ToBoolean(read);
+    };
+    Object::Property property;
+    property.enumerable = flag("enumerable");
+    property.configurable = flag("configurable");
+    const Value getter = call.interpreter.GetPropertyValue(descriptor, "get");
+    const Value setter = call.interpreter.GetPropertyValue(descriptor, "set");
+    if (getter.IsObject() || setter.IsObject()) {
+      property.getter = getter.IsObject() ? getter.object : nullptr;
+      property.setter = setter.IsObject() ? setter.object : nullptr;
+      // An accessor has no `writable`; a setter is what makes it assignable.
+      property.writable = true;
+      target.object->Define(std::move(key), std::move(property));
       return target;
     }
-    const Value* value = descriptor.object->GetOwn("value");
-    target.object->Set(key, value == nullptr ? Value::Undefined() : *value);
+    property.writable = flag("writable");
+    property.value = call.interpreter.GetPropertyValue(descriptor, "value");
+    target.object->Define(std::move(key), std::move(property));
     return target;
   });
   install(object_constructor, "defineProperties", [](NativeCall& call) {
@@ -353,8 +387,26 @@ void Interpreter::InstallGlobals() {
     if (!target.IsObject()) {
       return Value::Undefined();
     }
-    const Object::Property* property =
-        target.object->GetOwnProperty(KeyFrom(Argument(call.arguments, 1)));
+    const PropertyKey key = KeyFrom(Argument(call.arguments, 1));
+    // An array's indices live in the element storage rather than in the
+    // property map, so they have no Property record to describe -- and a page
+    // asking about one wants an answer rather than undefined.
+    if (target.object->GetKind() == Object::Kind::Array && !key.IsSymbol()) {
+      if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
+        if (!target.object->HasElement(*index)) {
+          return Value::Undefined();
+        }
+        const Value element = call.interpreter.NewObjectValue();
+        if (element.IsObject()) {
+          element.object->Set("value", target.object->GetElement(*index));
+          element.object->Set("writable", Value::Bool(!target.object->IsFrozen()));
+          element.object->Set("enumerable", Value::Bool(true));
+          element.object->Set("configurable", Value::Bool(!target.object->IsSealed()));
+        }
+        return element;
+      }
+    }
+    const Object::Property* property = target.object->GetOwnProperty(key);
     if (property == nullptr) {
       return Value::Undefined();
     }
@@ -371,10 +423,12 @@ void Interpreter::InstallGlobals() {
                                         : Value::Obj(property->setter));
     } else {
       descriptor.object->Set("value", property->value);
-      descriptor.object->Set("writable", Value::Bool(!target.object->IsFrozen()));
+      descriptor.object->Set("writable",
+                             Value::Bool(property->writable && !target.object->IsFrozen()));
     }
-    descriptor.object->Set("enumerable", Value::Bool(true));
-    descriptor.object->Set("configurable", Value::Bool(!target.object->IsFrozen()));
+    descriptor.object->Set("enumerable", Value::Bool(property->enumerable));
+    descriptor.object->Set("configurable",
+                           Value::Bool(property->configurable && !target.object->IsSealed()));
     return descriptor;
   });
   install(object_constructor, "getOwnPropertyNames", [](NativeCall& call) {
@@ -404,7 +458,7 @@ void Interpreter::InstallGlobals() {
     std::vector<Value> pairs;
     const Value target = Argument(call.arguments, 0);
     if (target.IsObject()) {
-      for (const std::string& key : target.object->Keys()) {
+      for (const std::string& key : target.object->EnumerableKeys()) {
         pairs.push_back(call.interpreter.NewArrayValue(
             {Value::String(key), call.interpreter.GetPropertyValue(target, key)}));
       }
@@ -452,7 +506,7 @@ void Interpreter::InstallGlobals() {
           }
         }
       }
-      for (const std::string& key : source.object->Keys()) {
+      for (const std::string& key : source.object->EnumerableKeys()) {
         // Read through GetProperty, so a getter on the source runs -- assign
         // copies values, not accessors.
         target.object->Set(key, call.interpreter.GetPropertyValue(source, key));
@@ -795,9 +849,23 @@ void Interpreter::InstallGlobals() {
       }
       return applied.value;
     });
-    // The three that are the same answer as their Object counterparts, read
-    // off the constructor rather than written twice.
-    for (const char* name : {"getPrototypeOf", "setPrototypeOf", "defineProperty", "ownKeys"}) {
+    install(reflect, "construct", [](NativeCall& call) {
+      const Value target = Argument(call.arguments, 0);
+      std::vector<Value> arguments;
+      const Value list = Argument(call.arguments, 1);
+      if (!list.IsNullish()) {
+        const Result collected = call.interpreter.CollectIterable(list, arguments);
+        if (collected.IsAbrupt()) {
+          return call.ThrowValue(collected.value);
+        }
+      }
+      const Result made = call.interpreter.ConstructValue(target, arguments);
+      return made.IsAbrupt() ? call.ThrowValue(made.value) : made.value;
+    });
+    // The rest are the same answers as their Object counterparts, read off the
+    // constructor rather than written twice.
+    for (const char* name : {"getPrototypeOf", "setPrototypeOf", "defineProperty", "ownKeys",
+                             "getOwnPropertyDescriptor", "isExtensible", "preventExtensions"}) {
       const char* source = std::string_view(name) == "ownKeys" ? "getOwnPropertyNames" : name;
       if (const Value* existing = object_constructor->GetOwn(source)) {
         reflect->Set(name, *existing);
@@ -840,16 +908,45 @@ void Interpreter::InstallGlobals() {
       if (prototype_value != nullptr && prototype_value->IsObject()) {
         error->SetPrototype(prototype_value->object);
       }
-      const Value message = Argument(call.arguments, 0);
-      if (!message.IsUndefined()) {
-        error->Set("message", Value::String(ToString(message)));
+      // AggregateError takes the errors first and the message second, which
+      // is the one place the error constructors disagree about their
+      // arguments. Told apart by the prototype's own `name` rather than by a
+      // captured flag, because a capture is invisible to the collector.
+      const Value* kind = prototype_value != nullptr && prototype_value->IsObject()
+                              ? prototype_value->object->GetOwn("name")
+                              : nullptr;
+      const bool aggregate = kind != nullptr && kind->IsString() &&
+                             kind->AsString() == "AggregateError";
+      if (aggregate) {
+        std::vector<Value> errors;
+        const Result collected =
+            call.interpreter.CollectIterable(Argument(call.arguments, 0), errors);
+        if (collected.IsAbrupt()) {
+          return call.ThrowValue(collected.value);
+        }
+        error->Set("errors", call.interpreter.NewArrayValue(std::move(errors)));
       }
-      const Value options = Argument(call.arguments, 1);
+      const Value message = Argument(call.arguments, aggregate ? 1 : 0);
+      if (!message.IsUndefined()) {
+        std::string text;
+        const Result converted = call.interpreter.ToStringOf(message, text);
+        if (converted.IsAbrupt()) {
+          return call.ThrowValue(converted.value);
+        }
+        error->Set("message", Value::String(std::move(text)));
+      }
+      const Value options = Argument(call.arguments, aggregate ? 2 : 1);
       if (options.IsObject()) {
         if (const Value* cause = options.object->GetOwn("cause")) {
           error->Set("cause", *cause);
         }
       }
+      // Where it was made. Not part of the language, and every engine has one
+      // anyway -- a page's own error reporting reads it, and code that checks
+      // `e.stack` before using it is rarer than code that does not.
+      error->Set("stack", Value::String(call.interpreter.CaptureStack(
+                              kind == nullptr ? "Error" : ToString(*kind),
+                              ToString(Argument(call.arguments, aggregate ? 1 : 0)))));
       return Value::Obj(error);
     });
     if (constructor == nullptr) {
@@ -877,9 +974,22 @@ void Interpreter::InstallGlobals() {
   // --- String and number conversions ---------------------------------------
   Object* string_constructor = native("String", [](NativeCall& call) {
     // `String()` with no argument is the empty string, not "undefined". Every
-    // other value goes through the ordinary conversion.
-    return Value::String(call.arguments.empty() ? std::string()
-                                                : ToString(call.arguments[0]));
+    // other value goes through the ordinary conversion -- the interpreter's
+    // one, which runs a `toString` a page wrote. The pure ToString would
+    // answer "[object Object]" for every object, which is what made
+    // `String(new Date())` useless.
+    if (call.arguments.empty()) {
+      return Value::String(std::string());
+    }
+    // A symbol is the one value `String()` may convert and `${}` may not:
+    // the explicit call is allowed and the implicit one is a TypeError.
+    if (call.arguments[0].IsSymbol()) {
+      return Value::String(ToString(call.arguments[0]));
+    }
+    std::string text;
+    const Result converted = call.interpreter.ToStringOf(call.arguments[0], text);
+    return converted.IsAbrupt() ? call.ThrowValue(converted.value)
+                                : Value::String(std::move(text));
   });
   InstallStringPrototype(string_constructor);
   // After it, because the pattern-taking String methods are installed on the
@@ -895,7 +1005,16 @@ void Interpreter::InstallGlobals() {
   global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {
-        return Value::Number(ToNumber(Argument(call.arguments, 0)));
+        // `Number()` with no argument is 0, not NaN. Through the interpreter's
+        // conversion for the reason `String` is: an object with a `valueOf`
+        // has to run it.
+        if (call.arguments.empty()) {
+          return Value::Number(0.0);
+        }
+        double number = 0;
+        const Result converted = call.interpreter.ToNumberOf(call.arguments[0], number);
+        return converted.IsAbrupt() ? call.ThrowValue(converted.value)
+                                    : Value::Number(number);
       })),
       false);
   Object* boolean_constructor = native("Boolean", [](NativeCall& call) {

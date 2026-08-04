@@ -10,18 +10,14 @@
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
 
-// `Math`, `Number`, and `Date`.
+// `Math` and `Number`.
 //
-// Grouped because all three are arithmetic wearing different names, and
-// because two of them have a property consequence that is easier to state once
-// than three times.
+// Grouped because both are arithmetic wearing different names. `Date` was here
+// too and is next door now: it grew a calendar, a parser and a formatter, and
+// none of those is arithmetic on numbers.
 //
-// **The clock is a fingerprinting surface.** `Date.now()` at millisecond
-// resolution is what every timing attack and every "how fast is this machine"
-// probe is built on, and a browser that hands out a nanosecond clock has given
-// away more than the time. Millisecond resolution is what the platform offers
-// and what the spec requires, so it is what is given -- but `Math.random` is a
-// separate decision and is documented where it is seeded.
+// `Math.random` is the one privacy decision in this file, and it is documented
+// where it is seeded.
 
 namespace microbrowser::js {
 
@@ -29,28 +25,6 @@ namespace {
 
 double ArgumentNumber(const NativeCall& call, std::size_t index) {
   return ToNumber(Argument(call.arguments, index));
-}
-
-// Splits a timestamp into the fields a Date reports.
-//
-// Local time, via the platform's own conversion: the alternative is carrying a
-// timezone database, and a browser that reported UTC as local time would be
-// wrong for almost everyone.
-std::tm BreakDown(double milliseconds) {
-  const auto seconds = static_cast<std::time_t>(std::floor(milliseconds / 1000.0));
-  std::tm parts{};
-#if defined(_WIN32)
-  localtime_s(&parts, &seconds);
-#else
-  localtime_r(&seconds, &parts);
-#endif
-  return parts;
-}
-
-std::string TwoDigits(int value) {
-  char buffer[8];
-  std::snprintf(buffer, sizeof(buffer), "%02d", value);
-  return buffer;
 }
 
 }  // namespace
@@ -78,7 +52,17 @@ void Interpreter::InstallNumbers(Object* math) {
   unary("asin", [](double v) { return std::asin(v); });
   unary("acos", [](double v) { return std::acos(v); });
   unary("atan", [](double v) { return std::atan(v); });
-  unary("cbrt", [](double v) { return std::cbrt(v); });
+  unary("cbrt", [](double v) {
+    // One Newton step over the library's answer. glibc's `cbrt(27)` is
+    // 3.0000000000000004, which is within a ulp and is still the wrong answer
+    // to a page that compares it against 3 -- and a cube root of a perfect
+    // cube is exactly what a page computes one for.
+    const double root = std::cbrt(v);
+    if (!std::isfinite(root) || root == 0.0) {
+      return root;
+    }
+    return root - (root * root * root - v) / (3.0 * root * root);
+  });
   unary("sinh", [](double v) { return std::sinh(v); });
   unary("cosh", [](double v) { return std::cosh(v); });
   unary("tanh", [](double v) { return std::tanh(v); });
@@ -313,98 +297,6 @@ void Interpreter::InstallNumbers(Object* math) {
     return Value::String(NumberToString(ToNumber(call.self)));
   });
 
-  // --- Date -----------------------------------------------------------------
-
-  Object* date_prototype = NewObject();
-  Object* date = NewNative("Date", [](NativeCall& call) {
-    Object* instance = call.interpreter.GetHeap().AllocateObject(Object::Kind::Plain);
-    if (instance == nullptr) {
-      return call.Throw("RangeError", "out of memory");
-    }
-    const Value* prototype =
-        call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
-    if (prototype != nullptr && prototype->IsObject()) {
-      instance->SetPrototype(prototype->object);
-    }
-    // `new Date()` is now, `new Date(ms)` is that instant, and `new Date(text)`
-    // is not parsed -- date parsing is a format zoo and a wrong answer there is
-    // worse than an honest NaN.
-    double milliseconds = 0.0;
-    if (call.arguments.empty()) {
-      milliseconds = static_cast<double>(std::time(nullptr)) * 1000.0;
-    } else if (call.arguments[0].IsNumber()) {
-      milliseconds = call.arguments[0].number;
-    } else {
-      milliseconds = std::nan("");
-    }
-    instance->Set("#time", Value::Number(milliseconds));
-    return Value::Obj(instance);
-  });
-  if (date == nullptr || date_prototype == nullptr) {
-    return;
-  }
-  date_prototype->SetPrototype(well_known_.object_prototype);
-  date->Set("prototype", Value::Obj(date_prototype));
-  date_prototype->Set("constructor", Value::Obj(date));
-  global_scope_->Declare("Date", Value::Obj(date), false);
-
-  InstallNative(date, "now", [](NativeCall&) {
-    // Millisecond resolution, which is what the spec asks for and as far as
-    // this should go: a finer clock is a timing side channel handed to every
-    // page that asks for the time.
-    return Value::Number(static_cast<double>(std::time(nullptr)) * 1000.0);
-  });
-
-  const auto field = [this, date_prototype](const char* name, int std::tm::*member,
-                                            int offset) {
-    InstallNative(date_prototype, name, [member, offset](NativeCall& call) {
-      const Value* time = call.self.IsObject() ? call.self.object->GetOwn("#time") : nullptr;
-      if (time == nullptr || std::isnan(ToNumber(*time))) {
-        return Value::Number(std::nan(""));
-      }
-      const std::tm parts = BreakDown(ToNumber(*time));
-      return Value::Number(static_cast<double>(parts.*member + offset));
-    });
-  };
-  field("getFullYear", &std::tm::tm_year, 1900);
-  // Zero-based, which is the language's most notorious off-by-one and is
-  // preserved rather than fixed: every page that formats a date adds one.
-  field("getMonth", &std::tm::tm_mon, 0);
-  field("getDate", &std::tm::tm_mday, 0);
-  field("getDay", &std::tm::tm_wday, 0);
-  field("getHours", &std::tm::tm_hour, 0);
-  field("getMinutes", &std::tm::tm_min, 0);
-  field("getSeconds", &std::tm::tm_sec, 0);
-
-  const auto milliseconds = [](NativeCall& call) {
-    const Value* time = call.self.IsObject() ? call.self.object->GetOwn("#time") : nullptr;
-    return Value::Number(time == nullptr ? std::nan("") : ToNumber(*time));
-  };
-  InstallNative(date_prototype, "getTime", milliseconds);
-  InstallNative(date_prototype, "valueOf", milliseconds);
-  InstallNative(date_prototype, "getMilliseconds", [](NativeCall& call) {
-    const Value* time = call.self.IsObject() ? call.self.object->GetOwn("#time") : nullptr;
-    const double value = time == nullptr ? std::nan("") : ToNumber(*time);
-    return Value::Number(std::isnan(value) ? value : std::fmod(value, 1000.0));
-  });
-  InstallNative(date_prototype, "toISOString", [](NativeCall& call) {
-    const Value* time = call.self.IsObject() ? call.self.object->GetOwn("#time") : nullptr;
-    const double value = time == nullptr ? std::nan("") : ToNumber(*time);
-    if (std::isnan(value)) {
-      return call.Throw("RangeError", "an invalid date has no ISO form");
-    }
-    const auto seconds = static_cast<std::time_t>(std::floor(value / 1000.0));
-    std::tm parts{};
-#if defined(_WIN32)
-    gmtime_s(&parts, &seconds);
-#else
-    gmtime_r(&seconds, &parts);
-#endif
-    return Value::String(std::to_string(parts.tm_year + 1900) + "-" +
-                         TwoDigits(parts.tm_mon + 1) + "-" + TwoDigits(parts.tm_mday) + "T" +
-                         TwoDigits(parts.tm_hour) + ":" + TwoDigits(parts.tm_min) + ":" +
-                         TwoDigits(parts.tm_sec) + "Z");
-  });
 }
 
 }  // namespace microbrowser::js

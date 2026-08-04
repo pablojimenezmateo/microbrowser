@@ -73,6 +73,19 @@ class Interpreter {
   // handler is a JS function the browser calls, not the other way round.
   Result CallFunction(const Value& callee, const Value& self,
                       const std::vector<Value>& arguments);
+  // `new callee(...)`, for a caller that has the pieces as values. Public for
+  // the reason CallFunction is, and named apart from the private Construct so
+  // that adding it did not change what that one means.
+  Result ConstructValue(const Value& callee, const std::vector<Value>& arguments) {
+    return Construct(callee, arguments);
+  }
+
+  // The call stack as text, for an Error's `stack`.
+  //
+  // Built from the machine's frames, which is a thing only the machine can do
+  // -- a tree-walker's frames are C++ frames and carry no name. Public so the
+  // host can attach one to an error it made itself.
+  std::string CaptureStack(std::string_view kind, std::string_view message) const;
 
   // Builds an Error object with a message. Public so a native function can
   // throw the way JS code does.
@@ -83,6 +96,15 @@ class Interpreter {
   // with it; collecting rather than printing is what keeps the engine
   // testable and keeps a page from writing to the terminal.
   const std::vector<std::string>& ConsoleOutput() const { return console_; }
+
+  // The wall clock, in milliseconds since the epoch.
+  //
+  // Public and in one place because it is a *privacy* surface rather than a
+  // convenience: millisecond resolution is what the spec requires and is as
+  // far as this goes, and a second caller reaching for a finer clock would
+  // hand every page a timing side channel. `Date.now()` and `new Date()` both
+  // come through here, and so will `performance.now` when it exists.
+  double NowMilliseconds() const;
 
   // Runs a collection if enough has been allocated since the last one. Called
   // only where every live value is reachable from the roots this tracks --
@@ -540,6 +562,11 @@ class Interpreter {
   // clock -- which is a fingerprinting surface and is argued about once there
   // rather than in three places.
   void InstallNumbers(Object* math);
+  // `Date`, in its own translation unit. Forty-five methods, a calendar, a
+  // parser and a formatter -- and the calendar is computed here rather than
+  // asked of the platform, because a page can name the year 275760 and
+  // `time_t` cannot hold it.
+  void InstallDate();
 
   // The values the language requires to exist, allocated once and handed out.
   //
@@ -734,8 +761,15 @@ class Interpreter {
   // alone catches it. Found by the fuzzer as a stack overflow.
   int eval_depth_ = 0;
   static constexpr int kMaxEvalDepth = 512;
-  // Bounded because JS recursion is bounded by the C++ stack here, and a page
-  // that recurses forever must get a RangeError rather than a segfault.
+  // How deep the *C++* stack may go, which is a different question from how
+  // deep JavaScript may recurse.
+  //
+  // A JS-to-JS call on the machine is a push onto a vector and costs no C++
+  // frame at all; what costs one is re-entering the interpreter from a native
+  // -- `arr.map(f)`, a promise reaction, the host dispatching an event -- and
+  // the tree-walker, whose calls are C++ frames throughout. So this bounds
+  // those, and kFrameCapacity bounds the other. Folding the two together is
+  // what limited every page to two hundred frames of ordinary recursion.
   static constexpr int kMaxCallDepth = 200;
   // Bounded because `while (true) {}` is a hang otherwise, and a page can
   // write one.

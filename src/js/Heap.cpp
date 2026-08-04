@@ -86,6 +86,9 @@ void Object::Set(PropertyKey key, Value value) {
     return;
   }
   if (found != properties_.end()) {
+    if (!found->second.writable && !found->second.IsAccessor()) {
+      return;  // a non-writable data property; the write is a silent no-op
+    }
     found->second.value = std::move(value);
     found->second.getter = nullptr;
     found->second.setter = nullptr;
@@ -120,6 +123,27 @@ void Object::RecordKey(const std::string& text) {
     ++at;
   }
   key_order_.insert(key_order_.begin() + static_cast<std::ptrdiff_t>(at), text);
+}
+
+void Object::Define(PropertyKey key, Property property) {
+  if (IsFrozen()) {
+    return;
+  }
+  const auto found = properties_.find(key);
+  if (found == properties_.end()) {
+    if (!IsExtensible()) {
+      return;
+    }
+    if (!key.IsSymbol()) {
+      RecordKey(key.Text());
+    }
+    properties_.emplace(std::move(key), std::move(property));
+    return;
+  }
+  if (!found->second.configurable && !found->second.writable) {
+    return;
+  }
+  found->second = std::move(property);
 }
 
 void Object::DefineAccessor(PropertyKey key, Object* getter, Object* setter) {
@@ -164,6 +188,9 @@ bool Object::Delete(const PropertyKey& key) {
   const auto found = properties_.find(key);
   if (found == properties_.end()) {
     return true;
+  }
+  if (!found->second.configurable) {
+    return false;
   }
   properties_.erase(found);
   if (!key.IsSymbol()) {

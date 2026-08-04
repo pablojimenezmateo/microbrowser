@@ -18,13 +18,14 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 thirty-four tests are expected to fail, in
+// Under MICROBROWSER_JS_TREEWALK=1 thirty-five tests are expected to fail, in
 // three groups, and the list is worth keeping known:
 //
 //   the stacks being data --
 //   JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough
 //   JsVm/ACollectionMidLoopKeepsWhatTheLoopIsHolding      (the build(150) case)
 //   JsVm/RecursionIsBoundedByFramesRatherThanByTheCppStack (the f(150) case)
+//   JsConformance/RecursionGoesAsDeepAsAPageNeeds        (the f(2000) case)
 //
 //   slot resolution --
 //   JsVm/ABindingCannotBeReadBeforeItsDeclarationRuns     (the message)

@@ -160,7 +160,13 @@ budget: MatchOp             header_lines=45 public_methods=0  members=0
 # Grew for the integrity levels replacing the frozen flag -- three nested
 # states rather than one -- and for the symbol keys, which key_order_
 # deliberately does not hold.
-budget: Object      header_lines=200 public_methods=52 members=17
+# And again for the property attributes. A property had none, so
+# `Object.defineProperty(exports, '__esModule', {value: true})` -- which every
+# bundler emits and which is *non*-enumerable -- landed in `Object.keys`. Three
+# bools on Property, an enumerable-only key list beside the full one, and a
+# Define that takes them; the member count did not move, because they are
+# fields of a property rather than of an object.
+budget: Object      header_lines=245 public_methods=54 members=17
 # Grew by one member and by the slot half of its surface. Bindings live in a
 # vector now and the names index into it: compiled code resolved its names while
 # compiling and indexes straight in, everything else still asks by name and pays

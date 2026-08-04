@@ -178,7 +178,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
             return spread;
           }
           if (spread.value.IsObject()) {
-            for (const std::string& key : spread.value.object->Keys()) {
+            for (const std::string& key : spread.value.object->EnumerableKeys()) {
               object->Set(key, GetProperty(spread.value, key));
             }
           }
@@ -572,7 +572,7 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
         }
       }
     }
-    for (const std::string& key : object->Keys()) {
+    for (const std::string& key : object->EnumerableKeys()) {
       keys.push_back(Value::String(key));
     }
   }

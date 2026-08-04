@@ -107,8 +107,13 @@ void Interpreter::GatherVmRoots(std::vector<Object*>& objects,
 
 Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
                               std::uint32_t argument_count) {
-  if (call_depth_ + static_cast<int>(vm_.frames.size()) >= kMaxCallDepth ||
-      vm_.frames.size() >= kFrameCapacity) {
+  if (vm_.frames.capacity() < kFrameCapacity) {
+    // Reserved once, on the first call that needs it. The capacity is fixed
+    // because an instruction holds a Frame* into this while it runs -- a
+    // reallocation under that pointer is a write into freed memory.
+    vm_.frames.reserve(kFrameCapacity);
+  }
+  if (call_depth_ >= kMaxCallDepth || vm_.frames.size() >= kFrameCapacity) {
     // A page can write unbounded recursion. The frames are on the heap now, so
     // this bound is a policy rather than a property of the C++ stack -- but a
     // page still has to get a RangeError rather than an allocator failure.

@@ -291,6 +291,121 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
                "3");
   });
 
+  // --- Date -----------------------------------------------------------------
+  //
+  // The calendar is computed rather than asked of the platform: `time_t`
+  // cannot hold the range the language allows, and a page can name the far
+  // end of it.
+
+  AddTest(tests, "JsConformance/DateReadsAndWritesEveryUtcField", [] {
+    ExpectEval("new Date(Date.UTC(2020,0,2,3,4,5,6)).toISOString()", "2020-01-02T03:04:05.006Z");
+    ExpectEval("const d = new Date(Date.UTC(2020,0,2)); "
+               "[d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCDay()].join()",
+               "2020,0,2,4");
+    ExpectEval("const d = new Date(0); d.setUTCFullYear(2000); d.toISOString()",
+               "2000-01-01T00:00:00.000Z");
+  });
+
+  AddTest(tests, "JsConformance/DateParsesWhatItPrints", [] {
+    ExpectEval("Date.parse('2020-01-02T00:00:00.000Z')", "1577923200000");
+    ExpectEval("Date.parse('2020-01-02')", "1577923200000");
+    ExpectEval("String(Date.parse('not a date'))", "NaN");
+    // The round trips that matter: both of the forms this engine produces
+    // have to come back as the same instant.
+    ExpectEval("const d = new Date(Date.UTC(2020,5,15,12,0,0));"
+               "new Date(d.toISOString()).getTime() === d.getTime()",
+               "true");
+    ExpectEval("const d = new Date(Date.UTC(2020,5,15,12,0,0));"
+               "new Date(String(d)).getTime() === d.getTime()",
+               "true");
+  });
+
+  AddTest(tests, "JsConformance/DateFieldsRollRatherThanFail", [] {
+    // `new Date(2020, 0, 32)` is the first of February: pages add days that
+    // way on purpose.
+    ExpectEval("new Date(2020, 0, 32).getMonth()", "1");
+    ExpectEval("new Date(2020, 12, 1).getFullYear()", "2021");
+  });
+
+  AddTest(tests, "JsConformance/AnInvalidDateIsAValueRatherThanAnError", [] {
+    ExpectEval("new Date(NaN).toString()", "Invalid Date");
+    ExpectEval("String(new Date(NaN).getTime())", "NaN");
+    ExpectEval("JSON.stringify({d: new Date(NaN)})", "{\"d\":null}");
+  });
+
+  AddTest(tests, "JsConformance/ADatePrefersItsStringUnderTheDefaultHint", [] {
+    // The one exotic conversion in the language, and the reason
+    // Symbol.toPrimitive exists: `date + 1` concatenates, `date - 1` subtracts.
+    ExpectEval("const d = new Date(0); typeof (d + 1)", "string");
+    ExpectEval("const d = new Date(0); d - 0", "0");
+  });
+
+  AddTest(tests, "JsConformance/ADateSerializesAsItsIsoString", [] {
+    ExpectEval("JSON.stringify({d: new Date(Date.UTC(2000,0,1))})",
+               "{\"d\":\"2000-01-01T00:00:00.000Z\"}");
+  });
+
+  // --- Property attributes --------------------------------------------------
+
+  AddTest(tests, "JsConformance/DefinePropertyDefaultsToNonEnumerable", [] {
+    // The line every bundler emits. An engine that reported it from
+    // Object.keys would put it in every loop over every module's exports.
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', {value: 1});"
+               "o.x + ':' + Object.keys(o).length",
+               "1:0");
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', {value: 1, enumerable: true});"
+               "Object.keys(o).join()",
+               "x");
+    // getOwnPropertyNames reports it anyway, which is the whole difference
+    // between the two.
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', {value: 1});"
+               "Object.getOwnPropertyNames(o).join()",
+               "x");
+  });
+
+  AddTest(tests, "JsConformance/ANonWritablePropertyRefusesAWrite", [] {
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', {value: 1}); o.x = 2; o.x", "1");
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', {value: 1, writable: true});"
+               "o.x = 2; o.x",
+               "2");
+  });
+
+  AddTest(tests, "JsConformance/ADescriptorSaysWhatItActuallyIs", [] {
+    ExpectEval("const d = Object.getOwnPropertyDescriptor({x:1}, 'x');"
+               "[d.value, d.writable, d.enumerable, d.configurable].join()",
+               "1,true,true,true");
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', {value: 1});"
+               "const d = Object.getOwnPropertyDescriptor(o, 'x');"
+               "[d.writable, d.enumerable, d.configurable].join()",
+               "false,false,false");
+  });
+
+  AddTest(tests, "JsConformance/ObjectCreateTakesADescriptorMap", [] {
+    ExpectEval("const o = Object.create({x:1}, {y: {value: 2, enumerable: true}});"
+               "o.x + ':' + o.y + ':' + Object.keys(o).join()",
+               "1:2:y");
+  });
+
+  AddTest(tests, "JsConformance/SealAndPreventExtensionsAreNotFreeze", [] {
+    ExpectEval("const o = Object.seal({a:1}); o.a = 2; delete o.a; o.b = 3;"
+               "o.a + ':' + ('b' in o) + ':' + Object.isSealed(o)",
+               "2:false:true");
+    ExpectEval("const o = Object.preventExtensions({a:1}); o.b = 1; delete o.a;"
+               "Object.isExtensible(o) + ':' + ('a' in o) + ':' + ('b' in o)",
+               "false:false:false");
+  });
+
+  // --- Recursion ------------------------------------------------------------
+
+  AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {
+    // A frame on the machine is a vector slot, not a C++ frame, so the limit
+    // is a number this engine chooses. Two hundred was the figure from when a
+    // call cost a C++ frame, and a recursive walk over a document exceeds it.
+    ExpectEval("function f(n){ return n === 0 ? 0 : f(n-1) + 1 } f(2000)", "2000");
+    ExpectEval("function g(){ return g() } try { g() } catch (e) { e instanceof RangeError }",
+               "true");
+  });
+
   AddTest(tests, "JsConformance/AUnaryOperatorRunsTheConversionToo", [] {
     ExpectEval("-({valueOf(){return 3}})", "-3");
     ExpectEval("~({valueOf(){return 0}})", "-1");

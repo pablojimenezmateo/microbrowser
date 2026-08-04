@@ -1,5 +1,6 @@
 #include "js/Interpreter.h"
 
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -25,7 +26,6 @@ Interpreter::Interpreter() {
   // one of them, so a fixed capacity makes that safe by construction; see the
   // note at the top of Vm.cpp.
   vm_.stack.reserve(kValueStackCapacity);
-  vm_.frames.reserve(kFrameCapacity);
   global_ = heap_.AllocateObject(Object::Kind::Plain);
   global_scope_ = heap_.AllocateEnvironment(nullptr);
   well_known_.object_prototype = heap_.AllocateObject(Object::Kind::Plain);
@@ -45,6 +45,14 @@ Interpreter::Interpreter() {
 }
 
 Interpreter::~Interpreter() = default;
+
+double Interpreter::NowMilliseconds() const {
+  // Millisecond resolution, deliberately. A finer clock is what every timing
+  // side channel is built on, and the spec asks for no more than this.
+  const auto now = std::chrono::system_clock::now().time_since_epoch();
+  return static_cast<double>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+}
 
 Object* Interpreter::NewObject() {
   Object* object = heap_.AllocateObject(Object::Kind::Plain);
@@ -140,6 +148,28 @@ Value Interpreter::MakeError(std::string_view kind, std::string message) {
   error->Set("name", Value::String(std::string(kind)));
   error->Set("message", Value::String(std::move(message)));
   return Value::Obj(error);
+}
+
+std::string Interpreter::CaptureStack(std::string_view kind,
+                                      std::string_view message) const {
+  std::string out(kind);
+  if (!message.empty()) {
+    out += ": ";
+    out += message;
+  }
+  // Innermost first, which is the order every engine prints and every stack
+  // parser expects. Bounded, because a page can recurse as deep as the frame
+  // limit allows and a megabyte of stack text helps nobody.
+  constexpr std::size_t kMaxFrames = 32;
+  std::size_t written = 0;
+  for (std::size_t i = vm_.frames.size(); i > 0 && written < kMaxFrames; --i) {
+    const Frame& frame = vm_.frames[i - 1];
+    const std::string& name = frame.code == nullptr ? std::string() : frame.code->name;
+    out += "\n    at ";
+    out += name.empty() ? "<anonymous>" : name;
+    ++written;
+  }
+  return out;
 }
 
 Result Interpreter::Throw(std::string_view kind, std::string message) {
@@ -564,9 +594,11 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   if (!callee.IsObject() || !callee.object->IsCallable()) {
     return Throw("TypeError", ToString(callee) + " is not a function");
   }
-  if (call_depth_ + static_cast<int>(vm_.frames.size()) >= kMaxCallDepth) {
-    // A page can write unbounded recursion, and the C++ stack is what would
-    // run out. A RangeError is what the language says happens.
+  if (call_depth_ >= kMaxCallDepth) {
+    // Re-entering the interpreter from C++ -- a native calling back into
+    // script -- is what runs the C++ stack out. Ordinary JS recursion is
+    // bounded by kFrameCapacity instead, which is a much larger number
+    // because a frame there costs a vector slot rather than a C++ frame.
     return Throw("RangeError", "maximum call stack size exceeded");
   }
 

@@ -158,6 +158,17 @@ class Object {
     // pointers are independent rather than a single flag.
     Object* getter = nullptr;
     Object* setter = nullptr;
+    // The three attributes, defaulting the way an ordinary assignment leaves
+    // them rather than the way `defineProperty` does -- those defaults are the
+    // opposite of each other and the difference is load-bearing.
+    //
+    // `enumerable` is the one that earns its place: every transpiled module
+    // writes `Object.defineProperty(exports, '__esModule', {value: true})`,
+    // which is *non*-enumerable, and an engine that reported it from
+    // `Object.keys` would put it in every loop over every module's exports.
+    bool enumerable = true;
+    bool writable = true;
+    bool configurable = true;
 
     bool IsAccessor() const { return getter != nullptr || setter != nullptr; }
   };
@@ -210,10 +221,33 @@ class Object {
   // keys that are not array indices. Symbol-keyed properties are deliberately
   // absent: nothing that enumerates an object is supposed to see them, which
   // is what makes a symbol a safe place to hang a protocol hook.
-  // Own string keys, in enumeration order -- integer-like first and ascending,
-  // then the rest in insertion order. Maintained on insert rather than sorted
-  // on read, because every enumeration would otherwise pay for it.
+  // Every own string key, in enumeration order -- integer-like first and
+  // ascending, then the rest in insertion order. Maintained on insert rather
+  // than sorted on read, because every enumeration would otherwise pay for it.
+  //
+  // *Every* one, including the non-enumerable: this is what
+  // `Object.getOwnPropertyNames` reports. Anything that walks properties on a
+  // page's behalf -- `Object.keys`, `for...in`, spread, `JSON.stringify` --
+  // wants EnumerableKeys instead.
   const std::vector<std::string>& Keys() const { return key_order_; }
+  // The subset a page can see by enumerating. Built on demand: filtering costs
+  // a walk and most objects have nothing hidden, so the common case is a copy
+  // of a vector that was going to be walked anyway.
+  std::vector<std::string> EnumerableKeys() const {
+    std::vector<std::string> out;
+    out.reserve(key_order_.size());
+    for (const std::string& key : key_order_) {
+      const Property* property = GetOwnProperty(key);
+      if (property == nullptr || property->enumerable) {
+        out.push_back(key);
+      }
+    }
+    return out;
+  }
+  // Sets a property with attributes, which an ordinary assignment cannot: an
+  // assignment leaves a new property enumerable, writable and configurable,
+  // and `Object.defineProperty` leaves it none of those unless told otherwise.
+  void Define(PropertyKey key, Property property);
   // The symbol-keyed own properties, which `key_order_` deliberately does not
   // hold: a symbol has no text to file it under, and `Object.keys` must not
   // report one. Built on demand rather than kept, because the one caller --

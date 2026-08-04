@@ -474,7 +474,20 @@ struct CompiledFunction {
 // Overflowing it is the same RangeError as running out of call depth, because
 // from a page's side it is the same thing.
 inline constexpr std::size_t kValueStackCapacity = 1u << 16;
-inline constexpr std::size_t kFrameCapacity = 256;
+// How deep JavaScript recursion may go on the machine.
+//
+// Not the C++ stack: a JS-to-JS call is a push onto this vector, so the limit
+// is a number chosen here rather than one the platform imposes -- which is the
+// property the whole machine exists for. Two hundred and fifty-six was the
+// figure from when calls still cost C++ frames, and it is far below what a
+// page does: a recursive walk over a DOM tree or a parsed document reaches a
+// thousand without being unusual.
+//
+// Reserved on the first call that needs it rather than in the constructor,
+// like the locals stack and for the same reason: the capacity is fixed because
+// an instruction holds a Frame* into it, but a page that runs no script should
+// not pay for the reservation.
+inline constexpr std::size_t kFrameCapacity = 4096;
 // The locals stack, on the same terms and for the same reason: a frame holds a
 // pointer into it while an instruction runs, so it is reserved once and
 // overflowing it is a RangeError rather than a reallocation. Sized so that a

@@ -2033,7 +2033,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("const seen = new Set(); for (let i = 0; i < 200; i++) seen.add(Math.random()); "
                "seen.size",
                "200");
-    ExpectEval("new Date(0).toISOString()", "1970-01-01T00:00:00Z");
+    ExpectEval("new Date(0).toISOString()", "1970-01-01T00:00:00.000Z");
     ExpectEval("new Date(0).getTime()", "0");
     // An unparsed date is an honest NaN rather than a wrong instant.
     ExpectEval("new Date('the third of never').getTime()", "NaN");
