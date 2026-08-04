@@ -39,6 +39,13 @@ std::size_t LengthOf(const NativeCall& call) {
 // A relative index, clamped. Negative counts back from the end, which is what
 // makes `slice(-1)` and `at(-1)` idiomatic.
 std::size_t Clamp(double index, std::size_t size) {
+  // NaN is zero, which is ToIntegerOrInfinity's rule and is load-bearing here:
+  // an omitted argument converts to NaN, `std::min(NaN, n)` is NaN, and
+  // casting that to a size_t is undefined behaviour. `[1,2,3].fill(0)` reached
+  // it, and the answer was whatever the cast produced.
+  if (std::isnan(index)) {
+    return 0;
+  }
   const double limit = static_cast<double>(size);
   if (index < 0) {
     return static_cast<std::size_t>(std::max(0.0, limit + index));
@@ -643,6 +650,34 @@ void Interpreter::InstallArrayPrototype() {
     const Value comparator = Argument(call.arguments, 0);
     if (!comparator.IsUndefined() && !IsCallable(comparator)) {
       return call.Throw("TypeError", "the comparator is not a function");
+    }
+    // A typed array sorts *numerically* by default where an array sorts by
+    // string, and has no holes and no storage to swap in -- so it is written
+    // back element by element. The two rules together are the whole
+    // difference, and both are what a page expects of a Uint8Array.
+    if (self->View() != nullptr) {
+      std::vector<Value> numbers;
+      for (std::size_t i = 0; i < self->ElementCount(); ++i) {
+        numbers.push_back(self->GetElement(i));
+      }
+      if (IsCallable(comparator)) {
+        if (!MergeSort(call, numbers, comparator)) {
+          return Value::Undefined();
+        }
+      } else {
+        std::sort(numbers.begin(), numbers.end(), [](const Value& a, const Value& b) {
+          // NaN sorts to the end, which is what the spec says and what
+          // std::sort needs a strict weak ordering to express.
+          if (std::isnan(b.number)) {
+            return !std::isnan(a.number);
+          }
+          return !std::isnan(a.number) && a.number < b.number;
+        });
+      }
+      for (std::size_t i = 0; i < numbers.size(); ++i) {
+        self->SetElement(i, numbers[i]);
+      }
+      return call.self;
     }
     // Holes sort to the very end, after the undefineds, and are not passed to
     // the comparator either.

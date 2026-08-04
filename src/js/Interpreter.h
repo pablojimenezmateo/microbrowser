@@ -232,6 +232,8 @@ class Interpreter {
   // `Object.prototype.toString` reads the tag, and `Array.prototype.concat`
   // will read the spread flag.
   Object* SymbolToStringTag() const { return well_known_.symbol_to_string_tag; }
+  // Where a buffer a typed array allocated for itself gets its methods.
+  Object* ArrayBufferPrototype() const { return well_known_.array_buffer_prototype; }
 
   // The compiled pattern behind a RegExp object, or null for anything else.
   // This is what "is a regular expression" means here, and it is a stronger
@@ -580,6 +582,11 @@ class Interpreter {
   // asked of the platform, because a page can name the year 275760 and
   // `time_t` cannot hold it.
   void InstallDate();
+  // `ArrayBuffer`, the nine typed arrays and `DataView`. One translation unit
+  // because they are one feature: a buffer is bytes, a typed array is a window
+  // onto them with an element type, and a DataView is a window told its type
+  // per access.
+  void InstallTypedArrays();
 
   // The values the language requires to exist, allocated once and handed out.
   //
@@ -608,6 +615,11 @@ class Interpreter {
     // ToPrimitive reaches for, so without this a boolean in a string context
     // is a TypeError rather than "true".
     Object* boolean_prototype = nullptr;
+    // The two the typed arrays need to find again: a typed array made without
+    // a buffer allocates one and has to give it the right prototype, and the
+    // nine constructors share one prototype between them.
+    Object* array_buffer_prototype = nullptr;
+    Object* typed_array_prototype = nullptr;
     // Where `next`, `throw` and `return` live, and the `Symbol.iterator` that
     // returns the generator itself. One object shared by every generator
     // rather than one per generator function -- so `Object.getPrototypeOf(g())`
@@ -662,7 +674,8 @@ class Interpreter {
               regexp_prototype,    promise_prototype, symbol_iterator,     number_prototype,
               generator_prototype, symbol_async_iterator, async_generator_prototype,
               return_signal,       symbol_to_primitive, symbol_has_instance,
-              symbol_to_string_tag, boolean_prototype,  chain_signal};
+              symbol_to_string_tag, boolean_prototype,  chain_signal,
+              array_buffer_prototype, typed_array_prototype};
     }
   };
 

@@ -1,6 +1,8 @@
 #include "js/Heap.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <utility>
 
 #include "js/Collections.h"
@@ -236,12 +238,128 @@ bool Object::HasOwn(const PropertyKey& key) const {
   return GetOwnProperty(key) != nullptr;
 }
 
+// One element, read out of a buffer at a byte offset. The bytes are in the
+// platform's own order, which is what a typed array is defined to use -- a
+// DataView is where the choice is a page's to make.
+double ReadElementBytes(const std::vector<std::uint8_t>& bytes, std::size_t at,
+                        ElementKind kind) {
+  const auto load = [&bytes, at](std::size_t width) {
+    std::uint64_t value = 0;
+    for (std::size_t i = 0; i < width; ++i) {
+      value |= static_cast<std::uint64_t>(bytes[at + i]) << (8 * i);
+    }
+    return value;
+  };
+  switch (kind) {
+    case ElementKind::Int8:
+      return static_cast<std::int8_t>(bytes[at]);
+    case ElementKind::Uint8:
+    case ElementKind::Uint8Clamped:
+      return bytes[at];
+    case ElementKind::Int16:
+      return static_cast<std::int16_t>(static_cast<std::uint16_t>(load(2)));
+    case ElementKind::Uint16:
+      return static_cast<std::uint16_t>(load(2));
+    case ElementKind::Int32:
+      return static_cast<std::int32_t>(static_cast<std::uint32_t>(load(4)));
+    case ElementKind::Uint32:
+      return static_cast<std::uint32_t>(load(4));
+    case ElementKind::Float32: {
+      const auto bits = static_cast<std::uint32_t>(load(4));
+      float out = 0;
+      std::memcpy(&out, &bits, sizeof(out));
+      return out;
+    }
+    case ElementKind::Float64: {
+      const std::uint64_t bits = load(8);
+      double out = 0;
+      std::memcpy(&out, &bits, sizeof(out));
+      return out;
+    }
+  }
+  return 0;
+}
+
+void WriteElementBytes(std::vector<std::uint8_t>& bytes, std::size_t at, ElementKind kind,
+                       double value) {
+  const auto store = [&bytes, at](std::size_t width, std::uint64_t bits) {
+    for (std::size_t i = 0; i < width; ++i) {
+      bytes[at + i] = static_cast<std::uint8_t>((bits >> (8 * i)) & 0xFFu);
+    }
+  };
+  switch (kind) {
+    case ElementKind::Int8:
+    case ElementKind::Uint8:
+      // Through ToUint32 first: the conversion is defined as truncate-then-wrap
+      // and a direct cast of 1e300 to an integer is undefined behaviour.
+      bytes[at] = static_cast<std::uint8_t>(ToUint32(value) & 0xFFu);
+      return;
+    case ElementKind::Uint8Clamped: {
+      // The one kind that clamps instead of wrapping, which is why it exists:
+      // it is for pixel data, where 300 means white rather than 44.
+      const double clamped = std::isnan(value) ? 0.0 : std::min(255.0, std::max(0.0, value));
+      // Round half to even, which is what the spec asks for here and nowhere
+      // else in the language.
+      const double floor_value = std::floor(clamped);
+      const double fraction = clamped - floor_value;
+      double rounded = floor_value;
+      if (fraction > 0.5 || (fraction == 0.5 && std::fmod(floor_value, 2.0) != 0.0)) {
+        rounded += 1.0;
+      }
+      bytes[at] = static_cast<std::uint8_t>(rounded);
+      return;
+    }
+    case ElementKind::Int16:
+    case ElementKind::Uint16:
+      store(2, ToUint32(value) & 0xFFFFu);
+      return;
+    case ElementKind::Int32:
+    case ElementKind::Uint32:
+      store(4, ToUint32(value));
+      return;
+    case ElementKind::Float32: {
+      const auto narrowed = static_cast<float>(value);
+      std::uint32_t bits = 0;
+      std::memcpy(&bits, &narrowed, sizeof(bits));
+      store(4, bits);
+      return;
+    }
+    case ElementKind::Float64: {
+      std::uint64_t bits = 0;
+      std::memcpy(&bits, &value, sizeof(bits));
+      store(8, bits);
+      return;
+    }
+  }
+}
+
+void Object::MakeView(BufferView view) {
+  view_ = std::make_unique<BufferView>(std::move(view));
+}
+
 bool Object::HasElement(std::size_t index) const {
+  if (view_ != nullptr) {
+    // A typed array has no holes: every index in range is present and every
+    // one outside it is absent. That is the whole difference from an array,
+    // and it is why `forEach` visits all of them.
+    return index < view_->length && view_->bytes != nullptr;
+  }
   return index < elements_.size() && elements_[index].present;
 }
 
 Value Object::GetElement(std::size_t index) const {
-  return HasElement(index) ? elements_[index].value : Value::Undefined();
+  if (view_ != nullptr) {
+    if (!HasElement(index)) {
+      return Value::Undefined();
+    }
+    const std::size_t at = view_->offset + index * ElementSize(view_->kind);
+    if (at + ElementSize(view_->kind) > view_->bytes->size()) {
+      return Value::Undefined();  // the buffer shrank under it
+    }
+    return Value::Number(ReadElementBytes(*view_->bytes, at, view_->kind));
+  }
+  return index < elements_.size() && elements_[index].present ? elements_[index].value
+                                                              : Value::Undefined();
 }
 
 void Object::SetElements(std::vector<Value> elements, std::vector<bool> present) {
@@ -263,6 +381,19 @@ void Object::SetElement(std::size_t index, Value value) {
   if (IsFrozen()) {
     return;
   }
+  if (view_ != nullptr) {
+    // A typed array is fixed length: an index past the end is dropped rather
+    // than growing anything, which is what the spec says and what keeps a
+    // page from resizing a buffer by writing past it.
+    if (index >= view_->length || view_->bytes == nullptr) {
+      return;
+    }
+    const std::size_t at = view_->offset + index * ElementSize(view_->kind);
+    if (at + ElementSize(view_->kind) <= view_->bytes->size()) {
+      WriteElementBytes(*view_->bytes, at, view_->kind, ToNumber(value));
+    }
+    return;
+  }
   if (index >= elements_.size() && !IsExtensible()) {
     return;  // growing an array is an extension
   }
@@ -273,8 +404,8 @@ void Object::SetElement(std::size_t index, Value value) {
 }
 
 void Object::PushElement(Value value) {
-  if (!IsExtensible()) {
-    return;
+  if (!IsExtensible() || view_ != nullptr) {
+    return;  // a typed array is fixed length and has nothing to push onto
   }
   elements_.push_back(ArrayElement{std::move(value), true});
 }
@@ -524,6 +655,13 @@ void Heap::DrainWorklists() {
         if (element.present) {
           MarkValue(element.value);
         }
+      }
+      if (object->view_ != nullptr) {
+        // A view keeps its buffer alive. The bytes are refcounted and would
+        // survive on their own; the *object* is what `ta.buffer` hands back,
+        // and collecting it would leave two views over one buffer unable to
+        // find each other.
+        Mark(object->view_->buffer);
       }
     }
     while (!environment_worklist_.empty()) {

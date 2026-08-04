@@ -166,7 +166,14 @@ budget: MatchOp             header_lines=45 public_methods=0  members=0
 # bools on Property, an enumerable-only key list beside the full one, and a
 # Define that takes them; the member count did not move, because they are
 # fields of a property rather than of an object.
-budget: Object      header_lines=245 public_methods=54 members=17
+# And once more for the typed arrays. One member: the window onto a buffer,
+# set for an ArrayBuffer, a typed array and a DataView and null for everything
+# else. A pointer rather than the record inline, because every other object
+# would carry forty bytes for a kind of object a page makes a handful of -- and
+# beside the heap rather than on the object is where the compiled patterns and
+# the map indexes live, which is right for those and wrong for this: it is read
+# on every element access and a hash lookup there would show.
+budget: Object      header_lines=300 public_methods=57 members=18
 # Grew by one member and by the slot half of its surface. Bindings live in a
 # vector now and the names index into it: compiled code resolved its names while
 # compiling and indexes straight in, everything else still asks by name and pays
@@ -245,7 +252,10 @@ budget: Heap        header_lines=145 public_methods=24 members=9
 # tree-walker. It is here rather than beside the interpreter for the reason
 # return_signal is: it is a value, and a value that has to survive a collection
 # is a root.
-budget: WellKnown   header_lines=110 public_methods=2  members=17
+# And by two for the typed arrays: a typed array made without a buffer
+# allocates one and has to give it the right prototype, and the nine
+# constructors share the one prototype the generic methods live on.
+budget: WellKnown   header_lines=130 public_methods=2  members=19
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -291,7 +301,7 @@ budget: WellKnown   header_lines=110 public_methods=2  members=17
 # in effect for exactly one call. A member rather than an argument because both
 # engines and four call paths reach the same place, and threading it through
 # all of them would be four chances to forget.
-budget: Interpreter header_lines=790 public_methods=50 members=17
+budget: Interpreter header_lines=830 public_methods=54 members=17
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

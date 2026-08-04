@@ -422,6 +422,16 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
   }
 
   Object* object = base.object;
+  if (object->View() != nullptr && named &&
+      object->GetKind() == Object::Kind::TypedArray) {
+    // A typed array's indices are bytes in a buffer rather than properties, so
+    // they are answered here and never reach the property map -- which is also
+    // what makes `ta[99] = 1` on a four-element view a no-op rather than a new
+    // property nobody can see through `length`.
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
+      return object->GetElement(*index);
+    }
+  }
   if (object == global_ && named && object->GetOwnProperty(key) == nullptr) {
     // `globalThis.Math`. The builtins are bindings in the global *scope*
     // rather than properties of the global *object*, because that is where a
@@ -479,6 +489,13 @@ Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const
     return target.IsUndefined() ? Result::Normal(value) : SetProperty(target, key, value);
   }
   const bool named = !key.IsSymbol();
+  if (base.IsObject() && named && base.object->GetKind() == Object::Kind::TypedArray &&
+      base.object->View() != nullptr) {
+    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
+      base.object->SetElement(*index, value);
+      return Result::Normal(value);
+    }
+  }
   if (!base.IsObject()) {
     // Assigning to a property of a primitive is a silent no-op outside strict
     // mode and a TypeError inside it. Null and undefined are always an error,

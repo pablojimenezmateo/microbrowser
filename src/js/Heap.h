@@ -41,6 +41,77 @@ struct ArrayElement {
   bool present = false;
 };
 
+// What a typed array's elements are, and how wide.
+//
+// One entry per view type the language has, minus the two BigInt ones -- there
+// is no BigInt here, and a Int64Array whose elements silently lost precision
+// would be worse than one that does not exist.
+enum class ElementKind : std::uint8_t {
+  Int8,
+  Uint8,
+  Uint8Clamped,
+  Int16,
+  Uint16,
+  Int32,
+  Uint32,
+  Float32,
+  Float64,
+};
+
+// How many bytes one element of each kind takes.
+inline constexpr std::size_t ElementSize(ElementKind kind) {
+  switch (kind) {
+    case ElementKind::Int8:
+    case ElementKind::Uint8:
+    case ElementKind::Uint8Clamped:
+      return 1;
+    case ElementKind::Int16:
+    case ElementKind::Uint16:
+      return 2;
+    case ElementKind::Int32:
+    case ElementKind::Uint32:
+    case ElementKind::Float32:
+      return 4;
+    case ElementKind::Float64:
+      return 8;
+  }
+  return 1;
+}
+
+// One element read out of, or written into, a run of bytes.
+//
+// Shared with DataView, which does its own byte-order shuffle and then hands
+// the result here -- so the encoding of each type is written once rather than
+// once per view kind.
+double ReadElementBytes(const std::vector<std::uint8_t>& bytes, std::size_t at,
+                        ElementKind kind);
+void WriteElementBytes(std::vector<std::uint8_t>& bytes, std::size_t at, ElementKind kind,
+                       double value);
+
+// A window onto an ArrayBuffer's bytes.
+//
+// One record for both halves of the feature: an ArrayBuffer carries one
+// covering all of its own bytes, and every typed array and DataView over it
+// carries one naming a slice. That is what makes `ta.buffer` and
+// `new Uint8Array(buf, 4, 2)` the same mechanism rather than two.
+//
+// `bytes` is shared, so several views over one buffer see each other's writes
+// -- which is the entire point of the buffer being separate from the view.
+// Null means the buffer was detached, and every read through it is undefined
+// and every write a no-op rather than a segfault.
+struct BufferView {
+  std::shared_ptr<std::vector<std::uint8_t>> bytes;
+  // The ArrayBuffer object this looks at, for `.buffer`. Null on the buffer
+  // itself, which would otherwise point at itself and make the collector's
+  // walk a cycle it has to notice rather than one it cannot build.
+  Object* buffer = nullptr;
+  std::size_t offset = 0;
+  // In *elements* for a typed array and in bytes for a DataView, which is the
+  // same asymmetry the language has between `length` and `byteLength`.
+  std::size_t length = 0;
+  ElementKind kind = ElementKind::Uint8;
+};
+
 // What a property is filed under.
 //
 // The language has exactly two kinds of key and they never compare equal to
@@ -136,6 +207,12 @@ class Object {
     // property access, and comparing one byte already being read is as cheap
     // as that check can be.
     Proxy,
+    // The three that carry a BufferView. Kinds rather than a flag for the same
+    // reason Proxy is one: an element access has to tell a typed array from an
+    // array before it does anything, and the kind byte is already being read.
+    ArrayBuffer,
+    TypedArray,
+    DataView,
   };
 
   explicit Object(Kind kind) : kind_(kind) {}
@@ -277,7 +354,19 @@ class Object {
     return keys;
   }
 
-  std::size_t ElementCount() const { return elements_.size(); }
+  // How many elements this has, wherever they live.
+  //
+  // A typed array's are bytes in a buffer rather than Values in a vector, and
+  // routing that through here is what lets every generic Array.prototype
+  // method -- map, filter, reduce, indexOf -- work on one unchanged. Those
+  // methods are specified over array-likes and this is what makes one.
+  std::size_t ElementCount() const {
+    return view_ != nullptr ? view_->length : elements_.size();
+  }
+  // The window onto a buffer, for a typed array, a DataView or an ArrayBuffer.
+  // Null for everything else, which is what every element access tests.
+  const BufferView* View() const { return view_.get(); }
+  void MakeView(BufferView view);
   bool HasElement(std::size_t index) const;
   Value GetElement(std::size_t index) const;
   void SetElements(std::vector<Value> elements, std::vector<bool> present);
@@ -335,6 +424,13 @@ class Object {
   std::unordered_map<PropertyKey, Property, PropertyKey::Hash> properties_;
   std::vector<std::string> key_order_;
   std::vector<ArrayElement> elements_;
+  // Set only for an ArrayBuffer, a typed array or a DataView. A pointer rather
+  // than the record itself because every other object would otherwise carry
+  // forty bytes for a kind of object a page makes a handful of -- the same
+  // reasoning that keeps compiled patterns and map indexes beside the heap,
+  // except that this one is read on every element access and a hash lookup
+  // there would show.
+  std::unique_ptr<BufferView> view_;
 
   const Node* parameters_ = nullptr;
   const Node* body_ = nullptr;

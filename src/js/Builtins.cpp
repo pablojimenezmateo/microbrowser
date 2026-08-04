@@ -248,6 +248,9 @@ void Interpreter::InstallGlobals() {
   const auto install_numbers = [this, math] {
     InstallNumbers(math);
     InstallDate();
+    // Last of the three: the typed arrays copy the generic methods off
+    // Array.prototype, so every one of them has to exist first.
+    InstallTypedArrays();
   };
 
   // --- JSON -----------------------------------------------------------------
@@ -755,6 +758,21 @@ void Interpreter::InstallGlobals() {
       case Object::Kind::Error: return Value::String(std::string("[object Error]"));
       case Object::Kind::RegExp: return Value::String(std::string("[object RegExp]"));
       case Object::Kind::Symbol: return Value::String(std::string("[object Symbol]"));
+      case Object::Kind::ArrayBuffer: return Value::String(std::string("[object ArrayBuffer]"));
+      case Object::Kind::DataView: return Value::String(std::string("[object DataView]"));
+      // A typed array reports its element type, which is what a page uses to
+      // tell a Uint8Array from a Float64Array without trusting `constructor`.
+      case Object::Kind::TypedArray: {
+        const Value* name =
+            call.self.object->Prototype() == nullptr
+                ? nullptr
+                : call.self.object->Prototype()->Get("constructor");
+        const Value* text =
+            name != nullptr && name->IsObject() ? name->object->GetOwn("name") : nullptr;
+        return Value::String("[object " +
+                             (text == nullptr ? std::string("TypedArray") : ToString(*text)) +
+                             "]");
+      }
       // Only a proxy whose target is itself a proxy, which is a cycle a page
       // built rather than anything with a kind to report.
       case Object::Kind::Proxy: return Value::String(std::string("[object Object]"));

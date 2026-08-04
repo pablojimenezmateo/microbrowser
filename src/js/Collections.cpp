@@ -272,6 +272,96 @@ void Interpreter::InstallCollections() {
     return prototype;
   };
 
+  // --- WeakRef --------------------------------------------------------------
+  //
+  // A reference the collector does not follow -- except that here it does.
+  //
+  // The honest version needs the mark phase to skip this edge and the sweep to
+  // clear it, which is exactly what the weak tables already do. What it also
+  // needs, and what makes it different from them, is a rule about *when* the
+  // cleared reference becomes visible: the spec says a WeakRef must keep its
+  // target alive for the rest of the turn once `deref` has returned it, or a
+  // page can observe collection timing and two runs of the same script can
+  // disagree. Implementing that requires a per-turn keepalive set this engine
+  // does not have.
+  //
+  // So this one holds its target strongly and `deref` always answers. A page
+  // that uses a WeakRef as a cache gets a cache that never evicts, which is a
+  // memory cost and not a wrong answer; a page that uses one to *detect*
+  // collection sees nothing collected, which is the one thing the spec
+  // promises it may not rely on anyway.
+  if (Object* weak_ref = NewNative("WeakRef", [](NativeCall& call) {
+        const Value target = Argument(call.arguments, 0);
+        if (!target.IsObject() && !target.IsSymbol()) {
+          return call.Throw("TypeError", "a WeakRef target must be an object");
+        }
+        Object* made = ConstructionTarget(call);
+        if (made == nullptr) {
+          made = call.interpreter.GetHeap().AllocateObject(Object::Kind::Plain);
+          if (made == nullptr) {
+            return call.Throw("RangeError", "out of memory");
+          }
+          const Value* prototype =
+              call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
+          if (prototype != nullptr && prototype->IsObject()) {
+            made->SetPrototype(prototype->object);
+          }
+        }
+        made->Set("#target", target);
+        return Value::Obj(made);
+      })) {
+    Object* prototype = NewObject();
+    if (prototype != nullptr) {
+      InstallNative(prototype, "deref", [](NativeCall& call) {
+        const Value* target =
+            call.self.IsObject() ? call.self.object->GetOwn("#target") : nullptr;
+        return target == nullptr ? Value::Undefined() : *target;
+      });
+      weak_ref->Set("prototype", Value::Obj(prototype));
+      prototype->Set("constructor", Value::Obj(weak_ref));
+    }
+    global_scope_->Declare("WeakRef", Value::Obj(weak_ref), false);
+  }
+
+  // --- FinalizationRegistry -------------------------------------------------
+  //
+  // Registers a callback to run after a value is collected. Nothing here ever
+  // calls one, and that is a conforming implementation: the spec says a
+  // registry *may* never call its callback, precisely so that an engine is
+  // free to collect on its own schedule. A page that treats it as a
+  // notification would be relying on something no engine promises.
+  //
+  // It exists so that a page can construct one and register with it without
+  // getting a ReferenceError, which is what a feature detection needs.
+  if (Object* registry = NewNative("FinalizationRegistry", [](NativeCall& call) {
+        const Value callback = Argument(call.arguments, 0);
+        if (!callback.IsObject() || !callback.object->IsCallable()) {
+          return call.Throw("TypeError", "a FinalizationRegistry needs a callback");
+        }
+        Object* made = ConstructionTarget(call);
+        if (made == nullptr) {
+          made = call.interpreter.GetHeap().AllocateObject(Object::Kind::Plain);
+          if (made == nullptr) {
+            return call.Throw("RangeError", "out of memory");
+          }
+          const Value* prototype =
+              call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
+          if (prototype != nullptr && prototype->IsObject()) {
+            made->SetPrototype(prototype->object);
+          }
+        }
+        return Value::Obj(made);
+      })) {
+    Object* prototype = NewObject();
+    if (prototype != nullptr) {
+      InstallNative(prototype, "register", [](NativeCall&) { return Value::Undefined(); });
+      InstallNative(prototype, "unregister", [](NativeCall&) { return Value::Bool(false); });
+      registry->Set("prototype", Value::Obj(prototype));
+      prototype->Set("constructor", Value::Obj(registry));
+    }
+    global_scope_->Declare("FinalizationRegistry", Value::Obj(registry), false);
+  }
+
   Object* map_prototype = build("Map", true);
   Object* set_prototype = build("Set", false);
   if (map_prototype == nullptr || set_prototype == nullptr) {

@@ -453,6 +453,76 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("JSON.stringify(new Proxy({m:1}, {}))", "{\"m\":1}");
   });
 
+  // --- Typed arrays ---------------------------------------------------------
+
+  AddTest(tests, "JsConformance/ATypedArrayStoresElementsAsBytes", [] {
+    // 257 in a byte is 1: the write wraps, which is the whole point of a
+    // typed array over an ordinary one.
+    ExpectEval("const a = new Uint8Array(4); a[0] = 257; a[1] = 5; [...a].join()", "1,5,0,0");
+    ExpectEval("new Int16Array([1,-1,32768]).join()", "1,-1,-32768");
+    // The clamped kind saturates instead, which is what pixel data needs.
+    ExpectEval("const c = new Uint8ClampedArray(2); c[0] = 300; c[1] = -5; c.join()", "255,0");
+  });
+
+  AddTest(tests, "JsConformance/TwoViewsOverOneBufferSeeEachOther", [] {
+    ExpectEval("const b = new ArrayBuffer(8); const u1 = new Uint8Array(b);"
+               "const u4 = new Uint32Array(b); u1[0] = 1; u4[0]",
+               "1");
+    ExpectEval("const b = new ArrayBuffer(8); const u = new Uint8Array(b);"
+               "const s = u.subarray(2,4); s[0] = 9; u[2] + ':' + s.length",
+               "9:2");
+    ExpectEval("const b = new ArrayBuffer(4); const u = new Uint8Array(b);"
+               "(u.buffer === b) + ':' + ArrayBuffer.isView(u) + ':' + ArrayBuffer.isView(b)",
+               "true:true:false");
+  });
+
+  AddTest(tests, "JsConformance/ATypedArrayIsAnArrayLike", [] {
+    // The generic Array.prototype methods work on one because ElementCount and
+    // GetElement answer for a view -- which is what those methods are
+    // specified over.
+    ExpectEval("new Uint8Array([1,2,3]).map(x => x * 2).join()", "2,4,6");
+    ExpectEval("new Uint8Array([1,2,3]).reduce((a,b) => a + b, 0)", "6");
+    ExpectEval("new Uint8Array([1,2,3]).slice(1).join()", "2,3");
+    ExpectEval("const out = []; for (const x of new Uint8Array([5,6])) out.push(x); out.join()",
+               "5,6");
+    ExpectEval("new Uint8Array(4).fill(3).join()", "3,3,3,3");
+  });
+
+  AddTest(tests, "JsConformance/ATypedArraySortsNumerically", [] {
+    // An array sorts by string and a typed array by value, which is the one
+    // place the generic method could not be shared.
+    ExpectEval("new Uint8Array([10,9,1]).sort().join()", "1,9,10");
+    ExpectEval("[10,9,1].sort().join()", "1,10,9");
+  });
+
+  AddTest(tests, "JsConformance/ADataViewChoosesItsByteOrder", [] {
+    ExpectEval("const v = new DataView(new ArrayBuffer(8)); v.setInt32(0, 1, true);"
+               "v.getInt32(0, true) + ':' + v.getInt32(0, false)",
+               "1:16777216");
+    ExpectEval("const v = new DataView(new ArrayBuffer(8)); v.setFloat64(0, 1.5);"
+               "v.getFloat64(0)",
+               "1.5");
+  });
+
+  AddTest(tests, "JsConformance/AViewIsCheckedAgainstItsBuffer", [] {
+    ExpectEval("try { new Uint32Array(new ArrayBuffer(8), 0, 99) }"
+               "catch (e) { e instanceof RangeError }",
+               "true");
+    ExpectEval("try { new Uint32Array(new ArrayBuffer(8), 3) }"
+               "catch (e) { e instanceof RangeError }",
+               "true");
+    ExpectEval("try { new DataView(new ArrayBuffer(4)).getInt32(2) }"
+               "catch (e) { e instanceof RangeError }",
+               "true");
+  });
+
+  AddTest(tests, "JsConformance/ATypedArrayNamesItselfToAFeatureTest", [] {
+    ExpectEval("Object.prototype.toString.call(new Uint8Array(1))", "[object Uint8Array]");
+    ExpectEval("Object.prototype.toString.call(new ArrayBuffer(1))", "[object ArrayBuffer]");
+    ExpectEval("Uint8Array.BYTES_PER_ELEMENT + ':' + Float64Array.BYTES_PER_ELEMENT", "1:8");
+    ExpectEval("Uint8Array.from([1,2]).join() + ':' + Uint8Array.of(3,4).join()", "1,2:3,4");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {
