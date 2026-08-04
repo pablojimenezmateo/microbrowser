@@ -778,6 +778,25 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
   // the engine takes a resolver and does the linking. These tests are the
   // resolver being a map.
 
+  // `this` at the top level is the global object in a script and undefined in
+  // a module, and strict mode does not change either -- it changes what `this`
+  // is inside a *function*. Both halves matter: the script rule is how a
+  // bundle claims its namespace (`this.x = this.x || {}`) and how twenty years
+  // of libraries found the global object (`(function(g){...})(this)`), and the
+  // module rule is the one exception to it.
+  AddTest(tests, "JsConformance/TopLevelThisIsTheGlobalInAScriptAndNotInAModule", [] {
+    ExpectEval("this === globalThis", "true");
+    ExpectEval("'use strict'; this === globalThis", "true");
+    ExpectEval("this.claimed = this.claimed || {}; typeof globalThis.claimed", "object");
+    ExpectEval("(function (g) { g.viaUmd = 7 })(this); globalThis.viaUmd", "7");
+    // Strict mode still applies where it actually applies.
+    ExpectEval("'use strict'; function f(){ return this } f()", "undefined");
+    // The exception, and it has to shadow rather than simply be absent: a
+    // module's scope has the global scope as its parent.
+    ExpectEqString(EvalModules({{"main", "console.log(this === globalThis, this)"}}),
+                   "false undefined", "a module's top-level this is undefined");
+  });
+
   AddTest(tests, "JsConformance/AModuleImportsWhatAnotherExports", [] {
     ExpectEqString(EvalModules({
                        {"main", "import { add, PI } from 'm';"

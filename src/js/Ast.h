@@ -231,6 +231,21 @@ inline std::uint32_t DeclaredArity(const Node* parameters) {
 }
 
 
+// Every name a `var` declares anywhere inside `body`, in source order, with
+// duplicates removed.
+//
+// `var` is scoped to the *function*, not to the block it is written in, and
+// its binding exists from the moment the function is entered rather than from
+// the line that declares it. Both halves of that are what this collects: a
+// `var` inside an `if`, a loop, a `try` or a bare block belongs to the
+// function, and a read before its line is `undefined` rather than an error.
+//
+// It stops at a nested function -- that function's `var`s are its own -- but
+// it does descend through every statement form that can contain one, which is
+// the part that is easy to get wrong. Shared by both engines because both had
+// the same gap and a second copy would drift.
+void CollectVarNames(const Node& body, std::vector<std::string>& out);
+
 // A tree dumped as parenthesised text, for tests. Structure only, so a test can
 // state the parse it expects instead of walking children by index -- which is
 // how a test ends up asserting something other than what it means.

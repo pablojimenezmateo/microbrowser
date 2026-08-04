@@ -264,6 +264,15 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       }
       case Op::LoadThis: {
         Value* binding = FrameName("this", kSlotThis);
+        if (binding == nullptr) {
+          // No enclosing function, so this is the top level of a program --
+          // and which kind of program decides the answer. Both bind it in
+          // their scope: the global scope to the global object, a module's
+          // own scope to undefined. Reading it off the chain is what makes
+          // the machine agree with the tree-walker, which resolves `this` by
+          // lookup and always has.
+          binding = CurrentScope()->Lookup("this");
+        }
         vm_.stack.push_back(binding == nullptr ? Value::Undefined() : *binding);
         break;
       }

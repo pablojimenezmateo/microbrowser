@@ -168,6 +168,16 @@ void Interpreter::InstallGlobals() {
   InstallFunctionPrototype();
 
   global_scope_->Declare("globalThis", Value::Obj(global_), false);
+  // At the top level of a *script* `this` is the global object, and it stays
+  // the global object under `"use strict"` -- strict mode changes what `this`
+  // is inside a function, not what it is at the top of a program. A module is
+  // the exception and binds its own, in Modules.cpp.
+  //
+  // This is not a corner: `this.x = this.x || {}` is how a bundle claims its
+  // namespace, and `(function (global) { ... })(this)` is how a library found
+  // the global object for twenty years. Both read undefined without it, and
+  // youtube.com's application bundle fails on its first statement.
+  global_scope_->Declare("this", Value::Obj(global_), true);
   global_scope_->Declare("undefined", Value::Undefined(), true);
   global_scope_->Declare("NaN", Value::Number(std::nan("")), true);
   global_scope_->Declare("Infinity", Value::Number(HUGE_VAL), true);

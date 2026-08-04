@@ -366,6 +366,11 @@ class Interpreter {
   // Declares the function declarations in a statement list before running it,
   // which is what makes a function callable above where it is written.
   void HoistDeclarations(const Node& list, Environment& scope);
+  // Every `var` a function body declares, bound to undefined before the body
+  // runs. Separate from HoistDeclarations because it runs at a different
+  // boundary: function declarations hoist to their block, `var` to the
+  // function, and calling both from one place would give `var` block scope.
+  void HoistVars(const Node& body, Environment& scope);
 
   Result BindPattern(const Node& target, const Value& value, Environment& scope, bool declare,
                      bool is_const);

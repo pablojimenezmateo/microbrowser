@@ -250,6 +250,48 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                    "nesting past the bound is refused, not crashed through");
   });
 
+  // `var` is scoped to the function and exists from the moment the function is
+  // entered. Both halves were absent, and both engines were wrong the same way
+  // -- which is why the differential never said so. `for (var i...) {} return
+  // i` was a ReferenceError, and every `var` written inside a block was
+  // invisible outside it.
+  AddTest(tests, "JsInterpreter/VarIsScopedToTheFunctionAndHoistedToItsTop", [] {
+    // Function-scoped, not block-scoped. Every statement form that can hold a
+    // declaration, because a missing one is a `var` that silently is not there.
+    ExpectEval("function f(){ { var n = 1 } return n } f()", "1");
+    ExpectEval("function f(){ if (1) { var n = 2 } return n } f()", "2");
+    ExpectEval("function f(){ for (var i = 0; i < 3; i++) {} return i } f()", "3");
+    ExpectEval("function f(o){ for (var k in o) {} return k } f({ z: 1 })", "z");
+    ExpectEval("function f(){ try { var e = 3 } catch (x) {} return e } f()", "3");
+    ExpectEval("function f(){ switch (1) { case 1: var s = 8 } return s } f()", "8");
+    // Declared from the top of the function, holding undefined -- so a body
+    // that never reaches the declaration still has the binding.
+    ExpectEval("function f(){ while (0) { var w = 1 } return typeof w } f()", "undefined");
+    ExpectEval("function f(){ var r = typeof n; var n = 1; return r } f()", "undefined");
+    // Through a closure, which is the shape a bundle's global-object probe has:
+    // a function defined above the `var` that reads it.
+    ExpectEval("function f(){ function g(){ return n } var before = g(); var n = 5;"
+               "  return [before, g()].join() } f()",
+               ",5");
+    ExpectEval("typeof hoisted", "undefined");  // at the top level of a script too
+    // A `var` that names a parameter is the parameter, not undefined.
+    ExpectEval("function f(a){ var a; return a } f(9)", "9");
+    // And a bare re-declaration leaves the value alone.
+    ExpectEval("function f(){ var n = 1; var n; return n } f()", "1");
+
+    // The other side of the same line: `let` and `const` stay block-scoped and
+    // keep their per-iteration binding. This is what a fix to `var` is most
+    // likely to break, so it is asserted next to it.
+    ExpectEval("function f(){ for (let i = 0; i < 3; i++) {} return typeof i } f()", "undefined");
+    ExpectEval("const fs = []; for (let i = 0; i < 3; i++) fs.push(() => i);"
+               "fs.map(f => f()).join()",
+               "0,1,2");
+    ExpectEval("const gs = []; for (var j = 0; j < 3; j++) gs.push(() => j);"
+               "gs.map(f => f()).join()",
+               "3,3,3");
+    ExpectEval("function f(){ { let b = 1 } return typeof b } f()", "undefined");
+  });
+
   AddTest(tests, "JsInterpreter/SwitchFallsThroughUntilABreak", [] {
     ExpectEval("let r = ''; switch (2) { case 1: r += 'a'; case 2: r += 'b'; "
                "case 3: r += 'c'; break; default: r += 'd' } r",

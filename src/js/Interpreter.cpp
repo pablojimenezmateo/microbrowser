@@ -825,6 +825,11 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   if (body == nullptr) {
     return Result::Normal();
   }
+  // Every `var` in the body exists from here, holding undefined, wherever in
+  // the body it is written. `for (var i = 0; ...) {} return i` depends on it,
+  // and so does the closure that reads a `var` declared further down -- which
+  // is how a bundle's global-object probe is written.
+  HoistVars(*body, *scope);
 
   ++call_depth_;
   Result result = body->kind == NodeKind::Block ? EvaluateBlock(*body, *scope)
@@ -924,6 +929,8 @@ Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* sc
 Result Interpreter::RunProgram(const Node& program) {
   steps_ = 0;
   HoistDeclarations(program, *global_scope_);
+  // A script's top level is a function scope for `var`'s purposes.
+  HoistVars(program, *global_scope_);
   Value last;
   for (const NodePtr& statement : program.children) {
     if (statement == nullptr) {

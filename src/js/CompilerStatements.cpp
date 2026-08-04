@@ -56,6 +56,15 @@ void Compiler::Program(const Node& program) {
   // Slot zero of the frame is the script's completion value.
   Emit(Op::PushUndefined, 0, 1);
   Hoist(program);
+  // A script's top level is a function scope as far as `var` is concerned, so
+  // its `var`s exist before the first statement runs -- including the ones
+  // written inside a block, a loop or a `try`.
+  std::vector<std::string> var_names;
+  CollectVarNames(program, var_names);
+  for (const std::string& name : var_names) {
+    Emit(Op::PushUndefined, 0, 1);
+    EmitDeclare(name, false);
+  }
   for (const NodePtr& statement : program.children) {
     if (statement == nullptr) {
       continue;
@@ -245,6 +254,10 @@ void Compiler::Statement(const Node& node) {
 
 void Compiler::VariableDeclaration(const Node& node) {
   const bool is_const = node.string == "const";
+  // A `var`'s binding was made where its function began. This line assigns to
+  // it; declaring would put a second binding in whatever block the line
+  // happens to sit in, which is what gave `var` block scope.
+  const bool is_var = node.string == "var";
   for (const NodePtr& declarator : node.children) {
     if (declarator == nullptr) {
       continue;
@@ -258,10 +271,14 @@ void Compiler::VariableDeclaration(const Node& node) {
       Expression(*initializer);
     } else if (is_const) {
       ThrowSyntax("a const declaration needs an initializer");
+    } else if (is_var) {
+      // `var n;` alone does nothing to a binding that already exists, so
+      // `var n = 1; var n;` keeps the 1.
+      continue;
     } else {
       Emit(Op::PushUndefined, 0, 1);
     }
-    BindTarget(*target, true, is_const);
+    BindTarget(*target, !is_var, is_const);
   }
 }
 
@@ -353,7 +370,12 @@ void Compiler::ForStatement(const Node& node) {
                              (init->string == "let" || init->string == "const");
 
   OpenScope();
-  if (init != nullptr && init->kind == NodeKind::VariableDeclaration) {
+  // A `let` or `const` head binds in the loop's scope. A `var` head does not:
+  // its binding is the function's, so reserving it here would give the loop a
+  // second `i` and leave the function's unset -- which is what made
+  // `for (var i = 0; ...) {} return i` a ReferenceError.
+  if (init != nullptr && init->kind == NodeKind::VariableDeclaration &&
+      init->string != "var") {
     for (const NodePtr& declarator : init->children) {
       if (declarator != nullptr && declarator->Child(0) != nullptr) {
         ReservePattern(*declarator->Child(0));
@@ -457,7 +479,9 @@ void Compiler::ForInStatement(const Node& node) {
   loops_.push_back(std::move(loop));
 
   OpenScope();
-  if (left->kind == NodeKind::VariableDeclaration) {
+  // Same rule as the three-part head: a `var` here binds in the function, so
+  // the per-iteration scope must not reserve it.
+  if (left->kind == NodeKind::VariableDeclaration && left->string != "var") {
     const Node* declarator = left->Child(0);
     if (declarator != nullptr && declarator->Child(0) != nullptr) {
       ReservePattern(*declarator->Child(0));
@@ -483,7 +507,10 @@ void Compiler::ForInStatement(const Node& node) {
     if (target == nullptr) {
       Emit(Op::Pop, 0, -1);
     } else {
-      BindTarget(*target, true, left->string == "const");
+      // `for (var k in o)` assigns to the function-scope binding, like any
+      // other `var`. Only `let` and `const` take the fresh per-iteration
+      // binding this scope exists to give them.
+      BindTarget(*target, left->string != "var", left->string == "const");
     }
   } else {
     BindTarget(*left, false, false);

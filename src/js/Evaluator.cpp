@@ -11,8 +11,7 @@ namespace microbrowser::js {
 void Interpreter::HoistDeclarations(const Node& list, Environment& scope) {
   // Function declarations are visible before the line that writes them, which
   // is what makes mutually recursive functions work without forward
-  // declarations. `var` hoisting is deliberately absent: it is a source of
-  // bugs the language itself moved away from, and nothing here needs it.
+  // declarations.
   for (const NodePtr& entry : list.children) {
     const Node* statement = entry.get();
     // Through an `export`, which wraps a declaration rather than replacing it.
@@ -21,6 +20,20 @@ void Interpreter::HoistDeclarations(const Node& list, Environment& scope) {
     }
     if (statement != nullptr && statement->kind == NodeKind::FunctionDeclaration) {
       scope.Declare(statement->string, NewFunction(*statement, scope, false), false);
+    }
+  }
+}
+
+void Interpreter::HoistVars(const Node& body, Environment& scope) {
+  // Function scope, so this runs once per call and per program -- not per
+  // block, which is exactly the distinction `var` is defined by.
+  std::vector<std::string> names;
+  CollectVarNames(body, names);
+  for (const std::string& name : names) {
+    // A parameter of the same name is already bound and holds the argument;
+    // `function f(a) { var a }` must not overwrite it with undefined.
+    if (!scope.HasOwn(name)) {
+      scope.Declare(name, Value::Undefined(), false);
     }
   }
 }

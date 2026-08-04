@@ -130,6 +130,17 @@ void Compiler::Function(const Node& node, bool arrow) {
       }
     }
   }
+  // Every `var` the body declares, at any depth inside it, belongs to *this*
+  // scope rather than to the block it is written in. Reserved here, after the
+  // parameters, so a `var` that names a parameter shares its slot instead of
+  // taking a second one.
+  std::vector<std::string> var_names;
+  if (body != nullptr) {
+    CollectVarNames(*body, var_names);
+  }
+  for (const std::string& name : var_names) {
+    Reserve(name);
+  }
   // How many slots the frame reserves. In a scoped function that is this one
   // scope; in a flattened one it is every scope in the body as well, so it is
   // not known until the body has been compiled and is set again at the end.
@@ -139,6 +150,15 @@ void Compiler::Function(const Node& node, bool arrow) {
   // handler's recorded depth and a frame's working base mean the same thing in
   // a function as they do in a program.
   Emit(Op::PushUndefined, 0, 1);
+
+  // The `var` bindings exist from here, holding undefined, however far down
+  // the body their declarations are written. Before the parameters bind, not
+  // after: `function f(a) { var a }` must leave `a` holding the argument, and
+  // declaring in the other order would overwrite it with undefined.
+  for (const std::string& name : var_names) {
+    Emit(Op::PushUndefined, 0, 1);
+    EmitDeclare(name, false);
+  }
 
   if (parameters != nullptr) {
     for (std::size_t i = 0; i < parameters->children.size(); ++i) {

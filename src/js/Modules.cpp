@@ -103,6 +103,12 @@ Result Interpreter::LoadModule(const std::string& specifier, const std::string& 
   if (record->scope == nullptr || record->exports == nullptr) {
     return Throw("RangeError", "out of memory");
   }
+  // The one place `this` is undefined at the top level. A script gets the
+  // global object (see Builtins.cpp); a module gets nothing, and declaring it
+  // here rather than leaving it unbound is what shadows the global one -- a
+  // module's scope has the global scope as its parent, so an absent binding
+  // would find it.
+  record->scope->Declare("this", Value::Undefined(), true);
   // A namespace object has no prototype: `ns.toString` must be the module's
   // export of that name or undefined, never Object.prototype's method.
   record->exports->SetPrototype(nullptr);
@@ -245,6 +251,7 @@ Result Interpreter::EvaluateModule(Module& module) {
   }
   if (!ran_compiled) {
     HoistDeclarations(*module.program, *module.scope);
+    HoistVars(*module.program, *module.scope);
     for (const NodePtr& statement : module.program->children) {
       if (statement == nullptr) {
         continue;
@@ -459,6 +466,12 @@ Result Interpreter::RunModule(std::string_view source, std::string_view specifie
   if (record->scope == nullptr || record->exports == nullptr) {
     return Throw("RangeError", "out of memory");
   }
+  // The one place `this` is undefined at the top level. A script gets the
+  // global object (see Builtins.cpp); a module gets nothing, and declaring it
+  // here rather than leaving it unbound is what shadows the global one -- a
+  // module's scope has the global scope as its parent, so an absent binding
+  // would find it.
+  record->scope->Declare("this", Value::Undefined(), true);
   record->exports->SetPrototype(nullptr);
   Module* entry = record.get();
   modules_.emplace(name, std::move(record));

@@ -127,6 +127,14 @@ void Compiler::ReserveDeclarations(const Node& list) {
         Reserve(statement->string);
         break;
       case NodeKind::VariableDeclaration:
+        // `let` and `const` only. A `var` belongs to the enclosing *function*
+        // and was reserved there when the function's scope was built, so
+        // reserving it again here would give the block its own slot -- which
+        // is precisely how `{ var n = 1 }` came to write into the block and
+        // leave the function's binding undefined.
+        if (statement->string == "var") {
+          break;
+        }
         for (const NodePtr& declarator : statement->children) {
           if (declarator != nullptr && declarator->Child(0) != nullptr) {
             ReservePattern(*declarator->Child(0));

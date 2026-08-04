@@ -314,6 +314,7 @@ microbrowser_module(js
     src/js/Vm.cpp
     src/js/VmFrames.cpp
     src/js/Statements.cpp
+    src/js/StatementsIteration.cpp
     src/js/Builtins.cpp
     src/js/StringBuiltins.cpp
     src/js/FunctionBuiltins.cpp
