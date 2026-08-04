@@ -870,6 +870,69 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
                    "undefined", "a module's declarations stay in it");
   });
 
+  // --- BigInt ---------------------------------------------------------------
+  //
+  // A *type*, not a library: `typeof 1n` is "bigint", `1n + 1` is a TypeError,
+  // and every operator has a case for it. Half a type would be worse than
+  // none, because a page cannot tell which half it has.
+
+  AddTest(tests, "JsConformance/BigIntArithmeticIsExact", [] {
+    ExpectEval("typeof 1n", "bigint");
+    ExpectEval("const a = 10n, b = 3n;"
+               "[a+b, a-b, a*b, a/b, a%b, a**b].join()",
+               "13,7,30,3,1,1000");
+    // The point of the type: past what a double can hold.
+    ExpectEval("(2n ** 100n).toString()", "1267650600228229401496703205376");
+    ExpectEval("(9007199254740993n * 2n).toString()", "18014398509481986");
+    // Truncating division, and a remainder with the dividend's sign.
+    ExpectEval("[(-7n / 2n), (-7n % 2n)].join()", "-3,-1");
+  });
+
+  AddTest(tests, "JsConformance/BigIntBitwiseWorksOverTheInfiniteExpansion", [] {
+    ExpectEval("[10n & 3n, 10n | 3n, 10n ^ 3n, ~10n, -10n].join()", "2,11,9,-11,-10");
+    ExpectEval("[10n << 2n, 10n >> 1n, -5n >> 1n, -1n >> 1n].join()", "40,5,-3,-1");
+    // There is no unsigned right shift for an unbounded integer: it is defined
+    // over a fixed width, and a bigint has none.
+    ExpectEval("try { 1n >>> 1n } catch (e) { e instanceof TypeError }", "true");
+  });
+
+  AddTest(tests, "JsConformance/MixingABigIntAndANumberIsAnError", [] {
+    // The rule the type exists for: a bigint that silently became a double
+    // would lose the precision it is there to keep.
+    ExpectEval("try { 1n + 1 } catch (e) { e instanceof TypeError }", "true");
+    ExpectEval("try { +1n } catch (e) { e instanceof TypeError }", "true");
+    ExpectEval("try { BigInt(1.5) } catch (e) { e instanceof RangeError }", "true");
+    ExpectEval("try { 1n / 0n } catch (e) { e instanceof RangeError }", "true");
+    ExpectEval("try { 2n ** -1n } catch (e) { e instanceof RangeError }", "true");
+    // The three exceptions, all of which compare or concatenate rather than
+    // compute.
+    ExpectEval("[1n == 1, 1n === 1, 1n < 1.5, 2n > 1.5].join()", "true,false,true,true");
+    ExpectEval("(1n + 'x') + ':' + ('x' + 1n)", "1x:x1");
+  });
+
+  AddTest(tests, "JsConformance/BigIntIsAValueRatherThanAnIdentity", [] {
+    // `1n === 1n` compares digits: the two literals are different cells.
+    ExpectEval("1n === 1n", "true");
+    ExpectEval("const m = new Map(); m.set(1n, 'x'); m.get(1n) + ':' + String(m.get(1))",
+               "x:undefined");
+    ExpectEval("[0n ? 't' : 'f', 1n ? 't' : 'f'].join()", "f,t");
+  });
+
+  AddTest(tests, "JsConformance/BigIntConvertsAndTruncates", [] {
+    ExpectEval("[BigInt(42), BigInt('0x1f'), BigInt(true), BigInt('  -7 ')].join()",
+               "42,31,1,-7");
+    ExpectEval("(255n).toString(16) + ':' + (255n).toString(2)", "ff:11111111");
+    ExpectEval("[BigInt.asIntN(8, 255n), BigInt.asUintN(8, -1n), BigInt.asUintN(64, -1n)].join()",
+               "-1,255,18446744073709551615");
+    ExpectEval("let c = 5n; c++; const after = c; c--; [after, c].join()", "6,5");
+  });
+
+  AddTest(tests, "JsConformance/ABigIntHasNoJsonForm", [] {
+    // A TypeError rather than a lossy number: a page serializing an identifier
+    // that does not fit a double needs to know.
+    ExpectEval("try { JSON.stringify({a: 1n}) } catch (e) { e instanceof TypeError }", "true");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {

@@ -7,7 +7,7 @@ namespace microbrowser::js {
 namespace {
 
 constexpr std::string_view kNames[] = {
-    "Number", "String", "Template", "RegExp", "Boolean", "Null", "Id", "This", "Super",
+    "Number", "BigInt", "String", "Template", "RegExp", "Boolean", "Null", "Id", "This", "Super",
     "Array", "Object", "Property", "Function", "Arrow", "ClassExpr", "Method",
     "Params", "Rest", "Default", "Yield", "Unary", "Update", "Binary", "Logical", "Assign",
     "Cond", "Call", "New", "NewTarget", "Member", "Seq", "Spread", "TaggedTemplate",

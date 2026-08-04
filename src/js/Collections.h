@@ -51,6 +51,12 @@ struct ValueKey {
       case ValueType::String:
         key.text = value.AsString();
         break;
+      case ValueType::BigInt:
+        // By *value*, unlike a symbol: `m.set(1n, x); m.get(1n)` has to find
+        // it, and the two literals are different cells. The decimal form is
+        // the key, which is exact and is already the equality the type has.
+        key.text = BigIntText(value);
+        break;
       case ValueType::Object:
       case ValueType::Symbol:
         key.object = value.object;
@@ -72,6 +78,7 @@ struct ValueKey {
       case ValueType::Number:
         return is_nan == other.is_nan && (is_nan || number == other.number);
       case ValueType::String:
+      case ValueType::BigInt:
         return text == other.text;
       case ValueType::Object:
       case ValueType::Symbol:
@@ -92,6 +99,7 @@ struct ValueKey {
         case ValueType::Number:
           return tag ^ (key.is_nan ? 0x7FF8u : std::hash<double>{}(key.number));
         case ValueType::String:
+        case ValueType::BigInt:
           return tag ^ std::hash<std::string>{}(key.text);
         case ValueType::Object:
         case ValueType::Symbol:

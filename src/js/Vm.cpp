@@ -127,6 +127,22 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::PushConstant:
         vm_.stack.push_back(code.constants[instruction.a]);
         break;
+      case Op::PushBigInt: {
+        BigInt digits;
+        if (!BigInt::Parse(code.names[instruction.a], digits)) {
+          pending = Throw("SyntaxError", "invalid BigInt literal");
+          threw = true;
+          break;
+        }
+        const Value value = NewBigIntValue(std::move(digits));
+        if (value.IsUndefined()) {
+          pending = Throw("RangeError", "out of memory");
+          threw = true;
+          break;
+        }
+        vm_.stack.push_back(value);
+        break;
+      }
       case Op::PushUndefined:
         vm_.stack.push_back(Value::Undefined());
         break;
@@ -364,22 +380,20 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::Negate:
       case Op::UnaryPlus:
       case Op::ToNumberOp:
-      case Op::BitNot: {
-        // Through ToNumberOf, which can run a page's `valueOf` and therefore
-        // can throw. Reading in place rather than popping first, for the
-        // reason GetProperty does: the operand is the only thing rooting what
-        // that call needs.
-        double number = 0;
-        const Result converted = ToNumberOf(vm_.stack.back(), number);
-        if (converted.IsAbrupt()) {
-          pending = converted;
+      case Op::BitNot:
+      case Op::StepValue: {
+        // The numeric unaries, in Operators.cpp beside the binary ones. Both
+        // halves have the same rule and it is the whole of what makes a
+        // bigint a *type*: it answers these itself, and `+1n` is a TypeError
+        // rather than a conversion.
+        const Result applied =
+            ApplyNumericUnary(instruction.op, instruction.a, vm_.stack.back());
+        if (applied.IsAbrupt()) {
+          pending = applied;
           threw = true;
           break;
         }
-        vm_.stack.back() =
-            instruction.op == Op::Negate ? Value::Number(-number)
-            : instruction.op == Op::BitNot ? Value::Number(~ToInt32(number))
-                                           : Value::Number(number);
+        vm_.stack.back() = applied.value;
         break;
       }
       case Op::ToStringOp: {
@@ -1102,51 +1116,21 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // A throw or a forced return arrived at the `yield` inside a `yield*`.
         // The delegate gets it rather than the outer generator, which is what
         // makes an inner `catch` see a `g.throw(e)` and an inner `finally` run
-        // on a `g.return()`.
-        Iteration& cursor = vm_.iterations.back();
+        // on a `g.return()`. The forwarding itself is in Iteration.cpp, beside
+        // the protocol it speaks.
+        bool finished = false;
         const Value thrown = vm_.stack.back();
         vm_.stack.pop_back();
-        const bool is_return = IsReturnSignal(thrown);
-        Value payload = thrown;
-        if (is_return) {
-          const Value* held = thrown.object->GetOwn("value");
-          payload = held == nullptr ? Value::Undefined() : *held;
-        }
-        Result answered;
-        bool done = false;
-        if (!cursor.done && ForwardToIterator(cursor, payload, is_return, answered, done)) {
-          if (answered.IsAbrupt()) {
-            pending = answered;
-            threw = true;
-            break;
-          }
-          if (done) {
-            // The delegate finished answering. `return` ends the outer
-            // generator too, carrying what the delegate returned; `throw`
-            // ends only the delegation, and its value is the expression's.
-            if (is_return) {
-              pending = Result{Completion::Throw, NewReturnSignal(answered.value), {}};
-              threw = true;
-              break;
-            }
-            frame->ip = instruction.a;
-          }
-          vm_.stack.push_back(answered.value);
+        const Result forwarded = ForwardToDelegate(thrown, finished);
+        if (forwarded.IsAbrupt()) {
+          pending = forwarded;
+          threw = true;
           break;
         }
-        // Nothing to forward to. The delegate is closed and the original
-        // completion carries on outwards -- except for a throw at an iterator
-        // with no `throw` method, which the spec makes a TypeError after
-        // closing it.
-        const Result closed = CloseIterationCursor(cursor);
-        (void)closed;
-        cursor.done = true;
-        pending = is_return ? Result{Completion::Throw, thrown, {}}
-                            : Throw("TypeError", "the iterator has no throw method");
-        if (!is_return && !cursor.iterator.IsObject()) {
-          pending = Result{Completion::Throw, thrown, {}};
+        if (finished) {
+          frame->ip = instruction.a;
         }
-        threw = true;
+        vm_.stack.push_back(forwarded.value);
         break;
       }
       case Op::IterateRest: {

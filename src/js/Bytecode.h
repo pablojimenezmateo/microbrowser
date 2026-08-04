@@ -89,6 +89,10 @@ enum class Op : std::uint8_t {
 
   // --- Constants -----------------------------------------------------------
   PushConstant,   // a = constant index
+  // `123n`. A = the index of a name holding the digits, because a constant
+  // pool holds primitives and a bigint's cell is a heap object -- one per
+  // evaluation, for the reason a regular expression literal is.
+  PushBigInt,
   PushUndefined,
   PushNull,
   PushTrue,
@@ -149,6 +153,13 @@ enum class Op : std::uint8_t {
   TypeofValue,
   Discard,      // `void`: [a] -> [undefined]
   ToNumberOp,   // what `++` does to its operand before adding to it
+  // The `+1` or `-1` itself. `a = 1` increments and `a = 0` decrements.
+  //
+  // One instruction rather than a constant and an add, because the *type*
+  // decides: a bigint steps by `1n` and a number by `1`, and `1n + 1` is a
+  // TypeError -- so a literal one on the stack would be the wrong operand for
+  // half the values this runs on.
+  StepValue,
   // What a template substitution does to its value before it is joined on.
   //
   // Not the same as letting `+` do it. `+` converts with the *default* hint,

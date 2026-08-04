@@ -147,6 +147,12 @@ NodePtr ParserImpl::ParsePrimary() {
     Advance();
     return node;
   }
+  if (current_.type == TokenType::BigIntLiteral) {
+    NodePtr node = Make(NodeKind::BigIntLiteral);
+    node->string = current_.value;
+    Advance();
+    return node;
+  }
   if (current_.type == TokenType::StringLiteral) {
     NodePtr node = Make(NodeKind::StringLiteral);
     node->string = current_.value;

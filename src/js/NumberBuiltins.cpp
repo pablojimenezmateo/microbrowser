@@ -150,6 +150,88 @@ void Interpreter::InstallNumbers(Object* math) {
     math->Set("random", Value::Obj(random));
   }
 
+  // --- BigInt ---------------------------------------------------------------
+  //
+  // Small, because the type is the work and this is only its surface: a
+  // conversion, two methods, and the two truncations a page uses to make one
+  // behave like a fixed-width integer -- which is most of what they are for.
+
+  Object* bigint_prototype = NewObject();
+  Object* bigint = NewNative("BigInt", [](NativeCall& call) {
+    const Value given = Argument(call.arguments, 0);
+    if (given.IsBigInt()) {
+      return given;
+    }
+    BigInt digits;
+    if (given.IsNumber()) {
+      // Only an exact integer converts. `BigInt(1.5)` is a RangeError rather
+      // than a rounding, which is the whole point: a lossy conversion into the
+      // lossless type would be the bug the type prevents.
+      if (!BigInt::FromDouble(given.number, digits)) {
+        return call.Throw("RangeError", "cannot convert a non-integer to a BigInt");
+      }
+      return call.interpreter.NewBigIntValue(std::move(digits));
+    }
+    if (given.type == ValueType::Boolean) {
+      return call.interpreter.NewBigIntValue(BigInt::FromInt64(given.boolean ? 1 : 0));
+    }
+    std::string text;
+    const Result converted = call.interpreter.ToStringOf(given, text);
+    if (converted.IsAbrupt()) {
+      return call.ThrowValue(converted.value);
+    }
+    if (!BigInt::Parse(text, digits)) {
+      return call.Throw("SyntaxError", "cannot convert '" + text + "' to a BigInt");
+    }
+    return call.interpreter.NewBigIntValue(std::move(digits));
+  });
+  if (bigint != nullptr && bigint_prototype != nullptr) {
+    bigint_prototype->SetPrototype(well_known_.object_prototype);
+    bigint->Set("prototype", Value::Obj(bigint_prototype));
+    bigint_prototype->SetHidden("constructor", Value::Obj(bigint));
+    well_known_.bigint_prototype = bigint_prototype;
+    global_scope_->Declare("BigInt", Value::Obj(bigint), false);
+
+    InstallNative(bigint_prototype, "toString", [](NativeCall& call) {
+      const BigInt* digits = BigIntOf(call.self);
+      if (digits == nullptr) {
+        return call.Throw("TypeError", "BigInt.prototype.toString on a non-BigInt");
+      }
+      const Value radix_value = Argument(call.arguments, 0);
+      const double radix = radix_value.IsUndefined() ? 10.0 : ToNumber(radix_value);
+      if (radix < 2.0 || radix > 36.0) {
+        return call.Throw("RangeError", "toString radix must be between 2 and 36");
+      }
+      return Value::String(digits->ToString(static_cast<int>(radix)));
+    });
+    InstallNative(bigint_prototype, "toLocaleString", [](NativeCall& call) {
+      const BigInt* digits = BigIntOf(call.self);
+      return Value::String(digits == nullptr ? std::string("0") : digits->ToString());
+    });
+    InstallNative(bigint_prototype, "valueOf", [](NativeCall& call) { return call.self; });
+
+    // `asIntN` and `asUintN`: the value modulo 2^bits, read signed or not.
+    for (const bool is_signed : {true, false}) {
+      InstallNative(bigint, is_signed ? "asIntN" : "asUintN",
+                    [is_signed](NativeCall& call) {
+                      const double bits = ToNumber(Argument(call.arguments, 0));
+                      if (!std::isfinite(bits) || bits < 0) {
+                        return call.Throw("RangeError", "invalid bit width");
+                      }
+                      const BigInt* digits = BigIntOf(Argument(call.arguments, 1));
+                      if (digits == nullptr) {
+                        return call.Throw("TypeError", "expected a BigInt");
+                      }
+                      BigInt made;
+                      if (!BigInt::Truncate(*digits, static_cast<std::uint64_t>(bits),
+                                            is_signed, made)) {
+                        return call.Throw("RangeError", "bit width is too large");
+                      }
+                      return call.interpreter.NewBigIntValue(std::move(made));
+                    });
+    }
+  }
+
   // --- Number ---------------------------------------------------------------
 
   Object* number_prototype = NewObject();

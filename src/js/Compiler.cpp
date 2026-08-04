@@ -183,6 +183,12 @@ void Compiler::Expression(const Node& node) {
     case NodeKind::StringLiteral:
       Emit(Op::PushConstant, Constant(Value::String(node.string)), 1);
       return;
+    case NodeKind::BigIntLiteral:
+      // Through the name pool rather than the constant pool: a constant is a
+      // primitive the chunk owns, and a bigint's cell is a heap object the
+      // collector has to see. One cell per evaluation, like a regex literal.
+      Emit(Op::PushBigInt, Name(node.string), 1);
+      return;
     case NodeKind::BooleanLiteral:
       Emit(node.number != 0.0 ? Op::PushTrue : Op::PushFalse, 0, 1);
       return;
@@ -591,8 +597,7 @@ void Compiler::Update(const Node& node) {
   if (!prefix) {
     Emit(Op::Dup, 0, 1);
   }
-  Emit(Op::PushConstant, Constant(Value::Number(1.0)), 1);
-  Emit(Op::Binary, static_cast<std::uint32_t>(step), -1);
+  Emit(Op::StepValue, step == BinaryOp::Add ? 1u : 0u, 0);
   EmitStore(operand->string);
   if (!prefix) {
     Emit(Op::Pop, 0, -1);

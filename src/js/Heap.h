@@ -18,6 +18,7 @@ namespace microbrowser::js {
 class Environment;
 class Interpreter;
 class RegExp;
+class BigInt;
 struct MapIndex;
 // One compiled function body, from Bytecode.h. Forward-declared rather than
 // included: a function object points at its code, and nothing about the heap
@@ -218,6 +219,11 @@ class Object {
   explicit Object(Kind kind) : kind_(kind) {}
 
   Kind GetKind() const { return kind_; }
+  // A bigint cell's digits. Null for every other object -- and read on every
+  // bigint operation, which is why it is a pointer here rather than a lookup
+  // in the table beside the heap that owns it.
+  const BigInt* BigIntDigits() const { return bigint_; }
+  void SetBigIntDigits(const BigInt* digits) { bigint_ = digits; }
   // The kind of whatever is behind this, looking through any number of
   // proxies. What `Array.isArray` asks, and the reason it asks it: a proxy
   // over an array *is* an array to the language, and a feature test that said
@@ -464,6 +470,9 @@ class Object {
   // except that this one is read on every element access and a hash lookup
   // there would show.
   std::unique_ptr<BufferView> view_;
+  // Borrowed from the heap's table, which owns it and drops it in the sweep
+  // that frees this cell.
+  const BigInt* bigint_ = nullptr;
 
   const Node* parameters_ = nullptr;
   const Node* body_ = nullptr;
@@ -667,6 +676,12 @@ class Heap {
   // and the collector is already the thing that knows when an object dies --
   // so the entry is dropped by the same sweep that frees it, rather than by a
   // second lifetime story that could disagree.
+  // A bigint's digits, beside the cell that is its identity. Here for the
+  // reason the compiled patterns are: the collector is what knows when a cell
+  // dies, and the sweep that frees it drops the digits.
+  void AttachBigInt(const Object* cell, std::shared_ptr<const BigInt> digits);
+  const BigInt* FindBigInt(const Object* cell) const;
+
   void AttachRegExp(const Object* object, std::shared_ptr<const RegExp> pattern);
   const RegExp* FindRegExp(const Object* object) const;
 
@@ -729,6 +744,7 @@ class Heap {
   std::vector<std::unique_ptr<Object>> objects_;
   std::vector<std::unique_ptr<Environment>> environments_;
   // Sparse: one entry per RegExp object alive, not one slot per object.
+  std::unordered_map<const Object*, std::shared_ptr<const BigInt>> bigints_;
   std::unordered_map<const Object*, std::shared_ptr<const RegExp>> regexps_;
   // Same, for Map and Set.
   std::unordered_map<const Object*, std::shared_ptr<MapIndex>> map_indexes_;

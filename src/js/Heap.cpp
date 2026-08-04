@@ -5,6 +5,7 @@
 #include <cstring>
 #include <utility>
 
+#include "js/BigInt.h"
 #include "js/Collections.h"
 #include "js/RegExp.h"
 
@@ -520,6 +521,18 @@ void Environment::CopyBindingsFrom(const Environment& other) {
 
 Heap::~Heap() = default;
 
+void Heap::AttachBigInt(const Object* cell, std::shared_ptr<const BigInt> digits) {
+  bigints_[cell] = std::move(digits);
+  // The cell carries the pointer as well, so reading a bigint's digits is a
+  // load rather than a hash -- every arithmetic operation does it twice.
+  const_cast<Object*>(cell)->SetBigIntDigits(bigints_[cell].get());
+}
+
+const BigInt* Heap::FindBigInt(const Object* cell) const {
+  const auto found = bigints_.find(cell);
+  return found == bigints_.end() ? nullptr : found->second.get();
+}
+
 void Heap::AttachRegExp(const Object* object, std::shared_ptr<const RegExp> pattern) {
   regexps_[object] = std::move(pattern);
 }
@@ -739,12 +752,14 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
   // Before the objects go, so the side table never holds a key that has been
   // freed -- a stale entry would be handed out as a compiled pattern the next
   // time an object happened to be allocated at the same address.
-  if (!regexps_.empty() || !map_indexes_.empty() || !generators_.empty()) {
+  if (!regexps_.empty() || !map_indexes_.empty() || !generators_.empty() ||
+      !bigints_.empty()) {
     for (const std::unique_ptr<Object>& object : objects_) {
       if (!object->marked_) {
         regexps_.erase(object.get());
         map_indexes_.erase(object.get());
         generators_.erase(object.get());
+        bigints_.erase(object.get());
       }
     }
   }

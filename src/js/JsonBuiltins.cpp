@@ -455,6 +455,14 @@ class JsonWriter {
       case ValueType::Undefined:
       case ValueType::Symbol:
         return false;
+      case ValueType::BigInt:
+        // JSON has no bigint, and the spec makes this a TypeError rather than
+        // a lossy number: a page serializing an identifier that does not fit a
+        // double needs to know, and silently rounding it is the bug the type
+        // exists to prevent.
+        call_.Throw("TypeError", "a BigInt cannot be serialized to JSON");
+        threw_ = true;
+        return false;
       case ValueType::Null:
         out += "null";
         return true;

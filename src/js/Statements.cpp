@@ -26,6 +26,28 @@ class DepthCounter {
 
 }  // namespace
 
+// Where an update's new value goes: back into the binding, or through the
+// property it was read from. Lifted out because a bigint increments as a
+// bigint and a number as a number, and only the arithmetic differs.
+Result Interpreter::StoreUpdate(const Node& node, const Node& operand, const Value& value,
+                                Environment& scope) {
+  if (operand.kind == NodeKind::Member) {
+    Value base;
+    const Result key = EvaluateMember(operand, scope, base);
+    if (key.IsAbrupt()) {
+      return key;
+    }
+    PropertyKey property;
+    const Result converted = ToKeyOf(key.value, property);
+    if (converted.IsAbrupt()) {
+      return converted;
+    }
+    return SetProperty(base, property, value);
+  }
+  (void)node;
+  return BindPattern(operand, value, scope, false, false);
+}
+
 Result Interpreter::Evaluate(const Node& node, Environment& scope) {
   const DepthCounter depth(eval_depth_, kMaxEvalDepth);
   if (depth.Exceeded()) {
@@ -43,6 +65,17 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(Value::Number(node.number));
     case NodeKind::StringLiteral:
       return Result::Normal(Value::String(node.string));
+    case NodeKind::BigIntLiteral: {
+      BigInt digits;
+      if (!BigInt::Parse(node.string, digits)) {
+        return Throw("SyntaxError", "invalid BigInt literal");
+      }
+      const Value value = NewBigIntValue(std::move(digits));
+      if (value.IsUndefined()) {
+        return Throw("RangeError", "out of memory");
+      }
+      return Result::Normal(value);
+    }
     case NodeKind::BooleanLiteral:
       return Result::Normal(Value::Bool(node.number != 0.0));
     case NodeKind::NullLiteral:
@@ -305,6 +338,13 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       }
       if (node.string == "!") return Result::Normal(Value::Bool(!ToBoolean(value.value)));
       if (node.string == "-" || node.string == "+" || node.string == "~") {
+        // A bigint answers these itself: `-1n` is a bigint and `+1n` is a
+        // TypeError, neither of which a numeric conversion can express.
+        bool handled = false;
+        const Result big = ApplyBigIntUnary(node.string.c_str(), value.value, handled);
+        if (handled || big.IsAbrupt()) {
+          return big;
+        }
         // Through ToNumberOf rather than ToNumber: `-obj` runs the object's
         // `valueOf`, and `+[]` is 0 rather than NaN because of it.
         double number = 0;
@@ -333,6 +373,23 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       if (current.IsAbrupt()) {
         return current;
       }
+      // A bigint increments as a bigint: `x++` on one is `x + 1n`, and there
+      // is no double in the middle of it.
+      if (current.value.IsBigInt()) {
+        bool handled = false;
+        const Result stepped =
+            ApplyBigIntUnary(node.string.c_str(), current.value, handled);
+        if (stepped.IsAbrupt()) {
+          return stepped;
+        }
+        if (handled) {
+          const Result stored = StoreUpdate(node, *operand, stepped.value, scope);
+          if (stored.IsAbrupt()) {
+            return stored;
+          }
+          return Result::Normal(node.number == 1.0 ? stepped.value : current.value);
+        }
+      }
       double before = 0;
       const Result converted = ToNumberOf(current.value, before);
       if (converted.IsAbrupt()) {
@@ -340,26 +397,9 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       }
       const double after = node.string == "++" ? before + 1 : before - 1;
 
-      if (operand->kind == NodeKind::Member) {
-        Value base;
-        const Result key = EvaluateMember(*operand, scope, base);
-        if (key.IsAbrupt()) {
-          return key;
-        }
-        PropertyKey property;
-        const Result converted_key = ToKeyOf(key.value, property);
-        if (converted_key.IsAbrupt()) {
-          return converted_key;
-        }
-        const Result stored = SetProperty(base, property, Value::Number(after));
-        if (stored.IsAbrupt()) {
-          return stored;
-        }
-      } else {
-        const Result bound = BindPattern(*operand, Value::Number(after), scope, false, false);
-        if (bound.IsAbrupt()) {
-          return bound;
-        }
+      const Result stored = StoreUpdate(node, *operand, Value::Number(after), scope);
+      if (stored.IsAbrupt()) {
+        return stored;
       }
       // Prefix yields the new value, postfix the old one.
       return Result::Normal(Value::Number(node.number == 1.0 ? after : before));

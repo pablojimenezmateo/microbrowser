@@ -98,6 +98,18 @@ Value Interpreter::NewNativeValue(const char* name, NativeFunction function) {
   return native == nullptr ? Value::Undefined() : Value::Obj(native);
 }
 
+Value Interpreter::NewBigIntValue(BigInt digits) {
+  // A Symbol-kind cell, because that is what a cell whose identity is not the
+  // point looks like here: nothing reads properties off it, and the sweep that
+  // frees it drops the digits.
+  Object* cell = heap_.AllocateObject(Object::Kind::Symbol);
+  if (cell == nullptr) {
+    return Value::Undefined();
+  }
+  heap_.AttachBigInt(cell, std::make_shared<const BigInt>(std::move(digits)));
+  return Value::Big(cell);
+}
+
 Value Interpreter::NewRegExpValue(RegExp pattern) {
   Object* object = heap_.AllocateObject(Object::Kind::RegExp);
   if (object == nullptr) {
@@ -413,6 +425,15 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
         well_known_.number_prototype == nullptr
             ? nullptr
             : well_known_.number_prototype->GetProperty(key);
+    return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
+  }
+  if (base.IsBigInt()) {
+    // A primitive, like a number: its two methods come off the shared
+    // prototype rather than off a wrapper.
+    const Object::Property* method =
+        well_known_.bigint_prototype == nullptr
+            ? nullptr
+            : well_known_.bigint_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (base.type == ValueType::Boolean) {

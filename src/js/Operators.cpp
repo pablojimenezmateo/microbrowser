@@ -201,9 +201,14 @@ Result Interpreter::LooseEqualsOf(const Value& a, const Value& b, bool& out) {
     }
     // Two primitives of different types. A symbol equals nothing it is not
     // identical to, which the type test already settled; everything else
-    // compares as a number.
+    // compares as a number -- and a bigint compares by *mathematical value*,
+    // which is the one place the two numeric types meet.
     if (x.IsSymbol() || y.IsSymbol()) {
       out = false;
+      return Result::Normal();
+    }
+    if (x.IsBigInt() || y.IsBigInt()) {
+      out = LooseEquals(x, y);
       return Result::Normal();
     }
     out = ToNumber(x) == ToNumber(y);
@@ -213,7 +218,251 @@ Result Interpreter::LooseEqualsOf(const Value& a, const Value& b, bool& out) {
   return Result::Normal();
 }
 
+// The bigint half of an operator, when either side is one.
+//
+// Handled before the numeric conversions rather than inside them, and that is
+// the whole design of the type: mixing a bigint and a number is a **TypeError**,
+// not a coercion. A bigint that silently became a double would lose the
+// precision it exists for, and a page that added one to a database identifier
+// would find out by writing the wrong row.
+//
+// The exceptions are written out below and there are exactly three: the
+// comparisons, `==`, and `+` when the other side is a string -- all of which
+// compare or concatenate rather than compute.
+Result Interpreter::ApplyBigIntBinary(BinaryOp op, const Value& a, const Value& b,
+                                      bool& handled) {
+  handled = false;
+  if (!a.IsBigInt() && !b.IsBigInt()) {
+    return Result::Normal();
+  }
+
+  // The relational operators, which compare by mathematical value across the
+  // two numeric types. `1n < 1.5` is true and neither side converts.
+  const auto relational = [&](int order) {
+    const bool answer = op == BinaryOp::Less       ? order < 0
+                        : op == BinaryOp::Greater  ? order > 0
+                        : op == BinaryOp::LessEqual ? order <= 0
+                                                    : order >= 0;
+    // An unordered comparison -- against NaN -- is false whichever way it is
+    // written, which `order == 2` stands for.
+    return Result::Normal(Value::Bool(order != 2 && answer));
+  };
+  if (op == BinaryOp::Less || op == BinaryOp::Greater || op == BinaryOp::LessEqual ||
+      op == BinaryOp::GreaterEqual) {
+    Value left;
+    Value right;
+    const Result converted_left = ToPrimitive(a, Hint::Number, left);
+    if (converted_left.IsAbrupt()) {
+      return converted_left;
+    }
+    const Result converted_right = ToPrimitive(b, Hint::Number, right);
+    if (converted_right.IsAbrupt()) {
+      return converted_right;
+    }
+    if (!left.IsBigInt() && !right.IsBigInt()) {
+      return Result::Normal();  // neither is one after conversion
+    }
+    handled = true;
+    if (left.IsBigInt() && right.IsBigInt()) {
+      return relational(BigInt::Compare(*BigIntOf(left), *BigIntOf(right)));
+    }
+    const bool big_left = left.IsBigInt();
+    const Value& big = big_left ? left : right;
+    const Value& other = big_left ? right : left;
+    if (other.IsString()) {
+      BigInt parsed;
+      if (!BigInt::Parse(other.AsString(), parsed)) {
+        return Result::Normal(Value::Bool(false));  // unparseable is unordered
+      }
+      const int order = BigInt::Compare(*BigIntOf(big), parsed);
+      return relational(big_left ? order : -order);
+    }
+    const int order = BigInt::CompareDouble(*BigIntOf(big), ToNumber(other));
+    return relational(order == 2 ? 2 : (big_left ? order : -order));
+  }
+
+  // `==` across the two, which LooseEqualsOf already routes through
+  // LooseEquals -- so nothing to do here.
+  if (op == BinaryOp::LooseEqual || op == BinaryOp::LooseNotEqual ||
+      op == BinaryOp::StrictEqual || op == BinaryOp::StrictNotEqual ||
+      op == BinaryOp::In || op == BinaryOp::InstanceOf) {
+    return Result::Normal();
+  }
+
+  // Everything left is arithmetic. Both sides become primitives first, because
+  // an object with a `valueOf` that answers a bigint is a bigint here.
+  Value left;
+  Value right;
+  const Result converted_left = ToPrimitive(a, Hint::Number, left);
+  if (converted_left.IsAbrupt()) {
+    return converted_left;
+  }
+  const Result converted_right = ToPrimitive(b, Hint::Number, right);
+  if (converted_right.IsAbrupt()) {
+    return converted_right;
+  }
+  if (!left.IsBigInt() && !right.IsBigInt()) {
+    return Result::Normal();
+  }
+  // `1n + 'x'` concatenates, which is the one arithmetic operator that does
+  // not require both sides to be the same type.
+  if (op == BinaryOp::Add && (left.IsString() || right.IsString())) {
+    return Result::Normal();
+  }
+  handled = true;
+  if (!left.IsBigInt() || !right.IsBigInt()) {
+    return Throw("TypeError", "cannot mix BigInt and other types");
+  }
+
+  const BigInt& x = *BigIntOf(left);
+  const BigInt& y = *BigIntOf(right);
+  BigInt made;
+  bool ok = false;
+  switch (op) {
+    case BinaryOp::Add: ok = BigInt::Add(x, y, made); break;
+    case BinaryOp::Subtract: ok = BigInt::Subtract(x, y, made); break;
+    case BinaryOp::Multiply: ok = BigInt::Multiply(x, y, made); break;
+    case BinaryOp::Divide: {
+      if (y.IsZero()) {
+        return Throw("RangeError", "division by zero");
+      }
+      BigInt remainder;
+      ok = BigInt::Divide(x, y, made, remainder);
+      break;
+    }
+    case BinaryOp::Remainder: {
+      if (y.IsZero()) {
+        return Throw("RangeError", "division by zero");
+      }
+      BigInt quotient;
+      ok = BigInt::Divide(x, y, quotient, made);
+      break;
+    }
+    case BinaryOp::Exponent:
+      if (y.Negative()) {
+        return Throw("RangeError", "a BigInt cannot be raised to a negative power");
+      }
+      ok = BigInt::Power(x, y, made);
+      break;
+    case BinaryOp::BitAnd: ok = BigInt::Bitwise(x, y, 0, made); break;
+    case BinaryOp::BitOr: ok = BigInt::Bitwise(x, y, 1, made); break;
+    case BinaryOp::BitXor: ok = BigInt::Bitwise(x, y, 2, made); break;
+    case BinaryOp::ShiftLeft:
+    case BinaryOp::ShiftRight: {
+      // The shift count is a bigint too, and an unbounded one -- so it is
+      // taken through a double, where anything past the limb cap is refused
+      // rather than truncated into something plausible.
+      const double by = y.ToDouble();
+      if (!std::isfinite(by) || std::fabs(by) > 1e9) {
+        return Throw("RangeError", "shift count is too large");
+      }
+      const auto amount = static_cast<std::int64_t>(by);
+      ok = BigInt::ShiftLeft(x, op == BinaryOp::ShiftLeft ? amount : -amount, made);
+      break;
+    }
+    case BinaryOp::ShiftRightUnsigned:
+      // There is no unsigned right shift for an unbounded integer: it is
+      // defined over a fixed width, and a bigint has none. The spec makes it a
+      // TypeError rather than picking one.
+      return Throw("TypeError", "BigInts have no unsigned right shift");
+    default:
+      return Throw("TypeError", "unsupported BigInt operation");
+  }
+  if (!ok) {
+    return Throw("RangeError", "BigInt is too large");
+  }
+  const Value value = NewBigIntValue(std::move(made));
+  if (value.IsUndefined()) {
+    return Throw("RangeError", "out of memory");
+  }
+  return Result::Normal(value);
+}
+
+Result Interpreter::ApplyBigIntUnary(const char* op, const Value& operand, bool& handled) {
+  handled = false;
+  if (!operand.IsBigInt()) {
+    return Result::Normal();
+  }
+  handled = true;
+  const std::string_view which(op);
+  if (which == "+") {
+    // The one unary operator a bigint refuses. `+x` is defined as ToNumber,
+    // and a bigint has no number to become -- so the spec makes it a
+    // TypeError rather than a lossy conversion.
+    return Throw("TypeError", "cannot convert a BigInt to a number");
+  }
+  const BigInt& digits = *BigIntOf(operand);
+  BigInt made;
+  bool ok = true;
+  if (which == "-") {
+    made = BigInt::Negate(digits);
+  } else if (which == "~") {
+    ok = BigInt::Not(digits, made);
+  } else if (which == "++") {
+    ok = BigInt::Add(digits, BigInt::FromInt64(1), made);
+  } else if (which == "--") {
+    ok = BigInt::Subtract(digits, BigInt::FromInt64(1), made);
+  } else {
+    handled = false;
+    return Result::Normal();
+  }
+  if (!ok) {
+    return Throw("RangeError", "BigInt is too large");
+  }
+  const Value value = NewBigIntValue(std::move(made));
+  if (value.IsUndefined()) {
+    return Throw("RangeError", "out of memory");
+  }
+  return Result::Normal(value);
+}
+
+Result Interpreter::ApplyNumericUnary(Op op, std::uint32_t operand, const Value& value) {
+  // A bigint answers all of these itself: `-1n` and `~1n` are bigints, `+1n`
+  // is a TypeError, and `++` steps by `1n`. None of that is expressible as a
+  // conversion, which is why the type is checked before one runs.
+  if (value.IsBigInt()) {
+    const char* which = op == Op::Negate      ? "-"
+                        : op == Op::BitNot    ? "~"
+                        : op == Op::UnaryPlus ? "+"
+                        : op == Op::StepValue ? (operand == 1 ? "++" : "--")
+                                              : "";
+    bool handled = false;
+    const Result stepped = ApplyBigIntUnary(which, value, handled);
+    if (stepped.IsAbrupt()) {
+      return stepped;
+    }
+    // ToNumberOp on a bigint is the identity: the step that follows is the
+    // bigint's own.
+    return handled ? stepped : Result::Normal(value);
+  }
+  if (op == Op::StepValue) {
+    return Result::Normal(Value::Number(ToNumber(value) + (operand == 1 ? 1.0 : -1.0)));
+  }
+  // Through ToNumberOf, which can run a page's `valueOf` and therefore can
+  // throw.
+  double number = 0;
+  const Result converted = ToNumberOf(value, number);
+  if (converted.IsAbrupt()) {
+    return converted;
+  }
+  if (op == Op::Negate) {
+    return Result::Normal(Value::Number(-number));
+  }
+  if (op == Op::BitNot) {
+    return Result::Normal(Value::Number(~ToInt32(number)));
+  }
+  return Result::Normal(Value::Number(number));
+}
+
 Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
+  // The bigint cases first: mixing a bigint and a number is a TypeError rather
+  // than a coercion, so the ordinary conversions below must not get the chance.
+  bool handled = false;
+  const Result big = ApplyBigIntBinary(op, a, b, handled);
+  if (handled || big.IsAbrupt()) {
+    return big;
+  }
+
   // The arithmetic and relational operators all begin by converting both
   // operands, and every one of those conversions can run a page's `valueOf`
   // and therefore throw. Doing it once here rather than per case is what keeps

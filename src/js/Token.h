@@ -27,6 +27,11 @@ enum class TokenType : std::uint8_t {
   PrivateIdentifier,  // #x, in class bodies
   Keyword,
   NumericLiteral,
+  // `123n`. A separate token type rather than a flag, because the *value* it
+  // carries is different: a bigint's digits do not fit the double every other
+  // numeric literal is read into, which is the whole reason the type exists.
+  // The digits are the lexeme, minus the `n` and any separators.
+  BigIntLiteral,
   StringLiteral,
   TemplateString,  // the whole literal, including its substitutions, unparsed
   RegExpLiteral,

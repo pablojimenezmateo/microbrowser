@@ -523,6 +523,49 @@ Result Interpreter::StepIterationWith(Iteration& state, const Value& sent, Value
   return Result::Normal();
 }
 
+Result Interpreter::ForwardToDelegate(const Value& thrown, bool& finished) {
+  // What `yield*` does with a throw or a forced return that arrived at its
+  // `yield`. The cursor is the delegate's, still open on the machine's stack
+  // -- the handler that caught this recorded a depth that includes it, which
+  // is what keeps it from being closed before this runs.
+  finished = false;
+  Iteration& cursor = vm_.iterations.back();
+  const bool is_return = IsReturnSignal(thrown);
+  Value payload = thrown;
+  if (is_return) {
+    const Value* held = thrown.object->GetOwn("value");
+    payload = held == nullptr ? Value::Undefined() : *held;
+  }
+  Result answered;
+  bool done = false;
+  if (!cursor.done && ForwardToIterator(cursor, payload, is_return, answered, done)) {
+    if (answered.IsAbrupt()) {
+      return answered;
+    }
+    if (done) {
+      // The delegate finished answering. `return` ends the outer generator
+      // too, carrying what the delegate returned; `throw` ends only the
+      // delegation, and its value is what the expression is worth.
+      if (is_return) {
+        return Result{Completion::Throw, NewReturnSignal(answered.value), {}};
+      }
+      finished = true;
+    }
+    return Result::Normal(answered.value);
+  }
+  // Nothing to forward to. The delegate is closed and the original completion
+  // carries on outwards -- except for a throw at an iterator with no `throw`
+  // method, which the spec makes a TypeError after closing it.
+  const Result closed = CloseIterationCursor(cursor);
+  (void)closed;
+  const bool had_iterator = cursor.iterator.IsObject();
+  cursor.done = true;
+  if (is_return || !had_iterator) {
+    return Result{Completion::Throw, thrown, {}};
+  }
+  return Throw("TypeError", "the iterator has no throw method");
+}
+
 bool Interpreter::ForwardToIterator(Iteration& state, const Value& thrown, bool is_return,
                                     Result& out, bool& done) {
   done = false;

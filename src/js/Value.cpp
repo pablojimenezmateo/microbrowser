@@ -118,6 +118,9 @@ bool ToBoolean(const Value& value) {
       return true;
     case ValueType::Symbol:
       return true;
+    case ValueType::BigInt:
+      // Zero is the one falsy bigint, like the one falsy number.
+      return !IsBigIntZero(value);
   }
   return false;
 }
@@ -153,6 +156,12 @@ double ToNumber(const Value& value) {
       // ToNumber is a pure function with no interpreter -- so NaN stands in,
       // and arithmetic on a symbol is quietly NaN rather than loudly wrong.
       return std::nan("");
+    case ValueType::BigInt:
+      // Also a TypeError in the spec, for the reason mixing them is: a bigint
+      // that silently became a double would lose the precision it exists for.
+      // The operators reject the mix before reaching here; this is what a
+      // caller that has no interpreter gets, and it is at least the value.
+      return BigIntValueOf(value);
   }
   return std::nan("");
 }
@@ -209,6 +218,8 @@ std::string ToString(const Value& value) {
         return "function";
       }
       return "[object Object]";
+    case ValueType::BigInt:
+      return BigIntText(value);
     case ValueType::Symbol: {
       // The spec makes an implicit conversion here a TypeError, so that
       // `'' + sym` is caught rather than producing something plausible. This
@@ -242,6 +253,8 @@ std::string_view TypeOf(const Value& value) {
       return value.object->IsCallable() ? "function" : "object";
     case ValueType::Symbol:
       return "symbol";
+    case ValueType::BigInt:
+      return "bigint";
   }
   return "undefined";
 }
@@ -266,6 +279,11 @@ bool StrictEquals(const Value& a, const Value& b) {
       // Identity, for both: two symbols are the same symbol only when they are
       // the same cell, whatever their descriptions say.
       return a.object == b.object;
+    case ValueType::BigInt:
+      // By *value*, unlike a symbol: `1n === 1n` is true, and the two cells
+      // are different objects. This is why the digits are compared rather
+      // than the identity.
+      return BigIntEquals(a, b);
   }
   return false;
 }
@@ -278,6 +296,25 @@ bool LooseEquals(const Value& a, const Value& b) {
   }
   if (a.type == b.type) {
     return StrictEquals(a, b);
+  }
+  // A bigint and a number compare by *mathematical value*, which is the one
+  // place the two numeric types meet: `1n == 1` is true and `1n === 1` is not.
+  if (a.IsBigInt() || b.IsBigInt()) {
+    if (a.type == ValueType::Object || b.type == ValueType::Object) {
+      return false;  // an object needs ToPrimitive, which this cannot run
+    }
+    if (a.IsBigInt() && b.IsBigInt()) {
+      return BigIntEquals(a, b);
+    }
+    const Value& big = a.IsBigInt() ? a : b;
+    const Value& other = a.IsBigInt() ? b : a;
+    if (other.IsString()) {
+      return BigIntEqualsText(big, other.AsString());
+    }
+    if (other.type == ValueType::Symbol) {
+      return false;
+    }
+    return BigIntEqualsNumber(big, ToNumber(other));
   }
   if (a.type == ValueType::Object || b.type == ValueType::Object) {
     // Without valueOf dispatch an object equals nothing it is not identical

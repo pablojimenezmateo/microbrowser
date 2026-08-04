@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "js/Ast.h"
+#include "js/BigInt.h"
 #include "js/Bytecode.h"
 #include "js/Heap.h"
 #include "js/Parser.h"
@@ -154,6 +155,10 @@ class Interpreter {
   // A pending promise. Public so the host can hand one out: a fetch that
   // resolves later is the shape every browser API takes.
   Value NewPromiseValue();
+  // A bigint, as a value. Its digits go beside the heap under a fresh cell,
+  // which is what makes `1n === 1n` a comparison of digits rather than of
+  // identity -- see ValueType::BigInt.
+  Value NewBigIntValue(BigInt digits);
   // One iteration in progress.
   //
   // A cursor rather than a collected vector, because the protocol is
@@ -214,6 +219,10 @@ class Interpreter {
   // method, in which case the caller rethrows.
   bool ForwardToIterator(Iteration& state, const Value& thrown, bool is_return, Result& out,
                          bool& done);
+  // The machine's IterateForward, in Iteration.cpp beside the protocol it
+  // speaks. `finished` says the delegation is over and the value is what the
+  // `yield*` expression is worth.
+  Result ForwardToDelegate(const Value& thrown, bool& finished);
   // Closes every open cursor above `down_to`, innermost first: an iterator
   // that has not finished and has a `return` gets it called, which is what the
   // protocol says a loop leaving early owes it. What makes a `break` out of a
@@ -317,6 +326,10 @@ class Interpreter {
                                                : Value::Obj(well_known_.chain_signal);
   }
   Result EvaluateForIn(const Node& node, Environment& scope);
+  // Where an update's new value goes. Lifted out because a bigint increments
+  // as a bigint and a number as a number, and only the arithmetic differs.
+  Result StoreUpdate(const Node& node, const Node& operand, const Value& value,
+                     Environment& scope);
   // `enclosing` is the chunk the class literal was compiled into, or null when
   // the tree-walker is building it. When it is there, each method's body is
   // taken from it already compiled; the *building* is the same either way,
@@ -363,6 +376,23 @@ class Interpreter {
   // the compiler's `Binary` opcode, so `+` has one answer rather than two that
   // can drift. Lives in Operators.cpp.
   Result ApplyBinary(BinaryOp op, const Value& a, const Value& b);
+  // The half of an operator that runs when either side is a bigint. `handled`
+  // says whether it answered; when it did not, the ordinary numeric path runs.
+  // Separate because the rule is *not* a conversion -- mixing a bigint and a
+  // number is a TypeError, so the numeric path must not get the chance.
+  Result ApplyBigIntBinary(BinaryOp op, const Value& a, const Value& b, bool& handled);
+  // The machine's numeric unaries -- Negate, UnaryPlus, BitNot, ToNumberOp and
+  // StepValue -- beside the binary ones, because both halves have the same
+  // rule about bigints and one of them would drift.
+  Result ApplyNumericUnary(Op op, std::uint32_t operand, const Value& value);
+
+ public:
+  // The unary operators on a bigint: `-x`, `~x`, and the `+1` an update does.
+  // `handled` says whether it answered, for the reason the binary one has it.
+  // Public because both engines' unary paths reach it.
+  Result ApplyBigIntUnary(const char* op, const Value& operand, bool& handled);
+
+ private:
 
  public:
   // --- The conversions that can run script (Operators.cpp) -----------------
@@ -669,6 +699,9 @@ class Interpreter {
     // ToPrimitive reaches for, so without this a boolean in a string context
     // is a TypeError rather than "true".
     Object* boolean_prototype = nullptr;
+    // Where a bigint's methods live. A bigint is a primitive here, like a
+    // number, so GetProperty consults this directly rather than boxing.
+    Object* bigint_prototype = nullptr;
     // The two the typed arrays need to find again: a typed array made without
     // a buffer allocates one and has to give it the right prototype, and the
     // nine constructors share one prototype between them.
@@ -729,7 +762,7 @@ class Interpreter {
               generator_prototype, symbol_async_iterator, async_generator_prototype,
               return_signal,       symbol_to_primitive, symbol_has_instance,
               symbol_to_string_tag, boolean_prototype,  chain_signal,
-              array_buffer_prototype, typed_array_prototype};
+              array_buffer_prototype, typed_array_prototype, bigint_prototype};
     }
   };
 

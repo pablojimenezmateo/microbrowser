@@ -10,7 +10,24 @@ namespace microbrowser::js {
 
 class Object;
 
-enum class ValueType : std::uint8_t { Undefined, Null, Boolean, Number, String, Object, Symbol };
+enum class ValueType : std::uint8_t {
+  Undefined,
+  Null,
+  Boolean,
+  Number,
+  String,
+  Object,
+  Symbol,
+  // The second numeric type. A *type* rather than a library: `typeof 1n` is
+  // "bigint" and `1n + 1` is a TypeError, so every operator and every
+  // conversion has a case for it.
+  //
+  // Its digits live beside the heap, keyed by the cell in `object` -- the same
+  // arrangement a symbol's identity has, and for the same reason: the cell is
+  // what the collector knows how to free, and the digits are a vector that has
+  // to go when it does.
+  BigInt,
+};
 
 // A JavaScript value.
 //
@@ -63,17 +80,40 @@ struct Value {
     value.object = cell;
     return value;
   }
+  // A bigint. Its digits are beside the heap under this cell; see ValueType.
+  static Value Big(Object* cell) {
+    Value value;
+    value.type = ValueType::BigInt;
+    value.object = cell;
+    return value;
+  }
 
   bool IsUndefined() const { return type == ValueType::Undefined; }
   bool IsNull() const { return type == ValueType::Null; }
   bool IsNullish() const { return IsUndefined() || IsNull(); }
   bool IsObject() const { return type == ValueType::Object && object != nullptr; }
   bool IsSymbol() const { return type == ValueType::Symbol && object != nullptr; }
+  bool IsBigInt() const { return type == ValueType::BigInt && object != nullptr; }
   bool IsString() const { return type == ValueType::String; }
   bool IsNumber() const { return type == ValueType::Number; }
 
   const std::string& AsString() const;
 };
+
+// A bigint's digits, read through the cell in a Value.
+//
+// Free functions rather than methods on Value, because Value cannot see the
+// heap -- the digits live beside it, keyed by the cell, for the reason a
+// symbol's identity is a cell. Defined in BigIntValue.cpp, which is the seam
+// between the arithmetic and the value system.
+class BigInt;
+const BigInt* BigIntOf(const Value& value);
+bool IsBigIntZero(const Value& value);
+double BigIntValueOf(const Value& value);
+std::string BigIntText(const Value& value);
+bool BigIntEquals(const Value& a, const Value& b);
+bool BigIntEqualsNumber(const Value& value, double number);
+bool BigIntEqualsText(const Value& value, const std::string& text);
 
 // The abstract operations. These are the conversions the language performs
 // implicitly, and they are the reason `[] + {}` has an answer at all -- so they

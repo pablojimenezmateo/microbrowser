@@ -30,9 +30,18 @@ budget: NodeKind header_lines=95 public_methods=0  members=0
 # binding it is assigned to, which is a *syntactic* rule -- so it is applied
 # here, once, rather than by each engine at run time.
 budget: ParserImpl header_lines=110 public_methods=6 members=5
-budget: Value       header_lines=60 public_methods=20 members=5
+# Grew by lines for the bigint, and by no members: its digits live beside the
+# heap keyed by the cell in `object`, which is the arrangement a symbol's
+# identity already has.
+budget: Value       header_lines=90 public_methods=23 members=5
 # A compiled pattern, as a value: the program behind it is shared and immutable,
 # so copying a RegExp is a refcount rather than a recompile.
+# An arbitrary-precision integer: sign and magnitude, base 2^32. Two members
+# and nothing else -- everything on it is a static operation over two of them,
+# which is what makes each one checkable against a calculator rather than
+# against the engine. It grows when the language gains an operator, which has
+# happened never.
+budget: BigInt         header_lines=110 public_methods=22 members=2
 budget: RegExp         header_lines=40 public_methods=10 members=3
 budget: RegExpFlags    header_lines=30 public_methods=2  members=7
 budget: RegExpMatch    header_lines=30 public_methods=6  members=1
@@ -189,7 +198,10 @@ budget: MatchOp             header_lines=60 public_methods=0  members=0
 # beside the heap rather than on the object is where the compiled patterns and
 # the map indexes live, which is right for those and wrong for this: it is read
 # on every element access and a hash lookup there would show.
-budget: Object      header_lines=300 public_methods=57 members=18
+# And by one for a bigint's digits, borrowed from the heap's table. A pointer
+# on the cell rather than a lookup, because every arithmetic operation reads it
+# twice and a hash there would be the cost of the whole type.
+budget: Object      header_lines=310 public_methods=59 members=19
 # Grew by one member and by the slot half of its surface. Bindings live in a
 # vector now and the names index into it: compiled code resolved its names while
 # compiling and indexes straight in, everything else still asks by name and pays
@@ -225,7 +237,11 @@ budget: MapIndex    header_lines=20 public_methods=0  members=2
 # that could disagree. One reason applies only here -- in the object it would
 # be a property, and a page that wrote its own would have `next` put the same
 # frame back twice, which is a use-after-free with a script behind it.
-budget: Heap        header_lines=145 public_methods=24 members=9
+# Grew by one table for the bigints, on exactly the terms the compiled
+# patterns and the map indexes are here: native state belonging to one cell,
+# dropped by the sweep that frees it rather than by a second lifetime story
+# that could disagree.
+budget: Heap        header_lines=160 public_methods=26 members=10
 # The tree-walking interpreter.
 #
 # The member count went *down* at the commit that raised these numbers, from
@@ -271,7 +287,7 @@ budget: Heap        header_lines=145 public_methods=24 members=9
 # And by two for the typed arrays: a typed array made without a buffer
 # allocates one and has to give it the right prototype, and the nine
 # constructors share the one prototype the generic methods live on.
-budget: WellKnown   header_lines=130 public_methods=2  members=19
+budget: WellKnown   header_lines=145 public_methods=2  members=20
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -323,7 +339,7 @@ budget: WellKnown   header_lines=130 public_methods=2  members=19
 # The resolver is a member because loading is the host's job -- a specifier's
 # meaning is a URL question, and a language engine has no business answering
 # one.
-budget: Interpreter header_lines=900 public_methods=58 members=19
+budget: Interpreter header_lines=930 public_methods=61 members=19
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

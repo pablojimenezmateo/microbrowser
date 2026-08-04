@@ -260,6 +260,24 @@ Token Lexer::LexNumber(std::size_t start, bool newline) {
     }
   }
 
+  // `123n` is a bigint. The suffix is checked before the
+  // number-touching-an-identifier rule below, which would otherwise reject it
+  // -- `n` is an identifier character.
+  bool is_big = false;
+  if (offset_ < source_.size() && source_[offset_] == 'n') {
+    // Only an integer may carry it: `1.5n` and `1e3n` are not bigints, and
+    // saying so here is better than rounding one silently.
+    const std::string_view so_far = source_.substr(start, offset_ - start);
+    if (so_far.find('.') != std::string_view::npos ||
+        (base == 10 && (so_far.find('e') != std::string_view::npos ||
+                        so_far.find('E') != std::string_view::npos))) {
+      ++offset_;
+      return MakeToken(TokenType::Invalid, start, newline);
+    }
+    is_big = true;
+    ++offset_;
+  }
+
   // A number immediately followed by an identifier character is an error --
   // `3in` is not `3 in`. Catching it here means the parser never sees a token
   // pair that could not have been written.
@@ -268,13 +286,21 @@ Token Lexer::LexNumber(std::size_t start, bool newline) {
     return MakeToken(TokenType::Invalid, start, newline);
   }
 
-  Token token = MakeToken(TokenType::NumericLiteral, start, newline);
+  Token token = MakeToken(is_big ? TokenType::BigIntLiteral : TokenType::NumericLiteral, start,
+                          newline);
   std::string cleaned;
   cleaned.reserve(token.lexeme.size());
   for (const char c : token.lexeme) {
-    if (c != '_') {
+    if (c != '_' && c != 'n') {
       cleaned.push_back(c);
     }
+  }
+  if (is_big) {
+    // The digits, for the parser to turn into a value. The lexer does not do
+    // the arithmetic: a token carries text and a number, and a bigint is
+    // neither.
+    token.value = std::move(cleaned);
+    return token;
   }
   if (base == 10) {
     token.number = util::ParseDouble(cleaned).value_or(std::nan(""));

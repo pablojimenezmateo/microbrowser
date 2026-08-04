@@ -23,6 +23,9 @@ namespace microbrowser::js {
 enum class NodeKind : std::uint8_t {
   // --- Expressions ---------------------------------------------------------
   NumberLiteral,      // number
+  // `123n`. string = the digits, with the `n` and any separators gone; the
+  // value is built when it is evaluated, because a Node carries no heap cell.
+  BigIntLiteral,
   StringLiteral,      // string
   TemplateLiteral,    // string = raw source; children = substitution expressions
   RegExpLiteral,      // string = full literal including flags
