@@ -29,6 +29,10 @@ budget: Length           header_lines=35 public_methods=10 members=2
 # becoming something other than a property bag are the method count and whether
 # any group of fields is large enough to want a struct of its own. Two already
 # do: `background` and `flex`.
-budget: ComputedStyle    header_lines=165 public_methods=22 members=30
+# Grew by one member and two methods for custom properties, which are a new
+# *kind* of stored value rather than one more property: unparsed text, kept as
+# text because what `--x: 20px` means depends on where it is substituted. ADR
+# 0014 has the measurement that made them the first CSS work to do.
+budget: ComputedStyle    header_lines=210 public_methods=24 members=31
 budget: FlexStyle        header_lines=50  public_methods=2  members=12
 budget: StyleResolver    header_lines=60 public_methods=12 members=2

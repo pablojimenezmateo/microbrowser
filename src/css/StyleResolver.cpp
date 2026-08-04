@@ -15,6 +15,89 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
+// How many times a substitution may expand a value before it is called a
+// cycle. `--a: var(--b)` and `--b: var(--a)` reference each other legally at
+// parse time and only fail when one is used, so the guard has to be here
+// rather than at the declaration. A depth bound rather than a visited-set
+// because the same property may legitimately appear twice in one value --
+// `margin: var(--x) var(--x)` is not a cycle.
+constexpr int kMaxVarDepth = 32;
+
+// Splits at the top-level comma that separates a `var()`'s name from its
+// fallback, so that a fallback which is itself a `var()` with its own comma
+// stays in one piece. Npos when there is none.
+std::size_t FallbackComma(std::string_view inside) {
+  int depth = 0;
+  for (std::size_t i = 0; i < inside.size(); ++i) {
+    if (inside[i] == '(') {
+      ++depth;
+    } else if (inside[i] == ')') {
+      --depth;
+    } else if (inside[i] == ',' && depth == 0) {
+      return i;
+    }
+  }
+  return std::string_view::npos;
+}
+
+bool SubstituteVarsDepth(std::string_view value, const ComputedStyle& style, int depth,
+                         std::string& out);
+
+// The body of one `var(...)`, from just past the opening parenthesis. Appends
+// what it resolves to. False when the name is unset and there is no fallback.
+bool ResolveOneVar(std::string_view inside, const ComputedStyle& style, int depth,
+                   std::string& out) {
+  const std::size_t comma = FallbackComma(inside);
+  const std::string_view name = Trim(inside.substr(0, comma));
+  const bool has_fallback = comma != std::string_view::npos;
+  const std::string_view fallback =
+      has_fallback ? Trim(inside.substr(comma + 1)) : std::string_view();
+
+  if (const std::string* found = style.CustomProperty(name)) {
+    // The referenced value may itself contain references, and it is resolved
+    // against *this* element -- which is what makes a custom property set on a
+    // child override the one it inherited, even inside a value written on the
+    // parent.
+    return SubstituteVarsDepth(*found, style, depth + 1, out);
+  }
+  if (!has_fallback) {
+    return false;
+  }
+  // An empty fallback is a legal fallback: `var(--x,)` is the empty value.
+  return SubstituteVarsDepth(fallback, style, depth + 1, out);
+}
+
+bool SubstituteVarsDepth(std::string_view value, const ComputedStyle& style, int depth,
+                         std::string& out) {
+  if (depth > kMaxVarDepth) {
+    return false;
+  }
+  for (std::size_t i = 0; i < value.size();) {
+    // `var(` only where it starts a function, so a `--foo` inside a string or
+    // an identifier like `sidebar(` is left alone.
+    if (value.compare(i, 4, "var(") != 0 ||
+        (i > 0 && !IsCssWhitespace(value[i - 1]) && value[i - 1] != '(' &&
+                      value[i - 1] != ',')) {
+      out.push_back(value[i++]);
+      continue;
+    }
+    std::size_t j = i + 4;
+    int depth_parens = 1;
+    while (j < value.size() && depth_parens > 0) {
+      depth_parens += value[j] == '(' ? 1 : (value[j] == ')' ? -1 : 0);
+      ++j;
+    }
+    if (depth_parens != 0) {
+      return false;  // unterminated: not a value anybody wrote on purpose
+    }
+    if (!ResolveOneVar(value.substr(i + 4, j - i - 5), style, depth, out)) {
+      return false;
+    }
+    i = j;
+  }
+  return true;
+}
+
 bool IsTablePart(std::string_view tag_name) {
   return tag_name == "table" || tag_name == "tr" || tag_name == "td" || tag_name == "th" ||
          tag_name == "thead" || tag_name == "tbody" || tag_name == "tfoot" ||
@@ -160,6 +243,9 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   style.line_height = parent.line_height;
   style.text_align = parent.text_align;
   style.white_space = parent.white_space;
+  // Custom properties inherit, which is the entire basis of how a modern
+  // stylesheet is written: set on `:root` once, referenced everywhere below.
+  style.custom_properties = parent.custom_properties;
 
   // The style attribute participates in the cascade rather than being applied
   // after it. Applied afterwards, it would beat an `!important` author rule,
@@ -214,10 +300,81 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
     return a.order < b.order;
   });
 
+  // Two passes, and the split is the specification's own. Custom properties
+  // are resolved first, in cascade order, because every other declaration may
+  // reference one -- and a reference has to see the winner rather than
+  // whichever declaration happens to come before it in this list.
+  //
+  // They are inherited already: `style` was seeded from the parent, so an
+  // element that sets none of its own has its parent's, which is what makes a
+  // `--fg` on `:root` reach everything.
   for (const Candidate& candidate : ordered) {
-    ApplyDeclaration(*candidate.declaration, parent, style);
+    const Declaration& declaration = *candidate.declaration;
+    if (declaration.property.rfind("--", 0) == 0) {
+      style.SetCustomProperty(declaration.property, Trim(declaration.value).empty()
+                                                        ? std::string()
+                                                        : declaration.value);
+    }
+  }
+
+  // Now substitute. A reference that resolves to nothing and has no fallback
+  // makes its declaration **invalid at computed-value time**, which is not the
+  // same as unrecognized: the property takes its inherited or initial value,
+  // and a lower-priority declaration for it does *not* get to win instead.
+  //
+  // Since this list is in ascending priority and the last one wins, that rule
+  // comes out as: if the winning declaration for a property is invalid, drop
+  // every declaration for that property. An invalid one that was going to lose
+  // anyway is simply skipped.
+  std::vector<std::string> substituted(ordered.size());
+  std::vector<bool> usable(ordered.size(), true);
+  std::vector<std::string> unset_properties;
+  for (std::size_t i = 0; i < ordered.size(); ++i) {
+    const Declaration& declaration = *ordered[i].declaration;
+    if (declaration.property.rfind("--", 0) == 0) {
+      usable[i] = false;  // already applied above
+      continue;
+    }
+    if (declaration.value.find("var(") == std::string::npos) {
+      substituted[i] = declaration.value;
+      continue;
+    }
+    std::string out;
+    if (SubstituteVarsDepth(declaration.value, style, 0, out)) {
+      substituted[i] = std::move(out);
+    } else {
+      usable[i] = false;
+      // The winner for this property, so far. Recorded rather than acted on
+      // immediately, because a later declaration may still supersede it.
+      unset_properties.push_back(declaration.property);
+    }
+  }
+  for (std::size_t i = 0; i < ordered.size(); ++i) {
+    if (!usable[i]) {
+      continue;
+    }
+    const Declaration& declaration = *ordered[i].declaration;
+    // Dropped because the declaration that *won* this property was invalid at
+    // computed-value time, which unsets the property outright.
+    if (std::find(unset_properties.begin(), unset_properties.end(), declaration.property) !=
+        unset_properties.end()) {
+      bool superseded = false;
+      for (std::size_t j = i + 1; j < ordered.size(); ++j) {
+        superseded = superseded || (usable[j] && ordered[j].declaration->property ==
+                                                     declaration.property);
+      }
+      if (!superseded) {
+        continue;
+      }
+    }
+    const Declaration resolved{declaration.property, substituted[i], declaration.important};
+    ApplyDeclaration(resolved, parent, style);
   }
   return style;
+}
+
+bool SubstituteVars(std::string_view value, const ComputedStyle& style, std::string& out) {
+  return SubstituteVarsDepth(value, style, 0, out);
 }
 
 std::string_view UserAgentStyleSheet() {

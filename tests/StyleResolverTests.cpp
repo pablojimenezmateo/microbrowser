@@ -237,6 +237,59 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "`:visited` matches nothing, because a page that can see it can read history");
   });
 
+  // Custom properties. The measurement in ADR 0014: youtube.com's stylesheet
+  // uses `var()` 8585 times and grid 78, which is why these came first. An
+  // unresolvable reference is *invalid at computed-value time* -- a defined
+  // outcome, and not the same as an unrecognized declaration.
+  AddTest(tests, "StyleResolver/CustomPropertiesSubstituteAndInherit", [] {
+    Expect(StyleOf("<p>x</p>", ":root { --fg: #ff0000 } p { color: var(--fg) }", "p").color ==
+               gfx::Color::Rgb(0xFF, 0, 0),
+           "a var() reference takes the custom property's value");
+    // Inherited, which is the whole reason a stylesheet can set them once on
+    // :root and use them everywhere.
+    Expect(StyleOf("<div><p>x</p></div>", "div { --fg: #00ff00 } p { color: var(--fg) }", "p")
+                   .color == gfx::Color::Rgb(0, 0xFF, 0),
+           "a custom property inherits to a descendant");
+    // The nearer declaration wins, and it wins inside a value written further
+    // up as well.
+    Expect(StyleOf("<div><p>x</p></div>",
+                   ":root { --fg: #ff0000 } p { --fg: #0000ff; color: var(--fg) }", "p")
+                   .color == gfx::Color::Rgb(0, 0, 0xFF),
+           "an element's own custom property beats the inherited one");
+    // A reference to an unset name uses its fallback.
+    Expect(StyleOf("<p>x</p>", "p { color: var(--nope, #ff0000) }", "p").color ==
+               gfx::Color::Rgb(0xFF, 0, 0),
+           "an unset name falls back");
+    // References nest, both in the value and in the fallback.
+    Expect(StyleOf("<p>x</p>", ":root { --a: var(--b); --b: #ff0000 } p { color: var(--a) }", "p")
+                   .color == gfx::Color::Rgb(0xFF, 0, 0),
+           "a custom property may reference another");
+    Expect(StyleOf("<p>x</p>", ":root { --b: #ff0000 } p { color: var(--a, var(--b)) }", "p")
+                   .color == gfx::Color::Rgb(0xFF, 0, 0),
+           "a fallback may itself be a reference");
+    // Substitution is textual and lands anywhere in a value, including part of
+    // one -- which is what makes `--pad` usable in a shorthand.
+    Expect(StyleOf("<p>x</p>", ":root { --pad: 20px } p { padding: var(--pad) 0 }", "p")
+                   .padding.top == Length::Pixels(20.0f),
+           "a reference may be one component of a shorthand");
+
+    // Invalid at computed-value time: the property is unset, and the rule it
+    // would have beaten does *not* get to win instead. This is the case that
+    // separates a correct implementation from one that merely skips the
+    // declaration -- see ADR 0014.
+    Expect(StyleOf("<p>x</p>", "p { color: #ff0000 } p { color: var(--nope) }", "p").color !=
+               gfx::Color::Rgb(0xFF, 0, 0),
+           "an unresolvable reference unsets the property rather than yielding to a lower rule");
+    // A cycle is not a hang.
+    Expect(StyleOf("<p>x</p>", ":root { --a: var(--b); --b: var(--a) } p { color: var(--a) }", "p")
+                   .color == gfx::Color::Rgb(0, 0, 0),
+           "a cyclic reference is invalid rather than endless");
+    // A declaration with no reference in it is untouched, including one that
+    // merely contains the letters.
+    Expect(StyleOf("<p>x</p>", "p { font-family: varsity }", "p").font_family[0] == "varsity",
+           "a value that is not a var() reference is left alone");
+  });
+
   AddTest(tests, "StyleResolver/InheritsTheInheritedPropertiesAndNotTheOthers", [] {
     const ComputedStyle child =
         StyleOf("<div style='color: red; margin: 20px'><span>x</span></div>", "", "span");

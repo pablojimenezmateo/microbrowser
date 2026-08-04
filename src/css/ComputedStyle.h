@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <string_view>
 #include <vector>
 
@@ -313,8 +314,51 @@ struct ComputedStyle {
   }
   bool GeneratesBox() const { return display != Display::None; }
 
+  // The custom properties in scope on this element, by name (with the leading
+  // `--`), holding *unparsed* text.
+  //
+  // Unparsed is the whole point and the reason this is a member rather than
+  // something the resolver could handle in passing: a custom property's value
+  // is not a value until it is substituted somewhere, and where it lands
+  // decides what it means. `--x: 20px` is a length in `padding` and a piece of
+  // a shorthand in `margin: var(--x) 0`, and parsing it on the way in would
+  // have to guess which.
+  //
+  // Inherited, which is what makes `--fg` set on `:root` reachable from every
+  // element under it -- the way essentially every modern stylesheet is built.
+  // A vector rather than a map because the counts are small per element and
+  // the copy on inherit is the operation that happens most.
+  std::vector<std::pair<std::string, std::string>> custom_properties;
+
+  const std::string* CustomProperty(std::string_view name) const {
+    for (const auto& entry : custom_properties) {
+      if (entry.first == name) {
+        return &entry.second;
+      }
+    }
+    return nullptr;
+  }
+  void SetCustomProperty(std::string_view name, std::string value) {
+    for (auto& entry : custom_properties) {
+      if (entry.first == name) {
+        entry.second = std::move(value);
+        return;
+      }
+    }
+    custom_properties.emplace_back(std::string(name), std::move(value));
+  }
+
   friend bool operator==(const ComputedStyle&, const ComputedStyle&) = default;
 };
+
+// Replaces every `var(--name[, fallback])` in `value` with what `style` has
+// for it, or with the fallback when it has none.
+//
+// False when a reference resolves to nothing and has no fallback. That is not
+// "leave it alone": the declaration is then **invalid at computed-value time**,
+// which is a defined outcome and not the same as an unrecognized one -- see
+// ADR 0014 and the note in StyleResolver.cpp where it is acted on.
+bool SubstituteVars(std::string_view value, const ComputedStyle& style, std::string& out);
 
 // Parses a colour: named, `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`.
 // Nullopt for anything unrecognized, which is how an invalid declaration is
