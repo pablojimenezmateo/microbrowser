@@ -18,7 +18,9 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**The browser renders Hacker News, and runs a page's own script against its own document.** `./build/microbrowser/microbrowser <url>` fetches a document,
+**The browser renders Hacker News, and runs a page against it.** External and inline scripts,
+DOM reads and writes, `style`, event handlers, and timers — a click reaches the page's own
+handlers, and `preventDefault` stops the navigation it would otherwise have caused. `./build/microbrowser/microbrowser <url>` fetches a document,
 parses it, resolves its cascade, lays it out, and draws it — text, tables, images and all. The
 front page and a comments page both render, and clicking a story navigates to it.
 
@@ -42,12 +44,12 @@ What exists:
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
 | `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing |
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
-| `src/engine` | Page (one document), PageScript (its interpreter and bindings), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. Runs a document's inline scripts after parsing. |
-| `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `document`, element lookup, attributes, tree walking, node creation. Where every same-origin check will live — ADR 0008. |
+| `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
+| `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
 | `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No bytecode VM, async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
-| `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
+| `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: flexbox and grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
 the process split and the sandbox (rest of M7), the JS bytecode VM and the rest of the builtins
@@ -84,20 +86,19 @@ reasoning; this is the queue.
 3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
    left that is not a pure addition: it means a check at every property access in the
    interpreter, which is a change to the hot path. Modules bring the loading they imply.
-4. **A `setTimeout` that respects the idle invariant.** The microtask queue deliberately did not
-   need a wakeup — a microtask exists only because something already ran. A timer genuinely does,
-   and it has to arrive as an `IdleWaitState::next_deadline_ms` rather than as a poll. Nothing
-   time-based works until this exists, which is most of what a page does after it loads.
+4. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
+   `IdleWaitState::next_deadline_ms` — a page with nothing pending still lets the loop block.
+   `fetch` needs Promises (done) joined to the loader and its privacy verdict; `rAF` needs the
+   same deadline machinery pointed at a frame rather than a timer.
 5. **Grid, and the rest of overflow.** Flexbox, `position` and overflow *clipping* are in.
    What is not: grid, and scrolling an overflow container — which needs a scroll offset per box
    and an input path to move it, and is engine work rather than layout's. `position: sticky`
    parses as relative because there is no scroll offset to compare against.
-6. **The rest of the DOM bindings.** The seam exists — `src/bindings`, ADR 0008 — and a page's
-   inline scripts run against it. What is missing is what a page does *next*: events (which need
-   a dispatch path checked against the zero-idle-CPU invariant first), `<script src>` (which needs
-   a fetch, and therefore a privacy verdict), `innerHTML` (the most dangerous binding in a
-   browser, and one to add on purpose), and node removal — which is not a small change, for the
-   reason `src/dom/MODULE.deps` and ADR 0008 both record.
+6. **The rest of the DOM bindings.** Events, external scripts, removal, `style` and timers are
+   all in. What is left: writing `innerHTML`, which needs *fragment* parsing rather than document
+   parsing — `<td>` inside a table is a cell and anywhere else is nothing, so a setter using the
+   document parser would build wrong trees quietly. Then `cloneNode`, `getBoundingClientRect`
+   (which is layout asking a question of itself), and the events that are not clicks.
 
 Known-crude spots, each with the reasoning written where the code is: loading is synchronous (the
 loop blocks for a fetch); a display list carrying an image serializes the bitmap inline rather than
