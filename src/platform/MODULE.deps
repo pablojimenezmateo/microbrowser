@@ -2,13 +2,17 @@ purpose: The only module that knows what a window is. SDL lives here and nowhere
 
 allow: util gfx
 
-public: InputEvent.h SdlWindow.h SdlPresenter.h AppDirectories.h SystemFonts.h
+public: InputEvent.h SdlWindow.h SdlPresenter.h AppDirectories.h SystemFonts.h DescriptorWait.h
 
 extern: SDL3
 
 max_tu_lines: 800
 
-budget: SdlWindow      header_lines=70 public_methods=14 members=3
+# The fifteenth method is the wait that also watches sockets -- ADR 0011. It is
+# here rather than in app because this module is where the process is allowed
+# to sleep, and that rule is what lets the loop policy be tested with no window
+# system present.
+budget: SdlWindow      header_lines=95 public_methods=15 members=3
 budget: SdlPresenter   header_lines=60 public_methods=6  members=3
 budget: AppDirectories header_lines=50 public_methods=6  members=3
 # Owns a catalog, an index of what is installed, and the fallback family. The

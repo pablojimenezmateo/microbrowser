@@ -8,7 +8,7 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # exactly one path from script to the tree. See docs/adr/0008-dom-bindings.md.
 allow: util gfx ipc url privacy net dom html css layout js bindings
 
-public: Engine.h Loader.h Page.h
+public: Engine.h Loader.h Page.h PendingLoad.h
 
 extern:
 
@@ -20,11 +20,22 @@ max_tu_lines: 800
 # Grew by two methods for the timers: how long the loop may sleep, and running
 # what is due. Both are queries the loop makes of the page rather than new
 # state on Engine, which is why the member count did not move.
-budget: Engine header_lines=90 public_methods=10 members=8
+# Grew for ADR 0011. The loop now asks the engine four questions it did not
+# have to ask when a load blocked: carry it forward, what do I wait on, is
+# anything runnable right now, and are you still loading. Those are the loop's
+# questions rather than the browser's, which is why they are on the router.
+# The ninth member is the navigation in flight -- predicted by name in ADR 0011,
+# and a value of its own type so that Engine gained one member and not eight.
+budget: Engine header_lines=110 public_methods=13 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
-budget: Loader header_lines=80 public_methods=10 members=6
+# Started, advanced, and asked what it is waiting on: six of these methods are
+# the shape ADR 0011 imposed, and the two that used to return a document are
+# gone. Members did not move -- the transport pointer and the owned block
+# reason were replaced by the request queue and the answers it needs no network
+# for.
+budget: Loader header_lines=105 public_methods=14 members=6
 # One document: DOM, styles, box tree, and the display list they produce. This
 # is the unit a second tab duplicates.
 # Member 9 is the document resource plan: linked stylesheet slots, image URLs,
@@ -42,6 +53,11 @@ budget: Loader header_lines=80 public_methods=10 members=6
 # and a binding layer would have taken Page's fan-out to six modules, which the
 # lint refused -- correctly, since Page is the class most at risk of becoming
 # "the browser". PageScript owns that pair; Page coordinates it.
+# One navigation, from asked-for to on-screen. A struct with predicates rather
+# than a class: there is no invariant to protect, and the engine is what acts on
+# it. See ADR 0011.
+budget: PendingLoad header_lines=45 public_methods=4 members=14
+
 budget: Page   header_lines=170 public_methods=36 members=12
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.

@@ -229,6 +229,7 @@ microbrowser_module(net
     src/net/Fetch.cpp
     src/net/HttpCache.cpp
     src/net/HttpMessage.cpp
+    src/net/RequestQueue.cpp
     src/net/SocketTransport.cpp
   DEPS microbrowser_util microbrowser_url microbrowser_privacy
   EXTERN OpenSSL::SSL OpenSSL::Crypto)
@@ -280,6 +281,7 @@ microbrowser_module(platform
   SOURCES
     src/platform/AppDirectories.cpp
     src/platform/SystemFonts.cpp
+    src/platform/DescriptorWait.cpp
     src/platform/SdlPresenter.cpp
     src/platform/SdlWindow.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc

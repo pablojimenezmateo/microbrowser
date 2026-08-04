@@ -14,6 +14,7 @@
 #include "url/Url.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "support/DriveLoop.h"
 #include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
 #include "support/SyntheticPng.h"
@@ -47,9 +48,14 @@ struct Session {
   engine::Engine engine{channel.Engine(), fonts.catalog};
   std::vector<ipc::EngineToUi> sent;
 
+  // Sends one message and then turns the crank until the engine is done with
+  // it. Since ADR 0011 a navigation *starts* here and finishes over several
+  // turns, so a test that only handled the message would assert on a page that
+  // had not loaded yet.
   void Send(ipc::UiToEngine message) {
     channel.Ui().Send(std::move(message));
     engine.HandlePendingMessages();
+    RunEngineToIdle(engine);
     while (auto reply = channel.Ui().TryReceive()) {
       sent.push_back(std::move(*reply));
     }
@@ -1120,8 +1126,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     loader.SetTransport(factory);
 
     const url::Url document = *url::Url::Parse("https://example.org/dir/page.html");
-    const engine::Loader::Result result = loader.LoadSubresource(
-        "../style.css", document, privacy::ResourceType::Stylesheet, 1000);
+    const engine::Loader::Result result = RunOneRequest(
+        loader, loader.StartSubresource("../style.css", document,
+                                        privacy::ResourceType::Stylesheet, 1000));
 
     Expect(result.ok, "the sheet loaded");
     ExpectEqString(result.body, "p { color: red }", "with its bytes");
@@ -1145,8 +1152,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     // HTTPS-only is the default, and deliberately not settable downward.
     const url::Url document = *url::Url::Parse("http://insecure.test/page.html");
-    const engine::Loader::Result result = loader.LoadSubresource(
-        "http://insecure.test/style.css", document, privacy::ResourceType::Stylesheet, 1000);
+    const engine::Loader::Result result = RunOneRequest(
+        loader, loader.StartSubresource("http://insecure.test/style.css", document,
+                                        privacy::ResourceType::Stylesheet, 1000));
     (void)result;
     Expect(factory.log.hosts.empty() || result.ok,
            "either the policy upgraded the request and it was made over TLS, or it refused "

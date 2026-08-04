@@ -1,35 +1,50 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "net/CookieJar.h"
 #include "net/Fetch.h"
 #include "net/HttpCache.h"
+#include "net/RequestQueue.h"
 #include "net/SocketTransport.h"
 #include "privacy/PrivacyPolicy.h"
+#include "util/WaitDescriptor.h"
 
 namespace microbrowser::engine {
 
-// Turns a URL into bytes.
+// Turns a URL into bytes, eventually.
 //
 // Everything network-shaped lives here rather than on Engine: the policy, the
-// cookie jar, the cache, and the socket factory are four members that would
-// otherwise be four more reasons for Engine to become the browser.
+// cookie jar, the cache, and the request queue are members that would otherwise
+// be that many more reasons for Engine to become the browser.
 //
 // Every load goes through privacy::PrivacyPolicy first, because net::Fetch
 // takes a Verdict and there is no overload without one -- see
 // guidelines/privacy.md. This class cannot bypass that rule; it can only fail
 // to be used.
+//
+// ADR 0011 changed the shape and not the rules. A load is *started* and hands
+// back an id; the answer arrives from `TakeCompletions()` on some later turn of
+// the loop, tagged with that id. There is no call here that returns a document,
+// and that absence is the design: a codebase with both shapes grows a caller
+// that blocks inside a completion.
 class Loader {
  public:
   Loader();
 
+  using RequestId = net::RequestQueue::Id;
+
   struct Result {
     bool ok = false;
-    // Non-null when `ok` is false. A short reason, suitable to render.
-    const char* error = nullptr;
+    // Empty when `ok`. A short reason, suitable to render. Owned rather than a
+    // `const char*` because the most useful one -- what the privacy layer said
+    // when it refused -- belongs to a request that is gone by the time anyone
+    // renders it.
+    std::string error;
     std::string body;
     std::string content_type;
     // Where the bytes actually came from, after redirects. Not the requested
@@ -38,15 +53,22 @@ class Loader {
     int status = 0;
   };
 
-  // Loads a top-level navigation. `now` is passed in rather than read from the
-  // clock so that cache expiry and cookie expiry are testable and so that two
-  // decisions inside one load cannot disagree about what time it is.
-  Result Load(std::string_view url, std::int64_t now);
-  Result Load(std::string_view url, std::int64_t now, const net::FetchOptions& options);
-  Result Load(std::string_view url, std::int64_t now, const net::FetchOptions& options,
-              const url::Url* referrer_document);
+  struct Completion {
+    RequestId id = 0;
+    Result result;
+  };
 
-  // Loads something the document asked for, rather than something the user
+  // Starts a top-level navigation. `now` is wall-clock seconds, passed in
+  // rather than read from the clock so that cache expiry and cookie expiry are
+  // testable and so that two decisions inside one load cannot disagree about
+  // what time it is.
+  // `referrer_document` is null for a navigation the user typed and is the
+  // current document for one a page caused. Not defaulted, because which of
+  // those two a call is deciding is exactly what a reader needs to see.
+  RequestId StartLoad(std::string_view url, std::int64_t now, const net::FetchOptions& options,
+                      const url::Url* referrer_document);
+
+  // Starts something the document asked for, rather than something the user
   // did. The distinction is not cosmetic: it decides which cookies travel,
   // whether HTTPS-only may show an interstitial or must simply refuse, and
   // what `$1p`/`$3p` filter rules mean -- so it is a parameter of the request
@@ -55,35 +77,63 @@ class Loader {
   // `url` is resolved against `document`, which is also the initiator and the
   // top-level site: this browser has no frames, so the document that asked is
   // always the top-level one.
-  Result LoadSubresource(std::string_view url, const url::Url& document,
-                         privacy::ResourceType type, std::int64_t now);
-  Result LoadSubresource(std::string_view url, const url::Url& document,
-                         privacy::ResourceType type, std::int64_t now,
-                         const net::FetchOptions& options);
+  RequestId StartSubresource(std::string_view url, const url::Url& document,
+                             privacy::ResourceType type, std::int64_t now);
+  RequestId StartSubresource(std::string_view url, const url::Url& document,
+                             privacy::ResourceType type, std::int64_t now,
+                             const net::FetchOptions& options);
+
+  // Carries every started request as far as it can go without blocking.
+  // `now_ms` is *steady* milliseconds and the `now` above is wall seconds: a
+  // stall deadline must not follow a clock correction, and cache expiry must.
+  void Advance(std::int64_t now_ms);
+
+  // Everything that finished since the last call, and nothing twice.
+  std::vector<Completion> TakeCompletions();
+
+  // Appends what the loop's single blocking wait must watch.
+  void AppendDescriptors(util::WaitDescriptorList& out) const;
+  // True when something can make progress with no wait at all -- a data: URL
+  // that has been decoded, a refusal, or a transport that does not block.
+  bool HasRunnableWork() const;
+  // Milliseconds until the soonest request gives up on a silent server.
+  std::optional<std::uint32_t> NextDeadlineMs(std::int64_t now_ms) const;
+
+  // Drops everything outstanding without producing completions. A navigation
+  // calls it, and that is what makes "a response for a document that is gone is
+  // dropped by construction" true rather than aspirational.
+  void CancelAll();
+
+  bool IsIdle() const { return queue_.IsIdle() && ready_.empty(); }
 
   privacy::PrivacyPolicy& Policy() { return policy_; }
   net::CookieJar& Cookies() { return cookies_; }
 
   // Swaps in a different socket layer. Tests use it to serve canned bytes;
   // there is no other way to exercise a fetch without a network.
-  void SetTransport(net::TransportFactory& transport) { transport_ = &transport; }
+  void SetTransport(net::TransportFactory& transport) { queue_.SetTransport(transport); }
 
  private:
-  // The one place a request is actually made. Both entry points funnel through
-  // it so that "every request passed the policy" is true by construction
-  // rather than by two functions remembering to do the same thing.
-  Result Fetch(const privacy::Request& request, const net::FetchOptions& options,
-               bool top_level, std::int64_t now, const url::Url* referrer_document);
+  // The one place a request is actually started. Both entry points funnel
+  // through it so that "every request passed the policy" is true by
+  // construction rather than by two functions remembering to do the same thing.
+  RequestId Start(const privacy::Request& request, const net::FetchOptions& options,
+                  bool top_level, std::int64_t now, const url::Url* referrer_document);
+  // Records an answer that needed no network at all: a data: URL, a URL that
+  // does not parse, a refusal. It still arrives through `TakeCompletions()`,
+  // because a caller that had to handle two delivery shapes would grow a branch
+  // that only the second one exercises.
+  RequestId Deliver(Result result);
 
   privacy::PrivacyPolicy policy_;
   net::SocketTransportFactory sockets_;
-  net::TransportFactory* transport_ = nullptr;
   net::CookieJar cookies_;
   net::HttpCache cache_;
-  // Owns the string a blocked Result::error points at. The error is a `const
-  // char*` because most of them are literals; the one that is not needs
-  // somewhere to live that outlives the call.
-  std::string blocked_reason_;
+  net::RequestQueue queue_;
+  // Answers produced without a request. Kept apart from the queue's own
+  // completions so that `CancelAll` clears both, and neither can outlive the
+  // document that asked.
+  std::vector<Completion> ready_;
 };
 
 // Decodes a `data:` URL. Empty and `ok == false` for anything malformed.

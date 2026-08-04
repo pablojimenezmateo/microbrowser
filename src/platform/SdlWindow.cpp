@@ -1,5 +1,9 @@
 #include "platform/SdlWindow.h"
 
+#include <algorithm>
+
+#include "platform/DescriptorWait.h"
+
 #include <SDL3/SDL.h>
 
 #include <cstdint>
@@ -273,6 +277,25 @@ bool SdlWindow::WaitEventTimeout(std::int32_t timeout_ms, std::optional<InputEve
   }
   out = Translate(event);
   return true;
+}
+
+bool SdlWindow::WaitEventOrDescriptors(std::span<const util::WaitDescriptor> descriptors,
+                                       std::int32_t timeout_ms,
+                                       std::optional<InputEvent>& out) {
+  if (descriptors.empty()) {
+    return timeout_ms < 0 ? WaitEvent(out) : WaitEventTimeout(timeout_ms, out);
+  }
+  // An event that has already arrived must not wait behind a socket.
+  if (PollEvent(out)) {
+    return true;
+  }
+  const std::int32_t bounded =
+      timeout_ms < 0 ? kDescriptorWaitInputMs : std::min(timeout_ms, kDescriptorWaitInputMs);
+  WaitOnDescriptors(descriptors, bounded);
+  // Whatever woke it, the caller wants both halves drained: a socket becoming
+  // ready is picked up by the engine on the way round, and an event is picked
+  // up here.
+  return PollEvent(out);
 }
 
 }  // namespace microbrowser::platform

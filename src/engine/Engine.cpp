@@ -142,6 +142,16 @@ bool Engine::HandlePendingMessages() {
         LayoutAndPaint();
         produced_output = true;
       }
+    } else if (std::holds_alternative<ipc::StopLoadMessage>(*message)) {
+      // Now a real thing to do: the queue drops every outstanding request and
+      // their connections close with them. The page keeps whatever had already
+      // arrived, which is what a browser does.
+      if (load_.active) {
+        loader_.CancelAll();
+        load_ = PendingLoad{};
+        endpoint_.Send(ipc::LoadProgressMessage{1.0f});
+        produced_output = true;
+      }
     } else if (const auto* command = std::get_if<ipc::InputCommandMessage>(&*message)) {
       using Command = ipc::InputCommandMessage::Command;
       switch (command->command) {
@@ -162,16 +172,50 @@ bool Engine::HandlePendingMessages() {
           break;
       }
     }
-    // StopLoad is accepted and ignored: loading is synchronous so there is
-    // nothing to stop. It is in the vocabulary now so the UI can be written
-    // against the final shape.
   }
 
   return produced_output;
 }
 
-std::optional<std::uint32_t> Engine::NextTimerDelay() const {
-  return page_.NextTimerDelay(NowMilliseconds());
+bool Engine::Advance() {
+  if (!load_.active) {
+    return false;
+  }
+  loader_.Advance(NowMilliseconds());
+  std::vector<Loader::Completion> completions = loader_.TakeCompletions();
+  for (Loader::Completion& completion : completions) {
+    OnCompletion(std::move(completion));
+    if (!load_.active) {
+      // The document failed, or a navigation replaced this one from inside a
+      // completion. Anything still in the batch belongs to a load that is gone.
+      return true;
+    }
+  }
+  const bool moved = !completions.empty();
+  AdvanceLoad();
+  return moved;
+}
+
+void Engine::AppendWaitDescriptors(util::WaitDescriptorList& out) const {
+  loader_.AppendDescriptors(out);
+}
+
+bool Engine::HasRunnableWork() const {
+  return load_.active && loader_.HasRunnableWork();
+}
+
+std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
+  const std::int64_t now_ms = NowMilliseconds();
+  const std::optional<std::uint32_t> timers = page_.NextTimerDelay(now_ms);
+  const std::optional<std::uint32_t> network =
+      load_.active ? loader_.NextDeadlineMs(now_ms) : std::nullopt;
+  if (!timers.has_value()) {
+    return network;
+  }
+  if (!network.has_value()) {
+    return timers;
+  }
+  return std::min(*timers, *network);
 }
 
 bool Engine::RunDueTimers() {
@@ -180,6 +224,180 @@ bool Engine::RunDueTimers() {
   }
   LayoutAndPaint();
   return true;
+}
+
+void Engine::OnCompletion(Loader::Completion completion) {
+  if (!load_.active) {
+    return;
+  }
+  if (completion.id == load_.document && !load_.document_arrived) {
+    load_.document_arrived = true;
+    OnDocument(std::move(completion.result));
+    return;
+  }
+  const auto found = load_.resources.find(completion.id);
+  if (found == load_.resources.end()) {
+    // A completion for a request this load did not make. It cannot happen while
+    // a navigation cancels everything, and dropping it is the right answer if
+    // it ever does.
+    return;
+  }
+  const PendingResource resource = found->second;
+  load_.resources.erase(found);
+  ++load_.finished_resources;
+
+  switch (resource.kind) {
+    case ResourceKind::StyleSheet:
+      --load_.sheets_outstanding;
+      if (completion.result.ok) {
+        page_.AddStyleSheet(resource.index, completion.result.body);
+        AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
+      } else {
+        // A stylesheet that does not load is a page rendered without it, which
+        // is what every browser does. It is not a navigation failure.
+        AddPerformanceCounter(PerfCounterId::EngineStyleSheetsFailed);
+      }
+      break;
+    case ResourceKind::Script:
+      --load_.scripts_outstanding;
+      if (completion.result.ok) {
+        page_.AddScript(resource.index, std::move(completion.result.body));
+        AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
+      } else {
+        // A script that does not load leaves its slot empty and the ones after
+        // it still run. A page whose analytics tag is blocked is a page, which
+        // is the whole reason the blocking engine can be pointed at one.
+        AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+      }
+      break;
+    case ResourceKind::Image:
+      --load_.images_outstanding;
+      if (completion.result.ok) {
+        // Held, not decoded. See PendingLoad::image_bytes.
+        load_.image_bytes.emplace_back(resource.src, std::move(completion.result.body));
+      } else {
+        AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
+      }
+      break;
+  }
+
+  if (load_.total_resources > 0) {
+    endpoint_.Send(ipc::LoadProgressMessage{load_.Progress()});
+  }
+}
+
+void Engine::OnDocument(Loader::Result result) {
+  if (!result.ok) {
+    const std::string url = load_.url;
+    load_ = PendingLoad{};
+    ShowError(url, result.error.empty() ? "the load failed" : result.error);
+    return;
+  }
+
+  page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url);
+  endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
+  endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
+
+  // A data: or about: document has no base to resolve against, so a relative
+  // href in one has nowhere to point.
+  load_.base = url::Url::Parse(page_.Url());
+  if (load_.base.has_value()) {
+    StartSubresources();
+  }
+}
+
+void Engine::StartSubresources() {
+  net::FetchOptions options;
+  options.bypass_cache = load_.bypass_cache;
+  const url::Url& document = *load_.base;
+
+  // All at once. The order they are *started* in is document order and stays
+  // deterministic; the order they arrive in is the network's business and this
+  // engine must not have an opinion about it, which is what the slot-filling
+  // below is for.
+  const std::vector<std::string>& sheets = page_.PendingStyleSheets();
+  for (std::size_t i = 0; i < sheets.size(); ++i) {
+    const Loader::RequestId id = loader_.StartSubresource(
+        sheets[i], document, privacy::ResourceType::Stylesheet, NowSeconds(), options);
+    load_.resources[id] = PendingResource{ResourceKind::StyleSheet, i, {}};
+    ++load_.sheets_outstanding;
+  }
+
+  const std::vector<std::string>& scripts = page_.PendingScripts();
+  for (std::size_t i = 0; i < scripts.size(); ++i) {
+    const Loader::RequestId id = loader_.StartSubresource(
+        scripts[i], document, privacy::ResourceType::Script, NowSeconds(), options);
+    load_.resources[id] = PendingResource{ResourceKind::Script, i, {}};
+    ++load_.scripts_outstanding;
+  }
+
+  for (const std::string& src : page_.PendingImages()) {
+    const Loader::RequestId id = loader_.StartSubresource(
+        src, document, privacy::ResourceType::Image, NowSeconds(), options);
+    load_.resources[id] = PendingResource{ResourceKind::Image, 0, src};
+    ++load_.images_outstanding;
+  }
+
+  load_.total_resources = load_.resources.size();
+}
+
+void Engine::AdvanceLoad() {
+  if (!load_.active || !load_.document_arrived) {
+    return;
+  }
+  // Scripts run once every render-blocking resource has resolved, and before
+  // the images are decoded. Stylesheets first so a script that asks about a
+  // style sees the ones the document declared; images after, so a script that
+  // sets a width has said so before an SVG is rasterized to it.
+  if (load_.MayRunScripts()) {
+    page_.RunScripts(NowMilliseconds());
+    load_.scripts_ran = true;
+  }
+  if (load_.IsFinished()) {
+    FinishLoad();
+  }
+}
+
+void Engine::DecodePendingImages() {
+  for (auto& [src, bytes] : load_.image_bytes) {
+    // The bytes are attacker-controlled and the decoder says so: a failure here
+    // is an image that does not draw, not a page that does not render.
+    //
+    // Which decoder is chosen by sniffing rather than by the Content-Type
+    // header, for the reason every browser sniffs: the header is a claim by the
+    // server, and a server that mislabels a PNG must not stop it rendering.
+    const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
+                                          bytes.size());
+    gfx::Image image;
+    if (gfx::LooksLikeSvg(span)) {
+      // SVG is a document, so it has to be rasterized at a size. The element's
+      // attributes are the size the page asked for; the document's own is the
+      // fallback, applied inside the decoder.
+      const gfx::IntSize requested = page_.RequestedImageSize(src);
+      gfx::SvgDecodeResult decoded = gfx::DecodeSvg(span, requested.width, requested.height);
+      if (decoded.Ok()) {
+        image = std::move(decoded.image);
+      }
+    } else {
+      gfx::PngDecodeResult decoded = gfx::DecodePng(span);
+      if (decoded.Ok()) {
+        image = std::move(decoded.image);
+      }
+    }
+    if (!image.IsValid()) {
+      AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
+      continue;
+    }
+    page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(image)));
+    AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
+  }
+}
+
+void Engine::FinishLoad() {
+  DecodePendingImages();
+  load_ = PendingLoad{};
+  LayoutAndPaint();
+  endpoint_.Send(ipc::LoadProgressMessage{1.0f});
 }
 
 bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
@@ -250,26 +468,36 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
 
   scroll_y_ = 0;
 
+  // Everything the previous navigation had in flight goes now, connections and
+  // all. That is what makes a response for a document that is gone
+  // undeliverable rather than merely ignored -- ADR 0011 asked for it by
+  // construction, and this is the construction.
+  loader_.CancelAll();
+  load_ = PendingLoad{};
+  load_.active = true;
+  load_.url = url.empty() ? std::string("about:blank") : url;
+  load_.bypass_cache = options.bypass_cache;
+
   if (url.empty() || url == "about:blank") {
-    page_.Load(kBlankDocument, url.empty() ? std::string("about:blank") : url);
-  } else {
-    // Synchronous, and that is a stated limitation rather than a design: the
-    // loop blocks for the length of a load. Making it asynchronous is a change
-    // to this function and the message vocabulary, not to the seam -- which is
-    // why it can wait until there is something worth waiting on.
-    const Loader::Result loaded = loader_.Load(url, NowSeconds(), options, referrer_document);
-    if (!loaded.ok) {
-      ShowError(url, loaded.error == nullptr ? "the load failed" : loaded.error);
-      return;
-    }
-    page_.Load(loaded.body, loaded.final_url.empty() ? url : loaded.final_url);
+    // The blank document is not fetched. It still goes through the same state
+    // machine, so that "what happens after a document arrives" has one
+    // implementation rather than two.
+    load_.document_arrived = true;
+    Loader::Result blank;
+    blank.ok = true;
+    blank.body = std::string(kBlankDocument);
+    blank.final_url = load_.url;
+    blank.status = 200;
+    OnDocument(std::move(blank));
+    AdvanceLoad();
+    return;
   }
 
-  LoadSubresources(options.bypass_cache);
-  endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
-  endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
-  LayoutAndPaint();
-  endpoint_.Send(ipc::LoadProgressMessage{1.0f});
+  endpoint_.Send(ipc::LoadProgressMessage{0.0f});
+  load_.document = loader_.StartLoad(url, NowSeconds(), options, referrer_document);
+  // One turn now, so that a data: URL or a cache hit does not wait for the
+  // loop to come back round.
+  Advance();
 }
 
 void Engine::NavigateFromCurrentDocument(const std::string& url,
@@ -285,98 +513,6 @@ bool Engine::Navigate(const FormSubmission& submission) {
   }
   NavigateFromCurrentDocument(*resolved, FetchOptionsForSubmission(submission));
   return true;
-}
-
-void Engine::LoadSubresources(bool bypass_cache) {
-  // Synchronously, before the first layout. That is not how a browser should do
-  // it -- a slow subresource blocks the page -- but a stylesheet *is*
-  // render-blocking and an image's size changes layout, so the ordering is
-  // right even though the blocking is crude. What must not happen is laying out
-  // without them and reflowing after: that is the flash of unstyled content and
-  // the layout shift, and both are hard to retrofit away.
-  const std::optional<url::Url> document = url::Url::Parse(page_.Url());
-  if (!document.has_value()) {
-    // A data: or about: document has no base to resolve against, so a relative
-    // href in one has nowhere to point.
-    return;
-  }
-
-  net::FetchOptions options;
-  options.bypass_cache = bypass_cache;
-
-  const std::vector<std::string>& sheets = page_.PendingStyleSheets();
-  for (std::size_t i = 0; i < sheets.size(); ++i) {
-    const Loader::Result sheet =
-        loader_.LoadSubresource(sheets[i], *document, privacy::ResourceType::Stylesheet,
-                                NowSeconds(), options);
-    if (sheet.ok) {
-      page_.AddStyleSheet(i, sheet.body);
-      AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
-    } else {
-      // A stylesheet that does not load is a page rendered without it, which is
-      // what every browser does. It is not a navigation failure.
-      AddPerformanceCounter(PerfCounterId::EngineStyleSheetsFailed);
-    }
-  }
-
-  // Scripts after stylesheets and before images, which is the order that makes
-  // a script see the styles it may ask about and lets it add elements whose
-  // images are then collected.
-  const std::vector<std::string>& scripts = page_.PendingScripts();
-  for (std::size_t i = 0; i < scripts.size(); ++i) {
-    const Loader::Result script = loader_.LoadSubresource(
-        scripts[i], *document, privacy::ResourceType::Script, NowSeconds(), options);
-    if (script.ok) {
-      page_.AddScript(i, script.body);
-      AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
-    } else {
-      // A script that does not load leaves its slot empty and the ones after
-      // it still run. A page whose analytics tag is blocked is a page, which
-      // is the whole reason the blocking engine can be pointed at one.
-      AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
-    }
-  }
-  page_.RunScripts(NowMilliseconds());
-
-  for (const std::string& src : page_.PendingImages()) {
-    const Loader::Result fetched =
-        loader_.LoadSubresource(src, *document, privacy::ResourceType::Image, NowSeconds(),
-                                options);
-    if (!fetched.ok) {
-      AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
-      continue;
-    }
-    // The bytes are attacker-controlled and the decoder says so: a failure here
-    // is an image that does not draw, not a page that does not render.
-    //
-    // Which decoder is chosen by sniffing rather than by the Content-Type
-    // header, for the reason every browser sniffs: the header is a claim by the
-    // server, and a server that mislabels a PNG must not stop it rendering.
-    const std::span<const std::byte> bytes(
-        reinterpret_cast<const std::byte*>(fetched.body.data()), fetched.body.size());
-    gfx::Image image;
-    if (gfx::LooksLikeSvg(bytes)) {
-      // SVG is a document, so it has to be rasterized at a size. The element's
-      // attributes are the size the page asked for; the document's own is the
-      // fallback, applied inside the decoder.
-      const gfx::IntSize requested = page_.RequestedImageSize(src);
-      gfx::SvgDecodeResult decoded = gfx::DecodeSvg(bytes, requested.width, requested.height);
-      if (decoded.Ok()) {
-        image = std::move(decoded.image);
-      }
-    } else {
-      gfx::PngDecodeResult decoded = gfx::DecodePng(bytes);
-      if (decoded.Ok()) {
-        image = std::move(decoded.image);
-      }
-    }
-    if (!image.IsValid()) {
-      AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
-      continue;
-    }
-    page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(image)));
-    AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
-  }
 }
 
 void Engine::ShowError(std::string_view url, std::string_view message) {

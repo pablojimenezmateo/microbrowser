@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "engine/Engine.h"
+#include "platform/DescriptorWait.h"
+#include "util/WaitDescriptor.h"
 #include "gfx/Canvas.h"
 #include "gfx/DisplayList.h"
 #include "gfx/Painter.h"
@@ -173,6 +175,30 @@ bool WritePpm(const microbrowser::gfx::Canvas& canvas, const std::string& path) 
   return std::fclose(file) == 0;
 }
 
+// Turns the loop's crank until the navigation is finished.
+//
+// This is the whole of what a host has to do since ADR 0011, minus a window: it
+// lets the engine make progress, and when the engine can make none it blocks on
+// the sockets the engine says it is waiting for. There is no polling and no
+// sleep, which is why this is a faithful stand-in for the real loop rather than
+// a shortcut that only works because nothing else is happening.
+void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
+  while (engine.IsLoading()) {
+    if (engine.Advance() || engine.HasRunnableWork()) {
+      continue;
+    }
+    microbrowser::util::WaitDescriptorList descriptors;
+    engine.AppendWaitDescriptors(descriptors);
+    if (descriptors.empty()) {
+      break;  // nothing outstanding and nothing runnable: the load is stuck
+    }
+    const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
+    microbrowser::platform::WaitOnDescriptors(
+        descriptors,
+        deadline.has_value() ? static_cast<std::int32_t>(*deadline) : -1);
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -199,6 +225,7 @@ int main(int argc, char** argv) {
       microbrowser::gfx::IntSize{options.width, options.height}, 1.0f});
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{options.url});
   engine.HandlePendingMessages();
+  RunLoadToCompletion(engine);
   if (options.click_x >= 0 && options.click_y >= 0) {
     // Down then up, the way a real click arrives, so the engine sees the same
     // sequence the window would deliver.
@@ -208,6 +235,7 @@ int main(int argc, char** argv) {
           kind, microbrowser::gfx::IntPoint{options.click_x, options.click_y}, 1});
     }
     engine.HandlePendingMessages();
+    RunLoadToCompletion(engine);
   }
   if (options.scroll_y > 0) {
     channel.Ui().Send(microbrowser::ipc::ScrollMessage{0, options.scroll_y});

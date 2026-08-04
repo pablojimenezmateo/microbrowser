@@ -76,7 +76,7 @@ std::string BodyAsString(const std::vector<std::byte>& body) {
 
 }  // namespace
 
-Loader::Loader() : transport_(&sockets_) {}
+Loader::Loader() : queue_(policy_, sockets_, cookies_, cache_) {}
 
 DataUrl DecodeDataUrl(std::string_view url) {
   DataUrl result;
@@ -116,66 +116,59 @@ DataUrl DecodeDataUrl(std::string_view url) {
   return result;
 }
 
-Loader::Result Loader::Fetch(const privacy::Request& request, const net::FetchOptions& options,
-                             bool top_level, std::int64_t now,
-                             const url::Url* referrer_document) {
-  Result result;
+Loader::RequestId Loader::Deliver(Result result) {
+  const RequestId id = queue_.ReserveId();
+  ready_.push_back(Completion{id, std::move(result)});
+  return id;
+}
 
+Loader::RequestId Loader::Start(const privacy::Request& request, const net::FetchOptions& options,
+                                bool top_level, std::int64_t now,
+                                const url::Url* referrer_document) {
   privacy::Verdict verdict = policy_.Decide(request, referrer_document);
   if (!verdict.IsAllowed()) {
-    blocked_reason_ = verdict.Reason();
-    result.error = blocked_reason_.empty() ? "blocked" : blocked_reason_.c_str();
-    return result;
+    Result refused;
+    refused.error = verdict.Reason().empty() ? "blocked" : verdict.Reason();
+    return Deliver(std::move(refused));
   }
 
   net::FetchOptions fetch_options = options;
   fetch_options.is_top_level_navigation = top_level;
-
-  const net::FetchResult fetched =
-      net::Fetch(std::move(verdict), policy_, *transport_, cookies_, cache_, fetch_options, now);
-  if (!fetched.ok) {
-    result.error = fetched.error == nullptr ? "the load failed" : fetched.error;
-    return result;
-  }
-
-  result.ok = true;
-  result.status = fetched.response.status;
-  result.final_url = fetched.final_url.Serialize();
-  result.body = BodyAsString(fetched.response.body);
-  if (const std::optional<std::string_view> type = fetched.response.headers.Get("content-type")) {
-    result.content_type = std::string(*type);
-  }
-  return result;
+  return queue_.Start(std::move(verdict), fetch_options, now);
 }
 
-Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& document,
-                                       privacy::ResourceType type, std::int64_t now) {
-  return LoadSubresource(url, document, type, now, {});
+Loader::RequestId Loader::StartSubresource(std::string_view url, const url::Url& document,
+                                           privacy::ResourceType type, std::int64_t now) {
+  return StartSubresource(url, document, type, now, {});
 }
 
-Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& document,
-                                       privacy::ResourceType type, std::int64_t now,
-                                       const net::FetchOptions& options) {
-  Result result;
-
+Loader::RequestId Loader::StartSubresource(std::string_view url, const url::Url& document,
+                                           privacy::ResourceType type, std::int64_t now,
+                                           const net::FetchOptions& options) {
+  // A data: URL is bytes the page carried with it. It needs no network, so it
+  // is answered here and delivered through the same completion path as
+  // everything else -- a caller that had to handle two delivery shapes would
+  // grow a branch only one of them exercises.
   if (DataUrl data = DecodeDataUrl(url); data.ok) {
+    Result result;
     if (options.method != "GET" || !options.body.empty()) {
       result.error = "data URL loads do not support request bodies";
-      return result;
+      return Deliver(std::move(result));
     }
     result.ok = true;
     result.body = std::move(data.body);
     result.content_type = std::move(data.content_type);
     result.final_url = std::string(url);
     result.status = 200;
-    return result;
+    return Deliver(std::move(result));
   }
 
   // Relative to the document, which is what every href in a page is.
   const std::optional<url::Url> parsed = url::Url::Parse(url, document);
   if (!parsed.has_value()) {
+    Result result;
     result.error = "that is not a URL";
-    return result;
+    return Deliver(std::move(result));
   }
 
   privacy::Request request;
@@ -189,40 +182,31 @@ Loader::Result Loader::LoadSubresource(std::string_view url, const url::Url& doc
   request.type = type;
   request.is_subresource = true;
 
-  return Fetch(request, options, false, now, &document);
+  return Start(request, options, false, now, &document);
 }
 
-Loader::Result Loader::Load(std::string_view url, std::int64_t now) {
-  return Load(url, now, {});
-}
-
-Loader::Result Loader::Load(std::string_view url, std::int64_t now,
-                            const net::FetchOptions& options) {
-  return Load(url, now, options, nullptr);
-}
-
-Loader::Result Loader::Load(std::string_view url, std::int64_t now,
-                            const net::FetchOptions& options,
-                            const url::Url* referrer_document) {
-  Result result;
-
+Loader::RequestId Loader::StartLoad(std::string_view url, std::int64_t now,
+                                    const net::FetchOptions& options,
+                                    const url::Url* referrer_document) {
   if (DataUrl data = DecodeDataUrl(url); data.ok) {
+    Result result;
     if (options.method != "GET" || !options.body.empty()) {
       result.error = "data URL loads do not support request bodies";
-      return result;
+      return Deliver(std::move(result));
     }
     result.ok = true;
     result.body = std::move(data.body);
     result.content_type = std::move(data.content_type);
     result.final_url = std::string(url);
     result.status = 200;
-    return result;
+    return Deliver(std::move(result));
   }
 
   const std::optional<url::Url> parsed = url::Url::Parse(url);
   if (!parsed.has_value()) {
+    Result result;
     result.error = "that is not a URL";
-    return result;
+    return Deliver(std::move(result));
   }
 
   // A top-level navigation has no initiator page: the origin is opaque, and
@@ -236,7 +220,48 @@ Loader::Result Loader::Load(std::string_view url, std::int64_t now,
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
 
-  return Fetch(request, options, true, now, referrer_document);
+  return Start(request, options, true, now, referrer_document);
+}
+
+void Loader::Advance(std::int64_t now_ms) { queue_.Advance(now_ms); }
+
+std::vector<Loader::Completion> Loader::TakeCompletions() {
+  std::vector<Completion> out = std::exchange(ready_, {});
+  for (net::RequestQueue::Completion& fetched : queue_.TakeCompletions()) {
+    Completion completion;
+    completion.id = fetched.id;
+    if (!fetched.result.ok) {
+      completion.result.error =
+          fetched.result.error.empty() ? "the load failed" : std::move(fetched.result.error);
+      out.push_back(std::move(completion));
+      continue;
+    }
+    completion.result.ok = true;
+    completion.result.status = fetched.result.response.status;
+    completion.result.final_url = fetched.result.final_url.Serialize();
+    completion.result.body = BodyAsString(fetched.result.response.body);
+    if (const std::optional<std::string_view> type =
+            fetched.result.response.headers.Get("content-type")) {
+      completion.result.content_type = std::string(*type);
+    }
+    out.push_back(std::move(completion));
+  }
+  return out;
+}
+
+void Loader::AppendDescriptors(util::WaitDescriptorList& out) const {
+  queue_.AppendDescriptors(out);
+}
+
+bool Loader::HasRunnableWork() const { return !ready_.empty() || queue_.HasRunnableWork(); }
+
+std::optional<std::uint32_t> Loader::NextDeadlineMs(std::int64_t now_ms) const {
+  return queue_.NextDeadlineMs(now_ms);
+}
+
+void Loader::CancelAll() {
+  queue_.CancelAll();
+  ready_.clear();
 }
 
 }  // namespace microbrowser::engine

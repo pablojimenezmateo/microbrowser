@@ -98,6 +98,9 @@ namespace microbrowser::util {
   X(NetConnectFailures, "net.connect_failures")                                  \
   X(NetTlsHandshakes, "net.tls_handshakes")                                      \
   X(NetTlsFailures, "net.tls_failures")                                          \
+  X(NetRequestsStarted, "net.requests_started")                                  \
+  X(NetRequestsDeferred, "net.requests_deferred")                                \
+  X(NetRequestTimeouts, "net.request_timeouts")                                  \
   /* --- html ---------------------------------------------------------------- */ \
   X(HtmlTokens, "html.tokens")                                                   \
   X(HtmlDocumentsParsed, "html.documents_parsed")                                \

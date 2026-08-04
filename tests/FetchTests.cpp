@@ -39,6 +39,21 @@ Url MustParse(std::string_view text) {
   return *url;
 }
 
+// Drives a started request until it stops. Since ADR 0011 a fetch is an object
+// that is advanced rather than a call that returns, and a canned transport is
+// always runnable -- so a test can turn the crank itself. Bounded rather than
+// `while (!complete)`: a request that stopped making progress must fail the
+// test rather than hang it.
+FetchResult RunToCompletion(std::unique_ptr<net::FetchRequest> request) {
+  for (int turn = 0; turn < 1000 && !request->IsComplete(); ++turn) {
+    if (!request->Advance() && !request->IsComplete()) {
+      break;
+    }
+  }
+  Expect(request->IsComplete(), "the request never finished");
+  return request->TakeResult();
+}
+
 // Runs a request the way the engine will: build the privacy Request, get a
 // Verdict, hand it to Fetch. There is no shorter path, which is the point.
 FetchResult Run(const PrivacyPolicy& policy, ScriptedFactory& factory, CookieJar& cookies,
@@ -49,7 +64,8 @@ FetchResult Run(const PrivacyPolicy& policy, ScriptedFactory& factory, CookieJar
   request.top_level_site = url::Site::FromUrl(request.url);
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
-  return net::Fetch(policy.Decide(request), policy, factory, cookies, cache, options, now);
+  return RunToCompletion(
+      net::Fetch(policy.Decide(request), policy, factory, cookies, cache, options, now));
 }
 
 FetchResult RunWithReferrer(const PrivacyPolicy& policy, ScriptedFactory& factory,
@@ -63,8 +79,8 @@ FetchResult RunWithReferrer(const PrivacyPolicy& policy, ScriptedFactory& factor
   request.initiator = url::Origin::FromUrl(top);
   request.type = privacy::ResourceType::Script;
   const Url referrer_url = MustParse(referrer);
-  return net::Fetch(policy.Decide(request, &referrer_url), policy, factory, cookies, cache, {},
-                    now);
+  return RunToCompletion(net::Fetch(policy.Decide(request, &referrer_url), policy, factory,
+                                    cookies, cache, {}, now));
 }
 
 constexpr std::string_view kOk = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi";
@@ -106,7 +122,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     HttpCache cache;
 
     const FetchResult result = Run(policy, factory, cookies, cache, "https://example.com/page");
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
     ExpectEqInt(result.response.status, 200, "status");
 
     const std::string& request = factory.log.requests.at(0);
@@ -142,7 +158,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     HttpCache cache;
 
     const FetchResult result = Run(policy, factory, cookies, cache, "http://example.com/p");
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
     Expect(factory.log.secure.at(0), "the connection was made over TLS");
     ExpectEqString(result.final_url.Serialize(), "https://example.com/p",
                    "and to the upgraded URL");
@@ -197,7 +213,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     HttpCache cache;
 
     const FetchResult result = Run(policy, factory, cookies, cache, "https://secure.example/");
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
     Expect(factory.log.secure.at(1),
            "the redirect target was upgraded before it was connected to, so a server cannot "
            "downgrade a user by answering with a 302");
@@ -215,7 +231,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     HttpCache cache;
 
     const FetchResult result = Run(policy, factory, cookies, cache, "https://a.example/");
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
     ExpectEqInt(result.redirects, 3, "three hops were followed");
 
     // Now an endless chain.
@@ -248,7 +264,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     options.body = Bytes("q=hello");
     const FetchResult result =
         Run(policy, factory, cookies, cache, "https://example.com/form", options);
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
 
     const std::string& redirected = factory.log.requests.at(1);
     Expect(redirected.rfind("GET /done HTTP/1.1\r\n", 0) == 0,
@@ -277,7 +293,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     options.body = Bytes("q=hello");
     const FetchResult result =
         Run(policy, factory, cookies, cache, "https://example.com/form", options);
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
 
     const std::string& request = factory.log.requests.at(0);
     Expect(request.find("Content-Length: 7\r\n") != std::string::npos,
@@ -307,7 +323,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
 
     const FetchResult result =
         Run(policy, factory, cookies, cache, "https://example.com/page", options);
-    Expect(result.ok, result.error != nullptr ? result.error : "fetch failed");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
 
     const std::string& request = factory.log.requests.at(0);
     ExpectEqInt(static_cast<long long>(CountOccurrences(request, "Host: ")), 1,
@@ -582,7 +598,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(cache.Size()), 1, "and was cached");
 
     const FetchResult login = Run(policy, factory, cookies, cache, "https://example.com/login");
-    Expect(login.ok, login.error != nullptr ? login.error : "login failed");
+    Expect(login.ok, login.error.empty() ? "login failed" : login.error.c_str());
     ExpectEqInt(static_cast<long long>(cookies.Size()), 1, "the login cookie was stored");
 
     const FetchResult private_response =
@@ -612,7 +628,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     HttpCache cache;
 
     const FetchResult login = Run(policy, factory, cookies, cache, "https://example.com/login");
-    Expect(login.ok, login.error != nullptr ? login.error : "login failed");
+    Expect(login.ok, login.error.empty() ? "login failed" : login.error.c_str());
 
     const FetchResult first_account =
         Run(policy, factory, cookies, cache, "https://example.com/account");
@@ -649,7 +665,8 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
       request.url = resource;
       request.top_level_site = url::Site::FromUrl(MustParse(top_level));
       request.type = privacy::ResourceType::Script;
-      return net::Fetch(policy.Decide(request), policy, factory, cookies, cache, {}, 1000);
+      return RunToCompletion(
+          net::Fetch(policy.Decide(request), policy, factory, cookies, cache, {}, 1000));
     };
 
     const FetchResult on_news = fetch_under("https://news.example/");
@@ -741,10 +758,16 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     net::SocketTransportFactory factory;
     const std::unique_ptr<Transport> connection = factory.Create();
     Expect(connection != nullptr, "the factory produces a transport");
-    // 127.0.0.1 on a port nothing is bound to: refused immediately, no network
-    // required and no timeout waited on.
-    Expect(!connection->Connect("127.0.0.1", 9, false),
-           "connecting to a closed port fails cleanly");
+    // 127.0.0.1 on a port nothing is bound to. On a non-blocking socket the
+    // connect is *started* and refused a moment later, so the failure shows up
+    // in Advance rather than in StartConnect -- which is the whole shape of
+    // ADR 0011 in three lines, and the reason this test is worth keeping.
+    const bool started = connection->StartConnect("127.0.0.1", 9, false);
+    net::IoStatus status = started ? connection->Advance() : net::IoStatus::Failed;
+    for (int turn = 0; turn < 1000 && status == net::IoStatus::Blocked; ++turn) {
+      status = connection->Advance();
+    }
+    Expect(status == net::IoStatus::Failed, "connecting to a closed port fails cleanly");
   });
 
   AddTest(tests, "Fetch/SendsNoFragmentToTheServer", [] {

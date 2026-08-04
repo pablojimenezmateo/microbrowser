@@ -9,6 +9,7 @@
 #include "app/EventDrainBudget.h"
 #include "app/IdleWaitStrategy.h"
 #include "util/PerformanceCounters.h"
+#include "util/WaitDescriptor.h"
 #include "util/PerformanceTrace.h"
 #include "util/StartupTrace.h"
 
@@ -142,6 +143,10 @@ bool Application::RunOneIteration() {
   // disappears and the messages arrive over a socket instead; nothing else in
   // this function changes.
   engine_.HandlePendingMessages();
+  // A load in flight moves one turn. It is a separate call from the message
+  // drain because it is driven by the network rather than by the UI, and after
+  // the process split the two arrive on different descriptors.
+  engine_.Advance();
   // Due timers run at the top of a turn, before anything is painted, so a
   // callback that changes the page is on screen in the same frame.
   engine_.RunDueTimers();
@@ -154,14 +159,26 @@ bool Application::RunOneIteration() {
 }
 
 bool Application::WaitAndDrainEvents() {
+  // Deliberately a local rather than a member. It is empty whenever nothing is
+  // outstanding -- which is most of a browser's life and costs no allocation at
+  // all -- and Application's member budget exists to make growth like this a
+  // decision rather than a habit.
+  util::WaitDescriptorList descriptors;
+  engine_.AppendWaitDescriptors(descriptors);
+
   IdleWaitState state;
   state.repaint_pending = repaint_pending_;
   state.messages_pending = channel_.PendingForEngine() > 0 || channel_.PendingForUi() > 0;
-  // The page's soonest timer, and nothing else. A page with none pending hands
-  // back nothing and the loop blocks indefinitely, which is what keeps idle CPU
-  // at zero -- the deadline exists only while a page is actually waiting for
-  // something, and disappears the moment it stops.
-  state.next_deadline_ms = engine_.NextTimerDelay();
+  state.work_runnable = engine_.HasRunnableWork();
+  // The soonest deadline the engine has: a page timer, an animation frame, or
+  // the point at which a silent server is given up on. A page with none pending
+  // hands back nothing and the loop blocks indefinitely, which is what keeps
+  // idle CPU at zero -- the deadline exists only while something is actually
+  // waiting for it, and disappears the moment nothing is.
+  state.next_deadline_ms = engine_.NextDeadlineMs();
+  // And the sockets. Empty when nothing is loading, which is the case the
+  // invariant is about.
+  state.descriptors = descriptors;
   const IdleWaitDecision decision = ChooseIdleWait(state);
 
   std::optional<platform::InputEvent> translated;
@@ -173,11 +190,16 @@ bool Application::WaitAndDrainEvents() {
       break;
     case IdleWaitMode::WaitTimeout:
       AddPerformanceCounter(PerfCounterId::LoopTimedWaits);
-      have_event = window_.WaitEventTimeout(decision.timeout_ms, translated);
+      have_event = decision.watch_descriptors
+                       ? window_.WaitEventOrDescriptors(descriptors, decision.timeout_ms,
+                                                        translated)
+                       : window_.WaitEventTimeout(decision.timeout_ms, translated);
       break;
     case IdleWaitMode::Wait:
       AddPerformanceCounter(PerfCounterId::LoopBlockingWaits);
-      have_event = window_.WaitEvent(translated);
+      have_event = decision.watch_descriptors
+                       ? window_.WaitEventOrDescriptors(descriptors, -1, translated)
+                       : window_.WaitEvent(translated);
       break;
   }
 

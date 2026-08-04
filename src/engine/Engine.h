@@ -1,13 +1,17 @@
 #pragma once
 
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "engine/Loader.h"
 #include "engine/Page.h"
+#include "engine/PendingLoad.h"
 #include "gfx/DisplayList.h"
 #include "gfx/Geometry.h"
 #include "ipc/Message.h"
 #include "ipc/Transport.h"
+#include "util/WaitDescriptor.h"
 
 namespace microbrowser::engine {
 
@@ -18,10 +22,17 @@ namespace microbrowser::engine {
 //
 //   * It talks to the outside world only through ipc::EngineEndpoint. It has no
 //     window handle, no renderer, no canvas, and no way to acquire one.
-//   * It is driven, never driving. HandlePendingMessages() runs to completion
-//     and returns; it does not own a loop or a thread. A future process split
-//     gives it its own loop without changing anything above.
+//   * It is driven, never driving. HandlePendingMessages() and Advance() run to
+//     completion and return; neither owns a loop or a thread. A future process
+//     split gives it its own loop without changing anything above.
 //   * Painting is producing a display list. It never touches a pixel.
+//
+// Since ADR 0011 a navigation *starts* rather than happens: `Navigate` sends the
+// document request and returns, and the load moves forward one turn at a time
+// through `Advance()`. What that buys is a browser whose loop is not blocked for
+// the length of a fetch, and what it costs is the state below -- which a
+// navigation has to be able to throw away, because a response for a document
+// that is gone must be dropped.
 //
 // The temptation this class must resist for the next year is becoming the place
 // where "the browser" lives. Document, navigation history, network, and script
@@ -39,13 +50,30 @@ class Engine {
   // may be pending.
   bool HandlePendingMessages();
 
-  // Milliseconds until the page's soonest timer, or nothing when it has none.
-  // The loop asks this to decide how long it may sleep, which is what keeps a
-  // page with nothing scheduled from ever waking it.
-  std::optional<std::uint32_t> NextTimerDelay() const;
+  // Carries the load in flight as far as it can go without blocking, and acts
+  // on whatever arrived. True when anything happened, which is the host loop's
+  // signal that there may be a frame to show.
+  bool Advance();
+
+  // Milliseconds until the engine's soonest deadline: a page timer, an
+  // animation frame, or the point at which a silent server is given up on.
+  // Nothing when it has none -- which is the answer that lets the loop block.
+  std::optional<std::uint32_t> NextDeadlineMs() const;
   // Runs every timer that is due, and repaints when one changed the page.
   // True when anything ran.
   bool RunDueTimers();
+
+  // What the loop's single blocking wait must watch for this engine to make
+  // progress. Appends rather than assigns, because the loop waits on more than
+  // one source.
+  void AppendWaitDescriptors(util::WaitDescriptorList& out) const;
+  // True when something can move with no wait at all. A socket is almost never
+  // in this state and a canned transport always is; without the question the
+  // loop would block on input while a test's load stood still.
+  bool HasRunnableWork() const;
+  // True while a navigation has not finished. The snapshot tool and the tests
+  // drive the loop until this goes false.
+  bool IsLoading() const { return load_.active; }
 
   // What the page's script threw, so a host that is debugging one can say why
   // a document rendered the way it did. Forwarded rather than exposing the
@@ -71,9 +99,19 @@ class Engine {
   void SetViewport(const gfx::IntSize& size, float device_scale);
   void ScrollBy(int delta_x, int delta_y);
   bool HandlePointer(const ipc::PointerMessage& pointer);
-  // Fetches what the document referenced -- stylesheets, then images -- before
-  // the first layout, because both change it.
-  void LoadSubresources(bool bypass_cache);
+
+  // Acts on one thing that arrived.
+  void OnCompletion(Loader::Completion completion);
+  void OnDocument(Loader::Result result);
+  // Starts every subresource the parsed document referenced, all at once.
+  // Concurrency is bounded per partition key inside the request queue, which is
+  // where that bound belongs -- see ADR 0005 for why it is per key.
+  void StartSubresources();
+  // Runs the scripts once every render-blocking resource has resolved, then
+  // decodes the images and puts the page on screen.
+  void AdvanceLoad();
+  void FinishLoad();
+  void DecodePendingImages();
 
   // Lays out at the current viewport width, then paints. Separate from
   // PaintAndSend because scrolling repaints without relaying out, and a
@@ -107,6 +145,7 @@ class Engine {
   gfx::IntSize viewport_size_;
   float device_scale_ = 1.0f;
   int scroll_y_ = 0;
+  PendingLoad load_;
 };
 
 }  // namespace microbrowser::engine

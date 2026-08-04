@@ -4,7 +4,7 @@ purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
 # have passed privacy first, which net enforces by taking a privacy::Verdict.
 allow: util url privacy
 
-public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h SocketTransport.h
+public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h
 
 # ADR 0001 sanctions OpenSSL for the TLS record layer only -- we own HTTP
 # entirely. Exactly one file names it, SocketTransport.cpp, and this line is
@@ -18,4 +18,16 @@ budget: ResponseParser header_lines=60 public_methods=16 members=10
 budget: Cookie         header_lines=50 public_methods=10 members=10
 budget: CookieJar      header_lines=50 public_methods=14 members=2
 budget: HttpCache      header_lines=45 public_methods=14 members=3
-budget: Transport      header_lines=30 public_methods=10 members=0
+budget: Transport      header_lines=45 public_methods=12 members=0
+# One request, in flight. Sixteen members is a lot and every one of them is a
+# line of what used to be a stack frame: the verdict, the four collaborators,
+# the options that a redirect rewrites, the connection, the parser, the
+# half-sent buffer, and the four counters that used to be locals in a while
+# loop. That is what turning a call into an object costs, and the alternative
+# -- keeping the loop and blocking in it -- is what ADR 0011 rejected.
+budget: FetchRequest   header_lines=75 public_methods=14 members=16
+# The scheduler in front of Fetch. Four collaborators, three lists (started,
+# waiting on a slot, finished) and a counter. The three lists are the shape of
+# the problem: a bound per partition means a request can exist without a
+# connection, and a completion can exist after the request that made it is gone.
+budget: RequestQueue   header_lines=110 public_methods=16 members=8

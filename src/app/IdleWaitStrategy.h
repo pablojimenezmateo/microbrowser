@@ -53,6 +53,12 @@ struct IdleWaitState {
   // The engine has messages the UI has not consumed, or vice versa. Sleeping
   // with a non-empty queue is how a browser appears to hang.
   bool messages_pending = false;
+  // Something can make progress right now with no wait at all: a response
+  // already in hand, or a request on a transport that never blocks. Distinct
+  // from `messages_pending` because the queue it refers to is the network's
+  // rather than the seam's, and conflating the two would make one of them
+  // untestable.
+  bool work_runnable = false;
   // Milliseconds until the soonest scheduled work: a CSS animation tick, a
   // setTimeout, an animation frame, a caret blink. Absent means nothing is
   // scheduled at all, which is the case that must block.
@@ -69,7 +75,7 @@ struct IdleWaitState {
 inline constexpr std::int32_t kMinimumTimeoutMs = 1;
 
 inline IdleWaitDecision ChooseIdleWait(const IdleWaitState& state) {
-  if (state.repaint_pending || state.messages_pending) {
+  if (state.repaint_pending || state.messages_pending || state.work_runnable) {
     // There is work to do now, so there is nothing to wait for. The descriptors
     // go unwatched on this iteration and do not need watching: the loop comes
     // straight back round and watches them then.
