@@ -258,11 +258,22 @@ void Engine::OnCompletion(Loader::Completion completion) {
         AddPerformanceCounter(PerfCounterId::EngineStyleSheetsFailed);
       }
       break;
-    case ResourceKind::Script:
-      --load_.scripts_outstanding;
+    case ResourceKind::Script: {
+      // Which counter this came off decides whether the first paint was
+      // waiting for it. `async` says the page is not, and honouring that is
+      // the whole of what the attribute means.
+      const bool is_async = page_.PendingScriptIsAsync(resource.index);
+      --(is_async ? load_.async_scripts_outstanding : load_.scripts_outstanding);
       if (completion.result.ok) {
         page_.AddScript(resource.index, std::move(completion.result.body));
         AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
+        if (is_async && load_.scripts_ran && page_.RunReadyAsyncScripts()) {
+          // It landed after the page was already up. Running it can have
+          // changed the tree, so the page is laid out again -- which is what
+          // an async script arriving late looks like in every browser.
+          page_.InvalidateLayout();
+          LayoutAndPaint();
+        }
       } else {
         // A script that does not load leaves its slot empty and the ones after
         // it still run. A page whose analytics tag is blocked is a page, which
@@ -270,6 +281,7 @@ void Engine::OnCompletion(Loader::Completion completion) {
         AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
       }
       break;
+    }
     case ResourceKind::Image:
       --load_.images_outstanding;
       if (completion.result.ok) {
@@ -328,7 +340,8 @@ void Engine::StartSubresources() {
     const Loader::RequestId id = loader_.StartSubresource(
         scripts[i], document, privacy::ResourceType::Script, NowSeconds(), options);
     load_.resources[id] = PendingResource{ResourceKind::Script, i, {}};
-    ++load_.scripts_outstanding;
+    ++(page_.PendingScriptIsAsync(i) ? load_.async_scripts_outstanding
+                                     : load_.scripts_outstanding);
   }
 
   for (const std::string& src : page_.PendingImages()) {
@@ -353,8 +366,14 @@ void Engine::AdvanceLoad() {
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
   }
+  if (load_.MayPaint()) {
+    Paint();
+  }
   if (load_.IsFinished()) {
-    FinishLoad();
+    // Only now is the navigation over. It stayed alive past the first frame
+    // for the `async` scripts the page said it would not wait for, which is
+    // the difference between not blocking on one and dropping it.
+    load_ = PendingLoad{};
   }
 }
 
@@ -393,11 +412,11 @@ void Engine::DecodePendingImages() {
   }
 }
 
-void Engine::FinishLoad() {
+void Engine::Paint() {
   DecodePendingImages();
-  load_ = PendingLoad{};
+  load_.painted = true;
   // The title again. It was sent when the document committed, before its
-  // scripts ran, and a page that sets `document.title` -- which is most of
+  // scripts ran, and a page that changes its own title -- which is most of
   // them -- would otherwise keep whatever the markup said, or the URL.
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();

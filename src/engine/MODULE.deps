@@ -26,7 +26,7 @@ max_tu_lines: 800
 # questions rather than the browser's, which is why they are on the router.
 # The ninth member is the navigation in flight -- predicted by name in ADR 0011,
 # and a value of its own type so that Engine gained one member and not eight.
-budget: Engine header_lines=110 public_methods=13 members=9
+budget: Engine header_lines=115 public_methods=13 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -56,7 +56,10 @@ budget: Loader header_lines=105 public_methods=14 members=6
 # One navigation, from asked-for to on-screen. A struct with predicates rather
 # than a class: there is no invariant to protect, and the engine is what acts on
 # it. See ADR 0011.
-budget: PendingLoad header_lines=45 public_methods=4 members=14
+# Sixteen fields, and the two newest are the point of the ADR 0011 script
+# decision: an `async` script is counted apart from the rest and the first
+# frame is a state the load passes through rather than the state it ends in.
+budget: PendingLoad header_lines=70 public_methods=6 members=16
 
 budget: Page   header_lines=170 public_methods=36 members=12
 # The script half of a page: the interpreter, the binding layer, and the
@@ -78,4 +81,8 @@ budget: Page   header_lines=170 public_methods=36 members=12
 # a page with no script at all render identically and report the same thing --
 # which is exactly the position youtube.com was diagnosed from, and the reason
 # the eighth member is worth more than the budget it costs.
-budget: PageScript header_lines=110 public_methods=15 members=8
+# Grew for the three script timings. Two more methods -- is this one the page
+# waits for, and run the ones that landed late -- and the same eight members:
+# the slot became a struct rather than the timings becoming three more
+# vectors. See ADR 0011.
+budget: PageScript header_lines=145 public_methods=17 members=8

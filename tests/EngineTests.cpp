@@ -1947,6 +1947,94 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     }
     ExpectEqString(session.LastTitle(), "second", "the second page is the one on screen");
   });
+
+  // ADR 0011 decided `defer`, `async` and `type=module` are three points in a
+  // document's lifecycle rather than three attributes to ignore. These say so.
+  // Each script throws its own name, because `ScriptErrors()` is in run order
+  // and names the script -- which makes "when did it run" a thing a test can
+  // ask without a console.
+  AddTest(tests, "Engine/DeferredScriptsRunAfterBlockingOnes", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script = {
+        {"example.org", 443, true,
+         OkResponse("text/html",
+                    "<html><head>"
+                    "<script src='/d.js' defer></" "script>"
+                    "<script src='/b.js'></" "script>"
+                    "</head><body></body></html>")},
+        {"example.org", 443, true, OkResponse("application/javascript", "throw 'deferred';")},
+        {"example.org", 443, true, OkResponse("application/javascript", "throw 'blocking';")},
+    };
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    const std::vector<std::string>& errors = session.engine.ScriptErrors();
+    ExpectEqInt(static_cast<long long>(errors.size()), 2, "both scripts ran");
+    Expect(errors.at(0).find("/b.js") != std::string::npos,
+           "the blocking script runs first even though the deferred one is earlier in the "
+           "document: that is what `defer` promises");
+    Expect(errors.at(1).find("/d.js") != std::string::npos, "and the deferred one runs after");
+  });
+
+  AddTest(tests, "Engine/AnAsyncScriptDoesNotHoldTheFirstFrame", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.delivery = ScriptedFactory::Delivery::Held;
+    factory.script = {
+        {"example.org", 443, true,
+         OkResponse("text/html",
+                    "<html><head><script src='/a.js' async></" "script></head>"
+                    "<body><p>ABC</p></body></html>")},
+        {"example.org", 443, true, OkResponse("application/javascript", "throw 'async';")},
+    };
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.channel.Ui().Send(ipc::NavigateMessage{"https://example.org/page.html"});
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+    Expect(factory.Release("GET /page.html "), "the document is outstanding");
+    RunEngineToIdle(session.engine);
+    while (auto reply = session.channel.Ui().TryReceive()) {
+      session.sent.push_back(std::move(*reply));
+    }
+
+    ExpectEqInt(static_cast<long long>(factory.Held()), 1, "the async script is still in flight");
+    const ipc::PaintFrameMessage* painted = session.LastFrame();
+    Expect(painted != nullptr,
+           "the page is on screen without it: a page whose analytics tag is slow must not be "
+           "a page that is blank, which is the entire reason the attribute exists");
+    Expect(session.engine.ScriptErrors().empty(), "and it has not run yet");
+    Expect(session.engine.IsLoading(),
+           "though the navigation is not over -- not waiting for it is different from "
+           "dropping it");
+
+    Expect(factory.Release("GET /a.js "), "the async script is outstanding");
+    RunEngineToIdle(session.engine);
+    ExpectEqInt(static_cast<long long>(session.engine.ScriptErrors().size()), 1,
+                "and it runs when it lands");
+    Expect(!session.engine.IsLoading(), "which is when the navigation is finally over");
+  });
+
+  AddTest(tests, "Engine/AModuleIsEvaluatedAsAModule", [] {
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<script type='module'>throw 'ran';</" "script>"
+        "<script type='module'>import a from './x.js';</" "script>")});
+
+    const std::vector<std::string>& errors = session.engine.ScriptErrors();
+    ExpectEqInt(static_cast<long long>(errors.size()), 2, "both module scripts were evaluated");
+    Expect(errors.at(0).find("ran") != std::string::npos, "an inline module runs");
+    // The host half of the module loader is what ADR 0011 unblocks rather than
+    // what it builds. What matters is that `import` fails as an unresolved
+    // import rather than as a syntax error, because the second would be the
+    // engine claiming the page is malformed.
+    Expect(errors.at(1).find("modules are not available") != std::string::npos,
+           "and an import says there is no resolver rather than reporting a parse error");
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -107,10 +107,12 @@ class Engine {
   // Concurrency is bounded per partition key inside the request queue, which is
   // where that bound belongs -- see ADR 0005 for why it is per key.
   void StartSubresources();
-  // Runs the scripts once every render-blocking resource has resolved, then
-  // decodes the images and puts the page on screen.
+  // Runs the scripts once every render-blocking resource has resolved, puts
+  // the page on screen, and lets the navigation go once even the scripts the
+  // page said it would not wait for have landed.
   void AdvanceLoad();
-  void FinishLoad();
+  // Decodes the images and sends the first frame of this document.
+  void Paint();
   void DecodePendingImages();
 
   // Lays out at the current viewport width, then paints. Separate from

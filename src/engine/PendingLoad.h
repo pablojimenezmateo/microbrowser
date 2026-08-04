@@ -53,10 +53,18 @@ struct PendingLoad {
   std::map<Loader::RequestId, PendingResource> resources;
   std::size_t sheets_outstanding = 0;
   std::size_t scripts_outstanding = 0;
+  // Counted apart from the rest, because the whole meaning of `async` is that
+  // the page does not wait for it. One that is still in flight when everything
+  // else has landed does not hold the first paint; it runs when it arrives and
+  // the page is laid out again.
+  std::size_t async_scripts_outstanding = 0;
   std::size_t images_outstanding = 0;
   std::size_t total_resources = 0;
   std::size_t finished_resources = 0;
   bool scripts_ran = false;
+  // The first frame has gone out. The load stays alive past it only for the
+  // `async` scripts that have not landed yet.
+  bool painted = false;
   // Image bytes, held until the scripts have run. Decoding earlier would ask
   // the document how large it wants an image drawn before the script that sets
   // that has run, and the answer would then depend on which arrived first --
@@ -71,7 +79,12 @@ struct PendingLoad {
            scripts_outstanding == 0;
   }
 
-  bool IsFinished() const { return active && scripts_ran && images_outstanding == 0; }
+  // Everything that holds the first frame back has resolved.
+  bool MayPaint() const { return active && !painted && scripts_ran && images_outstanding == 0; }
+
+  // And nothing at all is left, including the scripts the page said it would
+  // not wait for.
+  bool IsFinished() const { return painted && async_scripts_outstanding == 0; }
 
   // How far along, for the progress the UI shows. Never reaches 1.0: that is
   // reserved for the frame actually going out, and a progress bar that

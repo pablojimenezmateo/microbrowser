@@ -1,6 +1,7 @@
 #include "engine/PageScript.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace microbrowser::engine {
@@ -14,6 +15,31 @@ bool IsJavaScript(const dom::Element& element) {
   const std::string* type = element.GetAttribute("type");
   return type == nullptr || type->empty() || *type == "text/javascript" ||
          *type == "application/javascript" || *type == "module";
+}
+
+bool IsModule(const dom::Element& element) {
+  const std::string* type = element.GetAttribute("type");
+  return type != nullptr && *type == "module";
+}
+
+// When this element's script runs.
+//
+// `defer` and `async` are ignored on an inline classic script, which is what
+// the specification says and is not a shortcut: honouring them would reorder
+// scripts a page wrote expecting them in order, and an inline script has
+// nothing to wait for in any case.
+PageScript::Timing TimingFor(const dom::Element& element, bool external, bool module) {
+  using Timing = PageScript::Timing;
+  if (!external) {
+    return module ? Timing::Deferred : Timing::Blocking;
+  }
+  if (element.GetAttribute("async") != nullptr) {
+    return Timing::Async;
+  }
+  if (module || element.GetAttribute("defer") != nullptr) {
+    return Timing::Deferred;
+  }
+  return Timing::Blocking;
 }
 
 }  // namespace
@@ -47,8 +73,15 @@ void PageScript::Collect(dom::Document& document) {
       return;
     }
     const std::string* src = element.GetAttribute("src");
-    if (src == nullptr || src->empty()) {
-      slots_.push_back(node.TextContent());
+    const bool external = src != nullptr && !src->empty();
+    const bool module = IsModule(element);
+
+    Slot slot;
+    slot.timing = TimingFor(element, external, module);
+    slot.module = module;
+    if (!external) {
+      slot.source = node.TextContent();
+      slots_.push_back(std::move(slot));
       return;
     }
     // A slot now, filled later. Its position is what keeps document order
@@ -56,15 +89,75 @@ void PageScript::Collect(dom::Document& document) {
     // an empty slot rather than moving everything after it.
     pending_urls_.push_back(*src);
     pending_slots_.push_back(slots_.size());
-    slots_.emplace_back();
+    slots_.push_back(std::move(slot));
   });
+}
+
+bool PageScript::IsAsync(std::size_t index) const {
+  return index < pending_slots_.size() &&
+         slots_[pending_slots_[index]].timing == Timing::Async;
 }
 
 void PageScript::AddFetched(std::size_t index, std::string source) {
   if (index >= pending_slots_.size()) {
     return;
   }
-  slots_[pending_slots_[index]] = std::move(source);
+  slots_[pending_slots_[index]].source = std::move(source);
+}
+
+void PageScript::EnsureInterpreter(dom::Document& document, const std::string& url,
+                                   std::int64_t now_ms) {
+  if (interpreter_ != nullptr) {
+    return;
+  }
+  interpreter_ = std::make_unique<js::Interpreter>();
+  bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url);
+  bindings_->Install();
+  timers_.Install(*interpreter_, now_ms);
+}
+
+bool PageScript::RunTiming(Timing timing) {
+  bool ran_any = false;
+  for (std::size_t slot = 0; slot < slots_.size(); ++slot) {
+    Slot& entry = slots_[slot];
+    if (entry.timing != timing || !entry.source.has_value()) {
+      continue;  // a different point in the lifecycle, or a script that never arrived
+    }
+    // Taken rather than read: a slot that has run and a slot that never
+    // arrived are the same thing to everything downstream, and emptying it
+    // here is what makes running one twice impossible rather than unlikely.
+    const std::string source = std::move(*entry.source);
+    entry.source.reset();
+    ran_any = true;
+
+    // A script that throws does not stop the page: the next one still runs,
+    // and so does the rest of the load. That is what a browser does, and it is
+    // why one broken analytics tag does not blank a site.
+    //
+    // It is also why the throw has to be recorded. Continuing past a failure
+    // and saying nothing about it is how nine failed scripts and no scripts at
+    // all come to look the same from outside.
+    const js::Result result = entry.module
+                                  ? interpreter_->RunModule(source, SourceName(slot))
+                                  : interpreter_->Run(source);
+    if (result.completion != js::Completion::Throw) {
+      continue;
+    }
+    std::string report = SourceName(slot) + ": " + js::ToString(result.value);
+    // The stack when the thrown value carries one, which every error the
+    // engine makes now does. "undefined is not a function" names the fault
+    // and not the place, and on a page with a megabyte of script the place
+    // is the entire question.
+    if (result.value.IsObject()) {
+      if (const js::Value* stack = result.value.object->Get("stack")) {
+        if (stack->type == js::ValueType::String) {
+          report += "\n    " + stack->AsString();
+        }
+      }
+    }
+    errors_.push_back(std::move(report));
+  }
+  return ran_any;
 }
 
 void PageScript::Run(dom::Document& document, const std::string& url,
@@ -77,40 +170,19 @@ void PageScript::Run(dom::Document& document, const std::string& url,
   if (slots_.empty()) {
     return;  // no script, no interpreter: a document that runs nothing costs nothing
   }
-  interpreter_ = std::make_unique<js::Interpreter>();
-  bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url);
-  bindings_->Install();
-  timers_.Install(*interpreter_, now_ms);
+  EnsureInterpreter(document, url, now_ms);
 
-  for (std::size_t slot = 0; slot < slots_.size(); ++slot) {
-    const std::optional<std::string>& source = slots_[slot];
-    if (!source.has_value()) {
-      continue;  // an external script that did not arrive
-    }
-    // A script that throws does not stop the page: the next one still runs,
-    // and so does the rest of the load. That is what a browser does, and it is
-    // why one broken analytics tag does not blank a site.
-    //
-    // It is also why the throw has to be recorded. Continuing past a failure
-    // and saying nothing about it is how nine failed scripts and no scripts at
-    // all come to look the same from outside.
-    const js::Result result = interpreter_->Run(*source);
-    if (result.completion == js::Completion::Throw) {
-      std::string report = SourceName(slot) + ": " + js::ToString(result.value);
-      // The stack when the thrown value carries one, which every error the
-      // engine makes now does. "undefined is not a function" names the fault
-      // and not the place, and on a page with a megabyte of script the place
-      // is the entire question.
-      if (result.value.IsObject()) {
-        if (const js::Value* stack = result.value.object->Get("stack")) {
-          if (stack->type == js::ValueType::String) {
-            report += "\n    " + stack->AsString();
-          }
-        }
-      }
-      errors_.push_back(std::move(report));
-    }
-  }
+  // The three points in the lifecycle, in the order they happen. Blocking
+  // first, because that is document order; deferred after every blocking one,
+  // which is what `defer` promises; async last, and only those that happen to
+  // have arrived -- the rest run through RunReadyAsync when they do.
+  RunTiming(Timing::Blocking);
+  RunTiming(Timing::Deferred);
+  RunTiming(Timing::Async);
+}
+
+bool PageScript::RunReadyAsync() {
+  return interpreter_ != nullptr && RunTiming(Timing::Async);
 }
 
 std::optional<std::uint32_t> PageScript::NextTimerDelay(std::int64_t now_ms) const {

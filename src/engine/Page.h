@@ -82,7 +82,14 @@ class Page : private layout::ImageProvider {
   // by the caller for the same reason a stylesheet is: a fetch needs a privacy
   // verdict, and producing one is the loader's job.
   const std::vector<std::string>& PendingScripts() const { return script_.PendingUrls(); }
+  // Whether `PendingScripts()[index]` is one the page said it would not wait
+  // for. The caller asks so it knows which outstanding scripts hold the first
+  // paint and which do not -- see PageScript::Timing and ADR 0011.
+  bool PendingScriptIsAsync(std::size_t index) const { return script_.IsAsync(index); }
   void AddScript(std::size_t pending_index, std::string source);
+  // Runs any `async` script whose source arrived after RunScripts. True when
+  // one did, which means the document may have changed.
+  bool RunReadyAsyncScripts() { return script_.RunReadyAsync(); }
   // Runs the document's scripts. Idempotent, so a caller that fetches
   // subresources first and one that does not can both end with it.
   void RunScripts(std::int64_t now_ms);
