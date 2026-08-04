@@ -701,6 +701,41 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
                "true");
   });
 
+  AddTest(tests, "JsConformance/AnObjectCanStandInForAPattern", [] {
+    // `Symbol.replace` and its four siblings are how a library object -- a
+    // template, a tokenizer, an internationalised matcher -- is used where a
+    // RegExp would be. Without them the object was stringified instead.
+    ExpectEval("class R { [Symbol.replace](s, r){ return 'R:' + s + ':' + r } }"
+               "'abc'.replace(new R(), 'y')",
+               "R:abc:y");
+    ExpectEval("class R { [Symbol.match](s){ return ['M:' + s] } }"
+               "'abc'.match(new R()).join()",
+               "M:abc");
+    ExpectEval("class R { [Symbol.split](s){ return ['S', s] } }"
+               "'abc'.split(new R()).join()",
+               "S,abc");
+    ExpectEval("class R { [Symbol.search](){ return 42 } } 'abc'.search(new R())", "42");
+    // The ordinary forms are untouched.
+    ExpectEval("'abc'.replace('b', 'X') + ':' + 'a,b'.split(',').join('|')", "aXc:a|b");
+  });
+
+  AddTest(tests, "JsConformance/AFunctionKnowsItsNameAndArity", [] {
+    // Arity stops at the first default and at a rest element, which is what
+    // every library that dispatches on it reads.
+    ExpectEval("[(function(a,b){}).length, (function(a,b,c=1){}).length,"
+               "(function(...r){}).length, ((x)=>x).length].join()",
+               "2,2,0,1");
+    // Named evaluation: an anonymous function takes the name of the binding
+    // it is assigned to.
+    ExpectEval("const f = () => {}; const g = function(){}; const C = class {};"
+               "const o = { h: () => {} };"
+               "[f.name, g.name, C.name, o.h.name].join()",
+               "f,g,C,h");
+    ExpectEval("let z; z = () => {}; z.name", "z");
+    // Already named wins: `const f = function g(){}` is still `g`.
+    ExpectEval("const f = function g(){}; f.name", "g");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {

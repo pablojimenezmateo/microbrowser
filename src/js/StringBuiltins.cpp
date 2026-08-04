@@ -364,6 +364,13 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
             : static_cast<std::size_t>(ToUint32(ToNumber(limit_value)));
     std::vector<Value> parts;
     const Value separator_value = Argument(call.arguments, 0);
+    // A page's own object first: `Symbol.split` is how a library stands in for
+    // a pattern, and stringifying it instead is what happened before.
+    if (Object* hook = call.interpreter.PatternProtocol(separator_value, "split")) {
+      const Result answered = call.interpreter.CallFunction(
+          Value::Obj(hook), separator_value, {call.self, limit_value});
+      return answered.IsAbrupt() ? call.ThrowValue(answered.value) : answered.value;
+    }
     if (call.interpreter.RegExpOf(separator_value) != nullptr) {
       return RegExpSplit(call, separator_value, text, limit_value);
     }
@@ -407,6 +414,14 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
       const std::string text = Self(call);
       const Value pattern = Argument(call.arguments, 0);
       const Value replacement = Argument(call.arguments, 1);
+      // A page's own object first: `Symbol.replace` is how a library stands in
+      // for a pattern -- a template, a tokenizer, an internationalised matcher
+      // -- and stringifying it instead is what happened before.
+      if (Object* hook = call.interpreter.PatternProtocol(pattern, "replace")) {
+        const Result answered = call.interpreter.CallFunction(Value::Obj(hook), pattern,
+                                                              {call.self, replacement});
+        return answered.IsAbrupt() ? call.ThrowValue(answered.value) : answered.value;
+      }
       if (call.interpreter.RegExpOf(pattern) != nullptr) {
         return RegExpReplace(call, pattern, text, replacement, all);
       }

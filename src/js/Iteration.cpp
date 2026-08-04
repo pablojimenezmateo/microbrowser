@@ -104,6 +104,10 @@ void Interpreter::InstallIteration() {
   // methods still test for a RegExp object rather than for these -- but a page
   // that reads one must get the same cell every time, and `Symbol.species`
   // is read by library code that never calls it.
+  // The pattern protocol. Held on the constructor by name, and looked up by
+  // name in PatternProtocol -- which reads `Symbol` back out of the global
+  // scope, so a page that shadows it changes what its own objects answer to
+  // and nothing else.
   well_known("species");
   well_known("match");
   well_known("matchAll");

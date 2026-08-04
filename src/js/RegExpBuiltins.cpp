@@ -242,6 +242,23 @@ struct PatternArgument {
   Object* object = nullptr;
 };
 
+// Whether a page's own object answered instead. `out` is what it returned.
+//
+// Checked before anything is compiled: the object may not be a pattern at all
+// and may not have a `source` to compile. The method is called with the
+// subject string and whatever else the operation takes, which is the shape the
+// spec gives every one of the five.
+bool TryPatternProtocol(NativeCall& call, const char* which, const Value& pattern,
+                        const std::vector<Value>& arguments, Value& out) {
+  Object* method = call.interpreter.PatternProtocol(pattern, which);
+  if (method == nullptr) {
+    return false;
+  }
+  const Result answered = call.interpreter.CallFunction(Value::Obj(method), pattern, arguments);
+  out = answered.IsAbrupt() ? call.ThrowValue(answered.value) : answered.value;
+  return true;
+}
+
 bool ReadPatternArgument(NativeCall& call, const Value& value, bool force_global,
                          PatternArgument& out) {
   if (const RegExp* existing = call.interpreter.RegExpOf(value)) {
@@ -493,6 +510,13 @@ void Interpreter::InstallRegExpPrototype() {
   // --- The String methods that only exist for patterns ----------------------
 
   install(well_known_.string_prototype, "match", [](NativeCall& call) {
+    // The page's own object first: `Symbol.match` is how a library stands in
+    // for a pattern, and asking after compiling would have compiled its
+    // *string form* instead.
+    Value answered;
+    if (TryPatternProtocol(call, "match", Argument(call.arguments, 0), {call.self}, answered)) {
+      return answered;
+    }
     const std::string text = ToString(call.self);
     PatternArgument argument;
     if (!ReadPatternArgument(call, Argument(call.arguments, 0), false, argument)) {
@@ -533,6 +557,13 @@ void Interpreter::InstallRegExpPrototype() {
   });
 
   install(well_known_.string_prototype, "matchAll", [](NativeCall& call) {
+    // The page's own object first: `Symbol.matchAll` is how a library stands in
+    // for a pattern, and asking after compiling would have compiled its
+    // *string form* instead.
+    Value answered;
+    if (TryPatternProtocol(call, "matchAll", Argument(call.arguments, 0), {call.self}, answered)) {
+      return answered;
+    }
     const std::string text = ToString(call.self);
     const Value given = Argument(call.arguments, 0);
     // A pattern handed to matchAll must be global. The spec makes this a
@@ -604,6 +635,13 @@ void Interpreter::InstallRegExpPrototype() {
   });
 
   install(well_known_.string_prototype, "search", [](NativeCall& call) {
+    // The page's own object first: `Symbol.search` is how a library stands in
+    // for a pattern, and asking after compiling would have compiled its
+    // *string form* instead.
+    Value answered;
+    if (TryPatternProtocol(call, "search", Argument(call.arguments, 0), {call.self}, answered)) {
+      return answered;
+    }
     const std::string text = ToString(call.self);
     PatternArgument argument;
     if (!ReadPatternArgument(call, Argument(call.arguments, 0), false, argument)) {

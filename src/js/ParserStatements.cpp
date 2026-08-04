@@ -215,6 +215,12 @@ NodePtr ParserImpl::ParseVariableDeclaration(bool eat_semicolon) {
     NodePtr declarator = Make(NodeKind::Declarator);
     declarator->children.push_back(ParseBindingTarget());
     declarator->children.push_back(Eat("=") ? ParseAssignment() : nullptr);
+    // `const f = () => {}` gives the arrow the name `f`. Only for a plain
+    // identifier target -- a destructuring pattern names nothing.
+    if (declarator->Child(0) != nullptr &&
+        declarator->Child(0)->kind == NodeKind::Identifier) {
+      InferName(declarator->children[1].get(), declarator->Child(0)->string);
+    }
     node->children.push_back(std::move(declarator));
     if (!Eat(",")) {
       break;

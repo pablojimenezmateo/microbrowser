@@ -22,7 +22,10 @@ budget: Node     header_lines=30 public_methods=4  members=6
 budget: NodeKind header_lines=70 public_methods=0  members=0
 # The parser's shared state, split across two translation units: expressions in
 # Parser.cpp and statements in ParserStatements.cpp.
-budget: ParserImpl header_lines=90 public_methods=6 members=5
+# Grew for named evaluation: an anonymous function takes the name of the
+# binding it is assigned to, which is a *syntactic* rule -- so it is applied
+# here, once, rather than by each engine at run time.
+budget: ParserImpl header_lines=110 public_methods=6 members=5
 budget: Value       header_lines=60 public_methods=20 members=5
 # A compiled pattern, as a value: the program behind it is shared and immutable,
 # so copying a RegExp is a refcount rather than a recompile.

@@ -108,6 +108,21 @@ bool ParserImpl::ConsumeSemicolon() {
   return false;
 }
 
+void ParserImpl::InferName(Node* value, std::string_view name) {
+  if (value == nullptr || name.empty() || !value->string.empty()) {
+    return;  // already named: `const f = function g(){}` is still `g`
+  }
+  switch (value->kind) {
+    case NodeKind::FunctionExpression:
+    case NodeKind::ArrowFunction:
+    case NodeKind::ClassExpression:
+      value->string = std::string(name);
+      return;
+    default:
+      return;
+  }
+}
+
 NodePtr ParserImpl::Make(NodeKind kind) const {
   auto node = std::make_unique<Node>();
   node->kind = kind;
@@ -373,6 +388,11 @@ NodePtr ParserImpl::ParseObjectLiteral() {
       property->children.push_back(std::move(function));
     } else if (Eat(":")) {
       property->children.push_back(ParseAssignment());
+      // `{ handler: () => {} }` names the arrow `handler`, which is what makes
+      // a stack trace through an options object readable.
+      if (!computed) {
+        InferName(property->children.back().get(), property->string);
+      }
     } else if (At("(")) {
       // A method. Represented as a plain property whose value is a function, so
       // that a consumer walking an object literal has one shape to handle.
@@ -949,9 +969,16 @@ NodePtr ParserImpl::ParseAssignment() {
   if (current_.type == TokenType::Punctuator && IsAssignmentOperator(current_.lexeme)) {
     NodePtr node = Make(NodeKind::Assignment);
     node->string = std::string(current_.lexeme);
+    const bool plain = node->string == "=";
     Advance();
     node->children.push_back(std::move(left));
     node->children.push_back(ParseAssignment());  // right-associative
+    // `f = () => {}` names the arrow `f`, and only a plain `=` does: `f ||= ()
+    // => {}` is a different production and the spec names that one too, but
+    // the common case is this one.
+    if (plain && node->Child(0) != nullptr && node->Child(0)->kind == NodeKind::Identifier) {
+      InferName(node->children[1].get(), node->Child(0)->string);
+    }
     return node;
   }
   return left;

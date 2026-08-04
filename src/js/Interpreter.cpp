@@ -237,11 +237,7 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
   function->SetPrototype(well_known_.function_prototype);
   function->MakeFunction(node.Child(0), node.Child(1), &scope, arrow);
   function->Set("name", Value::String(node.string));
-  const Node* parameters = node.Child(0);
-  function->Set("length",
-                Value::Number(parameters == nullptr
-                                  ? 0.0
-                                  : static_cast<double>(parameters->children.size())));
+  function->Set("length", Value::Number(DeclaredArity(node.Child(0))));
   if (!arrow) {
     // Every ordinary function gets a fresh `prototype` object, because any of
     // them can be called with `new`. An arrow function cannot, which is why it
@@ -274,6 +270,28 @@ Value Interpreter::NewCompiledFunction(const CompiledFunction& code, Environment
 }
 
 // --- Property access -------------------------------------------------------
+
+Object* Interpreter::PatternProtocol(const Value& value, const char* which) {
+  if (!value.IsObject() && !value.IsSymbol()) {
+    return nullptr;  // a string is the common case and has no methods to ask
+  }
+  // A RegExp answers to these too in the spec, and here the RegExp path is
+  // taken directly by the caller -- so an actual RegExp is excluded, and only
+  // an object standing in for one reaches the protocol.
+  if (value.IsObject() && value.object->GetKind() == Object::Kind::RegExp) {
+    return nullptr;
+  }
+  Value* symbol_object = global_scope_->Lookup("Symbol");
+  if (symbol_object == nullptr || !symbol_object->IsObject()) {
+    return nullptr;
+  }
+  const Value* cell = symbol_object->object->GetOwn(which);
+  if (cell == nullptr || !cell->IsSymbol()) {
+    return nullptr;
+  }
+  const Value method = GetProperty(value, PropertyKey::Symbol(cell->object));
+  return method.IsObject() && method.object->IsCallable() ? method.object : nullptr;
+}
 
 Object* Interpreter::ProxyTrap(const Value& base, const char* trap, Value& target) const {
   if (!base.IsObject() || base.object->GetKind() != Object::Kind::Proxy) {

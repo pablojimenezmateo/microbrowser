@@ -163,6 +163,28 @@ struct Node {
 
 using NodePtr = std::unique_ptr<Node>;
 
+// The arity a function reports.
+//
+// Not the number of parameters: it stops at the first one with a default and
+// at a rest element, which is what `Function.prototype.length` is defined as
+// and what every library that dispatches on arity reads. `(a, b = 1) => {}`
+// has length 1.
+inline std::uint32_t DeclaredArity(const Node* parameters) {
+  if (parameters == nullptr) {
+    return 0;
+  }
+  std::uint32_t arity = 0;
+  for (const NodePtr& parameter : parameters->children) {
+    if (parameter == nullptr || parameter->kind == NodeKind::AssignmentPattern ||
+        parameter->kind == NodeKind::RestElement || parameter->kind == NodeKind::Spread) {
+      break;
+    }
+    ++arity;
+  }
+  return arity;
+}
+
+
 // A tree dumped as parenthesised text, for tests. Structure only, so a test can
 // state the parse it expects instead of walking children by index -- which is
 // how a test ends up asserting something other than what it means.

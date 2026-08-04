@@ -6,7 +6,10 @@
 
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
+#include <cstdio>
+
 #include "util/Parse.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::js {
 
@@ -1102,6 +1105,99 @@ void Interpreter::InstallGlobals() {
   // Last: it reads `Number`, `parseInt` and `parseFloat` back out of the
   // global scope, so every one of them has to be declared first.
   install_numbers();
+
+  // `Symbol.species`, which library code reads to find out what a derived
+  // method should construct. Every built-in answers with itself, which is the
+  // default the spec gives them and the answer a subclass overrides.
+  if (Object* species_cell = nullptr; true) {
+    Value* symbol_object = global_scope_->Lookup("Symbol");
+    if (symbol_object != nullptr && symbol_object->IsObject()) {
+      const Value* cell = symbol_object->object->GetOwn("species");
+      species_cell = cell != nullptr && cell->IsSymbol() ? cell->object : nullptr;
+    }
+    if (species_cell != nullptr) {
+      for (const char* name : {"Array", "Map", "Set", "RegExp", "Promise", "ArrayBuffer"}) {
+        Value* declared = global_scope_->Lookup(name);
+        if (declared != nullptr && declared->IsObject()) {
+          declared->object->SetHidden(PropertyKey::Symbol(species_cell), *declared);
+        }
+      }
+    }
+  }
+
+  // `escape` and `unescape`. Annex B, superseded by the URI functions in 1999,
+  // and still called by code that has not been touched since. Refusing them is
+  // a ReferenceError in the middle of a page that would otherwise work.
+  for (const bool encoding : {true, false}) {
+    const char* name = encoding ? "escape" : "unescape";
+    global_scope_->Declare(
+        name, NewNativeValue(name, [encoding](NativeCall& call) {
+          std::string text;
+          const Result converted =
+              call.interpreter.ToStringOf(Argument(call.arguments, 0), text);
+          if (converted.IsAbrupt()) {
+            return call.ThrowValue(converted.value);
+          }
+          std::string out;
+          if (!encoding) {
+            for (std::size_t at = 0; at < text.size();) {
+              // `%uXXXX` first: it is the longer form and shares its prefix.
+              if (text[at] == '%' && at + 5 < text.size() && text[at + 1] == 'u') {
+                int value = 0;
+                bool ok = true;
+                for (int i = 0; i < 4; ++i) {
+                  const int digit = util::HexDigit(text[at + 2 + static_cast<std::size_t>(i)]);
+                  ok = ok && digit >= 0;
+                  value = value * 16 + (digit < 0 ? 0 : digit);
+                }
+                if (ok) {
+                  util::AppendUtf8(out, static_cast<std::uint32_t>(value));
+                  at += 6;
+                  continue;
+                }
+              }
+              if (text[at] == '%' && at + 2 < text.size()) {
+                const int high = util::HexDigit(text[at + 1]);
+                const int low = util::HexDigit(text[at + 2]);
+                if (high >= 0 && low >= 0) {
+                  util::AppendUtf8(out, static_cast<std::uint32_t>(high * 16 + low));
+                  at += 3;
+                  continue;
+                }
+              }
+              out.push_back(text[at++]);
+            }
+            return Value::String(std::move(out));
+          }
+          // The unreserved set is the one Annex B names, and it is not the
+          // URI one: `@*_+-./` are left alone and everything else is escaped.
+          for (std::size_t at = 0; at < text.size();) {
+            std::uint32_t code = 0;
+            std::size_t next = at;
+            if (!util::DecodeUtf8(text, next, code)) {
+              code = static_cast<unsigned char>(text[at]);
+              next = at + 1;
+            }
+            const bool plain =
+                (code >= 'A' && code <= 'Z') || (code >= 'a' && code <= 'z') ||
+                (code >= '0' && code <= '9') || code == '@' || code == '*' ||
+                code == '_' || code == '+' || code == '-' || code == '.' || code == '/';
+            char buffer[8];
+            if (plain) {
+              out.push_back(static_cast<char>(code));
+            } else if (code < 256) {
+              std::snprintf(buffer, sizeof(buffer), "%%%02X", code);
+              out += buffer;
+            } else {
+              std::snprintf(buffer, sizeof(buffer), "%%u%04X", code);
+              out += buffer;
+            }
+            at = next;
+          }
+          return Value::String(std::move(out));
+        }),
+        false);
+  }
 
   // --- Making the built-ins invisible to enumeration -------------------------
   //

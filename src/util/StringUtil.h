@@ -79,6 +79,20 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b
   return text.substr(begin, end - begin + 1);
 }
 
+// One hexadecimal digit's value, or -1. Here because three parsers wanted it.
+[[nodiscard]] constexpr int HexDigit(char c) {
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'a' && c <= 'f') {
+    return c - 'a' + 10;
+  }
+  if (c >= 'A' && c <= 'F') {
+    return c - 'A' + 10;
+  }
+  return -1;
+}
+
 // --- UTF-8 ------------------------------------------------------------------
 //
 // Here rather than in each caller. Four files in `js` alone had written their

@@ -253,6 +253,17 @@ class Interpreter {
   // `Object.prototype.toString` reads the tag, and `Array.prototype.concat`
   // will read the spread flag.
   Object* SymbolToStringTag() const { return well_known_.symbol_to_string_tag; }
+  // The method a page's own object may supply to stand in for a pattern.
+  //
+  // `'abc'.replace(x, y)` asks `x` for `Symbol.replace` before doing anything
+  // else, and so do `match`, `matchAll`, `split` and `search`. That is how a
+  // library object -- a template, a tokenizer, an internationalised matcher --
+  // is used where a RegExp would be, and refusing to look is what makes those
+  // libraries silently stringify instead.
+  //
+  // Null when the value has no such method, which is every string and every
+  // ordinary object. Looked up through the interpreter so a getter runs.
+  Object* PatternProtocol(const Value& value, const char* which);
   // Where a buffer a typed array allocated for itself gets its methods.
   Object* ArrayBufferPrototype() const { return well_known_.array_buffer_prototype; }
 

@@ -47,6 +47,14 @@ class ParserImpl {
   bool ConsumeSemicolon();
 
   NodePtr Make(NodeKind kind) const;
+  // Gives an anonymous function the name of the binding it is being assigned
+  // to, which is what makes `const f = () => {}` have `f.name === 'f'`.
+  //
+  // Here rather than at run time because it is a *syntactic* rule -- the spec
+  // calls it named evaluation and applies it to a handful of positions -- and
+  // because doing it in the parser means both engines get it from the tree
+  // rather than each implementing it.
+  static void InferName(Node* value, std::string_view name);
 
   // --- Statements ----------------------------------------------------------
   NodePtr ParseStatement();

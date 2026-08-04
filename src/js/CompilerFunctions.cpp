@@ -98,8 +98,9 @@ void Compiler::Function(const Node& node, bool arrow) {
   const auto flags = static_cast<std::uint8_t>(node.number);
   function_.is_async = (flags & kFunctionAsync) != 0;
   function_.is_generator = (flags & kFunctionGenerator) != 0;
-  function_.parameter_count =
-      parameters == nullptr ? 0 : static_cast<std::uint32_t>(parameters->children.size());
+  // What `fn.length` reports, which stops at the first default and at a rest
+  // element -- not how many bindings the prologue makes, which is all of them.
+  function_.parameter_count = DeclaredArity(parameters);
   function_.needs_arguments =
       !arrow && ((body != nullptr && NamesArguments(*body)) ||
                  (parameters != nullptr && NamesArguments(*parameters)));
