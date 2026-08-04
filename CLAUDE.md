@@ -56,7 +56,7 @@ What exists:
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them. Images cross in a **per-frame resource table** rather than inline per command; a surface crosses as a **name**. Display-list encoding is its own translation unit. |
 | `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
-| `src/net` | HTTP/1.1, cookies, cache, non-blocking sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one, and **starts** a request rather than returning a response. `RequestQueue` runs them concurrently, bounded **per partition key**, and drops them all on a navigation. |
+| `src/net` | HTTP/1.1, cookies, cache, non-blocking sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one, and **starts** a request rather than returning a response. `RequestQueue` runs them concurrently, bounded **per partition key**, and drops them all on a navigation. `Content-Encoding: gzip`/`deflate`, undone under a **double bound** — ceiling and expansion ratio, failing rather than truncating. **`ConnectionPool` keeps connections between requests, keyed by the partition key rather than by host**, with an idle timeout that goes through `next_deadline_ms`; `Fetch` takes the pool for the same reason it takes a Verdict. |
 | `src/media` | Containers only, never codecs (ADR 0013). Fragmented-MP4 demux: `ftyp`, the `moov` track hierarchy, `moof` sample tables, into tracks and **byte ranges rather than bytes**. Bounds-checked, sticky-failing reader; fuzzed. May name `util` and nothing else, so a demuxer that started decoding would not compile. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
@@ -150,14 +150,16 @@ reasoning; this is the queue.
    appears when it is finished rather than as it arrives. The ADR is explicit that the last of
    those is enabled by this work rather than performed by it.
 
-4. **Transport — ADR 0010.** `Accept-Encoding: identity` and `Connection: close` are both one-line
-   requests we send, and now that requests run concurrently the second one costs a handshake per
-   resource in parallel rather than in series. Measured on one page: **5x the bytes** and
-   **15 TLS handshakes for 15 resources.** gzip needs no new dependency at all — `util::Inflate` is already there and already
-   fuzzed — but it does need a bounded inflate and a fuzz target on the same commit, because a
-   compressed response is a decompression bomb by default. Connection reuse must be keyed by the
-   ADR 0005 partition key, not by host; that is the whole privacy content of it, and
-   `net::RequestQueue` already keys its concurrency bound that way, so the shape is there.
+4. **Transport — ADR 0010 §1–2 is done; §3, HTTP/2, is not.** `Accept-Encoding` says
+   `gzip, deflate` and `Connection: close` is gone. On old.reddit.com that is **697KB on the wire
+   where 2.35MB would have been** (3.37x) and **20 connections and 20 TLS handshakes for 40
+   fetches**, from 40 and 40. Every decompression is bounded twice — an absolute ceiling and an
+   expansion ratio against what arrived — and a gzip bomb is refused from its declared ISIZE
+   before a byte is produced. The pool is keyed by the **ADR 0005 partition key**, which is the
+   whole privacy content of it: two top-level sites loading the same CDN host get two connections.
+   What is left is ALPN and HTTP/2, which is mostly a *parser* problem — framing, multiplexing,
+   flow control, and HPACK, whose CVE history is state confusion between the two ends rather than
+   buffer overruns.
 
 5. **`transform`, and with it stacking contexts.** 1391 uses. `AffineTransform` and path
    transforms already exist in `src/gfx`; what is missing is the property, the computed value and
