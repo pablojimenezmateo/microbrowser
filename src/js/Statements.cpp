@@ -804,13 +804,39 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
       if (loop_scope == nullptr) {
         return Throw("RangeError", "out of memory");
       }
-      const ScopeGuard guard(*this, loop_scope);
+      ScopeGuard guard(*this, loop_scope);
 
       if (node.Child(0) != nullptr) {
         const Result init = EvaluateStatement(*node.Child(0), *loop_scope);
         if (init.IsAbrupt()) {
           return init;
         }
+      }
+      // A `let` or `const` head is one binding *per iteration*: each pass gets
+      // a fresh copy of the loop scope, so the three closures a
+      // `for (let i = 0; i < 3; i++)` makes see 0, 1 and 2. `var` is the
+      // contrast and keeps one binding for the whole loop.
+      const Node* init_node = node.Child(0);
+      const bool per_iteration = init_node != nullptr &&
+                                 init_node->kind == NodeKind::VariableDeclaration &&
+                                 (init_node->string == "let" || init_node->string == "const");
+      const auto next_iteration_scope = [&]() -> bool {
+        if (!per_iteration) {
+          return true;
+        }
+        Environment* fresh = heap_.AllocateEnvironment(loop_scope->Parent());
+        if (fresh == nullptr) {
+          return false;
+        }
+        fresh->CopyBindingsFrom(*loop_scope);
+        loop_scope = fresh;
+        // Rooted from here on. The old one stays alive through whatever
+        // closure the body made, which is the binding it is meant to keep.
+        guard.Retarget(loop_scope);
+        return true;
+      };
+      if (!next_iteration_scope()) {
+        return Throw("RangeError", "out of memory");
       }
       while (true) {
         if (node.Child(1) != nullptr) {
@@ -837,6 +863,11 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
           if (result.IsAbrupt() && result.completion != Completion::Continue) {
             return result;
           }
+        }
+        // The copy sits before the increment, so the increment writes to the
+        // new binding and the closure the body just made keeps the old value.
+        if (!next_iteration_scope()) {
+          return Throw("RangeError", "out of memory");
         }
         if (node.Child(2) != nullptr) {
           const Result update = Evaluate(*node.Child(2), *loop_scope);

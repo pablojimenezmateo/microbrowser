@@ -136,6 +136,48 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = {}; o[[1,2]] = 5; o['1,2']", "5");
   });
 
+  // --- Per-iteration bindings ----------------------------------------------
+  //
+  // `for (let i = ...)` makes one binding per pass, not one for the loop. The
+  // engine answered 3,3,3 before, which is what `var` means -- and the whole
+  // reason `let` was added to the language.
+
+  AddTest(tests, "JsConformance/ALetInALoopHeadIsOneBindingPerIteration", [] {
+    ExpectEval("const fs = []; for (let i = 0; i < 3; i++) fs.push(() => i);"
+               "fs.map(f => f()).join()",
+               "0,1,2");
+    // `var` is the contrast, and it still behaves the old way -- one binding
+    // for the whole loop, so every closure sees what it ended on.
+    ExpectEval("const fs = []; for (var i = 0; i < 3; i++) fs.push(() => i);"
+               "fs.map(f => f()).join()",
+               "3,3,3");
+  });
+
+  AddTest(tests, "JsConformance/AContinueStillEndsTheIterationItIsIn", [] {
+    ExpectEval("const fs = []; for (let i = 0; i < 4; i++) { if (i === 1) continue;"
+               "fs.push(() => i) } fs.map(f => f()).join()",
+               "0,2,3");
+  });
+
+  AddTest(tests, "JsConformance/ABindingInsideTheBodyIsPerIterationToo", [] {
+    ExpectEval("const fs = []; for (let i = 0; i < 3; i++) { let j = i * 2;"
+               "fs.push(() => `${i}:${j}`) } fs.map(f => f()).join()",
+               "0:0,1:2,2:4");
+    ExpectEval("const fs = []; for (const x of [1,2,3]) fs.push(() => x);"
+               "fs.map(f => f()).join()",
+               "1,2,3");
+  });
+
+  AddTest(tests, "JsConformance/TheLoopStillRunsTheSameNumberOfTimes", [] {
+    // The copy must not disturb the loop itself: the increment writes to the
+    // new binding and the test reads it, so an off-by-one here would be a
+    // loop that never ends.
+    ExpectEval("let s = 0; for (let i = 0; i < 5; i++) s += i; s", "10");
+    ExpectEval("let n = 0; outer: for (let i = 0; i < 3; i++)"
+               "{ for (let j = 0; j < 3; j++) { if (j === 1) continue outer; n++ } } n",
+               "3");
+  });
+
   AddTest(tests, "JsConformance/AUnaryOperatorRunsTheConversionToo", [] {
     ExpectEval("-({valueOf(){return 3}})", "-3");
     ExpectEval("~({valueOf(){return 0}})", "-1");

@@ -298,6 +298,11 @@ void Environment::DeclareSlot(std::uint32_t index, std::string name, Value value
   index_.insert_or_assign(std::move(name), index);
 }
 
+void Environment::CopyBindingsFrom(const Environment& other) {
+  slots_ = other.slots_;
+  index_ = other.index_;
+}
+
 Heap::~Heap() = default;
 
 void Heap::AttachRegExp(const Object* object, std::shared_ptr<const RegExp> pattern) {

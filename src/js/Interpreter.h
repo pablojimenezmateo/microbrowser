@@ -735,6 +735,13 @@ class Interpreter {
       interpreter_.active_scopes_.push_back(scope);
     }
     ~ScopeGuard() { interpreter_.active_scopes_.pop_back(); }
+    // Points the guard at a different scope without giving up the slot.
+    //
+    // One caller: the per-iteration environment a `for (let i = ...)` makes.
+    // The old scope is still reachable -- through whatever closure the body
+    // made, which is why it exists at all -- and the new one has to be rooted
+    // from the moment it replaces it, which is what this does.
+    void Retarget(Environment* scope) { interpreter_.active_scopes_.back() = scope; }
     ScopeGuard(const ScopeGuard&) = delete;
     ScopeGuard& operator=(const ScopeGuard&) = delete;
 

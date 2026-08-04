@@ -288,23 +288,43 @@ void Compiler::WhileStatement(const Node& node, bool is_do) {
 }
 
 void Compiler::ForStatement(const Node& node) {
-  // The loop's own scope holds the initializer's bindings, so `for (let i=0;;)`
-  // has one `i` for the whole loop -- which is what the tree-walker does, and
-  // is why a closure made in the body sees the last value.
+  // The loop's own scope holds the initializer's bindings. For a `var` head
+  // that is the whole story: one binding, and a closure made in the body sees
+  // whatever it ends on.
+  //
+  // A `let` or `const` head is different, and the difference is the one people
+  // hit: each iteration gets its *own* binding, so the three closures a
+  // `for (let i = 0; i < 3; i++)` loop makes see 0, 1 and 2 rather than 3, 3
+  // and 3. That is a fresh Environment per pass, copied from the last one --
+  // which is what CopyScope emits, below, at the two points the spec places it.
   std::string label = std::move(pending_label_);
   pending_label_.clear();
 
+  const Node* init = node.Child(0);
+  // Per-iteration only where it can be *observed*. A flattened function is one
+  // that creates no closures at all -- that is the condition it is chosen on --
+  // so nothing there can hold on to a binding, and there is no Environment to
+  // copy either.
+  const bool per_iteration = !function_.frame_locals && init != nullptr &&
+                             init->kind == NodeKind::VariableDeclaration &&
+                             (init->string == "let" || init->string == "const");
+
   OpenScope();
-  if (node.Child(0) != nullptr && node.Child(0)->kind == NodeKind::VariableDeclaration) {
-    for (const NodePtr& declarator : node.Child(0)->children) {
+  if (init != nullptr && init->kind == NodeKind::VariableDeclaration) {
+    for (const NodePtr& declarator : init->children) {
       if (declarator != nullptr && declarator->Child(0) != nullptr) {
         ReservePattern(*declarator->Child(0));
       }
     }
   }
   EnterScope();
-  if (node.Child(0) != nullptr) {
-    Statement(*node.Child(0));
+  if (init != nullptr) {
+    Statement(*init);
+  }
+  if (per_iteration) {
+    // The first copy, before the first test: iteration zero must not share a
+    // binding with the initializer's own scope either.
+    Emit(Op::CopyScope, 0, 0);
   }
 
   LoopContext loop;
@@ -326,7 +346,14 @@ void Compiler::ForStatement(const Node& node) {
   if (node.Child(3) != nullptr) {
     Statement(*node.Child(3));
   }
+  // `continue` lands here, which is *before* the copy rather than after it --
+  // deliberately. A `continue` still ends that iteration, so it still owes the
+  // next one a fresh binding, and the increment that follows has to run
+  // against the new one so the closure just captured keeps the old value.
   const std::uint32_t continue_target = Here();
+  if (per_iteration) {
+    Emit(Op::CopyScope, 0, 0);
+  }
   if (node.Child(2) != nullptr) {
     Expression(*node.Child(2));
     Emit(Op::Pop, 0, -1);

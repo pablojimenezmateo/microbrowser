@@ -368,6 +368,13 @@ class Environment {
   // Fills a reserved slot and registers its name, so a name lookup from
   // outside compiled code finds it from this point on and not before.
   void DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const);
+  // Copies every binding out of `other`, slots and names alike.
+  //
+  // One caller: the per-iteration environment a `for (let i = ...)` makes at
+  // the end of each pass. The layout has to match exactly, because the
+  // compiler resolved the body's names against it and the *next* iteration
+  // runs the same instructions -- so this is a copy rather than a rebuild.
+  void CopyBindingsFrom(const Environment& other);
 
  private:
   friend class Heap;

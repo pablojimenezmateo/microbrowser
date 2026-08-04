@@ -231,6 +231,16 @@ enum class Op : std::uint8_t {
   // second time round a loop, `x` before its own `let x` must still be a
   // ReferenceError.
   ClearLocals,  // a = packed base and count; see PackLocals
+  // Replaces the innermost scope with a fresh copy of itself.
+  //
+  // What makes `for (let i = 0; ...)` one binding *per iteration* rather than
+  // one for the whole loop -- which is the difference between `fs.map(f => f())`
+  // giving `0,1,2` and giving `3,3,3`. A closure made in the body captured the
+  // old Environment and keeps it; the next iteration reads and writes the new
+  // one. Emitted only for a `let` or `const` loop head, and only in a function
+  // whose scopes are on the heap: in a flattened one nothing can capture a
+  // binding, so there is nothing to tell the difference and nothing to copy.
+  CopyScope,
 
   // --- Iteration -----------------------------------------------------------
   // The cursor lives on the interpreter's iteration stack rather than on the

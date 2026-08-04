@@ -865,6 +865,27 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::PopScope:
         vm_.scopes.resize(vm_.scopes.size() - instruction.a);
         break;
+      case Op::CopyScope: {
+        // The per-iteration environment. The old one is not popped: a closure
+        // the body just made captured it and holds it alive through that
+        // capture, which is exactly the binding it is supposed to keep.
+        if (vm_.scopes.empty() || vm_.scopes.size() <= frame->scope_base) {
+          break;  // no scope of its own to copy; a `var` head takes this path
+        }
+        Environment* previous = vm_.scopes.back();
+        Environment* fresh = heap_.AllocateEnvironment(previous->Parent());
+        if (fresh == nullptr) {
+          pending = Throw("RangeError", "out of memory");
+          threw = true;
+          break;
+        }
+        // A copy rather than a rebuild, and the layout has to match exactly:
+        // the next iteration runs the same instructions, which resolved their
+        // names to the slots this scope was compiled with.
+        fresh->CopyBindingsFrom(*previous);
+        vm_.scopes.back() = fresh;
+        break;
+      }
       case Op::ClearLocals: {
         // Entering a block in a flattened function. Its slots go back to
         // reserved-but-unset, which is what makes the second time round a loop
