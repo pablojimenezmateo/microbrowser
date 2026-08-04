@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -61,6 +62,18 @@ bool ZlibInflate(std::span<const std::byte> input, std::size_t max_output,
 // handing it to a parser anyway means parsing whatever the corruption produced.
 bool GzipInflate(std::span<const std::byte> input, std::size_t max_output,
                  std::vector<std::byte>& out);
+
+// The uncompressed length a gzip member *claims*, from the ISIZE word in its
+// trailer. Absent when the input is too short to hold one.
+//
+// It is a claim and not a fact, so it is never a size to allocate. It is worth
+// asking anyway, because it is the one direction in which an attacker's number
+// can only work against them: a member claiming more than a caller's bound
+// cannot be within that bound, and refusing on the claim costs no decompression
+// at all. A member that lies the other way — claims little, expands to much —
+// gains nothing, because GzipInflate verifies the claim against what it
+// produced.
+std::optional<std::uint32_t> GzipDeclaredSize(std::span<const std::byte> input);
 
 // Adler-32 (RFC 1950). Exposed because PNG's zlib trailer is not the only place
 // it appears and a second implementation would be a second thing to get wrong.

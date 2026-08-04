@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "net/ContentEncoding.h"
 #include "net/CookieJar.h"
 #include "net/HttpMessage.h"
 #include "util/PerformanceCounters.h"
@@ -51,6 +52,55 @@ Url MustParse(std::string_view text) {
 
 PartitionKey KeyFor(std::string_view url, ContainerId container = ContainerId::Default()) {
   return PartitionKey::ForTopLevel(container, MustParse(url));
+}
+
+// --- Content coding fixtures, all written by zlib -----------------------------
+
+// gzip("hello hello hello world")
+constexpr std::uint8_t kGzipHello[] = {
+    0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xCB, 0x48,
+    0xCD, 0xC9, 0xC9, 0x57, 0xC8, 0x40, 0x22, 0xCB, 0xF3, 0x8B, 0x72, 0x52,
+    0x00, 0x26, 0xE6, 0x5A, 0x81, 0x17, 0x00, 0x00, 0x00};
+
+// zlib("hello hello hello world") -- what RFC 9110 means by `deflate`.
+constexpr std::uint8_t kZlibHello[] = {0x78, 0xDA, 0xCB, 0x48, 0xCD, 0xC9, 0xC9,
+                                       0x57, 0xC8, 0x40, 0x22, 0xCB, 0xF3, 0x8B,
+                                       0x72, 0x52, 0x00, 0x68, 0x7D, 0x08, 0xC5};
+
+// gzip(gzip("hello hello hello world")), for `Content-Encoding: gzip, gzip`.
+constexpr std::uint8_t kDoubleGzipHello[] = {
+    0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x93, 0xEF, 0xE6,
+    0x60, 0x00, 0x01, 0x26, 0xE6, 0xD3, 0x1E, 0x67, 0x4F, 0x9E, 0x0C, 0x3F, 0xE1,
+    0xA0, 0x74, 0xFA, 0x73, 0x77, 0x51, 0x10, 0x83, 0xDA, 0xB3, 0xA8, 0x46, 0x71,
+    0xA0, 0x04, 0x00, 0x8F, 0x9D, 0xE4, 0x13, 0x21, 0x00, 0x00, 0x00};
+
+// 132 bytes that become 100,000. A ratio of 758, which is what a bomb is: not
+// large in itself, large only relative to what arrived.
+constexpr std::uint8_t kGzipBomb[] = {
+    0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xED, 0xC1, 0x31, 0x01, 0x00,
+    0x00, 0x00, 0xC2, 0xA0, 0xF5, 0x4F, 0x6D, 0x0D, 0x0F, 0xA0, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x80, 0x57, 0x03, 0x7D, 0x95, 0x11, 0xD4, 0xA0, 0x86, 0x01, 0x00};
+
+net::HttpResponse Coded(std::string_view coding, const std::uint8_t* data, std::size_t size) {
+  net::HttpResponse response;
+  response.status = 200;
+  if (!coding.empty()) {
+    response.headers.Add("Content-Encoding", coding);
+  }
+  response.headers.Add("Content-Length", std::to_string(size));
+  const auto* bytes = reinterpret_cast<const std::byte*>(data);
+  response.body.assign(bytes, bytes + size);
+  return response;
+}
+
+std::string BodyText(const net::HttpResponse& response) {
+  return std::string(reinterpret_cast<const char*>(response.body.data()), response.body.size());
 }
 
 }  // namespace
@@ -441,6 +491,118 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     Expect(!net::ParseSetCookie(std::string_view("a=1\x01", 4), url, 0).has_value(),
            "and in a value");
     Expect(!net::ParseSetCookie("=novalue", url, 0).has_value(), "a cookie must have a name");
+  });
+
+  // --- Content coding -------------------------------------------------------
+
+  AddTest(tests, "ContentEncoding/GzipIsDecodedAndTheHeadersStopDescribingTheWire", [] {
+    net::HttpResponse response = Coded("gzip", kGzipHello, sizeof(kGzipHello));
+    Expect(net::DecodeContentEncoding(response) == net::DecodeStatus::Decoded, "gzip decodes");
+    ExpectEqString(BodyText(response), "hello hello hello world", "the body is the plain form");
+    Expect(!response.headers.Has("content-encoding"),
+           "a Content-Encoding left behind would make a second pass decode a plain body");
+    Expect(!response.headers.Has("content-length"),
+           "and a Content-Length that describes the wire form is a lie about the body");
+  });
+
+  AddTest(tests, "ContentEncoding/DeflateMeansZlibAndAlsoMeansRaw", [] {
+    net::HttpResponse wrapped = Coded("deflate", kZlibHello, sizeof(kZlibHello));
+    Expect(net::DecodeContentEncoding(wrapped) == net::DecodeStatus::Decoded,
+           "the zlib wrapper is what the specification says deflate is");
+    ExpectEqString(BodyText(wrapped), "hello hello hello world", "and it decodes");
+
+    // The raw form, which a meaningful share of servers send under the same
+    // name. Every browser accepts both, so a page cannot be built around us
+    // rejecting one.
+    net::HttpResponse raw = Coded("DEFLATE", kZlibHello + 2, sizeof(kZlibHello) - 6);
+    Expect(net::DecodeContentEncoding(raw) == net::DecodeStatus::Decoded,
+           "and the raw stream servers actually send under that name decodes too");
+    ExpectEqString(BodyText(raw), "hello hello hello world", "case-insensitively");
+  });
+
+  AddTest(tests, "ContentEncoding/CodingsComeOffInTheOrderTheyWentOn", [] {
+    net::HttpResponse response = Coded("gzip, gzip", kDoubleGzipHello, sizeof(kDoubleGzipHello));
+    Expect(net::DecodeContentEncoding(response) == net::DecodeStatus::Decoded,
+           "a chain is applied left to right and comes off right to left");
+    ExpectEqString(BodyText(response), "hello hello hello world", "both layers");
+  });
+
+  AddTest(tests, "ContentEncoding/AnAbsentOrIdentityCodingLeavesTheBodyAlone", [] {
+    net::HttpResponse none = Coded("", kGzipHello, sizeof(kGzipHello));
+    Expect(net::DecodeContentEncoding(none) == net::DecodeStatus::Identity, "no coding, no change");
+    ExpectEqInt(static_cast<long long>(none.body.size()), sizeof(kGzipHello),
+                "the body is untouched");
+    Expect(none.headers.Has("content-length"),
+           "and a response that was not decoded keeps the headers that still describe it");
+
+    net::HttpResponse identity = Coded("identity", kGzipHello, sizeof(kGzipHello));
+    Expect(net::DecodeContentEncoding(identity) == net::DecodeStatus::Identity,
+           "identity is spelled out by some servers and means the same thing");
+  });
+
+  // The bound is the whole reason this function exists, and the ratio is the
+  // half of it that catches a bomb sized to sit under the ceiling.
+  AddTest(tests, "ContentEncoding/AnExpansionRatioIsRefusedRatherThanTruncated", [] {
+    net::HttpResponse response = Coded("gzip", kGzipBomb, sizeof(kGzipBomb));
+    Expect(net::DecodeContentEncoding(response) == net::DecodeStatus::TooLarge,
+           "132 bytes may not become 100,000 under a ratio bound of 100");
+    Expect(response.body.size() != 65536,
+           "and must not come back truncated at the bound: a short document is one a parser "
+           "will happily misread");
+  });
+
+  AddTest(tests, "ContentEncoding/TheAbsoluteCeilingBindsIndependently", [] {
+    net::DecodeLimits limits;
+    limits.max_output = 1024;
+    limits.min_output = 1024;
+    net::HttpResponse response = Coded("gzip", kGzipBomb, sizeof(kGzipBomb));
+    Expect(net::DecodeContentEncoding(response, limits) == net::DecodeStatus::TooLarge,
+           "the ceiling applies whatever the ratio would have allowed");
+
+    // And the ratio applies whatever the ceiling would have allowed.
+    limits.max_output = 1024u * 1024u;
+    limits.min_output = 1024;
+    limits.max_ratio = 100;
+    net::HttpResponse again = Coded("gzip", kGzipBomb, sizeof(kGzipBomb));
+    Expect(net::DecodeContentEncoding(again, limits) == net::DecodeStatus::TooLarge,
+           "13,200 is what 132 bytes are allowed to become, ceiling or no ceiling");
+  });
+
+  AddTest(tests, "ContentEncoding/ACodingWeNeverAskedForFailsTheResponse", [] {
+    net::HttpResponse brotli = Coded("br", kGzipHello, sizeof(kGzipHello));
+    Expect(net::DecodeContentEncoding(brotli) == net::DecodeStatus::UnsupportedCoding,
+           "brotli is not in Accept-Encoding, so a body under it cannot be handed to a parser");
+
+    net::HttpResponse many = Coded("gzip, gzip, gzip, gzip, gzip", kGzipHello, sizeof(kGzipHello));
+    Expect(net::DecodeContentEncoding(many) == net::DecodeStatus::UnsupportedCoding,
+           "a coding list long enough to be a work request is not a response");
+  });
+
+  AddTest(tests, "ContentEncoding/AStreamThatDoesNotDecodeFailsTheResponse", [] {
+    // Two bytes gone from the middle of the deflate stream, with the header and
+    // the trailer intact, so this is the stream failing rather than the framing.
+    std::vector<std::uint8_t> gap(kGzipHello, kGzipHello + sizeof(kGzipHello));
+    gap.erase(gap.begin() + 12, gap.begin() + 14);
+    net::HttpResponse response = Coded("gzip", gap.data(), gap.size());
+    Expect(net::DecodeContentEncoding(response) == net::DecodeStatus::Malformed,
+           "a member with a hole in it is not a shorter body");
+
+    std::vector<std::uint8_t> corrupt(kGzipHello, kGzipHello + sizeof(kGzipHello));
+    corrupt[sizeof(kGzipHello) - 5] ^= 0xFFu;
+    net::HttpResponse checksum = Coded("gzip", corrupt.data(), corrupt.size());
+    Expect(net::DecodeContentEncoding(checksum) == net::DecodeStatus::Malformed,
+           "nor is one whose checksum does not hold");
+  });
+
+  AddTest(tests, "ContentEncoding/AcceptEncodingNamesExactlyWhatCanBeDecoded", [] {
+    // The two constants are one constant on purpose: advertising a coding the
+    // decoder does not implement turns every response using it into a failed
+    // load, which is ADR 0012's stub problem seen from the network side.
+    const std::string advertised = net::kAcceptedContentEncodings;
+    Expect(advertised.find("gzip") != std::string::npos, "gzip is advertised");
+    Expect(advertised.find("deflate") != std::string::npos, "and deflate");
+    Expect(advertised.find("br") == std::string::npos,
+           "and brotli is not, because ADR 0010 leaves it to an ADR of its own");
   });
 }
 

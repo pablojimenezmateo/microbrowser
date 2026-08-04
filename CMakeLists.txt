@@ -232,6 +232,7 @@ microbrowser_module(media
 
 microbrowser_module(net
   SOURCES
+    src/net/ContentEncoding.cpp
     src/net/CookieJar.cpp
     src/net/Fetch.cpp
     src/net/HttpCache.cpp
@@ -496,6 +497,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(content_encoding_fuzzer fuzz/ContentEncodingFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)

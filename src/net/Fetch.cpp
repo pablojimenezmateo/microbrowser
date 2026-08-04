@@ -3,6 +3,7 @@
 #include <array>
 #include <utility>
 
+#include "net/ContentEncoding.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/UserAgent.h"
@@ -79,7 +80,9 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   headers.Add("Host", host);
   headers.Add("User-Agent", util::kUserAgent);
   headers.Add("Accept-Language", "en-US");
-  headers.Add("Accept-Encoding", "identity");
+  // Exactly the set net::DecodeContentEncoding can undo. Advertising more than
+  // that turns every response using the difference into a failed load.
+  headers.Add("Accept-Encoding", kAcceptedContentEncodings);
   headers.Add("Connection", "close");
 
   for (const HttpHeaders::Field& field : options.headers.Fields()) {
@@ -210,6 +213,25 @@ bool FetchRequest::BeginExchange() {
 void FetchRequest::FinishResponse() {
   const url::Url url = verdict_.FinalUrl();
   HttpResponse response = parser_.TakeResponse();
+
+  // Before anything reads the body, and before the cache is offered it: what is
+  // stored, matched against a redirect, or handed to a parser is the decoded
+  // form, and there is no state in which a caller holds a body still under a
+  // coding it would have to know about.
+  switch (DecodeContentEncoding(response)) {
+    case DecodeStatus::Identity:
+    case DecodeStatus::Decoded:
+      break;
+    case DecodeStatus::UnsupportedCoding:
+      Fail("response uses a content coding we did not ask for");
+      return;
+    case DecodeStatus::TooLarge:
+      Fail("decompressed response exceeds its bound");
+      return;
+    case DecodeStatus::Malformed:
+      Fail("malformed compressed response");
+      return;
+  }
 
   // Cookies are stored under the partition this request was made in, which is
   // what makes a third party's Set-Cookie land in the jar for *this* top-level
@@ -346,6 +368,7 @@ bool FetchRequest::Advance() {
             return true;
           }
           progress = true;
+          AddPerformanceCounter(PerfCounterId::NetBytesReceived, read.bytes);
           if (!parser_.Consume(std::span<const std::byte>(buffer.data(), read.bytes))) {
             Fail(parser_.Error() != nullptr ? parser_.Error() : "malformed response");
             return true;

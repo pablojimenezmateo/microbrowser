@@ -101,6 +101,13 @@ namespace microbrowser::util {
   X(NetRequestsStarted, "net.requests_started")                                  \
   X(NetRequestsDeferred, "net.requests_deferred")                                \
   X(NetRequestTimeouts, "net.request_timeouts")                                  \
+  X(NetBytesReceived, "net.bytes_received")                                      \
+  X(NetBytesCoded, "net.bytes_coded")                                            \
+  X(NetBytesDecoded, "net.bytes_decoded")                                        \
+  X(NetContentDecodeFailures, "net.content_decode_failures")                     \
+  X(NetConnectionsReused, "net.connections_reused")                              \
+  X(NetConnectionsPooled, "net.connections_pooled")                              \
+  X(NetConnectionsClosedIdle, "net.connections_closed_idle")                     \
   /* --- html ---------------------------------------------------------------- */ \
   X(HtmlTokens, "html.tokens")                                                   \
   X(HtmlDocumentsParsed, "html.documents_parsed")                                \

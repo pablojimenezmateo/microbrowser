@@ -455,6 +455,17 @@ bool ZlibInflate(std::span<const std::byte> input, std::size_t max_output,
   return true;
 }
 
+std::optional<std::uint32_t> GzipDeclaredSize(std::span<const std::byte> input) {
+  if (input.size() < 18) {  // the smallest member that could hold a trailer
+    return std::nullopt;
+  }
+  const std::size_t at = input.size() - 4;
+  return static_cast<std::uint32_t>(input[at]) |
+         (static_cast<std::uint32_t>(input[at + 1]) << 8) |
+         (static_cast<std::uint32_t>(input[at + 2]) << 16) |
+         (static_cast<std::uint32_t>(input[at + 3]) << 24);
+}
+
 bool GzipInflate(std::span<const std::byte> input, std::size_t max_output,
                  std::vector<std::byte>& out) {
   out.clear();

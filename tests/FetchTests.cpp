@@ -86,6 +86,37 @@ FetchResult RunWithReferrer(const PrivacyPolicy& policy, ScriptedFactory& factor
 
 constexpr std::string_view kOk = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi";
 
+// gzip("hello hello hello world"), and 132 bytes that claim to be 100,000.
+// Both written by zlib; see NetTests for how they are regenerated.
+constexpr std::uint8_t kGzipHello[] = {
+    0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xCB, 0x48,
+    0xCD, 0xC9, 0xC9, 0x57, 0xC8, 0x40, 0x22, 0xCB, 0xF3, 0x8B, 0x72, 0x52,
+    0x00, 0x26, 0xE6, 0x5A, 0x81, 0x17, 0x00, 0x00, 0x00};
+
+constexpr std::uint8_t kGzipBomb[] = {
+    0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xED, 0xC1, 0x31, 0x01, 0x00,
+    0x00, 0x00, 0xC2, 0xA0, 0xF5, 0x4F, 0x6D, 0x0D, 0x0F, 0xA0, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x80, 0x57, 0x03, 0x7D, 0x95, 0x11, 0xD4, 0xA0, 0x86, 0x01, 0x00};
+
+// A 200 whose body is those bytes and whose headers say so. Written with an
+// explicit length rather than close-delimited, because that is what a server
+// sending a coded body does.
+template <std::size_t N>
+std::string GzipResponse(const std::uint8_t (&body)[N]) {
+  std::string text = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Encoding: gzip\r\n";
+  text += "Content-Length: " + std::to_string(N) + "\r\n\r\n";
+  for (const std::uint8_t byte : body) {
+    text.push_back(static_cast<char>(byte));
+  }
+  return text;
+}
+
 std::vector<std::byte> Bytes(std::string_view text) {
   std::vector<std::byte> out;
   out.reserve(text.size());
@@ -364,8 +395,10 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "locale exposure stays fixed");
     Expect(request.find("Accept-Language: fr-FR\r\n") == std::string::npos,
            "and the caller cannot replace it");
-    Expect(request.find("Accept-Encoding: identity\r\n") != std::string::npos,
-           "content coding stays explicit");
+    Expect(request.find("Accept-Encoding: gzip, deflate\r\n") != std::string::npos,
+           "content coding stays explicit, and names exactly what can be decoded");
+    ExpectEqInt(static_cast<long long>(CountOccurrences(request, "Accept-Encoding:")), 1,
+                "the caller's own Accept-Encoding does not join it");
     Expect(request.find("Connection: close\r\n") != std::string::npos, "one connection policy");
     Expect(request.find("User-Agent: fingerprint\r\n") == std::string::npos,
            "no caller-supplied user agent");
@@ -373,6 +406,35 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
                 "exactly one, and it is the one Fetch owns");
     Expect(request.find("X-Keep: yes\r\n") != std::string::npos,
            "ordinary application headers still travel");
+  });
+
+  AddTest(tests, "Fetch/DecodesAGzipBodyBeforeAnybodySeesIt", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, GzipResponse(kGzipHello)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult result = Run(policy, factory, cookies, cache, "https://example.com/page");
+    Expect(result.ok, result.error.empty() ? "fetch failed" : result.error.c_str());
+    ExpectEqString(BodyString(result.response), "hello hello hello world",
+                   "the caller gets the plain body, never the coded one");
+    Expect(!result.response.headers.Has("content-encoding"),
+           "and no header claiming it is still coded");
+  });
+
+  AddTest(tests, "Fetch/ADecompressionBombFailsTheRequestRatherThanTheProcess", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, GzipResponse(kGzipBomb)});
+    CookieJar cookies;
+    HttpCache cache;
+
+    const FetchResult result = Run(policy, factory, cookies, cache, "https://example.com/page");
+    Expect(!result.ok, "132 bytes that claim to be 100,000 do not become a response");
+    Expect(result.error.find("bound") != std::string::npos,
+           std::string("the failure should name the bound, and said: ") + result.error);
+    Expect(result.response.body.empty(), "and nothing partial comes back with it");
   });
 
   AddTest(tests, "Fetch/StoresAndSendsCookiesInTheRequestsOwnPartition", [] {

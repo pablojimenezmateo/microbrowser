@@ -24,6 +24,20 @@ constexpr T SaturatingAdd(T a, T b) {
   return b > static_cast<T>(limit - a) ? limit : static_cast<T>(a + b);
 }
 
+// Saturating unsigned multiplication: returns `a * b`, clamped to the type
+// maximum instead of wrapping. Use wherever a size is a count times a
+// per-element cost and either factor came from input — a wrapped product is a
+// bound that passes, which is worse than no bound at all.
+template <typename T>
+constexpr T SaturatingMul(T a, T b) {
+  static_assert(std::is_unsigned_v<T>, "SaturatingMul is for unsigned types");
+  if (a == 0 || b == 0) {
+    return T{0};
+  }
+  const T limit = std::numeric_limits<T>::max();
+  return a > static_cast<T>(limit / b) ? limit : static_cast<T>(a * b);
+}
+
 // Saturating signed addition. Use when an attacker-controlled delta is applied
 // to a signed timestamp or coordinate and wraparound would turn "far future"
 // into "already expired".
