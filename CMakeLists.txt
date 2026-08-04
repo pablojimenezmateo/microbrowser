@@ -200,6 +200,8 @@ microbrowser_module(css
   SOURCES
     src/css/BoxDeclarations.cpp
     src/css/Declarations.cpp
+    src/css/SelectorMatch.cpp
+    src/css/SelectorParse.cpp
     src/css/StyleResolver.cpp
     src/css/StyleSheet.cpp
     src/css/Tokenizer.cpp

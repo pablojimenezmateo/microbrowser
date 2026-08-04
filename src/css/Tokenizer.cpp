@@ -106,6 +106,7 @@ Token Scanner::ConsumeNumeric() {
   bool integer = true;
 
   if (At() == '+' || At() == '-') {
+    token.has_sign = true;
     text.push_back(input_[position_++]);
   }
   while (IsDigit(At())) {

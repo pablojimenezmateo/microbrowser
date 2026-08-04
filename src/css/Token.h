@@ -48,6 +48,12 @@ struct Token {
   std::string value;
   double number = 0.0;
   bool is_integer = false;
+  // Whether a numeric token was written with an explicit `+` or `-`. The value
+  // alone cannot say: `+3` and `3` are the same number. The An+B microsyntax of
+  // `:nth-child()` is the one grammar that cares — `2n +3` is a valid selector
+  // and `2n 3` is not — and reading the difference back out of the number is
+  // impossible once the sign is gone.
+  bool has_sign = false;
   // Hash tokens carry whether they could be an id selector. `#1x` is a valid
   // hash and not a valid id, and the difference decides whether a selector
   // parses.

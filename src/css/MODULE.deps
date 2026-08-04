@@ -12,8 +12,18 @@ max_tu_lines: 900
 # rather than a false positive: it is the spec's token list, and a token kind
 # added without a parser branch for it is a silent gap.
 budget: Kind             header_lines=35 public_methods=0  members=0
-budget: Token            header_lines=50 public_methods=2  members=5
-budget: SelectorPart     header_lines=45 public_methods=2  members=4
+# One member for `has_sign`: whether a numeric token was written with an
+# explicit sign. The An+B microsyntax of `:nth-child()` is the one CSS grammar
+# where `+3` and `3` are not the same token, and the difference cannot be
+# recovered from the value once the tokenizer has dropped it.
+budget: Token            header_lines=55 public_methods=2  members=6
+# Two members for the functional pseudo-classes of ADR 0016 §1: a nested
+# selector list for `:is()`/`:where()`/`:not()`, and the An+B of `:nth-child()`.
+# The ADR predicted this budget would fire and said why it should: a selector
+# list inside a selector list is a new kind of thing to store, and it is what
+# turns matching from a loop into a recursion.
+budget: SelectorPart     header_lines=50 public_methods=2  members=6
+budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
 budget: Selector         header_lines=25 public_methods=6  members=1

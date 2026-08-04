@@ -45,6 +45,36 @@ bool SelectorMatches(std::string_view selector_text, std::string_view html,
   return selectors.front().Matches(*target);
 }
 
+// The 1-based positions, among a container's element children, that a selector
+// picks: "1 3 5 " for the first, third and fifth. An `An+B` is a statement
+// about a whole sequence, and checking one element at a time hides exactly the
+// off-by-one at each end that the grammar is easiest to get wrong at.
+std::string MatchedChildren(std::string_view selector_text, std::string_view html,
+                            std::string_view container_tag) {
+  const std::vector<Selector> selectors = ParseSelectorList(selector_text);
+  Expect(!selectors.empty(), std::string("selector did not parse: ") + std::string(selector_text));
+  const std::unique_ptr<dom::Document> document = html::ParseDocument(html);
+  const Element* container = document->FirstElementByTagName(container_tag);
+  Expect(container != nullptr, "container element not found");
+  std::string out;
+  int index = 0;
+  for (const std::unique_ptr<dom::Node>& child : container->Children()) {
+    if (!child->IsElement()) {
+      continue;
+    }
+    ++index;
+    if (selectors.front().Matches(static_cast<const Element&>(*child))) {
+      out += std::to_string(index);
+      out.push_back(' ');
+    }
+  }
+  return out;
+}
+
+bool SelectorParses(std::string_view selector_text) {
+  return !ParseSelectorList(selector_text).empty();
+}
+
 }  // namespace
 
 void RegisterCssTests(std::vector<TestCase>& tests) {
@@ -288,6 +318,148 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
       Expect(sheet.rules.size() + sheet.skipped < 1000,
              std::string("runaway parse for: ") + std::string(input));
     }
+  });
+
+  AddTest(tests, "CssSelector/NotMatchesTheElementsItsArgumentDoesNot", [] {
+    Expect(SelectorMatches("p:not(.x)", "<p>a</p>", "p"), "no class, so :not(.x) holds");
+    Expect(!SelectorMatches("p:not(.x)", "<p class=x>a</p>", "p"), "and fails when it does");
+    // The argument is a *complex* selector, so it walks up from the element on
+    // its own. `:not(div p)` is not `:not(p)`.
+    Expect(!SelectorMatches("p:not(div p)", "<div><p>a</p></div>", "p"),
+           "a complex argument matched from the same element");
+    Expect(SelectorMatches("p:not(section p)", "<div><p>a</p></div>", "p"),
+           "and fails to match when its ancestor is wrong");
+    // A list: the element must match none of them.
+    Expect(!SelectorMatches("p:not(.x, .y)", "<p class=y>a</p>", "p"),
+           "one of two arguments matching is enough to reject");
+    Expect(SelectorMatches(".fraud:not(:empty)", "<div class=fraud>text</div>", "div"),
+           "a pseudo-class nests inside :not, which reddit's stylesheet does");
+    Expect(!SelectorMatches(".fraud:not(:empty)", "<div class=fraud></div>", "div"),
+           "and answers the other way when it is empty");
+    Expect(!SelectorParses("p:not()"), "an empty argument list is not a selector");
+  });
+
+  AddTest(tests, "CssSelector/IsAndWhereMatchAnyOfTheirArguments", [] {
+    Expect(SelectorMatches(":is(h1, h2, p)", "<p>a</p>", "p"), ":is matches the third");
+    Expect(!SelectorMatches(":is(h1, h2)", "<p>a</p>", "p"), "and nothing when none match");
+    Expect(SelectorMatches(":where(h1, p) span", "<p><span>a</span></p>", "span"),
+           ":where matches the same elements :is does");
+    // One `:is(...)` standing in for a dozen rules is how modern stylesheets
+    // compress, which is why failing to match it loses more than its count.
+    Expect(SelectorMatches(":is(.menu, .nav) > :is(a, button)",
+                           "<div class=nav><button>go</button></div>", "button"),
+           "an :is on both sides of a combinator");
+    Expect(SelectorMatches("a:not(:is(.x, .y))", "<a href=#>a</a>", "a"),
+           ":is nests inside :not");
+  });
+
+  AddTest(tests, "CssSelector/WhereContributesNoSpecificityAndIsAndNotContributeTheirMost", [] {
+    const auto specificity = [](std::string_view text) {
+      return ParseSelectorList(text).front().ComputeSpecificity();
+    };
+    // The entire point of `:where()`. Getting it wrong does not look like a
+    // selector bug -- it looks like a rendering bug, because the cascade order
+    // inverts and the wrong declaration wins.
+    Expect(specificity(":where(#id)") == specificity("*"), ":where() contributes zero");
+    Expect(specificity(":is(#id)") == specificity("#id"),
+           ":is() takes the specificity of its most specific argument");
+    Expect(specificity(":not(#id)") == specificity("#id"), "and so does :not()");
+    Expect(specificity(":is(p, .c, #id)") == specificity("#id"),
+           "the *most* specific argument, not the first or the last");
+    Expect(specificity(":where(#a) p") == specificity("p"),
+           ":where() is transparent to the rest of the selector");
+    Expect(specificity("li:nth-child(2n)") == specificity("li.c"),
+           "a functional pseudo-class still counts as one pseudo-class");
+  });
+
+  AddTest(tests, "CssSelector/NthChildImplementsTheWholeAnPlusBGrammar", [] {
+    const std::string_view list = "<ul><li>1</li><li>2</li><li>3</li><li>4</li><li>5</li>"
+                                 "<li>6</li><li>7</li></ul>";
+    const auto picked = [&](std::string_view selector) {
+      return MatchedChildren(selector, list, "ul");
+    };
+    ExpectEqString(picked("li:nth-child(odd)"), "1 3 5 7 ", "odd");
+    ExpectEqString(picked("li:nth-child(even)"), "2 4 6 ", "even");
+    ExpectEqString(picked("li:nth-child(3)"), "3 ", "a bare integer is B with A of zero");
+    ExpectEqString(picked("li:nth-child(2n)"), "2 4 6 ", "2n");
+    ExpectEqString(picked("li:nth-child(2n+1)"), "1 3 5 7 ", "2n+1, one dimension and one number");
+    ExpectEqString(picked("li:nth-child(2n-1)"), "1 3 5 7 ",
+                   "2n-1, where the -1 is inside the dimension's unit");
+    ExpectEqString(picked("li:nth-child(2n + 1)"), "1 3 5 7 ", "spaces around the sign");
+    ExpectEqString(picked("li:nth-child(2n- 1)"), "1 3 5 7 ",
+                   "2n- 1, where the sign is inside the unit and the digits are not");
+    ExpectEqString(picked("li:nth-child(n)"), "1 2 3 4 5 6 7 ", "n alone is every element");
+    ExpectEqString(picked("li:nth-child(+n)"), "1 2 3 4 5 6 7 ", "and so is +n");
+    ExpectEqString(picked("li:nth-child(n+4)"), "4 5 6 7 ", "n+4 is the fourth onwards");
+    ExpectEqString(picked("li:nth-child(-n+3)"), "1 2 3 ",
+                   "-n+3 is the first three, which is the one negative A that pages use");
+    ExpectEqString(picked("li:nth-child(-n-3)"), "", "-n-3 selects nothing at all");
+    ExpectEqString(picked("li:nth-child(0n+3)"), "3 ", "an explicit zero A");
+    ExpectEqString(picked("li:nth-child(1n+7)"), "7 ",
+                   "1n+7, which is what reddit writes for its comment listing");
+    ExpectEqString(picked("li:nth-last-child(2)"), "6 ", "counting from the end");
+    ExpectEqString(picked("li:nth-last-child(-n+2)"), "6 7 ", "the last two");
+  });
+
+  AddTest(tests, "CssSelector/NthOfTypeCountsOnlySiblingsWithTheSameTagName", [] {
+    const std::string_view mixed = "<ul><li>1</li><span>2</span><li>3</li><span>4</span>"
+                                  "<li>5</li></ul>";
+    ExpectEqString(MatchedChildren("li:nth-of-type(2)", mixed, "ul"), "3 ",
+                   "the second li is the third child");
+    ExpectEqString(MatchedChildren("li:nth-child(2)", mixed, "ul"), "",
+                   "and the second child is not an li at all");
+    ExpectEqString(MatchedChildren("span:nth-of-type(odd)", mixed, "ul"), "2 ",
+                   "odd within the spans, not within the children");
+    ExpectEqString(MatchedChildren("li:nth-last-of-type(1)", mixed, "ul"), "5 ",
+                   "the last of its type");
+  });
+
+  AddTest(tests, "CssSelector/AnInvalidAnPlusBDropsItsRuleRatherThanGuessing", [] {
+    // Every one of these is a selector no page meant to write. Matching them
+    // permissively would apply a rule to elements the author never named, which
+    // is harder to diagnose than the rule going missing.
+    for (const std::string_view text : {
+             "li:nth-child()", "li:nth-child(2n 1)", "li:nth-child(+ n)", "li:nth-child(n+)",
+             "li:nth-child(2n+)", "li:nth-child(an+b)", "li:nth-child(2.5n)", "li:nth-child(1.5)",
+             "li:nth-child(2n+1 extra)", "li:nth-child(2n of .x)", "li:nth-child(99999999999)",
+             "li:nth-child(2n-)", "li:nth-child(odd even)",
+         }) {
+      Expect(!SelectorParses(text), std::string("must not parse: ") + std::string(text));
+    }
+    // And the functional pseudo-classes this engine does not implement go the
+    // same way rather than becoming a stub that feature detection believes.
+    Expect(!SelectorParses("div:has(p)"), ":has() is priced separately by ADR 0016");
+    Expect(!SelectorParses("p:lang(en)"), ":lang() is not implemented");
+    Expect(!SelectorParses("p:not(!)"), "an argument that is not a selector invalidates :not()");
+  });
+
+  AddTest(tests, "CssSelector/NestedSelectorListsAreBounded", [] {
+    // A stylesheet is attacker-controlled input and the parser recurses over
+    // it, so the nesting is bounded for the same reason ADR 0009 bounds script.
+    const auto nested = [](int depth) {
+      std::string text;
+      for (int i = 0; i < depth; ++i) {
+        text += ":not(";
+      }
+      text += "a";
+      text.append(static_cast<std::size_t>(depth), ')');
+      return text;
+    };
+    Expect(SelectorParses(nested(css::kMaxSelectorNestingDepth)), "the bound itself parses");
+    Expect(!SelectorParses(nested(css::kMaxSelectorNestingDepth + 1)),
+           "one past it does not, rather than recursing as deep as the input asks");
+  });
+
+  AddTest(tests, "CssSelector/NotInvertsAPseudoClassTheEngineDoesNotImplement", [] {
+    // Recorded because it is a decision rather than an accident. An
+    // unimplemented pseudo-class never matches, so `:not()` of one always
+    // does. For `:hover` that is the right answer -- in a snapshot nothing is
+    // hovered, and reddit's video controls say `:not(:hover):not(:active)`
+    // meaning exactly the resting state. For `:checked` it will be wrong until
+    // ADR 0016 §2 makes that state a bit on the element.
+    Expect(SelectorMatches("p:not(:hover)", "<p>a</p>", "p"),
+           "nothing is hovered, so :not(:hover) holds");
+    Expect(!SelectorMatches("p:hover", "<p>a</p>", "p"), "while :hover itself still matches nothing");
   });
 
   AddTest(tests, "Css/AnUnquotedUrlSurvivesReconstruction", [] {
