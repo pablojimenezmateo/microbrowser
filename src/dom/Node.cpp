@@ -197,6 +197,16 @@ std::string Comment::Serialize() const {
   return "<!--" + data_ + "-->";
 }
 
+std::string DocumentFragment::Serialize() const {
+  // Its children and no markup of its own, which is what a fragment is: it
+  // has no tag, so serializing one is serializing what it holds.
+  std::string out;
+  for (const std::unique_ptr<Node>& child : Children()) {
+    out += child->Serialize();
+  }
+  return out;
+}
+
 std::string DocumentType::Serialize() const {
   return "<!DOCTYPE " + name_ + ">";
 }

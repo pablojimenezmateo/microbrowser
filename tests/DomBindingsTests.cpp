@@ -203,6 +203,52 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "div");
   });
 
+  // A fragment is a parentless bag of nodes that inserts as a unit. The point
+  // is what insertion does with it: a framework assembles a subtree detached
+  // and places it in one operation.
+  AddTest(tests, "DomBindings/ADocumentFragmentInsertsItsChildrenAndEmpties", [] {
+    ExpectScript(kPage,
+                 "var f = document.createDocumentFragment();"
+                 "f.appendChild(document.createElement('i'));"
+                 "f.appendChild(document.createElement('b'));"
+                 "document.body.appendChild(f);"
+                 "document.body.lastElementChild.tagName",
+                 "b");
+    // The fragment is emptied, not inserted: the body gains two children and
+    // no fragment, and the fragment is reusable rather than detached.
+    ExpectScript(kPage,
+                 "var f = document.createDocumentFragment();"
+                 "f.appendChild(document.createElement('i'));"
+                 "var before = document.body.children.length;"
+                 "document.body.appendChild(f);"
+                 "[document.body.children.length - before, f.children.length].join()",
+                 "1,0");
+    // Through insertBefore as well, which is the same funnel.
+    ExpectScript(kPage,
+                 "var f = document.createDocumentFragment();"
+                 "f.appendChild(document.createElement('i'));"
+                 "document.body.insertBefore(f, document.getElementById('list'));"
+                 "document.body.children[1].tagName",
+                 "i");
+    ExpectScript(kPage, "document.createDocumentFragment().nodeType", "11");
+    ExpectScript(kPage, "document.createDocumentFragment() instanceof DocumentFragment", "true");
+    ExpectScript(kPage, "document.createDocumentFragment() instanceof Node", "true");
+    // A fragment is a ParentNode: script queries the subtree it is building
+    // before inserting it, which is most of the reason to build it detached.
+    ExpectScript(kPage,
+                 "var f = document.createDocumentFragment();"
+                 "var d = document.createElement('div'); d.setAttribute('class','row');"
+                 "f.appendChild(d); f.querySelectorAll('.row').length",
+                 "1");
+
+    // Text and Comment share a base, which is what a polyfill patches once
+    // rather than twice.
+    ExpectScript(kPage, "document.createTextNode('x') instanceof CharacterData", "true");
+    ExpectScript(kPage, "document.createComment('x') instanceof CharacterData", "true");
+    ExpectScript(kPage, "document.createTextNode('x') instanceof Text", "true");
+    ExpectScript(kPage, "document.createTextNode('x') instanceof Comment", "false");
+  });
+
   AddTest(tests, "DomBindings/ElementsHaveATypeHierarchy", [] {
     // The chain, from the bottom up.
     ExpectScript(kPage, "document.body instanceof HTMLElement", "true");

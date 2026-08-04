@@ -303,6 +303,7 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
       case dom::Node::Kind::Element: return Value::Number(1);
       case dom::Node::Kind::Text: return Value::Number(3);
       case dom::Node::Kind::Comment: return Value::Number(8);
+      case dom::Node::Kind::DocumentFragment: return Value::Number(11);
       case dom::Node::Kind::Document: return Value::Number(9);
       case dom::Node::Kind::DocumentType: return Value::Number(10);
     }
@@ -615,6 +616,10 @@ void DomBindings::Install() {
       return Value::Null();
     }
     return owner->CreateElement(LowerCase(js::ToString(Argument(call.arguments, 1))));
+  });
+  method("createDocumentFragment", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    return owner == nullptr ? Value::Null() : owner->CreateDocumentFragment();
   });
   method("createComment", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);

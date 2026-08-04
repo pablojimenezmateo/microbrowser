@@ -13,8 +13,8 @@
 // The chain is the specification's, one link per name a page can reach:
 //
 //   Node <- Element <- HTMLElement <- HTMLDivElement, HTMLAnchorElement, ...
-//   Node <- Text
-//   Node <- Document
+//   Node <- CharacterData <- Text, Comment
+//   Node <- Document, DocumentFragment
 //
 // Per-tag interfaces are built on demand rather than up front. A page that
 // only ever makes a `<div>` should pay for one, and the list of tags with
@@ -147,8 +147,14 @@ void DomBindings::EnsureInterfaces() {
   for (const TagInterface& entry : kTagInterfaces) {
     MakeInterface(entry.interface, html_element);
   }
-  MakeInterface("Text", node);
-  MakeInterface("Comment", node);
+  // Text and Comment share a base, and it is not decoration: a polyfill that
+  // patches `data` or `length` patches CharacterData once rather than both.
+  const Value character_data = MakeInterface("CharacterData", node);
+  MakeInterface("Text", character_data);
+  MakeInterface("Comment", character_data);
+  // A fragment is a ParentNode: script queries the subtree it is building
+  // before it inserts it, which is most of the reason to build it detached.
+  InstallParentQueries(MakeInterface("DocumentFragment", node));
   // A Document is a ParentNode too: `document.querySelector` and
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));
@@ -169,6 +175,8 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
       return named("Text");
     case dom::Node::Kind::Comment:
       return named("Comment");
+    case dom::Node::Kind::DocumentFragment:
+      return named("DocumentFragment");
     case dom::Node::Kind::Document:
     case dom::Node::Kind::DocumentType:
       return named("Document");

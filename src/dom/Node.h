@@ -31,6 +31,13 @@ class Node {
     Element,
     Text,
     Comment,
+    // A parentless bag of nodes. Script builds a subtree in one of these and
+    // inserts it in a single operation, which is the point: inserting the
+    // fragment inserts its *children* and leaves the fragment empty, so a
+    // framework that assembles a hundred rows costs one insertion rather than
+    // a hundred. Nothing the HTML parser produces is one -- this exists for
+    // `document.createDocumentFragment`.
+    DocumentFragment,
   };
 
   explicit Node(Kind kind) : kind_(kind) {}
@@ -42,6 +49,7 @@ class Node {
   Kind GetKind() const { return kind_; }
   bool IsElement() const { return kind_ == Kind::Element; }
   bool IsText() const { return kind_ == Kind::Text; }
+  bool IsDocumentFragment() const { return kind_ == Kind::DocumentFragment; }
 
   Node* Parent() const { return parent_; }
   const std::vector<std::unique_ptr<Node>>& Children() const { return children_; }
@@ -165,6 +173,18 @@ class DocumentType : public Node {
 
  private:
   std::string name_;
+};
+
+// A subtree with no parent, inserted as a unit.
+//
+// Its own class rather than a bare Node so that a wrapper can name it and a
+// page can write `instanceof DocumentFragment`. It carries nothing of its own:
+// what makes it a fragment is what *insertion* does with it, which is in
+// Node::Append.
+class DocumentFragment : public Node {
+ public:
+  DocumentFragment() : Node(Kind::DocumentFragment) {}
+  std::string Serialize() const override;
 };
 
 class Document : public Node {

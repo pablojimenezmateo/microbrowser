@@ -48,6 +48,12 @@ std::unique_ptr<dom::Node> CopyNode(const dom::Node& node, bool deep) {
     case dom::Node::Kind::Text:
       copy = std::make_unique<dom::Text>(static_cast<const dom::Text&>(node).Data());
       break;
+    case dom::Node::Kind::DocumentFragment:
+      // A fragment clones to an empty fragment, and `deep` fills it below --
+      // which is what makes `template.content.cloneNode(true)` the way a page
+      // stamps out a repeated subtree.
+      copy = std::make_unique<dom::DocumentFragment>();
+      break;
     case dom::Node::Kind::Comment:
     case dom::Node::Kind::Document:
     case dom::Node::Kind::DocumentType:
@@ -257,6 +263,25 @@ bool DomBindings::DetachFromTree(dom::Node& child) {
 
 js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
                                         dom::Node* reference) {
+  // Inserting a fragment inserts its *children* and leaves it empty. That is
+  // what a fragment is for -- a framework assembles a subtree in one and
+  // places it in a single operation -- and it has to happen here rather than
+  // at each caller, because this is the funnel appendChild, insertBefore and
+  // replaceChild all come through.
+  //
+  // The fragment itself is not inserted and stays owned where it was, so a
+  // page that keeps a reference to it and fills it again gets an empty
+  // fragment rather than a detached one.
+  if (child != nullptr && child->IsDocumentFragment()) {
+    while (dom::Node* first = child->FirstChild()) {
+      std::unique_ptr<dom::Node> moved = child->Detach(first);
+      if (moved == nullptr) {
+        break;
+      }
+      parent.InsertBefore(std::move(moved), reference);
+    }
+    return WrapperFor(child);
+  }
   // A node with a parent is moved rather than refused, now that detaching is
   // possible: `parent.appendChild(existing)` is how a page reorders a list,
   // and it only works because the node survives leaving its old parent.
@@ -322,6 +347,13 @@ js::Value DomBindings::CreateElement(const std::string& tag_name) {
 
 js::Value DomBindings::CreateText(const std::string& text) {
   auto node = std::make_unique<dom::Text>(text);
+  dom::Node* raw = node.get();
+  unattached_.push_back(std::move(node));
+  return WrapperFor(raw);
+}
+
+js::Value DomBindings::CreateDocumentFragment() {
+  auto node = std::make_unique<dom::DocumentFragment>();
   dom::Node* raw = node.get();
   unattached_.push_back(std::move(node));
   return WrapperFor(raw);

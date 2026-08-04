@@ -63,6 +63,9 @@ class DomBindings {
   // A comment node. A framework uses one as a placeholder marker far more
   // often than a page author writes one.
   js::Value CreateComment(const std::string& data);
+  // A parentless bag of nodes. Inserting it inserts its children -- see
+  // InsertNodeBefore, which is where that happens.
+  js::Value CreateDocumentFragment();
   // Whether an element answers to one of the three selector forms this layer
   // supports. Shared by querySelector, querySelectorAll, matches and closest,
   // which would otherwise be four chances to disagree about what `.a` means.
