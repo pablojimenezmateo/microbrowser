@@ -81,6 +81,7 @@ class DomBindings {
   // bounded leak rather than an unbounded one.
   bool DetachFromTree(dom::Node& child);
   void ClearChildren(dom::Node& parent);
+  js::Value AdoptClone(std::unique_ptr<dom::Node> clone);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 
   js::Interpreter* interpreter_;

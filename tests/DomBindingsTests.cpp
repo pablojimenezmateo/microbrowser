@@ -630,6 +630,38 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "JSON.stringify(document.getElementById('d').dataset)", "{}");
   });
 
+  AddTest(tests, "DomBindings/CloningCopiesRatherThanShares", [] {
+    // Shallow by default, which catches out everyone who forgets the argument
+    // and is what the specification says.
+    ExpectScript(kPage,
+                 "const c = document.getElementById('list').cloneNode();"
+                 "c.tagName + ' ' + c.children.length + ' ' + c.getAttribute('id')",
+                 "div 0 list");
+    ExpectScript(kPage,
+                 "const c = document.getElementById('list').cloneNode(true);"
+                 "c.children.length + ' ' + c.textContent",
+                 "2 onetwo");
+    // A clone is a new node, not a second reference to the old one. Two
+    // parents pointing at one node is the shape of every "it changed when I
+    // edited the copy" bug.
+    ExpectScript(kPage,
+                 "const original = document.getElementById('list');"
+                 "const c = original.cloneNode(true);"
+                 "c.setAttribute('id', 'copy');"
+                 "original.getAttribute('id') + ' ' + c.getAttribute('id')",
+                 "list copy");
+    // And it is unattached until something appends it, like any created node.
+    ExpectScript(kPage,
+                 "const c = document.getElementById('list').cloneNode(true);"
+                 "(c.parentNode === null) + ' ' + (document.getElementsByTagName('div').length)",
+                 "true 1");
+    ExpectScript(kPage,
+                 "const c = document.getElementById('list').cloneNode(true);"
+                 "document.body.appendChild(c);"
+                 "document.getElementsByTagName('div').length",
+                 "2");
+  });
+
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {
     // The point of the whole layer: a change made by script is a change to the
     // document, not to a copy of it.

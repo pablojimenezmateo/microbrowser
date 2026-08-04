@@ -29,6 +29,43 @@ namespace {
 using js::NativeCall;
 using js::Value;
 
+// A copy of `node`, with its children when `deep`.
+//
+// Copied rather than shared: a clone is a new node, and two parents pointing
+// at one node is the shape of every "it moved when I edited the copy" bug.
+std::unique_ptr<dom::Node> CopyNode(const dom::Node& node, bool deep) {
+  std::unique_ptr<dom::Node> copy;
+  switch (node.GetKind()) {
+    case dom::Node::Kind::Element: {
+      const auto& element = static_cast<const dom::Element&>(node);
+      auto made = std::make_unique<dom::Element>(element.TagName());
+      for (const dom::Attribute& attribute : element.Attributes()) {
+        made->SetAttribute(attribute.name, attribute.value);
+      }
+      copy = std::move(made);
+      break;
+    }
+    case dom::Node::Kind::Text:
+      copy = std::make_unique<dom::Text>(static_cast<const dom::Text&>(node).Data());
+      break;
+    case dom::Node::Kind::Comment:
+    case dom::Node::Kind::Document:
+    case dom::Node::Kind::DocumentType:
+      // Cloning a document or a doctype is not something a page does, and
+      // producing an approximation of one would be worse than refusing.
+      return nullptr;
+  }
+  if (!deep) {
+    return copy;
+  }
+  for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+    if (std::unique_ptr<dom::Node> child_copy = CopyNode(*child, true)) {
+      copy->Append(std::move(child_copy));
+    }
+  }
+  return copy;
+}
+
 }  // namespace
 
 void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
@@ -98,6 +135,16 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
       wrapper.object->Set(name, native);
     }
   };
+  method("cloneNode", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "cloneNode called on a non-node");
+    }
+    // Shallow by default, which catches out everyone who forgets the argument
+    // and is what the specification says.
+    return owner->AdoptClone(CopyNode(*self, js::ToBoolean(Argument(call.arguments, 0))));
+  });
   method("removeChild", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
@@ -182,6 +229,17 @@ void DomBindings::ClearChildren(dom::Node& parent) {
     }
     detached_.push_back(std::move(owned));
   }
+}
+
+js::Value DomBindings::AdoptClone(std::unique_ptr<dom::Node> clone) {
+  if (clone == nullptr) {
+    return Value::Null();
+  }
+  // Owned here until something appends it, exactly like a created node: a
+  // clone has no parent, and a node's owner is its parent.
+  dom::Node* raw = clone.get();
+  unattached_.push_back(std::move(clone));
+  return WrapperFor(raw);
 }
 
 bool DomBindings::DetachFromTree(dom::Node& child) {
