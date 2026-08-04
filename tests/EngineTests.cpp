@@ -133,7 +133,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(pending[0], "b.js", "named as it was written");
 
     page.AddScript(0, "globalThis.log += 'b'; console.log('external ran');");
-    page.RunScripts();
+    page.RunScripts(0);
     const std::vector<std::string>& output = page.ConsoleOutput();
     Expect(!output.empty(), "the external script ran");
     ExpectEqString(output.front(), "external ran", "and it was the fetched source");
@@ -153,7 +153,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/");
     ExpectEqInt(static_cast<long long>(page.PendingScripts().size()), 1, "one external");
     // Nothing supplies it, which is what a failed fetch looks like from here.
-    page.RunScripts();
+    page.RunScripts(0);
     Expect(!page.ConsoleOutput().empty(), "the inline script after it still ran");
     ExpectEqString(page.ConsoleOutput().front(), "still ran", "with its own output");
   });
@@ -165,8 +165,8 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     engine::Page page(fonts.catalog);
     page.Load("<html><body><script>console.log('once');</script></body></html>",
               "https://example.org/");
-    page.RunScripts();
-    page.RunScripts();
+    page.RunScripts(0);
+    page.RunScripts(0);
     ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 1, "one line, not two");
   });
 
@@ -186,7 +186,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "});"
         "</script></body></html>",
         "https://example.org/");
-    page.RunScripts();
+    page.RunScripts(0);
     page.Layout(800.0f);
 
     // Inside the link's text, which is where a reader would click it.
@@ -216,7 +216,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "}"
         "</script></body></html>",
         "https://example.org/");
-    page.RunScripts();
+    page.RunScripts(0);
     page.Layout(800.0f);
     gfx::DisplayList list;
     page.Paint(list, 0.0f);

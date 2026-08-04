@@ -11,7 +11,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # docs/adr/0008-dom-bindings.md.
 allow: util js dom
 
-public: DomBindings.h
+public: DomBindings.h Timers.h
 
 extern:
 
@@ -26,3 +26,9 @@ max_tu_lines: 700
 # parent, so one without a parent needs somewhere to live -- and handing script
 # a node it owns would put a raw pointer's lifetime in a page's hands.
 budget: DomBindings header_lines=90 public_methods=8 members=6
+# The timer queue. Two members: the timers and the counter that names them.
+# The callbacks are deliberately not here -- they live in the JavaScript heap,
+# because the collector cannot see a value in a C++ field and a callback it
+# cannot see is one it frees while the timer still points at it.
+budget: TimerQueue  header_lines=50 public_methods=6 members=2
+budget: Timer       header_lines=20 public_methods=0 members=4

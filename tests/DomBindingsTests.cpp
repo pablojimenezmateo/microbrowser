@@ -5,6 +5,7 @@
 
 #include "TestSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/Timers.h"
 #include "html/TreeBuilder.h"
 #include "js/Interpreter.h"
 
@@ -347,6 +348,99 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // inline arrow cannot be removed -- and is what every browser does.
     ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "10",
                    "the named handler was removed and the other still ran");
+  });
+
+  AddTest(tests, "Timers/NothingScheduledMeansTheLoopMayBlock", [] {
+    // The property the whole zero-idle-CPU invariant rests on: a page with no
+    // timer pending hands back nothing, and the idle policy turns nothing into
+    // an indefinite block rather than a wakeup.
+    js::Interpreter interpreter;
+    bindings::TimerQueue timers;
+    timers.Install(interpreter, 1000);
+    Expect(!timers.NextDelay(1000).has_value(), "no timers, no deadline");
+
+    interpreter.Run("setTimeout(() => {}, 250);");
+    const std::optional<std::uint32_t> delay = timers.NextDelay(1000);
+    Expect(delay.has_value(), "one timer, one deadline");
+    ExpectEqInt(static_cast<long long>(*delay), 250, "and it is how long until it is due");
+    // A deadline already passed is zero rather than negative, and the idle
+    // policy turns a zero into one sleep rather than a spin.
+    ExpectEqInt(static_cast<long long>(*timers.NextDelay(9999)), 0, "an overdue timer is zero");
+  });
+
+  AddTest(tests, "Timers/ATimerRunsOnceWhenItIsDue", [] {
+    js::Interpreter interpreter;
+    bindings::TimerQueue timers;
+    timers.Install(interpreter, 0);
+    interpreter.Run("globalThis.n = 0; setTimeout(() => { n++ }, 100);");
+
+    Expect(!timers.RunDue(interpreter, 50), "not yet due");
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "0", "and it did not run");
+    Expect(timers.RunDue(interpreter, 100), "due now");
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "1", "so it ran");
+    Expect(!timers.RunDue(interpreter, 500), "and is gone");
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "1", "not run twice");
+    Expect(!timers.NextDelay(500).has_value(), "leaving nothing scheduled");
+  });
+
+  AddTest(tests, "Timers/AnIntervalReschedulesItself", [] {
+    js::Interpreter interpreter;
+    bindings::TimerQueue timers;
+    timers.Install(interpreter, 0);
+    interpreter.Run("globalThis.n = 0; globalThis.id = setInterval(() => { n++ }, 10);");
+    timers.RunDue(interpreter, 10);
+    timers.RunDue(interpreter, 20);
+    timers.RunDue(interpreter, 30);
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "3", "three times");
+    interpreter.Run("clearInterval(id);");
+    timers.RunDue(interpreter, 40);
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "3", "and stops when cleared");
+    Expect(!timers.NextDelay(40).has_value(), "with nothing left scheduled");
+  });
+
+  AddTest(tests, "Timers/AZeroDelayTimerScheduledDuringAPassWaitsForTheNext", [] {
+    // The bound that stops a page spinning the loop inside a single turn. A
+    // callback that schedules another with no delay would otherwise be run in
+    // the same pass, forever, without the loop ever getting back control.
+    js::Interpreter interpreter;
+    bindings::TimerQueue timers;
+    timers.Install(interpreter, 0);
+    interpreter.Run(
+        "globalThis.n = 0;"
+        "globalThis.again = () => { n++; setTimeout(again, 0) };"
+        "setTimeout(again, 0);");
+    Expect(timers.RunDue(interpreter, 0), "the first one ran");
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "1",
+                   "once, not forever -- the one it scheduled waits for the next pass");
+    timers.RunDue(interpreter, 0);
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "2", "and then once more");
+  });
+
+  AddTest(tests, "Timers/CancellingRemovesTheCallbackAndNotOnlyTheTimer", [] {
+    // Or cancelling would leak the closure for as long as the page lives,
+    // which is the shape of leak a page with a lot of cancelled timers has.
+    js::Interpreter interpreter;
+    bindings::TimerQueue timers;
+    timers.Install(interpreter, 0);
+    interpreter.Run(
+        "globalThis.n = 0;"
+        "const id = setTimeout(() => { n++ }, 10);"
+        "clearTimeout(id);");
+    Expect(!timers.NextDelay(0).has_value(), "the timer is gone");
+    Expect(!timers.RunDue(interpreter, 100), "and never runs");
+    ExpectEqString(js::ToString(interpreter.Run("'' + n").value), "0", "so nothing happened");
+  });
+
+  AddTest(tests, "Timers/AStringCallbackIsRefusedRatherThanEvaluated", [] {
+    // `setTimeout('code()')` is `eval` by another name, and there is no path
+    // from a string to running code in this engine. Refused where it is
+    // written rather than ignored silently.
+    js::Interpreter interpreter;
+    bindings::TimerQueue timers;
+    timers.Install(interpreter, 0);
+    ExpectEqString(js::ToString(
+                       interpreter.Run("try { setTimeout('n++', 0) } catch (e) { e.name }").value),
+                   "TypeError", "a string is not a callback");
   });
 
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {

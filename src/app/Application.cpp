@@ -142,6 +142,9 @@ bool Application::RunOneIteration() {
   // disappears and the messages arrive over a socket instead; nothing else in
   // this function changes.
   engine_.HandlePendingMessages();
+  // Due timers run at the top of a turn, before anything is painted, so a
+  // callback that changes the page is on screen in the same frame.
+  engine_.RunDueTimers();
   ConsumeEngineMessages();
 
   if (repaint_pending_) {
@@ -154,10 +157,11 @@ bool Application::WaitAndDrainEvents() {
   IdleWaitState state;
   state.repaint_pending = repaint_pending_;
   state.messages_pending = channel_.PendingForEngine() > 0 || channel_.PendingForUi() > 0;
-  // No animations, timers, or blinking caret exist yet, so there is genuinely
-  // nothing scheduled and the loop is free to block indefinitely. This is what
-  // makes idle CPU zero, and it is the property every later feature has to
-  // justify breaking.
+  // The page's soonest timer, and nothing else. A page with none pending hands
+  // back nothing and the loop blocks indefinitely, which is what keeps idle CPU
+  // at zero -- the deadline exists only while a page is actually waiting for
+  // something, and disappears the moment it stops.
+  state.next_deadline_ms = engine_.NextTimerDelay();
   const IdleWaitDecision decision = ChooseIdleWait(state);
 
   std::optional<platform::InputEvent> translated;

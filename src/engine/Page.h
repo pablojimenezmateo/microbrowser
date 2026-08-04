@@ -83,7 +83,14 @@ class Page : private layout::ImageProvider {
   void AddScript(std::size_t pending_index, std::string source);
   // Runs the document's scripts. Idempotent, so a caller that fetches
   // subresources first and one that does not can both end with it.
-  void RunScripts();
+  void RunScripts(std::int64_t now_ms);
+
+  // Milliseconds until the page's soonest timer, or nothing when it has none.
+  // The loop asks this to decide how long it may sleep.
+  std::optional<std::uint32_t> NextTimerDelay(std::int64_t now_ms) const;
+  // Runs every timer due now. True when any ran and the page needs laying out
+  // again.
+  bool RunDueTimers(std::int64_t now_ms);
 
   // Adds the fetched stylesheet for `PendingStyleSheets()[pending_index]`.
   // Author-origin cascade order is the document order of <style> and <link>,

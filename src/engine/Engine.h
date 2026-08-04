@@ -39,6 +39,14 @@ class Engine {
   // may be pending.
   bool HandlePendingMessages();
 
+  // Milliseconds until the page's soonest timer, or nothing when it has none.
+  // The loop asks this to decide how long it may sleep, which is what keeps a
+  // page with nothing scheduled from ever waking it.
+  std::optional<std::uint32_t> NextTimerDelay() const;
+  // Runs every timer that is due, and repaints when one changed the page.
+  // True when anything ran.
+  bool RunDueTimers();
+
   const std::string& Title() const { return page_.Title(); }
   const std::string& Url() const { return page_.Url(); }
   gfx::IntSize ViewportSize() const { return viewport_size_; }

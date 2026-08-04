@@ -56,7 +56,8 @@ void PageScript::AddFetched(std::size_t index, std::string source) {
   slots_[pending_slots_[index]] = std::move(source);
 }
 
-void PageScript::Run(dom::Document& document, const std::string& url) {
+void PageScript::Run(dom::Document& document, const std::string& url,
+                     std::int64_t now_ms) {
   if (ran_) {
     return;
   }
@@ -67,6 +68,7 @@ void PageScript::Run(dom::Document& document, const std::string& url) {
   interpreter_ = std::make_unique<js::Interpreter>();
   bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url);
   bindings_->Install();
+  timers_.Install(*interpreter_, now_ms);
 
   for (const std::optional<std::string>& source : slots_) {
     if (!source.has_value()) {
@@ -77,6 +79,16 @@ void PageScript::Run(dom::Document& document, const std::string& url) {
     // why one broken analytics tag does not blank a site.
     (void)interpreter_->Run(*source);
   }
+}
+
+std::optional<std::uint32_t> PageScript::NextTimerDelay(std::int64_t now_ms) const {
+  // A page that ran no script can have no timers, and asking costs nothing --
+  // which is what keeps a static document from ever waking the loop.
+  return interpreter_ == nullptr ? std::nullopt : timers_.NextDelay(now_ms);
+}
+
+bool PageScript::RunDueTimers(std::int64_t now_ms) {
+  return interpreter_ != nullptr && timers_.RunDue(*interpreter_, now_ms);
 }
 
 bool PageScript::DispatchClick(dom::Element& target) {

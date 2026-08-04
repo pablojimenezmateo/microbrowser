@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "bindings/DomBindings.h"
+#include "bindings/Timers.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 
@@ -54,7 +56,17 @@ class PageScript {
   // Runs everything Collect found, in document order. Idempotent: calling it
   // twice runs nothing the second time, so a caller that fetches subresources
   // and a caller that does not can both end with it.
-  void Run(dom::Document& document, const std::string& url);
+  // `now_ms` is the epoch a timer's delay is measured from. Passed in for the
+  // reason the loader takes a time: two decisions inside one turn must not
+  // disagree about what time it is.
+  void Run(dom::Document& document, const std::string& url, std::int64_t now_ms);
+
+  // Milliseconds until the soonest timer, or nothing when none is pending --
+  // which is the answer that lets the loop block rather than wake.
+  std::optional<std::uint32_t> NextTimerDelay(std::int64_t now_ms) const;
+  // Runs every timer due now. True when any ran, which is the caller's signal
+  // that the document may have changed.
+  bool RunDueTimers(std::int64_t now_ms);
 
   // Anything the page wrote with `console.log`, in order. Collected rather
   // than printed: a page must not be able to write to the terminal the browser
@@ -80,6 +92,7 @@ class PageScript {
   std::vector<std::string> pending_urls_;
   std::vector<std::size_t> pending_slots_;
   bool ran_ = false;
+  bindings::TimerQueue timers_;
 };
 
 }  // namespace microbrowser::engine

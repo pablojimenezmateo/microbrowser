@@ -63,6 +63,16 @@ std::int64_t NowSeconds() {
       .count();
 }
 
+// A steady clock, unlike the one above. Cache and cookie expiry are about wall
+// time and must follow it; a timer's delay is about elapsed time and must not
+// -- a page whose `setTimeout` fired early because the machine's clock was
+// corrected is a page that broke for a reason nobody will find.
+std::int64_t NowMilliseconds() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+
 // The blank document. Not an empty string: "" parses to a document with a body
 // too, but saying it here means about:blank is a real page rather than a
 // failure that happens to look like one.
@@ -158,6 +168,18 @@ bool Engine::HandlePendingMessages() {
   }
 
   return produced_output;
+}
+
+std::optional<std::uint32_t> Engine::NextTimerDelay() const {
+  return page_.NextTimerDelay(NowMilliseconds());
+}
+
+bool Engine::RunDueTimers() {
+  if (!page_.RunDueTimers(NowMilliseconds())) {
+    return false;
+  }
+  LayoutAndPaint();
+  return true;
 }
 
 bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
@@ -314,7 +336,7 @@ void Engine::LoadSubresources(bool bypass_cache) {
       AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
     }
   }
-  page_.RunScripts();
+  page_.RunScripts(NowMilliseconds());
 
   for (const std::string& src : page_.PendingImages()) {
     const Loader::Result fetched =

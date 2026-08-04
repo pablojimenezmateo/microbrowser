@@ -255,11 +255,11 @@ void Page::AddScript(std::size_t pending_index, std::string source) {
   script_.AddFetched(pending_index, std::move(source));
 }
 
-void Page::RunScripts() {
+void Page::RunScripts(std::int64_t now_ms) {
   if (document_ == nullptr) {
     return;
   }
-  script_.Run(*document_, url_);
+  script_.Run(*document_, url_, now_ms);
   // A script can change the tree, so anything derived from it is stale. The
   // box tree is dropped rather than patched: incremental layout is a later
   // decision and a wrong one made early here would be invisible.
@@ -513,6 +513,18 @@ ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
   outcome.ran = script_.HasListeners();
   outcome.prevented = script_.DispatchClick(*const_cast<dom::Element*>(target));
   return outcome;
+}
+
+std::optional<std::uint32_t> Page::NextTimerDelay(std::int64_t now_ms) const {
+  return script_.NextTimerDelay(now_ms);
+}
+
+bool Page::RunDueTimers(std::int64_t now_ms) {
+  if (!script_.RunDueTimers(now_ms)) {
+    return false;
+  }
+  InvalidateLayout();
+  return true;
 }
 
 void Page::InvalidateLayout() {
