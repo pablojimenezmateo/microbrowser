@@ -96,7 +96,19 @@ void PageScript::Run(dom::Document& document, const std::string& url,
     // all come to look the same from outside.
     const js::Result result = interpreter_->Run(*source);
     if (result.completion == js::Completion::Throw) {
-      errors_.push_back(SourceName(slot) + ": " + js::ToString(result.value));
+      std::string report = SourceName(slot) + ": " + js::ToString(result.value);
+      // The stack when the thrown value carries one, which every error the
+      // engine makes now does. "undefined is not a function" names the fault
+      // and not the place, and on a page with a megabyte of script the place
+      // is the entire question.
+      if (result.value.IsObject()) {
+        if (const js::Value* stack = result.value.object->Get("stack")) {
+          if (stack->type == js::ValueType::String) {
+            report += "\n    " + stack->AsString();
+          }
+        }
+      }
+      errors_.push_back(std::move(report));
     }
   }
 }
