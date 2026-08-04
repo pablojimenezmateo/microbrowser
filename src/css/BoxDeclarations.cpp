@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -194,6 +195,49 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     } else {
       style.max_height = parsed;
     }
+    return true;
+  }
+
+  if (property == "aspect-ratio") {
+    // `auto`, one number, or `w / h`. The `auto <ratio>` form of the spec --
+    // a replaced element's own ratio, falling back to the stated one -- is not
+    // here: nothing yet asks an image for its ratio separately from its size,
+    // and accepting the spelling while ignoring the `auto` half would be a
+    // value that means something different from what it says.
+    if (value == "auto") {
+      style.aspect_ratio = 0.0f;
+      return true;
+    }
+    // `16/9` is one word and `16 / 9` is three, because the tokenizer keeps the
+    // whitespace it was written with. Joining the words first means the two
+    // spellings reach the same parser rather than two that can disagree.
+    std::string joined;
+    for (const std::string_view part : SplitWords(value)) {
+      joined += part;
+    }
+    const std::size_t slash = joined.find('/');
+    const std::string_view numerator(joined.data(), std::min(slash, joined.size()));
+    const std::optional<double> first = util::ParseDouble(numerator);
+    if (!first.has_value() ||
+        (slash != std::string::npos && joined.find('/', slash + 1) != std::string::npos)) {
+      return false;
+    }
+    const std::optional<double> second =
+        slash == std::string::npos
+            ? std::optional<double>(1.0)
+            : util::ParseDouble(std::string_view(joined).substr(slash + 1));
+    if (!second.has_value()) {
+      return false;
+    }
+    const double width = *first;
+    const double height = *second;
+    // A degenerate ratio is not a ratio. Zero on either side is `auto` per the
+    // specification, and a negative one is invalid; both come out here as "no
+    // preferred ratio", which is what the layout reads a zero as.
+    if (!(width > 0.0) || !(height > 0.0) || !(width / height < 1e6)) {
+      return width >= 0.0 && height >= 0.0;
+    }
+    style.aspect_ratio = static_cast<float>(width / height);
     return true;
   }
 

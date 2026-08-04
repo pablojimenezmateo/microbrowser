@@ -235,6 +235,15 @@ struct ComputedStyle {
   Length min_height = Length::Pixels(0.0f);
   Length max_height = Length::Auto();
 
+  // `aspect-ratio`, as width divided by height. Zero is `auto`, which is the
+  // initial value and means the box has no preferred ratio at all.
+  //
+  // One number rather than the pair the property is written as, because nothing
+  // downstream needs the two apart -- and because a ratio kept as two integers
+  // has a second way to say `auto` (0/0) that every reader would have to
+  // remember to check.
+  float aspect_ratio = 0.0f;
+
   // A used size, clamped by its bounds. Applied after a size is decided by
   // whatever decided it -- the block model, shrink-to-fit, or the flex
   // algorithm -- which is what lets one rule serve all three.

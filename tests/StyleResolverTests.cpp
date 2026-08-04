@@ -148,6 +148,12 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(!SupportsDeclaration("width", "calc(100% - 1em)"),
            "including the calc forms this engine cannot represent");
     Expect(!SupportsDeclaration("width", "1vw"), "and the units it does not have");
+    Expect(SupportsDeclaration("aspect-ratio", "16 / 9"), "aspect-ratio, in both spellings");
+    Expect(SupportsDeclaration("aspect-ratio", "16/9"), "of the same ratio");
+    Expect(!SupportsDeclaration("aspect-ratio", "auto 16/9"),
+           "but not the form that asks a replaced element for its own ratio, which nothing "
+           "here can answer");
+    Expect(!SupportsDeclaration("aspect-ratio", "16 / 9 / 4"), "nor a third term");
     Expect(SupportsDeclaration("--anything", "whatever it likes"),
            "a custom property has no grammar to fail");
     Expect(!SupportsDeclaration("background", "linear-gradient(red, blue)"),

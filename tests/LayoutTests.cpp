@@ -1081,6 +1081,39 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(strokes), 1, "exactly one border is painted, not two");
   });
 
+  // `aspect-ratio` is how a page reserves space for media before the media
+  // arrives, which is what reddit uses it for. A box that ignored it collapses
+  // to nothing and the page below it moves once the image loads.
+  AddTest(tests, "Layout/GivesABoxTheHeightItsAspectRatioAsksFor", [] {
+    const LaidOut wide =
+        Run("<div id=a></div>", "body { margin: 0 } div { width: 300px; aspect-ratio: 3 / 1 }");
+    Expect(FindBox(*wide.root, "div")->Geometry().content.height == 100.0f,
+           "an empty box with a width and a ratio is as tall as the ratio says");
+
+    const LaidOut stated =
+        Run("<div id=a></div>",
+            "body { margin: 0 } div { width: 300px; height: 20px; aspect-ratio: 3 / 1 }");
+    Expect(FindBox(*stated.root, "div")->Geometry().content.height == 20.0f,
+           "and a stated height still wins: the ratio only fills in an automatic one");
+
+    const LaidOut single =
+        Run("<div id=a></div>", "body { margin: 0 } div { width: 40px; aspect-ratio: 2 }");
+    Expect(FindBox(*single.root, "div")->Geometry().content.height == 20.0f,
+           "a lone number is a ratio against one");
+
+    const LaidOut percent =
+        Run("<div id=a></div>", "body { margin: 0 } div { width: 50%; aspect-ratio: 4/1 }",
+            400.0f);
+    Expect(FindBox(*percent.root, "div")->Geometry().content.height == 50.0f,
+           "the width it divides is the used one, not the declared one");
+
+    const LaidOut degenerate =
+        Run("<div id=a></div>", "body { margin: 0 } div { width: 300px; aspect-ratio: 0 / 1 }");
+    Expect(FindBox(*degenerate.root, "div")->Geometry().content.height == 0.0f,
+           "a zero ratio is `auto` per the specification, which for an empty box is no height "
+           "at all rather than a division nobody can draw");
+  });
+
   AddTest(tests, "Layout/PaintsNothingForAnEmptyDocument", [] {
     const LaidOut result = Run("", "");
     gfx::DisplayList list;

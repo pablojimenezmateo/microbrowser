@@ -80,6 +80,16 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
       }
     }
   }
+  // An aspect ratio with the other axis known, which is what reserves the box
+  // for an image before the image has arrived. Checked before the image's own
+  // size, because a page that states a ratio means it to win over one.
+  if (style.aspect_ratio > 0.0f) {
+    const css::Length& other = horizontal ? style.height : style.width;
+    if (!other.IsAuto() && !other.IsPercent()) {
+      const float extent = std::max(0.0f, other.Resolve(style.font_size, 0.0f));
+      return horizontal ? extent * style.aspect_ratio : extent / style.aspect_ratio;
+    }
+  }
   if (box.Image() != nullptr && box.Image()->IsValid()) {
     return static_cast<float>(horizontal ? box.Image()->Width() : box.Image()->Height());
   }
@@ -659,6 +669,13 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
   if (!style.height.IsAuto() && !style.height.IsPercent()) {
     content_height = style.height.Resolve(style.font_size, content_height);
+  } else if (style.aspect_ratio > 0.0f) {
+    // `aspect-ratio` with an automatic height and a width that is known: the
+    // height comes from the ratio rather than from the content. This is where
+    // a media box reserves its own space before anything is in it, which is
+    // what the property is for -- and why it is checked only in the `auto`
+    // branch, since a stated height is still the stated height.
+    content_height = content_width / style.aspect_ratio;
   }
   if (forced != nullptr && forced->content_height.has_value()) {
     content_height = *forced->content_height;  // same reasoning as the width above
