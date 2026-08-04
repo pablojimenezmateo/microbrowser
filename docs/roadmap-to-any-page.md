@@ -42,6 +42,12 @@ The measurement that sets this phase: **`GET https://www.reddit.com/` returns an
 challenge, not a page.** Getting past it needs seven small bindings, none of which was on any
 roadmap. Everything else in this phase is what makes the page behind it legible.
 
+> Re-measured 2026-08-04 after the engine started sending a `User-Agent` at all, which it previously
+> did not: `www.reddit.com` still answers "Please wait for verification", so this phase's premise is
+> unchanged. **`old.reddit.com` — ADR 0007's actual target #2 — now renders**, after that header
+> plus two layout fixes (`overflow` wrongly applied to inline boxes, and `display: inline-block`
+> never implemented). The two reddits are separate problems and only the second one was ADR 0007's.
+
 ### Session 1 — the door · ADR 0026 §4, ADR 0017 §2
 
 `DOMContentLoaded` and the document lifecycle (`readyState`, `load`), `document.forms`,
@@ -304,10 +310,16 @@ device when nothing is playing.
 
 ### Sessions 25–26 — the media element and the demuxers · ADR 0028 §1–2
 
+> **Fragmented MP4 is done** (2026-08-04), out of order, alongside ADR 0013's surface below.
+> `src/media` parses `ftyp`, the `moov` track hierarchy and the `moof` sample tables into tracks and
+> byte ranges, with the fuzz target on the same commit — which found a heap-use-after-free in the
+> parser within two minutes. What is left of this session is the media element itself, plus
+> WebM/Matroska and the HLS playlist parser.
+
 `HTMLMediaElement` with the readiness and network state machines implemented rather than
 approximated, `play()` returning a promise, autoplay refused without user activation, default
-controls as user-agent boxes. Then fragmented MP4, then WebM/Matroska, each with a fuzz target and
-saturating size arithmetic.
+controls as user-agent boxes. Then WebM/Matroska, each with a fuzz target and saturating size
+arithmetic.
 
 **Check:** `<video src="…mp4">` plays with sound, seeks, and fires the right events in the right
 order.
@@ -316,10 +328,16 @@ order.
 
 ADR 0013 deferred the codec choice until the media stack said what it needed. It now does: H.264,
 VP9, AV1, AAC, Opus. **Write that ADR**, then land the chosen decoder in a sandboxed process with a
-narrow message interface — never linked into the engine — and build ADR 0013's **video surface**: a
-hole in the display list, composited by the presenter, never diffed.
+narrow message interface — never linked into the engine.
 
-**Check:** a 1080p video plays without the display-list diff seeing a changed command.
+> **The video surface is done** (2026-08-04), built early for the reason ADR 0013 gives — it is the
+> constraint everything else is built against, and retrofitting it means rewriting the paint path.
+> The hole, the clip-resolved placements, the diff-stability, and the generation-counter damage
+> tracker in `src/app` all exist and are tested. What is left here is the decoder process and the
+> presenter-side blit that fills a hole from a real surface.
+
+**Check:** a 1080p video plays without the display-list diff seeing a changed command. The
+diff-stability half of that check already passes.
 
 ### Session 28 — MSE · ADR 0028 §5
 

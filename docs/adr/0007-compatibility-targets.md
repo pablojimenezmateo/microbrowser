@@ -53,11 +53,51 @@ the box model has no `border-spacing` and moving the gap inside the cell would
 change where text wraps; and `:visited` matches nothing, which is a privacy
 decision rather than an unimplemented one.
 
-### 2. old.reddit.com — mid-project
+### 2. old.reddit.com — renders
 
-Server-rendered, moderate CSS, some script. Needs most of the layout work
-(floats are in; `position` and overflow scrolling are not) and a working event
-loop. New reddit is a React application and belongs in tier 4.
+Server-rendered, moderate CSS, some script. **Surveyed 2026-08-04** by this
+ADR's own method, and it produced the same lesson Hacker News did for the third
+time running: what it needed was not what this section predicted. The prediction
+was "most of the layout work — `position` and overflow scrolling". None of the
+three things that actually blocked it was on that list.
+
+**We sent no `User-Agent` at all**, and reddit's edge blocks that outright. The
+first snapshot rendered a page titled "Blocked". This is worth stating as a
+category, not an incident: the target set exists to find out what stops a real
+page, and the first thing that stopped one was a request header we had never
+had a reason to send. Measured before it was chosen — reddit serves the honest
+string `microbrowser` the same page it serves Chrome, so claiming to be Chrome
+would buy nothing and cost the whole point of naming a target.
+
+**`overflow` was applied to non-replaced inline boxes**, which CSS 2.1 §11.1.1
+says it does not apply to. `.thing .title { overflow: hidden }` on an `<a>`
+clipped every story title on the front page to an inline box's geometry, which
+is empty. They were all in the display list, at the right coordinates, in the
+right colour, behind a 0×0 clip — which is the failure mode worth remembering,
+because a screenshot cannot tell that apart from a title that was never
+recorded.
+
+**`display: inline-block` was cascaded, stored, and then laid out as `inline`.**
+That was the real one. Every inline-block on the page — flair, domain links, the
+whole buttons row — had no geometry of its own, so no width, no height, no
+padding, and a background painting nothing. It is now a box kind of its own.
+
+Still missing, and now the visible ones: `vertical-align` does not exist, so
+reddit's `vertical-align: middle` flair sits on the baseline; the subreddit
+header bar overlaps itself; and the right sidebar's float is wrong.
+
+Its scripts still fail, and the reported error is a red herring worth writing
+down so the next session does not chase it. `reddit-init.js` wraps itself in
+`try { … } catch (err) { r.sendError(…) }`, and `r` is defined *inside* the
+try. So anything that throws early makes the catch handler throw
+`ReferenceError: r is not defined`, and every later script that expects `r`
+fails too. The real first error is masked; unmasking it needs a way to evaluate
+a prelude before a page's own scripts, which the snapshot tool cannot yet do.
+
+**`www.reddit.com` is a different problem and stays in tier 4.** It returns a
+JavaScript challenge rather than a page, and the User-Agent above does not
+change that — see `docs/roadmap-to-any-page.md`, whose Phase A is about getting
+through that door.
 
 ### 3. google.com — search results before the homepage
 

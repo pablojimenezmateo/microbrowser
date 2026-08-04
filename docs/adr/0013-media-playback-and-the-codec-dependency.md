@@ -80,6 +80,52 @@ needs a demuxer, a decoder, a surface and audio out. "Render youtube.com" needs 
 MSE, plus the application framework running well enough to drive it. If the goal is ever the former,
 it does not wait on the latter, and the surface decision above is what keeps that true.
 
+## What has landed
+
+**2026-08-04.** The two halves of this ADR that do not need a codec are built.
+
+**The surface seam.** `gfx::Surface`, `gfx::SurfaceRegistry`, and a
+`DrawSurfaceCommand` that `Execute` skips; `gfx::SurfacePlacements()` gives the
+presenter the holes with their clips already resolved. The command is
+diff-stable, so two frames of a playing video produce no damage from
+`ComputeDamage`, and `app::SurfaceDamageTracker` supplies the damage instead —
+by comparing each surface's **generation counter**, so "playing" is derived and
+never declared. A decoder that stalls stops damaging the screen without anything
+having to remember to say "paused". It also handles the three stale-pixel cases
+a naive version drops: a surface appearing, moving, and disappearing.
+
+Two things learned in the building that this ADR did not anticipate:
+
+- **A surface id is safe on the wire precisely because it is a name.** Every
+  other resource in a display list is an index into that list's own table, which
+  `ipc` has always refused to serialize on the grounds that an index from a
+  hostile renderer is an out-of-bounds read. A surface id is looked up in a map,
+  so a bad one composites nothing. That asymmetry is what lets the compositor
+  own the pixels and the renderer merely refer to them, and it is the security
+  content of the whole design rather than an implementation detail.
+- **The resource table this ADR said the surface forces was worth taking on its
+  own.** Images now cross the seam in a per-frame table rather than inline per
+  command; one background bitmap on a real page was being serialized dozens of
+  times in one frame. A cache that survives a frame is *not* done, and the
+  reason is a decision rather than a shortfall: it would make the receiver's
+  memory part of the protocol.
+
+**The container half.** `src/media` demuxes fragmented MP4 — `ftyp`, the `moov`
+track hierarchy, and the `moof` sample tables — producing tracks and byte
+ranges, never bytes. Its module contract permits `util` and nothing else, so a
+demuxer that started decoding would not compile. The fuzz target landed on the
+same commit and **found a heap-use-after-free in the parser within two
+minutes**: the walk held a pointer into the track vector across the recursion,
+and a `trak` beside a `trak` reallocated it. The comment above that code claimed
+an index had been used to avoid exactly this, and the comment was wrong. That is
+the argument for the same-commit rule in one incident.
+
+Still deferred, each deliberately: the codec library (ADR 0028 now says what the
+stack needs — H.264, VP9, AV1, AAC, Opus — so the follow-up ADR is writable),
+the sandboxed decoder process, the media element, MSE, and audio out. Audio is
+"probably the first one" by this ADR's own ordering and stays unbuilt because a
+thread with no decoder to feed it plays nothing.
+
 ## Consequences
 
 - **The display list gains a command it cannot diff meaningfully**, and the dirty-region policy has

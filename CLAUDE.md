@@ -18,13 +18,21 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**The browser renders Hacker News, and runs a page against it. The JavaScript engine is
-complete** — see `docs/js-conformance-roadmap.md` for what is done, what is
+**The browser renders Hacker News and old.reddit.com, and runs a page against them. The JavaScript
+engine is complete** — see `docs/js-conformance-roadmap.md` for what is done, what is
 deliberately approximate, and the short list of what is left. External and inline scripts,
 DOM reads and writes, `style`, event handlers, and timers — a click reaches the page's own
 handlers, and `preventDefault` stops the navigation it would otherwise have caused. `./build/microbrowser/microbrowser <url>` fetches a document,
 parses it, resolves its cascade, lays it out, and draws it — text, tables, images and all. The
 front page and a comments page both render, and clicking a story navigates to it.
+
+**old.reddit.com renders too**, as of 2026-08-04, and what it took is the reason to keep using the
+method rather than the roadmap: it was not the layout work ADR 0007 predicted. It was a
+`User-Agent` header we had never sent (reddit's edge blocks a request with none, and served a page
+titled "Blocked"), `overflow` being applied to inline boxes it does not apply to, and
+`display: inline-block` having been cascaded and stored and then laid out as `inline` — so every
+inline-block on the page had no geometry at all. Three sessions running, the named target found
+things no milestone list contained.
 
 `./build/microbrowser/microbrowser_snapshot <url> -o out.ppm` does the same with no window, which
 is how to look at a page from a machine with no display. `-v` dumps every display list command,
@@ -44,21 +52,22 @@ What exists:
 | Module | State |
 |---|---|
 | `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE |
-| `src/gfx` | Geometry, transforms, Color and its text form, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog + font-stack matching, glyph and shaped-run caches, PNG decoding, SVG rendering (paths, shapes, groups, transforms), bilinear image scaling. SDL-free. |
-| `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them |
+| `src/gfx` | Geometry, transforms, Color and its text form, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog + font-stack matching, glyph and shaped-run caches, PNG decoding, SVG rendering (paths, shapes, groups, transforms), bilinear image scaling, **the compositor surface and the display-list hole that names one** (ADR 0013). SDL-free. |
+| `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them. Images cross in a **per-frame resource table** rather than inline per command; a surface crosses as a **name**. Display-list encoding is its own translation unit. |
 | `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
 | `src/net` | HTTP/1.1, cookies, cache, non-blocking sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one, and **starts** a request rather than returning a response. `RequestQueue` runs them concurrently, bounded **per partition key**, and drops them all on a navigation. |
+| `src/media` | Containers only, never codecs (ADR 0013). Fragmented-MP4 demux: `ftyp`, the `moov` track hierarchy, `moof` sample tables, into tracks and **byte ranges rather than bytes**. Bounds-checked, sticky-failing reader; fuzzed. May name `util` and nothing else, so a demuxer that started decoding would not compile. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
 | `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing, **custom properties and `var()`** — inherited, nested, with fallbacks and the invalid-at-computed-value rule |
-| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
+| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), **`display: inline-block` and `inline-flex`** as real atomic inlines — block inside, one unbreakable rectangle outside, with a CSS 2.1 §10.8.1 baseline — min/max sizing, overflow clipping (and *not* on inline boxes, which it does not apply to), display-list building |
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings, timers and animation frames), Loader (everything network, started/completed), PendingLoad (one navigation in flight), Engine (routes messages, drives the load). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches a document's subresources **concurrently** and runs its scripts at the three points `defer`, `async` and `type=module` actually mean. |
 | `src/bindings` | **`requestAnimationFrame`**, which schedules a frame only while something has asked for one. The seam between script and the document, and the only module that sees both `js` and `dom`. **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **MutationObserver**, batched and delivered as a microtask. `window` is an event target. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is, and the only place the process sleeps. SDL, the system font database, and the descriptor wait live here. |
 | `src/js` | JavaScript, and as near complete as the language gets here. Lexer, parser, a bytecode compiler and machine (names resolved to slots, calls that cannot leak a scope keeping bindings in the frame, the tree-walker kept as the differential engine behind `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass. **Modules** — every `import`/`export` form, `import.meta`, `import()` — with the host supplying the resolver. Classes with accessors, `super`, private fields and methods, static blocks, `new.target`, the brand check. `Proxy` with every trap, and subclassing a builtin. Full `ToPrimitive`. **UTF-16 string indexing over UTF-8 storage.** Property attributes and integrity levels. `ArrayBuffer`, the nine typed arrays and `DataView`. A real `Date` with a computed calendar and a parser. `JSON` with replacer, reviver, indent and `toJSON`. A backtracking regular expression engine with `/u` code points and `\p{...}`. Symbols, iteration, `Map`/`Set`/`Weak*`/`WeakRef`, Promises and the microtask queue, and **every form of suspending a call** — `async`/`await`, generators, `yield*` with real delegation, async generators, `for await`. No `eval` and no `Function(source)`, and a test says so. Knows nothing about the DOM. Deviations are listed in `docs/js-conformance-roadmap.md`, each with its reason. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
-| `src/app` | Main loop: idle-wait policy fed by the page's soonest deadline **and the sockets it is waiting on**, bounded event drain, dirty-region policy, composites chrome over page, present |
+| `src/app` | Main loop: idle-wait policy fed by the page's soonest deadline **and the sockets it is waiting on**, bounded event drain, dirty-region policy, **surface damage from generation counters** (a playing surface damages its rect every frame; a paused one damages nothing), composites chrome over page, present |
 
 Not yet started: grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
 the process split and the sandbox (rest of M7), integration (M9). M8 is done. **The collector runs during evaluation**, at every loop back edge and every call: the
@@ -173,15 +182,26 @@ nothing. Every engine bug in the youtube.com pass was found with it in minutes. 
 keeping: `var` was block-scoped and un-hoisted in **both** engines, so the differential could not
 see it. Two engines agreeing is evidence, not proof.
 
+Known remaining gaps on old.reddit.com, which renders as of 2026-08-04: `vertical-align` does not
+exist at all, so its `vertical-align: middle` flair sits on the baseline; the subreddit header bar
+overlaps itself; the right sidebar's float is wrong. Its scripts fail with a **masked** error —
+`reddit-init.js` wraps itself in `try { … } catch (err) { r.sendError(…) }` and defines `r` inside
+the try, so anything that throws early makes the catch handler throw `ReferenceError: r is not
+defined` and every later script that expects `r` fails too. The reported error is never the real
+one; unmasking it needs a way to evaluate a prelude before a page's own scripts, which
+`microbrowser_snapshot` cannot yet do. **`www.reddit.com` is a separate problem** — a JavaScript
+challenge, unaffected by the `User-Agent`; see `docs/roadmap-to-any-page.md` Phase A.
+
 Known remaining gaps on Hacker News itself: `<select>` is laid out and submitted but not clickable,
 `cellspacing` is not mapped because there is no `border-spacing`, and `:visited` deliberately
 matches nothing.
 
 Known-crude spots, each with the reasoning written where the code is: a page appears when its load
 finishes rather than as it arrives, because there is no incremental parse or paint; `getaddrinfo`
-is the one call in the network stack that still blocks; a display list carrying an image serializes the bitmap inline rather than
-naming it in a resource table, which now costs more because a background image is one more bitmap
-per frame; scrolling an overflowing document repaints in full because there is no scroll blit in
+is the one call in the network stack that still blocks; an image crosses the IPC seam once per
+frame in a resource table rather than once per *session* in a cache, because a cross-frame cache
+makes the receiver's memory part of the protocol and that is a protocol decision (ADR 0013);
+scrolling an overflowing document repaints in full because there is no scroll blit in
 the presenter; a background image is re-rasterized per element rather than shared; and collecting
 background images resolves the cascade a second time, before layout resolves it again.
 
