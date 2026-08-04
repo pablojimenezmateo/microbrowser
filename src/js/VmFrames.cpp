@@ -261,7 +261,13 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
       // scopes it was inside, and the stack as deep as it was. A throw can
       // happen half way through an expression, which is why this is a
       // truncation and not a pop.
-      vm_.iterations.resize(frame.iteration_base + handler.iteration_depth);
+      //
+      // The cursors are *closed* rather than dropped: a throw out of a
+      // `for...of` over a generator owes that generator its `return`, or its
+      // `finally` never runs and its filed frame is never dropped. What each
+      // close throws is discarded -- the error the page is already handling is
+      // the one it needs to see.
+      CloseIterationsQuietly(frame.iteration_base + handler.iteration_depth);
       vm_.scopes.resize(frame.scope_base + handler.scope_depth);
       vm_.stack.resize(working_base + handler.stack_depth);
       vm_.stack.push_back(thrown);
@@ -271,6 +277,10 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
     // Nothing here catches it. The frame goes, and the search continues in the
     // caller -- which is what makes a throw cross a call boundary.
     const Frame done = frame;
+    // Before the frame goes, for the reason above -- and before the pop,
+    // because closing runs script and the frame it belongs to is still the one
+    // that owns these cursors.
+    CloseIterationsQuietly(done.iteration_base);
     vm_.frames.pop_back();
     vm_.iterations.resize(done.iteration_base);
     vm_.scopes.resize(done.scope_base);

@@ -839,7 +839,7 @@ void Interpreter::InstallArrayPrototype() {
     return;
   }
   constructor->Set("prototype", Value::Obj(prototype));
-  prototype->Set("constructor", Value::Obj(constructor));
+  prototype->SetHidden("constructor", Value::Obj(constructor));
   // What `new` on this produces, so that Construct allocates an array for a
   // subclass rather than a plain object with array methods on it -- which is
   // an object whose `length` is undefined and whose `push` writes nowhere.

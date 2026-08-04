@@ -52,7 +52,10 @@ budget: RegExpMatch    header_lines=30 public_methods=6  members=1
 # Grew by two more: ToStringOp, because a template substitution is ToString
 # rather than whatever `+` would pick, and CopyScope, which is what makes a
 # `let` in a loop head one binding per iteration rather than one for the loop.
-budget: Op              header_lines=235 public_methods=0  members=0
+# And by one for IterateForward, which is what turns `yield*` from a loop into
+# a relationship: a throw or a forced return arriving at its `yield` goes to
+# the delegate rather than stopping at the outer generator.
+budget: Op              header_lines=255 public_methods=0  members=0
 # One function's code and everything it names. Data: seven vectors, three
 # scalars, and no behaviour. It grows when a chunk has to remember one more
 # kind of thing, which has happened twice and should be argued for each time.

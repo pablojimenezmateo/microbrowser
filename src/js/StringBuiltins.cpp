@@ -515,7 +515,7 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
 
   // --- The constructor's own properties -------------------------------------
   string_constructor->Set("prototype", Value::Obj(well_known_.string_prototype));
-  well_known_.string_prototype->Set("constructor", Value::Obj(string_constructor));
+  well_known_.string_prototype->SetHidden("constructor", Value::Obj(string_constructor));
   InstallNative(string_constructor, "fromCharCode", [](NativeCall& call) {
     // The exact inverse of charCodeAt: one *code unit* per argument, masked to
     // sixteen bits the way the spec masks. A high surrogate is held so that a

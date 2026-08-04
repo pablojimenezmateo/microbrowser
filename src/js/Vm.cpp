@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <optional>
@@ -801,7 +802,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           // of them can be called with `new`. An arrow cannot, which is why it
           // does not get one.
           if (Object* prototype = NewObject()) {
-            prototype->Set("constructor", Value::Obj(function));
+            prototype->SetHidden("constructor", Value::Obj(function));
             function->Set("prototype", Value::Obj(prototype));
           }
         }
@@ -1072,10 +1073,15 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       }
       case Op::IterateDelegate: {
         Iteration& cursor = vm_.iterations.back();
+        // The value the last resume sent in, passed on to the delegate's
+        // `next`. That threading is what makes `it.next(v)` reach the inner
+        // generator's own `yield` rather than stopping at the outer one.
+        const Value sent = vm_.stack.back();
+        vm_.stack.pop_back();
         Value item;
         bool done = cursor.done;
         if (!done) {
-          const Result advanced = StepIteration(cursor, item, done);
+          const Result advanced = StepIterationWith(cursor, sent, item, done);
           if (advanced.IsAbrupt()) {
             pending = advanced;
             threw = true;
@@ -1084,12 +1090,63 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           cursor.done = done;
         }
         if (done) {
-          // `item` is the delegate's return value, which StepIteration reads
-          // off the final result. Pushed rather than dropped, because it is
-          // what the `yield*` expression is worth.
+          // `item` is the delegate's return value, which the step reads off
+          // the final result. Pushed rather than dropped, because it is what
+          // the `yield*` expression is worth.
           frame->ip = instruction.a;
         }
         vm_.stack.push_back(std::move(item));
+        break;
+      }
+      case Op::IterateForward: {
+        // A throw or a forced return arrived at the `yield` inside a `yield*`.
+        // The delegate gets it rather than the outer generator, which is what
+        // makes an inner `catch` see a `g.throw(e)` and an inner `finally` run
+        // on a `g.return()`.
+        Iteration& cursor = vm_.iterations.back();
+        const Value thrown = vm_.stack.back();
+        vm_.stack.pop_back();
+        const bool is_return = IsReturnSignal(thrown);
+        Value payload = thrown;
+        if (is_return) {
+          const Value* held = thrown.object->GetOwn("value");
+          payload = held == nullptr ? Value::Undefined() : *held;
+        }
+        Result answered;
+        bool done = false;
+        if (!cursor.done && ForwardToIterator(cursor, payload, is_return, answered, done)) {
+          if (answered.IsAbrupt()) {
+            pending = answered;
+            threw = true;
+            break;
+          }
+          if (done) {
+            // The delegate finished answering. `return` ends the outer
+            // generator too, carrying what the delegate returned; `throw`
+            // ends only the delegation, and its value is the expression's.
+            if (is_return) {
+              pending = Result{Completion::Throw, NewReturnSignal(answered.value), {}};
+              threw = true;
+              break;
+            }
+            frame->ip = instruction.a;
+          }
+          vm_.stack.push_back(answered.value);
+          break;
+        }
+        // Nothing to forward to. The delegate is closed and the original
+        // completion carries on outwards -- except for a throw at an iterator
+        // with no `throw` method, which the spec makes a TypeError after
+        // closing it.
+        const Result closed = CloseIterationCursor(cursor);
+        (void)closed;
+        cursor.done = true;
+        pending = is_return ? Result{Completion::Throw, thrown, {}}
+                            : Throw("TypeError", "the iterator has no throw method");
+        if (!is_return && !cursor.iterator.IsObject()) {
+          pending = Result{Completion::Throw, thrown, {}};
+        }
+        threw = true;
         break;
       }
       case Op::IterateRest: {
@@ -1153,8 +1210,24 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
               }
             }
           }
-          for (const std::string& key : OwnKeys(Value::Obj(object), true)) {
-            keys.push_back(Value::String(key));
+          // Up the prototype chain, which is what makes `for...in` different
+          // from `Object.keys` -- and what a page uses it for. A name already
+          // reported is not reported again, even when a nearer object shadows
+          // a further one with the same key. Bounded, like every chain walk
+          // here: the chain can be a cycle a page built.
+          std::vector<std::string> seen;
+          for (Object* walk = object; walk != nullptr && seen.size() < kMaxAllocationLength;) {
+            for (const std::string& key : OwnKeys(Value::Obj(walk), true)) {
+              if (std::find(seen.begin(), seen.end(), key) != seen.end()) {
+                continue;
+              }
+              seen.push_back(key);
+              keys.push_back(Value::String(key));
+            }
+            walk = walk->Prototype();
+            if (walk == object) {
+              break;
+            }
           }
         }
         Object* array = NewArray(std::move(keys));

@@ -138,7 +138,7 @@ void Interpreter::InstallNumbers(Object* math) {
         bits ^= bits >> 7;
         bits ^= bits << 17;
         if (call.callee != nullptr) {
-          call.callee->Set("#state", Value::Number(static_cast<double>(bits)));
+          call.callee->SetHidden("#state", Value::Number(static_cast<double>(bits)));
         }
         // The top 53 bits, which is exactly what a double can hold without
         // rounding -- taking the low ones instead is the classic way to get a
@@ -146,7 +146,7 @@ void Interpreter::InstallNumbers(Object* math) {
         return Value::Number(static_cast<double>(bits >> 11) / 9007199254740992.0);
       })) {
     const auto seed = static_cast<std::uint64_t>(std::time(nullptr));
-    random->Set("#state", Value::Number(static_cast<double>(seed * 6364136223846793005ull + 1)));
+    random->SetHidden("#state", Value::Number(static_cast<double>(seed * 6364136223846793005ull + 1)));
     math->Set("random", Value::Obj(random));
   }
 
@@ -160,7 +160,7 @@ void Interpreter::InstallNumbers(Object* math) {
   }
   number_prototype->SetPrototype(well_known_.object_prototype);
   number->Set("prototype", Value::Obj(number_prototype));
-  number_prototype->Set("constructor", Value::Obj(number));
+  number_prototype->SetHidden("constructor", Value::Obj(number));
   well_known_.number_prototype = number_prototype;
 
   number->Set("MAX_SAFE_INTEGER", Value::Number(9007199254740991.0));

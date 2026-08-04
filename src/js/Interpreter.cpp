@@ -247,7 +247,7 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
     // them can be called with `new`. An arrow function cannot, which is why it
     // does not get one.
     if (Object* prototype = NewObject()) {
-      prototype->Set("constructor", Value::Obj(function));
+      prototype->SetHidden("constructor", Value::Obj(function));
       function->Set("prototype", Value::Obj(prototype));
     }
   }
@@ -266,7 +266,7 @@ Value Interpreter::NewCompiledFunction(const CompiledFunction& code, Environment
   function->Set("length", Value::Number(static_cast<double>(code.parameter_count)));
   if (!arrow) {
     if (Object* prototype = NewObject()) {
-      prototype->Set("constructor", Value::Obj(function));
+      prototype->SetHidden("constructor", Value::Obj(function));
       function->Set("prototype", Value::Obj(prototype));
     }
   }

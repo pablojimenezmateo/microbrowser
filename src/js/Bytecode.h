@@ -266,7 +266,17 @@ enum class Op : std::uint8_t {
   // What `yield*` steps with. Unlike IterateNext it pushes on both paths: the
   // yielded value when there is one, and the delegate's *return* value when
   // there is not -- which is what the whole expression evaluates to.
-  IterateDelegate,  // a = target; -> [value], or [return value] and jumps
+  IterateDelegate,  // a = target; [sent] -> [value], or [return value] and jumps
+  // What `yield*` does with a throw or a forced return that arrived at its
+  // `yield`. Forwards it to the delegate's own `throw` or `return`, which is
+  // the difference between a `yield*` being a loop and being a relationship:
+  // an inner generator's `catch` sees `g.throw(e)`, and its `finally` runs
+  // when `g.return()` closes the outer one.
+  //
+  // a = target; [thrown] -> [value], or [return value] and jumps. Rethrows
+  // when the delegate has no method to forward to, which for a `return` is
+  // the ordinary case and for a `throw` is the spec's TypeError.
+  IterateForward,
   // The three `for await` uses. The step and the unpack are separate because
   // an Await sits between them: an async iterator's `next` hands back a
   // promise, and what the loop needs is the `{value, done}` inside it.

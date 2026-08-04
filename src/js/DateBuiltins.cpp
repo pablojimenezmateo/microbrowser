@@ -500,7 +500,7 @@ void Interpreter::InstallDate() {
         milliseconds = Clip(naive - LocalOffset(naive));
       }
     }
-    instance->Set("#time", Value::Number(milliseconds));
+    instance->SetHidden("#time", Value::Number(milliseconds));
     return Value::Obj(instance);
   });
   if (date == nullptr || date_prototype == nullptr) {
@@ -508,7 +508,7 @@ void Interpreter::InstallDate() {
   }
   date_prototype->SetPrototype(well_known_.object_prototype);
   date->Set("prototype", Value::Obj(date_prototype));
-  date_prototype->Set("constructor", Value::Obj(date));
+  date_prototype->SetHidden("constructor", Value::Obj(date));
   global_scope_->Declare("Date", Value::Obj(date), false);
 
   InstallNative(date, "now",
@@ -631,7 +631,7 @@ void Interpreter::InstallDate() {
             // setFullYear, which the spec lets start from the epoch so that a
             // date can be rebuilt from nothing.
             if (std::isnan(time) && first != 0) {
-              call.self.object->Set("#time", Value::Number(std::nan("")));
+              call.self.object->SetHidden("#time", Value::Number(std::nan("")));
               return Value::Number(std::nan(""));
             }
             const double base = std::isnan(time) ? 0.0 : time;
@@ -667,7 +667,7 @@ void Interpreter::InstallDate() {
               // to land on the wall-clock time that was asked for.
               updated = Clip(utc ? naive : naive - LocalOffset(naive - offset));
             }
-            call.self.object->Set("#time", Value::Number(updated));
+            call.self.object->SetHidden("#time", Value::Number(updated));
             return Value::Number(updated);
           });
     }
@@ -682,7 +682,7 @@ void Interpreter::InstallDate() {
   InstallNative(date_prototype, "setTime", [](NativeCall& call) {
     const double time = Clip(ToNumber(Argument(call.arguments, 0)));
     if (call.self.IsObject()) {
-      call.self.object->Set("#time", Value::Number(time));
+      call.self.object->SetHidden("#time", Value::Number(time));
     }
     return Value::Number(time);
   });

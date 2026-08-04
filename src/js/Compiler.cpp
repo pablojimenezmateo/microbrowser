@@ -405,23 +405,16 @@ void Compiler::Yield(const Node& node) {
     return;
   }
 
-  // `yield* xs`, as a loop over the delegate's iterator rather than an opcode.
+  // `yield* xs`: a loop over the delegate's iterator, with the three ways a
+  // resume can arrive all forwarded to it.
   //
-  // Two things this does not do, both because it is a loop here rather than a
-  // forwarding relationship at run time:
-  //
-  //   * `g.throw(e)` on a generator suspended inside a `yield*` throws at the
-  //     `yield` below rather than being forwarded to the delegate's `throw`.
-  //     An inner generator's `catch` therefore does not see it, and the outer
-  //     one's does.
-  //   * `g.return()` likewise closes the outer generator without calling the
-  //     delegate's `return`, so an inner `finally` does not run.
-  //
-  // Both need the delegate to be a *relationship* the resume path can see,
-  // which is a record on the generator's state rather than an instruction --
-  // and both are the same shape as the `finally` deviation `return` already
-  // has. What the loop does get right is the common case and the return value:
-  // `const x = yield* g()` is what `g` returned.
+  // The loop body is one instruction and one suspend. What makes it a
+  // *relationship* rather than a plain loop is the handler registered over the
+  // `yield`: a `g.throw(e)` or a `g.return(v)` that lands there is caught and
+  // handed to the delegate's own `throw` or `return`, so an inner generator's
+  // `catch` sees the throw and its `finally` runs on the return. Without it
+  // both stopped at the outer generator, which is a difference a page writing
+  // a pipeline of generators notices immediately.
   if (argument == nullptr) {
     Emit(Op::PushUndefined, 0, 1);
   } else {
@@ -431,21 +424,42 @@ void Compiler::Yield(const Node& node) {
   ++iteration_depth_;
   const std::uint32_t before = stack_depth_;
 
+  // What the first step sends in. `next(undefined)`, and thereafter whatever
+  // the last resume handed over -- which is the value the delegate's own
+  // `yield` expression evaluates to, and is why it is threaded rather than
+  // dropped.
+  Emit(Op::PushUndefined, 0, 1);
   const std::uint32_t top = Here();
-  const std::uint32_t to_end = Emit(Op::IterateDelegate, 0, 1);
+  const std::uint32_t to_end = Emit(Op::IterateDelegate, 0, 0);
+  const std::uint32_t protected_begin = Here();
   Emit(Op::Yield, 0, 0);
-  // What `next(v)` sent in is dropped rather than passed to the delegate's
-  // `next`, for the reason above: there is nothing here holding the delegate
-  // that a resume could reach.
-  Emit(Op::Pop, 0, -1);
+  const std::uint32_t protected_end = Here();
   Patch(Emit(Op::Jump, 0, 0), top);
 
+  // The forwarding path, reached only by the handler below.
+  const std::uint32_t forward = Here();
+  stack_depth_ = before + 1;  // the unwinder pushed the thrown value
+  const std::uint32_t forward_to_end = Emit(Op::IterateForward, 0, 0);
+  Patch(Emit(Op::Jump, 0, 0), protected_begin);
+
   Patch(to_end, Here());
-  // The delegate's return value is on the stack at the jump target, which the
-  // fall-through path never reaches -- so the depth is set rather than tracked.
+  Patch(forward_to_end, Here());
+  // The delegate's return value is on the stack at either jump target, which
+  // the fall-through path never reaches -- so the depth is set, not tracked.
   stack_depth_ = before + 1;
   Emit(Op::IterateClose, 1, 0);
   --iteration_depth_;
+
+  // `is_finally`, because it has to catch a forced return as well as a throw:
+  // those are the two things `g.return()` and `g.throw()` deliver here, and a
+  // `catch`-shaped handler sees only one of them. The recorded iteration depth
+  // includes the delegate's own cursor, which is the whole point -- the
+  // handler must not close the thing it is about to forward to.
+  const std::uint32_t live_scopes = function_.frame_locals ? 0 : scope_depth_;
+  if (protected_end > protected_begin) {
+    function_.handlers.push_back(Handler{protected_begin, protected_end, forward, before,
+                                         live_scopes, iteration_depth_ + 1, true});
+  }
 }
 
 void Compiler::Unary(const Node& node) {

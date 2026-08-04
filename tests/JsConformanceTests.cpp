@@ -580,6 +580,94 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("'日本'.toUpperCase()", "日本");
   });
 
+  // --- Delegation and iterator closing --------------------------------------
+
+  AddTest(tests, "JsConformance/YieldStarForwardsAThrowToItsDelegate", [] {
+    // The inner generator's `catch` sees it, not the outer one's. Without
+    // forwarding the throw stopped at the outer `yield` and the inner
+    // generator never learned of it.
+    ExpectEval("function* inner(){ try { yield 1 } catch (e) { yield 'caught:' + e } }"
+               "function* outer(){ yield* inner() }"
+               "const it = outer(); it.next(); it.throw('x').value",
+               "caught:x");
+  });
+
+  AddTest(tests, "JsConformance/YieldStarForwardsAReturnToItsDelegate", [] {
+    ExpectEval("let ran = false;"
+               "function* inner(){ try { yield 1 } finally { ran = true } }"
+               "function* outer(){ yield* inner() }"
+               "const it = outer(); it.next(); const v = it.return(5).value;"
+               "v + ':' + ran + ':' + it.next().done",
+               "5:true:true");
+  });
+
+  AddTest(tests, "JsConformance/YieldStarPassesValuesThroughBothWays", [] {
+    // `next(v)` has to reach the *inner* generator's yield, and what the inner
+    // one returns has to be what the `yield*` expression is worth.
+    ExpectEval("function* inner(){ const x = yield 'a'; const y = yield 'b'; return x + y }"
+               "function* outer(){ const a = yield* inner(); return 'end:' + a }"
+               "const it = outer();"
+               "[it.next().value, it.next(10).value, it.next(20).value].join()",
+               "a,b,end:30");
+    ExpectEval("function* g(){ yield* [1,2]; yield 3 } [...g()].join()", "1,2,3");
+  });
+
+  AddTest(tests, "JsConformance/AThrowPastAForOfClosesTheIterator", [] {
+    ExpectEval("let closed = false;"
+               "const it = { [Symbol.iterator](){ return { next(){ return {value:1,done:false} },"
+               "return(){ closed = true; return {done:true} } } } };"
+               "try { for (const x of it) { throw 1 } } catch (e) {} closed",
+               "true");
+    // A generator gets its `finally` run, which is the case that matters: its
+    // frame is filed and only a close drops it.
+    ExpectEval("let ran = false;"
+               "function* g(){ try { yield 1; yield 2 } finally { ran = true } }"
+               "try { for (const x of g()) { throw 1 } } catch (e) {} ran",
+               "true");
+  });
+
+  // --- What enumeration sees ------------------------------------------------
+  //
+  // `for...in` walks the prototype chain, which it did not. Making it do so
+  // required the built-ins to become non-enumerable first -- otherwise
+  // `for (const k in [])` reports every method on Array.prototype.
+
+  AddTest(tests, "JsConformance/ForInWalksThePrototypeChain", [] {
+    ExpectEval("const p = {a:1}; const o = Object.create(p); o.b = 2;"
+               "const out = []; for (const k in o) out.push(k); out.join()",
+               "b,a");
+    // Each name once, even when a nearer object shadows a further one.
+    ExpectEval("const p = {a:1}; const o = Object.create(p); o.a = 2;"
+               "const out = []; for (const k in o) out.push(k); out.join()",
+               "a");
+  });
+
+  AddTest(tests, "JsConformance/BuiltInsAreInvisibleToEnumeration", [] {
+    ExpectEval("const out = []; for (const k in []) out.push(k); out.length", "0");
+    ExpectEval("const out = []; for (const k in {}) out.push(k); out.length", "0");
+    ExpectEval("const out = []; for (const k in new Map()) out.push(k); out.length", "0");
+    ExpectEval("const out = []; for (const k in new Date()) out.push(k); out.length", "0");
+    ExpectEval("Object.keys(Array.prototype).length", "0");
+  });
+
+  AddTest(tests, "JsConformance/AClassMemberIsNotEnumerable", [] {
+    // The one place a class and an object literal differ in what enumeration
+    // sees, and a difference a page relies on when it copies own keys.
+    ExpectEval("class C { m(){} } Object.keys(C.prototype).length", "0");
+    ExpectEval("class C { m(){} } const out = []; for (const k in new C()) out.push(k);"
+               "out.length",
+               "0");
+    ExpectEval("const o = { m(){} }; Object.keys(o).join()", "m");
+  });
+
+  AddTest(tests, "JsConformance/APrivateFieldIsInvisible", [] {
+    ExpectEval("class C { #x = 1; y = 2 } const out = [];"
+               "for (const k in new C()) out.push(k); out.join()",
+               "y");
+    ExpectEval("class C { #x = 1; y = 2 } Object.keys(new C()).join()", "y");
+    ExpectEval("class C { #x = 1; y = 2 } JSON.stringify(new C())", "{\"y\":2}");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {

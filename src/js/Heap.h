@@ -336,6 +336,39 @@ class Object {
     }
     return out;
   }
+  // Sets a property that enumeration does not see.
+  //
+  // Two callers, and they are the same case twice: a built-in's own state --
+  // a Map's entries, a proxy's target, a Date's instant -- which is stored as
+  // a `#`-prefixed property because there is nowhere better, and must not turn
+  // up in a `for...in` over the object it belongs to. And `constructor` on a
+  // prototype, which the language makes non-enumerable for the same reason.
+  void SetHidden(PropertyKey key, Value value) {
+    Set(key, std::move(value));
+    // After the Set rather than instead of it: Set may have refused -- frozen,
+    // or non-extensible -- and HideProperty then finds nothing, which is the
+    // right answer either way.
+    HideProperty(key);
+  }
+  // Marks one own property non-enumerable, when it is there.
+  void HideProperty(const PropertyKey& key) {
+    const auto found = properties_.find(key);
+    if (found != properties_.end()) {
+      found->second.enumerable = false;
+    }
+  }
+  // Marks every own property non-enumerable.
+  //
+  // What makes a built-in prototype's methods invisible to `for...in` and to
+  // `Object.keys`, which is what they are in the language: `for (const k in
+  // [])` must not report `map`. Applied in one sweep after installation rather
+  // than at each of two hundred install sites, because a site that forgot
+  // would be invisible until a page enumerated the one object it touched.
+  void HideProperties() {
+    for (auto& entry : properties_) {
+      entry.second.enumerable = false;
+    }
+  }
   // Sets a property with attributes, which an ordinary assignment cannot: an
   // assignment leaves a new property enumerable, writable and configurable,
   // and `Object.defineProperty` leaves it none of those unless told otherwise.

@@ -138,7 +138,7 @@ void Interpreter::InstallCollections() {
           collection.object->SetPrototype(prototype_value->object);
         }
       }
-      collection.object->Set(kEntriesKey, call.interpreter.NewArrayValue({}));
+      collection.object->SetHidden(kEntriesKey, call.interpreter.NewArrayValue({}));
       call.interpreter.GetHeap().AttachMapIndex(collection.object);
 
       // `new Map(pairs)` and `new Set(values)` both take any iterable, which
@@ -181,7 +181,7 @@ void Interpreter::InstallCollections() {
       return nullptr;
     }
     constructor->Set("prototype", Value::Obj(prototype));
-    prototype->Set("constructor", Value::Obj(constructor));
+    prototype->SetHidden("constructor", Value::Obj(constructor));
     global_scope_->Declare(name, Value::Obj(constructor), false);
 
     // `size` is a getter, not a stored count: a stored one is a second thing
@@ -307,7 +307,7 @@ void Interpreter::InstallCollections() {
             made->SetPrototype(prototype->object);
           }
         }
-        made->Set("#target", target);
+        made->SetHidden("#target", target);
         return Value::Obj(made);
       })) {
     Object* prototype = NewObject();
@@ -318,7 +318,7 @@ void Interpreter::InstallCollections() {
         return target == nullptr ? Value::Undefined() : *target;
       });
       weak_ref->Set("prototype", Value::Obj(prototype));
-      prototype->Set("constructor", Value::Obj(weak_ref));
+      prototype->SetHidden("constructor", Value::Obj(weak_ref));
     }
     global_scope_->Declare("WeakRef", Value::Obj(weak_ref), false);
   }
@@ -357,7 +357,7 @@ void Interpreter::InstallCollections() {
       InstallNative(prototype, "register", [](NativeCall&) { return Value::Undefined(); });
       InstallNative(prototype, "unregister", [](NativeCall&) { return Value::Bool(false); });
       registry->Set("prototype", Value::Obj(prototype));
-      prototype->Set("constructor", Value::Obj(registry));
+      prototype->SetHidden("constructor", Value::Obj(registry));
     }
     global_scope_->Declare("FinalizationRegistry", Value::Obj(registry), false);
   }
@@ -490,7 +490,7 @@ void Interpreter::InstallCollections() {
     }
     prototype->SetPrototype(well_known_.object_prototype);
     constructor->Set("prototype", Value::Obj(prototype));
-    prototype->Set("constructor", Value::Obj(constructor));
+    prototype->SetHidden("constructor", Value::Obj(constructor));
     global_scope_->Declare(name, Value::Obj(constructor), false);
 
     // A key must be an object. A primitive has no identity to be weak about --
@@ -562,8 +562,8 @@ void Interpreter::InstallCollections() {
       }
       // The collection itself, so the iterator sees entries added while it
       // runs -- which the spec requires -- and so the entries stay reachable.
-      iterator.object->Set("#of", call.self);
-      iterator.object->Set("#at", Value::Number(0.0));
+      iterator.object->SetHidden("#of", call.self);
+      iterator.object->SetHidden("#at", Value::Number(0.0));
       iterator.object->Set(
           "next", call.interpreter.NewNativeValue("next", [yield, with_values](NativeCall& step) {
             Value result = step.interpreter.NewObjectValue();
@@ -592,7 +592,7 @@ void Interpreter::InstallCollections() {
             } else if (yield == Yield::Entries) {
               yielded = step.interpreter.NewArrayValue({key, value});
             }
-            step.self.object->Set("#at", Value::Number(static_cast<double>(position + 1)));
+            step.self.object->SetHidden("#at", Value::Number(static_cast<double>(position + 1)));
             result.object->Set("value", yielded);
             result.object->Set("done", Value::Bool(false));
             return result;

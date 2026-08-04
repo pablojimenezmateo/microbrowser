@@ -73,7 +73,7 @@ void Interpreter::InstallIteration() {
     return;
   }
   constructor->Set("prototype", Value::Obj(symbol_prototype));
-  symbol_prototype->Set("constructor", Value::Obj(constructor));
+  symbol_prototype->SetHidden("constructor", Value::Obj(constructor));
 
   // The well-known symbols. Each is one cell, allocated once, and its identity
   // is what makes it well-known -- a page can read `Symbol.iterator` and hang
@@ -138,14 +138,14 @@ void Interpreter::InstallIteration() {
       return call.Throw("RangeError", "out of memory");
     }
     cell->Set("description", Value::String(key));
-    cell->Set("#registered", Value::String(key));
+    cell->SetHidden("#registered", Value::String(key));
     table->Set(key, Value::Sym(cell));
     return Value::Sym(cell);
   });
   if (lookup != nullptr) {
     Object* registry = NewObject();
     if (registry != nullptr) {
-      lookup->Set("#registry", Value::Obj(registry));
+      lookup->SetHidden("#registry", Value::Obj(registry));
     }
     constructor->Set("for", Value::Obj(lookup));
   }
@@ -174,8 +174,8 @@ void Interpreter::InstallIteration() {
     if (iterator == nullptr) {
       return Value::Undefined();
     }
-    iterator->Set(kTargetKey, target);
-    iterator->Set(kIndexKey, Value::Number(0.0));
+    iterator->SetHidden(kTargetKey, target);
+    iterator->SetHidden(kIndexKey, Value::Number(0.0));
     InstallNative(iterator, "next", [by_character](NativeCall& call) {
       Value result = call.interpreter.NewObjectValue();
       if (!result.IsObject() || !call.self.IsObject()) {
@@ -211,7 +211,7 @@ void Interpreter::InstallIteration() {
       }
       result.object->Set("value", item);
       result.object->Set("done", Value::Bool(false));
-      call.self.object->Set(kIndexKey, Value::Number(static_cast<double>(index + step)));
+      call.self.object->SetHidden(kIndexKey, Value::Number(static_cast<double>(index + step)));
       return result;
     });
     // An iterator is itself iterable, which is what lets `for...of` and a
@@ -247,8 +247,8 @@ void Interpreter::InstallIteration() {
       if (!iterator.IsObject()) {
         return iterator;
       }
-      iterator.object->Set(kTargetKey, call.self);
-      iterator.object->Set(kIndexKey, Value::Number(0.0));
+      iterator.object->SetHidden(kTargetKey, call.self);
+      iterator.object->SetHidden(kIndexKey, Value::Number(0.0));
       iterator.object->Set(
           "next", call.interpreter.NewNativeValue("next", [yield](NativeCall& step) {
             Value result = step.interpreter.NewObjectValue();
@@ -273,7 +273,7 @@ void Interpreter::InstallIteration() {
             } else if (yield == ArrayYield::Entries) {
               yielded = step.interpreter.NewArrayValue({key, value});
             }
-            step.self.object->Set(kIndexKey, Value::Number(static_cast<double>(index + 1)));
+            step.self.object->SetHidden(kIndexKey, Value::Number(static_cast<double>(index + 1)));
             result.object->Set("value", yielded);
             result.object->Set("done", Value::Bool(false));
             return result;
@@ -449,17 +449,32 @@ Result Interpreter::CloseIterations(std::size_t down_to) {
     if (closed.IsAbrupt()) {
       // Propagated rather than swallowed. Every path that emits an
       // IterateClose is a normal completion -- a `break`, a `continue`, a
-      // `return` -- and the spec propagates there. A throw unwinding past a
-      // loop does not come through here at all; UnwindToHandler truncates the
-      // cursor stack itself, which is the case where the spec swallows and the
-      // case neither engine closes at all.
+      // `return` -- and the spec propagates there. A throw goes through
+      // CloseIterationsQuietly instead, which discards.
       return closed;
     }
   }
   return Result::Normal();
 }
 
+void Interpreter::CloseIterationsQuietly(std::size_t down_to) {
+  while (vm_.iterations.size() > down_to) {
+    const std::size_t at = vm_.iterations.size() - 1;
+    // By reference into the stack for the reason CloseIterations takes one:
+    // that is what keeps the iterator a root while its own `return` runs.
+    const Result closed = CloseIterationCursor(vm_.iterations[at]);
+    vm_.iterations.resize(at);
+    // Discarded on purpose. See the note on the declaration.
+    (void)closed;
+  }
+}
+
 Result Interpreter::StepIteration(Iteration& state, Value& value_out, bool& done) {
+  return StepIterationWith(state, Value::Undefined(), value_out, done);
+}
+
+Result Interpreter::StepIterationWith(Iteration& state, const Value& sent, Value& value_out,
+                                      bool& done) {
   done = false;
   value_out = Value::Undefined();
 
@@ -483,7 +498,7 @@ Result Interpreter::StepIteration(Iteration& state, Value& value_out, bool& done
   if (++state.index > kMaxIterationSteps) {
     return Throw("RangeError", "iteration ran too long");
   }
-  const Result stepped = CallFunction(state.next, state.iterator, {});
+  const Result stepped = CallFunction(state.next, state.iterator, {sent});
   if (stepped.IsAbrupt()) {
     return stepped;
   }
@@ -502,6 +517,39 @@ Result Interpreter::StepIteration(Iteration& state, Value& value_out, bool& done
   }
   value_out = GetProperty(stepped.value, "value");
   return Result::Normal();
+}
+
+bool Interpreter::ForwardToIterator(Iteration& state, const Value& thrown, bool is_return,
+                                    Result& out, bool& done) {
+  done = false;
+  if (state.array != nullptr || !state.iterator.IsObject()) {
+    // The fast path walks an array by index and has no iterator object to
+    // forward to. Nothing is owed: an array has no `finally` to run.
+    return false;
+  }
+  const Value method = GetProperty(state.iterator, is_return ? "return" : "throw");
+  if (!method.IsObject() || !method.object->IsCallable()) {
+    // No method to forward to. A `return` this way is the ordinary case -- most
+    // iterators have none -- and the caller closes and rethrows. A `throw`
+    // this way is the spec's TypeError, which the caller raises after closing:
+    // an iterator that cannot be thrown at must still be told to stop.
+    return false;
+  }
+  const Result answered = CallFunction(method, state.iterator, {thrown});
+  if (answered.IsAbrupt()) {
+    out = answered;
+    return true;
+  }
+  if (!answered.value.IsObject()) {
+    out = Throw("TypeError", "the iterator returned a non-object");
+    return true;
+  }
+  done = ToBoolean(GetProperty(answered.value, "done"));
+  if (done) {
+    state.done = true;
+  }
+  out = Result::Normal(GetProperty(answered.value, "value"));
+  return true;
 }
 
 }  // namespace microbrowser::js

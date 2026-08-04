@@ -663,7 +663,7 @@ void Interpreter::InstallGlobals() {
   // undefined -- and that method is how a great deal of code asks whether a
   // key is its own rather than inherited.
   object_constructor->Set("prototype", Value::Obj(well_known_.object_prototype));
-  well_known_.object_prototype->Set("constructor", Value::Obj(object_constructor));
+  well_known_.object_prototype->SetHidden("constructor", Value::Obj(object_constructor));
   install(well_known_.object_prototype, "hasOwnProperty", [](NativeCall& call) {
     return Value::Bool(call.self.IsObject() &&
                        call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
@@ -804,8 +804,8 @@ void Interpreter::InstallGlobals() {
             }
             // Own properties, so the collector marks both without the proxy
             // needing a slot of its own.
-            proxy->Set("#target", target);
-            proxy->Set("#handler", handler);
+            proxy->SetHidden("#target", target);
+            proxy->SetHidden("#handler", handler);
             return Value::Obj(proxy);
           }),
       false);
@@ -984,7 +984,7 @@ void Interpreter::InstallGlobals() {
       return;
     }
     constructor->Set("prototype", Value::Obj(prototype));
-    prototype->Set("constructor", Value::Obj(constructor));
+    prototype->SetHidden("constructor", Value::Obj(constructor));
     MarksConstructedKind(constructor, Object::Kind::Error);
     global_scope_->Declare(name, Value::Obj(constructor), false);
   };
@@ -1065,7 +1065,7 @@ void Interpreter::InstallGlobals() {
       install(well_known_.boolean_prototype, "valueOf",
               [](NativeCall& call) { return Value::Bool(ToBoolean(call.self)); });
       boolean_constructor->Set("prototype", Value::Obj(well_known_.boolean_prototype));
-      well_known_.boolean_prototype->Set("constructor", Value::Obj(boolean_constructor));
+      well_known_.boolean_prototype->SetHidden("constructor", Value::Obj(boolean_constructor));
     }
     global_scope_->Declare("Boolean", Value::Obj(boolean_constructor), false);
   }
@@ -1102,6 +1102,54 @@ void Interpreter::InstallGlobals() {
   // Last: it reads `Number`, `parseInt` and `parseFloat` back out of the
   // global scope, so every one of them has to be declared first.
   install_numbers();
+
+  // --- Making the built-ins invisible to enumeration -------------------------
+  //
+  // Every method above was installed with an ordinary assignment, which leaves
+  // it enumerable -- and in the language none of them is. That did not show
+  // while `for...in` walked only own properties; now that it walks the
+  // prototype chain, `for (const k in [])` would report every array method.
+  //
+  // One sweep rather than two hundred careful install sites, because a site
+  // that forgot would be invisible until a page enumerated the one object it
+  // touched. Names rather than a saved list of pointers, so that a constructor
+  // added later is covered by adding it here and nowhere else.
+  static constexpr const char* kBuiltinNames[] = {
+      "Object",   "Array",     "String",     "Number",       "Boolean",
+      "Function", "Symbol",    "Math",       "JSON",         "Date",
+      "RegExp",   "Map",       "Set",        "WeakMap",      "WeakSet",
+      "WeakRef",  "Promise",   "Proxy",      "Reflect",      "console",
+      "Error",    "TypeError", "RangeError", "SyntaxError",  "ReferenceError",
+      "EvalError", "URIError", "AggregateError", "ArrayBuffer", "DataView",
+      "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array",
+      "Int32Array", "Uint32Array", "Float32Array", "Float64Array",
+      "FinalizationRegistry",
+  };
+  for (const char* name : kBuiltinNames) {
+    Value* declared = global_scope_->Lookup(name);
+    if (declared == nullptr || !declared->IsObject()) {
+      continue;
+    }
+    declared->object->HideProperties();
+    if (const Value* prototype = declared->object->GetOwn("prototype")) {
+      if (prototype->IsObject()) {
+        prototype->object->HideProperties();
+      }
+    }
+  }
+  // The prototypes nothing names: a generator's, an async generator's, and the
+  // one the nine typed arrays share.
+  for (Object* prototype :
+       {well_known_.object_prototype, well_known_.array_prototype,
+        well_known_.function_prototype, well_known_.string_prototype,
+        well_known_.number_prototype, well_known_.boolean_prototype,
+        well_known_.regexp_prototype, well_known_.promise_prototype,
+        well_known_.generator_prototype, well_known_.async_generator_prototype,
+        well_known_.typed_array_prototype, well_known_.array_buffer_prototype}) {
+    if (prototype != nullptr) {
+      prototype->HideProperties();
+    }
+  }
 }
 
 }  // namespace microbrowser::js

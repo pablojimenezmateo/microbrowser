@@ -97,7 +97,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope,
   constructor->Set("prototype", Value::Obj(prototype));
   constructor->SetHomeObject(prototype);
   constructor->SetSuperConstructor(superclass);
-  prototype->Set("constructor", Value::Obj(constructor));
+  prototype->SetHidden("constructor", Value::Obj(constructor));
 
   const Value class_value = Value::Obj(constructor);
   if (!node.string.empty()) {
@@ -192,11 +192,20 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope,
     method.object->SetHomeObject(target);
 
     if ((flags & kMethodGetter) != 0) {
-      target->DefineAccessor(std::move(name), method.object, nullptr);
+      target->DefineAccessor(name, method.object, nullptr);
+      target->HideProperty(name);
     } else if ((flags & kMethodSetter) != 0) {
-      target->DefineAccessor(std::move(name), nullptr, method.object);
+      target->DefineAccessor(name, nullptr, method.object);
+      target->HideProperty(name);
     } else {
-      target->Set(std::move(name), method);
+      // Non-enumerable, which is what makes `Object.keys(C.prototype)` empty
+      // for a class and not for an object literal -- the one place the two
+      // forms differ, and a difference a page relies on when it copies an
+      // object's own keys.
+      Object::Property property;
+      property.value = method;
+      property.enumerable = false;
+      target->Define(name, std::move(property));
     }
   }
 
@@ -224,7 +233,15 @@ Result Interpreter::InitializeFields(Object* instance, Object* constructor) {
       }
       value = initializer.value;
     }
-    instance->Set(field.first, value);
+    // A private field is invisible to enumeration -- `for (const k in obj)`
+    // must not report `#count`. The name came from a `#` token, which is the
+    // one place that convention is guaranteed rather than assumed.
+    if (!field.first.IsSymbol() && !field.first.Text().empty() &&
+        field.first.Text().front() == '#') {
+      instance->SetHidden(field.first, value);
+    } else {
+      instance->Set(field.first, value);
+    }
   }
   return Result::Normal();
 }

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -574,7 +575,21 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
         }
       }
     }
-    for (const std::string& key : OwnKeys(Value::Obj(object), true)) {
+    // Up the chain, and each name once. See the note on the machine's
+    // ForInKeys; the two have to agree about what a `for...in` reports.
+    std::vector<std::string> seen;
+    for (Object* walk = object; walk != nullptr;) {
+      for (const std::string& key : OwnKeys(Value::Obj(walk), true)) {
+        if (std::find(seen.begin(), seen.end(), key) == seen.end()) {
+          seen.push_back(key);
+        }
+      }
+      walk = walk->Prototype();
+      if (walk == object) {
+        break;
+      }
+    }
+    for (const std::string& key : seen) {
       keys.push_back(Value::String(key));
     }
   }

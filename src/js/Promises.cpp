@@ -54,9 +54,9 @@ Value MakeReaction(Interpreter& interpreter, const Value& on_fulfilled,
                    const Value& on_rejected, const Value& derived) {
   Value reaction = interpreter.NewObjectValue();
   if (reaction.IsObject()) {
-    reaction.object->Set("#onFulfilled", on_fulfilled);
-    reaction.object->Set("#onRejected", on_rejected);
-    reaction.object->Set("#derived", derived);
+    reaction.object->SetHidden("#onFulfilled", on_fulfilled);
+    reaction.object->SetHidden("#onRejected", on_rejected);
+    reaction.object->SetHidden("#derived", derived);
   }
   return reaction;
 }
@@ -155,7 +155,7 @@ void ResolvePromise(Interpreter& interpreter, const Value& promise, const Value&
     for (const Value* half : {&resolve, &reject}) {
       if (half->IsObject()) {
         half->object->Set(kPromiseKey, *target);
-        half->object->Set("#once", guard);
+        half->object->SetHidden("#once", guard);
       }
     }
     const Result called =
@@ -177,8 +177,8 @@ void ResolvePromise(Interpreter& interpreter, const Value& promise, const Value&
     return;
   }
   adopter.object->Set(kPromiseKey, promise);
-  adopter.object->Set("#thenable", value);
-  adopter.object->Set("#then", then);
+  adopter.object->SetHidden("#thenable", value);
+  adopter.object->SetHidden("#then", then);
   Interpreter::Microtask task;
   task.callee = adopter;
   interpreter.EnqueueMicrotask(std::move(task));
@@ -425,7 +425,7 @@ void Interpreter::InstallPromises() {
         return rethrow ? inner.ThrowValue(passed) : passed;
       });
       if (wrapper.IsObject()) {
-        wrapper.object->Set("#body", handler);
+        wrapper.object->SetHidden("#body", handler);
       }
       return wrapper;
     };
@@ -456,7 +456,7 @@ void Interpreter::InstallPromises() {
     return;
   }
   constructor->Set("prototype", Value::Obj(well_known_.promise_prototype));
-  well_known_.promise_prototype->Set("constructor", Value::Obj(constructor));
+  well_known_.promise_prototype->SetHidden("constructor", Value::Obj(constructor));
   global_scope_->Declare("Promise", Value::Obj(constructor), false);
 
   InstallNative(constructor, "resolve", [](NativeCall& call) {
@@ -495,8 +495,8 @@ void Interpreter::InstallPromises() {
       if (!shared.IsObject()) {
         return call.Throw("RangeError", "out of memory");
       }
-      shared.object->Set("#remaining", Value::Number(static_cast<double>(items.size())));
-      shared.object->Set("#slots", call.interpreter.NewArrayValue(
+      shared.object->SetHidden("#remaining", Value::Number(static_cast<double>(items.size())));
+      shared.object->SetHidden("#slots", call.interpreter.NewArrayValue(
                                        std::vector<Value>(items.size(), Value::Undefined())));
       shared.object->Set(kPromiseKey, result);
 
@@ -579,8 +579,8 @@ void Interpreter::InstallPromises() {
             return Value::Undefined();
           });
           if (native.IsObject()) {
-            native.object->Set("#state", shared);
-            native.object->Set("#at", Value::Number(static_cast<double>(i)));
+            native.object->SetHidden("#state", shared);
+            native.object->SetHidden("#at", Value::Number(static_cast<double>(i)));
           }
           return native;
         };

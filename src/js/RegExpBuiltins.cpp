@@ -486,7 +486,7 @@ void Interpreter::InstallRegExpPrototype() {
   });
   if (constructor != nullptr) {
     constructor->Set("prototype", Value::Obj(well_known_.regexp_prototype));
-    well_known_.regexp_prototype->Set("constructor", Value::Obj(constructor));
+    well_known_.regexp_prototype->SetHidden("constructor", Value::Obj(constructor));
     global_scope_->Declare("RegExp", Value::Obj(constructor), false);
   }
 
@@ -560,9 +560,9 @@ void Interpreter::InstallRegExpPrototype() {
     // The pattern is stored as the RegExp object it came from, or as a fresh
     // one when the argument was a string, so the compiled program stays
     // reachable through the heap's table.
-    iterator.object->Set("#target", Value::String(text));
-    iterator.object->Set("#index", Value::Number(0.0));
-    iterator.object->Set("#pattern",
+    iterator.object->SetHidden("#target", Value::String(text));
+    iterator.object->SetHidden("#index", Value::Number(0.0));
+    iterator.object->SetHidden("#pattern",
                          argument.object != nullptr
                              ? Value::Obj(argument.object)
                              : call.interpreter.NewRegExpValue(argument.pattern));
@@ -587,7 +587,7 @@ void Interpreter::InstallRegExpPrototype() {
         result.object->Set("done", Value::Bool(true));
         return result;
       }
-      state->Set("#index", Value::Number(static_cast<double>(found.next)));
+      state->SetHidden("#index", Value::Number(static_cast<double>(found.next)));
       result.object->Set(
           "value", MakeMatchResult(inner.interpreter, *pattern, *found.match, text_of));
       result.object->Set("done", Value::Bool(false));

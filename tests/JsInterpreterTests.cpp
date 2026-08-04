@@ -493,7 +493,12 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
   AddTest(tests, "JsInterpreter/ObjectKeysAndValues", [] {
     ExpectEval("Object.keys({ b: 1, a: 2 }).join(',')", "b,a");  // insertion order
     ExpectEval("Object.values({ a: 1, b: 2 }).join(',')", "1,2");
-    ExpectEval("class A { get v(){ return 3 } } Object.values(A.prototype).includes(3)", "true");
+    // A class's members are non-enumerable, which is the one place a class
+    // and an object literal differ in what enumeration sees. The getter runs
+    // when it is read and is invisible to `Object.values`.
+    ExpectEval("class A { get v(){ return 3 } } Object.values(A.prototype).length", "0");
+    ExpectEval("class A { get v(){ return 3 } } A.prototype.v", "3");
+    ExpectEval("const o = { get v(){ return 3 } }; Object.values(o).join()", "3");
   });
 
   AddTest(tests, "JsInterpreter/ObjectCreateSetsThePrototype", [] {

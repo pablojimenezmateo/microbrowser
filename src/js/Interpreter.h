@@ -178,12 +178,33 @@ class Interpreter {
   // OpenIteration because spread, destructuring and `for...of` are three
   // callers in three files.
   Result StepIteration(Iteration& state, Value& value_out, bool& done);
+  // The same step, with a value to send in.
+  //
+  // Only `yield*` has one: `it.next(v)` is how a resumed delegation passes on
+  // what its own caller sent, and every other loop over an iterator sends
+  // nothing. A separate entry point rather than a defaulted argument, because
+  // "sends nothing" and "sends undefined" are the same to a built-in iterator
+  // and different to one a page wrote.
+  Result StepIterationWith(Iteration& state, const Value& sent, Value& value_out, bool& done);
+  // Hands a throw or a forced return to the iterator itself, which is what
+  // makes `yield*` a relationship. `thrown` is the value; `is_return` picks
+  // between its `return` and its `throw`. False when the iterator has no such
+  // method, in which case the caller rethrows.
+  bool ForwardToIterator(Iteration& state, const Value& thrown, bool is_return, Result& out,
+                         bool& done);
   // Closes every open cursor above `down_to`, innermost first: an iterator
   // that has not finished and has a `return` gets it called, which is what the
   // protocol says a loop leaving early owes it. What makes a `break` out of a
   // `for...of` over a generator finish the generator rather than leave its
   // frame filed for ever.
   Result CloseIterations(std::size_t down_to);
+  // The same, for a throw that is unwinding past them.
+  //
+  // Separate because the error handling is the opposite: a `break` propagates
+  // what an iterator's `return` throws, and a throw *discards* it -- the
+  // original error is what the page needs to see, and a generator's `finally`
+  // raising a second one must not replace it.
+  void CloseIterationsQuietly(std::size_t down_to);
   // One cursor's share of that, and what the tree-walker's `for...of` calls --
   // its cursor is a C++ local rather than a slot on a stack. The caller is
   // responsible for keeping the cursor rooted across this: it runs the page's

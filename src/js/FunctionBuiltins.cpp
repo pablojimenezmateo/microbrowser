@@ -78,7 +78,7 @@ void Interpreter::InstallFunctionPrototype() {
     return call.Throw("TypeError", "compiling a function from source is not supported");
   });
   constructor->Set("prototype", Value::Obj(well_known_.function_prototype));
-  well_known_.function_prototype->Set("constructor", Value::Obj(constructor));
+  well_known_.function_prototype->SetHidden("constructor", Value::Obj(constructor));
   global_scope_->Declare("Function", Value::Obj(constructor), false);
 
   InstallNative(well_known_.function_prototype, "toString", [](NativeCall& call) {

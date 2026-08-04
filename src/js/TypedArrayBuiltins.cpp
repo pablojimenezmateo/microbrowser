@@ -127,7 +127,7 @@ void Interpreter::InstallTypedArrays() {
   }
   buffer_prototype->SetPrototype(well_known_.object_prototype);
   buffer_constructor->Set("prototype", Value::Obj(buffer_prototype));
-  buffer_prototype->Set("constructor", Value::Obj(buffer_constructor));
+  buffer_prototype->SetHidden("constructor", Value::Obj(buffer_constructor));
   MarksConstructedKind(buffer_constructor, Object::Kind::ArrayBuffer);
   global_scope_->Declare("ArrayBuffer", Value::Obj(buffer_constructor), false);
   well_known_.array_buffer_prototype = buffer_prototype;
@@ -404,7 +404,7 @@ void Interpreter::InstallTypedArrays() {
       continue;
     }
     constructor->Set("prototype", Value::Obj(prototype));
-    prototype->Set("constructor", Value::Obj(constructor));
+    prototype->SetHidden("constructor", Value::Obj(constructor));
     const auto width = Value::Number(static_cast<double>(ElementSize(kind)));
     constructor->Set("BYTES_PER_ELEMENT", width);
     prototype->Set("BYTES_PER_ELEMENT", width);
@@ -521,7 +521,7 @@ void Interpreter::InstallTypedArrays() {
   }
   view_prototype->SetPrototype(well_known_.object_prototype);
   view_constructor->Set("prototype", Value::Obj(view_prototype));
-  view_prototype->Set("constructor", Value::Obj(view_constructor));
+  view_prototype->SetHidden("constructor", Value::Obj(view_constructor));
   MarksConstructedKind(view_constructor, Object::Kind::DataView);
   global_scope_->Declare("DataView", Value::Obj(view_constructor), false);
 
