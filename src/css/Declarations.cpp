@@ -29,25 +29,6 @@ namespace microbrowser::css {
 
 namespace {
 
-std::vector<std::string_view> SplitWords(std::string_view text) {
-  std::vector<std::string_view> words;
-  std::size_t start = 0;
-  while (start < text.size()) {
-    while (start < text.size() && IsCssWhitespace(text[start])) {
-      ++start;
-    }
-    std::size_t end = start;
-    while (end < text.size() && !IsCssWhitespace(text[end])) {
-      ++end;
-    }
-    if (end > start) {
-      words.push_back(text.substr(start, end - start));
-    }
-    start = end;
-  }
-  return words;
-}
-
 // Splits on `separator`, but not inside a function's parentheses or a string.
 // `url(a,b), red` is two layers, not three: a comma inside `url()` belongs to
 // the url. A splitter that did not track nesting would produce a fragment that

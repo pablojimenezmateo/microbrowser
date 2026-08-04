@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "css/ComputedStyle.h"
+#include "css/CssText.h"
 #include "css/StyleSheet.h"
 #include "util/Parse.h"
 
@@ -18,24 +19,6 @@
 namespace microbrowser::css {
 
 namespace {
-
-std::vector<std::string_view> SplitWords(std::string_view text) {
-  std::vector<std::string_view> words;
-  std::size_t at = 0;
-  while (at < text.size()) {
-    while (at < text.size() && (text[at] == ' ' || text[at] == '\t' || text[at] == '\n')) {
-      ++at;
-    }
-    const std::size_t begin = at;
-    while (at < text.size() && text[at] != ' ' && text[at] != '\t' && text[at] != '\n') {
-      ++at;
-    }
-    if (at > begin) {
-      words.push_back(text.substr(begin, at - begin));
-    }
-  }
-  return words;
-}
 
 // `justify-content` and `align-content` take the same six values, and the two
 // spellings of the CSS Box Alignment module are accepted alongside the flexbox

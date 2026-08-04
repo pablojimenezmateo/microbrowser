@@ -129,6 +129,18 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(!ParseLength("calc(1e400px)").has_value(), "nor a number outside a double's range");
     Expect(!ParseLength("calc(1e30px * 1e30)").has_value(),
            "nor a product outside a float's, which would otherwise reach layout as infinity");
+
+    // Every shorthand in this module counts its components and rejects the
+    // wrong number, so a splitter that cut `calc(1px + 2px)` into three would
+    // not produce a slightly wrong margin -- it would drop the declaration.
+    const ComputedStyle shorthand =
+        StyleOf("<p>x</p>", "p { margin: calc(4px + 6px) 0 }", "p");
+    Expect(shorthand.margin.top == Length::Pixels(10.0f) &&
+               shorthand.margin.left == Length::Pixels(0.0f),
+           "a calc is one component of a shorthand, not one per space inside it");
+    Expect(StyleOf("<p>x</p>", "p { background-size: calc(1rem + 4px) }", "p")
+                   .background.size_x == Length::Pixels(20.0f),
+           "and the same rule holds where the shorthand takes one or two lengths");
   });
 
   // The half of `@supports` that has to stay true as the engine changes. A
