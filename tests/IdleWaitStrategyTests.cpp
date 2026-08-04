@@ -3,6 +3,7 @@
 #include "TestSupport.h"
 #include "app/EventDrainBudget.h"
 #include "app/IdleWaitStrategy.h"
+#include "util/WaitDescriptor.h"
 
 namespace microbrowser::tests {
 
@@ -65,6 +66,50 @@ void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests) {
     state.next_deadline_ms = 0xFFFFFFFFu;
     const auto decision = ChooseIdleWait(state);
     Expect(decision.timeout_ms > 0, "a huge deadline must not wrap to a negative timeout");
+  });
+
+  // ADR 0011: a request in flight is something the loop sleeps *on*. These four
+  // are the whole of the policy half of that decision -- the rest is the
+  // platform actually waiting on what it is handed.
+  AddTest(tests, "IdleWait/NoRequestsMeansNoDescriptorsToWatch", [] {
+    const IdleWaitState state;
+    Expect(!ChooseIdleWait(state).watch_descriptors,
+           "an idle browser must not be handed anything to watch, or the wait it does is "
+           "no longer a wait on input alone");
+  });
+
+  AddTest(tests, "IdleWait/OutstandingRequestStillBlocksIndefinitely", [] {
+    const util::WaitDescriptor sockets[] = {{7, /*readable=*/true, /*writable=*/false}};
+    IdleWaitState state;
+    state.descriptors = sockets;
+    const auto decision = ChooseIdleWait(state);
+    Expect(decision.mode == IdleWaitMode::Wait,
+           "a request with no deadline behind it must not turn the wait into a timed one: "
+           "that is the shape polling arrives in");
+    Expect(decision.watch_descriptors, "and the socket must be in the wait");
+  });
+
+  AddTest(tests, "IdleWait/ADeadlineAndASocketAreBothWaitedOn", [] {
+    const util::WaitDescriptor sockets[] = {{7, /*readable=*/true, /*writable=*/false}};
+    IdleWaitState state;
+    state.descriptors = sockets;
+    state.next_deadline_ms = 40;
+    const auto decision = ChooseIdleWait(state);
+    Expect(decision.mode == IdleWaitMode::WaitTimeout, "the timer still bounds the wait");
+    ExpectEqInt(decision.timeout_ms, 40, "the timeout must be the deadline");
+    Expect(decision.watch_descriptors,
+           "a pending timer must not make the loop stop watching the socket -- that is the "
+           "bug where a page with a setInterval loads at one resource per tick");
+  });
+
+  AddTest(tests, "IdleWait/PendingWorkOutranksASocket", [] {
+    const util::WaitDescriptor sockets[] = {{7, /*readable=*/true, /*writable=*/false}};
+    IdleWaitState state;
+    state.descriptors = sockets;
+    state.repaint_pending = true;
+    const auto decision = ChooseIdleWait(state);
+    Expect(decision.mode == IdleWaitMode::Poll, "a composed frame goes out first");
+    Expect(!decision.watch_descriptors, "and a poll waits for nothing at all");
   });
 
   AddTest(tests, "EventDrainBudget/YieldsOnlyWithAPendingRepaint", [] {

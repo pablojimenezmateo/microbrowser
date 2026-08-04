@@ -10,7 +10,11 @@ purpose: Dependency-free primitives. Parsing, strings, tracing, counters.
 # for every other module to depend on it.
 allow:
 
-public: Env.h Inflate.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h
+# WaitDescriptor.h is here rather than in net because it is the vocabulary of a
+# handoff between three modules that may not include each other: net produces
+# descriptors, app puts them in the idle-wait decision, and platform waits on
+# them. See ADR 0011.
+public: Env.h Inflate.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h WaitDescriptor.h
 
 extern:
 
