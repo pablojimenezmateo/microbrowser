@@ -18,7 +18,7 @@ First-stop operating guide for agents working in this repository.
 
 ## Project Status
 
-**The browser renders Hacker News.** `./build/microbrowser/microbrowser <url>` fetches a document,
+**The browser renders Hacker News, and runs a page's own script against its own document.** `./build/microbrowser/microbrowser <url>` fetches a document,
 parses it, resolves its cascade, lays it out, and draws it — text, tables, images and all. The
 front page and a comments page both render, and clicking a story navigates to it.
 
@@ -42,7 +42,8 @@ What exists:
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
 | `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing |
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
-| `src/engine` | Page (one document), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. |
+| `src/engine` | Page (one document), PageScript (its interpreter and bindings), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. Runs a document's inline scripts after parsing. |
+| `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `document`, element lookup, attributes, tree walking, node creation. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
 | `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No bytecode VM, async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
@@ -91,9 +92,12 @@ reasoning; this is the queue.
    What is not: grid, and scrolling an overflow container — which needs a scroll offset per box
    and an input path to move it, and is engine work rather than layout's. `position: sticky`
    parses as relative because there is no scroll offset to compare against.
-6. **DOM bindings (M9).** The seam where every same-origin check will live. Nothing interactive
-   works without it, and `src/js/MODULE.deps` deliberately forbids `js` from reaching `dom`
-   directly so that this layer cannot be bypassed.
+6. **The rest of the DOM bindings.** The seam exists — `src/bindings`, ADR 0008 — and a page's
+   inline scripts run against it. What is missing is what a page does *next*: events (which need
+   a dispatch path checked against the zero-idle-CPU invariant first), `<script src>` (which needs
+   a fetch, and therefore a privacy verdict), `innerHTML` (the most dangerous binding in a
+   browser, and one to add on purpose), and node removal — which is not a small change, for the
+   reason `src/dom/MODULE.deps` and ADR 0008 both record.
 
 Known-crude spots, each with the reasoning written where the code is: loading is synchronous (the
 loop blocks for a fetch); a display list carrying an image serializes the bitmap inline rather than
