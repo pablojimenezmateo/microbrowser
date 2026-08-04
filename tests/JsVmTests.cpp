@@ -208,9 +208,47 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
              "void 0, ~1, -1, +1, !1",
              "null ?? 1, 0 || 1, 1 && 2",
              "let y = null; y ?\?= 1; y ||= 2; y &&= 3; y",
+             // The suspending forms. Each of these used to send the whole
+             // program to the tree-walker, which then refused the call -- an
+             // honest answer, and one that stopped being needed a construct at
+             // a time. There is now no syntax the parser accepts that the
+             // compiler hands back.
+             "async function f(){ return await 1 } f()",
+             "function* g(){ yield 1; yield* [2, 3]; return 4 } [...g()]",
+             "async function* g(){ yield await 1 } g()",
+             "const o = { *g(){ yield 1 }, async *h(){ yield 1 } }; o.g()",
+             "class C { *g(){ yield 1 } static async *h(){ yield 1 } }",
+             "async function f(){ for await (const x of [1]) {} } f()",
          }) {
       Expect(Compiles(source), std::string("compiles: ") + std::string(source));
     }
+  });
+
+  AddTest(tests, "JsVm/NothingTheParserAcceptsIsHandedBackToTheTreeWalker", [] {
+    // The claim the test above makes one line at a time, made once as a claim.
+    //
+    // Every remaining reason Compile can return null is a *bound* -- nesting
+    // too deep, too many instructions, more block-scoped names than a slot
+    // index can hold -- or a guard against a bug in the compiler itself. None
+    // of them is "the language has a construct this does not know", which is
+    // what the list used to be full of.
+    //
+    // So the tree-walker is no longer a fallback that catches gaps. It is the
+    // differential engine, and the refusals it gives for a generator or an
+    // async function are the only thing it is still asked to do that the
+    // machine does not.
+    Expect(!Compiles("function f(){ let a"), "a program that does not parse has no chunk");
+    // Deep nesting is a bound rather than a gap, and it is the one a page can
+    // reach. It abandons the compile rather than producing a wrong chunk.
+    std::string deep;
+    for (int i = 0; i < 600; ++i) {
+      deep += "(";
+    }
+    deep += "1";
+    for (int i = 0; i < 600; ++i) {
+      deep += ")";
+    }
+    Expect(!Compiles(deep), "past the nesting bound the compile is abandoned, not approximated");
   });
 
   AddTest(tests, "JsVm/AClassBodyIsCompiledEvenThoughTheClassIsBuiltByHand", [] {

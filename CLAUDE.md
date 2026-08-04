@@ -47,22 +47,32 @@ What exists:
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings and timers), Loader (everything network), Engine (routes messages). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches and runs a document's scripts — external and inline, in document order — and dispatches clicks to the page before acting on them. |
 | `src/bindings` | The seam between script and the document, and the only module that sees both `js` and `dom`. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, calls that cannot leak a scope keeping their bindings in the frame rather than on the heap, and the tree-walking interpreter kept as the fallback for anything not yet compiled and reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue, and **`async`/`await`** -- a call that waits is a frame filed whole and put back by a microtask, which is the thing the machine was built for. No generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, **a bytecode compiler and machine** (with names resolved to slots, calls that cannot leak a scope keeping their bindings in the frame rather than on the heap, and the tree-walking interpreter kept as the differential engine, reachable with `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates, `Proxy`. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue, and **every form of suspending a call**: `async`/`await`, generators, `yield*`, async generators and `for await`. All of them are one mechanism — a frame is filed whole and put back later — with different triggers. No modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
-Not yet started: flexbox and grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
-the process split and the sandbox (rest of M7), the rest of the builtins (rest of M8), integration
-(M9). **The collector now runs during evaluation**, at every loop back edge and every call: the
+Not yet started: grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
+the process split and the sandbox (rest of M7), modules (rest of M8), integration
+(M9). **The collector runs during evaluation**, at every loop back edge and every call: the
 machine's operand and frame stacks are data, so a script that recurses while allocating is collected
-through rather than starved. Two things still wait on the machine rather than on the tree-walker.
-A class is still *built* by the tree-walking evaluator -- its method bodies are compiled, but the
-computed keys, the static initializers and the per-instance field initializers are walked, which is
-right for things that run once per class or once per instance rather than once per call. The other
-was `async`/`await`, and it is done: `Await` files the running frame and every slice of the machine's
-stacks it owns, hands the caller the call's promise, and a microtask puts it all back. **The
-tree-walker refuses an async function rather than running one wrong** — a wrong answer three lines
-later is worse than a refusal at the call. Generators are the same machinery and are not built.
+through rather than starved.
+
+**Nothing the parser accepts is handed back to the tree-walker any more.** Every remaining reason
+`Compile` can return null is a bound — nesting too deep, too many instructions, more block-scoped
+names than a slot index holds — or a guard against a bug in the compiler itself, and a test says so.
+Suspending a call is what the machine was built for and every form of it has landed: `Await` files
+the running frame and every slice of the machine's stacks it owns, and `Yield` is the same two
+halves with a `next` as the trigger instead of a settled promise. An async generator is both at
+once, which is why its promises are one per request rather than one per call. **The tree-walker
+refuses an async function or a generator rather than running one wrong** — a wrong answer three
+lines later is worse than a refusal at the call — and that refusal is now the only thing it is asked
+to do that the machine does not.
+
+One thing still delegates rather than compiles: a class is *built* by the tree-walking
+`EvaluateClass`, reached through an opcode. Its method bodies are compiled; the computed keys, the
+static initializers and the per-instance field initializers are walked, which is right for things
+that run once per class or once per instance rather than once per call.
+
 Loading is synchronous — the loop blocks
 for the length of a fetch — and a display list carrying an image serializes the bitmap inline rather
 than naming it in a resource table. Roadmap in `README.md` and `AGENTS.md`.
@@ -80,28 +90,26 @@ reasoning; this is the queue.
    invisible until a real page was on screen. Known remaining gaps on Hacker News itself:
    `<select>` is laid out and submitted but not clickable, `cellspacing` is not mapped because
    there is no `border-spacing`, and `:visited` deliberately matches nothing.
-2. **Generators, and then `for await`.** Everything the machine was built for has landed: the
-   collector runs during evaluation, names resolve to slots, a call that cannot leak a scope
-   allocates nothing, and `async`/`await` suspends a frame and puts it back. Generators are the
-   *same machinery* pointed at a different trigger — `yield` files the frame the way `await` does,
-   and `next()` resumes it the way a settled promise does, so the work is an iterator protocol on
-   top of `Interpreter::SuspendForAwait` and `ResumeSuspended` rather than anything new underneath.
-   `src/js/Async.cpp` is where both live and the file comment is the map.
+2. **Modules.** The last language feature the engine does not have, and the one that is a
+   *loader* question as much as a VM one — an import is a fetch, and a fetch has to pass the
+   privacy layer and the site isolation model. `docs/adr/0004` and `guidelines/privacy.md` are the
+   constraints; the VM side is a second kind of program and a second kind of scope.
 
-   What async does not have yet: `for await...of` (the parser eats the `await` in a `for` header
-   and ignores it), async generators, and unhandled-rejection reporting beyond a console line.
-3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
-   left that is not a pure addition: it means a check at every property access in the
-   interpreter, which is a change to the hot path. Modules bring the loading they imply.
-4. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
+   Smaller gaps, each written where the code is rather than only here: `yield*` does not forward
+   `throw` and `return` to its delegate (it is a loop over the iterator, not a relationship the
+   resume path can see); a generator's `return` drops its frame rather than resuming it, so a
+   `finally` around the `yield` it was sitting at does not run; a throw that unwinds past a
+   `for...of` does not close the iterator, on either engine, and the two agree on purpose;
+   unhandled rejections get a console line and nothing more.
+3. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
    `IdleWaitState::next_deadline_ms` — a page with nothing pending still lets the loop block.
    `fetch` needs Promises (done) joined to the loader and its privacy verdict; `rAF` needs the
    same deadline machinery pointed at a frame rather than a timer.
-5. **Grid, and the rest of overflow.** Flexbox, `position` and overflow *clipping* are in.
+4. **Grid, and the rest of overflow.** Flexbox, `position` and overflow *clipping* are in.
    What is not: grid, and scrolling an overflow container — which needs a scroll offset per box
    and an input path to move it, and is engine work rather than layout's. `position: sticky`
    parses as relative because there is no scroll offset to compare against.
-6. **The rest of the DOM bindings.** Events, external scripts, removal, `style` and timers are
+5. **The rest of the DOM bindings.** Events, external scripts, removal, `style` and timers are
    all in. What is left: writing `innerHTML`, which needs *fragment* parsing rather than document
    parsing — `<td>` inside a table is a cell and anywhere else is nothing, so a setter using the
    document parser would build wrong trees quietly. Then `cloneNode`, `getBoundingClientRect`
@@ -170,9 +178,10 @@ MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the by
 ```
 
 `MICROBROWSER_JS_TREEWALK=1` is the differential switch, not a debug print: the two engines
-answering the same suite is the only way to know they agree. Five tests are expected to fail under
-it and the list is at the top of `tests/JsVmTests.cpp`; anything else appearing there is a
-difference nobody decided on. Two tree-walker bugs were found this way rather than by reading it.
+answering the same suite is the only way to know they agree. Thirty-two tests are expected to fail
+under it and the list is at the top of `tests/JsVmTests.cpp`; anything else appearing there is a
+difference nobody decided on. Three tree-walker bugs were found this way rather than by reading it —
+the third was a `for...of` that read `done` off a step and never wrote it back to its cursor.
 
 **Read the main-thread column of a summary first.** Self time ranks CPU cost; main time ranks what
 the user waits on, and the two routinely disagree. See `guidelines/observability.md`.
