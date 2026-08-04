@@ -35,7 +35,12 @@ budget: RegExpMatch    header_lines=30 public_methods=6  members=1
 # with each other, so the lines here are description rather than surface: the
 # member and method counts are what would say this is growing behaviour, and an
 # enum has neither. It grows with the language and nothing else.
-budget: Op              header_lines=180 public_methods=0  members=0
+# Grew by three for generators, which is the language growing: Yield and
+# GeneratorEntry are the two halves of suspending a generator, and
+# IterateDelegate is the step `yield*` needs and no other loop does -- it is
+# the only one that pushes the iterator's *return* value rather than dropping
+# it.
+budget: Op              header_lines=195 public_methods=0  members=0
 # One function's code and everything it names. Data: seven vectors, three
 # scalars, and no behaviour. It grows when a chunk has to remember one more
 # kind of thing, which has happened twice and should be argued for each time.
@@ -52,7 +57,13 @@ budget: Op              header_lines=180 public_methods=0  members=0
 # can suspend. On the code rather than on the function object, because it is a
 # property of the *body* -- the machine reads it in PushFrame to make the
 # promise and in Return to settle it, and both already have the code.
-budget: CompiledFunction header_lines=72 public_methods=0 members=16
+# Grew by one for generators, and it is the same question one bit over: what a
+# call hands its caller. `is_async` says a promise, `is_generator` says an
+# iterator, and the two are independent rather than a mode -- `async function*`
+# is both, which is why they are not one enum. On the code for the same reason
+# `is_async` is: PushFrame reads it to make the generator object, and the
+# compiler reads it to decide whether the body gets an entry suspend.
+budget: CompiledFunction header_lines=85 public_methods=0 members=17
 # One call in progress. Every field is something a resumed frame would need, and
 # that is the test for adding another -- this is the record `await` will have to
 # be able to copy somewhere and put back.
@@ -63,12 +74,23 @@ budget: CompiledFunction header_lines=72 public_methods=0 members=16
 # makes the record above worth being a record -- a filed frame is found again
 # through the reaction attached to this, and settling it is what a return or a
 # throw out of an async call actually does.
-budget: Frame           header_lines=44 public_methods=0  members=11
-# The compiler. Large because the language is, and split across two translation
-# units the way the parser is: expressions in Compiler.cpp, statements and
-# patterns in CompilerStatements.cpp. The member count is what matters and it is
-# small -- three tables, three depths and two flags, all of them state that
-# exists only while one function is being emitted.
+# Grew by one for generators, and it passes the test above: a resumed frame has
+# to know which generator it is the body of before a `yield` can record where it
+# filed itself. The promise finds its frame through a reaction; a generator's
+# frame finds its generator through this, which is the same relationship read
+# from the other end.
+budget: Frame           header_lines=56 public_methods=0  members=12
+# The compiler. Large because the language is, and split across four translation
+# units by what each compiles rather than by size: the emitter and the
+# expressions in Compiler.cpp, statements and patterns in
+# CompilerStatements.cpp, scopes and slot resolution in CompilerScopes.cpp, and
+# how a function body becomes a chunk in CompilerFunctions.cpp. The last of
+# those came out of the first when generators pushed it past the cap, and it
+# was the right seam rather than the nearest one: `Function` and its two helpers
+# are not expressions, which is what Compiler.cpp says it holds.
+# The member count is what matters and it is small -- three tables, three depths
+# and two flags, all of them state that exists only while one function is being
+# emitted.
 # Grew by three for slot resolution: the enclosing function's compiler, the
 # scopes this one has open, and how many of those are not block scopes. The
 # three together are the model of the run-time scope chain, and it has to be a
@@ -134,7 +156,13 @@ budget: MapIndex    header_lines=20 public_methods=0  members=2
 # when its key does, and only the collector can answer that. The ephemeron pass
 # in Collect is what makes it true -- marking a value can make another table's
 # key live, so the mark runs to a fixpoint rather than once.
-budget: Heap        header_lines=130 public_methods=22 members=8
+# Grew by one for the generator states, on exactly the terms the compiled
+# patterns and the map indexes are here: native state belonging to one object,
+# dropped by the sweep that frees it rather than by a second lifetime story
+# that could disagree. One reason applies only here -- in the object it would
+# be a property, and a page that wrote its own would have `next` put the same
+# frame back twice, which is a use-after-free with a script behind it.
+budget: Heap        header_lines=145 public_methods=24 members=9
 # The tree-walking interpreter.
 #
 # The member count went *down* at the commit that raised these numbers, from
@@ -152,7 +180,12 @@ budget: Heap        header_lines=130 public_methods=22 members=8
 # The well-known values, grouped. One field per thing the language requires to
 # exist and one `Roots()` that cannot disagree with the fields -- which is the
 # whole reason it is a struct. It grows as the language does.
-budget: WellKnown   header_lines=45 public_methods=2  members=8
+# Grew by one for %GeneratorPrototype%, which is the language growing: `next`,
+# `throw`, `return` and the `Symbol.iterator` that hands back the generator
+# itself. One object shared by every generator rather than one per generator
+# function, which is the one place a page could tell and is not a place a page
+# looks.
+budget: WellKnown   header_lines=52 public_methods=2  members=9
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -169,7 +202,14 @@ budget: WellKnown   header_lines=45 public_methods=2  members=8
 # The header grew by more, because Suspension is written out where it lives:
 # what a suspended call consists of is the substance of async/await, and the
 # list is the same one the handler table records depths of.
-budget: Interpreter header_lines=475 public_methods=44 members=16
+#
+# Grew again for generators, and by lines rather than by members or methods --
+# which is the shape a well-factored addition has here. The member count did not
+# move at all: a generator's state lives beside its object on the heap, next to
+# the compiled patterns and the weak tables, so nothing new is held here. What
+# grew is description -- the two halves a suspend was split into, and what each
+# of `yield`, `next`, `throw` and `return` does to a filed frame.
+budget: Interpreter header_lines=530 public_methods=44 members=16
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

@@ -1244,6 +1244,160 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqString(lines.at(1), "still r", "and the rejection passed through it");
   });
 
+  // --- generators -----------------------------------------------------------
+
+  AddTest(tests, "JsInterpreter/CallingAGeneratorRunsNoneOfItsBody", [] {
+    // The whole contract: the call returns an iterator and the body has not
+    // started. If it had, the log would say so before `next` was ever called.
+    const std::vector<std::string> log = Log(
+        "function* g(){ console.log('body'); yield 1; }\n"
+        "const it = g();\n"
+        "console.log('called');\n"
+        "it.next();\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 2, "two lines");
+    ExpectEqString(log.at(0), "called", "the call itself runs no line of the body");
+    ExpectEqString(log.at(1), "body", "the first next is what starts it");
+    // The parameters, though, are bound at the call -- so a default that
+    // throws throws there rather than three lines later.
+    ExpectEval("function boom(){ throw 'at the call' }\n"
+               "function* g(a = boom()){ yield a }\n"
+               "try { g(); 'no throw' } catch (e) { e }",
+               "at the call");
+  });
+
+  AddTest(tests, "JsInterpreter/NextWalksTheYieldsAndThenTheReturn", [] {
+    ExpectEval("function* g(){ yield 1; yield 2; return 3 }\n"
+               "const it = g();\n"
+               "[it.next(), it.next(), it.next(), it.next()]\n"
+               "  .map(r => r.value + ':' + r.done).join(' ')",
+               "1:false 2:false 3:true undefined:true");
+    // A bare `yield` yields undefined rather than nothing.
+    ExpectEval("function* g(){ yield }\n g().next().value === undefined", "true");
+  });
+
+  AddTest(tests, "JsInterpreter/NextSendsAValueBackToTheYieldThatIsWaiting", [] {
+    // The half of the protocol that makes a generator two-way, and the half a
+    // collected-up-front implementation cannot have.
+    ExpectEval("function* g(){ const a = yield 'first'; const b = yield a * 2; return a + b }\n"
+               "const it = g();\n"
+               "it.next().value + ' ' + it.next(10).value + ' ' + it.next(5).value",
+               "first 20 15");
+    // The value sent to the *first* next has nothing waiting for it, so it is
+    // dropped rather than becoming anything.
+    ExpectEval("function* g(){ return yield 1 }\n"
+               "const it = g();\n"
+               "it.next('ignored');\n"
+               "it.next('kept').value",
+               "kept");
+  });
+
+  AddTest(tests, "JsInterpreter/AGeneratorIsItsOwnIterableEverywhereOneIsTaken", [] {
+    ExpectEval("function* g(){ yield 1; yield 2; yield 3 }\n"
+               "let total = 0; for (const n of g()) total += n; total",
+               "6");
+    ExpectEval("function* g(){ yield 1; yield 2 }\n[...g()].join(',')", "1,2");
+    ExpectEval("function* g(){ yield 'a'; yield 'b'; yield 'c' }\n"
+               "const [first, ...rest] = g(); first + '/' + rest.join('')",
+               "a/bc");
+    // The identity `for...of` relies on: a generator's Symbol.iterator gives
+    // back the generator, so a half-walked one carries on where it stopped.
+    ExpectEval("function* g(){ yield 1; yield 2; yield 3 }\n"
+               "const it = g(); it.next();\n"
+               "[...it].join(',')",
+               "2,3");
+  });
+
+  AddTest(tests, "JsInterpreter/AGeneratorSuspendsWhereverItWasWritten", [] {
+    // A yield half way through an expression, inside two blocks, with a
+    // `for...of` cursor open -- the case the filed frame exists to survive.
+    ExpectEval("function* g(){\n"
+               "  for (const n of [1, 2]) {\n"
+               "    if (n) { const doubled = 2 * (yield n) ; yield doubled }\n"
+               "  }\n"
+               "}\n"
+               "const it = g();\n"
+               "[it.next().value, it.next(10).value, it.next().value, it.next(3).value].join(',')",
+               "1,20,2,6");
+    // And a yield inside a try, so the handler table's depths survive too.
+    ExpectEval("function* g(){ try { yield 1; yield 2 } finally { } }\n"
+               "[...g()].join(',')",
+               "1,2");
+  });
+
+  AddTest(tests, "JsInterpreter/ThrowArrivesAtTheYieldThatIsWaiting", [] {
+    ExpectEval("function* g(){ try { yield 1 } catch (e) { yield 'caught ' + e } yield 'after' }\n"
+               "const it = g();\n"
+               "it.next();\n"
+               "it.throw('boom').value + ' ' + it.next().value",
+               "caught boom after");
+    // Uncaught inside the body, so it comes out of `throw` at the caller and
+    // the generator is finished.
+    ExpectEval("function* g(){ yield 1; yield 2 }\n"
+               "const it = g(); it.next();\n"
+               "try { it.throw('boom') } catch (e) { e + ' ' + it.next().done }",
+               "boom true");
+    // Before the first `next` the body has not been entered, so nothing in it
+    // can catch -- not even a `try` written around the first yield.
+    ExpectEval("function* g(){ try { yield 1 } catch (e) { yield 'caught' } }\n"
+               "try { g().throw('boom') } catch (e) { 'thrown at the caller: ' + e }",
+               "thrown at the caller: boom");
+  });
+
+  AddTest(tests, "JsInterpreter/ReturnFinishesAGeneratorWhereverItIs", [] {
+    ExpectEval("function* g(){ yield 1; yield 2 }\n"
+               "const it = g(); it.next();\n"
+               "const closed = it.return('done here');\n"
+               "closed.value + ' ' + closed.done + ' ' + it.next().done",
+               "done here true true");
+    // A finished generator keeps answering, and keeps answering the same
+    // thing. This is what stops a `for...of` over a spent one from hanging.
+    ExpectEval("function* g(){ yield 1 }\n"
+               "const it = g(); it.next(); it.next();\n"
+               "const again = it.next();\n"
+               "(again.value === undefined) + ' ' + again.done",
+               "true true");
+  });
+
+  AddTest(tests, "JsInterpreter/AGeneratorCannotBeResumedWhileItIsRunning", [] {
+    // Its frame is on the machine, so putting it back would be the same frame
+    // in two places. A TypeError is what the spec says and what this can do.
+    ExpectEval("let it;\n"
+               "function* g(){ it.next(); yield 1 }\n"
+               "it = g();\n"
+               "try { it.next() } catch (e) { e.message }",
+               "this generator is already running");
+  });
+
+  AddTest(tests, "JsInterpreter/YieldStarWalksTheDelegateAndTakesItsReturnValue", [] {
+    ExpectEval("function* inner(){ yield 1; yield 2; return 'inner done' }\n"
+               "function* outer(){ const got = yield* inner(); yield got }\n"
+               "[...outer()].join(',')",
+               "1,2,inner done");
+    // Any iterable, not only a generator -- `yield*` is defined on the
+    // protocol rather than on generators.
+    ExpectEval("function* g(){ yield* [1, 2]; yield* 'ab' }\n[...g()].join(',')", "1,2,a,b");
+    ExpectEval("function* g(){ yield* [] ; yield 'after' }\n[...g()].join(',')", "after");
+  });
+
+  AddTest(tests, "JsInterpreter/GeneratorsAreWrittenInEveryFormAFunctionTakes", [] {
+    ExpectEval("const g = function*(){ yield 'expression' };\n g().next().value", "expression");
+    ExpectEval("const o = { *g(){ yield 'method' } };\n o.g().next().value", "method");
+    ExpectEval("class C { *g(){ yield 'class method' } }\n new C().g().next().value",
+               "class method");
+    ExpectEval("class C { static *g(){ yield 'static' } }\n C.g().next().value", "static");
+    // A generator method sees the receiver it was called on, which is the one
+    // thing a filed frame could plausibly lose.
+    ExpectEval("const o = { n: 7, *g(){ yield this.n } };\n o.g().next().value", "7");
+  });
+
+  AddTest(tests, "JsInterpreter/YieldOutsideAGeneratorIsRejected", [] {
+    ExpectEval("function f(){ return yield 1 }\n f()", "throw SyntaxError: yield is only valid "
+                                                      "inside a generator");
+    // An async generator is refused rather than run as one or the other.
+    ExpectEval("async function* g(){ yield 1 }\n typeof g",
+               "function");
+  });
+
   // --- async and await ------------------------------------------------------
 
   AddTest(tests, "JsInterpreter/AnAsyncFunctionReturnsAPromiseAndRunsUntilItWaits", [] {

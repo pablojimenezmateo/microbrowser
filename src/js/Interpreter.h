@@ -285,10 +285,46 @@ class Interpreter {
   // result would have gone -- so the caller carries on with a promise from the
   // moment the body first waits.
   Result SuspendForAwait(const Value& awaited);
+  // The half of a suspend that `await` and `yield` share: lift the running
+  // frame and its slice of every stack off the machine, file it, and leave
+  // `result` where the call's result would have gone. Returns the id it was
+  // filed under, or zero when the cap was reached and there was nowhere to
+  // put it.
+  std::uint64_t FileRunningFrame(Value result);
+  // The other half of a suspend is PutFrameBack, declared below beside the
+  // Suspension record it moves, because that is where the type it takes is.
   // Puts a filed frame back and runs it until it returns or suspends again.
   // `rejected` throws the value at the `await` rather than handing it over,
   // which is how `try { await p } catch` sees a rejection.
   Result ResumeSuspended(std::uint64_t suspension, const Value& value, bool rejected);
+  // The same suspend, with a generator's trigger instead of a promise's.
+  //
+  // Files the running frame, records where it went on the generator, and
+  // leaves `value` where the call's result would have gone -- which is what
+  // the resumer reads back as the yielded value. `status` is what the
+  // generator is left in: Suspended for a `yield`, and Start for the
+  // GeneratorEntry that runs before the body does, so that a `throw` before
+  // the first `next` does not start a body it should not.
+  Result SuspendForYield(const Value& value, GeneratorState::Status status);
+  // Puts a generator's filed frame back and runs it until it yields, returns
+  // or throws. `thrown` throws the value at the `yield` rather than handing it
+  // over, which is what `generator.throw(e)` is.
+  //
+  // What came back -- yield or return -- is not in the Result: both are a
+  // value. The generator's own status is what says which, because `yield` is
+  // the thing that sets it and a return is the thing that does not.
+  Result ResumeGenerator(Object* generator, const Value& sent, bool thrown);
+  // A generator object, with nothing filed against it yet. Made by PushFrame
+  // before the body runs, for the reason an async call's promise is: the
+  // caller has to be handed one whatever the body does next.
+  Object* NewGenerator();
+  // Installs %GeneratorPrototype%. In Async.cpp, beside what it drives.
+  void InstallGeneratorPrototype();
+  // Completes a generator without resuming it, and drops the frame it had
+  // filed. What `return` does, and what a `for...of` that breaks does through
+  // IterateClose -- the filed frame is a root, so a generator nobody finishes
+  // has to be finished by whoever walks away from it.
+  void CloseGenerator(Object* generator);
   // Arranges for `value` to resume suspension `id` once it settles, treating a
   // non-promise as an already-resolved one -- so `await 1` still yields a turn,
   // which is what the language says and what a page's ordering depends on.
@@ -387,6 +423,12 @@ class Interpreter {
     // Where a number's methods live. A number is a primitive here, like a
     // string, so GetProperty consults this directly rather than boxing.
     Object* number_prototype = nullptr;
+    // Where `next`, `throw` and `return` live, and the `Symbol.iterator` that
+    // returns the generator itself. One object shared by every generator
+    // rather than one per generator function -- so `Object.getPrototypeOf(g())`
+    // is this rather than `gen.prototype`, which is the one place a page could
+    // tell and is not a place any page looks.
+    Object* generator_prototype = nullptr;
     // Not a prototype, but the same category: the cell every iteration goes
     // through. Held here rather than looked up through the global `Symbol`,
     // which a page can reassign -- the protocol has to keep working when it
@@ -394,8 +436,9 @@ class Interpreter {
     Object* symbol_iterator = nullptr;
 
     std::vector<Object*> Roots() const {
-      return {object_prototype, array_prototype,   function_prototype, string_prototype,
-              regexp_prototype, promise_prototype, symbol_iterator,    number_prototype};
+      return {object_prototype, array_prototype,   function_prototype,  string_prototype,
+              regexp_prototype, promise_prototype, symbol_iterator,     number_prototype,
+              generator_prototype};
     }
   };
 
@@ -442,6 +485,14 @@ class Interpreter {
     std::vector<Iteration> iterations;
     std::vector<Binding> locals;
   };
+
+  // Rebases a filed frame onto whatever the machine looks like now and pushes
+  // it. False when there is no room, which the caller has to turn into the
+  // right kind of failure -- a rejected promise for an awaiting call, a
+  // completed generator for an iterator. The other half of FileRunningFrame,
+  // and here rather than beside it because this is where its parameter's type
+  // is defined.
+  bool PutFrameBack(Suspension& held);
 
   // Every call waiting, by id.
   //

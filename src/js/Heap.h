@@ -378,6 +378,33 @@ class Environment {
   bool marked_ = false;
 };
 
+// One generator, as the machine sees it.
+//
+// A generator object is an ordinary object to a page and two facts to the
+// interpreter: which filed frame is its, and whether that frame may be put
+// back. Both live here rather than on the object; see AttachGenerator.
+struct GeneratorState {
+  // Which filed frame is this generator's, as an id into the interpreter's
+  // suspension table. An id rather than a pointer for the reason the table is
+  // keyed by one: a page can reach the generator, and a number is a thing it
+  // can do nothing with.
+  std::uint64_t suspension = 0;
+  enum class Status : std::uint8_t {
+    // Made by the call, its parameters bound, and not one line of its body
+    // run. `throw` and `return` on one of these must not start the body.
+    Start,
+    // Waiting at a `yield`.
+    Suspended,
+    // Its frame is on the machine right now. `next` on one of these is a
+    // generator resuming itself, which the spec makes a TypeError -- and here
+    // it would be the same frame put back twice.
+    Running,
+    // Returned, threw, or was closed. Never resumable, and its frame is gone.
+    Done,
+  };
+  Status status = Status::Start;
+};
+
 // Owns every object and environment, and collects them.
 //
 // Mark and sweep, not reference counting: closures make cycles the normal case
@@ -421,6 +448,18 @@ class Heap {
   // to one object, and the sweep that frees the object is what drops it.
   MapIndex* AttachMapIndex(const Object* object);
   MapIndex* FindMapIndex(const Object* object) const;
+
+  // A generator's state.
+  //
+  // Beside the object rather than in it, on the same terms as the compiled
+  // pattern above -- native state belonging to one object, dropped by the
+  // sweep that frees it -- and for one more reason that only applies here. In
+  // the object it would be a property, and a property is something the page
+  // can write. A page that set its own `#suspension` would have `next` put
+  // back a frame that had already been put back, which is a use-after-free
+  // with a script behind it rather than a wrong answer.
+  GeneratorState* AttachGenerator(const Object* object);
+  GeneratorState* FindGenerator(const Object* object) const;
 
   // A WeakMap's entries.
   //
@@ -466,6 +505,12 @@ class Heap {
   std::unordered_map<const Object*, std::shared_ptr<const RegExp>> regexps_;
   // Same, for Map and Set.
   std::unordered_map<const Object*, std::shared_ptr<MapIndex>> map_indexes_;
+  // Same, for a generator. Behind a pointer like the two above, and here that
+  // is load-bearing rather than uniform: the interpreter holds a
+  // GeneratorState* across running the generator's body, and the body can make
+  // another generator. Held by value, that insertion would rehash the map and
+  // the held pointer would be into freed memory.
+  std::unordered_map<const Object*, std::unique_ptr<GeneratorState>> generators_;
   // One inner table per WeakMap. Keyed by the object rather than held on it,
   // for the reason above.
   std::unordered_map<const Object*, std::unordered_map<const Object*, Value>> weak_tables_;

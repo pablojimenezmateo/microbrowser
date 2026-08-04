@@ -363,6 +363,12 @@ Result Interpreter::StepIteration(Iteration& state, Value& value_out, bool& done
   }
   if (ToBoolean(GetProperty(stepped.value, "done"))) {
     done = true;
+    // The `value` of the final result, which every other caller ignores and
+    // `yield*` is defined in terms of: `const x = yield* g()` is what `g`
+    // returned, not what it last yielded. Read here rather than left undefined
+    // because the result object is in hand and reading it costs one lookup on
+    // the step that ends an iteration.
+    value_out = GetProperty(stepped.value, "value");
     return Result::Normal();
   }
   value_out = GetProperty(stepped.value, "value");

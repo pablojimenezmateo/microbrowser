@@ -96,7 +96,7 @@ void Interpreter::GatherVmRoots(std::vector<Object*>& objects,
     }
   }
   for (const Frame& frame : vm_.frames) {
-    for (Object* held : {frame.function, frame.promise}) {
+    for (Object* held : {frame.function, frame.promise, frame.generator}) {
       if (held != nullptr) {
         objects.push_back(held);
       }
@@ -204,6 +204,17 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
       return Throw("RangeError", "out of memory");
     }
     frame.promise = promise.object;
+  }
+  if (code->is_generator) {
+    // Made before a line of the body runs, for the reason the promise above is:
+    // the GeneratorEntry that follows the parameter prologue hands this to the
+    // caller, and the caller has to be handed it whatever the body does next.
+    Object* generator = NewGenerator();
+    if (generator == nullptr) {
+      vm_.locals.resize(locals_base);
+      return Throw("RangeError", "out of memory");
+    }
+    frame.generator = generator;
   }
   frame.stack_base = callee_slot;
   frame.argument_base = callee_slot + 2;
@@ -781,6 +792,40 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
       }
 
+      case Op::Yield:
+      case Op::GeneratorEntry: {
+        // The entry suspend hands the caller the generator itself; a `yield`
+        // hands the resumer the value on the stack. Both leave what they hand
+        // over exactly where a Return would have written it, which is why the
+        // tail below is the same one Await has.
+        Value handed;
+        GeneratorState::Status status = GeneratorState::Status::Start;
+        if (instruction.op == Op::Yield) {
+          handed = vm_.stack.back();
+          vm_.stack.pop_back();
+          status = GeneratorState::Status::Suspended;
+        } else if (frame->generator == nullptr) {
+          pending = Throw("SyntaxError", "generator entry outside a generator");
+          threw = true;
+          break;
+        } else {
+          handed = Value::Obj(frame->generator);
+        }
+        const Result suspended = SuspendForYield(handed, status);
+        if (suspended.IsAbrupt()) {
+          pending = suspended;
+          threw = true;
+          break;
+        }
+        // `frame` is dangling from here, exactly as it is after an Await.
+        if (vm_.frames.size() == entry_depth) {
+          Value out = vm_.stack.back();
+          vm_.stack.pop_back();
+          return Result::Normal(std::move(out));
+        }
+        break;
+      }
+
       // --- Building values ---------------------------------------------------
       case Op::NewArray: {
         Object* array = NewArray({});
@@ -1056,6 +1101,28 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
             vm_.stack.push_back(Value::Undefined());
           }
           break;
+        }
+        vm_.stack.push_back(std::move(item));
+        break;
+      }
+      case Op::IterateDelegate: {
+        Iteration& cursor = vm_.iterations.back();
+        Value item;
+        bool done = cursor.done;
+        if (!done) {
+          const Result advanced = StepIteration(cursor, item, done);
+          if (advanced.IsAbrupt()) {
+            pending = advanced;
+            threw = true;
+            break;
+          }
+          cursor.done = done;
+        }
+        if (done) {
+          // `item` is the delegate's return value, which StepIteration reads
+          // off the final result. Pushed rather than dropped, because it is
+          // what the `yield*` expression is worth.
+          frame->ip = instruction.a;
         }
         vm_.stack.push_back(std::move(item));
         break;

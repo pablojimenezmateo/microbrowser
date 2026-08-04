@@ -175,6 +175,17 @@ enum class Op : std::uint8_t {
   // This is the instruction the machine was built for. Against C++ stack
   // frames there was nowhere to put one.
   Await,      // [value] -> [awaited value], eventually and in another turn
+  // Suspends a generator's call and hands the value to whoever resumed it.
+  // The same machinery Await uses -- the frame is filed whole and put back --
+  // pointed at a different trigger: what puts this one back is a call to the
+  // generator's `next`, `throw` or `return` rather than a settled promise.
+  Yield,      // [value] -> [the value the next `next` sends in]
+  // The suspend a generator body begins with, emitted once and immediately
+  // after the parameters are bound. Hands the *caller* the generator object,
+  // which is what makes calling a generator function return an iterator
+  // without running a line of the body -- while still binding the parameters,
+  // and still throwing out of the call when a default does.
+  GeneratorEntry,  // -> [the value the first `next` sends in]
   LoadArgument,   // a = index -> [value]; undefined past the end
   RestArguments,  // a = index -> [array] of the arguments from there on
 
@@ -224,6 +235,10 @@ enum class Op : std::uint8_t {
   // remaining names with undefined rather than ending the pattern. The cursor
   // remembers that it finished, so a custom iterator is not asked twice.
   IterateStep,   // -> [value or undefined]
+  // What `yield*` steps with. Unlike IterateNext it pushes on both paths: the
+  // yielded value when there is one, and the delegate's *return* value when
+  // there is not -- which is what the whole expression evaluates to.
+  IterateDelegate,  // a = target; -> [value], or [return value] and jumps
   IterateRest,   // -> [array] of everything the iterator has left
   IterateClose,  // a = how many
   ForInKeys,     // [object] -> [array of key strings]
@@ -356,6 +371,12 @@ struct CompiledFunction {
   // Whether calling this returns a promise and its body can suspend. Read by
   // PushFrame, which makes the promise, and by Return, which settles it.
   bool is_async = false;
+  // Whether calling this returns a generator and runs none of the body. Read
+  // by PushFrame, which makes the generator object the first GeneratorEntry
+  // hands back. A sibling of the flag above rather than a mode beside it: the
+  // two are independent bits of the same question -- what a call gives its
+  // caller, and what suspends the frame.
+  bool is_generator = false;
   // How many slots this function needs. The four reserved above plus one per
   // parameter binding -- and, when `frame_locals` is set, one per binding
   // every block in the body declares as well, because those live here too.
@@ -439,6 +460,14 @@ struct Frame {
   // thing that makes a frame's identity outlive the machine's stacks: a filed
   // frame is found again through the reaction this is attached to.
   Object* promise = nullptr;
+  // The generator this call is the body of, made when the frame is pushed and
+  // handed to the caller by the GeneratorEntry that follows. Null for every
+  // other call. It is here for the reason the promise above is: it is how a
+  // filed frame is found again, only in the other direction -- the promise
+  // finds its frame through a reaction, and a generator's frame finds its
+  // generator through this, because a `yield` has to record where it filed
+  // itself somewhere the next `next` can read.
+  Object* generator = nullptr;
   std::uint32_t ip = 0;
   // Where the callee was pushed. The result is written here and the stack is
   // truncated to just past it, so a return needs no arithmetic on the caller.

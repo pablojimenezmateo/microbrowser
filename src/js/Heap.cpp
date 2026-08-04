@@ -322,6 +322,19 @@ MapIndex* Heap::FindMapIndex(const Object* object) const {
   return found == map_indexes_.end() ? nullptr : found->second.get();
 }
 
+GeneratorState* Heap::AttachGenerator(const Object* object) {
+  std::unique_ptr<GeneratorState>& slot = generators_[object];
+  if (slot == nullptr) {
+    slot = std::make_unique<GeneratorState>();
+  }
+  return slot.get();
+}
+
+GeneratorState* Heap::FindGenerator(const Object* object) const {
+  const auto found = generators_.find(object);
+  return found == generators_.end() ? nullptr : found->second.get();
+}
+
 void Heap::MakeWeakTable(const Object* table) { weak_tables_[table]; }
 
 void Heap::WeakSet(const Object* table, const Object* key, Value value) {
@@ -499,11 +512,12 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
   // Before the objects go, so the side table never holds a key that has been
   // freed -- a stale entry would be handed out as a compiled pattern the next
   // time an object happened to be allocated at the same address.
-  if (!regexps_.empty() || !map_indexes_.empty()) {
+  if (!regexps_.empty() || !map_indexes_.empty() || !generators_.empty()) {
     for (const std::unique_ptr<Object>& object : objects_) {
       if (!object->marked_) {
         regexps_.erase(object.get());
         map_indexes_.erase(object.get());
+        generators_.erase(object.get());
       }
     }
   }

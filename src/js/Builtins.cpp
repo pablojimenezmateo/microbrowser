@@ -839,6 +839,9 @@ void Interpreter::InstallGlobals() {
   InstallIteration();
   InstallCollections();
   InstallPromises();
+  // After InstallIteration: %GeneratorPrototype% carries a `Symbol.iterator`,
+  // and the cell it is keyed on is made there.
+  InstallGeneratorPrototype();
   global_scope_->Declare("String", Value::Obj(string_constructor), false);
   global_scope_->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {

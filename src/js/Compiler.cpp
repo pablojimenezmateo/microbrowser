@@ -5,9 +5,14 @@
 #include "js/CompilerImpl.h"
 #include "js/TemplateParts.h"
 
-// The compiler, expression half. Statements are in CompilerStatements.cpp, the
-// same split the parser has and for the same reason: the two halves are each
-// about six hundred lines and share only the emitter.
+// The compiler's emitter, and its expressions.
+//
+// Three translation units, split by what they compile rather than by size:
+// statements and patterns in CompilerStatements.cpp, scopes and slot
+// resolution in CompilerScopes.cpp, and how a function body becomes a chunk in
+// CompilerFunctions.cpp. What is left here is the emitter every one of them
+// calls, and the expressions. It is the same split the parser has and for the
+// same reason.
 //
 // Two invariants hold everywhere below, and every bug found while writing this
 // was a violation of one of them:
@@ -23,62 +28,6 @@
 //     root.
 
 namespace microbrowser::js {
-
-namespace {
-
-// Whether a subtree names `arguments`, so the array is built only where
-// something can observe it. The walk stops at a nested ordinary function --
-// which has an `arguments` of its own -- and does not stop at an arrow, which
-// does not.
-bool NamesArguments(const Node& node) {
-  if (node.kind == NodeKind::Identifier && node.string == "arguments") {
-    return true;
-  }
-  for (const NodePtr& child : node.children) {
-    if (child == nullptr) {
-      continue;
-    }
-    if (child->kind == NodeKind::FunctionExpression ||
-        child->kind == NodeKind::FunctionDeclaration ||
-        child->kind == NodeKind::ClassExpression || child->kind == NodeKind::ClassDeclaration) {
-      continue;
-    }
-    if (NamesArguments(*child)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Whether a subtree can make a function object, which is the only way a scope
-// created inside a call can outlive it.
-//
-// The walk stops at the first one it finds rather than descending: a function
-// nested three deep is still a function this one contains, and what matters is
-// that there is one at all. A class counts because its methods are functions
-// and because its body is built by the tree-walking evaluator, which captures
-// the scope it is handed.
-bool CreatesClosure(const Node& node) {
-  switch (node.kind) {
-    case NodeKind::FunctionExpression:
-    case NodeKind::FunctionDeclaration:
-    case NodeKind::ArrowFunction:
-    case NodeKind::ClassExpression:
-    case NodeKind::ClassDeclaration:
-    case NodeKind::MethodDefinition:
-      return true;
-    default:
-      break;
-  }
-  for (const NodePtr& child : node.children) {
-    if (child != nullptr && CreatesClosure(*child)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
 
 Compiler::Compiler(CompileState& state, CompiledFunction& function, Compiler* parent)
     : state_(state), function_(function), parent_(parent) {}
@@ -216,169 +165,6 @@ void Compiler::RunFinalizers(std::size_t depth) {
       scopes_.insert(scopes_.end(), hidden.begin(), hidden.end());
     }
   }
-}
-
-// --- Functions --------------------------------------------------------------
-
-void Compiler::Function(const Node& node, bool arrow) {
-  const CompileDepth depth(state_, kMaxCompileDepth);
-  if (depth.Exceeded()) {
-    Fail();
-    return;
-  }
-  const Node* parameters = node.Child(0);
-  const Node* body = node.Child(1);
-  function_.name = node.string;
-  function_.is_arrow = arrow;
-  // An async function returns a promise and its body can suspend; a generator
-  // returns an iterator and its body can suspend. Carried on the node as
-  // `number` by the parser, because both are modifiers on a function and not
-  // different kinds of one -- everything else about compiling the body is
-  // identical, which is why they are flags here rather than three code paths.
-  const auto flags = static_cast<std::uint8_t>(node.number);
-  function_.is_async = (flags & kFunctionAsync) != 0;
-  if ((flags & kFunctionGenerator) != 0) {
-    // Parsed but not yet compiled. Rejecting the program is what sends it to
-    // the tree-walker, which refuses to call a generator rather than running
-    // its body eagerly -- so the answer a page gets is "not implemented" and
-    // never a function that returned the wrong thing.
-    ThrowSyntax("generators are not implemented yet");
-    return;
-  }
-  function_.parameter_count =
-      parameters == nullptr ? 0 : static_cast<std::uint32_t>(parameters->children.size());
-  function_.needs_arguments =
-      !arrow && ((body != nullptr && NamesArguments(*body)) ||
-                 (parameters != nullptr && NamesArguments(*parameters)));
-  // Nothing this call makes can outlive it unless it makes a function, so a
-  // body with none in it keeps its bindings in the frame and allocates no
-  // scope at all. Decided here, before a single instruction is emitted,
-  // because every name in the body resolves differently depending on it.
-  function_.frame_locals = !(body != nullptr && CreatesClosure(*body)) &&
-                           !(parameters != nullptr && CreatesClosure(*parameters));
-
-  // The function's own scope, whose first four slots PushFrame fills. Reserved
-  // in the same order there and here; see kSlotThis in Bytecode.h.
-  scopes_.emplace_back();
-  scope_floor_ = 1;
-  Reserve("this");
-  Reserve("__home__");
-  Reserve("__function__");
-  Reserve("arguments");
-  if (parameters != nullptr) {
-    for (const NodePtr& parameter : parameters->children) {
-      if (parameter != nullptr) {
-        ReservePattern(*parameter);
-      }
-    }
-  }
-  // How many slots the frame reserves. In a scoped function that is this one
-  // scope; in a flattened one it is every scope in the body as well, so it is
-  // not known until the body has been compiled and is set again at the end.
-  function_.scope_slots = scopes_.back().count;
-
-  // Slot zero of every frame is the completion value. Reserved here so that a
-  // handler's recorded depth and a frame's working base mean the same thing in
-  // a function as they do in a program.
-  Emit(Op::PushUndefined, 0, 1);
-
-  if (parameters != nullptr) {
-    for (std::size_t i = 0; i < parameters->children.size(); ++i) {
-      const Node* parameter = parameters->Child(i);
-      if (parameter == nullptr) {
-        continue;
-      }
-      if (parameter->kind == NodeKind::RestElement) {
-        const Node* target = parameter->Child(0);
-        Emit(Op::RestArguments, static_cast<std::uint32_t>(i), 1);
-        if (target == nullptr) {
-          Emit(Op::Pop, 0, -1);
-        } else {
-          BindTarget(*target, true, false);
-        }
-        break;
-      }
-      Emit(Op::LoadArgument, static_cast<std::uint32_t>(i), 1);
-      const Node* target = parameter;
-      if (parameter->kind == NodeKind::AssignmentPattern) {
-        target = parameter->Child(0);
-        const Node* fallback = parameter->Child(1);
-        if (fallback != nullptr) {
-          // A default applies to a missing argument *and* to an explicit
-          // undefined, which is the rule and is not the same as "no argument".
-          const std::uint32_t skip = Emit(Op::JumpIfNotUndefined, 0, 0);
-          Emit(Op::Pop, 0, -1);
-          Expression(*fallback);
-          Patch(skip, Here());
-        }
-      }
-      if (target == nullptr) {
-        Emit(Op::Pop, 0, -1);
-      } else {
-        BindTarget(*target, true, false);
-      }
-    }
-  }
-
-  if (body == nullptr) {
-    Emit(Op::PushUndefined, 0, 1);
-    Emit(Op::Return, 0, -1);
-  } else if (body->kind == NodeKind::Block) {
-    Block(*body);
-    Emit(Op::PushUndefined, 0, 1);
-    Emit(Op::Return, 0, -1);
-  } else {
-    // An expression-bodied arrow returns its expression.
-    Expression(*body);
-    Emit(Op::Return, 0, -1);
-  }
-
-  if (function_.frame_locals) {
-    function_.scope_slots = frame_slots_;
-  }
-}
-
-std::uint32_t Compiler::CompileNested(const Node& node, bool arrow) {
-  auto nested = std::make_unique<CompiledFunction>();
-  nested->source = &node;
-  // The nested compiler knows this one, because the run-time chain does: a
-  // frame's scope has the defining scope as its parent, so a name the inner
-  // function does not declare is found by counting scopes out through here.
-  Compiler inner(state_, *nested, this);
-  inner.Function(node, arrow);
-  if (state_.failed) {
-    return 0;
-  }
-  function_.functions.push_back(std::move(nested));
-  return static_cast<std::uint32_t>(function_.functions.size() - 1);
-}
-
-void Compiler::FunctionValue(const Node& node, bool arrow) {
-  const std::uint32_t index = CompileNested(node, arrow);
-  if (state_.failed) {
-    return;
-  }
-  Emit(arrow ? Op::ClosureArrow : Op::Closure, index, 1);
-}
-
-void Compiler::ClassMethods(const Node& node) {
-  // One scope, standing for the one EvaluateClass makes at run time so that a
-  // method can name its own class. It holds exactly one binding -- the class
-  // name -- and nothing when the class is anonymous, in which case the scope
-  // still exists and still counts as a hop.
-  scopes_.emplace_back();
-  Reserve(node.string);
-  for (const NodePtr& member : node.children) {
-    if (member == nullptr || member->kind != NodeKind::MethodDefinition ||
-        member->children.empty()) {
-      continue;
-    }
-    const Node* body = member->children.back().get();
-    if (body != nullptr && body->kind == NodeKind::FunctionExpression) {
-      CompileNested(*body, false);
-    }
-  }
-  scopes_.pop_back();
 }
 
 // --- Expressions ------------------------------------------------------------
@@ -567,10 +353,7 @@ void Compiler::Expression(const Node& node) {
       return;
 
     case NodeKind::Yield:
-      // Not reachable yet: a generator body is rejected above, so nothing that
-      // could legally contain a `yield` gets this far. A `yield` outside a
-      // generator lands here, and is the syntax error it is.
-      ThrowSyntax("yield is only valid inside a generator");
+      Yield(node);
       return;
 
     case NodeKind::Spread:
@@ -583,6 +366,71 @@ void Compiler::Expression(const Node& node) {
       Fail();
       return;
   }
+}
+
+void Compiler::Yield(const Node& node) {
+  if (!function_.is_generator) {
+    // `yield` is an expression everywhere the parser is concerned and a keyword
+    // only inside a generator. Rejected here rather than there, because whether
+    // it is one is a scope question -- the same arrangement `await` has.
+    ThrowSyntax("yield is only valid inside a generator");
+    return;
+  }
+  const Node* argument = node.Child(0);
+
+  if (node.number == 0.0) {
+    // `yield` and `yield x`. One instruction: the value goes out, and what the
+    // next `next(v)` sends in arrives in its place.
+    if (argument == nullptr) {
+      Emit(Op::PushUndefined, 0, 1);
+    } else {
+      Expression(*argument);
+    }
+    Emit(Op::Yield, 0, 0);
+    return;
+  }
+
+  // `yield* xs`, as a loop over the delegate's iterator rather than an opcode.
+  //
+  // Two things this does not do, both because it is a loop here rather than a
+  // forwarding relationship at run time:
+  //
+  //   * `g.throw(e)` on a generator suspended inside a `yield*` throws at the
+  //     `yield` below rather than being forwarded to the delegate's `throw`.
+  //     An inner generator's `catch` therefore does not see it, and the outer
+  //     one's does.
+  //   * `g.return()` likewise closes the outer generator without calling the
+  //     delegate's `return`, so an inner `finally` does not run.
+  //
+  // Both need the delegate to be a *relationship* the resume path can see,
+  // which is a record on the generator's state rather than an instruction --
+  // and both are the same shape as the `finally` deviation `return` already
+  // has. What the loop does get right is the common case and the return value:
+  // `const x = yield* g()` is what `g` returned.
+  if (argument == nullptr) {
+    Emit(Op::PushUndefined, 0, 1);
+  } else {
+    Expression(*argument);
+  }
+  Emit(Op::IterateOpen, 0, -1);
+  ++iteration_depth_;
+  const std::uint32_t before = stack_depth_;
+
+  const std::uint32_t top = Here();
+  const std::uint32_t to_end = Emit(Op::IterateDelegate, 0, 1);
+  Emit(Op::Yield, 0, 0);
+  // What `next(v)` sent in is dropped rather than passed to the delegate's
+  // `next`, for the reason above: there is nothing here holding the delegate
+  // that a resume could reach.
+  Emit(Op::Pop, 0, -1);
+  Patch(Emit(Op::Jump, 0, 0), top);
+
+  Patch(to_end, Here());
+  // The delegate's return value is on the stack at the jump target, which the
+  // fall-through path never reaches -- so the depth is set rather than tracked.
+  stack_depth_ = before + 1;
+  Emit(Op::IterateClose, 1, 0);
+  --iteration_depth_;
 }
 
 void Compiler::Unary(const Node& node) {

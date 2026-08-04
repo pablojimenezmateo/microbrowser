@@ -165,6 +165,10 @@ class Compiler {
   // --- Expressions (Compiler.cpp) ------------------------------------------
   void Expression(const Node& node);
   void Unary(const Node& node);
+  // `yield` and `yield*`. The second is a loop over the delegate's iterator
+  // rather than an opcode, which is where its two deviations come from; both
+  // are written out where it is emitted.
+  void Yield(const Node& node);
   void Update(const Node& node);
   void Assignment(const Node& node);
   void CallExpression(const Node& node);

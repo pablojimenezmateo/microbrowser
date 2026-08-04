@@ -18,7 +18,7 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 thirteen tests are expected to fail, in
+// Under MICROBROWSER_JS_TREEWALK=1 twenty-four tests are expected to fail, in
 // three groups, and the list is worth keeping known:
 //
 //   the stacks being data --
@@ -39,6 +39,17 @@
 //   JsVm/ASuspendedCallKeepsWhatItWasHoldingAcrossACollection
 //   JsVm/ManySuspendedCallsResumeIndependently
 //   JsVm/ARejectedAwaitThrowsWhereTheAwaitWasWritten
+//   JsInterpreter/CallingAGeneratorRunsNoneOfItsBody
+//   JsInterpreter/NextWalksTheYieldsAndThenTheReturn
+//   JsInterpreter/NextSendsAValueBackToTheYieldThatIsWaiting
+//   JsInterpreter/AGeneratorIsItsOwnIterableEverywhereOneIsTaken
+//   JsInterpreter/AGeneratorSuspendsWhereverItWasWritten
+//   JsInterpreter/ThrowArrivesAtTheYieldThatIsWaiting
+//   JsInterpreter/ReturnFinishesAGeneratorWhereverItIs
+//   JsInterpreter/AGeneratorCannotBeResumedWhileItIsRunning
+//   JsInterpreter/YieldStarWalksTheDelegateAndTakesItsReturnValue
+//   JsInterpreter/GeneratorsAreWrittenInEveryFormAFunctionTakes
+//   JsInterpreter/YieldOutsideAGeneratorIsRejected
 //
 // Every one is the machine doing something the tree-walker cannot. The first
 // group is the stacks being data: collecting while script runs, and recursing
@@ -47,10 +58,12 @@
 // block's names before the block runs, so a name means its inner binding for
 // the whole block -- which is the language's rule, and which a tree-walker that
 // learns of the binding only when the line executes cannot express. The third
-// is `await`: suspending a call means putting a frame down, and a tree-walker's
-// frames are C++ frames. It does not get that one slightly wrong -- calling an
-// async function on it throws and says why, because a wrong answer three lines
-// later is worse than a refusal here.
+// is `await` and `yield`, which are the same thing: suspending a call means
+// putting a frame down, and a tree-walker's frames are C++ frames. It does not
+// get either slightly wrong -- calling an async function or a generator on it
+// throws and says why, because a wrong answer three lines later is worse than a
+// refusal here. A generator that ran its body eagerly and returned the last
+// value instead of an iterator is exactly that wrong answer.
 //
 // (JsInterpreter/AsyncIsAKeywordOnlyWhereItModifiesAFunction is deliberately
 // not in the list: it is about the parser, which is the same either way.)
