@@ -188,7 +188,38 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
 
 // --- Property access -------------------------------------------------------
 
+Object* Interpreter::ProxyTrap(const Value& base, const char* trap, Value& target) const {
+  if (!base.IsObject() || base.object->GetKind() != Object::Kind::Proxy) {
+    return nullptr;
+  }
+  const Value* behind = base.object->GetOwn("#target");
+  target = behind == nullptr ? Value::Undefined() : *behind;
+  const Value* handler = base.object->GetOwn("#handler");
+  if (handler == nullptr || !handler->IsObject()) {
+    return nullptr;
+  }
+  // A handler without the trap is not an error: the operation falls through to
+  // the target, which is what makes `new Proxy(o, {})` behave exactly like `o`.
+  const Value* hook = handler->object->Get(trap);
+  return hook != nullptr && hook->IsObject() && hook->object->IsCallable() ? hook->object
+                                                                          : nullptr;
+}
+
+
+
 Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
+  if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
+    Value target;
+    if (Object* trap = ProxyTrap(base, "get", target)) {
+      // (target, key, receiver), and the receiver is the proxy -- so a getter
+      // reached through it sees the proxy as `this`, which is what makes a
+      // reactive object notice a read of a computed property.
+      const Result got = CallFunction(Value::Obj(trap), Value::Undefined(),
+                                      {target, KeyValue(key), base});
+      return got.IsAbrupt() ? Value::Undefined() : got.value;
+    }
+    return target.IsUndefined() ? Value::Undefined() : GetProperty(target, key);
+  }
   // A symbol key names none of the built-in structure below -- there is no
   // symbol spelled "length" and no symbol that is an array index -- so those
   // tests are guarded rather than repeated inside each one.
@@ -268,6 +299,15 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
 }
 
 Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const Value& value) {
+  if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
+    Value target;
+    if (Object* trap = ProxyTrap(base, "set", target)) {
+      const Result set = CallFunction(Value::Obj(trap), Value::Undefined(),
+                                      {target, KeyValue(key), value, base});
+      return set.IsAbrupt() ? set : Result::Normal(value);
+    }
+    return target.IsUndefined() ? Result::Normal(value) : SetProperty(target, key, value);
+  }
   const bool named = !key.IsSymbol();
   if (!base.IsObject()) {
     // Assigning to a property of a primitive is a silent no-op outside strict

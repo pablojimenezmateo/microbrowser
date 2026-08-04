@@ -195,6 +195,10 @@ class Interpreter {
   Result BindParameters(const Node& parameters, const std::vector<Value>& arguments,
                         Environment& scope);
 
+  // A proxy's handler, and the target behind it. Null for anything else, which
+  // is what every property operation checks before doing its ordinary work.
+  Object* ProxyTrap(const Value& base, const char* trap, Value& target) const;
+
   Value GetProperty(const Value& base, const PropertyKey& key);
 
  public:

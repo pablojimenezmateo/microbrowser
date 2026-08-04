@@ -286,6 +286,17 @@ Result Interpreter::EvaluateBinary(const Node& node, Environment& scope) {
     if (!b.IsObject()) {
       return Throw("TypeError", "'in' requires an object");
     }
+    if (b.object->GetKind() == Object::Kind::Proxy) {
+      Value target;
+      if (Object* trap = ProxyTrap(b, "has", target)) {
+        const Result asked = CallFunction(Value::Obj(trap), Value::Undefined(), {target, a});
+        return asked.IsAbrupt() ? asked : Result::Normal(Value::Bool(ToBoolean(asked.value)));
+      }
+      // No `has` trap: the question goes straight to the target, which is
+      // what makes a handler that defines nothing transparent.
+      return Result::Normal(Value::Bool(
+          target.IsObject() && target.object->GetProperty(KeyFrom(a)) != nullptr));
+    }
     const std::string key = ToString(a);
     if (b.object->GetKind() == Object::Kind::Array) {
       if (key == "length") {

@@ -1642,6 +1642,42 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                std::to_string(interpreter.GetHeap().ObjectCount()) + " objects");
   });
 
+  AddTest(tests, "JsInterpreter/AProxyWithNoTrapsIsItsTarget", [] {
+    // The property that makes every other trap optional: a handler that
+    // defines nothing has to be invisible.
+    ExpectEval("const t = { a: 1 }; const p = new Proxy(t, {}); p.a", "1");
+    ExpectEval("const t = { a: 1 }; const p = new Proxy(t, {}); 'a' in p", "true");
+    ExpectEval("const t = { a: 1 }; const p = new Proxy(t, {}); typeof p.missing", "undefined");
+    // A write goes through to the target, which is what makes a pass-through
+    // proxy usable as the object itself.
+    ExpectEval("const t = {}; const p = new Proxy(t, {}); p.b = 2; t.b", "2");
+    ExpectEval("try { new Proxy(1, {}) } catch (e) { e.name }", "TypeError");
+  });
+
+  AddTest(tests, "JsInterpreter/AProxysTrapsSeeEveryOperation", [] {
+    // What reactive frameworks are built on: every read and write is
+    // observable, without the object having to be rewritten to announce them.
+    ExpectEval("const reads = []; "
+               "const p = new Proxy({ x: 5 }, { get(t, k){ reads.push(k); return t[k] } }); "
+               "p.x; p.x; reads.join(',')",
+               "x,x");
+    ExpectEval("const p = new Proxy({}, { set(t, k, v){ t[k] = v * 10; return true } }); "
+               "p.y = 3; p.y",
+               "30");
+    ExpectEval("const p = new Proxy({ x: 1 }, { has(t, k){ return k === 'magic' || k in t } }); "
+               "['magic' in p, 'x' in p, 'nope' in p].join(' ')",
+               "true true false");
+    // The key reaches the trap as what it is. A symbol key arriving as text
+    // would be a name the page could write out, which is what symbols exist
+    // not to be.
+    ExpectEval("const p = new Proxy({}, { get(t, k){ return typeof k } }); "
+               "[p[Symbol('s')], p.name].join(' ')",
+               "symbol string");
+    // The receiver is the proxy, so a getter reached through it sees the proxy
+    // as `this` -- which is how a computed property's read is noticed.
+    ExpectEval("const p = new Proxy({}, { get(t, k, r){ return r === p } }); p.anything", "true");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

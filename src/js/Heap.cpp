@@ -38,6 +38,11 @@ std::optional<std::size_t> ParseArrayIndex(std::string_view key) {
   return index;
 }
 
+Value KeyValue(const PropertyKey& key) {
+  return key.IsSymbol() ? Value::Sym(const_cast<Object*>(key.Cell()))
+                        : Value::String(key.Text());
+}
+
 PropertyKey KeyFrom(const Value& value) {
   return value.IsSymbol() ? PropertyKey::Symbol(value.object) : PropertyKey(ToString(value));
 }

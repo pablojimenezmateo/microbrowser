@@ -648,10 +648,43 @@ void Interpreter::InstallGlobals() {
       case Object::Kind::Error: return Value::String(std::string("[object Error]"));
       case Object::Kind::RegExp: return Value::String(std::string("[object RegExp]"));
       case Object::Kind::Symbol: return Value::String(std::string("[object Symbol]"));
+      // A proxy reports what its target is, which is what makes it transparent
+      // to the check a page uses to tell an array from a plain object.
+      case Object::Kind::Proxy: return Value::String(std::string("[object Object]"));
       case Object::Kind::Plain: break;
     }
     return Value::String(std::string("[object Object]"));
   });
+  // --- Proxy ----------------------------------------------------------------
+  // A wrapper whose every property operation goes to a handler first. The
+  // check for it sits on the hot path of GetProperty and SetProperty, which is
+  // why the proxy is a *kind* rather than a marker property: the kind byte is
+  // already being read there.
+  //
+  // A trap the handler does not define falls through to the target rather than
+  // failing, which is what makes `new Proxy(o, {})` behave exactly like `o`.
+  global_scope_->Declare(
+      "Proxy",
+      NewNativeValue(
+          "Proxy",
+          [](NativeCall& call) {
+            const Value target = Argument(call.arguments, 0);
+            const Value handler = Argument(call.arguments, 1);
+            if (!target.IsObject() || !handler.IsObject()) {
+              return call.Throw("TypeError", "Proxy requires a target and a handler");
+            }
+            Object* proxy = call.interpreter.GetHeap().AllocateObject(Object::Kind::Proxy);
+            if (proxy == nullptr) {
+              return call.Throw("RangeError", "out of memory");
+            }
+            // Own properties, so the collector marks both without the proxy
+            // needing a slot of its own.
+            proxy->Set("#target", target);
+            proxy->Set("#handler", handler);
+            return Value::Obj(proxy);
+          }),
+      false);
+
   // --- Reflect --------------------------------------------------------------
   // The same operations the language performs implicitly, as ordinary
   // functions. Almost all of it is a thin name over something that already

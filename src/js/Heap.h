@@ -27,6 +27,10 @@ class PropertyKey;
 // becomes its string form, which is what makes `o[1]` and `o['1']` the same
 // property.
 PropertyKey KeyFrom(const Value& value);
+// The other direction: the value a key is handed back to script as. A proxy
+// trap receives the key it was asked about, and a symbol key has to arrive as
+// the symbol rather than as text.
+Value KeyValue(const PropertyKey& key);
 
 struct ArrayElement {
   Value value;
@@ -115,7 +119,20 @@ using NativeFunction = std::function<Value(NativeCall&)>;
 // lookup starts with a downcast.
 class Object {
  public:
-  enum class Kind : std::uint8_t { Plain, Array, Function, Native, Error, RegExp, Symbol };
+  enum class Kind : std::uint8_t {
+    Plain,
+    Array,
+    Function,
+    Native,
+    Error,
+    RegExp,
+    Symbol,
+    // A proxy: every property operation on it goes to a handler first. A kind
+    // rather than a flag because the check happens on the hot path of every
+    // property access, and comparing one byte already being read is as cheap
+    // as that check can be.
+    Proxy,
+  };
 
   explicit Object(Kind kind) : kind_(kind) {}
 
