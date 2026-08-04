@@ -386,6 +386,7 @@ add_executable(microbrowser_tests
   tests/JsLexerTests.cpp
   tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
+  tests/JsVmTests.cpp
   tests/DomBindingsTests.cpp
   tests/FlexLayoutTests.cpp
   tests/LayoutTests.cpp

@@ -608,6 +608,26 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
     return Throw("RangeError", "script ran too long");
   }
 
+  // A label reaches the statement it was written on and no further.
+  //
+  // It used to reach everything inside that statement, because only the loops
+  // cleared it: `found: { for (const a of xs) { break found } }` left the label
+  // set when the `for` started, so the loop believed it was the one named and
+  // `break found` left the loop instead of the block. Found by running the same
+  // program on both engines -- the compiler resolves a label to a construct
+  // while compiling, so it could not make this mistake.
+  switch (node.kind) {
+    case NodeKind::While:
+    case NodeKind::DoWhile:
+    case NodeKind::For:
+    case NodeKind::ForIn:
+    case NodeKind::Labeled:
+      break;  // these three read it; Labeled is what sets it
+    default:
+      pending_label_.clear();
+      break;
+  }
+
   switch (node.kind) {
     case NodeKind::Program:
     case NodeKind::Block:

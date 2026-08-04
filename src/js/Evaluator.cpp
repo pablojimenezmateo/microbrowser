@@ -238,10 +238,74 @@ Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
   }
 
   const std::string& op = node.string;
-  if (op == "&&=" || op == "||=" || op == "?\?=") {
-    // Short-circuiting assignment does not evaluate the right side, and does
-    // not assign at all, when the test fails. Assigning the old value back
-    // would be observable through a setter.
+  const bool is_logical = op == "&&=" || op == "||=" || op == "?\?=";
+
+  if (target->kind == NodeKind::Member) {
+    // A member target's own operands are evaluated *first*, before the
+    // right-hand side, and exactly once.
+    //
+    // Both halves of that were wrong here, and the compiler is what found it:
+    // `a[i++] = i` read the right side first and stored under the wrong index,
+    // and `a[i++] ||= 1` evaluated the subscript a second time to store
+    // through it, so `i` moved twice. The spec's order is the one the machine
+    // emits, and both engines answer the same now.
+    Value base;
+    const Result key = EvaluateMember(*target, scope, base);
+    if (key.IsAbrupt()) {
+      return key;
+    }
+    const PropertyKey property = KeyFrom(key.value);
+    // The receiver has to outlive the right-hand side, which can run anything.
+    if (base.IsObject()) {
+      active_objects_.push_back(base.object);
+    }
+    struct BaseRoot {
+      Interpreter& interpreter;
+      bool held;
+      ~BaseRoot() {
+        if (held) {
+          interpreter.active_objects_.pop_back();
+        }
+      }
+    } root{*this, base.IsObject()};
+
+    Value current;
+    if (op != "=") {
+      current = GetProperty(base, property);
+      if (is_logical) {
+        // Short-circuiting assignment does not evaluate the right side, and
+        // does not assign at all, when the test fails. Assigning the old value
+        // back would be observable through a setter.
+        const bool should_assign = op == "&&=" ? ToBoolean(current)
+                                   : op == "||=" ? !ToBoolean(current)
+                                                 : current.IsNullish();
+        if (!should_assign) {
+          return Result::Normal(current);
+        }
+      }
+    }
+    Result value = Evaluate(*value_node, scope);
+    if (value.IsAbrupt()) {
+      return value;
+    }
+    if (op != "=" && !is_logical) {
+      BinaryOp binary = BinaryOp::Add;
+      if (!ParseBinaryOp(std::string_view(op).substr(0, op.size() - 1), binary)) {
+        return Throw("SyntaxError", "unsupported operator '" + op + "'");
+      }
+      value = ApplyBinary(binary, current, value.value);
+      if (value.IsAbrupt()) {
+        return value;
+      }
+    }
+    const Result stored = SetProperty(base, property, value.value);
+    if (stored.IsAbrupt()) {
+      return stored;
+    }
+    return Result::Normal(value.value);
+  }
+
+  if (is_logical) {
     const Result current = Evaluate(*target, scope);
     if (current.IsAbrupt()) {
       return current;
@@ -282,19 +346,6 @@ Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
     if (value.IsAbrupt()) {
       return value;
     }
-  }
-
-  if (target->kind == NodeKind::Member) {
-    Value base;
-    const Result key = EvaluateMember(*target, scope, base);
-    if (key.IsAbrupt()) {
-      return key;
-    }
-    const Result stored = SetProperty(base, KeyFrom(key.value), value.value);
-    if (stored.IsAbrupt()) {
-      return stored;
-    }
-    return Result::Normal(value.value);
   }
   return BindPattern(*target, value.value, scope, false, false);
 }
