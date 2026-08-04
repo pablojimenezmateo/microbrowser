@@ -95,14 +95,18 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
     return Throw("RangeError", "out of memory");
   }
 
+  // The prologue, at the four fixed slots Compiler::Function reserved. The two
+  // agreeing is what lets a parameter's index be a compile-time constant; see
+  // kSlotThis in Bytecode.h.
+  scope->Reserve(code->scope_slots);
   // An arrow function has no `this` of its own: it uses the one captured where
   // it was written. That is the whole difference between the two forms.
   const Value self = vm_.stack[callee_slot + 1];
-  scope->Declare("this", function->IsArrow() ? function->BoundThis() : self, true);
+  scope->DeclareSlot(kSlotThis, "this", function->IsArrow() ? function->BoundThis() : self, true);
   if (function->HomeObject() != nullptr) {
-    scope->Declare("__home__", Value::Obj(function->HomeObject()), true);
+    scope->DeclareSlot(kSlotHome, "__home__", Value::Obj(function->HomeObject()), true);
   }
-  scope->Declare("__function__", Value::Obj(function), true);
+  scope->DeclareSlot(kSlotFunction, "__function__", Value::Obj(function), true);
   if (code->needs_arguments) {
     std::vector<Value> arguments(vm_.stack.begin() + static_cast<std::ptrdiff_t>(callee_slot) + 2,
                                  vm_.stack.end());
@@ -110,7 +114,7 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
     if (list == nullptr) {
       return Throw("RangeError", "out of memory");
     }
-    scope->Declare("arguments", Value::Obj(list), false);
+    scope->DeclareSlot(kSlotArguments, "arguments", Value::Obj(list), false);
   }
 
   Frame frame;
@@ -331,6 +335,49 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         }
         vm_.stack.push_back(Value::String(std::string(TypeOf(binding != nullptr ? *binding
                                                                                 : *property))));
+        break;
+      }
+      case Op::LoadSlot: {
+        Environment* scope = CurrentScope()->Ancestor(SlotHops(instruction.a));
+        Value* binding = scope == nullptr ? nullptr : scope->SlotValue(SlotIndex(instruction.a));
+        if (binding == nullptr) {
+          // The slot is reserved but its declaration has not run. Reading a
+          // binding before its own `let` is a ReferenceError, and reserving the
+          // slot up front must not quietly turn that into undefined.
+          pending = Throw("ReferenceError",
+                          "cannot access '" + code.names[SlotName(instruction.a)] +
+                              "' before it is declared");
+          threw = true;
+          break;
+        }
+        vm_.stack.push_back(*binding);
+        break;
+      }
+      case Op::StoreSlot: {
+        Environment* scope = CurrentScope()->Ancestor(SlotHops(instruction.a));
+        const std::uint32_t index = SlotIndex(instruction.a);
+        Value* binding = scope == nullptr ? nullptr : scope->SlotValue(index);
+        if (binding == nullptr) {
+          pending = Throw("ReferenceError",
+                          "cannot access '" + code.names[SlotName(instruction.a)] +
+                              "' before it is declared");
+          threw = true;
+          break;
+        }
+        if (scope->SlotIsConst(index)) {
+          pending = Throw("TypeError", "assignment to constant variable '" +
+                                           code.names[SlotName(instruction.a)] + "'");
+          threw = true;
+          break;
+        }
+        *binding = vm_.stack.back();
+        break;
+      }
+      case Op::DeclareSlot: {
+        const SlotDeclaration& declaration = code.declarations[instruction.a];
+        CurrentScope()->DeclareSlot(declaration.slot, code.names[declaration.name],
+                                    vm_.stack.back(), declaration.is_const);
+        vm_.stack.pop_back();
         break;
       }
       case Op::LoadThis: {
@@ -776,6 +823,9 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           threw = true;
           break;
         }
+        // Sized before anything runs in it, so that a declaration control flow
+        // skipped still leaves the ones after it where the compiler said.
+        scope->Reserve(instruction.a);
         vm_.scopes.push_back(scope);
         break;
       }

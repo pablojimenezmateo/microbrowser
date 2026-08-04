@@ -95,16 +95,33 @@ enum class Op : std::uint8_t {
   PushFalse,
 
   // --- Names ---------------------------------------------------------------
-  // Bindings still live in Environment objects rather than in numbered slots.
-  // That is the deliberate first cut: it keeps closures, `this`, `arguments`
-  // and every builtin working exactly as they did, so this change is about the
-  // stack becoming data and nothing else. Slot resolution is a later pass and a
-  // separate argument.
+  // The slow path, for a name the compiler could not place: anything in the
+  // global scope, which other scripts and every builtin also write to, and
+  // anything past the packing limits below.
   LoadName,     // a = name index -> [value]; ReferenceError when unbound
   StoreName,    // a = name index; [value] -> [value]
   DeclareLet,   // a = name index; [value] -> []
   DeclareConst, // a = name index; [value] -> []
   TypeofName,   // a = name index -> [string]; "undefined" when unbound
+
+  // The fast path: a binding the compiler placed, reached by walking `hops`
+  // scopes and indexing. No hashing, and no name at run time except in the
+  // error message.
+  //
+  // The operand packs all three, so a load is two shifts and two masks rather
+  // than a memory access to a side table:
+  //
+  //     hops  4 bits   scopes to walk out         (0-15)
+  //     slot 12 bits   index within that scope    (0-4095)
+  //     name 16 bits   for the error message only (0-65535)
+  //
+  // Every limit has the same fallback: the compiler emits the name form
+  // instead. A function nested sixteen deep or a scope with four thousand
+  // bindings is slower, not wrong.
+  LoadSlot,     // a = packed -> [value]; ReferenceError before its declaration
+  StoreSlot,    // a = packed; [value] -> [value]; TypeError on a const
+  DeclareSlot,  // a = declaration index; [value] -> []
+
   LoadThis,
 
   // --- Properties ----------------------------------------------------------
@@ -174,7 +191,7 @@ enum class Op : std::uint8_t {
   TemplateStrings,  // a = node index -> [array] with `raw`, for a tagged template
 
   // --- Scopes --------------------------------------------------------------
-  PushScope,
+  PushScope,  // a = slots to reserve
   PopScope,   // a = how many
 
   // --- Iteration -----------------------------------------------------------
@@ -213,6 +230,45 @@ enum class Op : std::uint8_t {
 struct Instruction {
   Op op = Op::Nop;
   std::uint32_t a = 0;
+};
+
+// The packing behind LoadSlot and StoreSlot, and the limits that make it fit.
+inline constexpr std::uint32_t kMaxSlotHops = 15;
+inline constexpr std::uint32_t kMaxSlotIndex = 4095;
+inline constexpr std::uint32_t kMaxSlotName = 65535;
+
+inline constexpr std::uint32_t PackSlot(std::uint32_t hops, std::uint32_t slot,
+                                        std::uint32_t name) {
+  return (hops << 28) | (slot << 16) | name;
+}
+inline constexpr std::uint32_t SlotHops(std::uint32_t packed) { return packed >> 28; }
+inline constexpr std::uint32_t SlotIndex(std::uint32_t packed) { return (packed >> 16) & 0xFFFu; }
+inline constexpr std::uint32_t SlotName(std::uint32_t packed) { return packed & 0xFFFFu; }
+
+// The first four slots of every compiled function's own scope.
+//
+// Fixed, and reserved whether or not the function uses them, because the
+// compiler has to know a parameter's index without knowing what the *runtime*
+// decided to declare. `__home__` and `arguments` are reserved either way and
+// filled only when they exist -- a reserved-but-unset slot is not a binding, so
+// a name lookup for `arguments` in a function that has none walks out to the
+// enclosing one exactly as it did before.
+//
+// Interpreter::PushFrame fills these and Compiler::Function reserves them, in
+// this order. The two agreeing is what the whole scheme rests on.
+inline constexpr std::uint32_t kSlotThis = 0;
+inline constexpr std::uint32_t kSlotHome = 1;
+inline constexpr std::uint32_t kSlotFunction = 2;
+inline constexpr std::uint32_t kSlotArguments = 3;
+inline constexpr std::uint32_t kReservedSlots = 4;
+
+// What a DeclareSlot fills in. A record rather than more packed bits because
+// this one is not on a hot path -- a declaration runs once per scope, a read
+// runs every time round the loop.
+struct SlotDeclaration {
+  std::uint32_t slot = 0;
+  std::uint32_t name = 0;
+  bool is_const = false;
 };
 
 // Where a throw goes, and what has to be unwound to get there.
@@ -256,11 +312,16 @@ struct CompiledFunction {
   // serve both.
   std::vector<PropertyKey> keys;
   std::vector<Handler> handlers;
+  std::vector<SlotDeclaration> declarations;
   std::vector<std::unique_ptr<CompiledFunction>> functions;
   // The AST nodes the three delegating opcodes point at. Borrowed from the
   // program tree, which outlives this for exactly the same reason.
   std::vector<const Node*> nodes;
   std::uint32_t parameter_count = 0;
+  // How many slots this function's own scope needs: the four reserved above,
+  // plus one per parameter binding. PushFrame reserves them before the
+  // prologue runs.
+  std::uint32_t scope_slots = kReservedSlots;
   bool is_arrow = false;
   // Set when the body names `arguments`, so the array is built per call only
   // where something can observe it. The scan stops at a nested ordinary

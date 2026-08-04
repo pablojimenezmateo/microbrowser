@@ -79,13 +79,13 @@ reasoning; this is the queue.
 2. **Finish what the machine started: slot resolution, then async/await.** The machine landed
    and the collector runs during evaluation now. Two follow-ons, in this order.
 
-   **Bindings are still names in a hash map.** `LoadName` walks the scope chain doing a hash
-   lookup per level, and `PushFrame` allocates an `Environment` per call. That is the deliberate
-   first cut — keeping `Environment` meant closures, `this`, `arguments` and every builtin worked
-   unchanged, so the change was about the stack becoming data and nothing else. It is also the
-   single largest remaining cost, and the benchmark says so plainly: calls got 4× faster and loop
-   iterations 1.2×, because what is inside a loop is name lookup and that did not change. Resolve
-   a name to a (depth, slot) pair while compiling. See `docs/performance/m8-bytecode.md`.
+   **A call still allocates an `Environment`.** Slot resolution is done: bindings live in a vector
+   and compiled code indexes straight in, which took a name operation from 15.6ns to 4.3ns — the
+   cost of any instruction, so the premium is gone rather than reduced. What it did *not* move is
+   `js/fib` and `js/method-calls`, because `PushFrame` still allocates a scope per call and fills
+   four prologue slots. Most calls need no scope at all: only a function some closure captures has
+   to have its scope outlive the call, and the compiler already knows which those are because it
+   knows where every `Closure` op is. See `docs/performance/m8-bytecode.md`.
 
    **Then `async`/`await`.** A frame is a record now — code pointer, ip, a slice of the value
    stack, a scope — so suspending a call is copying one somewhere and putting it back. That was
@@ -172,7 +172,7 @@ MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the by
 ```
 
 `MICROBROWSER_JS_TREEWALK=1` is the differential switch, not a debug print: the two engines
-answering the same suite is the only way to know they agree. Three tests are expected to fail under
+answering the same suite is the only way to know they agree. Five tests are expected to fail under
 it and the list is at the top of `tests/JsVmTests.cpp`; anything else appearing there is a
 difference nobody decided on. Two tree-walker bugs were found this way rather than by reading it.
 

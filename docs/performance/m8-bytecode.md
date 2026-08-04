@@ -13,23 +13,66 @@ cmake --build --preset microbrowser-perf --target microbrowser_bench
 
 ## The numbers
 
-Per unit of work, lower is better. Ratio is tree-walker ÷ machine.
+Per unit of work, lower is better. Ratio is tree-walker ÷ machine. Taken after
+slot resolution; the "before slots" column is the machine's own number when
+bindings were still names in a hash map, which is what that change bought.
 
-| Workload | Machine | Tree-walker | Ratio |
-|---|---|---|---|
-| `js/closures` — an arrow made and called per iteration | 611 ns | 2921 ns | **4.8×** |
-| `js/fib` — `fib(24)`, 150k calls | 255 ns/call | 1034 ns/call | **4.1×** |
-| `js/method-calls` — `o.step()` 100k times | 330 ns/call | 830 ns/call | **2.5×** |
-| `js/property-reads` — `o.a + o.b + o.c` | 239 ns | 344 ns | 1.4× |
-| `js/try-catch` — throw and catch per iteration | 252 ns | 324 ns | 1.3× |
-| `js/array-index` — `a[i % 1000]` | 265 ns | 314 ns | 1.2× |
-| `js/loop-arithmetic` — `t += i * 3 - 1` | 158 ns | 184 ns | 1.2× |
-| `js/string-build` — `s += 'x'` | 332 ns | 361 ns | 1.1× |
+| Workload | Machine | Before slots | Tree-walker | Ratio |
+|---|---|---|---|---|
+| `js/closures` — an arrow made and called per iteration | 597 ns | 611 ns | 3900 ns | **6.5×** |
+| `js/fib` — `fib(24)`, 150k calls | 259 ns/call | 255 ns/call | 573 ns/call | **2.2×** |
+| `js/method-calls` — `o.step()` 100k times | 330 ns/call | 330 ns/call | 762 ns/call | **2.3×** |
+| `js/property-reads` — `o.a + o.b + o.c` | 169 ns | 239 ns | 349 ns | **2.1×** |
+| `js/array-index` — `a[i % 1000]` | 215 ns | 265 ns | 328 ns | 1.5× |
+| `js/try-catch` — throw and catch per iteration | 216 ns | 252 ns | 336 ns | 1.6× |
+| `js/loop-arithmetic` — `t += i * 3 - 1` | 121 ns | 158 ns | 181 ns | 1.5× |
+| `js/string-build` — `s += 'x'` | 284 ns | 332 ns | 377 ns | 1.3× |
 
-## What the shape of that table says
+The three `js/name-*` rows are not workloads anybody writes; they exist to
+isolate one number. They differ only in how many names a loop iteration reads,
+so the marginal cost of a name operation falls out of the differences — and
+`perf` is not available on every machine this gets run on, so the measurement is
+built rather than sampled.
 
-**Calls got much faster and loops barely did.** That is the whole finding, and it was not the
-expected one. A call used to be C++ recursion through `Evaluate` with a `Result` returned by value at
+| | Machine, before slots | Machine, after |
+|---|---|---|
+| `js/name-0-reads` — `for (let i…) {}` | 83 ns/iteration | 62 ns |
+| `js/name-4-reads-near` — plus 4 reads and 4 writes | 207 ns | 113 ns |
+| **cost of one name operation** | **15.6 ns** | **4.3 ns** |
+| cost of one extra scope crossed | 3.8 ns | 2.5 ns |
+
+4.3 ns is the cost of *any* instruction here — `js/name-0-reads` runs twelve of
+them in 62 ns, or 5.2 ns each. So the premium a name used to carry is gone
+rather than reduced: a slot read is now an ordinary instruction, and what is
+left is dispatch and copying a 40-byte `Value`.
+
+## How slot resolution works
+
+Bindings live in a vector on each `Environment`, and the names index into it. Compiled code resolved
+its names while compiling and indexes straight in; the tree-walker, every builtin and every class
+body still ask by name and pay a hash to reach the same slot. Values live in the vector alone, so
+the two paths cannot disagree about what a binding holds.
+
+Two things make the index knowable at compile time:
+
+- **Slots are reserved before a block runs, not assigned as its declarations execute.** Control flow
+  can skip a declaration — `switch (n) { case 1: let a; case 2: let b }` entered at the second case
+  never runs the first — and `b` still has to be where the compiler put it.
+- **A reserved slot is not a binding.** It has a third state between "absent" and "undefined", so
+  reading one before its own `let` stays a ReferenceError. That is also what makes the machine give
+  the language's answer where the tree-walker cannot: inside a block, a name means that block's
+  binding from the first line, including the lines above its declaration.
+
+The compiler's scope model has to move in lockstep with the `PushScope` instructions it emits, since
+"walk two scopes out" is only true if the two agree about how many there are. The one place they
+deliberately differ is a `finally` block, which is emitted at each exit path and runs after the
+blocks between it and the jump have been popped — so `RunFinalizers` truncates the model for the
+duration.
+
+## What the shape of the table said
+
+**Calls got much faster and loops barely did.** That was the finding after the machine landed, and
+it was not the expected one. A call used to be C++ recursion through `Evaluate` with a `Result` returned by value at
 every level; it is a frame pushed onto a vector now. A loop iteration was already cheap in the
 tree-walker, and compiling it did not make the *work inside* it cheaper — because the work inside it
 is name lookup and property lookup, and neither of those changed.
@@ -45,20 +88,23 @@ code the tree-walker had used unchanged since M8 started:
   `o.x` copied the name into a fresh key. The name is known at compile time; `CompiledFunction::keys`
   now holds it already built.
 
-Both help the tree-walker too, which is why the ratios above moved less than the absolute times did.
+Both helped the tree-walker too. So did moving bindings into a vector: the map holds a four-byte
+index now instead of a forty-byte binding, which makes it dense enough to matter — the tree-walker's
+`js/fib` went from 1034 to 573 ns/call for a change made entirely for the machine's benefit. That is
+worth stating plainly, because it means the ratios in the table understate what the machine did and
+overstate nothing.
 
 ## Where the time still goes
 
-**Bindings are still names in a hash map.** `LoadName` walks the scope chain doing a hash lookup per
-level. That is the single largest remaining cost in a loop, and it is the deliberate first-cut
-decision recorded at the top of `Bytecode.h`: keeping `Environment` meant closures, `this`,
-`arguments` and every builtin worked unchanged, so the change was about the stack becoming data and
-nothing else. Resolving a name to a (depth, slot) pair at compile time is the next step and is worth
-its own measurement.
+**A call still allocates an `Environment`.** `PushFrame` allocates one per call and fills four
+prologue slots. Most calls do not need one at all: only a function some closure captures has to have
+its scope outlive the call, and the compiler already knows which those are, because it knows where
+every `Closure` op is. That is the next thing worth measuring — `js/fib` and `js/method-calls` are
+the two rows slot resolution did not move, and this is why.
 
-**A call still allocates an `Environment`.** `PushFrame` allocates one per call and declares `this`
-and `__function__` into it. With slot resolution most calls would need no environment at all — only
-the ones a closure captures — which is the same change viewed from the other end.
+**Dispatch and `Value` are the floor.** At 4-5 ns per instruction with a 40-byte `Value` carrying a
+`shared_ptr`, a good share of every opcode is copying values around. Narrowing that is NaN-boxing or
+a computed-goto dispatch loop, and both are large enough to want their own measurement first.
 
 **`arguments` is built only where it is named.** The compiler scans the body for the identifier and
 sets `needs_arguments`, so the array is allocated per call only where something can observe it. The

@@ -73,9 +73,25 @@ struct FinallyContext {
   std::uint32_t iteration_depth = 0;
 };
 
+// One scope the compiler created, and therefore one whose layout it knows.
+//
+// Every scope in this list corresponds to exactly one Environment at run time:
+// a function's own, or one a PushScope makes. The correspondence is what makes
+// "walk two scopes out and take slot three" a thing that can be decided while
+// compiling -- so the model has to be built and torn down in lockstep with the
+// PushScope and PopScope instructions, and every place that emits one of those
+// also pushes or pops here.
+struct CompiledScope {
+  // Slot index per name. Assigned before any of the block's code is emitted,
+  // because control flow can skip a declaration and the index still has to be
+  // where the compiler said.
+  std::unordered_map<std::string, std::uint32_t> slots;
+  std::uint32_t count = 0;
+};
+
 class Compiler {
  public:
-  Compiler(CompileState& state, CompiledFunction& function);
+  Compiler(CompileState& state, CompiledFunction& function, Compiler* parent = nullptr);
 
   // The top level of a script. Its own scope is the global one, so it pushes
   // none, and each statement clears the completion slot first -- which is what
@@ -99,6 +115,26 @@ class Compiler {
   void PatchAll(const std::vector<std::uint32_t>& jumps, std::uint32_t target);
   std::uint32_t Constant(Value value);
   std::uint32_t Name(std::string_view text);
+
+  // --- Placing names -------------------------------------------------------
+  // Reserves a slot for `name` in the innermost scope, or does nothing when
+  // there is no scope to put it in -- the top level of a program declares into
+  // the global scope, which other scripts and every builtin also write to, and
+  // which therefore has no layout to know.
+  void Reserve(std::string_view name);
+  // Reserves every name a statement list declares, before any of it is
+  // emitted. The two passes are the point: `switch` can jump past a `let` and
+  // the one after it must still land where the compiler said.
+  void ReserveDeclarations(const Node& list);
+  void ReservePattern(const Node& target);
+  // Emits the load, store or declaration for a name -- resolved to a slot when
+  // this compiler or one of its parents placed it, and by name when not.
+  void EmitLoad(std::string_view name);
+  void EmitStore(std::string_view name);
+  void EmitDeclare(std::string_view name, bool is_const);
+  // The packed operand for a name, or false when it is not placed anywhere or
+  // does not fit the packing.
+  bool ResolveSlot(std::string_view name, std::uint32_t& packed);
   std::uint32_t NodeIndex(const Node& node);
   void Fail();
   // Pops scopes, closes iterators and drops stack slots until the machine is
@@ -162,13 +198,24 @@ class Compiler {
 
   CompileState& state_;
   CompiledFunction& function_;
+  // The compiler of the function this one is written inside, or null at the
+  // top. Resolution walks it, because the run-time scope chain does too: a
+  // frame's scope has the defining scope as its parent, so counting scopes out
+  // here counts the same scopes the machine will walk.
+  Compiler* parent_ = nullptr;
 
   std::unordered_map<std::string, std::uint32_t> names_;
+  std::vector<CompiledScope> scopes_;
   std::vector<LoopContext> loops_;
   std::vector<FinallyContext> finallys_;
 
   std::uint32_t stack_depth_ = 0;
   std::uint32_t scope_depth_ = 0;
+  // How many entries in `scopes_` are not block scopes: one for a function's
+  // own, none for a program, whose outermost scope is the global one. Every
+  // point that compiles an expression holds
+  // `scopes_.size() == scope_floor_ + scope_depth_`.
+  std::size_t scope_floor_ = 0;
   std::uint32_t iteration_depth_ = 0;
   // Carried from a Labeled statement to the loop it wraps. A labelled
   // `continue` names a loop rather than a label, and the loop is the only

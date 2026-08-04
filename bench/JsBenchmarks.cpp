@@ -64,6 +64,20 @@ constexpr Workload kWorkloads[] = {
      "return t })()"},
     {"js/string-build", 20000, "append",
      "(function(){ let s = ''; for (let i = 0; i < 20000; i++) { s += 'x' } return s.length })()"},
+    // Three loops that differ only in how many names they read, so the
+    // marginal cost of one name lookup falls out of the differences. That
+    // number is what decides whether resolving names to slots is worth the
+    // change it costs -- and `perf` is not available on every machine this
+    // gets run on, so the measurement is built rather than sampled.
+    {"js/name-0-reads", 200000, "iteration",
+     "(function(){ for (let i = 0; i < 200000; i++) {} return 1 })()"},
+    {"js/name-4-reads-near", 200000, "iteration",
+     "(function(){ const x = 1; let t = 0;"
+     "for (let i = 0; i < 200000; i++) { t = x; t = x; t = x; t = x } return t })()"},
+    {"js/name-4-reads-far", 200000, "iteration",
+     "const far = 1;"
+     "(function(){ return (function(){ return (function(){ let t = 0;"
+     "for (let i = 0; i < 200000; i++) { t = far; t = far; t = far; t = far } return t })() })() })()"},
     {"js/try-catch", 50000, "throw",
      "(function(){ let n = 0; for (let i = 0; i < 50000; i++) { try { throw i } catch (e) { n += 1 } }"
      "return n })()"},

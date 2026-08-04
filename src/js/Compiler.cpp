@@ -52,8 +52,138 @@ bool NamesArguments(const Node& node) {
 
 }  // namespace
 
-Compiler::Compiler(CompileState& state, CompiledFunction& function)
-    : state_(state), function_(function) {}
+Compiler::Compiler(CompileState& state, CompiledFunction& function, Compiler* parent)
+    : state_(state), function_(function), parent_(parent) {}
+
+// --- Placing names ----------------------------------------------------------
+
+void Compiler::Reserve(std::string_view name) {
+  if (scopes_.empty() || name.empty()) {
+    // The top level of a program. Its scope is the global one, which other
+    // scripts and every builtin also write to, so there is no layout to know
+    // and the name form is the right answer rather than a missed one.
+    return;
+  }
+  CompiledScope& scope = scopes_.back();
+  if (scope.slots.count(std::string(name)) != 0 || scope.count > kMaxSlotIndex) {
+    return;
+  }
+  scope.slots.emplace(std::string(name), scope.count);
+  ++scope.count;
+}
+
+void Compiler::ReservePattern(const Node& target) {
+  switch (target.kind) {
+    case NodeKind::Identifier:
+      Reserve(target.string);
+      return;
+    case NodeKind::ArrayLiteral:
+      for (const NodePtr& element : target.children) {
+        if (element != nullptr) {
+          ReservePattern(*element);
+        }
+      }
+      return;
+    case NodeKind::ObjectLiteral:
+      for (const NodePtr& property : target.children) {
+        if (property != nullptr && property->kind == NodeKind::Property &&
+            property->Child(0) != nullptr) {
+          ReservePattern(*property->Child(0));
+        }
+      }
+      return;
+    case NodeKind::AssignmentPattern:
+    case NodeKind::RestElement:
+    case NodeKind::Spread:
+      if (target.Child(0) != nullptr) {
+        ReservePattern(*target.Child(0));
+      }
+      return;
+    default:
+      return;  // a member target assigns through something that already exists
+  }
+}
+
+void Compiler::ReserveDeclarations(const Node& list) {
+  for (const NodePtr& statement : list.children) {
+    if (statement == nullptr) {
+      continue;
+    }
+    switch (statement->kind) {
+      case NodeKind::FunctionDeclaration:
+      case NodeKind::ClassDeclaration:
+        Reserve(statement->string);
+        break;
+      case NodeKind::VariableDeclaration:
+        for (const NodePtr& declarator : statement->children) {
+          if (declarator != nullptr && declarator->Child(0) != nullptr) {
+            ReservePattern(*declarator->Child(0));
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+bool Compiler::ResolveSlot(std::string_view name, std::uint32_t& packed) {
+  std::uint32_t hops = 0;
+  for (const Compiler* compiler = this; compiler != nullptr; compiler = compiler->parent_) {
+    for (std::size_t i = compiler->scopes_.size(); i > 0; --i) {
+      const CompiledScope& scope = compiler->scopes_[i - 1];
+      const auto found = scope.slots.find(std::string(name));
+      if (found != scope.slots.end()) {
+        if (hops > kMaxSlotHops || found->second > kMaxSlotIndex) {
+          return false;  // too deep or too wide to pack; the name form still works
+        }
+        const std::uint32_t index = Name(name);
+        if (index > kMaxSlotName) {
+          return false;
+        }
+        packed = PackSlot(hops, found->second, index);
+        return true;
+      }
+      ++hops;
+      if (hops > kMaxSlotHops) {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
+void Compiler::EmitLoad(std::string_view name) {
+  std::uint32_t packed = 0;
+  if (ResolveSlot(name, packed)) {
+    Emit(Op::LoadSlot, packed, 1);
+    return;
+  }
+  Emit(Op::LoadName, Name(name), 1);
+}
+
+void Compiler::EmitStore(std::string_view name) {
+  std::uint32_t packed = 0;
+  if (ResolveSlot(name, packed)) {
+    Emit(Op::StoreSlot, packed, 0);
+    return;
+  }
+  Emit(Op::StoreName, Name(name), 0);
+}
+
+void Compiler::EmitDeclare(std::string_view name, bool is_const) {
+  if (!scopes_.empty()) {
+    const CompiledScope& scope = scopes_.back();
+    const auto found = scope.slots.find(std::string(name));
+    if (found != scope.slots.end()) {
+      function_.declarations.push_back(SlotDeclaration{found->second, Name(name), is_const});
+      Emit(Op::DeclareSlot,
+           static_cast<std::uint32_t>(function_.declarations.size() - 1), -1);
+      return;
+    }
+  }
+  Emit(is_const ? Op::DeclareConst : Op::DeclareLet, Name(name), -1);
+}
 
 // --- Emitting ---------------------------------------------------------------
 
@@ -163,6 +293,16 @@ void Compiler::RunFinalizers(std::size_t depth) {
       scope_depth_ = context.scope_depth;
     }
     if (context.body != nullptr) {
+      // The one place code is compiled at a scope depth lower than the one it
+      // is lexically written at: the finalizer runs after the blocks between it
+      // and the jump have been popped. The model has to say so, or a name
+      // inside the finalizer resolves two scopes further out than it lives.
+      const std::size_t live = scope_floor_ + context.scope_depth;
+      std::vector<CompiledScope> hidden;
+      if (scopes_.size() > live) {
+        hidden.assign(scopes_.begin() + static_cast<std::ptrdiff_t>(live), scopes_.end());
+        scopes_.resize(live);
+      }
       // Compiled with the finalizers above it removed, so a `return` inside a
       // finalizer does not emit that same finalizer again for ever.
       std::vector<FinallyContext> saved(finallys_.begin() + static_cast<std::ptrdiff_t>(i - 1),
@@ -170,6 +310,7 @@ void Compiler::RunFinalizers(std::size_t depth) {
       finallys_.resize(i - 1);
       Statement(*context.body);
       finallys_.insert(finallys_.end(), saved.begin(), saved.end());
+      scopes_.insert(scopes_.end(), hidden.begin(), hidden.end());
     }
   }
 }
@@ -191,6 +332,23 @@ void Compiler::Function(const Node& node, bool arrow) {
   function_.needs_arguments =
       !arrow && ((body != nullptr && NamesArguments(*body)) ||
                  (parameters != nullptr && NamesArguments(*parameters)));
+
+  // The function's own scope, whose first four slots PushFrame fills. Reserved
+  // in the same order there and here; see kSlotThis in Bytecode.h.
+  scopes_.emplace_back();
+  scope_floor_ = 1;
+  Reserve("this");
+  Reserve("__home__");
+  Reserve("__function__");
+  Reserve("arguments");
+  if (parameters != nullptr) {
+    for (const NodePtr& parameter : parameters->children) {
+      if (parameter != nullptr) {
+        ReservePattern(*parameter);
+      }
+    }
+  }
+  function_.scope_slots = scopes_.back().count;
 
   // Slot zero of every frame is the completion value. Reserved here so that a
   // handler's recorded depth and a frame's working base mean the same thing in
@@ -253,7 +411,10 @@ void Compiler::Function(const Node& node, bool arrow) {
 
 void Compiler::FunctionValue(const Node& node, bool arrow) {
   auto nested = std::make_unique<CompiledFunction>();
-  Compiler inner(state_, *nested);
+  // The nested compiler knows this one, because the run-time chain does: a
+  // frame's scope has the defining scope as its parent, so a name the inner
+  // function does not declare is found by counting scopes out through here.
+  Compiler inner(state_, *nested, this);
   inner.Function(node, arrow);
   if (state_.failed) {
     return;
@@ -296,12 +457,22 @@ void Compiler::Expression(const Node& node) {
         Emit(Op::PushUndefined, 0, 1);
         return;
       }
-      Emit(Op::LoadName, Name(node.string), 1);
+      EmitLoad(node.string);
       return;
 
-    case NodeKind::ThisExpression:
-      Emit(Op::LoadThis, 0, 1);
+    case NodeKind::ThisExpression: {
+      // `this` is slot zero of a function's own scope, so inside compiled code
+      // it resolves like any other name. At the top level of a program there is
+      // no such scope, and the forgiving form is right there: an unbound `this`
+      // is undefined rather than a ReferenceError.
+      std::uint32_t packed = 0;
+      if (ResolveSlot("this", packed)) {
+        Emit(Op::LoadSlot, packed, 1);
+      } else {
+        Emit(Op::LoadThis, 0, 1);
+      }
       return;
+    }
 
     case NodeKind::TemplateLiteral:
       TemplateLiteral(node);
@@ -455,8 +626,16 @@ void Compiler::Unary(const Node& node) {
   if (node.string == "typeof" && operand->kind == NodeKind::Identifier) {
     // `typeof undeclared` is "undefined" rather than a ReferenceError. The one
     // place the language lets a name be read without being declared, and the
-    // reason feature detection works.
-    Emit(Op::TypeofName, Name(operand->string), 1);
+    // reason feature detection works. A name the compiler placed *is* declared,
+    // so it reads normally -- and reading it before its own `let` is a
+    // ReferenceError, which is what the language says too.
+    std::uint32_t packed = 0;
+    if (ResolveSlot(operand->string, packed)) {
+      Emit(Op::LoadSlot, packed, 1);
+      Emit(Op::TypeofValue);
+    } else {
+      Emit(Op::TypeofName, Name(operand->string), 1);
+    }
     return;
   }
   if (node.string == "delete") {
@@ -540,15 +719,14 @@ void Compiler::Update(const Node& node) {
     ThrowSyntax("invalid assignment target");
     return;
   }
-  const std::uint32_t name = Name(operand->string);
-  Emit(Op::LoadName, name, 1);
+  EmitLoad(operand->string);
   Emit(Op::ToNumberOp);
   if (!prefix) {
     Emit(Op::Dup, 0, 1);
   }
   Emit(Op::PushConstant, Constant(Value::Number(1.0)), 1);
   Emit(Op::Binary, static_cast<std::uint32_t>(step), -1);
-  Emit(Op::StoreName, name, 0);
+  EmitStore(operand->string);
   if (!prefix) {
     Emit(Op::Pop, 0, -1);
   }
@@ -959,7 +1137,7 @@ void Compiler::Assignment(const Node& node) {
         Emit(Op::GetPropertyName, name, 0);
       }
     } else if (target->kind == NodeKind::Identifier) {
-      Emit(Op::LoadName, Name(target->string), 1);
+      EmitLoad(target->string);
     } else {
       ThrowSyntax("invalid assignment target");
       return;
@@ -971,7 +1149,7 @@ void Compiler::Assignment(const Node& node) {
     if (is_member) {
       Emit(key_on_stack ? Op::SetProperty : Op::SetPropertyName, name, key_on_stack ? -2 : -1);
     } else {
-      Emit(Op::StoreName, Name(target->string), 0);
+      EmitStore(target->string);
     }
     const std::uint32_t merged = stack_depth_;
     const std::uint32_t to_end = Emit(Op::Jump, 0, 0);
@@ -1002,7 +1180,7 @@ void Compiler::Assignment(const Node& node) {
         Emit(Op::GetPropertyName, name, 0);
       }
     } else if (target->kind == NodeKind::Identifier) {
-      Emit(Op::LoadName, Name(target->string), 1);
+      EmitLoad(target->string);
     } else {
       ThrowSyntax("invalid assignment target");
       return;
@@ -1012,7 +1190,7 @@ void Compiler::Assignment(const Node& node) {
     if (is_member) {
       Emit(key_on_stack ? Op::SetProperty : Op::SetPropertyName, name, key_on_stack ? -2 : -1);
     } else {
-      Emit(Op::StoreName, Name(target->string), 0);
+      EmitStore(target->string);
     }
     return;
   }
@@ -1023,7 +1201,7 @@ void Compiler::Assignment(const Node& node) {
     return;
   }
   if (target->kind == NodeKind::Identifier) {
-    Emit(Op::StoreName, Name(target->string), 0);
+    EmitStore(target->string);
     return;
   }
   // A destructuring assignment. The value is the expression's result, so it is

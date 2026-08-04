@@ -40,7 +40,7 @@ void Compiler::Hoist(const Node& list) {
       continue;
     }
     FunctionValue(*statement, false);
-    Emit(Op::DeclareLet, Name(statement->string), -1);
+    EmitDeclare(statement->string, false);
   }
 }
 
@@ -82,11 +82,18 @@ void Compiler::Block(const Node& node) {
     StatementList(node);
     return;
   }
-  Emit(Op::PushScope);
+  // Every name the block declares gets its slot before any of the block runs.
+  // Two passes rather than one because control flow can skip a declaration --
+  // `switch (n) { case 1: let a; case 2: let b }` entered at the second case
+  // must still find `b` where the compiler put it.
+  scopes_.emplace_back();
+  ReserveDeclarations(node);
+  Emit(Op::PushScope, scopes_.back().count, 0);
   ++scope_depth_;
   StatementList(node);
   Emit(Op::PopScope, 1, 0);
   --scope_depth_;
+  scopes_.pop_back();
 }
 
 void Compiler::Statement(const Node& node) {
@@ -128,7 +135,7 @@ void Compiler::Statement(const Node& node) {
 
     case NodeKind::ClassDeclaration:
       Emit(Op::ClassLiteral, NodeIndex(node), 1);
-      Emit(Op::DeclareLet, Name(node.string), -1);
+      EmitDeclare(node.string, false);
       return;
 
     case NodeKind::If:
@@ -287,7 +294,15 @@ void Compiler::ForStatement(const Node& node) {
   std::string label = std::move(pending_label_);
   pending_label_.clear();
 
-  Emit(Op::PushScope);
+  scopes_.emplace_back();
+  if (node.Child(0) != nullptr && node.Child(0)->kind == NodeKind::VariableDeclaration) {
+    for (const NodePtr& declarator : node.Child(0)->children) {
+      if (declarator != nullptr && declarator->Child(0) != nullptr) {
+        ReservePattern(*declarator->Child(0));
+      }
+    }
+  }
+  Emit(Op::PushScope, scopes_.back().count, 0);
   ++scope_depth_;
   if (node.Child(0) != nullptr) {
     Statement(*node.Child(0));
@@ -329,6 +344,7 @@ void Compiler::ForStatement(const Node& node) {
 
   Emit(Op::PopScope, 1, 0);
   --scope_depth_;
+  scopes_.pop_back();
 }
 
 void Compiler::ForInStatement(const Node& node) {
@@ -364,9 +380,16 @@ void Compiler::ForInStatement(const Node& node) {
   loop.finally_depth = finallys_.size();
   loops_.push_back(std::move(loop));
 
+  scopes_.emplace_back();
+  if (left->kind == NodeKind::VariableDeclaration) {
+    const Node* declarator = left->Child(0);
+    if (declarator != nullptr && declarator->Child(0) != nullptr) {
+      ReservePattern(*declarator->Child(0));
+    }
+  }
   const std::uint32_t top = Here();
   const std::uint32_t to_end = Emit(Op::IterateNext, 0, 1);
-  Emit(Op::PushScope);
+  Emit(Op::PushScope, scopes_.back().count, 0);
   ++scope_depth_;
   if (left->kind == NodeKind::VariableDeclaration) {
     const Node* declarator = left->Child(0);
@@ -383,6 +406,7 @@ void Compiler::ForInStatement(const Node& node) {
   const std::uint32_t continue_target = Here();
   Emit(Op::PopScope, 1, 0);
   --scope_depth_;
+  scopes_.pop_back();
   Patch(Emit(Op::Jump, 0, 0), top);
 
   Patch(to_end, Here());
@@ -493,7 +517,11 @@ void Compiler::TryStatement(const Node& node) {
     stack_depth_ = entry_stack + 1;
     scope_depth_ = entry_scopes;
     iteration_depth_ = entry_iterations;
-    Emit(Op::PushScope);
+    scopes_.emplace_back();
+    if (catch_param != nullptr) {
+      ReservePattern(*catch_param);
+    }
+    Emit(Op::PushScope, scopes_.back().count, 0);
     ++scope_depth_;
     if (catch_param != nullptr) {
       BindTarget(*catch_param, true, false);
@@ -503,6 +531,7 @@ void Compiler::TryStatement(const Node& node) {
     Statement(*catch_body);
     Emit(Op::PopScope, 1, 0);
     --scope_depth_;
+    scopes_.pop_back();
     catch_end = Here();
     if (finally_body != nullptr) {
       RunFinalizers(finallys_.size() - 1);
@@ -558,7 +587,17 @@ void Compiler::SwitchStatement(const Node& node) {
     return;
   }
   Expression(*discriminant);
-  Emit(Op::PushScope);
+  // One scope for the whole switch, holding what every clause declares --
+  // which is exactly the case two passes exist for, since entering at the
+  // second clause skips the first one's `let`.
+  scopes_.emplace_back();
+  for (std::size_t i = 1; i < node.children.size(); ++i) {
+    const Node* clause = node.Child(i);
+    if (clause != nullptr) {
+      ReserveDeclarations(*clause);
+    }
+  }
+  Emit(Op::PushScope, scopes_.back().count, 0);
   ++scope_depth_;
 
   LoopContext context;
@@ -625,6 +664,7 @@ void Compiler::SwitchStatement(const Node& node) {
 
   Emit(Op::PopScope, 1, 0);
   --scope_depth_;
+  scopes_.pop_back();
   Emit(Op::Pop, 0, -1);  // the subject
 
   const LoopContext done = std::move(loops_.back());
@@ -692,9 +732,9 @@ void Compiler::BindTarget(const Node& target, bool declare, bool is_const) {
   switch (target.kind) {
     case NodeKind::Identifier:
       if (declare) {
-        Emit(is_const ? Op::DeclareConst : Op::DeclareLet, Name(target.string), -1);
+        EmitDeclare(target.string, is_const);
       } else {
-        Emit(Op::StoreName, Name(target.string), 0);
+        EmitStore(target.string);
         Emit(Op::Pop, 0, -1);
       }
       return;

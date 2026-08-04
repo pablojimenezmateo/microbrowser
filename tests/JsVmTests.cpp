@@ -18,17 +18,23 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 three tests are expected to fail, and the
+// Under MICROBROWSER_JS_TREEWALK=1 five tests are expected to fail, and the
 // list is worth keeping short and known:
 //
 //   JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough
 //   JsVm/ACollectionMidLoopKeepsWhatTheLoopIsHolding      (the build(150) case)
 //   JsVm/RecursionIsBoundedByFramesRatherThanByTheCppStack (the f(150) case)
+//   JsVm/ABindingCannotBeReadBeforeItsDeclarationRuns     (the message)
+//   JsVm/AnInnerDeclarationShadowsFromTheTopOfItsBlock
 //
-// All three are the machine doing something the tree-walker cannot: collecting
-// while script runs, and recursing as deep as the frame bound says rather than
-// as deep as expression nesting leaves room for. Anything else appearing in
-// that list is a difference nobody decided on.
+// Every one is the machine doing something the tree-walker cannot. The first
+// three are the stacks being data: collecting while script runs, and recursing
+// as deep as the frame bound says rather than as deep as expression nesting
+// leaves room for. The last two are slot resolution: the compiler places a
+// block's names before the block runs, so a name means its inner binding for
+// the whole block -- which is the language's rule, and which a tree-walker that
+// learns of the binding only when the line executes cannot express. Anything
+// else appearing in that list is a difference nobody decided on.
 //
 // Two bugs in the tree-walker were found this way rather than by reading it: a
 // member assignment evaluated its subscript after the right-hand side and
@@ -279,6 +285,100 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
     ExpectEval("function f(){ return f() } "
                "let n = 0; for (let i = 0; i < 3; i++) { try { f() } catch (e) { n++ } } n",
                "3");
+  });
+
+  // --- Slots ----------------------------------------------------------------
+
+  AddTest(tests, "JsVm/ASlotIsWhereTheCompilerSaidEvenWhenControlFlowSkipsIt", [] {
+    // Why slots are reserved before a block runs rather than assigned as its
+    // declarations execute. Entering at the second clause skips the first
+    // clause's `let` entirely, and the one after it still has to land where the
+    // compiler put it.
+    ExpectEval("function f(n){ switch (n) { case 1: let a = 'a'; return a;"
+               "case 2: let b = 'b'; return b } return 'none' } f(2)",
+               "b");
+    ExpectEval("function f(n){ switch (n) { case 1: let a = 'a'; return a;"
+               "case 2: let b = 'b'; return b } return 'none' } f(1)",
+               "a");
+    // The same shape without a switch: a declaration the `if` jumped over.
+    ExpectEval("function f(){ if (false) { } let a = 1; let b = 2; return a + b } f()", "3");
+  });
+
+  AddTest(tests, "JsVm/ABindingCannotBeReadBeforeItsDeclarationRuns", [] {
+    // A reserved slot is not a binding. Reading one before its `let` has to stay
+    // a ReferenceError, or reserving the slot up front would quietly turn every
+    // use-before-declaration into undefined.
+    ExpectEval("function f(){ try { return x } catch (e) { return e.name } let x = 1 } f()",
+               "ReferenceError");
+    // And the message says which name, which is the only reason the packed
+    // operand carries one at all.
+    ExpectEval("function f(){ try { return counter } catch (e) { return e.message }"
+               "let counter = 1 } f()",
+               "cannot access 'counter' before it is declared");
+  });
+
+  AddTest(tests, "JsVm/AnInnerDeclarationShadowsFromTheTopOfItsBlock", [] {
+    // The machine gives the language's answer and the tree-walker does not, so
+    // this is asserted here rather than in BothEnginesAgree. `x` inside the
+    // block means the inner `x` for the whole block -- including before the
+    // line that declares it, where it is unreadable. The tree-walker has no
+    // notion of the inner binding until the line runs, so it finds the outer
+    // one and returns 'outer'.
+    ExpectEval("function f(){ let x = 'outer'; { try { return x } catch (e) { return e.name }"
+               "let x = 'inner' } } f()",
+               "ReferenceError");
+  });
+
+  AddTest(tests, "JsVm/ResolutionFollowsTheScopeChainTheMachineWalks", [] {
+    // A name placed by an enclosing function is reached by counting scopes out,
+    // and the count has to match what the machine actually walks at run time --
+    // a frame's scope has the defining scope as its parent.
+    ExpectEval("function outer(){ const a = 1; function middle(){ const b = 2;"
+               "function inner(){ return a + b } return inner() } return middle() } outer()",
+               "3");
+    ExpectEval("function f(){ let x = 1; { let x = 2; { let x = 3; return x } } } f()", "3");
+    ExpectEval("function f(){ let x = 1; { let x = 2; } return x } f()", "1");
+    // A per-iteration scope, which is what makes each closure see its own value
+    // rather than all of them sharing the last.
+    ExpectEval("function f(){ const fs = []; for (const i of [1, 2, 3]) fs.push(() => i);"
+               "return fs.map(g => g()).join(',') } f()",
+               "1,2,3");
+    // Past the packing limits the compiler emits the name form instead, which
+    // is slower and not wrong. Each block has to declare something, because a
+    // block that declares nothing is given no scope at all -- so counting
+    // braces would not have counted hops.
+    std::string deep = "function f(){ const a = 'deep';";
+    for (int i = 0; i < 20; ++i) {
+      deep += " { let d" + std::to_string(i) + " = " + std::to_string(i) + ";";
+    }
+    deep += " return a";
+    for (int i = 0; i < 20; ++i) {
+      deep += " }";
+    }
+    deep += " } f()";
+    ExpectEval(deep, "deep");
+  });
+
+  AddTest(tests, "JsVm/AResolvedConstStillRefusesAssignment", [] {
+    ExpectEval("function f(){ const a = 1; try { a = 2 } catch (e) { return e.name } } f()",
+               "TypeError");
+    ExpectEval("function f(){ const a = 1; try { a += 2 } catch (e) { return e.name } } f()",
+               "TypeError");
+    ExpectEval("function f(){ const a = 1; try { a++ } catch (e) { return e.name } } f()",
+               "TypeError");
+  });
+
+  AddTest(tests, "JsVm/TheFunctionScopePrologueIsWhereBothSidesAgreeItIs", [] {
+    // Compiler::Function reserves four fixed slots and Interpreter::PushFrame
+    // fills them. If the two ever disagree, a parameter reads `this` -- so this
+    // asserts the layout from the outside, in every combination of the two that
+    // are conditional.
+    ExpectEval("function f(a, b){ return a + b } f(1, 2)", "3");
+    ExpectEval("const o = { n: 5, m(a){ return this.n + a } }; o.m(1)", "6");
+    ExpectEval("function f(a){ return arguments.length + a } f(7, 8, 9)", "10");
+    ExpectEval("function f(a, ...rest){ return a + ':' + rest.join(',') } f(1, 2, 3)", "1:2,3");
+    ExpectEval("function f(a = 1, b = a + 1){ return a + b } f()", "3");
+    ExpectEval("const o = { n: 3, m(){ return (() => this.n)() } }; o.m()", "3");
   });
 
   // --- Both engines ---------------------------------------------------------

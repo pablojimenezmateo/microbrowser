@@ -299,11 +299,25 @@ struct NameEqual {
 // Collected like an object, and for the same reason: a closure keeps its
 // defining scope alive, and that scope can hold the closure, so the cycle is
 // the normal case rather than the exception.
+// Bindings live in a vector and the names index into it.
+//
+// One store, two ways in. Compiled code resolved its names to a (hops, slot)
+// pair while compiling and indexes straight in; everything else -- the
+// tree-walker, every builtin, a class body -- still asks by name and pays a
+// hash to get the same slot. Values live in `slots_` only, so the two paths
+// cannot disagree about what a binding holds.
+//
+// Measured before this existed: 15.6ns per name operation, plus 3.8ns per scope
+// crossed, against a loop iteration of 158ns. Half the time in a loop was
+// hashing names the compiler already knew the answer for.
 class Environment {
  public:
   explicit Environment(Environment* parent) : parent_(parent) {}
 
   Environment* Parent() const { return parent_; }
+  // `hops` scopes up, or null past the end of the chain. What a resolved name
+  // walks before indexing.
+  Environment* Ancestor(std::uint32_t hops);
 
   // Null when the name is not bound anywhere up the chain, which is a
   // ReferenceError rather than undefined -- the distinction the language draws
@@ -312,7 +326,24 @@ class Environment {
   bool Declare(std::string name, Value value, bool is_const);
   // False when the binding is const, which the caller turns into a TypeError.
   bool Assign(std::string_view name, const Value& value);
-  bool HasOwn(std::string_view name) const { return bindings_.count(name) != 0; }
+  bool HasOwn(std::string_view name) const;
+
+  // --- The resolved path ---------------------------------------------------
+  //
+  // Slots are reserved when the scope is created and filled as their
+  // declarations run, which is what makes an index a compile-time constant
+  // even when control flow skips a declaration -- `switch (n) { case 1: let a;
+  // case 2: let b }` entered at the second case must still put `b` where the
+  // compiler said it would be.
+  void Reserve(std::uint32_t count);
+  // Null until the declaration has run. That null is a real answer: reading a
+  // binding before its own `let` is a ReferenceError, and reserving the slot
+  // must not turn it into undefined.
+  Value* SlotValue(std::uint32_t index);
+  bool SlotIsConst(std::uint32_t index) const;
+  // Fills a reserved slot and registers its name, so a name lookup from
+  // outside compiled code finds it from this point on and not before.
+  void DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const);
 
  private:
   friend class Heap;
@@ -320,10 +351,14 @@ class Environment {
   struct Binding {
     Value value;
     bool is_const = false;
+    // Whether the declaration has run. Reserved-but-unset is a third state,
+    // distinct from both "absent" and "undefined".
+    bool live = false;
   };
 
   Environment* parent_ = nullptr;
-  std::unordered_map<std::string, Binding, NameHash, NameEqual> bindings_;
+  std::vector<Binding> slots_;
+  std::unordered_map<std::string, std::uint32_t, NameHash, NameEqual> index_;
   bool marked_ = false;
 };
 

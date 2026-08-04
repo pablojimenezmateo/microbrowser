@@ -220,37 +220,82 @@ void Object::MakeCompiled(const CompiledFunction* code, Environment* closure, bo
   arrow_ = arrow;
 }
 
+Environment* Environment::Ancestor(std::uint32_t hops) {
+  Environment* current = this;
+  for (std::uint32_t i = 0; i < hops && current != nullptr; ++i) {
+    current = current->parent_;
+  }
+  return current;
+}
+
 Value* Environment::Lookup(std::string_view name) {
   Environment* current = this;
   while (current != nullptr) {
-    const auto found = current->bindings_.find(name);
-    if (found != current->bindings_.end()) {
-      return &found->second.value;
+    const auto found = current->index_.find(name);
+    if (found != current->index_.end()) {
+      return &current->slots_[found->second].value;
     }
     current = current->parent_;
   }
   return nullptr;
 }
 
+bool Environment::HasOwn(std::string_view name) const { return index_.count(name) != 0; }
+
 bool Environment::Declare(std::string name, Value value, bool is_const) {
-  bindings_[std::move(name)] = Binding{std::move(value), is_const};
+  const auto found = index_.find(name);
+  if (found != index_.end()) {
+    slots_[found->second] = Binding{std::move(value), is_const, true};
+    return true;
+  }
+  slots_.push_back(Binding{std::move(value), is_const, true});
+  index_.emplace(std::move(name), static_cast<std::uint32_t>(slots_.size() - 1));
   return true;
 }
 
 bool Environment::Assign(std::string_view name, const Value& value) {
   Environment* current = this;
   while (current != nullptr) {
-    const auto found = current->bindings_.find(name);
-    if (found != current->bindings_.end()) {
-      if (found->second.is_const) {
+    const auto found = current->index_.find(name);
+    if (found != current->index_.end()) {
+      Binding& binding = current->slots_[found->second];
+      if (binding.is_const) {
         return false;
       }
-      found->second.value = value;
+      binding.value = value;
       return true;
     }
     current = current->parent_;
   }
   return false;
+}
+
+void Environment::Reserve(std::uint32_t count) {
+  if (slots_.size() < count) {
+    slots_.resize(count);
+  }
+}
+
+Value* Environment::SlotValue(std::uint32_t index) {
+  if (index >= slots_.size() || !slots_[index].live) {
+    return nullptr;
+  }
+  return &slots_[index].value;
+}
+
+bool Environment::SlotIsConst(std::uint32_t index) const {
+  return index < slots_.size() && slots_[index].is_const;
+}
+
+void Environment::DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const) {
+  if (index >= slots_.size()) {
+    slots_.resize(index + 1);
+  }
+  slots_[index] = Binding{std::move(value), is_const, true};
+  // Registered only now. A name lookup from outside compiled code must not find
+  // a binding whose `let` has not run yet -- it has to keep walking out to
+  // whatever `a` meant before this block, which is what it would have found.
+  index_.insert_or_assign(std::move(name), index);
 }
 
 Heap::~Heap() = default;
@@ -383,8 +428,10 @@ void Heap::DrainWorklists() {
       Environment* environment = environment_worklist_.back();
       environment_worklist_.pop_back();
       Mark(environment->parent_);
-      for (const auto& binding : environment->bindings_) {
-        MarkValue(binding.second.value);
+      for (const Environment::Binding& binding : environment->slots_) {
+        // A reserved-but-unset slot holds a default-constructed value, which
+        // marks as nothing. Tracing it anyway is cheaper than the branch.
+        MarkValue(binding.value);
       }
     }
   }
