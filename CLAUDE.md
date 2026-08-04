@@ -243,6 +243,25 @@ tools/run-checks.sh all
 
 **After a run, READ `/tmp/microbrowser-<target>.log` instead of rebuilding and rerunning.**
 
+## Working The Roadmap One Session At A Time
+
+`docs/roadmap-to-any-page.md` is the argument; `docs/roadmap-sessions.json` is its state — one
+entry per session, with the check that finishes it. `/next-session` reads that ledger, picks the
+lowest unfinished session, implements it, runs its check, commits, records what it found in
+`docs/session-log.md`, and stops.
+
+```bash
+tools/agent-loop.sh -n 5    # five sessions, each in a brand-new agent process
+```
+
+The process boundary is the point: a long conversation fills with the debris of work already
+committed and starts reasoning about its own transcript instead of the repository. Each iteration
+starts from nothing and rebuilds from the three things that survive — the git log, the session log,
+and the ledger. **A session that cannot hand off through those three files has not finished.**
+
+`status: done` means the session's `check` was *run* and *passed*. Nothing else may set it; a
+session wrongly marked done costs the next agent a whole session to discover.
+
 TSan needs ASLR cleared (`setarch -R`); `run-checks.sh` does this automatically. Running `ctest` on
 the tsan preset by hand without it fails with "unexpected memory mapping" — that is the environment,
 not a bug.
@@ -339,6 +358,8 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0029` — canvas, WebGL, permissions, and the fingerprinting surface
 - `docs/adr/0030` — incremental parsing, and showing a page before it is finished
 - `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
+- `docs/roadmap-sessions.json` — the same sessions as state: what is done, what the check is
+- `docs/session-log.md` — what each session found that a diff does not say
 - `docs/surveys/2026-08-04-reddit-youtube-plex.md` — every number those ADRs cite
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot

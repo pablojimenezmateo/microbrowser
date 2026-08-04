@@ -1,0 +1,478 @@
+{
+  "$comment": [
+    "The machine-readable half of docs/roadmap-to-any-page.md. That document is the argument;",
+    "this is the state. One entry per session as that document numbers them.",
+    "",
+    "status: not_started | in_progress | done",
+    "  in_progress means work landed but the session's check does not yet pass.",
+    "  done means the check in `check` was RUN and PASSED. Nothing else may set it.",
+    "",
+    "`scope` is a one-line reminder, not the specification. The specification is the named",
+    "section of docs/roadmap-to-any-page.md plus the ADR in `adr`. Read both before writing code.",
+    "Do not expand `scope` into a copy of the roadmap; two copies diverge and then neither is true."
+  ],
+  "source": "docs/roadmap-to-any-page.md",
+  "updated": "2026-08-04",
+  "sessions": [
+    {
+      "id": 1,
+      "phase": "A",
+      "title": "the door",
+      "adr": "0026 §4, 0017 §2",
+      "anchor": "### Session 1 — the door",
+      "scope": "DOMContentLoaded and the document lifecycle, document.forms, form.elements with namedItem(), form.requestSubmit() distinct from submit(), URLSearchParams, location.search, and the navigation a GET form submission causes.",
+      "check": "./build/microbrowser/microbrowser_snapshot https://www.reddit.com/ -o out.ppm produces a page whose title is \"Reddit - The heart of the internet\", not \"Please wait for verification\".",
+      "status": "done",
+      "notes": "Check run 2026-08-04 at 5db9972: the snapshot committed https://www.reddit.com/?solution=...&js_challenge=1&token=...&jsc_orig_r= with title \"Reddit - The heart of the internet\", 333 commands and 8 images. Session 7's geometry seam is what the page still wants: its scripts stop on PerformanceObserver, which is not on any roadmap and is one binding."
+    },
+    {
+      "id": 2,
+      "phase": "A",
+      "title": "transport",
+      "adr": "0010 §1-2",
+      "anchor": "### Session 2 — transport",
+      "scope": "Accept-Encoding: gzip, deflate with a bounded inflate (output ceiling and expansion ratio, failing rather than truncating) plus a gzip fuzz target on the same commit; then connection reuse keyed by the ADR 0005 partition key, with idle close through next_deadline_ms.",
+      "check": "The counters show one connection per host per partition instead of one per resource, and the byte count for reddit's front page drops by roughly the ratio in ADR 0010's table.",
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "phase": "A",
+      "title": "the selectors that are silently not matching",
+      "adr": "0016 §1",
+      "anchor": "### Session 3 — the selectors",
+      "scope": ":not(), :is(), :where(), :nth-child()/:nth-of-type() with the full An+B grammar, and the specificity rules — :where() contributes zero.",
+      "check": "A snapshot of reddit before and after, side by side. This is a colour-and-spacing session and the diff should be obvious.",
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "phase": "A",
+      "title": "calc(), @supports, aspect-ratio",
+      "adr": "0014 §2-3",
+      "anchor": "### Session 4 — `calc()`",
+      "scope": "calc() with lengths, percentages and the mixing rules; @supports answering honestly about what the engine actually supports; aspect-ratio.",
+      "check": "@supports (display: grid) is false and @supports (display: flex) is true, and a snapshot shows the fallback branch of reddit's stylesheet.",
+      "status": "not_started"
+    },
+    {
+      "id": 5,
+      "phase": "A",
+      "title": "JPEG",
+      "adr": "0023 §1-2",
+      "anchor": "### Session 5 — JPEG",
+      "scope": "A baseline and progressive JPEG decoder written here, with saturating size arithmetic, a maximum decoded pixel count enforced before allocation, and a fuzz target on the same commit.",
+      "check": "reddit's front page renders its 8 JPEG thumbnails. Previously: empty boxes.",
+      "status": "not_started"
+    },
+    {
+      "id": 6,
+      "phase": "A",
+      "title": "picking the right image",
+      "adr": "0023 §4",
+      "anchor": "### Session 6 — picking the right image",
+      "scope": "srcset, sizes, <picture>. loading=\"lazy\" waits for session 12.",
+      "check": "A high-density snapshot picks the 2x candidate.",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "phase": "A",
+      "title": "geometry",
+      "adr": "0015",
+      "anchor": "### Session 7 — geometry",
+      "scope": "The GeometrySource seam on src/engine; getBoundingClientRect, offsetWidth/Height, clientWidth/Height, getComputedStyle split into used-value and computed-value sets; a layout-clean flag, synchronous layout on a dirty query, and the layout.forced_by_script counter. src/bindings may not see src/layout — the answer comes through the engine as values, never pointers.",
+      "check": "A page that mutates a style and immediately reads a rect gets the post-mutation rect, and MICROBROWSER_PERF_COUNTERS=1 shows the forced layout.",
+      "status": "not_started",
+      "gate": "Gate A — reddit.com loads past its challenge and paints a recognisable, styled, photographed page."
+    },
+    {
+      "id": 8,
+      "phase": "B",
+      "title": "the scroll model",
+      "adr": "0018 §1-4",
+      "anchor": "### Session 8 — the scroll model",
+      "scope": "A scroll offset per scrolling box and on the viewport; scrollTop/Left, scrollWidth/Height, scrollTo/By/IntoView; the scroll blit in the presenter; frame-throttled scroll events; wheel routing with ancestor chaining; position: sticky stops being a lie. A scroll is a paint, not a layout.",
+      "check": "MICROBROWSER_TRACE_REDRAW=1 shows a scroll damaging the exposed band, not the window. A sticky header sticks.",
+      "status": "not_started"
+    },
+    {
+      "id": 9,
+      "phase": "B",
+      "title": "input, events and focus (1 of 2)",
+      "adr": "0017",
+      "anchor": "### Sessions 9–10 — input, events and focus",
+      "scope": "PointerInputMessage and KeyInputMessage replacing the three current input messages; the full dispatch algorithm — capture, at-target, bubble, stopPropagation, stopImmediatePropagation, passive, once — used by every event with no second path; default actions as a separate post-dispatch step; isTrusted set at construction and unsettable.",
+      "check": "Typing in reddit's search box works; Escape closes a menu; a page cannot type into the omnibox.",
+      "status": "not_started",
+      "notes": "Two sessions because the message-set change touches src/ipc, src/app, src/engine and src/ui. Split the work at whatever seam the code offers; land 9 with the suite green."
+    },
+    {
+      "id": 10,
+      "phase": "B",
+      "title": "input, events and focus (2 of 2)",
+      "adr": "0017",
+      "anchor": "### Sessions 9–10 — input, events and focus",
+      "scope": "The focus model — activeElement, focus(), blur(), Tab order, :focus-visible — and src/app becoming the module that decides chrome-or-page for every key, which is a security boundary and gets tests that say so.",
+      "check": "Typing in reddit's search box works; Escape closes a menu; a page cannot type into the omnibox.",
+      "status": "not_started"
+    },
+    {
+      "id": 11,
+      "phase": "B",
+      "title": "dynamic pseudo-classes and the invalidation index",
+      "adr": "0016 §2-3",
+      "anchor": "### Session 11 — dynamic pseudo-classes",
+      "scope": ":hover, :active, :focus, :focus-within, :checked, :disabled, :target as element state bits set by the engine; the per-stylesheet invalidation index; the layout-affecting versus paint-affecting property table.",
+      "check": "A page with no :hover rules does not restyle, does not relayout and does not repaint when the pointer crosses it. That test belongs next to IdleWaitStrategyTests.",
+      "status": "not_started"
+    },
+    {
+      "id": 12,
+      "phase": "B",
+      "title": "IntersectionObserver, ResizeObserver, lazy images",
+      "adr": "0018 §5",
+      "anchor": "### Session 12 — `IntersectionObserver`",
+      "scope": "Both observers sampled once per frame against the scrollport, delivered as a task at end of frame, never synchronously from a scroll. loading=\"lazy\" on top.",
+      "check": "reddit's front page fetches the images on screen, not all 33.",
+      "status": "not_started"
+    },
+    {
+      "id": 13,
+      "phase": "B",
+      "title": "fetch and CORS",
+      "adr": "0020 §1, §6",
+      "anchor": "### Sessions 13–14 — `fetch`, fragment parsing, CORS",
+      "scope": "Request/Response/Headers/Body, AbortController, all over net::RequestQueue with a privacy::Verdict and no overload without one. CORS enforced at the net/engine seam with the response discarded, not marked; preflight cache keyed by partition key; opaque responses as a real type.",
+      "check": "reddit's feed fills in past the three server-rendered posts. A menu opens.",
+      "status": "not_started"
+    },
+    {
+      "id": 14,
+      "phase": "B",
+      "title": "fragment parsing",
+      "adr": "0020 §2",
+      "anchor": "### Sessions 13–14 — `fetch`, fragment parsing, CORS",
+      "scope": "The HTML fragment parsing algorithm with a context element, reached by innerHTML, insertAdjacentHTML, DOMParser and <template>.content, with a fuzz target that varies the context element.",
+      "check": "reddit's feed fills in past the three server-rendered posts. A menu opens.",
+      "status": "not_started",
+      "notes": "The highest-risk item on the roadmap: the tree builder, reachable from script, with attacker-chosen context. The fuzz target lands on the same commit, not after."
+    },
+    {
+      "id": 15,
+      "phase": "B",
+      "title": "CSP, SRI, XHR",
+      "adr": "0020 §3-4",
+      "anchor": "### Session 15 — CSP, SRI, XHR",
+      "scope": "default-src, script-src, style-src, img-src, connect-src, form-action, base-uri, nonces, 'self'/'none'/'unsafe-inline', host sources — enforced, not logged — and report-uri/report-to/NEL not sent, because a violation report is an outbound request the user did not cause. SRI over the TLS stack's SHA-2. XMLHttpRequest over the session-13 machinery.",
+      "check": "reddit's nonced inline scripts run and an injected one does not. Plex's four integrity=-marked resources verify.",
+      "status": "not_started",
+      "gate": "Gate B — reddit.com works, without `old.`. ADR 0007's target 2, reached."
+    },
+    {
+      "id": 16,
+      "phase": "C",
+      "title": "history and the SPA URL",
+      "adr": "0026 §1-3, §5",
+      "anchor": "### Session 16 — history and the SPA URL",
+      "scope": "Session history moves from src/ui into src/engine; pushState/replaceState with the same-origin check as the load-bearing line, popstate, hashchange, history.state as structured-clone bytes; the navigation algorithm with its cancellation points and teardown order; then window.navigation over it.",
+      "check": "reddit's route changes update the URL bar and Back returns; the origin tests reject a different port, a data: URL and a javascript: URL.",
+      "status": "not_started"
+    },
+    {
+      "id": 17,
+      "phase": "C",
+      "title": "Shadow DOM — the tree",
+      "adr": "0019",
+      "anchor": "### Sessions 17–18 — Shadow DOM",
+      "scope": "attachShadow (open and closed), shadowRoot, the flat-tree traversal used by layout and the cascade — a traversal, not a materialised second tree — then <slot>, assignment, assignedNodes, slotchange, and event retargeting with composedPath inside the session-9 dispatch algorithm.",
+      "check": "youtube.com's home page shows video thumbnails and a masthead instead of two empty elements.",
+      "status": "not_started"
+    },
+    {
+      "id": 18,
+      "phase": "C",
+      "title": "Shadow DOM — the scoped cascade",
+      "adr": "0019",
+      "anchor": "### Sessions 17–18 — Shadow DOM",
+      "scope": ":host, :host(sel), ::slotted(), inheritance crossing boundaries while matching does not; adoptedStyleSheets and constructable stylesheets held by reference; ::part and declarative shadow DOM.",
+      "check": "youtube.com's home page shows video thumbnails and a masthead instead of two empty elements.",
+      "status": "not_started"
+    },
+    {
+      "id": 19,
+      "phase": "C",
+      "title": "web fonts — @font-face",
+      "adr": "0024",
+      "anchor": "### Sessions 19–20 — web fonts",
+      "scope": "@font-face, src with format() and fallbacks, the weight/style/stretch descriptors, unicode-range, font-display with block capped and swap honoured, against plain TrueType/OpenType. Font-face matching alongside the system database.",
+      "check": "youtube renders in Roboto. A unicode-range page fetches only the subsets its text needs.",
+      "status": "not_started"
+    },
+    {
+      "id": 20,
+      "phase": "C",
+      "title": "web fonts — WOFF2 and brotli",
+      "adr": "0024",
+      "anchor": "### Sessions 19–20 — web fonts",
+      "scope": "brotli's decoder as a sanctioned dependency with ADR 0010's bomb bounds and a fuzz target; the WOFF2 container written here with its own fuzz target; container validation before FreeType sees a byte; hinting disabled for downloaded fonts; Accept-Encoding: br, which closes out ADR 0010.",
+      "check": "youtube renders in Roboto. A unicode-range page fetches only the subsets its text needs.",
+      "status": "not_started",
+      "notes": "A third-party dependency needs an ADR — see docs/adr/0001."
+    },
+    {
+      "id": 21,
+      "phase": "C",
+      "title": "transform and stacking contexts",
+      "adr": "0014 §4",
+      "anchor": "### Session 21 — `transform`",
+      "scope": "The property, the computed value, the display-list command over the existing AffineTransform, and the stacking contexts transform creates — M6's remainder arriving because a page used it.",
+      "check": "youtube's hover and menu transforms position correctly; a z-index snapshot orders correctly.",
+      "status": "not_started",
+      "gate": "Gate C — youtube.com renders. Thumbnails, masthead, sidebar, in its own fonts, scrollable and clickable. No video plays."
+    },
+    {
+      "id": 22,
+      "phase": "D",
+      "title": "storage",
+      "adr": "0021 §1-4",
+      "anchor": "### Session 22 — storage",
+      "scope": "sessionStorage, then localStorage, each taking an ADR 0005 PartitionKey with no overload without one and each extending the architecture lint on its own commit. Memory by default; persistence is a per-site user act; per-key quota with QuotaExceededError; the storage event.",
+      "check": "Plex's splash-screen script finds sessionStorage. Signing in survives a reload within a session. example.com under a.com and under b.com have different localStorage.",
+      "status": "not_started"
+    },
+    {
+      "id": 23,
+      "phase": "D",
+      "title": "WebSocket and EventSource",
+      "adr": "0020 §5",
+      "anchor": "### Session 23 — `WebSocket`",
+      "scope": "The first long-lived connections. Descriptors handed to IdleWaitState; ping answered, never originated; both subject to connect-src and the partition key; both dying with the page. EventSource reconnect bounded with backoff and a cap.",
+      "check": "Plex's UI updates when something starts playing elsewhere. An idle page with an open socket wakes zero times.",
+      "status": "not_started"
+    },
+    {
+      "id": 24,
+      "phase": "D",
+      "title": "audio out",
+      "adr": "0028 §4, 0013",
+      "anchor": "### Session 24 — audio out",
+      "scope": "The audio device, the ring buffer, the playback clock, and the first thread in the engine — with its ownership statement written before its code: what it owns, what it borrows, who joins it. No device when nothing is playing.",
+      "check": "An <audio src=\"…mp3\"> plays. The browser with no media has no audio thread.",
+      "status": "not_started"
+    },
+    {
+      "id": 25,
+      "phase": "D",
+      "title": "the media element",
+      "adr": "0028 §1",
+      "anchor": "### Sessions 25–26 — the media element and the demuxers",
+      "scope": "HTMLMediaElement with the readiness and network state machines implemented rather than approximated, play() returning a promise, autoplay refused without user activation, default controls as user-agent boxes.",
+      "check": "<video src=\"…mp4\"> plays with sound, seeks, and fires the right events in the right order.",
+      "status": "not_started"
+    },
+    {
+      "id": 26,
+      "phase": "D",
+      "title": "the demuxers",
+      "adr": "0028 §2",
+      "anchor": "### Sessions 25–26 — the media element and the demuxers",
+      "scope": "WebM/Matroska and the HLS playlist parser, each with a fuzz target and saturating size arithmetic.",
+      "check": "<video src=\"…mp4\"> plays with sound, seeks, and fires the right events in the right order.",
+      "status": "not_started",
+      "notes": "Fragmented MP4 landed 2026-08-04, out of order: src/media parses ftyp, the moov track hierarchy and the moof sample tables into tracks and byte ranges, fuzzed. What is left here is WebM/Matroska and HLS."
+    },
+    {
+      "id": 27,
+      "phase": "D",
+      "title": "the codec decision, and the sandbox",
+      "adr": "0013 follow-up, 0028 §6",
+      "anchor": "### Session 27 — the codec decision",
+      "scope": "Write the deferred codec ADR — H.264, VP9, AV1, AAC, Opus — then land the chosen decoder in a sandboxed process with a narrow message interface, never linked into the engine. Plus the presenter-side blit that fills a hole from a real surface.",
+      "check": "A 1080p video plays without the display-list diff seeing a changed command.",
+      "status": "not_started",
+      "notes": "The video surface landed 2026-08-04: the hole, the clip-resolved placements, the diff-stability and the generation-counter damage tracker all exist and are tested. The diff-stability half of the check already passes."
+    },
+    {
+      "id": 28,
+      "phase": "D",
+      "title": "MSE",
+      "adr": "0028 §5",
+      "anchor": "### Session 28 — MSE",
+      "scope": "MediaSource, SourceBuffer, appendBuffer with the real coded-frame-processing algorithm, buffered that tells the truth because adaptive bitrate reads it, endOfStream, a quota, and the object URL registry.",
+      "check": "Plex direct-plays a video from a user's own server.",
+      "status": "not_started"
+    },
+    {
+      "id": 29,
+      "phase": "D",
+      "title": "HLS",
+      "adr": "0028 §2",
+      "anchor": "### Session 29 — HLS",
+      "scope": ".m3u8 playlist parsing, then MPEG-TS if Plex's transcode path needs it.",
+      "check": "A Plex transcoded stream plays, and reddit's videos do.",
+      "status": "not_started",
+      "gate": "Gate D — Plex works for a user's own library. Sign in, browse, play, with sound and seeking."
+    },
+    {
+      "id": 30,
+      "phase": "E",
+      "title": "character encodings",
+      "adr": "0025 §2",
+      "anchor": "## Phase E — any page",
+      "scope": "The WHATWG sniffing algorithm, UTF-8 with correct U+FFFD substitution, windows-1252, ISO-8859-x, UTF-16. Encoding confusion is an XSS class, not only mojibake.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 31,
+      "phase": "E",
+      "title": "the Unicode table generator, then UAX #14 line breaking",
+      "adr": "0025 §1, §4",
+      "anchor": "## Phase E — any page",
+      "scope": "CJK text currently overflows its box; also unblocks normalize and \\p{…} in src/js.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 32,
+      "phase": "E",
+      "title": "the legacy multi-byte decoders",
+      "adr": "0025 §2",
+      "anchor": "## Phase E — any page",
+      "scope": "Shift_JIS, EUC-JP, GB18030, Big5, EUC-KR.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 33,
+      "phase": "E",
+      "title": "UAX #9 bidi (1 of 2)",
+      "adr": "0025 §3",
+      "anchor": "## Phase E — any page",
+      "scope": "Paragraph levels and run reordering before shaping. Right-to-left text is currently drawn backwards.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 34,
+      "phase": "E",
+      "title": "UAX #9 bidi (2 of 2)",
+      "adr": "0025 §3",
+      "anchor": "## Phase E — any page",
+      "scope": "Mirroring, the two-position caret, dir=\"auto\".",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 35,
+      "phase": "E",
+      "title": "transition, @keyframes, and the Web Animations API",
+      "adr": "0014 §5",
+      "anchor": "## Phase E — any page",
+      "scope": "After transform, because animating a property that does not apply gains nothing. The loop wakes while animating and not one frame after everything settles.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 36,
+      "phase": "E",
+      "title": "Canvas 2D",
+      "adr": "0029 §2",
+      "anchor": "## Phase E — any page",
+      "scope": "Over the existing rasterizer, with tainting on cross-origin draws. The cheapest capability per unit of compatibility on this roadmap.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 37,
+      "phase": "E",
+      "title": "the fingerprinting answer table",
+      "adr": "0029 §1, §5-6",
+      "anchor": "## Phase E — any page",
+      "scope": "Permissions default-deny, and the lint that fails a new binding not on the table. The failure mode is a binding added next year that reports the truth because nobody looked.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 38,
+      "phase": "E",
+      "title": "dedicated workers, structured clone, structuredClone()",
+      "adr": "0022",
+      "anchor": "## Phase E — any page",
+      "scope": "With the thread ownership statement. Service workers stay refused.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 39,
+      "phase": "E",
+      "title": "grid",
+      "adr": "0014 §6",
+      "anchor": "## Phase E — any page",
+      "scope": "Last of the layout features, on the measurement, and still real.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 40,
+      "phase": "E",
+      "title": "same-origin iframes",
+      "adr": "0027 §1, §6",
+      "anchor": "## Phase E — any page",
+      "scope": "The browsing-context tree, nested layout, nested display lists, nested hit testing. Where every structural bug will be found, with no new security surface.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 41,
+      "phase": "E",
+      "title": "cross-origin iframes",
+      "adr": "0027 §2-3",
+      "anchor": "## Phase E — any page",
+      "scope": "WindowProxy, postMessage, the origin checks, X-Frame-Options, frame-ancestors, sandbox, Permissions Policy.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 42,
+      "phase": "E",
+      "title": "the process split",
+      "adr": "0004, 0027 §5",
+      "anchor": "## Phase E — any page",
+      "scope": "ADR 0004, finally: a process per site, the network process holding CORS and cookies, the sandboxed decoder process holding images and fonts and video. Four sessions (42-45) in the roadmap; split them where the code offers a seam.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 46,
+      "phase": "E",
+      "title": "incremental parsing and first paint",
+      "adr": "0030",
+      "anchor": "## Phase E — any page",
+      "scope": "The determinism test — one chunk, byte-by-byte, random boundaries, identical display list — lands on the first commit.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 47,
+      "phase": "E",
+      "title": "HTTP/2",
+      "adr": "0010 §3",
+      "anchor": "## Phase E — any page",
+      "scope": "With HPACK's dynamic table bounded on the decode side regardless of what the peer claims. google.com effectively requires it.",
+      "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 48,
+      "phase": "E",
+      "title": "IndexedDB",
+      "adr": "0021 §5",
+      "anchor": "## Phase E — any page",
+      "scope": "7 occurrences and the largest implementation on the storage list; here because \"any page\" eventually means one that uses it.",
+      "check": null,
+      "status": "not_started"
+    }
+  ]
+}
