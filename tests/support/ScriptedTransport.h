@@ -51,7 +51,7 @@ class ScriptedTransport : public net::Transport {
 
   class Factory;
 
-  explicit ScriptedTransport(Factory& factory) : factory_(factory) {}
+  explicit ScriptedTransport(Factory& factory) : factory_(&factory) {}
   ~ScriptedTransport() override;
 
   bool StartConnect(std::string_view host, std::uint16_t port, bool secure) override;
@@ -75,7 +75,13 @@ class ScriptedTransport : public net::Transport {
   // instead.
   bool ClaimNextExchange();
 
-  Factory& factory_;
+  // Null once the factory is gone. A pooled connection outlives the request
+  // that opened it, so with ADR 0010 it can also outlive a factory declared
+  // after the engine that holds it -- and a support class that only works when
+  // two locals are declared in the right order is a trap for whoever writes the
+  // next test. Detached, this answers `Failed` to everything, which is what a
+  // socket whose owner is gone is.
+  Factory* factory_;
   std::string request_;
   std::string pending_;
   std::string host_;
@@ -91,6 +97,8 @@ class ScriptedTransport : public net::Transport {
 
 class ScriptedTransport::Factory : public net::TransportFactory {
  public:
+  ~Factory() override;
+
   // Whether a connection answers as soon as it is asked, or waits to be let go.
   enum class Delivery {
     Immediate,

@@ -5,29 +5,36 @@
 
 namespace microbrowser::tests {
 
-ScriptedTransport::~ScriptedTransport() { factory_.Forget(*this); }
+ScriptedTransport::~ScriptedTransport() {
+  if (factory_ != nullptr) {
+    factory_->Forget(*this);
+  }
+}
 
 bool ScriptedTransport::StartConnect(std::string_view host, std::uint16_t port, bool secure) {
+  if (factory_ == nullptr) {
+    return false;
+  }
   host_ = std::string(host);
   port_ = port;
   secure_ = secure;
   if (!ClaimNextExchange()) {
     return false;
   }
-  ++factory_.connects;
-  factory_.Register(*this);
+  ++factory_->connects;
+  factory_->Register(*this);
   return true;
 }
 
 bool ScriptedTransport::ClaimNextExchange() {
-  if (factory_.cursor >= factory_.script.size()) {
+  if (factory_ == nullptr || factory_->cursor >= factory_->script.size()) {
     return false;
   }
   // The slot is claimed here rather than at Close, because with requests
   // running concurrently two live connections would otherwise be reading the
   // same exchange.
-  index_ = factory_.cursor++;
-  const Exchange& exchange = factory_.script[index_];
+  index_ = factory_->cursor++;
+  const Exchange& exchange = factory_->script[index_];
   if (!exchange.expected_host.empty() && exchange.expected_host != host_) {
     return false;
   }
@@ -37,24 +44,29 @@ bool ScriptedTransport::ClaimNextExchange() {
   if (exchange.expected_secure != secure_) {
     return false;
   }
-  if (factory_.log.hosts.size() <= index_) {
-    factory_.log.hosts.resize(index_ + 1);
-    factory_.log.secure.resize(index_ + 1);
-    factory_.log.requests.resize(index_ + 1);
+  if (factory_->log.hosts.size() <= index_) {
+    factory_->log.hosts.resize(index_ + 1);
+    factory_->log.secure.resize(index_ + 1);
+    factory_->log.requests.resize(index_ + 1);
   }
-  factory_.log.hosts[index_] = host_;
-  factory_.log.secure[index_] = secure_;
+  factory_->log.hosts[index_] = host_;
+  factory_->log.secure[index_] = secure_;
   pending_ = exchange.response;
   request_.clear();
   sent_ = false;
   delivered_ = false;
-  released_ = factory_.delivery == Factory::Delivery::Immediate;
+  released_ = factory_->delivery == Factory::Delivery::Immediate;
   return true;
 }
 
-net::IoStatus ScriptedTransport::Advance() { return net::IoStatus::Ready; }
+net::IoStatus ScriptedTransport::Advance() {
+  return factory_ != nullptr ? net::IoStatus::Ready : net::IoStatus::Failed;
+}
 
 net::IoResult ScriptedTransport::Send(std::span<const std::byte> data) {
+  if (factory_ == nullptr) {
+    return net::IoResult{net::IoStatus::Failed, 0};
+  }
   if (delivered_ && !ClaimNextExchange()) {
     // A second request on this connection with no exchange left for it, or one
     // whose expectations it does not meet. Failing here rather than answering
@@ -67,8 +79,11 @@ net::IoResult ScriptedTransport::Send(std::span<const std::byte> data) {
 }
 
 net::IoResult ScriptedTransport::Receive(std::span<std::byte> out) {
+  if (factory_ == nullptr) {
+    return net::IoResult{net::IoStatus::Failed, 0};
+  }
   if (!sent_) {
-    factory_.log.requests[index_] = request_;
+    factory_->log.requests[index_] = request_;
     sent_ = true;
   }
   if (!released_) {
@@ -84,13 +99,29 @@ net::IoResult ScriptedTransport::Receive(std::span<std::byte> out) {
   return net::IoResult{net::IoStatus::Ready, take};
 }
 
-void ScriptedTransport::Close() { factory_.Forget(*this); }
+void ScriptedTransport::Close() {
+  if (factory_ != nullptr) {
+    factory_->Forget(*this);
+  }
+}
 
 std::optional<util::WaitDescriptor> ScriptedTransport::Interest() const {
   // Nothing to wait on: this connection has no descriptor, and claiming one
   // would make the loop block on a number that never becomes readable.
   // `RequestQueue::HasRunnableWork` is what keeps the loop turning for it.
   return std::nullopt;
+}
+
+// Detaches every connection still alive. With ADR 0010 a pooled connection
+// outlives the request that opened it, so it can outlive a factory that a test
+// declared after the engine holding it -- and a connection reaching back into a
+// destroyed factory is a use-after-free that only appears under a sanitizer.
+// Detached rather than closed: closing would mutate the list being walked.
+ScriptedTransport::Factory::~Factory() {
+  for (ScriptedTransport* transport : live_) {
+    transport->factory_ = nullptr;
+  }
+  live_.clear();
 }
 
 std::unique_ptr<net::Transport> ScriptedTransport::Factory::Create() {
