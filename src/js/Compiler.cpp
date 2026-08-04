@@ -771,6 +771,13 @@ bool Compiler::CallArguments(const Node& node, std::size_t first, std::uint32_t&
   return true;
 }
 
+void Compiler::RecordCallName(std::uint32_t at, std::string_view text) {
+  if (text.empty()) {
+    return;  // an expression callee has no name, and a guess would be worse
+  }
+  function_.call_names.emplace_back(at, Name(text));
+}
+
 void Compiler::CallExpression(const Node& node) {
   const Node* callee = node.Child(0);
   if (callee == nullptr) {
@@ -871,12 +878,18 @@ void Compiler::CallExpression(const Node& node) {
 
   std::uint32_t count = 0;
   const bool spread = CallArguments(node, 1, count);
-  if (spread) {
-    Emit(Op::CallApply, 0, -2);
-  } else {
-    Emit(Op::Call, count, -static_cast<int>(count) - 1);
+  const std::uint32_t at = spread ? Emit(Op::CallApply, 0, -2)
+                                  : Emit(Op::Call, count, -static_cast<int>(count) - 1);
+  // `o.m()` is named by its property and `f()` by its identifier. Anything
+  // else -- a call through an expression, an element, a computed key -- has no
+  // name to give and gets none.
+  if (callee->kind == NodeKind::Member &&
+      (static_cast<int>(callee->number) & 1) == 0) {
+    RecordCallName(at, callee->Child(1) == nullptr ? std::string_view()
+                                                   : std::string_view(callee->Child(1)->string));
+  } else if (callee->kind == NodeKind::Identifier) {
+    RecordCallName(at, callee->string);
   }
-
 }
 
 void Compiler::NewExpression(const Node& node) {

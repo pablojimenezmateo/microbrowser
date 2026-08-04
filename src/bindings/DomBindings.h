@@ -81,6 +81,12 @@ class DomBindings {
   // Runs the listeners for `event`'s type on `target` and, when it bubbles, on
   // each ancestor. True when one called `preventDefault`.
   bool DispatchEventTo(dom::Node& target, const js::Value& event);
+  // Runs the listeners in `slot` registered on one object -- a node's wrapper
+  // or the window. True when one stopped propagation.
+  bool RunListenersOn(const js::Value& holder, const js::Value& event, const std::string& slot);
+  // Makes `window` an event target. It is the global object, so this is also
+  // what gives `globalThis` the same methods.
+  void InstallWindowEvents();
   // `Event`, `CustomEvent` and `MouseEvent`.
   void InstallEventConstructors();
   // One event interface and its constructor, built on first use. `parent` is

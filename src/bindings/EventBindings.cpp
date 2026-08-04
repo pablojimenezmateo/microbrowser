@@ -65,8 +65,18 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     const Value event = Argument(call.arguments, 0);
-    if (owner == nullptr || self == nullptr || !event.IsObject()) {
+    if (owner == nullptr || !event.IsObject()) {
       return call.Throw("TypeError", "dispatchEvent needs an event");
+    }
+    if (self == nullptr) {
+      // A target that is not a node -- `window`. There is no tree to walk, so
+      // the event reaches its listeners and stops.
+      const Value* type = event.object->GetOwn("type");
+      event.object->Set("target", call.self);
+      owner->RunListenersOn(call.self, event,
+                            "#on:" + (type == nullptr ? std::string() : js::ToString(*type)));
+      const Value* prevented_here = event.object->GetOwn("defaultPrevented");
+      return Value::Bool(prevented_here == nullptr || !js::ToBoolean(*prevented_here));
     }
     const bool prevented = owner->DispatchEventTo(*self, event);
     // True when nothing called preventDefault, which is the inverse of what
@@ -216,6 +226,35 @@ js::Value DomBindings::MakeEvent(const std::string& type, bool bubbles, bool can
   return event;
 }
 
+bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event,
+                                 const std::string& slot) {
+  if (!holder.IsObject() || !event.IsObject()) {
+    return false;
+  }
+  const Value* listeners = holder.object->GetOwn(slot);
+  if (listeners == nullptr || !listeners->IsObject()) {
+    return false;
+  }
+  event.object->Set("currentTarget", holder);
+  // A copy, because a handler is allowed to add or remove listeners and the
+  // set that runs is the set that existed when the event was dispatched.
+  std::vector<Value> handlers;
+  for (std::size_t i = 0; i < listeners->object->ElementCount(); ++i) {
+    handlers.push_back(listeners->object->GetElement(i));
+  }
+  for (const Value& handler : handlers) {
+    // `this` is the object the listener was registered on, which is what a
+    // handler written as an ordinary function expects.
+    (void)interpreter_->CallFunction(handler, holder, {event});
+    const Value* immediate = event.object->GetOwn("#stopImmediate");
+    if (immediate != nullptr && js::ToBoolean(*immediate)) {
+      break;
+    }
+  }
+  const Value* stopped = event.object->GetOwn("cancelBubble");
+  return stopped != nullptr && js::ToBoolean(*stopped);
+}
+
 bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
   if (interpreter_ == nullptr || !event.IsObject()) {
     return false;
@@ -241,35 +280,19 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
     }
   }
 
+  bool stopped = false;
   for (dom::Node* node : chain) {
-    const Value wrapper = WrapperFor(node);
-    if (!wrapper.IsObject()) {
-      continue;
-    }
-    const Value* listeners = wrapper.object->GetOwn(slot);
-    if (listeners == nullptr || !listeners->IsObject()) {
-      continue;
-    }
-    event.object->Set("currentTarget", wrapper);
-    // A copy, because a handler is allowed to add or remove listeners and the
-    // set that runs is the set that existed when the event was dispatched.
-    std::vector<Value> handlers;
-    for (std::size_t i = 0; i < listeners->object->ElementCount(); ++i) {
-      handlers.push_back(listeners->object->GetElement(i));
-    }
-    for (const Value& handler : handlers) {
-      // `this` is the node the listener was registered on, which is what a
-      // handler written as an ordinary function expects.
-      (void)interpreter_->CallFunction(handler, wrapper, {event});
-      const Value* immediate = event.object->GetOwn("#stopImmediate");
-      if (immediate != nullptr && js::ToBoolean(*immediate)) {
-        break;
-      }
-    }
-    const Value* stopped = event.object->GetOwn("cancelBubble");
-    if (stopped != nullptr && js::ToBoolean(*stopped)) {
+    stopped = RunListenersOn(WrapperFor(node), event, slot);
+    if (stopped) {
       break;
     }
+  }
+  // Then the window, which is the last thing a bubbling event reaches. A page
+  // that listens for `resize` or `load` listens there and nowhere else, and
+  // one that listens for a click on `window` expects to see clicks on the
+  // document.
+  if (!stopped && propagates) {
+    RunListenersOn(Value::Obj(interpreter_->Global()), event, slot);
   }
   // Handlers run as a turn of their own, so anything they queued settles
   // before the event is over -- the same rule a script gets.
@@ -300,6 +323,17 @@ bool DomBindings::DispatchClick(dom::Element& target) {
   return DispatchEventTo(target, event);
 }
 
+
+void DomBindings::InstallWindowEvents() {
+  // `window` *is* the global object here, so the listener methods land on it
+  // directly -- which also makes `globalThis.addEventListener` the same
+  // function, as it is in a browser.
+  //
+  // addEventListener and removeEventListener already work on any object: they
+  // keep their handlers in a `#on:` slot on the receiver and never ask whether
+  // it is a node. Only dispatch had to learn that a target need not be one.
+  InstallEventMethods(Value::Obj(interpreter_->Global()));
+}
 
 void DomBindings::InstallEventConstructors() {
   // Naming them is what builds them. CustomEvent and MouseEvent both extend

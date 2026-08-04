@@ -512,7 +512,8 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         const std::size_t callee_slot = vm_.stack.size() - argc - 2;
         const Value callee = vm_.stack[callee_slot];
         if (!callee.IsObject() || !callee.object->IsCallable()) {
-          pending = Throw("TypeError", ToString(callee) + " is not a function");
+          pending = Throw("TypeError",
+                          DescribeCallee(code, frame->ip - 1, callee) + " is not a function");
           threw = true;
           break;
         }

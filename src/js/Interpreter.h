@@ -358,6 +358,10 @@ class Interpreter {
   // the instance. Shared by the tree-walker's New and the machine's, so the
   // ordering that lets a derived field read a base one is written once.
   Result Construct(const Value& callee, const std::vector<Value>& arguments);
+  // What to call the thing that turned out not to be a function: its value,
+  // and the name the compiler recorded for the call when it knew one.
+  std::string DescribeCallee(const CompiledFunction& code, std::uint32_t at,
+                             const Value& callee) const;
   // Runs a class's instance field initializers against a fresh instance.
   // Separate from the constructor because fields run *before* the constructor
   // body and after any super() call, and folding them in loses that ordering.

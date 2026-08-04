@@ -348,4 +348,21 @@ Result Interpreter::CallCompiled(Object* function, const Value& self,
   return result;
 }
 
+
+std::string Interpreter::DescribeCallee(const CompiledFunction& code, std::uint32_t at,
+                                        const Value& callee) const {
+  // "undefined is not a function" says what went wrong and nothing at all
+  // about where. On minified script the frames are anonymous, so a stack does
+  // not answer it either -- the compiler's note of what the call was calling
+  // is the only thing that can.
+  std::string out = ToString(callee);
+  for (const auto& entry : code.call_names) {
+    if (entry.first == at) {
+      out += " (" + code.names[entry.second] + ")";
+      break;
+    }
+  }
+  return out;
+}
+
 }  // namespace microbrowser::js

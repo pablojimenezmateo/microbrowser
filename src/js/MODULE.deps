@@ -103,7 +103,13 @@ budget: Op              header_lines=255 public_methods=0  members=0
 # is both, which is why they are not one enum. On the code for the same reason
 # `is_async` is: PushFrame reads it to make the generator object, and the
 # compiler reads it to decide whether the body gets an entry suspend.
-budget: CompiledFunction header_lines=85 public_methods=0 members=17
+# Grew by one for `call_names`: what each call instruction was calling, by
+# name. It passes the test above -- it is something the compiler worked out
+# once so the machine does not have to, and the machine *cannot*. "undefined is
+# not a function" names the fault and not the place, and on minified script the
+# frames are anonymous so a stack does not name it either. Sparse: only calls
+# whose callee had a name.
+budget: CompiledFunction header_lines=100 public_methods=0 members=18
 # One call in progress. Every field is something a resumed frame would need, and
 # that is the test for adding another -- this is the record `await` will have to
 # be able to copy somewhere and put back.

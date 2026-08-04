@@ -170,6 +170,7 @@ void DomBindings::EnsureInterfaces() {
   InstallParentQueries(MakeInterface("Document", node));
   InstallCustomElements();
   InstallMutationObserver();
+  InstallWindowEvents();
 }
 
 js::Value DomBindings::PrototypeFor(const dom::Node& node) {

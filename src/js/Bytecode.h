@@ -426,6 +426,19 @@ struct CompiledFunction {
   // evaluation anyway so that `lastIndex` starts over.
   std::vector<Value> constants;
   std::vector<std::string> names;
+  // What each call instruction was calling, by name, for the error message
+  // when it turns out not to be a function.
+  //
+  // `undefined is not a function` says what went wrong and nothing at all
+  // about where, and on a page with a megabyte of minified script the where is
+  // the entire question -- the frames are anonymous, so a stack does not
+  // answer it either. The compiler knows the name at emit time and the machine
+  // cannot recover it, which is the same reason every other table here exists.
+  //
+  // Sparse and sorted: only calls whose callee had a name, in instruction
+  // order. A call through an expression contributes nothing rather than a
+  // guess.
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> call_names;
   // The same names, already built as property keys.
   //
   // A named access used to pass `names[a]` to GetProperty, which takes a

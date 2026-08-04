@@ -182,6 +182,31 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // is the flag that keeps a forged click from doing what a real one does.
     ExpectScript(kPage, "new Event('click').isTrusted", "false");
 
+    // `window` is an event target too. A page listening for `resize` or `load`
+    // listens there and nowhere else, and inline scripts on real pages call
+    // `window.addEventListener` before anything else -- it was the first thing
+    // youtube.com's did.
+    ExpectScript(kPage,
+                 "var seen = ''; window.addEventListener('ping', e => seen = e.type);"
+                 "window.dispatchEvent(new Event('ping')); seen",
+                 "ping");
+    // It is the global object, so `globalThis.addEventListener` is the same
+    // function -- as it is in a browser.
+    ExpectScript(kPage, "window.addEventListener === globalThis.addEventListener", "true");
+    // A bubbling event reaches it last, after the document.
+    ExpectScript(kPage,
+                 "var order = [];"
+                 "document.body.addEventListener('ping', () => order.push('body'));"
+                 "window.addEventListener('ping', () => order.push('window'));"
+                 "document.getElementById('title')"
+                 ".dispatchEvent(new Event('ping', { bubbles: true })); order.join()",
+                 "body,window");
+    // And a non-bubbling one does not.
+    ExpectScript(kPage,
+                 "var n = 0; window.addEventListener('ping', () => n++);"
+                 "document.getElementById('title').dispatchEvent(new Event('ping')); n",
+                 "0");
+
     // The interface chain, which a polyfill patches through: it writes to
     // `Event.prototype` and expects the others to inherit.
     ExpectScript(kPage, "new Event('x') instanceof Event", "true");

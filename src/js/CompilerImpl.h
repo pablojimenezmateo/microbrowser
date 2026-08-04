@@ -172,6 +172,9 @@ class Compiler {
   void Update(const Node& node);
   void Assignment(const Node& node);
   void CallExpression(const Node& node);
+  // Records what the call instruction at `at` was calling, so that a callee
+  // that turns out not to be a function can be named in the error.
+  void RecordCallName(std::uint32_t at, std::string_view text);
   void NewExpression(const Node& node);
   void MemberExpression(const Node& node);
   void ObjectLiteral(const Node& node);
