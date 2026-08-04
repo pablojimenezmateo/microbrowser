@@ -1,0 +1,35 @@
+purpose: Containers. What is in a media file and where, never what it decodes to.
+
+# util only, and that is the whole point of the module existing.
+#
+# ADR 0013 splits media into two halves with a hard line between them: the
+# container is ours, and the codec is a third-party library in a sandboxed
+# process. This module is the half that is ours. It parses attacker-controlled
+# bytes and produces *descriptions* -- tracks, codecs, byte ranges -- and it
+# never touches a pixel or a sample. It cannot even name gfx, so a demuxer that
+# started decoding would not compile.
+#
+# The reason to own it, from the ADR: the container is the layer that decides
+# what the codec is asked to decode. Handing that to a media framework hands
+# away the only place the codec's input can be constrained.
+allow: util
+
+public: BoxReader.h IsoBmff.h
+
+extern:
+
+max_tu_lines: 800
+
+# A cursor over one box's payload, and over the file. Every read is bounds
+# checked and every size is saturated, so the type is small and every method on
+# it is a refusal waiting to happen. Members are the span, the offset and the
+# sticky failure flag -- sticky because a parser that keeps reading after a
+# short read is a parser that reads whatever came next in memory.
+budget: BoxReader       header_lines=95 public_methods=20 members=3
+budget: BoxHeader       header_lines=40 public_methods=6  members=4
+# What a demux produced. It grows one member per thing a player needs to know
+# and per thing the codec has to be told, which is the same measure of coverage
+# ComputedStyle's member count is.
+budget: MediaTrack      header_lines=70 public_methods=4  members=13
+budget: MediaSample     header_lines=35 public_methods=2  members=6
+budget: IsoBmffFile     header_lines=45 public_methods=8  members=4

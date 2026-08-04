@@ -223,6 +223,12 @@ microbrowser_module(layout
     src/layout/TableLayout.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_html microbrowser_css microbrowser_gfx)
 
+microbrowser_module(media
+  SOURCES
+    src/media/BoxReader.cpp
+    src/media/IsoBmff.cpp
+  DEPS microbrowser_util)
+
 microbrowser_module(net
   SOURCES
     src/net/CookieJar.cpp
@@ -411,6 +417,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IpcMessageTests.cpp
+  tests/IsoBmffTests.cpp
   tests/JsConformanceTests.cpp
   tests/JsInterpreterTests.cpp
   tests/JsLexerTests.cpp
@@ -446,6 +453,7 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_u
                                                 microbrowser_dom
                                                 microbrowser_css
                                                 microbrowser_layout
+                                                microbrowser_media
                                                 microbrowser_ui
                                                 microbrowser_js
                                                 microbrowser_bindings)
@@ -478,6 +486,7 @@ if(MICROBROWSER_FUZZ)
 
   microbrowser_fuzzer(inflate_fuzzer fuzz/InflateFuzzer.cpp microbrowser_util)
   microbrowser_fuzzer(png_fuzzer fuzz/PngFuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(isobmff_fuzzer fuzz/IsoBmffFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
