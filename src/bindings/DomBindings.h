@@ -79,6 +79,7 @@ class DomBindings {
   // navigation, which for a browser that navigates away from a page is a
   // bounded leak rather than an unbounded one.
   bool DetachFromTree(dom::Node& child);
+  void ClearChildren(dom::Node& parent);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 
   js::Interpreter* interpreter_;

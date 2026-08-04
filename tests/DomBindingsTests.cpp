@@ -533,6 +533,54 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "0 1");
   });
 
+  AddTest(tests, "DomBindings/TextContentReplacesChildrenWithoutParsing", [] {
+    // Setting it drops every child and puts one text node in their place,
+    // which could not exist until removal did.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.textContent = 'replaced';"
+                 "list.textContent + '|' + list.children.length",
+                 "replaced|0");
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list'); list.textContent = '';"
+                 "list.childNodes.length",
+                 "0");
+    // The children are detached rather than destroyed, so a wrapper script was
+    // holding still works.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const kept = list.children[0];"
+                 "list.textContent = 'gone';"
+                 "kept.tagName + ':' + kept.textContent",
+                 "p:one");
+
+    // The safety property that separates this from innerHTML: markup in the
+    // string is text, not markup. A page that writes user input through
+    // `textContent` is safe by construction, and one that writes it through
+    // `innerHTML` is not -- which is most of why the two exist.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.textContent = 'safe <b>text</b>';"
+                 "list.children.length + ' ' + list.innerHTML",
+                 "0 safe &lt;b&gt;text&lt;/b&gt;");
+  });
+
+  AddTest(tests, "DomBindings/TheHtmlPropertiesAreReadableAndNotWritable", [] {
+    ExpectScript(kPage, "document.getElementById('list').innerHTML",
+                 "<p>one</p><p>two</p>");
+    ExpectScript(kPage, "document.getElementById('title').outerHTML",
+                 "<h1 id=\"title\" class=\"big head\">Hello</h1>");
+    // Writing either means running the HTML parser on a string from script
+    // into a live tree, and a *fragment* parses differently depending on where
+    // it is going -- `<td>` inside a table is a cell and anywhere else is
+    // nothing. A setter that ignored that would build wrong trees quietly.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.innerHTML = '<i>x</i>';"
+                 "t.innerHTML",
+                 "Hello");
+  });
+
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {
     // The point of the whole layer: a change made by script is a change to the
     // document, not to a copy of it.

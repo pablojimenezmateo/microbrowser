@@ -406,10 +406,6 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
     }
     return owner->AppendTextTo(*self, js::ToString(Argument(call.arguments, 0)));
   });
-  accessor("textContent", [](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    return self == nullptr ? Value::Undefined() : Value::String(self->TextContent());
-  });
 
   return wrapper;
 }

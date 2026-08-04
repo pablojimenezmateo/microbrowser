@@ -32,6 +32,65 @@ using js::Value;
 }  // namespace
 
 void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
+  const auto accessor = [this, &wrapper](const char* name, js::NativeFunction get,
+                                         js::NativeFunction set) {
+    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
+    const Value setter = interpreter_->NewNativeValue(name, std::move(set));
+    if (getter.IsObject() && setter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      setter.object->Set(kOwnerSlot, PointerValue(this));
+      wrapper.object->DefineAccessor(name, getter.object, setter.object);
+    }
+  };
+
+  // `textContent` both ways. Setting it drops every child and puts one text
+  // node in their place, which is the cheap and safe way a page replaces the
+  // contents of an element -- and the reason it could not exist until removal
+  // did.
+  accessor(
+      "textContent",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        return self == nullptr ? Value::Undefined() : Value::String(self->TextContent());
+      },
+      [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner == nullptr || self == nullptr) {
+          return Value::Undefined();
+        }
+        owner->ClearChildren(*self);
+        const std::string text = js::ToString(Argument(call.arguments, 0));
+        if (!text.empty()) {
+          owner->AppendTextTo(*self, text);
+        }
+        return Value::Undefined();
+      });
+
+  // `innerHTML` and `outerHTML`, readable only.
+  //
+  // Writing either means running the HTML parser on a string from script into
+  // a live tree. That is not merely a bigger feature: a *fragment* parses
+  // differently depending on where it is going -- `<td>` inside a table is a
+  // cell and anywhere else is nothing -- and this parser parses documents. A
+  // setter that ignored that would build wrong trees quietly, which is worse
+  // than not having one. See ADR 0008.
+  const auto read_only = [this, &wrapper](const char* name, js::NativeFunction get) {
+    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      wrapper.object->DefineAccessor(name, getter.object, nullptr);
+    }
+  };
+  read_only("innerHTML", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return self == nullptr ? Value::Undefined() : Value::String(self->SerializeChildren());
+  });
+  read_only("outerHTML", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return self == nullptr ? Value::Undefined() : Value::String(self->Serialize());
+  });
+
   const auto method = [this, &wrapper](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
@@ -110,6 +169,19 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     return owner->InsertNodeBefore(*self, child, nullptr);
   });
 
+}
+
+void DomBindings::ClearChildren(dom::Node& parent) {
+  // Detached rather than destroyed, one at a time from the front, for the
+  // reason every removal here is: script may still hold a wrapper for any of
+  // them.
+  while (parent.FirstChild() != nullptr) {
+    std::unique_ptr<dom::Node> owned = parent.Detach(parent.FirstChild());
+    if (owned == nullptr) {
+      break;
+    }
+    detached_.push_back(std::move(owned));
+  }
 }
 
 bool DomBindings::DetachFromTree(dom::Node& child) {
