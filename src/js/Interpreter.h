@@ -287,7 +287,19 @@ class Interpreter {
                       const std::vector<Value>& arguments);
   // Unwinds to the innermost handler that covers the throw, or out of the VM
   // when there is none. False when nothing caught it.
+  //
+  // A forced return goes through here too, carrying a value marked by
+  // `return_signal`. It differs in exactly two ways, both below: no `catch`
+  // may see it, and reaching the end of a generator's frame completes the
+  // generator instead of letting the value out.
   bool UnwindToHandler(const Value& thrown, std::size_t entry_depth);
+  // The value a forced return travels as, carrying what the generator should
+  // return. Null when the heap is full, which the caller turns into dropping
+  // the frame -- the answer this was trying to improve on.
+  Value NewReturnSignal(const Value& value);
+  // Whether a thrown value is one of those. The one place the difference
+  // between a throw and a forced return is observable inside the machine.
+  bool IsReturnSignal(const Value& thrown) const;
   // Everything the VM is holding, as roots. Appended to what MaybeCollect
   // already gathers -- and the reason it can now run mid-evaluation at all.
   void GatherVmRoots(std::vector<Object*>& objects, std::vector<Environment*>& scopes) const;
@@ -396,10 +408,16 @@ class Interpreter {
   // flags rather than either one: an async function has a promise, a generator
   // has a generator, and this has both.
   static bool IsAsyncGeneratorFrame(const Frame& frame);
+  // Makes a suspended generator return, running every `finally` between the
+  // `yield` it stopped at and the end of its body. What `it.return(v)` is, and
+  // what a `for...of` that breaks does to a generator through IterateClose.
+  // The Result is what the body finally returned, which a `finally` of its own
+  // can change.
+  Result ReturnFromGenerator(Object* generator, const Value& value);
   // Completes a generator without resuming it, and drops the frame it had
-  // filed. What `return` does, and what a `for...of` that breaks does through
-  // IterateClose -- the filed frame is a root, so a generator nobody finishes
-  // has to be finished by whoever walks away from it.
+  // filed. The answer for one that never started or has already finished, and
+  // the fallback when there is no room to put its frame back -- the filed frame
+  // is a root, so a generator nobody finishes has to be finished by somebody.
   void CloseGenerator(Object* generator);
   // Arranges for `value` to resume suspension `id` once it settles, treating a
   // non-promise as an already-resolved one -- so `await 1` still yields a turn,
@@ -505,6 +523,18 @@ class Interpreter {
     // is this rather than `gen.prototype`, which is the one place a page could
     // tell and is not a place any page looks.
     Object* generator_prototype = nullptr;
+    // The prototype of the value a forced return travels as.
+    //
+    // Making a generator return means running every `finally` between the
+    // `yield` it stopped at and the end of its body, and the only run-time path
+    // that does that is the one a throw takes. So a forced return *is* a throw,
+    // of a value nothing else can produce -- this is the marker that says so,
+    // and the unwinder reads it to know that no `catch` may see it.
+    //
+    // A page cannot reach this object: it is never a property of anything it
+    // can name, and the only values carrying it are handed to finalizers,
+    // which do not receive them.
+    Object* return_signal = nullptr;
     // The same for an async generator, and a separate object rather than the
     // one above because every method on it differs: `next` hands back a
     // promise of `{value, done}` rather than the pair itself, and the hook it
@@ -521,7 +551,8 @@ class Interpreter {
     std::vector<Object*> Roots() const {
       return {object_prototype,    array_prototype,   function_prototype,  string_prototype,
               regexp_prototype,    promise_prototype, symbol_iterator,     number_prototype,
-              generator_prototype, symbol_async_iterator, async_generator_prototype};
+              generator_prototype, symbol_async_iterator, async_generator_prototype,
+              return_signal};
     }
   };
 

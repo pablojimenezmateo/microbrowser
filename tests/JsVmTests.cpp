@@ -18,7 +18,7 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 thirty-two tests are expected to fail, in
+// Under MICROBROWSER_JS_TREEWALK=1 thirty-four tests are expected to fail, in
 // three groups, and the list is worth keeping known:
 //
 //   the stacks being data --
@@ -52,6 +52,8 @@
 //   JsInterpreter/GeneratorsAreWrittenInEveryFormAFunctionTakes
 //   JsInterpreter/YieldOutsideAGeneratorIsRejected
 //   JsInterpreter/ABreakOutOfAGeneratorLoopFinishesTheGenerator
+//   JsInterpreter/FinishingAGeneratorRunsTheFinallyItWasInside
+//   JsInterpreter/AForcedReturnIsNotSomethingCatchCanSee
 //   JsInterpreter/AnAsyncGeneratorSuspendsBothWays
 //   JsInterpreter/AnAsyncGeneratorHandsBackPromisesNotPairs
 //   JsInterpreter/AsyncGeneratorRequestsQueueRatherThanCollide

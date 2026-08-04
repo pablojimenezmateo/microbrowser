@@ -381,12 +381,15 @@ Result Interpreter::ResumeGenerator(Object* generator, const Value& sent, bool t
       return Result{Completion::Throw, sent, {}};
     }
     if (vm_.frames.size() == entry_depth) {
-      // The unwinder handled it and popped the frame, which for an async
-      // generator means it rejected the request rather than letting the throw
-      // out. There is nothing left to run, and the value it left behind is the
-      // generator, which nobody wants.
+      // The unwinder handled it and popped the frame without there being any
+      // body left to run: a forced return through a generator with no `finally`
+      // in it, or a throw that an async generator turned into a rejection. It
+      // left one value behind, and for the first of those that value is what
+      // the generator returned.
+      Value out = vm_.stack.back();
+      vm_.stack.pop_back();
       vm_.stack.resize(stack_base);
-      return Result::Normal();
+      return Result::Normal(std::move(out));
     }
   } else {
     vm_.stack.push_back(sent);
@@ -495,15 +498,24 @@ void Interpreter::InstallGeneratorPrototype() {
     if (state->status == GeneratorState::Status::Running) {
       return call.Throw("TypeError", "this generator is already running");
     }
-    // The frame is dropped rather than resumed, which is the one place this
-    // deliberately differs from the spec: a `finally` around the `yield` the
-    // generator is sitting at does not run. Doing it properly needs a third
-    // resume mode -- a completion that finally handlers intercept and catch
-    // handlers do not -- and the handler table has no way to say that yet.
-    // Documented rather than approximated, because an approximation here is a
-    // `finally` that runs at the wrong time rather than one that does not run.
-    call.interpreter.CloseGenerator(call.self.object);
-    return IterationResult(call.interpreter, Argument(call.arguments, 0), true);
+    const Value value = Argument(call.arguments, 0);
+    if (state->status != GeneratorState::Status::Suspended) {
+      // Not started, or finished. There is no `finally` that could have been
+      // entered, so there is nothing to run and nothing to put back.
+      call.interpreter.CloseGenerator(call.self.object);
+      return IterationResult(call.interpreter, value, true);
+    }
+    // Sitting at a `yield`, so the body has to be resumed for its finalizers.
+    // A `finally` can yield again, or return something else, or throw -- all
+    // three are the body running, and all three are what the page wrote.
+    Object* generator = call.self.object;
+    const Result returned = call.interpreter.ReturnFromGenerator(generator, value);
+    if (returned.IsAbrupt()) {
+      return call.ThrowValue(returned.value);
+    }
+    const GeneratorState* after = call.interpreter.GetHeap().FindGenerator(generator);
+    const bool done = after == nullptr || after->status != GeneratorState::Status::Suspended;
+    return IterationResult(call.interpreter, returned.value, done);
   });
 
   // A generator is its own iterator, which is what makes `for (const x of g())`
@@ -662,11 +674,12 @@ void Interpreter::PumpAsyncGenerator(Object* generator) {
     }
 
     if (kind == AsyncRequest::Kind::Return) {
-      // The same deviation the sync generator's `return` has, written out
-      // there: the frame is dropped rather than resumed with a return
-      // completion, so a `finally` around the `yield` does not run.
-      CloseGenerator(generator);
-      SettleAsyncRequest(generator, sent, true, false);
+      // Resumed for its finalizers, the way the sync generator's `return` is.
+      // ReturnFromGenerator throws a signal no `catch` can see and every
+      // `finally` stops at, and the frame boundary is where it becomes the
+      // return -- which for an async generator means settling the request that
+      // asked for it. So there is nothing to settle here.
+      ReturnFromGenerator(generator, sent);
       continue;
     }
 
@@ -675,6 +688,26 @@ void Interpreter::PumpAsyncGenerator(Object* generator) {
     // request at the front of the queue, and the loop comes back for the next.
     ResumeGenerator(generator, sent, kind == AsyncRequest::Kind::Throw);
   }
+}
+
+Result Interpreter::ReturnFromGenerator(Object* generator, const Value& value) {
+  GeneratorState* state = generator == nullptr ? nullptr : heap_.FindGenerator(generator);
+  if (state == nullptr || state->status != GeneratorState::Status::Suspended) {
+    CloseGenerator(generator);
+    return Result::Normal(value);
+  }
+  const Value signal = NewReturnSignal(value);
+  if (!signal.IsObject()) {
+    // No room to build the signal, so the finalizers cannot be run. Dropping
+    // the frame is worse than running them and is better than leaving it filed
+    // for ever, which is the choice this whole path exists to avoid.
+    CloseGenerator(generator);
+    return Result::Normal(value);
+  }
+  // Resumed as a throw of the signal. UnwindToHandler skips every `catch` and
+  // stops at every `finally`, and when the frame runs out it turns the signal
+  // back into the return it always was.
+  return ResumeGenerator(generator, signal, true);
 }
 
 void Interpreter::CloseGenerator(Object* generator) {

@@ -344,6 +344,15 @@ struct Handler {
   std::uint32_t stack_depth = 0;
   std::uint32_t scope_depth = 0;
   std::uint32_t iteration_depth = 0;
+  // Whether `target` is a finalizer rather than a `catch` clause.
+  //
+  // The two are the same shape to a throw and are not the same to a *return*.
+  // Forcing a generator to return -- which is what `it.return()` and a
+  // `for...of` that breaks both do -- has to run every `finally` between the
+  // `yield` it was sitting at and the end of the body, and must run no `catch`
+  // at all: the page did not throw anything, and a `catch (e)` that saw this
+  // would be catching a completion rather than an error.
+  bool is_finally = false;
 };
 
 // One function's code, and everything it names.

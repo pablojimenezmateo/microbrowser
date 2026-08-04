@@ -1358,6 +1358,71 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                "true true");
   });
 
+  AddTest(tests, "JsInterpreter/FinishingAGeneratorRunsTheFinallyItWasInside", [] {
+    // The idiom this exists for: a generator holding something it has to give
+    // back. Without it a page that breaks out of a loop leaks whatever the
+    // `finally` was going to release, and nothing says so.
+    const std::vector<std::string> log = Log(
+        "function* g(){ try { yield 1; yield 2 } finally { console.log('released') } }\n"
+        "const it = g();\n"
+        "it.next();\n"
+        "it.return('stopped');\n"
+        "console.log('after');\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 2, "two lines");
+    ExpectEqString(log.at(0), "released", "the finalizer ran before return came back");
+    ExpectEqString(log.at(1), "after", "and the body did not run on past it");
+    // Through a `for...of` that breaks, which is the same forced return
+    // arriving from IterateClose rather than from a page's own call.
+    const std::vector<std::string> broken = Log(
+        "function* g(){ try { yield 1; yield 2; yield 3 } finally { console.log('released') } }\n"
+        "for (const n of g()) { if (n === 2) break }\n"
+        "console.log('after');\n");
+    ExpectEqInt(static_cast<long long>(broken.size()), 2, "two lines");
+    ExpectEqString(broken.at(0), "released", "a break releases it too");
+    ExpectEqString(broken.at(1), "after", "and the loop carried on");
+    // Nested finalizers run innermost first, which is the order a throw
+    // through them would run them in -- because it is the same unwind.
+    const std::vector<std::string> nested = Log(
+        "function* g(){\n"
+        "  try { try { yield 1 } finally { console.log('inner') } }\n"
+        "  finally { console.log('outer') }\n"
+        "}\n"
+        "const it = g(); it.next(); it.return();\n");
+    ExpectEqInt(static_cast<long long>(nested.size()), 2, "two lines");
+    ExpectEqString(nested.at(0), "inner", "innermost first");
+    ExpectEqString(nested.at(1), "outer", "then the one around it");
+  });
+
+  AddTest(tests, "JsInterpreter/AForcedReturnIsNotSomethingCatchCanSee", [] {
+    // The forced return travels as a throw so that it runs the finalizers a
+    // throw would. A `catch` seeing it would be catching a completion rather
+    // than an error, and it must not.
+    const std::vector<std::string> log = Log(
+        "function* g(){\n"
+        "  try { yield 1 } catch (e) { console.log('caught ' + e) }\n"
+        "  finally { console.log('finally') }\n"
+        "}\n"
+        "const it = g(); it.next();\n"
+        "console.log(it.return('done').value);\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 2, "two lines");
+    ExpectEqString(log.at(0), "finally", "the finalizer ran and the catch did not");
+    ExpectEqString(log.at(1), "done", "and the value the page asked to return came back");
+    // A `finally` that returns something else wins, because its own return is
+    // simply reached first -- which is what `try { throw x } finally { return }`
+    // already did and is the same rule.
+    ExpectEval("function* g(){ try { yield 1 } finally { return 'from the finally' } }\n"
+               "const it = g(); it.next();\n"
+               "it.return('asked for').value",
+               "from the finally");
+    // And a `finally` that yields keeps the generator alive, which is what the
+    // spec says and is only expressible because the body really is resumed.
+    ExpectEval("function* g(){ try { yield 1 } finally { yield 'from the finally' } }\n"
+               "const it = g(); it.next();\n"
+               "const r = it.return('asked for');\n"
+               "r.value + ' ' + r.done",
+               "from the finally false");
+  });
+
   AddTest(tests, "JsInterpreter/AGeneratorCannotBeResumedWhileItIsRunning", [] {
     // Its frame is on the machine, so putting it back would be the same frame
     // in two places. A TypeError is what the spec says and what this can do.

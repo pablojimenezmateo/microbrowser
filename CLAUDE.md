@@ -97,10 +97,9 @@ reasoning; this is the queue.
 
    Smaller gaps, each written where the code is rather than only here: `yield*` does not forward
    `throw` and `return` to its delegate (it is a loop over the iterator, not a relationship the
-   resume path can see); a generator's `return` drops its frame rather than resuming it, so a
-   `finally` around the `yield` it was sitting at does not run; a throw that unwinds past a
-   `for...of` does not close the iterator, on either engine, and the two agree on purpose;
-   unhandled rejections get a console line and nothing more.
+   resume path can see); a throw that unwinds past a `for...of` does not close the iterator, on
+   either engine, and the two agree on purpose; unhandled rejections get a console line and
+   nothing more.
 3. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
    `IdleWaitState::next_deadline_ms` — a page with nothing pending still lets the loop block.
    `fetch` needs Promises (done) joined to the loader and its privacy verdict; `rAF` needs the
@@ -178,7 +177,7 @@ MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the by
 ```
 
 `MICROBROWSER_JS_TREEWALK=1` is the differential switch, not a debug print: the two engines
-answering the same suite is the only way to know they agree. Thirty-two tests are expected to fail
+answering the same suite is the only way to know they agree. Thirty-four tests are expected to fail
 under it and the list is at the top of `tests/JsVmTests.cpp`; anything else appearing there is a
 difference nobody decided on. Three tree-walker bugs were found this way rather than by reading it —
 the third was a `for...of` that read `done` off a step and never wrote it back to its cursor.

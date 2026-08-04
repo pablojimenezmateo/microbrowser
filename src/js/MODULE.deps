@@ -118,6 +118,11 @@ budget: CompiledScope   header_lines=28 public_methods=0  members=3
 # entries are written out beside it -- Awaiting and Suspended look alike and are
 # not, which is the thing a reader has to be told.
 budget: GeneratorState header_lines=35 public_methods=0 members=2
+# One try's entry in the table a throw searches. Six numbers and a flag, and
+# the flag is what tells a *return* from a throw: a forced return runs every
+# `finally` between the yield it stopped at and the end of the body, and no
+# `catch` at all.
+budget: Handler        header_lines=25 public_methods=0 members=7
 
 # The instruction list, its constant pools, and the flags the matcher reads off
 # it. Data, with no behaviour of its own -- every member is one of those three.
@@ -202,7 +207,12 @@ budget: Heap        header_lines=145 public_methods=24 members=9
 # Grew by two for async generators: their prototype, which shares no method
 # with the sync one, and the `Symbol.asyncIterator` cell `for await` resolves
 # against. Both are what the entry above calls the language growing.
-budget: WellKnown   header_lines=62 public_methods=2  members=11
+# And by one for the return signal: the prototype of the value a forced return
+# travels as. It is here rather than being a flag on the interpreter because
+# two forced returns can be in flight at once -- a `finally` can make another
+# generator return -- so the marker has to be on the value rather than beside
+# the machine.
+budget: WellKnown   header_lines=72 public_methods=2  members=12
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -234,7 +244,7 @@ budget: WellKnown   header_lines=62 public_methods=2  members=11
 # its own, because every promise in it is a GC root and the root walk for those
 # already exists. Five methods and the record they pass around are the growth,
 # and the record is written out where it lives for the reason Suspension is.
-budget: Interpreter header_lines=640 public_methods=44 members=16
+budget: Interpreter header_lines=655 public_methods=44 members=16
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

@@ -595,13 +595,21 @@ void Compiler::TryStatement(const Node& node) {
   }
   if (finally_body != nullptr) {
     if (catch_body == nullptr && try_end > try_begin) {
-      function_.handlers.push_back(
-          Handler{try_begin, try_end, rethrow, entry_stack, live_scopes, entry_iterations});
+      function_.handlers.push_back(Handler{try_begin, try_end, rethrow, entry_stack, live_scopes,
+                                           entry_iterations, true});
     }
     if (catch_body != nullptr && catch_end > catch_begin) {
       // A throw from inside the catch clause still owes the finalizer.
-      function_.handlers.push_back(
-          Handler{catch_begin, catch_end, rethrow, entry_stack, live_scopes, entry_iterations});
+      function_.handlers.push_back(Handler{catch_begin, catch_end, rethrow, entry_stack,
+                                           live_scopes, entry_iterations, true});
+    }
+    if (catch_body != nullptr && try_end > try_begin) {
+      // And a *return* out of the try block owes it too, which the catch
+      // handler registered above cannot say -- it is where a throw goes, and a
+      // forced return must not go there. Registered after it, so a throw still
+      // finds the catch first and a forced return skips past to this.
+      function_.handlers.push_back(Handler{try_begin, try_end, rethrow, entry_stack, live_scopes,
+                                           entry_iterations, true});
     }
   }
 }

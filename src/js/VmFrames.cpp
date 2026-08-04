@@ -211,7 +211,27 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
   return Result::Normal();
 }
 
+Value Interpreter::NewReturnSignal(const Value& value) {
+  Object* signal = heap_.AllocateObject(Object::Kind::Plain);
+  if (signal == nullptr) {
+    return Value::Undefined();
+  }
+  // Identified by its prototype rather than by a property, because a property
+  // is something a finalizer could delete if it ever got hold of one.
+  signal->SetPrototype(well_known_.return_signal);
+  signal->Set("value", value);
+  return Value::Obj(signal);
+}
+
+bool Interpreter::IsReturnSignal(const Value& thrown) const {
+  return thrown.IsObject() && well_known_.return_signal != nullptr &&
+         thrown.object->Prototype() == well_known_.return_signal;
+}
+
 bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) {
+  // A forced return travels as a throw so that it runs the finalizers a throw
+  // would -- and must run none of the catch clauses one would.
+  const bool forced_return = IsReturnSignal(thrown);
   while (vm_.frames.size() > entry_depth) {
     Frame& frame = vm_.frames.back();
     // The instruction that threw, not the one after it: ip has already moved on
@@ -220,6 +240,9 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
     const std::size_t working_base = frame.stack_base + 2 + frame.argument_count;
     for (const Handler& handler : frame.code->handlers) {
       if (at < handler.begin || at >= handler.end) {
+        continue;
+      }
+      if (forced_return && !handler.is_finally) {
         continue;
       }
       // Back to the state the `try` started from: the cursors it had open, the
@@ -241,6 +264,22 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
     vm_.scopes.resize(done.scope_base);
     vm_.locals.resize(done.locals_base);
     vm_.stack.resize(done.stack_base);
+    if (forced_return) {
+      // Every finalizer between the `yield` and here has run. What is left is
+      // the return the page asked for, delivered to whichever of the three
+      // things is waiting on this frame.
+      const Value* returned = thrown.object->GetOwn("value");
+      const Value value = returned == nullptr ? Value::Undefined() : *returned;
+      if (IsAsyncGeneratorFrame(done)) {
+        SettleAsyncRequest(done.generator, value, true, false);
+        CloseGenerator(done.generator);
+        DrainAsyncRequests(done.generator, false, Value::Undefined());
+      } else if (done.generator != nullptr) {
+        CloseGenerator(done.generator);
+      }
+      vm_.stack.push_back(value);
+      return true;
+    }
     if (IsAsyncGeneratorFrame(done)) {
       // The throw stops here for the reason it stops at an async call: what the
       // caller holds is a promise, so a throw is a rejection. The difference is
