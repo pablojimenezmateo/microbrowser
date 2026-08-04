@@ -652,6 +652,77 @@ void Interpreter::InstallGlobals() {
     }
     return Value::String(std::string("[object Object]"));
   });
+  // --- Reflect --------------------------------------------------------------
+  // The same operations the language performs implicitly, as ordinary
+  // functions. Almost all of it is a thin name over something that already
+  // exists here -- which is the point: a framework calls `Reflect.get` where
+  // it would otherwise write `obj[key]`, so that the two cannot diverge when a
+  // Proxy is in the way.
+  Object* reflect = NewObject();
+  if (reflect != nullptr) {
+    install(reflect, "get", [](NativeCall& call) {
+      const Value target = Argument(call.arguments, 0);
+      if (!target.IsObject()) {
+        return call.Throw("TypeError", "Reflect.get called on a non-object");
+      }
+      return call.interpreter.GetPropertyValue(target, KeyFrom(Argument(call.arguments, 1)));
+    });
+    install(reflect, "set", [](NativeCall& call) {
+      const Value target = Argument(call.arguments, 0);
+      if (!target.IsObject()) {
+        return call.Throw("TypeError", "Reflect.set called on a non-object");
+      }
+      target.object->Set(KeyFrom(Argument(call.arguments, 1)), Argument(call.arguments, 2));
+      return Value::Bool(true);
+    });
+    install(reflect, "has", [](NativeCall& call) {
+      const Value target = Argument(call.arguments, 0);
+      if (!target.IsObject()) {
+        return call.Throw("TypeError", "Reflect.has called on a non-object");
+      }
+      // `in`, which walks the prototype chain -- unlike hasOwnProperty, which
+      // is the distinction this pair exists to keep straight.
+      return Value::Bool(target.object->GetProperty(KeyFrom(Argument(call.arguments, 1))) !=
+                         nullptr);
+    });
+    install(reflect, "deleteProperty", [](NativeCall& call) {
+      const Value target = Argument(call.arguments, 0);
+      if (!target.IsObject()) {
+        return call.Throw("TypeError", "Reflect.deleteProperty called on a non-object");
+      }
+      return Value::Bool(target.object->Delete(KeyFrom(Argument(call.arguments, 1))));
+    });
+    install(reflect, "apply", [](NativeCall& call) {
+      const Value target = Argument(call.arguments, 0);
+      if (!target.IsObject() || !target.object->IsCallable()) {
+        return call.Throw("TypeError", "Reflect.apply requires a function");
+      }
+      std::vector<Value> arguments;
+      const Value list = Argument(call.arguments, 2);
+      if (!list.IsNullish()) {
+        const Result collected = call.interpreter.CollectIterable(list, arguments);
+        if (collected.IsAbrupt()) {
+          return call.ThrowValue(collected.value);
+        }
+      }
+      const Result applied =
+          call.interpreter.CallFunction(target, Argument(call.arguments, 1), arguments);
+      if (applied.IsAbrupt()) {
+        return call.ThrowValue(applied.value);
+      }
+      return applied.value;
+    });
+    // The three that are the same answer as their Object counterparts, read
+    // off the constructor rather than written twice.
+    for (const char* name : {"getPrototypeOf", "setPrototypeOf", "defineProperty", "ownKeys"}) {
+      const char* source = std::string_view(name) == "ownKeys" ? "getOwnPropertyNames" : name;
+      if (const Value* existing = object_constructor->GetOwn(source)) {
+        reflect->Set(name, *existing);
+      }
+    }
+    global_scope_->Declare("Reflect", Value::Obj(reflect), false);
+  }
+
   global_scope_->Declare("Object", Value::Obj(object_constructor), false);
 
   // Array.prototype and the Array constructor, in their own translation unit

@@ -494,7 +494,67 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Throw("SyntaxError", "'super' keyword unexpected here");
     }
 
-    case NodeKind::TaggedTemplate:
+    case NodeKind::TaggedTemplate: {
+      // ``tag`a${x}b` `` is `tag(["a", "b"], x)`. The tag receives the literal
+      // chunks as an array and the substitution *values* as the arguments
+      // after it -- which is the whole point of the form: the tag sees the two
+      // apart and can decide what to do with each, which is how a library
+      // escapes an interpolation it did not write.
+      const Node* tag_node = node.Child(0);
+      const Node* template_node = node.Child(1);
+      if (tag_node == nullptr || template_node == nullptr) {
+        return Throw("SyntaxError", "malformed tagged template");
+      }
+      Value self;
+      Result tag = Result::Normal();
+      if (tag_node->kind == NodeKind::Member) {
+        // A method tag keeps its receiver: ``obj.tag`x` `` calls it on `obj`.
+        const Result key = EvaluateMember(*tag_node, scope, self);
+        if (key.IsAbrupt()) {
+          return key;
+        }
+        tag = Result::Normal(GetProperty(self, KeyFrom(key.value)));
+      } else {
+        tag = Evaluate(*tag_node, scope);
+        if (tag.IsAbrupt()) {
+          return tag;
+        }
+      }
+      if (!tag.value.IsObject() || !tag.value.object->IsCallable()) {
+        return Throw("TypeError", "the tag of a tagged template is not a function");
+      }
+
+      const TemplateParts parts = SplitTemplate(template_node->string);
+      std::vector<Value> chunks;
+      chunks.reserve(parts.literals.size());
+      for (const std::string& literal : parts.literals) {
+        chunks.push_back(Value::String(literal));
+      }
+      const Value strings = NewArrayValue(chunks);
+      if (!strings.IsObject()) {
+        return Throw("RangeError", "out of memory");
+      }
+      // `raw` is the same array here. It is meant to be the text before escape
+      // processing, and this engine does not process escapes in a template
+      // separately -- so the two agree, which is right for every template
+      // without a backslash in it and wrong only for those with one.
+      strings.object->Set("raw", NewArrayValue(std::move(chunks)));
+
+      std::vector<Value> arguments{strings};
+      for (const NodePtr& child : template_node->children) {
+        if (child == nullptr) {
+          arguments.push_back(Value::Undefined());
+          continue;
+        }
+        const Result value = Evaluate(*child, scope);
+        if (value.IsAbrupt()) {
+          return value;
+        }
+        arguments.push_back(value.value);
+      }
+      return CallFunction(tag.value, self, arguments);
+    }
+
     case NodeKind::Spread:
       return Throw("SyntaxError", "unsupported expression");
 

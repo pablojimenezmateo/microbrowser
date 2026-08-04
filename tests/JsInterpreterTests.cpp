@@ -1568,6 +1568,32 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("[].values === [][Symbol.iterator]", "true");
   });
 
+  AddTest(tests, "JsInterpreter/ATaggedTemplateSeesItsPiecesApart", [] {
+    // The whole point of the form: the tag receives the literal chunks and the
+    // substituted *values* separately, so a library can escape an
+    // interpolation it did not write.
+    ExpectEval("const t = (s, ...v) => s.join('|') + ' :: ' + v.join(','); t`a${1}b${2}c`",
+               "a|b|c :: 1,2");
+    ExpectEval("const t = (s, ...v) => s.length + ' ' + v.length; t`plain`", "1 0");
+    ExpectEval("const raw = (s) => s.raw[0]; raw`hello`", "hello");
+    // A method tag keeps its receiver.
+    ExpectEval("const o = { n: 'o', tag(s){ return this.n + s[0] } }; o.tag`X`", "oX");
+    ExpectEval("try { const bad = 5; bad`x` } catch (e) { e.name }", "TypeError");
+  });
+
+  AddTest(tests, "JsInterpreter/ReflectNamesWhatTheLanguageDoesImplicitly", [] {
+    ExpectEval("Reflect.get({ a: 1 }, 'a')", "1");
+    ExpectEval("const o = {}; Reflect.set(o, 'b', 2); o.b", "2");
+    // `has` is `in`, which walks the prototype chain -- unlike
+    // hasOwnProperty, and keeping the two straight is why both exist.
+    ExpectEval("[Reflect.has({ a: 1 }, 'a'), Reflect.has({}, 'toString')].join(' ')",
+               "true true");
+    ExpectEval("const o = { a: 1 }; Reflect.deleteProperty(o, 'a'); typeof o.a", "undefined");
+    ExpectEval("Reflect.apply(function(x, y){ return this.n + x + y }, { n: 10 }, [1, 2])", "13");
+    ExpectEval("Reflect.ownKeys({ x: 1, y: 2 }).join(',')", "x,y");
+    ExpectEval("Reflect.getPrototypeOf([]) === Array.prototype", "true");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.
