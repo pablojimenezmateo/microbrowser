@@ -541,14 +541,37 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
     }
   } root{*this, cursor.iterator.IsObject() || cursor.array != nullptr};
 
+  // What every way out of the loop goes through, so that an iterator this walks
+  // away from is told so. Called while `root` above is still holding the
+  // iterator, which is what makes it safe to run the page's `return` here.
+  //
+  // A throw is the one completion that does not close, which is a deviation
+  // and a deliberate one: the machine does not close there either -- its
+  // UnwindToHandler truncates the cursor stack without running anything -- and
+  // two engines disagreeing is worse than one shared gap that is written down.
+  const auto leave = [&](Result result) {
+    if (!is_of || result.completion == Completion::Throw) {
+      return result;
+    }
+    Result closed = CloseIterationCursor(cursor);
+    return closed.IsAbrupt() ? closed : result;
+  };
+
   for (std::size_t step = 0;; ++step) {
     Value item;
     if (is_of) {
       bool done = false;
       const Result advanced = StepIteration(cursor, item, done);
       if (advanced.IsAbrupt()) {
+        // The iterator itself threw, so it is finished and is not asked to
+        // close -- asking a `next` that failed to also `return` is not what
+        // the protocol says and is one more call into code that just broke.
+        cursor.done = true;
         return advanced;
       }
+      // Written back, not just read: `leave` below asks the cursor whether it
+      // finished, and an exhausted iterator must not be asked to close.
+      cursor.done = done;
       if (done) {
         break;
       }
@@ -576,7 +599,7 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
       bound = BindPattern(*left, item, *iteration, false, false);
     }
     if (bound.IsAbrupt()) {
-      return bound;
+      return leave(std::move(bound));
     }
 
     Result result = EvaluateStatement(*body, *iteration);
@@ -584,19 +607,22 @@ Result Interpreter::EvaluateForIn(const Node& node, Environment& scope) {
       if (result.label.empty() || result.label == my_label) {
         break;
       }
-      return result;
+      return leave(std::move(result));
     }
     if (result.completion == Completion::Continue) {
       if (!result.label.empty() && result.label != my_label) {
-        return result;
+        return leave(std::move(result));
       }
       continue;
     }
     if (result.IsAbrupt()) {
-      return result;
+      return leave(std::move(result));
     }
   }
-  return Result::Normal();
+  // Off the end of the loop: exhausted, or a `break` that belonged here. The
+  // first closes nothing because the cursor is already done, and the second is
+  // the case this exists for.
+  return leave(Result::Normal());
 }
 
 Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {

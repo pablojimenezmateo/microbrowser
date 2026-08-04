@@ -330,6 +330,48 @@ Result Interpreter::CollectIterable(const Value& iterable, std::vector<Value>& o
   }
 }
 
+Result Interpreter::CloseIterationCursor(Iteration& cursor) {
+  // Marked done before anything runs, so a `return` that walks the same thing
+  // again finds a finished cursor rather than one that closes itself twice.
+  const bool closeable = !cursor.done && cursor.iterator.IsObject();
+  cursor.done = true;
+  if (!closeable) {
+    return Result::Normal();
+  }
+  // The caller keeps the cursor rooted for the length of this -- on the
+  // machine's cursor stack, or on the tree-walker's shadow stack. The copy
+  // below is a C++ local, and a `return` that allocates can collect.
+  const Value iterator = cursor.iterator;
+  const Value method = GetProperty(iterator, "return");
+  if (!method.IsObject() || !method.object->IsCallable()) {
+    // An iterator without a `return` is closed by walking away from it, which
+    // is what most of them are.
+    return Result::Normal();
+  }
+  return CallFunction(method, iterator, {});
+}
+
+Result Interpreter::CloseIterations(std::size_t down_to) {
+  while (vm_.iterations.size() > down_to) {
+    const std::size_t at = vm_.iterations.size() - 1;
+    // By reference into the stack, not by copy: that is what keeps the
+    // iterator a root while its own `return` runs. Safe because the stack is
+    // reserved once and never grows -- see kIterationCapacity.
+    const Result closed = CloseIterationCursor(vm_.iterations[at]);
+    vm_.iterations.resize(at);
+    if (closed.IsAbrupt()) {
+      // Propagated rather than swallowed. Every path that emits an
+      // IterateClose is a normal completion -- a `break`, a `continue`, a
+      // `return` -- and the spec propagates there. A throw unwinding past a
+      // loop does not come through here at all; UnwindToHandler truncates the
+      // cursor stack itself, which is the case where the spec swallows and the
+      // case neither engine closes at all.
+      return closed;
+    }
+  }
+  return Result::Normal();
+}
+
 Result Interpreter::StepIteration(Iteration& state, Value& value_out, bool& done) {
   done = false;
   value_out = Value::Undefined();

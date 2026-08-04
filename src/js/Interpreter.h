@@ -140,6 +140,17 @@ class Interpreter {
   // OpenIteration because spread, destructuring and `for...of` are three
   // callers in three files.
   Result StepIteration(Iteration& state, Value& value_out, bool& done);
+  // Closes every open cursor above `down_to`, innermost first: an iterator
+  // that has not finished and has a `return` gets it called, which is what the
+  // protocol says a loop leaving early owes it. What makes a `break` out of a
+  // `for...of` over a generator finish the generator rather than leave its
+  // frame filed for ever.
+  Result CloseIterations(std::size_t down_to);
+  // One cursor's share of that, and what the tree-walker's `for...of` calls --
+  // its cursor is a C++ local rather than a slot on a stack. The caller is
+  // responsible for keeping the cursor rooted across this: it runs the page's
+  // `return`, which can allocate and therefore collect.
+  Result CloseIterationCursor(Iteration& cursor);
   // Everything an iterable yields. Spread and a rest element both consume the
   // whole thing by definition, so draining is what the spec says there --
   // unlike `for...of`, which must stop asking at a `break`.

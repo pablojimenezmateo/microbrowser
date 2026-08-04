@@ -467,6 +467,15 @@ void Compiler::ReturnStatement(const Node& node) {
   // under whatever they push and pop, which is why the depth is tracked rather
   // than assumed.
   RunFinalizers(0);
+  // Every cursor still open is one this return is walking away from, and it is
+  // owed a `return` the same way a `break` owes one. RunFinalizers has already
+  // closed the ones inside a `finally`; these are the rest. Emitted here rather
+  // than left to Op::Return, which truncates the stack without asking, because
+  // closing runs the page's code and a `return` that throws has to propagate.
+  if (iteration_depth_ > 0) {
+    Emit(Op::IterateClose, iteration_depth_, 0);
+    iteration_depth_ = 0;
+  }
   Emit(Op::Return, 0, -1);
   // What follows is reached by a path that did not return.
   stack_depth_ = stack_before;

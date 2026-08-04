@@ -1174,9 +1174,18 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         vm_.stack.push_back(Value::Obj(array));
         break;
       }
-      case Op::IterateClose:
-        vm_.iterations.resize(vm_.iterations.size() - instruction.a);
+      case Op::IterateClose: {
+        // Not a resize any more: an iterator a loop walked away from is owed a
+        // `return`, and for a generator that is the difference between its
+        // frame being released and being filed for the life of the page.
+        const std::size_t down_to = vm_.iterations.size() - instruction.a;
+        const Result closed = CloseIterations(down_to);
+        if (closed.IsAbrupt()) {
+          pending = closed;
+          threw = true;
+        }
         break;
+      }
       case Op::ForInKeys: {
         std::vector<Value> keys;
         const Value& subject = vm_.stack.back();

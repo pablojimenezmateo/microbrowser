@@ -1390,6 +1390,46 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = { n: 7, *g(){ yield this.n } };\n o.g().next().value", "7");
   });
 
+  AddTest(tests, "JsInterpreter/ABreakOutOfAGeneratorLoopFinishesTheGenerator", [] {
+    // `break` owes the iterator a `return`, and for a generator that is what
+    // finishes it -- without this its frame stays filed for the life of the
+    // page, and a page that abandons generators in a loop reaches the cap.
+    ExpectEval("function* g(){ yield 1; yield 2; yield 3 }\n"
+               "const it = g();\n"
+               "for (const n of it) { if (n === 2) break }\n"
+               "const after = it.next();\n"
+               "(after.value === undefined) + ' ' + after.done",
+               "true true");
+    // `return` out of the function is the same kind of early exit, and reaches
+    // the close a different way: Op::Return would otherwise truncate the
+    // cursor stack without asking anything.
+    ExpectEval("function* g(){ yield 1; yield 2 }\n"
+               "const it = g();\n"
+               "function f(){ for (const n of it) { return n } }\n"
+               "f() + ' ' + it.next().done",
+               "1 true");
+  });
+
+  AddTest(tests, "JsInterpreter/ALoopThatLeavesEarlyClosesWhatItWasWalking", [] {
+    // The same contract for a page's own iterator rather than a generator, so
+    // both engines are held to it: this one is not about suspending a frame.
+    const std::vector<std::string> log = Log(
+        "const it = { [Symbol.iterator]() { return this },\n"
+        "  next() { return { value: 1, done: false } },\n"
+        "  return() { console.log('closed'); return { done: true } } };\n"
+        "for (const n of it) break;\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 1, "one line");
+    ExpectEqString(log.at(0), "closed", "the iterator was told the loop left");
+    // Running to the end is not leaving early, so nothing is closed -- which is
+    // what the protocol says and what stops a spent iterator being poked again.
+    const std::vector<std::string> ran = Log(
+        "const it = { [Symbol.iterator]() { let n = 0; return {\n"
+        "  next() { return n++ < 1 ? { value: n, done: false } : { done: true } },\n"
+        "  return() { console.log('closed'); return { done: true } } } } };\n"
+        "for (const n of it) {}\n");
+    ExpectEqInt(static_cast<long long>(ran.size()), 0, "a finished iterator is not closed");
+  });
+
   AddTest(tests, "JsInterpreter/YieldOutsideAGeneratorIsRejected", [] {
     ExpectEval("function f(){ return yield 1 }\n f()", "throw SyntaxError: yield is only valid "
                                                       "inside a generator");
