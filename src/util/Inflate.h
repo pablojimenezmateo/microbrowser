@@ -43,8 +43,32 @@ bool Inflate(std::span<const std::byte> input, std::size_t max_output,
 bool ZlibInflate(std::span<const std::byte> input, std::size_t max_output,
                  std::vector<std::byte>& out);
 
+// Same, with the gzip member header and its CRC-32/ISIZE trailer (RFC 1952).
+// This is what `Content-Encoding: gzip` is, and the header is the new hostile
+// surface: optional extra fields, two NUL-terminated strings and a header
+// checksum, all length-driven by the sender.
+//
+// **One member only.** RFC 1952 allows members to be concatenated; a
+// `Content-Encoding: gzip` response that uses that is not something any server
+// sends, and supporting it would mean this function could not simply take the
+// trailer from the last eight bytes — it would have to tell the caller how much
+// of the input the deflate stream ate, and every caller would have to loop.
+// A multi-member stream fails the checksum and is rejected, which is the safe
+// direction.
+//
+// Both the CRC-32 and the uncompressed length in the trailer are verified. A
+// response body whose checksum does not hold is a body that arrived wrong, and
+// handing it to a parser anyway means parsing whatever the corruption produced.
+bool GzipInflate(std::span<const std::byte> input, std::size_t max_output,
+                 std::vector<std::byte>& out);
+
 // Adler-32 (RFC 1950). Exposed because PNG's zlib trailer is not the only place
 // it appears and a second implementation would be a second thing to get wrong.
 std::uint32_t Adler32(std::span<const std::byte> data);
+
+// CRC-32, as PNG's chunk trailer and gzip's member trailer both define it.
+// Public for the reason Adler32 is: it appears in two decoders in two modules,
+// and two implementations is two things to get wrong.
+std::uint32_t Crc32(std::span<const std::byte> data);
 
 }  // namespace microbrowser::util

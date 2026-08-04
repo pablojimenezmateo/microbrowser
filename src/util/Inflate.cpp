@@ -382,6 +382,29 @@ bool Inflate(std::span<const std::byte> input, std::size_t max_output,
   return true;
 }
 
+std::uint32_t Crc32(std::span<const std::byte> data) {
+  // The table is built once on first use rather than baked in, because a 1KB
+  // constant nobody can verify by eye is worse than eight lines that generate
+  // it.
+  static const std::array<std::uint32_t, 256> table = [] {
+    std::array<std::uint32_t, 256> result{};
+    for (std::uint32_t n = 0; n < 256; ++n) {
+      std::uint32_t c = n;
+      for (int k = 0; k < 8; ++k) {
+        c = (c & 1u) != 0 ? (0xEDB88320u ^ (c >> 1)) : (c >> 1);
+      }
+      result[n] = c;
+    }
+    return result;
+  }();
+
+  std::uint32_t crc = 0xFFFFFFFFu;
+  for (const std::byte value : data) {
+    crc = table[(crc ^ static_cast<std::uint32_t>(value)) & 0xFFu] ^ (crc >> 8);
+  }
+  return crc ^ 0xFFFFFFFFu;
+}
+
 std::uint32_t Adler32(std::span<const std::byte> data) {
   constexpr std::uint32_t kModulus = 65521;
   std::uint32_t low = 1;
@@ -425,6 +448,96 @@ bool ZlibInflate(std::span<const std::byte> input, std::size_t max_output,
                                  (static_cast<std::uint32_t>(input[trailer + 2]) << 8) |
                                  static_cast<std::uint32_t>(input[trailer + 3]);
   if (Adler32(out) != expected) {
+    AddPerformanceCounter(PerfCounterId::UtilInflateChecksumFailures);
+    out.clear();
+    return false;
+  }
+  return true;
+}
+
+bool GzipInflate(std::span<const std::byte> input, std::size_t max_output,
+                 std::vector<std::byte>& out) {
+  out.clear();
+  // Ten header bytes and an eight-byte trailer, before any of the optional
+  // fields. Anything shorter cannot be a member however it is read, and
+  // checking it here is what makes every subspan below in range.
+  constexpr std::size_t kFixedHeader = 10;
+  constexpr std::size_t kTrailer = 8;
+  if (input.size() < kFixedHeader + kTrailer) {
+    return false;
+  }
+  if (input[0] != std::byte{0x1F} || input[1] != std::byte{0x8B}) {
+    return false;  // not a gzip member
+  }
+  if (input[2] != std::byte{8}) {
+    return false;  // compression method must be deflate
+  }
+  const auto flags = static_cast<std::uint32_t>(input[3]);
+  if ((flags & 0xE0u) != 0) {
+    return false;  // reserved bits, which a conforming writer leaves clear
+  }
+
+  // The optional fields, each of which is a length the sender chose. Every step
+  // is bounded against `limit` rather than against the whole input, because the
+  // trailer is not part of the header however long the sender claims a field is.
+  const std::size_t limit = input.size() - kTrailer;
+  std::size_t at = kFixedHeader;
+  if ((flags & 0x04u) != 0) {  // FEXTRA
+    if (limit - at < 2) {
+      return false;
+    }
+    const std::size_t extra = static_cast<std::size_t>(input[at]) |
+                              (static_cast<std::size_t>(input[at + 1]) << 8);
+    at += 2;
+    if (limit - at < extra) {
+      return false;
+    }
+    at += extra;
+  }
+  for (const std::uint32_t field : {0x08u, 0x10u}) {  // FNAME, FCOMMENT
+    if ((flags & field) == 0) {
+      continue;
+    }
+    while (true) {
+      if (at >= limit) {
+        return false;  // an unterminated string is a truncated member
+      }
+      const bool end = input[at] == std::byte{0};
+      ++at;
+      if (end) {
+        break;
+      }
+    }
+  }
+  if ((flags & 0x02u) != 0) {  // FHCRC
+    if (limit - at < 2) {
+      return false;
+    }
+    const std::uint32_t stored = static_cast<std::uint32_t>(input[at]) |
+                                 (static_cast<std::uint32_t>(input[at + 1]) << 8);
+    if ((Crc32(input.subspan(0, at)) & 0xFFFFu) != stored) {
+      AddPerformanceCounter(PerfCounterId::UtilInflateChecksumFailures);
+      return false;
+    }
+    at += 2;
+  }
+
+  if (!Inflate(input.subspan(at, limit - at), max_output, out)) {
+    return false;
+  }
+
+  const auto trailer_word = [input](std::size_t offset) {
+    return static_cast<std::uint32_t>(input[offset]) |
+           (static_cast<std::uint32_t>(input[offset + 1]) << 8) |
+           (static_cast<std::uint32_t>(input[offset + 2]) << 16) |
+           (static_cast<std::uint32_t>(input[offset + 3]) << 24);
+  };
+  const std::uint32_t expected_crc = trailer_word(limit);
+  const std::uint32_t expected_size = trailer_word(limit + 4);
+  // ISIZE is the length modulo 2^32, which is what a 4GB member would have
+  // wrapped. `max_output` is far below that here, so the comparison is exact.
+  if (Crc32(out) != expected_crc ||
+      static_cast<std::uint32_t>(out.size() & 0xFFFFFFFFu) != expected_size) {
     AddPerformanceCounter(PerfCounterId::UtilInflateChecksumFailures);
     out.clear();
     return false;

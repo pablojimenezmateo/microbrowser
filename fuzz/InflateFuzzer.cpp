@@ -20,6 +20,13 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   out.clear();
   microbrowser::util::ZlibInflate(input, 1u << 20, out);
 
+  // The gzip member header is the newest hostile surface here: two optional
+  // NUL-terminated strings, a length-driven extra field and a header checksum,
+  // all of it walked before a single bit of the deflate stream is read.
+  out.clear();
+  microbrowser::util::GzipInflate(input, 1u << 20, out);
+
   microbrowser::util::Adler32(input);
+  microbrowser::util::Crc32(input);
   return 0;
 }

@@ -28,6 +28,24 @@ constexpr std::uint8_t kStoredStream[] = {0x01, 0x15, 0x00, 0xEA, 0xFF, 0x73, 0x
                                           0x20, 0x73, 0x74, 0x61, 0x79, 0x73, 0x20, 0x70,
                                           0x75, 0x74};
 
+// A gzip member around the same payload, written by zlib:
+//
+//   python3 -c "import zlib; c = zlib.compressobj(9, zlib.DEFLATED, 31);
+//              print((c.compress(b'...') + c.flush()).hex())"
+constexpr std::uint8_t kGzipStream[] = {
+    0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xCB, 0x48,
+    0xCD, 0xC9, 0xC9, 0x57, 0xC8, 0x40, 0x22, 0xCB, 0xF3, 0x8B, 0x72, 0x52,
+    0x00, 0x26, 0xE6, 0x5A, 0x81, 0x17, 0x00, 0x00, 0x00};
+
+// The same member with every optional header field present: a three-byte
+// FEXTRA, an FNAME, an FCOMMENT and the FHCRC over all of it.
+constexpr std::uint8_t kGzipWithEveryField[] = {
+    0x1F, 0x8B, 0x08, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x03, 0x00,
+    0x41, 0x42, 0x43, 0x6E, 0x61, 0x6D, 0x65, 0x2E, 0x74, 0x78, 0x74, 0x00,
+    0x61, 0x20, 0x63, 0x6F, 0x6D, 0x6D, 0x65, 0x6E, 0x74, 0x00, 0xE3, 0x9D,
+    0xCB, 0x48, 0xCD, 0xC9, 0xC9, 0x57, 0xC8, 0x40, 0x22, 0xCB, 0xF3, 0x8B,
+    0x72, 0x52, 0x00, 0x26, 0xE6, 0x5A, 0x81, 0x17, 0x00, 0x00, 0x00};
+
 std::span<const std::byte> AsBytes(const std::uint8_t* data, std::size_t size) {
   return std::span<const std::byte>(reinterpret_cast<const std::byte*>(data), size);
 }
@@ -235,6 +253,102 @@ void RegisterInflateTests(std::vector<TestCase>& tests) {
     const std::uint8_t tiny[] = {0x78, 0x01, 0x00};
     Expect(!util::ZlibInflate(AsBytes(tiny, sizeof(tiny)), 1024, out),
            "a stream with no room for its own trailer cannot be valid");
+  });
+
+  // --- The gzip wrapper -----------------------------------------------------
+
+  AddTest(tests, "Inflate/Crc32MatchesTheReferenceValues", [] {
+    ExpectEqInt(util::Crc32({}), 0, "the empty CRC is 0");
+    const std::uint8_t nine[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    ExpectEqInt(util::Crc32(AsBytes(nine, 9)), 0xCBF43926,
+                "the check value every CRC-32 implementation publishes");
+  });
+
+  AddTest(tests, "Inflate/DecodesAGzipMemberWrittenByZlib", [] {
+    std::vector<std::byte> out;
+    Expect(util::GzipInflate(AsBytes(kGzipStream, sizeof(kGzipStream)), 1024, out),
+           "a gzip member zlib wrote must decode");
+    ExpectEqString(AsString(out), "hello hello hello world", "the payload");
+  });
+
+  AddTest(tests, "Inflate/WalksTheOptionalGzipHeaderFields", [] {
+    // FEXTRA, FNAME, FCOMMENT and FHCRC all set at once. Each is a length or a
+    // terminator the sender chose, which is the whole reason this header is
+    // worth a test of its own.
+    std::vector<std::byte> out;
+    Expect(util::GzipInflate(AsBytes(kGzipWithEveryField, sizeof(kGzipWithEveryField)), 1024, out),
+           "every optional field must be walked rather than assumed absent");
+    ExpectEqString(AsString(out), "hello hello hello world", "the payload behind them");
+
+    // The header checksum is verified, not skipped.
+    std::vector<std::uint8_t> bad(kGzipWithEveryField,
+                                  kGzipWithEveryField + sizeof(kGzipWithEveryField));
+    bad[34] ^= 0xFFu;  // the FHCRC field
+    Expect(!util::GzipInflate(AsBytes(bad.data(), bad.size()), 1024, out),
+           "a header whose own checksum fails must be rejected");
+  });
+
+  AddTest(tests, "Inflate/GzipTrailerIsVerifiedRatherThanSkipped", [] {
+    std::vector<std::byte> out;
+    const std::size_t size = sizeof(kGzipStream);
+
+    std::vector<std::uint8_t> bad_crc(kGzipStream, kGzipStream + size);
+    bad_crc[size - 8] ^= 0xFFu;
+    Expect(!util::GzipInflate(AsBytes(bad_crc.data(), bad_crc.size()), 1024, out),
+           "a failing CRC-32 must fail the decode");
+    Expect(out.empty(), "and must not leave the partial output behind for a caller to use");
+
+    std::vector<std::uint8_t> bad_size(kGzipStream, kGzipStream + size);
+    bad_size[size - 4] ^= 0x01u;
+    Expect(!util::GzipInflate(AsBytes(bad_size.data(), bad_size.size()), 1024, out),
+           "an ISIZE that disagrees with what was produced must fail too");
+
+    std::vector<std::uint8_t> bad_magic(kGzipStream, kGzipStream + size);
+    bad_magic[1] = 0x8Cu;
+    Expect(!util::GzipInflate(AsBytes(bad_magic.data(), bad_magic.size()), 1024, out),
+           "the magic is checked");
+
+    std::vector<std::uint8_t> reserved(kGzipStream, kGzipStream + size);
+    reserved[3] = 0x20u;
+    Expect(!util::GzipInflate(AsBytes(reserved.data(), reserved.size()), 1024, out),
+           "a reserved flag bit is a member this decoder does not understand");
+  });
+
+  AddTest(tests, "Inflate/AGzipHeaderThatEatsItsOwnTrailerIsRejected", [] {
+    // FEXTRA with a length that runs past the eight trailer bytes, and FNAME
+    // with no terminator before them. Both are the same bug from two sides: a
+    // header field that is allowed to consume the trailer leaves the decoder
+    // reading a length it invented.
+    std::vector<std::byte> out;
+    std::vector<std::uint8_t> extra(kGzipStream, kGzipStream + sizeof(kGzipStream));
+    extra[3] = 0x04;  // FEXTRA
+    extra.insert(extra.begin() + 10, {0xFF, 0xFF});
+    Expect(!util::GzipInflate(AsBytes(extra.data(), extra.size()), 1024, out),
+           "an extra field longer than the member cannot be accepted");
+
+    std::vector<std::uint8_t> name(kGzipStream, kGzipStream + sizeof(kGzipStream));
+    name[3] = 0x08;  // FNAME, and nothing in the rest of the member is a NUL
+    for (std::size_t i = 10; i < name.size(); ++i) {
+      if (name[i] == 0) {
+        name[i] = 0x41;
+      }
+    }
+    Expect(!util::GzipInflate(AsBytes(name.data(), name.size()), 1024, out),
+           "an unterminated name is a truncated member");
+  });
+
+  AddTest(tests, "Inflate/GzipHonoursItsOutputBound", [] {
+    std::vector<std::byte> out;
+    Expect(!util::GzipInflate(AsBytes(kGzipStream, sizeof(kGzipStream)), 8, out),
+           "the bound is the caller's and applies through the wrapper");
+  });
+
+  AddTest(tests, "Inflate/AGzipStreamTruncatedAnywhereFailsCleanly", [] {
+    std::vector<std::byte> out;
+    for (std::size_t length = 0; length < sizeof(kGzipStream); ++length) {
+      Expect(!util::GzipInflate(AsBytes(kGzipStream, length), 1024, out),
+             "a truncated member must fail rather than produce a short body");
+    }
   });
 }
 

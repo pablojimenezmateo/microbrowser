@@ -62,32 +62,10 @@ std::uint32_t ReadU32(std::span<const std::byte> bytes, std::size_t offset) {
          static_cast<std::uint32_t>(bytes[offset + 3]);
 }
 
-// CRC-32 as PNG defines it. The table is built once on first use rather than
-// baked in, because a 1KB constant nobody can verify by eye is worse than eight
-// lines that generate it.
-const std::array<std::uint32_t, 256>& CrcTable() {
-  static const std::array<std::uint32_t, 256> table = [] {
-    std::array<std::uint32_t, 256> result{};
-    for (std::uint32_t n = 0; n < 256; ++n) {
-      std::uint32_t c = n;
-      for (int k = 0; k < 8; ++k) {
-        c = (c & 1u) != 0 ? (0xEDB88320u ^ (c >> 1)) : (c >> 1);
-      }
-      result[n] = c;
-    }
-    return result;
-  }();
-  return table;
-}
-
-std::uint32_t Crc32(std::span<const std::byte> data) {
-  const auto& table = CrcTable();
-  std::uint32_t crc = 0xFFFFFFFFu;
-  for (const std::byte value : data) {
-    crc = table[(crc ^ static_cast<std::uint32_t>(value)) & 0xFFu] ^ (crc >> 8);
-  }
-  return crc ^ 0xFFFFFFFFu;
-}
+// CRC-32 as PNG defines it is CRC-32 as gzip defines it, and it lives in
+// util::Crc32 next to Adler32 for that reason: a second implementation is a
+// second thing to get wrong.
+using util::Crc32;
 
 bool ValidHeader(const Header& header) {
   if (header.width == 0 || header.height == 0) {
