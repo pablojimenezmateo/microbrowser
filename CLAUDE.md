@@ -52,7 +52,7 @@ What exists:
 | Module | State |
 |---|---|
 | `src/util` | Parse, StringUtil, Env, tracing, counters, DEFLATE |
-| `src/gfx` | Geometry, transforms, Color and its text form, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog + font-stack matching, glyph and shaped-run caches, PNG decoding, SVG rendering (paths, shapes, groups, transforms), bilinear image scaling, **the compositor surface and the display-list hole that names one** (ADR 0013). SDL-free. |
+| `src/gfx` | Geometry, transforms, Color and its text form, Canvas, DirtyRegion, DisplayList + its two-frame diff, Path, analytic-AA rasterizer, stroker, Painter, FreeType/HarfBuzz text, font catalog + font-stack matching, glyph and shaped-run caches, PNG decoding, **JPEG decoding — baseline and progressive, in two halves: a container of marked segments and an entropy-coded bit stream** — SVG rendering (paths, shapes, groups, transforms), bilinear image scaling and triangle chroma upsampling, **the compositor surface and the display-list hole that names one** (ADR 0013). SDL-free. |
 | `src/ipc` | Typed, versioned, serializable UI↔Engine messages, including display lists with text on them. Images cross in a **per-frame resource table** rather than inline per command; a surface crosses as a **name**. Display-list encoding is its own translation unit. |
 | `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "gfx/DisplayListDiff.h"
+#include "gfx/JpegDecoder.h"
 #include "gfx/PngDecoder.h"
 #include "gfx/SvgDecoder.h"
 #include "util/PerformanceCounters.h"
@@ -416,6 +417,12 @@ void Engine::DecodePendingImages() {
     // Which decoder is chosen by sniffing rather than by the Content-Type
     // header, for the reason every browser sniffs: the header is a claim by the
     // server, and a server that mislabels a PNG must not stop it rendering.
+    // reddit serves a JPEG from a URL ending .png on its own front page.
+    //
+    // Exactly one decoder is offered the bytes, and only if their magic number
+    // named it — ADR 0023 §2. Trying each decoder until one succeeds is the
+    // shape that makes every decoder reachable by every image, which is three
+    // times the attack surface for no compatibility gained.
     const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
                                           bytes.size());
     gfx::Image image;
@@ -428,7 +435,12 @@ void Engine::DecodePendingImages() {
       if (decoded.Ok()) {
         image = std::move(decoded.image);
       }
-    } else {
+    } else if (gfx::LooksLikeJpeg(span)) {
+      gfx::JpegDecodeResult decoded = gfx::DecodeJpeg(span);
+      if (decoded.Ok()) {
+        image = std::move(decoded.image);
+      }
+    } else if (gfx::LooksLikePng(span)) {
       gfx::PngDecodeResult decoded = gfx::DecodePng(span);
       if (decoded.Ok()) {
         image = std::move(decoded.image);
