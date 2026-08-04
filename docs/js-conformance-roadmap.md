@@ -2,7 +2,7 @@
 
 This began as an audit of `src/js` against the language, taken by running the engine rather than
 by reading it: a scratch shell that runs a snippet and prints its console output, and ~180 probes
-over the syntax and the standard library. The probes went from **110 passing to 172**, and what
+over the syntax and the standard library. The probes went from **110 passing to 173**, and what
 follows is the state after that work — what is done, what is deliberately approximate, and what
 is genuinely left.
 
@@ -38,6 +38,10 @@ Every one of these was a wrong answer the engine gave, found by running it.
 - **Modules.** `import`/`export` in every form, `import.meta`, `import()`. The host supplies a
   resolver; the engine loads depth-first, keys by resolved name, and evaluates post-order. A
   module's body runs on the machine, which is what lets an `async function` inside one work.
+- **BigInt.** The last type the language has. Arbitrary precision in base 2^32, in its own
+  translation unit that knows nothing about JavaScript values; the digits live beside the heap
+  keyed by the cell in the `Value`, so `Value` gained no member. Mixing a bigint and a number is a
+  TypeError, enforced before any conversion runs.
 - **`ArrayBuffer`, the nine typed arrays, `DataView`.** One `BufferView` record shared by all
   three, and `Object::ElementCount`/`GetElement`/`SetElement` consult it — so every generic
   `Array.prototype` method already works on a typed array.
@@ -70,15 +74,17 @@ These are not gaps to be closed by accident. Each is a decision with a reason at
 
 ## What is genuinely left
 
-1. **BigInt.** A new *value type*, so `typeof`, every operator, every conversion and the two
-   missing typed arrays all have a case. The largest remaining single feature.
-2. **Annex B block-function hoisting.** `if (x) { function f(){} }` puts `f` in the enclosing
+1. **Annex B block-function hoisting.** `if (x) { function f(){} }` puts `f` in the enclosing
    function scope in a browser. Small, and only matters for old code.
-3. **`Intl`.** Not the core language, and a real one needs CLDR.
-4. **`Atomics` / `SharedArrayBuffer`.** Needs the process model first — see ADR 0004.
+2. **`Intl`.** Not the core language, and a real one needs CLDR.
+3. **`Atomics` / `SharedArrayBuffer`.** Needs the process model first — see ADR 0004.
+4. **`BigInt64Array` / `BigUint64Array`.** Now that BigInt exists these are two more entries in a
+   table; they were left out with the rest of the typed arrays and are the smallest thing here.
 5. **Full Unicode tables** for `normalize`, the case mappings, and the rest of `\p{...}`. One
    dependency decision (ADR 0001) and one build step, not one piece of code.
 6. **Live module bindings**, if a real page is ever found that needs them.
+7. **Wiring the module resolver to the loader** — an import is a fetch, and a fetch has to pass
+   the privacy layer. Engine work rather than language work.
 
 ## How to check any of this
 

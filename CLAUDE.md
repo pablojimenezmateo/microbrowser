@@ -19,8 +19,8 @@ First-stop operating guide for agents working in this repository.
 ## Project Status
 
 **The browser renders Hacker News, and runs a page against it. The JavaScript engine is
-essentially complete** — see `docs/js-conformance-roadmap.md` for what is done, what is
-deliberately approximate, and the short list of what is left (BigInt is the largest). External and inline scripts,
+complete** — see `docs/js-conformance-roadmap.md` for what is done, what is
+deliberately approximate, and the short list of what is left. External and inline scripts,
 DOM reads and writes, `style`, event handlers, and timers — a click reaches the page's own
 handlers, and `preventDefault` stops the navigation it would otherwise have caused. `./build/microbrowser/microbrowser <url>` fetches a document,
 parses it, resolves its cascade, lays it out, and draws it — text, tables, images and all. The
@@ -54,8 +54,7 @@ What exists:
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest timer, bounded event drain, dirty-region policy, composites chrome over page, present |
 
 Not yet started: grid (rest of M5), stacking contexts (rest of M6), tabs, downloads,
-the process split and the sandbox (rest of M7), integration (M9). M8 is done bar
-BigInt. **The collector runs during evaluation**, at every loop back edge and every call: the
+the process split and the sandbox (rest of M7), integration (M9). M8 is done. **The collector runs during evaluation**, at every loop back edge and every call: the
 machine's operand and frame stacks are data, so a script that recurses while allocating is collected
 through rather than starved.
 
@@ -100,9 +99,10 @@ reasoning; this is the queue.
    `Loader` is where it goes. Until then `<script type="module">` parses and links but cannot
    reach the network.
 
-   The one remaining language gap is **BigInt**, which is a new value type and therefore a case in
-   `typeof`, in every operator and in every conversion. Unhandled rejections still get a console
-   line and nothing more.
+   The language itself is done. What is left is listed in
+   `docs/js-conformance-roadmap.md` and is small: Annex B block-function hoisting, the two BigInt
+   typed arrays, `Intl`, and the Unicode tables that `normalize` and the rest of `\p{...}` need.
+   Unhandled rejections still get a console line and nothing more.
 3. **`fetch`, and `requestAnimationFrame`.** `setTimeout` is done and did arrive as an
    `IdleWaitState::next_deadline_ms` — a page with nothing pending still lets the loop block.
    `fetch` needs Promises (done) joined to the loader and its privacy verdict; `rAF` needs the
