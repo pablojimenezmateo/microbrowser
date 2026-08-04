@@ -396,6 +396,21 @@ void RegisterJsParserTests(std::vector<TestCase>& tests) {
     ExpectError("const g = *() => 1");
   });
 
+  AddTest(tests, "JsParser/ForAwaitIsAForOfWithTheAwaitRecorded", [] {
+    // It used to be a syntax error: the `await` was eaten with Eat, which
+    // compares against punctuators, and `await` is a keyword.
+    ExpectClean("async function f(){ for await (const x of xs) {} }");
+    ExpectClean("async function f(){ for await (x of xs) {} }");
+    const ParseResult parsed = js::Parse("async function f(){ for await (const x of xs) {} }");
+    Expect(parsed.Ok(), "it parses");
+    const Node* loop = parsed.program->Child(0)->Child(1)->Child(0);
+    Expect(loop != nullptr && loop->kind == NodeKind::ForIn, "as a for-in node");
+    Expect(loop->number != 0.0, "with the await recorded on it");
+    const ParseResult plain = js::Parse("async function f(){ for (const x of xs) {} }");
+    Expect(plain.Ok() && plain.program->Child(0)->Child(1)->Child(0)->number == 0.0,
+           "and a plain for-of does not have it");
+  });
+
   AddTest(tests, "JsParser/YieldTakesAnOperandOnlyWhenOneCanStart", [] {
     // Assignment precedence, not unary: the whole sum is yielded, and what
     // comes back is what gets assigned.

@@ -356,6 +356,15 @@ void Compiler::ForInStatement(const Node& node) {
   std::string label = std::move(pending_label_);
   pending_label_.clear();
 
+  const bool is_await = node.number != 0.0 && node.string == "of";
+  if (is_await && !function_.is_async) {
+    // Same rule `await` itself has, and rejected in the same place: whether it
+    // is a keyword here is a scope question rather than a syntax one.
+    ThrowSyntax("for await is only valid inside an async function");
+    Emit(Op::Pop, 0, -1);
+    return;
+  }
+
   Expression(*right);
   if (node.string != "of") {
     // `for...in` enumerates keys and has no protocol behind it, so the keys are
@@ -386,6 +395,19 @@ void Compiler::ForInStatement(const Node& node) {
   }
   const std::uint32_t top = Here();
   const std::uint32_t to_end = Emit(Op::IterateNext, 0, 1);
+  if (is_await) {
+    // `for await (const x of xs)`, as the spec's own fallback for an iterable
+    // that has no `Symbol.asyncIterator`: walk the sync iterator and await each
+    // value. That is exactly right for the case a page has today -- a sequence
+    // of promises -- and it is why this is an Await on the value rather than an
+    // Await on the result of `next`.
+    //
+    // What it is not is the async-iterator path, which needs async generators
+    // to exist before anything can produce one. Until then an object with only
+    // `Symbol.asyncIterator` is not iterable here and says so, which is a
+    // refusal rather than a wrong sequence.
+    Emit(Op::Await, 0, 0);
+  }
   EnterScope();
   if (left->kind == NodeKind::VariableDeclaration) {
     const Node* declarator = left->Child(0);

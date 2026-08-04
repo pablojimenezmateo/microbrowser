@@ -64,7 +64,8 @@ enum class NodeKind : std::uint8_t {
   ExpressionStatement,// [0] = expression
   If,                 // [0] = test; [1] = consequent; [2] = alternate or null
   For,                // [0] = init or null; [1] = test or null; [2] = update or null; [3] = body
-  ForIn,              // string = "in" or "of"; [0] = left; [1] = right; [2] = body
+  ForIn,              // string = "in" or "of"; [0] = left; [1] = right; [2] = body;
+                      // number = 1 for `for await`, which is "of" only
   While,              // [0] = test; [1] = body
   DoWhile,            // [0] = body; [1] = test
   Return,             // [0] = argument or null

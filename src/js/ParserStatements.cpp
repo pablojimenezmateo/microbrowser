@@ -228,7 +228,11 @@ NodePtr ParserImpl::ParseFor() {
   const std::size_t start = current_.start;
   const std::size_t line = current_.line;
   Advance();  // `for`
-  Eat("await");
+  // `for await (... of ...)`. EatKeyword rather than Eat: `await` is a reserved
+  // word and so lexes as a keyword, and asking Eat for it compared against the
+  // punctuators and never matched -- which made `for await` a syntax error
+  // rather than the loop it is.
+  const bool is_await = EatKeyword("await");
   Expect("(", "after 'for'");
 
   NodePtr init;
@@ -246,6 +250,7 @@ NodePtr ParserImpl::ParseFor() {
     node->start = start;
     node->line = line;
     node->string = std::string(current_.lexeme);
+    node->number = is_await ? 1.0 : 0.0;
     Advance();
     node->children.push_back(std::move(init));
     node->children.push_back(ParseAssignment());

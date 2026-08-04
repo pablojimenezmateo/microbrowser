@@ -18,7 +18,7 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 twenty-five tests are expected to fail, in
+// Under MICROBROWSER_JS_TREEWALK=1 twenty-six tests are expected to fail, in
 // three groups, and the list is worth keeping known:
 //
 //   the stacks being data --
@@ -36,6 +36,7 @@
 //   JsInterpreter/AnAsyncFunctionSettlesWithWhatItReturnsOrThrows
 //   JsInterpreter/AwaitResumesInsideWhateverItWasWrittenIn
 //   JsInterpreter/AwaitWorksThroughEveryFormAFunctionTakes
+//   JsInterpreter/ForAwaitWaitsForEachValueInTurn
 //   JsVm/ASuspendedCallKeepsWhatItWasHoldingAcrossACollection
 //   JsVm/ManySuspendedCallsResumeIndependently
 //   JsVm/ARejectedAwaitThrowsWhereTheAwaitWasWritten

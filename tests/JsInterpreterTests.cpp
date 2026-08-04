@@ -1430,6 +1430,46 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(ran.size()), 0, "a finished iterator is not closed");
   });
 
+  AddTest(tests, "JsInterpreter/ForAwaitWaitsForEachValueInTurn", [] {
+    // The spec's fallback for an iterable with no `Symbol.asyncIterator`: walk
+    // the sync iterator and await each value. A sequence of promises is what a
+    // page has today, and this is the loop for it.
+    const std::vector<std::string> log = Log(
+        "async function run(){\n"
+        "  for await (const n of [Promise.resolve(1), 2, Promise.resolve(3)]) {\n"
+        "    console.log(n);\n"
+        "  }\n"
+        "  console.log('done');\n"
+        "}\n"
+        "run();\n"
+        "console.log('after the call');\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 5, "five lines");
+    // The call returns at the first await, so the line after it runs before
+    // any value does -- which is the whole difference from a plain `for...of`.
+    ExpectEqString(log.at(0), "after the call", "the caller carries on");
+    ExpectEqString(log.at(1), "1", "then the values, in order, each awaited");
+    ExpectEqString(log.at(2), "2", "the plain value too");
+    ExpectEqString(log.at(3), "3", "and the last promise");
+    ExpectEqString(log.at(4), "done", "then the rest of the body");
+    // A rejection arrives as a throw at the loop, where it was written.
+    const std::vector<std::string> rejected = Log(
+        "async function run(){\n"
+        "  try {\n"
+        "    for await (const n of [Promise.resolve(1), Promise.reject('no')]) {\n"
+        "      console.log(n);\n"
+        "    }\n"
+        "  } catch (e) { console.log('caught ' + e) }\n"
+        "}\n"
+        "run();\n");
+    ExpectEqInt(static_cast<long long>(rejected.size()), 2, "two lines");
+    ExpectEqString(rejected.at(0), "1", "the value before the rejection still arrives");
+    ExpectEqString(rejected.at(1), "caught no", "and the loop's own try catches it");
+    // Outside an async function there is nothing to suspend, so it is refused
+    // rather than run as a plain `for...of`.
+    ExpectEval("function f(){ for await (const n of [1]) {} }\n f()",
+               "throw SyntaxError: for await is only valid inside an async function");
+  });
+
   AddTest(tests, "JsInterpreter/YieldOutsideAGeneratorIsRejected", [] {
     ExpectEval("function f(){ return yield 1 }\n f()", "throw SyntaxError: yield is only valid "
                                                       "inside a generator");
