@@ -5,6 +5,7 @@
 
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
+#include "js/StringUnits.h"
 
 // Symbols, and the iteration protocol they exist to key.
 //
@@ -187,7 +188,7 @@ void Interpreter::InstallIteration() {
       const std::size_t size =
           target_value == nullptr
               ? 0
-              : (by_character ? target_value->AsString().size()
+              : (by_character ? Utf16Length(target_value->AsString())
                               : (target_value->IsObject() ? target_value->object->ElementCount()
                                                           : 0));
       if (target_value == nullptr || index >= size) {
@@ -195,12 +196,22 @@ void Interpreter::InstallIteration() {
         result.object->Set("done", Value::Bool(true));
         return result;
       }
-      result.object->Set("value",
-                         by_character
-                             ? Value::String(std::string(1, target_value->AsString()[index]))
-                             : target_value->object->GetElement(index));
+      // A string iterates by *code point*, not by code unit -- which is the
+      // one place the two differ and is why `[...'a\u{1F600}']` is two
+      // entries and `'a\u{1F600}'.length` is three.
+      std::size_t step = 1;
+      Value item;
+      if (by_character) {
+        const std::string& text = target_value->AsString();
+        const std::uint32_t code = CodePointAt(text, index);
+        step = code > 0xFFFFu ? 2 : 1;
+        item = Value::String(SubstringUnits(text, index, index + step));
+      } else {
+        item = target_value->object->GetElement(index);
+      }
+      result.object->Set("value", item);
       result.object->Set("done", Value::Bool(false));
-      call.self.object->Set(kIndexKey, Value::Number(static_cast<double>(index + 1)));
+      call.self.object->Set(kIndexKey, Value::Number(static_cast<double>(index + step)));
       return result;
     });
     // An iterator is itself iterable, which is what lets `for...of` and a

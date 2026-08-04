@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "js/BuiltinSupport.h"
+#include "js/StringUnits.h"
 #include "util/Env.h"
 
 namespace microbrowser::js {
@@ -366,12 +367,16 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
   if (base.IsString()) {
     const std::string& text = base.AsString();
     if (named && key.Text() == "length") {
-      return Value::Number(static_cast<double>(text.size()));
+      // In UTF-16 code units, which is what the language counts. For an ASCII
+      // string that is the byte count and the conversion is a scan that stops
+      // at the first high bit; see StringUnits.h.
+      return Value::Number(static_cast<double>(Utf16Length(text)));
     }
     if (const std::optional<std::size_t> index =
             named ? ParseArrayIndex(key.Text()) : std::nullopt) {
-      return *index < text.size() ? Value::String(std::string(1, text[*index]))
-                                  : Value::Undefined();
+      return *index < Utf16Length(text)
+                 ? Value::String(SubstringUnits(text, *index, *index + 1))
+                 : Value::Undefined();
     }
     // Anything else is a method, read from the shared prototype rather than
     // from a wrapper object: a string is a primitive here, so there is nothing

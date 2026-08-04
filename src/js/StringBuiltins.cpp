@@ -10,25 +10,23 @@
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
 #include "js/RegExpSupport.h"
+#include "js/StringUnits.h"
 #include "util/StringUtil.h"
 
 // String.prototype.
 //
-// One deviation from the spec runs through all of it, and it is worth stating
-// once rather than at every method: **a string here is a sequence of bytes, not
-// of UTF-16 code units.** `length` already counts bytes and `s[i]` already
-// yields one, both from before any of this existed, so `charAt`, `charCodeAt`,
-// `at`, every index and every length below follow that rather than contradict
-// it. For ASCII -- which is all of HTML's syntax, every CSS keyword, and most
-// of what a page's script indexes into -- the two agree exactly. For anything
-// above U+007F they do not: "é".length is 2 here and 1 in a browser.
+// One thing runs through all of it and is worth stating once rather than at
+// every method: **an index here is a UTF-16 code unit, and the storage is
+// UTF-8.** The language defines a string as a sequence of code units and every
+// index a method takes or returns is measured in them; this engine stores
+// UTF-8 because that is what the network, the HTML parser, the CSS parser and
+// the DOM all speak.
 //
-// The fix is to store strings as UTF-16 and convert at the DOM boundary, which
-// is a change to Value and to every consumer of it rather than to this file.
-// Until then, being consistently byte-oriented is worth more than being
-// UTF-16-correct in the four methods added last and byte-oriented in the two
-// that came first: `s.charCodeAt(i)` and `s[i]` agree, and `fromCharCode`
-// inverts `charCodeAt` exactly.
+// The conversion between the two lives in StringUnits.h, in one place, so that
+// `charCodeAt`, `slice` and a regular expression's match index cannot disagree
+// about what position 3 means. Every method below that takes or returns an
+// index goes through it. For an ASCII string -- which is nearly all of them --
+// the conversion is the identity and costs one word-at-a-time scan.
 //
 // `split`, `replace` and `replaceAll` each accept a pattern as well as a
 // string. The pattern branch is in RegExpBuiltins.cpp and reached through
@@ -145,41 +143,51 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   method("charAt", [](NativeCall& call) {
     const std::string text = Self(call);
     const double at = ToInteger(ToNumber(Argument(call.arguments, 0)));
+    const auto length = static_cast<double>(Utf16Length(text));
     // Out of range is the empty string, not undefined -- charAt and at differ
     // on exactly this.
-    if (at < 0.0 || at >= static_cast<double>(text.size())) {
+    if (at < 0.0 || at >= length) {
       return Value::String(std::string());
     }
-    return Value::String(std::string(1, text[static_cast<std::size_t>(at)]));
+    const auto unit = static_cast<std::size_t>(at);
+    return Value::String(SubstringUnits(text, unit, unit + 1));
   });
   method("at", [](NativeCall& call) {
     const std::string text = Self(call);
+    const auto length = static_cast<double>(Utf16Length(text));
     double at = ToInteger(ToNumber(Argument(call.arguments, 0)));
     if (at < 0.0) {
-      at += static_cast<double>(text.size());
+      at += length;
     }
-    if (at < 0.0 || at >= static_cast<double>(text.size())) {
+    if (at < 0.0 || at >= length) {
       return Value::Undefined();
     }
-    return Value::String(std::string(1, text[static_cast<std::size_t>(at)]));
+    const auto unit = static_cast<std::size_t>(at);
+    return Value::String(SubstringUnits(text, unit, unit + 1));
   });
   method("charCodeAt", [](NativeCall& call) {
     const std::string text = Self(call);
     const double at = ToInteger(ToNumber(Argument(call.arguments, 0)));
-    if (at < 0.0 || at >= static_cast<double>(text.size())) {
+    if (at < 0.0 || at >= static_cast<double>(Utf16Length(text))) {
       return Value::Number(std::nan(""));  // out of range is NaN, not 0
     }
-    return Value::Number(
-        static_cast<double>(static_cast<unsigned char>(text[static_cast<std::size_t>(at)])));
+    return Value::Number(CodeUnitAt(text, static_cast<std::size_t>(at)));
   });
 
   // --- Searching ------------------------------------------------------------
+  // The searches take a start position in code units and answer one in code
+  // units; the search itself is over bytes, because a byte match and a code
+  // unit match are the same match -- UTF-8 has no false positives, a sequence
+  // cannot begin inside another one.
   method("indexOf", [](NativeCall& call) {
     const std::string text = Self(call);
     const std::string search = ToString(Argument(call.arguments, 0));
-    const std::size_t from = ClampAbsolute(ToNumber(Argument(call.arguments, 1)), text.size());
+    const std::size_t from = ByteOffsetOfUnit(
+        text, ClampAbsolute(ToNumber(Argument(call.arguments, 1)), Utf16Length(text)));
     const std::size_t found = FindFrom(text, search, from);
-    return Value::Number(found == std::string::npos ? -1.0 : static_cast<double>(found));
+    return Value::Number(found == std::string::npos
+                             ? -1.0
+                             : static_cast<double>(UnitOffsetOfByte(text, found)));
   });
   method("lastIndexOf", [](NativeCall& call) {
     const std::string text = Self(call);
@@ -188,24 +196,28 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
     // one place NaN is not treated as zero.
     const Value position = Argument(call.arguments, 1);
     const double numeric = ToNumber(position);
-    const std::size_t from = position.IsUndefined() || std::isnan(numeric)
-                                 ? text.size()
-                                 : ClampAbsolute(numeric, text.size());
+    const std::size_t from =
+        position.IsUndefined() || std::isnan(numeric)
+            ? text.size()
+            : ByteOffsetOfUnit(text, ClampAbsolute(numeric, Utf16Length(text)));
     const std::size_t found = text.rfind(search, from);
-    return Value::Number(found == std::string::npos ? -1.0 : static_cast<double>(found));
+    return Value::Number(found == std::string::npos
+                             ? -1.0
+                             : static_cast<double>(UnitOffsetOfByte(text, found)));
   });
   method("includes", [](NativeCall& call) {
     const std::string text = Self(call);
     const std::string search = ToString(Argument(call.arguments, 0));
-    const std::size_t from = ClampAbsolute(ToNumber(Argument(call.arguments, 1)), text.size());
+    const std::size_t from = ByteOffsetOfUnit(
+        text, ClampAbsolute(ToNumber(Argument(call.arguments, 1)), Utf16Length(text)));
     return Value::Bool(FindFrom(text, search, from) != std::string::npos);
   });
   method("startsWith", [](NativeCall& call) {
     const std::string text = Self(call);
     const std::string search = ToString(Argument(call.arguments, 0));
-    const std::size_t from = ClampAbsolute(ToNumber(Argument(call.arguments, 1)), text.size());
-    return Value::Bool(
-        util::StartsWith(std::string_view(text).substr(from), search));
+    const std::size_t from = ByteOffsetOfUnit(
+        text, ClampAbsolute(ToNumber(Argument(call.arguments, 1)), Utf16Length(text)));
+    return Value::Bool(util::StartsWith(std::string_view(text).substr(from), search));
   });
   method("endsWith", [](NativeCall& call) {
     const std::string text = Self(call);
@@ -213,34 +225,38 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
     // The second argument is where the string is treated as ending, not where
     // to start looking -- `"abcd".endsWith("bc", 3)` is true.
     const Value end_position = Argument(call.arguments, 1);
-    const std::size_t end = end_position.IsUndefined()
-                                ? text.size()
-                                : ClampAbsolute(ToNumber(end_position), text.size());
+    const std::size_t end =
+        end_position.IsUndefined()
+            ? text.size()
+            : ByteOffsetOfUnit(text,
+                               ClampAbsolute(ToNumber(end_position), Utf16Length(text)));
     return Value::Bool(util::EndsWith(std::string_view(text).substr(0, end), search));
   });
 
   // --- Slicing --------------------------------------------------------------
   method("slice", [](NativeCall& call) {
     const std::string text = Self(call);
-    const std::size_t begin = ClampRelative(ToNumber(Argument(call.arguments, 0)), text.size());
+    const std::size_t length = Utf16Length(text);
+    const std::size_t begin = ClampRelative(ToNumber(Argument(call.arguments, 0)), length);
     const Value end_value = Argument(call.arguments, 1);
     const std::size_t end = end_value.IsUndefined()
-                                ? text.size()
-                                : ClampRelative(ToNumber(end_value), text.size());
+                                ? length
+                                : ClampRelative(ToNumber(end_value), length);
     // A reversed range is empty rather than an error. substring swaps instead.
-    return Value::String(end <= begin ? std::string() : text.substr(begin, end - begin));
+    return Value::String(end <= begin ? std::string() : SubstringUnits(text, begin, end));
   });
   method("substring", [](NativeCall& call) {
     const std::string text = Self(call);
-    std::size_t begin = ClampAbsolute(ToNumber(Argument(call.arguments, 0)), text.size());
+    const std::size_t length = Utf16Length(text);
+    std::size_t begin = ClampAbsolute(ToNumber(Argument(call.arguments, 0)), length);
     const Value end_value = Argument(call.arguments, 1);
     std::size_t end = end_value.IsUndefined()
-                          ? text.size()
-                          : ClampAbsolute(ToNumber(end_value), text.size());
+                          ? length
+                          : ClampAbsolute(ToNumber(end_value), length);
     if (begin > end) {
       std::swap(begin, end);
     }
-    return Value::String(text.substr(begin, end - begin));
+    return Value::String(SubstringUnits(text, begin, end));
   });
   method("concat", [](NativeCall& call) {
     std::string text = Self(call);
@@ -255,22 +271,16 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   });
 
   // --- Case and whitespace --------------------------------------------------
-  // ASCII-only, like every other case fold in this repository. Unicode case
-  // conversion is table-driven and locale-sensitive (Turkish dotless i is the
-  // standard example), and guessing at it is worse than not doing it.
-  const auto fold = [](char from_first, char from_last, char to_first) {
-    return [from_first, from_last, to_first](NativeCall& call) {
-      std::string text = Self(call);
-      for (char& c : text) {
-        if (c >= from_first && c <= from_last) {
-          c = static_cast<char>(c - from_first + to_first);
-        }
-      }
-      return Value::String(std::move(text));
-    };
-  };
-  method("toUpperCase", fold('a', 'z', 'A'));
-  method("toLowerCase", fold('A', 'Z', 'a'));
+  // Past ASCII, and deliberately not all the way: the mapping in StringUnits
+  // covers the ranges where case is arithmetic -- Latin-1, Latin Extended,
+  // Greek, Cyrillic -- and leaves the rest alone. Full coverage is a megabyte
+  // of tables, and the locale-sensitive cases (Turkish dotless i is the
+  // standard example) need a locale this engine does not have. Leaving a
+  // character as itself is the answer that cannot be wrong.
+  method("toUpperCase",
+         [](NativeCall& call) { return Value::String(ToUpper(Self(call))); });
+  method("toLowerCase",
+         [](NativeCall& call) { return Value::String(ToLower(Self(call))); });
 
   const auto trim = [](bool start, bool end) {
     return [start, end](NativeCall& call) {
@@ -299,6 +309,7 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
     }
     // The multiplication is on a number a page chose. Checking against the
     // limit in doubles, before it is narrowed, is what keeps it from wrapping.
+    // In bytes rather than code units, because bytes are what is allocated.
     if (count * static_cast<double>(text.size()) > static_cast<double>(kMaxAllocationLength)) {
       return call.Throw("RangeError", "string is too long");
     }
@@ -317,7 +328,11 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
       if (target > static_cast<double>(kMaxAllocationLength)) {
         return call.Throw("RangeError", "string is too long");
       }
-      if (target <= static_cast<double>(text.size())) {
+      // The target is a length in *code units*, so a string of accented
+      // characters pads to the width a page asked for rather than to a
+      // shorter one its byte count happened to reach.
+      const std::size_t units = Utf16Length(text);
+      if (target <= static_cast<double>(units)) {
         return Value::String(text);  // already long enough: unchanged
       }
       const Value pad_value = Argument(call.arguments, 1);
@@ -326,12 +341,13 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
         return Value::String(text);  // an empty pad cannot fill anything
       }
       std::string filling;
-      const std::size_t needed = static_cast<std::size_t>(target) - text.size();
-      filling.reserve(needed);
-      while (filling.size() < needed) {
+      const std::size_t needed = static_cast<std::size_t>(target) - units;
+      while (Utf16Length(filling) < needed) {
         filling += filler;
       }
-      filling.resize(needed);  // the last repeat is truncated, not dropped
+      // The last repeat is truncated, not dropped -- and truncated in code
+      // units, which is what keeps it from cutting a character in half.
+      filling = SubstringUnits(filling, 0, needed);
       return Value::String(at_start ? filling + text : text + filling);
     };
   };
@@ -362,8 +378,12 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
     }
     const std::string separator = ToString(separator_value);
     if (separator.empty()) {
-      for (std::size_t i = 0; i < text.size() && parts.size() < limit; ++i) {
-        parts.push_back(Value::String(std::string(1, text[i])));
+      // Every code *unit*, not every byte and not every character: `[...s]`
+      // splits by code point and `s.split('')` does not, and a page that uses
+      // one where it meant the other is relying on the difference.
+      const std::size_t units = Utf16Length(text);
+      for (std::size_t i = 0; i < units && parts.size() < limit; ++i) {
+        parts.push_back(Value::String(SubstringUnits(text, i, i + 1)));
       }
       return call.interpreter.NewArrayValue(std::move(parts));
     }
@@ -428,20 +448,14 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
 
   method("codePointAt", [](NativeCall& call) {
     // The whole code point at an index, where charCodeAt gives one unit of it.
-    // Under this file's byte model that means decoding the UTF-8 sequence
-    // starting there; a continuation byte has no code point of its own and
-    // reads as the byte itself, which is what keeps this total.
+    // The two differ only on a surrogate pair, which is the case this exists
+    // for: an index at the start of one sees the whole character.
     const std::string text = Self(call);
     const double index = ToInteger(ToNumber(Argument(call.arguments, 0)));
-    if (index < 0.0 || index >= static_cast<double>(text.size())) {
+    if (index < 0.0 || index >= static_cast<double>(Utf16Length(text))) {
       return Value::Undefined();
     }
-    std::size_t at = static_cast<std::size_t>(index);
-    std::uint32_t code = 0;
-    if (!util::DecodeUtf8(text, at, code)) {
-      return Value::Number(static_cast<unsigned char>(text[at]));
-    }
-    return Value::Number(code);
+    return Value::Number(CodePointAt(text, static_cast<std::size_t>(index)));
   });
   // No Unicode tables here, so the canonical forms cannot be computed. Handing
   // the string back unchanged is right for every ASCII string, which is the
@@ -470,13 +484,14 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
     // Legacy, and still in use. Unlike `slice` the second argument is a
     // *length*, and a negative start counts from the end.
     const std::string text = Self(call);
-    const std::size_t start = ClampRelative(ToNumber(Argument(call.arguments, 0)), text.size());
+    const std::size_t units = Utf16Length(text);
+    const std::size_t start = ClampRelative(ToNumber(Argument(call.arguments, 0)), units);
     const Value length_value = Argument(call.arguments, 1);
     double length = length_value.IsUndefined()
-                        ? static_cast<double>(text.size() - start)
+                        ? static_cast<double>(units - start)
                         : ToInteger(ToNumber(length_value));
-    length = std::min(std::max(length, 0.0), static_cast<double>(text.size() - start));
-    return Value::String(text.substr(start, static_cast<std::size_t>(length)));
+    length = std::min(std::max(length, 0.0), static_cast<double>(units - start));
+    return Value::String(SubstringUnits(text, start, start + static_cast<std::size_t>(length)));
   });
 
   // The locale-aware spellings, which without locale data are the plain ones.
@@ -502,16 +517,21 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   string_constructor->Set("prototype", Value::Obj(well_known_.string_prototype));
   well_known_.string_prototype->Set("constructor", Value::Obj(string_constructor));
   InstallNative(string_constructor, "fromCharCode", [](NativeCall& call) {
-    // The exact inverse of charCodeAt under this file's byte model: one byte
-    // per argument, masked the way the spec masks to sixteen bits.
+    // The exact inverse of charCodeAt: one *code unit* per argument, masked to
+    // sixteen bits the way the spec masks. A high surrogate is held so that a
+    // low one following it joins into the character they name together --
+    // which is what makes `fromCharCode(...[...s].map(c => c.charCodeAt(0)))`
+    // round-trip an emoji rather than break it in half.
     std::string out;
     if (call.arguments.size() > kMaxAllocationLength) {
       return call.Throw("RangeError", "string is too long");
     }
-    out.reserve(call.arguments.size());
+    std::uint32_t pending = 0;
     for (const Value& argument : call.arguments) {
-      out.push_back(static_cast<char>(ToUint32(ToNumber(argument)) & 0xFFu));
+      AppendCodeUnit(out, static_cast<std::uint16_t>(ToUint32(ToNumber(argument)) & 0xFFFFu),
+                     pending);
     }
+    FlushCodeUnit(out, pending);
     return Value::String(std::move(out));
   });
   InstallNative(string_constructor, "fromCodePoint", [](NativeCall& call) {

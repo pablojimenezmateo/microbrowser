@@ -396,7 +396,9 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("'a\\nb'.charCodeAt(1)", "10");
     ExpectEval("`a\\tb`.charCodeAt(1)", "9");
     ExpectEval("`a\\u0041b`", "aAb");
-    ExpectEval("`\\u{1F600}`.length", "4");  // four bytes of UTF-8
+    // Two UTF-16 code units, which is what `length` counts -- the storage is
+    // four bytes of UTF-8 and the language does not measure in those.
+    ExpectEval("`\\u{1F600}`.length", "2");
     ExpectEval("`\\``", "`");
     ExpectEval("`\\q`", "q");  // an unrecognised escape is the character itself
   });

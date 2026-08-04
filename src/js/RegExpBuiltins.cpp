@@ -9,6 +9,7 @@
 
 #include "js/BuiltinSupport.h"
 #include "js/Interpreter.h"
+#include "js/StringUnits.h"
 #include "js/RegExp.h"
 #include "js/RegExpSupport.h"
 
@@ -28,7 +29,11 @@ namespace {
 
 // `lastIndex`, as the spec reads it: a non-negative integer, saturating rather
 // than wrapping, because a page can assign anything to it.
-std::size_t ReadLastIndex(const Object& object) {
+//
+// A page reads and writes it in code units and the matcher works in bytes, so
+// the conversion happens here and in WriteLastIndex -- the two together are the
+// only place the property crosses between the two measures.
+std::size_t ReadLastIndex(const Object& object, const std::string& text) {
   const Value* value = object.Get("lastIndex");
   if (value == nullptr) {
     return 0;
@@ -38,7 +43,11 @@ std::size_t ReadLastIndex(const Object& object) {
     return 0;
   }
   const double limit = static_cast<double>(kMaxAllocationLength);
-  return static_cast<std::size_t>(number >= limit ? limit : number);
+  return ByteOffsetOfUnit(text, static_cast<std::size_t>(number >= limit ? limit : number));
+}
+
+void WriteLastIndex(Object& object, const std::string& text, std::size_t at) {
+  object.Set("lastIndex", Value::Number(static_cast<double>(UnitOffsetOfByte(text, at))));
 }
 
 // The array `exec` returns: the matched text, then one entry per group, with
@@ -57,7 +66,12 @@ Value MakeMatchResult(Interpreter& interpreter, const RegExp& pattern, const Reg
   if (!result.IsObject()) {
     return result;  // the heap is full; the caller sees undefined
   }
-  result.object->Set("index", Value::Number(static_cast<double>(match.Begin())));
+  // In code units, which is what every other index in the language is.
+  // The matcher works over bytes -- a pattern and a subject are both UTF-8 and
+  // a byte match is a character match -- so this is the one place the two
+  // measures meet, and it converts once here rather than at each caller.
+  result.object->Set("index",
+                     Value::Number(static_cast<double>(UnitOffsetOfByte(text, match.Begin()))));
   result.object->Set("input", Value::String(text));
 
   Value named = Value::Undefined();
@@ -201,7 +215,8 @@ bool ReplacementFor(NativeCall& call, const Value& replacement, const RegExp& pa
                             ? Value::String(std::string(match.Group(text, group)))
                             : Value::Undefined());
   }
-  arguments.push_back(Value::Number(static_cast<double>(match.Begin())));
+  // In code units, like every other position a page sees.
+  arguments.push_back(Value::Number(static_cast<double>(UnitOffsetOfByte(text, match.Begin()))));
   arguments.push_back(Value::String(text));
   const Result replaced =
       call.interpreter.CallFunction(replacement, Value::Undefined(), arguments);
@@ -408,7 +423,7 @@ void Interpreter::InstallRegExpPrototype() {
     // `g` and `y` make a regex stateful, and the state is a property a page
     // reads and writes.
     const bool stateful = pattern->Flags().global || pattern->Flags().sticky;
-    const std::size_t from = stateful ? ReadLastIndex(*call.self.object) : 0;
+    const std::size_t from = stateful ? ReadLastIndex(*call.self.object, text) : 0;
     const std::optional<RegExpMatch> match =
         from > text.size() ? std::nullopt : pattern->Exec(text, from, pattern->Flags().sticky);
     if (!match.has_value()) {
@@ -418,7 +433,7 @@ void Interpreter::InstallRegExpPrototype() {
       return Value::Null();
     }
     if (stateful) {
-      call.self.object->Set("lastIndex", Value::Number(static_cast<double>(match->End())));
+      WriteLastIndex(*call.self.object, text, match->End());
     }
     return MakeMatchResult(call.interpreter, *pattern, *match, text);
   });
@@ -430,13 +445,14 @@ void Interpreter::InstallRegExpPrototype() {
     }
     const std::string text = ToString(Argument(call.arguments, 0));
     const bool stateful = pattern->Flags().global || pattern->Flags().sticky;
-    const std::size_t from = stateful ? ReadLastIndex(*call.self.object) : 0;
+    const std::size_t from = stateful ? ReadLastIndex(*call.self.object, text) : 0;
     const std::optional<RegExpMatch> match =
         from > text.size() ? std::nullopt : pattern->Exec(text, from, pattern->Flags().sticky);
     if (stateful) {
       call.self.object->Set("lastIndex",
                             Value::Number(match.has_value()
-                                              ? static_cast<double>(match->End())
+                                              ? static_cast<double>(
+                                                    UnitOffsetOfByte(text, match->End()))
                                               : 0.0));
     }
     return Value::Bool(match.has_value());
@@ -594,7 +610,8 @@ void Interpreter::InstallRegExpPrototype() {
       return Value::Undefined();
     }
     const std::optional<RegExpMatch> match = argument.pattern.Exec(text, 0, false);
-    return Value::Number(match.has_value() ? static_cast<double>(match->Begin()) : -1.0);
+    return Value::Number(
+        match.has_value() ? static_cast<double>(UnitOffsetOfByte(text, match->Begin())) : -1.0);
   });
 }
 

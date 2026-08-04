@@ -523,6 +523,63 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("Uint8Array.from([1,2]).join() + ':' + Uint8Array.of(3,4).join()", "1,2:3,4");
   });
 
+  // --- UTF-16 indexing ------------------------------------------------------
+  //
+  // A string is a sequence of UTF-16 code units and the storage is UTF-8, so
+  // every index a method takes or returns crosses between the two. It used to
+  // not cross at all: `'é'.length` was 2.
+
+  AddTest(tests, "JsConformance/LengthCountsCodeUnitsRatherThanBytes", [] {
+    ExpectEval("'é'.length", "1");
+    ExpectEval("'日本語'.length", "3");
+    // Two units for an astral character, which is what UTF-16 makes it.
+    ExpectEval("'a\\u{1F600}b'.length", "4");
+    ExpectEval("'abc'.length", "3");
+  });
+
+  AddTest(tests, "JsConformance/IndexingIsByCodeUnit", [] {
+    ExpectEval("'héllo'[1]", "é");
+    ExpectEval("'héllo'.charCodeAt(1)", "233");
+    ExpectEval("'héllo'.slice(1,4)", "éll");
+    ExpectEval("'héllo'.indexOf('llo')", "2");
+    ExpectEval("'日本語'.at(-1)", "語");
+    ExpectEval("'日本語'.split('').join('|')", "日|本|語");
+  });
+
+  AddTest(tests, "JsConformance/AnAstralCharacterIsASurrogatePair", [] {
+    // The pair, split by index -- and put back together by fromCharCode,
+    // which is the round trip every text-handling library performs.
+    ExpectEval("const e = 'a\\u{1F600}b';"
+               "[e.charCodeAt(1), e.charCodeAt(2), e.codePointAt(1), e.indexOf('b')].join()",
+               "55357,56832,128512,3");
+    ExpectEval("String.fromCharCode(0xD83D, 0xDE00) === '\\u{1F600}'", "true");
+    // Iteration is by code *point*, which is the one place it differs from
+    // indexing -- and why `[...s]` and `s.split('')` are not the same.
+    ExpectEval("[...'a\\u{1F600}b'].join('|')", "a|\U0001F600|b");
+    ExpectEval("[...'a\\u{1F600}b'].length + ':' + 'a\\u{1F600}b'.split('').length", "3:4");
+  });
+
+  AddTest(tests, "JsConformance/PaddingCountsCodeUnitsToo", [] {
+    ExpectEval("'é'.padStart(3, 'x')", "xxé");
+    ExpectEval("'é'.padEnd(3, 'x')", "éxx");
+  });
+
+  AddTest(tests, "JsConformance/AMatchIndexIsACodeUnitIndex", [] {
+    ExpectEval("'日本語'.match(/本/).index", "1");
+    ExpectEval("/語/.exec('日本語').index", "2");
+    ExpectEval("'a\\u{1F600}b'.search(/b/)", "3");
+    // `lastIndex` is read and written in the same measure.
+    ExpectEval("const r = /./g; r.exec('日本語'); r.lastIndex", "1");
+  });
+
+  AddTest(tests, "JsConformance/CaseConversionReachesPastAscii", [] {
+    ExpectEval("'héllo'.toUpperCase()", "HÉLLO");
+    ExpectEval("'ÄÖÜ'.toLowerCase()", "äöü");
+    ExpectEval("'привет'.toUpperCase()", "ПРИВЕТ");
+    // A script with no case is left alone rather than mangled.
+    ExpectEval("'日本'.toUpperCase()", "日本");
+  });
+
   // --- Recursion ------------------------------------------------------------
 
   AddTest(tests, "JsConformance/RecursionGoesAsDeepAsAPageNeeds", [] {
