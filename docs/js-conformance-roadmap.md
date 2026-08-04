@@ -104,6 +104,7 @@ above:
 | `for (k in o)` | `in` parsed as a relational operator, so the head never matched — seven of the fourteen scripts died here | the grammar's `[~In]` parameter |
 | `for (k in a = a \|\| {}, o)` | a for-in's right side parsed as an `AssignmentExpression` | an `Expression`, as the grammar says; for-of keeps the narrower form |
 | `ɵprov` | a lexer error | an identifier; escaped and unescaped spellings are one name |
+| `super()`'s return | discarded: a base constructor returning an object did not become the derived `this` | it does, which is the rule an element is upgraded in place by |
 | Parse depth | 256 `Depth` units, ~85 levels of nesting — a round number | 1024, measured at a 12x margin from where the stack actually overflows (ADR 0009) |
 
 The `var` pair is the one to take a lesson from. Both engines were wrong **identically**, so the
