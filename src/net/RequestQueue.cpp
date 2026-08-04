@@ -122,8 +122,11 @@ bool RequestQueue::HasRunnableWork() const {
     return true;
   }
   for (const Active& active : active_) {
-    const std::optional<util::WaitDescriptor> interest = active.request->Interest();
-    if (!interest.has_value() || !interest->IsValid()) {
+    // Not "has no descriptor": a transport with nothing to wait on still
+    // answers Blocked or Ready, and only it knows which. Asking the descriptor
+    // instead would make a canned transport that is deliberately holding a
+    // response look like one that is ready to hand it over.
+    if (!active.request->IsBlocked()) {
       return true;
     }
   }

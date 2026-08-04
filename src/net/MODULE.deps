@@ -25,7 +25,7 @@ budget: Transport      header_lines=45 public_methods=12 members=0
 # half-sent buffer, and the four counters that used to be locals in a while
 # loop. That is what turning a call into an object costs, and the alternative
 # -- keeping the loop and blocking in it -- is what ADR 0011 rejected.
-budget: FetchRequest   header_lines=75 public_methods=14 members=16
+budget: FetchRequest   header_lines=85 public_methods=16 members=17
 # The scheduler in front of Fetch. Four collaborators, three lists (started,
 # waiting on a slot, finished) and a counter. The three lists are the shape of
 # the problem: a bound per partition means a request can exist without a

@@ -74,6 +74,12 @@ class FetchRequest {
   bool Advance();
 
   bool IsComplete() const { return complete_; }
+  // True when the last `Advance()` stopped because the transport had nothing
+  // for it. The queue asks so it can tell the loop whether anything is
+  // runnable right now, which is a different question from "is there a
+  // descriptor" -- a transport with no descriptor at all still answers Blocked
+  // or Ready, and only it knows which.
+  bool IsBlocked() const { return blocked_; }
   // Only meaningful once complete.
   const FetchResult& Result() const { return result_; }
   FetchResult TakeResult() { return std::move(result_); }
@@ -124,6 +130,7 @@ class FetchRequest {
   int redirects_ = 0;
   bool may_use_cache_ = false;
   bool complete_ = false;
+  bool blocked_ = false;
   Stage stage_ = Stage::Begin;
   FetchResult result_;
 };

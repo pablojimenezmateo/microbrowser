@@ -270,6 +270,7 @@ void FetchRequest::FinishResponse() {
 
 bool FetchRequest::Advance() {
   bool progress = false;
+  blocked_ = false;
   std::array<std::byte, 16 * 1024> buffer{};
 
   while (true) {
@@ -287,6 +288,7 @@ bool FetchRequest::Advance() {
       case Stage::Connecting: {
         const IoStatus status = connection_->Advance();
         if (status == IoStatus::Blocked) {
+          blocked_ = true;
           return progress;
         }
         if (status != IoStatus::Ready) {
@@ -305,6 +307,7 @@ bool FetchRequest::Advance() {
               outgoing_.size() - sent_);
           const IoResult wrote = connection_->Send(rest);
           if (wrote.status == IoStatus::Blocked) {
+            blocked_ = true;
             return progress;
           }
           if (wrote.status != IoStatus::Ready || wrote.bytes == 0) {
@@ -322,6 +325,7 @@ bool FetchRequest::Advance() {
         while (!parser_.IsComplete() && !parser_.Failed()) {
           const IoResult read = connection_->Receive(buffer);
           if (read.status == IoStatus::Blocked) {
+            blocked_ = true;
             return progress;
           }
           if (read.status == IoStatus::Closed) {

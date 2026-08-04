@@ -396,6 +396,10 @@ void Engine::DecodePendingImages() {
 void Engine::FinishLoad() {
   DecodePendingImages();
   load_ = PendingLoad{};
+  // The title again. It was sent when the document committed, before its
+  // scripts ran, and a page that sets `document.title` -- which is most of
+  // them -- would otherwise keep whatever the markup said, or the URL.
+  endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
 }

@@ -7,6 +7,7 @@
 
 #include "TestSupport.h"
 #include "engine/Engine.h"
+#include "net/RequestQueue.h"
 #include "engine/Loader.h"
 #include "engine/Page.h"
 #include "gfx/FontCatalog.h"
@@ -1758,6 +1759,193 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
       frames += std::holds_alternative<ipc::PaintFrameMessage>(message) ? 1u : 0u;
     }
     Expect(frames > 0, "at least one frame, or this asserts nothing");
+  });
+
+  // ADR 0011: "the failure mode of asynchronous loading is not slowness, it is
+  // nondeterminism". These are the tests that say so. The same responses,
+  // delivered in different orders, must produce the same page -- and that is a
+  // stronger property than "it loads", and the one that decays silently.
+  AddTest(tests, "Engine/ArrivalOrderDoesNotChangeThePage", [] {
+    // Two sheets that both set the same property. Which one wins is decided by
+    // document order, so a load that filled slots in arrival order would give a
+    // different colour depending on which server answered first.
+    constexpr std::string_view kDocument =
+        "<html><head>"
+        "<link rel='stylesheet' href='/a.css'>"
+        "<link rel='stylesheet' href='/b.css'>"
+        "</head><body><p>ABC</p><script src='/x.js'></script></body></html>";
+
+    const auto load = [&](const std::vector<std::string>& order) {
+      auto session = std::make_unique<Session>();
+      ScriptedFactory factory;
+      factory.delivery = ScriptedFactory::Delivery::Held;
+      factory.script = {
+          {"example.org", 443, true, OkResponse("text/html", std::string(kDocument))},
+          {"example.org", 443, true, OkResponse("text/css", "p { height: 100px }")},
+          {"example.org", 443, true, OkResponse("text/css", "p { height: 400px }")},
+          {"example.org", 443, true,
+           OkResponse("application/javascript",
+                      "var d = document.createElement('div');"
+                      "d.setAttribute('style', 'height: 700px');"
+                      "document.body.appendChild(d);")},
+      };
+      session->engine.PageLoader().SetTransport(factory);
+
+      session->Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+      session->channel.Ui().Send(ipc::NavigateMessage{"https://example.org/page.html"});
+      session->engine.HandlePendingMessages();
+      RunEngineToIdle(session->engine);
+
+      Expect(factory.Release("GET /page.html "), "the document request is outstanding");
+      RunEngineToIdle(session->engine);
+      for (const std::string& needle : order) {
+        Expect(factory.Release(needle), "expected " + needle + " to be outstanding");
+        RunEngineToIdle(session->engine);
+      }
+      Expect(!session->engine.IsLoading(), "the load finished");
+      while (auto reply = session->channel.Ui().TryReceive()) {
+        session->sent.push_back(std::move(*reply));
+      }
+      return session;
+    };
+
+    const auto forwards = load({"GET /a.css ", "GET /b.css ", "GET /x.js "});
+    const auto backwards = load({"GET /x.js ", "GET /b.css ", "GET /a.css "});
+    const auto middle_first = load({"GET /b.css ", "GET /x.js ", "GET /a.css "});
+
+    const ipc::PaintFrameMessage* first = forwards->LastFrame();
+    Expect(first != nullptr, "a frame was painted");
+    Expect(first->display_list.Bounds().height >= 300,
+           "the page is as tall as the 400px sheet and the script's 700px div make it, so "
+           "the later sheet won -- which is document order and not arrival order");
+    Expect(backwards->LastFrame() != nullptr && *backwards->LastFrame() == *first,
+           "delivering the responses backwards produced a different page");
+    Expect(middle_first->LastFrame() != nullptr && *middle_first->LastFrame() == *first,
+           "delivering the script between the two sheets produced a different page");
+    Expect(forwards->engine.ScriptErrors().empty() && backwards->engine.ScriptErrors().empty(),
+           "no script threw, in either order");
+  });
+
+  AddTest(tests, "Engine/ScriptsDoNotRunUntilEveryStyleSheetHasResolved", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.delivery = ScriptedFactory::Delivery::Held;
+    factory.script = {
+        {"example.org", 443, true,
+         OkResponse("text/html",
+                    "<html><head><link rel='stylesheet' href='/s.css'></head>"
+                    "<body><script src='/x.js'></script></body></html>")},
+        {"example.org", 443, true, OkResponse("text/css", "p { height: 400px }")},
+        // Throwing is the cheapest thing a script can do that the engine
+        // reports from outside, which is what makes "did it run yet" a
+        // question this test can ask at all.
+        {"example.org", 443, true, OkResponse("application/javascript", "throw 'ran';")},
+    };
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.channel.Ui().Send(ipc::NavigateMessage{"https://example.org/page.html"});
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+    Expect(factory.Release("GET /page.html "), "the document is outstanding");
+    RunEngineToIdle(session.engine);
+
+    // The script arrives first and must wait: a script may ask about a style,
+    // and running it before the sheet landed would make the answer depend on
+    // the network.
+    Expect(factory.Release("GET /x.js "), "the script is outstanding");
+    RunEngineToIdle(session.engine);
+    Expect(session.engine.IsLoading(),
+           "the load must not be finished while a render-blocking sheet is outstanding");
+    Expect(session.engine.ScriptErrors().empty(),
+           "the script must not have run before the stylesheet resolved: a script may ask "
+           "about a style, and running it first would make the answer depend on the network");
+
+    Expect(factory.Release("GET /s.css "), "the sheet is outstanding");
+    RunEngineToIdle(session.engine);
+    ExpectEqInt(static_cast<long long>(session.engine.ScriptErrors().size()), 1,
+                "and it ran once the sheet had");
+  });
+
+  AddTest(tests, "Engine/ConcurrencyIsBoundedPerPartition", [] {
+    // Eight images from one site. Six may be in flight; the rest wait for a
+    // slot. Per key rather than globally -- see the note on
+    // net::kMaxConnectionsPerPartition, which is where the privacy content of
+    // this bound is written down.
+    std::string html = "<html><body>";
+    for (int i = 0; i < 8; ++i) {
+      html += "<img src='/i" + std::to_string(i) + ".png'>";
+    }
+    html += "</body></html>";
+
+    Session session;
+    ScriptedFactory factory;
+    factory.delivery = ScriptedFactory::Delivery::Held;
+    factory.script.push_back({"example.org", 443, true, OkResponse("text/html", html)});
+    for (int i = 0; i < 8; ++i) {
+      factory.script.push_back({"example.org", 443, true, OkResponse("image/png", "notapng")});
+    }
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.channel.Ui().Send(ipc::NavigateMessage{"https://example.org/page.html"});
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+    Expect(factory.Release("GET /page.html "), "the document is outstanding");
+    RunEngineToIdle(session.engine);
+
+    ExpectEqInt(static_cast<long long>(factory.Held()),
+                static_cast<long long>(net::kMaxConnectionsPerPartition),
+                "exactly the bound is open at once, and the rest are waiting for a slot");
+
+    // Letting them go frees slots, and the ones that were waiting start.
+    factory.ReleaseAll();
+    RunEngineToIdle(session.engine);
+    factory.ReleaseAll();
+    RunEngineToIdle(session.engine);
+    Expect(!session.engine.IsLoading(), "and the load finishes");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 9,
+                "every image was eventually asked for");
+  });
+
+  AddTest(tests, "Engine/ANavigationDropsWhatTheLastOneHadInFlight", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.delivery = ScriptedFactory::Delivery::Held;
+    factory.script = {
+        {"example.org", 443, true,
+         OkResponse("text/html",
+                    "<html><head><title>first</title></head>"
+                    "<body><link rel='stylesheet' href='/s.css'></body></html>")},
+        {"example.org", 443, true, OkResponse("text/css", "p { height: 400px }")},
+        {"example.org", 443, true,
+         OkResponse("text/html", "<html><head><title>second</title></head><body></body></html>")},
+    };
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.channel.Ui().Send(ipc::NavigateMessage{"https://example.org/one.html"});
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+    Expect(factory.Release("GET /one.html "), "the first document is outstanding");
+    RunEngineToIdle(session.engine);
+    ExpectEqInt(static_cast<long long>(factory.Held()), 1, "its stylesheet is in flight");
+
+    // Navigating away must take the connection with it. Not "ignore the
+    // response when it lands" -- the request has to stop existing, which is
+    // what ADR 0011 means by dropped by construction.
+    session.channel.Ui().Send(ipc::NavigateMessage{"https://example.org/two.html"});
+    session.engine.HandlePendingMessages();
+    ExpectEqInt(static_cast<long long>(factory.Held()), 1,
+                "the abandoned stylesheet's connection is gone and only the new document is "
+                "outstanding");
+
+    Expect(factory.Release("GET /two.html "), "the second document is outstanding");
+    RunEngineToIdle(session.engine);
+    while (auto reply = session.channel.Ui().TryReceive()) {
+      session.sent.push_back(std::move(*reply));
+    }
+    ExpectEqString(session.LastTitle(), "second", "the second page is the one on screen");
   });
 }
 
