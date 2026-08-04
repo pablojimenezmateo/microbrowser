@@ -33,7 +33,8 @@
       "anchor": "### Session 2 — transport",
       "scope": "Accept-Encoding: gzip, deflate with a bounded inflate (output ceiling and expansion ratio, failing rather than truncating) plus a gzip fuzz target on the same commit; then connection reuse keyed by the ADR 0005 partition key, with idle close through next_deadline_ms.",
       "check": "The counters show one connection per host per partition instead of one per resource, and the byte count for reddit's front page drops by roughly the ratio in ADR 0010's table.",
-      "status": "not_started"
+      "status": "done",
+      "notes": "Check run on old.reddit.com's front page, 2026-08-04. Bytes: 697,254 on the wire against 2,352,799 the same load would have transferred as identity -- 3.37x, 70% saved, against the 79% in ADR 0010's table (the gap is that reddit's page is partly images, which are already compressed). Connections: 40 fetches, 20 connections, 20 TLS handshakes, 20 reuses -- was 40/40/0. The check's phrase 'one connection per host per partition' is not reachable and should be read as 'far fewer than one per resource': ADR 0011's concurrency bound lets six requests per partition run at once, and six concurrent requests to one host need six connections under HTTP/1.1. Serializing them to reach one-per-host would undo the previous session. On Hacker News, one host, 5 fetches: 4 connections, 1 reuse -- the document's connection carries the first subresource and the other four start together. New counters: net.bytes_received (wire), net.bytes_coded, net.bytes_decoded, net.connections_reused, net.connections_pooled, net.connections_closed_idle, net.content_decode_failures. bytes_received - bytes_coded + bytes_decoded is the identity-equivalent transfer, which is how the ratio above is computed from one run. ADR 0010 section 3 (HTTP/2, ALPN) is deliberately NOT in this session and is still open."
     },
     {
       "id": 3,
