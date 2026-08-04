@@ -288,6 +288,7 @@ microbrowser_module(platform
 microbrowser_module(bindings
   SOURCES
     src/bindings/DomBindings.cpp
+    src/bindings/WindowBindings.cpp
   DEPS microbrowser_js microbrowser_dom)
 
 microbrowser_module(js

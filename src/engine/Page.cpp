@@ -222,7 +222,7 @@ void Page::RunScripts() {
   if (document_ == nullptr) {
     return;
   }
-  script_.Run(*document_);
+  script_.Run(*document_, url_);
   // A script can change the tree, so anything derived from it is stale. The
   // box tree is dropped rather than patched: incremental layout is a later
   // decision and a wrong one made early here would be invisible.

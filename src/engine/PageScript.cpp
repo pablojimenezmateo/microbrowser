@@ -56,7 +56,7 @@ void PageScript::AddFetched(std::size_t index, std::string source) {
   slots_[pending_slots_[index]] = std::move(source);
 }
 
-void PageScript::Run(dom::Document& document) {
+void PageScript::Run(dom::Document& document, const std::string& url) {
   if (ran_) {
     return;
   }
@@ -65,7 +65,7 @@ void PageScript::Run(dom::Document& document) {
     return;  // no script, no interpreter: a document that runs nothing costs nothing
   }
   interpreter_ = std::make_unique<js::Interpreter>();
-  bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document);
+  bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url);
   bindings_->Install();
 
   for (const std::optional<std::string>& source : slots_) {

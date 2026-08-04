@@ -54,7 +54,7 @@ class PageScript {
   // Runs everything Collect found, in document order. Idempotent: calling it
   // twice runs nothing the second time, so a caller that fetches subresources
   // and a caller that does not can both end with it.
-  void Run(dom::Document& document);
+  void Run(dom::Document& document, const std::string& url);
 
   // Anything the page wrote with `console.log`, in order. Collected rather
   // than printed: a page must not be able to write to the terminal the browser

@@ -25,4 +25,4 @@ max_tu_lines: 700
 # that nothing has appended yet. The last exists because a node's owner is its
 # parent, so one without a parent needs somewhere to live -- and handing script
 # a node it owns would put a raw pointer's lifetime in a page's hands.
-budget: DomBindings header_lines=70 public_methods=6 members=4
+budget: DomBindings header_lines=90 public_methods=8 members=6

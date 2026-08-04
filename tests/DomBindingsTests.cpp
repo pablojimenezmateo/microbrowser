@@ -26,12 +26,12 @@ struct Bound {
   std::unique_ptr<bindings::DomBindings> dom_bindings;
 };
 
-Bound Bind(std::string_view html) {
+Bound Bind(std::string_view html, std::string url = "https://example.org/a/b?q=1") {
   Bound bound;
   bound.document = html::ParseDocument(html);
   bound.interpreter = std::make_unique<js::Interpreter>();
-  bound.dom_bindings =
-      std::make_unique<bindings::DomBindings>(*bound.interpreter, *bound.document);
+  bound.dom_bindings = std::make_unique<bindings::DomBindings>(*bound.interpreter,
+                                                              *bound.document, std::move(url));
   bound.dom_bindings->Install();
   return bound;
 }
@@ -162,6 +162,103 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage,
                  "try { document.body.appendChild.call(null, 1) } catch (e) { e.name }",
                  "TypeError");
+  });
+
+  AddTest(tests, "DomBindings/SelectorsAgreeAcrossTheFourApisThatUseThem", [] {
+    // querySelector, querySelectorAll, matches and closest all ask the same
+    // question, and four copies of the answer would be four chances to
+    // disagree about what `.a` means.
+    ExpectScript(kPage, "document.querySelectorAll('p').length", "2");
+    ExpectScript(kPage, "document.querySelectorAll('.big').length", "1");
+    ExpectScript(kPage, "document.querySelectorAll('#list').length", "1");
+    ExpectScript(kPage, "document.getElementsByClassName('head').length", "1");
+    ExpectScript(kPage, "document.getElementById('title').matches('.big')", "true");
+    ExpectScript(kPage, "document.getElementById('title').matches('.bi')", "false");
+    // `closest` is this element or the nearest ancestor, which is how a click
+    // handler finds the row a button is in.
+    ExpectScript(kPage, "document.querySelector('p').closest('#list').tagName", "div");
+    ExpectScript(kPage, "document.querySelector('p').closest('p').tagName", "p");
+    ExpectScript(kPage, "document.querySelector('p').closest('.nothing') === null", "true");
+  });
+
+  AddTest(tests, "DomBindings/TheTreeCanBeWalkedInEveryDirection", [] {
+    ExpectScript("<div id=d><a></a><b></b></div>",
+                 "document.getElementById('d').firstChild.nodeName", "A");
+    ExpectScript("<div id=d><a></a><b></b></div>",
+                 "document.getElementById('d').lastChild.nodeName", "B");
+    ExpectScript("<div id=d><a></a><b></b></div>",
+                 "document.getElementById('d').firstChild.nextSibling.nodeName", "B");
+    ExpectScript("<div id=d><a></a><b></b></div>",
+                 "document.getElementById('d').lastChild.previousSibling.nodeName", "A");
+    ExpectScript("<div id=d><a></a></div>",
+                 "document.getElementById('d').firstChild.nextSibling === null", "true");
+    // `nodeName` is upper case and `tagName` is the name the parser stored, so
+    // the two deliberately differ.
+    ExpectScript(kPage,
+                 "document.getElementById('title').nodeName + ' ' + "
+                 "document.getElementById('title').tagName",
+                 "H1 h1");
+  });
+
+  AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {
+    // Nothing is cached between calls: a parsed copy would go stale the moment
+    // anything else touched `class`, and `class` is the one attribute two
+    // pieces of code fight over.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.classList.add('new'); "
+                 "t.className",
+                 "big head new");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.classList.remove('big'); "
+                 "t.className",
+                 "head");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); "
+                 "'' + t.classList.contains('big') + t.classList.contains('nope')",
+                 "truefalse");
+    // Toggle answers with whether the class is there afterwards.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); "
+                 "'' + t.classList.toggle('big') + t.classList.toggle('big')",
+                 "falsetrue");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.removeAttribute('class'); "
+                 "t.getAttribute('class') === null",
+                 "true");
+  });
+
+  AddTest(tests, "DomBindings/WindowIsTheGlobalObjectAndNotACopyOfIt", [] {
+    // Not a convenience alias: a page writes `window.foo = 1` and then reads
+    // `foo`, and the two have to be the same binding or half of what a script
+    // sets goes missing.
+    ExpectScript(kPage, "window === globalThis", "true");
+    ExpectScript(kPage, "window.foo = 7; '' + foo", "7");
+    ExpectScript(kPage, "bar = 3; '' + window.bar", "3");
+    ExpectScript(kPage, "window.document === document", "true");
+    ExpectScript(kPage, "self === window", "true");
+  });
+
+  AddTest(tests, "DomBindings/LocationAndNavigatorReportWhatTheyShould", [] {
+    ExpectScript(kPage, "location.href", "https://example.org/a/b?q=1");
+    ExpectScript(kPage, "location.protocol", "https:");
+    ExpectScript(kPage, "location.host", "example.org");
+    ExpectScript(kPage, "location.pathname", "/a/b?q=1");
+    // The user agent is a fingerprinting surface before it is anything else.
+    // This one says what the browser is and nothing about the machine it is
+    // on, so every copy answers the same.
+    ExpectScript(kPage, "navigator.userAgent", "microbrowser");
+  });
+
+  AddTest(tests, "DomBindings/DocumentExposesItsPartsAsAccessors", [] {
+    // Accessors rather than stored values, so they follow the tree instead of
+    // freezing what it looked like when the bindings were installed.
+    ExpectScript("<html><head><title>Some Page</title></head><body></body></html>",
+                 "document.title", "Some Page");
+    ExpectScript("<html><head></head><body></body></html>", "document.head.tagName", "head");
+    ExpectScript(kPage,
+                 "const t = document.createTextNode('hi'); const d = document.createElement('i');"
+                 "d.appendChild(t); d.textContent",
+                 "hi");
   });
 
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {

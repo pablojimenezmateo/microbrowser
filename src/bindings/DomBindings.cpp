@@ -1,5 +1,8 @@
 #include "bindings/DomBindings.h"
 
+#include "bindings/BindingSupport.h"
+
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -13,13 +16,6 @@ namespace {
 using js::NativeCall;
 using js::Object;
 using js::Value;
-
-// Where a wrapper keeps the node it stands for, and where the cache keeps its
-// entries. A `#` name, the same convention private class fields and the
-// engine's other internal slots already use: not real privacy, and the right
-// amount until something observes the difference.
-constexpr const char* kNodeSlot = "#node";
-constexpr const char* kOwnerSlot = "#bindings";
 
 // The node behind a wrapper, or null for anything that is not one.
 //
@@ -49,35 +45,129 @@ DomBindings* OwnerOf(const NativeCall& call) {
   return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
 }
 
-// An argument, or undefined when the caller passed fewer.
-//
-// A local copy rather than `js::Argument`, which lives in a header `src/js`
-// keeps to itself. That is the module boundary working: a binding is a
-// consumer of the engine's *public* surface, and reaching past it for a
-// three-line helper would be the first crack in the line this module's
-// manifest calls a security boundary.
-Value Argument(const std::vector<Value>& arguments, std::size_t index) {
-  return index < arguments.size() ? arguments[index] : Value::Undefined();
-}
-
-Value PointerValue(const void* pointer) {
-  return Value::Number(static_cast<double>(reinterpret_cast<std::uintptr_t>(pointer)));
-}
-
-std::string LowerCase(std::string_view text) {
-  std::string out(text);
-  for (char& c : out) {
-    if (c >= 'A' && c <= 'Z') {
-      c = static_cast<char>(c - 'A' + 'a');
-    }
-  }
-  return out;
-}
-
 }  // namespace
 
-DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document)
-    : interpreter_(&interpreter), document_(&document) {}
+DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
+                         std::string url)
+    : interpreter_(&interpreter), document_(&document), url_(std::move(url)) {}
+
+bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
+  if (selector.empty()) {
+    return false;
+  }
+  const char kind = selector.front();
+  const std::string wanted =
+      kind == '#' || kind == '.' ? selector.substr(1) : LowerCase(selector);
+  if (wanted.empty()) {
+    return false;
+  }
+  if (kind == '#') {
+    const std::string* id = element.GetAttribute("id");
+    return id != nullptr && *id == wanted;
+  }
+  if (kind != '.') {
+    return selector == "*" || element.TagName() == wanted;
+  }
+  const std::string* names = element.GetAttribute("class");
+  if (names == nullptr) {
+    return false;
+  }
+  // Whole-word, so `.btn` does not match `class="btn-large"`. A substring
+  // test here would select half the page and look almost right.
+  for (std::size_t at = names->find(wanted); at != std::string::npos;
+       at = names->find(wanted, at + 1)) {
+    const bool left = at == 0 || (*names)[at - 1] == ' ';
+    const bool right =
+        at + wanted.size() == names->size() || (*names)[at + wanted.size()] == ' ';
+    if (left && right) {
+      return true;
+    }
+  }
+  return false;
+}
+
+js::Value DomBindings::MakeClassList(dom::Element& element) {
+  const Value list = interpreter_->NewObjectValue();
+  if (!list.IsObject()) {
+    return list;
+  }
+  // The element travels on the object rather than in a capture, the same rule
+  // every native in this engine follows: a capture is invisible to the
+  // collector, and a raw pointer in one is a lifetime nobody is tracking.
+  list.object->Set(kNodeSlot, PointerValue(&element));
+
+  // The four methods a page uses, each reading and rewriting the `class`
+  // attribute. Nothing is cached between calls: a parsed copy would go stale
+  // the moment anything else touched the attribute, and `class` is the one
+  // attribute two pieces of code fight over.
+  enum class Change { Add, Remove, Toggle, Contains };
+  const auto operate = [this, &list](const char* name, Change change) {
+    const Value native = interpreter_->NewNativeValue(name, [change](NativeCall& call) {
+      dom::Node* self = NodeOf(call.self);
+      if (self == nullptr || !self->IsElement()) {
+        return Value::Undefined();
+      }
+      auto& target = static_cast<dom::Element&>(*self);
+      const std::string wanted = js::ToString(Argument(call.arguments, 0));
+      if (wanted.empty()) {
+        return Value::Undefined();
+      }
+      const std::string* current = target.GetAttribute("class");
+      std::vector<std::string> names;
+      std::string word;
+      for (const char c : current == nullptr ? std::string() : *current) {
+        if (c == ' ' || c == '\t' || c == '\n') {
+          if (!word.empty()) {
+            names.push_back(word);
+            word.clear();
+          }
+          continue;
+        }
+        word.push_back(c);
+      }
+      if (!word.empty()) {
+        names.push_back(word);
+      }
+
+      const auto found = std::find(names.begin(), names.end(), wanted);
+      const bool present = found != names.end();
+      if (change == Change::Contains) {
+        return Value::Bool(present);
+      }
+      const bool wants = change == Change::Add || (change == Change::Toggle && !present);
+      if (wants && !present) {
+        names.push_back(wanted);
+      } else if (!wants && present) {
+        names.erase(found);
+      }
+      std::string rewritten;
+      for (const std::string& each : names) {
+        if (!rewritten.empty()) {
+          rewritten.push_back(' ');
+        }
+        rewritten += each;
+      }
+      target.SetAttribute("class", rewritten);
+      return change == Change::Toggle ? Value::Bool(wants) : Value::Undefined();
+    });
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      list.object->Set(name, native);
+    }
+  };
+  operate("add", Change::Add);
+  operate("remove", Change::Remove);
+  operate("toggle", Change::Toggle);
+  operate("contains", Change::Contains);
+  return list;
+}
+
+js::Value DomBindings::CreateText(const std::string& text) {
+  auto node = std::make_unique<dom::Text>(text);
+  dom::Node* raw = node.get();
+  unattached_.push_back(std::move(node));
+  return WrapperFor(raw);
+}
 
 js::Value DomBindings::WrapperFor(dom::Node* node) {
   if (node == nullptr) {
@@ -168,6 +258,62 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
     }
     return call.interpreter.NewArrayValue(std::move(children));
   });
+  const auto sibling = [&accessor](const char* name, int step) {
+    accessor(name, [step](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr || self->Parent() == nullptr) {
+        return Value::Null();
+      }
+      const std::vector<std::unique_ptr<dom::Node>>& siblings = self->Parent()->Children();
+      for (std::size_t i = 0; i < siblings.size(); ++i) {
+        if (siblings[i].get() != self) {
+          continue;
+        }
+        const std::ptrdiff_t at = static_cast<std::ptrdiff_t>(i) + step;
+        if (at < 0 || at >= static_cast<std::ptrdiff_t>(siblings.size())) {
+          return Value::Null();
+        }
+        return owner->WrapperFor(siblings[static_cast<std::size_t>(at)].get());
+      }
+      return Value::Null();
+    });
+  };
+  sibling("nextSibling", 1);
+  sibling("previousSibling", -1);
+
+  accessor("firstChild", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    return owner == nullptr || self == nullptr ? Value::Null()
+                                               : owner->WrapperFor(self->FirstChild());
+  });
+  accessor("lastChild", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    return owner == nullptr || self == nullptr ? Value::Null()
+                                               : owner->WrapperFor(self->LastChild());
+  });
+  accessor("nodeName", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr) {
+      return Value::Undefined();
+    }
+    // Upper case for an element, which is what the DOM has always reported and
+    // what `node.nodeName === 'DIV'` tests against. `tagName` here is the
+    // lower-case name the parser stored, so the two deliberately differ.
+    if (self->IsElement()) {
+      std::string name = static_cast<dom::Element*>(self)->TagName();
+      for (char& c : name) {
+        if (c >= 'a' && c <= 'z') {
+          c = static_cast<char>(c - 'a' + 'A');
+        }
+      }
+      return Value::String(name);
+    }
+    return Value::String(std::string(self->IsText() ? "#text" : "#document"));
+  });
+
   accessor("nodeType", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr) {
@@ -242,6 +388,48 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
       return Value::Bool(self != nullptr && self->IsElement() &&
                          static_cast<dom::Element*>(self)->HasAttribute(
                              LowerCase(js::ToString(Argument(call.arguments, 0)))));
+    });
+    method("removeAttribute", [](NativeCall& call) {
+      dom::Node* self = NodeOf(call.self);
+      if (self == nullptr || !self->IsElement()) {
+        return call.Throw("TypeError", "removeAttribute called on a non-element");
+      }
+      static_cast<dom::Element*>(self)->RemoveAttribute(
+          LowerCase(js::ToString(Argument(call.arguments, 0))));
+      return Value::Undefined();
+    });
+    method("matches", [](NativeCall& call) {
+      dom::Node* self = NodeOf(call.self);
+      return Value::Bool(self != nullptr && self->IsElement() &&
+                         Matches(static_cast<dom::Element&>(*self),
+                                 js::ToString(Argument(call.arguments, 0))));
+    });
+    method("closest", [](NativeCall& call) {
+      // This element or the nearest ancestor that matches, which is how a
+      // click handler finds the row a button is in.
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr) {
+        return Value::Null();
+      }
+      const std::string selector = js::ToString(Argument(call.arguments, 0));
+      for (dom::Node* walk = self; walk != nullptr; walk = walk->Parent()) {
+        if (walk->IsElement() && Matches(static_cast<dom::Element&>(*walk), selector)) {
+          return owner->WrapperFor(walk);
+        }
+      }
+      return Value::Null();
+    });
+    // `classList`, as a fresh object per read holding the four methods a page
+    // uses. Not cached, because it reads and writes the `class` attribute on
+    // every call rather than holding a parsed copy that could go stale.
+    accessor("classList", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr || !self->IsElement()) {
+        return Value::Undefined();
+      }
+      return owner->MakeClassList(static_cast<dom::Element&>(*self));
     });
     method("setAttribute", [](NativeCall& call) {
       dom::Node* self = NodeOf(call.self);
@@ -372,45 +560,50 @@ void DomBindings::Install() {
   });
   method("querySelector", [](NativeCall& call) {
     // Tag, `#id` and `.class` only. A real selector engine exists in `src/css`
-    // and this module is not allowed to see it -- widening `allow:` to reach
-    // it would widen a security boundary for a convenience, so the selector
-    // support that belongs here is the subset that needs no parser.
+    // and this module is not allowed to see it -- widening `allow:` to reach it
+    // would widen a security boundary for a convenience.
     DomBindings* owner = OwnerOf(call);
     if (owner == nullptr) {
       return Value::Null();
     }
     const std::string selector = js::ToString(Argument(call.arguments, 0));
-    if (selector.empty()) {
-      return Value::Null();
+    return owner->WrapperFor(owner->FindElement(
+        [&selector](const dom::Element& element) { return Matches(element, selector); }));
+  });
+  method("querySelectorAll", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    const std::string selector = js::ToString(Argument(call.arguments, 0));
+    std::vector<Value> found;
+    if (owner != nullptr) {
+      owner->ForEachElement([&](dom::Element& element) {
+        if (Matches(element, selector)) {
+          found.push_back(owner->WrapperFor(&element));
+        }
+      });
     }
-    const char kind = selector.front();
-    const std::string wanted =
-        kind == '#' || kind == '.' ? selector.substr(1) : LowerCase(selector);
-    return owner->WrapperFor(owner->FindElement([&](const dom::Element& element) {
-      if (kind == '#') {
-        const std::string* id = element.GetAttribute("id");
-        return id != nullptr && *id == wanted;
-      }
-      if (kind == '.') {
-        const std::string* names = element.GetAttribute("class");
-        if (names == nullptr) {
-          return false;
+    // An array, not a NodeList. A page indexes it, takes its length and
+    // spreads it, and all three work -- what it does not get is the live
+    // collection a NodeList is, which nothing here could keep up to date
+    // anyway.
+    return call.interpreter.NewArrayValue(std::move(found));
+  });
+  method("getElementsByClassName", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    const std::string selector = "." + js::ToString(Argument(call.arguments, 0));
+    std::vector<Value> found;
+    if (owner != nullptr) {
+      owner->ForEachElement([&](dom::Element& element) {
+        if (Matches(element, selector)) {
+          found.push_back(owner->WrapperFor(&element));
         }
-        // Whole-word, so `.btn` does not match `class="btn-large"`.
-        std::size_t at = names->find(wanted);
-        while (at != std::string::npos) {
-          const bool left = at == 0 || (*names)[at - 1] == ' ';
-          const bool right =
-              at + wanted.size() == names->size() || (*names)[at + wanted.size()] == ' ';
-          if (left && right) {
-            return true;
-          }
-          at = names->find(wanted, at + 1);
-        }
-        return false;
-      }
-      return element.TagName() == wanted;
-    }));
+      });
+    }
+    return call.interpreter.NewArrayValue(std::move(found));
+  });
+  method("createTextNode", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    return owner == nullptr ? Value::Null()
+                            : owner->CreateText(js::ToString(Argument(call.arguments, 0)));
   });
   method("createElement", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -440,7 +633,26 @@ void DomBindings::Install() {
   element_accessor("body", "body");
   element_accessor("documentElement", "html");
 
+  // `document.head`, `document.title` and the two element accessors, as
+  // accessors so they follow the tree rather than freezing what it looked like
+  // at install.
+  element_accessor("head", "head");
+  const Value title_getter = interpreter_->NewNativeValue("title", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::String(std::string());
+    }
+    dom::Element* title = owner->FindElement(
+        [](const dom::Element& element) { return element.TagName() == "title"; });
+    return Value::String(title == nullptr ? std::string() : title->TextContent());
+  });
+  if (title_getter.IsObject()) {
+    title_getter.object->Set(kOwnerSlot, PointerValue(this));
+    document.object->DefineAccessor("title", title_getter.object, nullptr);
+  }
+
   interpreter_->GlobalScope()->Declare("document", document, false);
+  InstallWindow();
 }
 
 }  // namespace microbrowser::bindings

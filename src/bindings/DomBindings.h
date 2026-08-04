@@ -27,7 +27,11 @@ class DomBindings {
   // `document` outlives the bindings, and the interpreter outlives the script
   // that runs in it. Both are references rather than owned, because the engine
   // owns them and a second owner is a second lifetime to get wrong.
-  DomBindings(js::Interpreter& interpreter, dom::Document& document);
+  // `url` is the document's address, which `location` reports. Passed in
+  // rather than read from anywhere, because this module cannot see `src/url`
+  // and should not: what a URL means is the loader's problem, and all this
+  // layer needs is the text a page reads back.
+  DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {});
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -47,11 +51,19 @@ class DomBindings {
   // alternative, handing script a node it owns, would put a raw pointer's
   // lifetime in a page's hands.
   js::Value CreateElement(const std::string& tag_name);
+  js::Value CreateText(const std::string& text);
+  // Whether an element answers to one of the three selector forms this layer
+  // supports. Shared by querySelector, querySelectorAll, matches and closest,
+  // which would otherwise be four chances to disagree about what `.a` means.
+  static bool Matches(const dom::Element& element, const std::string& selector);
+  void InstallWindow();
+  js::Value MakeClassList(dom::Element& element);
   js::Value AdoptInto(dom::Node& parent, dom::Node* child);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 
   js::Interpreter* interpreter_;
   dom::Document* document_;
+  std::string url_;
   // The cache from node to wrapper, as a JavaScript object rather than a C++
   // table: a table of `Object*` would have to be a GC root, and the
   // interpreter has no API for a third party to add one. This is reachable
