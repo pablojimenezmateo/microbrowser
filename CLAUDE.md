@@ -90,6 +90,14 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 
 ## Where To Pick Up
 
+**Read `docs/roadmap-to-any-page.md` first.** It sequences ADRs 0015–0030 into sessions with a
+runnable check on each, and it supersedes the ordering of this list wherever the two disagree. The
+measurement behind it is `docs/surveys/2026-08-04-reddit-youtube-plex.md`, which found that
+`GET https://www.reddit.com/` returns an 8KB JavaScript challenge rather than a page: reddit is not
+a layout problem, and the seven small bindings that open its front door were on nobody's roadmap.
+
+The list below is what was queued before that survey. It is still right about the next two items.
+
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
@@ -294,6 +302,24 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0012` — which web APIs get built, in what order, and why a stub is worse than an absence
 - `docs/adr/0013` — media, the video surface, and the codec dependency
 - `docs/adr/0014` — the CSS features a real page actually uses, counted
+- `docs/adr/0015` — layout as a queryable service: geometry from script, without widening `MODULE.deps`
+- `docs/adr/0016` — selectors, dynamic state, and what a hover costs
+- `docs/adr/0017` — input, the event model, and focus
+- `docs/adr/0018` — scrolling, the viewport, and why a scroll is a paint
+- `docs/adr/0019` — shadow DOM, and the tree layout actually sees
+- `docs/adr/0020` — the network a page asks for itself: fetch, CORS, CSP, SRI, WebSocket
+- `docs/adr/0021` — client-side storage, partitioned, and what is allowed to survive
+- `docs/adr/0022` — workers, and what this browser refuses to run in the background
+- `docs/adr/0023` — the image formats a page actually sends, and who decodes them
+- `docs/adr/0024` — web fonts, WOFF2, and brotli
+- `docs/adr/0025` — encodings, bidi, line breaking, and the Unicode data question
+- `docs/adr/0026` — navigation, session history, and the URL bar as a security surface
+- `docs/adr/0027` — nested browsing contexts, and the isolation they were the reason for
+- `docs/adr/0028` — the media element, MSE, and the refusal of DRM
+- `docs/adr/0029` — canvas, WebGL, permissions, and the fingerprinting surface
+- `docs/adr/0030` — incremental parsing, and showing a page before it is finished
+- `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
+- `docs/surveys/2026-08-04-reddit-youtube-plex.md` — every number those ADRs cite
 - `docs/performance/m0-baseline.md` — the measurements M0 established
 - `docs/performance/m1-rasterizer.md` — where paint time actually goes, and what is not hot
 - `docs/performance/m6-damage.md` — what incremental repaint saves, and what it does not
