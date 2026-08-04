@@ -181,6 +181,16 @@ class Interpreter {
   Result EvaluateMember(const Node& node, Environment& scope, Value& base_out);
   Result EvaluateForIn(const Node& node, Environment& scope);
   Result EvaluateClass(const Node& node, Environment& scope);
+  // Two cases lifted out of Evaluate's switch, and not for tidiness.
+  //
+  // Evaluate recurses, so every local in it is paid for at every level of
+  // expression nesting -- a case body holding a string and two vectors makes
+  // the frame bigger even in the deep recursion that never reaches that case.
+  // Adding these two inline pushed the depth-bound test past the stack under
+  // ASan, which is what a frame that grew by a few hundred bytes looks like
+  // from the outside.
+  Result EvaluateRegExpLiteral(const Node& node);
+  Result EvaluateTaggedTemplate(const Node& node, Environment& scope);
   // Runs a class's instance field initializers against a fresh instance.
   // Separate from the constructor because fields run *before* the constructor
   // body and after any super() call, and folding them in loses that ordering.

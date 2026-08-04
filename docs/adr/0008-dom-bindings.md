@@ -38,14 +38,18 @@ runs against it.
 Every DOM node reachable from script needs a JavaScript object standing for it. The wrapper holds
 a `dom::Node*`, which is a pointer into a tree the bindings layer does not own.
 
-Today that is safe, and only by accident: `dom::Node` has `Append` and `InsertBefore` and **no
-removal**, so a node lives as long as its document. The moment `removeChild` lands, a wrapper can
-outlive its node, and a raw pointer in a garbage-collected object is a use-after-free reachable
-from a page — which is to say, an RCE primitive.
+Today that is safe, and the reason is narrower than it looks. `dom::Node::Remove` exists and its
+comment says it "detaches and destroys" — but **nothing in the tree calls it.** It is unused code,
+so in practice no node is ever freed before its document, and a raw pointer cannot dangle.
 
-So the rule is written here rather than discovered later: **whoever adds node removal to `src/dom`
-owns fixing this at the same time.** The fix is not a detail of the removal patch; it is the reason
-the removal patch is not a small one. Two shapes work, and either is acceptable:
+That is a thin thing to rest on. The first caller makes a wrapper able to outlive its node, and a
+raw pointer in a garbage-collected object is a use-after-free reachable from a page — which is to
+say, an RCE primitive rather than a crash. Binding `removeChild` would be that first caller, which
+is one of the reasons it is not in the first slice below.
+
+So the rule is written here rather than discovered later: **whoever gives `Node::Remove` a caller
+owns fixing this at the same time.** The fix is not a detail of that patch; it is the reason that
+patch is not a small one. Two shapes work, and either is acceptable:
 
 - The wrapper holds a `std::shared_ptr<dom::Node>` and removal detaches rather than frees, so a
   removed node stays alive exactly as long as script still refers to it. This is what the DOM

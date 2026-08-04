@@ -1,0 +1,28 @@
+purpose: The seam between script and the document. The only module that sees both js and dom.
+
+# This `allow:` line is a security boundary, not a convenience.
+#
+# src/js is forbidden from including src/dom and src/dom knows nothing about
+# script, so *every* path from a page's code to its document passes through
+# here. That is what makes "did we check the origin" a question with one answer
+# rather than one per call site: when frames exist, the check goes here.
+#
+# Widening this line widens the browser's security model. See
+# docs/adr/0008-dom-bindings.md.
+allow: util js dom
+
+public: DomBindings.h
+
+extern:
+
+max_tu_lines: 700
+
+# A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
+# safe while nothing frees a node before its document. `Node::Remove` would;
+# nothing calls it. src/dom/MODULE.deps carries the same warning where someone
+# adding the first caller will see it.
+# Four members: the two it borrows, the wrapper cache, and the nodes it made
+# that nothing has appended yet. The last exists because a node's owner is its
+# parent, so one without a parent needs somewhere to live -- and handing script
+# a node it owns would put a raw pointer's lifetime in a page's hands.
+budget: DomBindings header_lines=70 public_methods=6 members=4

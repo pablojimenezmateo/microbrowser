@@ -284,6 +284,11 @@ microbrowser_module(platform
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc
   EXTERN ${MICROBROWSER_SDL3_TARGET})
 
+microbrowser_module(bindings
+  SOURCES
+    src/bindings/DomBindings.cpp
+  DEPS microbrowser_js microbrowser_dom)
+
 microbrowser_module(js
   SOURCES
     src/js/Ast.cpp
@@ -371,6 +376,7 @@ add_executable(microbrowser_tests
   tests/JsLexerTests.cpp
   tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
+  tests/DomBindingsTests.cpp
   tests/FlexLayoutTests.cpp
   tests/LayoutTests.cpp
   tests/NetTests.cpp
@@ -400,7 +406,8 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_u
                                                 microbrowser_css
                                                 microbrowser_layout
                                                 microbrowser_ui
-                                                microbrowser_js)
+                                                microbrowser_js
+                                                microbrowser_bindings)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -87,4 +87,4 @@ budget: Heap        header_lines=130 public_methods=22 members=8
 # exist and one `Roots()` that cannot disagree with the fields -- which is the
 # whole reason it is a struct. It grows as the language does.
 budget: WellKnown   header_lines=45 public_methods=2  members=8
-budget: Interpreter header_lines=300 public_methods=40 members=14
+budget: Interpreter header_lines=320 public_methods=42 members=14

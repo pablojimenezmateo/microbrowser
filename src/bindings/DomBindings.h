@@ -1,0 +1,66 @@
+#pragma once
+
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "dom/Node.h"
+#include "js/Interpreter.h"
+
+namespace microbrowser::bindings {
+
+// Gives a script a document to act on.
+//
+// The only place in the tree that sees both `js` and `dom`, which is what
+// makes it the only path from a page's code to its tree -- and therefore the
+// one place a same-origin check has to live. See
+// docs/adr/0008-dom-bindings.md.
+//
+// A node is handed to script as a JavaScript object holding a raw `dom::Node*`
+// into a tree this class does not own. That is safe only while nothing frees a
+// node before its document does; `dom::Node::Remove` would, and nothing calls
+// it. Binding `removeChild` is the change that breaks it, which is why it is
+// not bound.
+class DomBindings {
+ public:
+  // `document` outlives the bindings, and the interpreter outlives the script
+  // that runs in it. Both are references rather than owned, because the engine
+  // owns them and a second owner is a second lifetime to get wrong.
+  DomBindings(js::Interpreter& interpreter, dom::Document& document);
+
+  // Declares `document` in the global scope. Separate from the constructor so
+  // that a caller can decide *when* a page's script gains access to its tree,
+  // which is a decision the engine will want to make per navigation.
+  void Install();
+
+  // The wrapper for a node, made once and cached. Public because the engine
+  // will need it to hand an event its target.
+  js::Value WrapperFor(dom::Node* node);
+
+ private:
+  // The first element, in document order, that answers to `matches`.
+  dom::Element* FindElement(const std::function<bool(const dom::Element&)>& matches) const;
+  void ForEachElement(const std::function<void(dom::Element&)>& visit) const;
+  // A new element, owned here until something appends it. A node's owner is
+  // its parent, so one without a parent needs somewhere to live -- and the
+  // alternative, handing script a node it owns, would put a raw pointer's
+  // lifetime in a page's hands.
+  js::Value CreateElement(const std::string& tag_name);
+  js::Value AdoptInto(dom::Node& parent, dom::Node* child);
+  js::Value AppendTextTo(dom::Node& parent, const std::string& text);
+
+  js::Interpreter* interpreter_;
+  dom::Document* document_;
+  // The cache from node to wrapper, as a JavaScript object rather than a C++
+  // table: a table of `Object*` would have to be a GC root, and the
+  // interpreter has no API for a third party to add one. This is reachable
+  // from `document`, so the collector already sees it.
+  js::Value wrappers_;
+  // Nodes made by `createElement` and not yet appended. Emptied into the tree
+  // as each is adopted; whatever is left is freed with this object, which is
+  // why a wrapper for one of them must not outlive the bindings.
+  std::vector<std::unique_ptr<dom::Node>> unattached_;
+};
+
+}  // namespace microbrowser::bindings

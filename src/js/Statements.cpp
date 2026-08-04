@@ -46,34 +46,8 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(Value::Bool(node.number != 0.0));
     case NodeKind::NullLiteral:
       return Result::Normal(Value::Null());
-    case NodeKind::RegExpLiteral: {
-      // The literal arrives as it was written, delimiters and all, because the
-      // lexer's job was to find its extent rather than to take it apart. The
-      // last `/` separates the pattern from the flags: the first one cannot,
-      // since `/[/]/` has one in the middle.
-      const std::size_t close = node.string.rfind('/');
-      if (node.string.size() < 2 || node.string.front() != '/' || close == 0) {
-        return Throw("SyntaxError", "malformed regular expression literal");
-      }
-      const std::string source = node.string.substr(1, close - 1);
-      const std::string flag_text = node.string.substr(close + 1);
-      const std::optional<RegExpFlags> flags = RegExpFlags::Parse(flag_text);
-      if (!flags.has_value()) {
-        return Throw("SyntaxError", "invalid regular expression flags: " + flag_text);
-      }
-      std::string error;
-      RegExp pattern = RegExp::Compile(source, *flags, error);
-      if (!pattern.IsValid()) {
-        return Throw("SyntaxError", "invalid regular expression: " + error);
-      }
-      // A fresh object per evaluation, which is what makes `lastIndex` on a
-      // literal inside a loop start over each time round.
-      const Value value = NewRegExpValue(std::move(pattern));
-      if (value.IsUndefined()) {
-        return Throw("RangeError", "out of memory");
-      }
-      return Result::Normal(value);
-    }
+    case NodeKind::RegExpLiteral:
+      return EvaluateRegExpLiteral(node);
 
     case NodeKind::TemplateLiteral: {
       // The literal chunks with each substitution's value between them. The
@@ -494,66 +468,8 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Throw("SyntaxError", "'super' keyword unexpected here");
     }
 
-    case NodeKind::TaggedTemplate: {
-      // ``tag`a${x}b` `` is `tag(["a", "b"], x)`. The tag receives the literal
-      // chunks as an array and the substitution *values* as the arguments
-      // after it -- which is the whole point of the form: the tag sees the two
-      // apart and can decide what to do with each, which is how a library
-      // escapes an interpolation it did not write.
-      const Node* tag_node = node.Child(0);
-      const Node* template_node = node.Child(1);
-      if (tag_node == nullptr || template_node == nullptr) {
-        return Throw("SyntaxError", "malformed tagged template");
-      }
-      Value self;
-      Result tag = Result::Normal();
-      if (tag_node->kind == NodeKind::Member) {
-        // A method tag keeps its receiver: ``obj.tag`x` `` calls it on `obj`.
-        const Result key = EvaluateMember(*tag_node, scope, self);
-        if (key.IsAbrupt()) {
-          return key;
-        }
-        tag = Result::Normal(GetProperty(self, KeyFrom(key.value)));
-      } else {
-        tag = Evaluate(*tag_node, scope);
-        if (tag.IsAbrupt()) {
-          return tag;
-        }
-      }
-      if (!tag.value.IsObject() || !tag.value.object->IsCallable()) {
-        return Throw("TypeError", "the tag of a tagged template is not a function");
-      }
-
-      const TemplateParts parts = SplitTemplate(template_node->string);
-      std::vector<Value> chunks;
-      chunks.reserve(parts.literals.size());
-      for (const std::string& literal : parts.literals) {
-        chunks.push_back(Value::String(literal));
-      }
-      const Value strings = NewArrayValue(chunks);
-      if (!strings.IsObject()) {
-        return Throw("RangeError", "out of memory");
-      }
-      // `raw` is the same array here. It is meant to be the text before escape
-      // processing, and this engine does not process escapes in a template
-      // separately -- so the two agree, which is right for every template
-      // without a backslash in it and wrong only for those with one.
-      strings.object->Set("raw", NewArrayValue(std::move(chunks)));
-
-      std::vector<Value> arguments{strings};
-      for (const NodePtr& child : template_node->children) {
-        if (child == nullptr) {
-          arguments.push_back(Value::Undefined());
-          continue;
-        }
-        const Result value = Evaluate(*child, scope);
-        if (value.IsAbrupt()) {
-          return value;
-        }
-        arguments.push_back(value.value);
-      }
-      return CallFunction(tag.value, self, arguments);
-    }
+    case NodeKind::TaggedTemplate:
+      return EvaluateTaggedTemplate(node, scope);
 
     case NodeKind::Spread:
       return Throw("SyntaxError", "unsupported expression");
@@ -1067,5 +983,97 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
       return Throw("SyntaxError", "this construct cannot be evaluated");
   }
 }
+
+Result Interpreter::EvaluateRegExpLiteral(const Node& node) {
+
+      // The literal arrives as it was written, delimiters and all, because the
+      // lexer's job was to find its extent rather than to take it apart. The
+      // last `/` separates the pattern from the flags: the first one cannot,
+      // since `/[/]/` has one in the middle.
+      const std::size_t close = node.string.rfind('/');
+      if (node.string.size() < 2 || node.string.front() != '/' || close == 0) {
+        return Throw("SyntaxError", "malformed regular expression literal");
+      }
+      const std::string source = node.string.substr(1, close - 1);
+      const std::string flag_text = node.string.substr(close + 1);
+      const std::optional<RegExpFlags> flags = RegExpFlags::Parse(flag_text);
+      if (!flags.has_value()) {
+        return Throw("SyntaxError", "invalid regular expression flags: " + flag_text);
+      }
+      std::string error;
+      RegExp pattern = RegExp::Compile(source, *flags, error);
+      if (!pattern.IsValid()) {
+        return Throw("SyntaxError", "invalid regular expression: " + error);
+      }
+      // A fresh object per evaluation, which is what makes `lastIndex` on a
+      // literal inside a loop start over each time round.
+      const Value value = NewRegExpValue(std::move(pattern));
+      if (value.IsUndefined()) {
+        return Throw("RangeError", "out of memory");
+      }
+      return Result::Normal(value);
+    }
+
+Result Interpreter::EvaluateTaggedTemplate(const Node& node, Environment& scope) {
+
+      // ``tag`a${x}b` `` is `tag(["a", "b"], x)`. The tag receives the literal
+      // chunks as an array and the substitution *values* as the arguments
+      // after it -- which is the whole point of the form: the tag sees the two
+      // apart and can decide what to do with each, which is how a library
+      // escapes an interpolation it did not write.
+      const Node* tag_node = node.Child(0);
+      const Node* template_node = node.Child(1);
+      if (tag_node == nullptr || template_node == nullptr) {
+        return Throw("SyntaxError", "malformed tagged template");
+      }
+      Value self;
+      Result tag = Result::Normal();
+      if (tag_node->kind == NodeKind::Member) {
+        // A method tag keeps its receiver: ``obj.tag`x` `` calls it on `obj`.
+        const Result key = EvaluateMember(*tag_node, scope, self);
+        if (key.IsAbrupt()) {
+          return key;
+        }
+        tag = Result::Normal(GetProperty(self, KeyFrom(key.value)));
+      } else {
+        tag = Evaluate(*tag_node, scope);
+        if (tag.IsAbrupt()) {
+          return tag;
+        }
+      }
+      if (!tag.value.IsObject() || !tag.value.object->IsCallable()) {
+        return Throw("TypeError", "the tag of a tagged template is not a function");
+      }
+
+      const TemplateParts parts = SplitTemplate(template_node->string);
+      std::vector<Value> chunks;
+      chunks.reserve(parts.literals.size());
+      for (const std::string& literal : parts.literals) {
+        chunks.push_back(Value::String(literal));
+      }
+      const Value strings = NewArrayValue(chunks);
+      if (!strings.IsObject()) {
+        return Throw("RangeError", "out of memory");
+      }
+      // `raw` is the same array here. It is meant to be the text before escape
+      // processing, and this engine does not process escapes in a template
+      // separately -- so the two agree, which is right for every template
+      // without a backslash in it and wrong only for those with one.
+      strings.object->Set("raw", NewArrayValue(std::move(chunks)));
+
+      std::vector<Value> arguments{strings};
+      for (const NodePtr& child : template_node->children) {
+        if (child == nullptr) {
+          arguments.push_back(Value::Undefined());
+          continue;
+        }
+        const Result value = Evaluate(*child, scope);
+        if (value.IsAbrupt()) {
+          return value;
+        }
+        arguments.push_back(value.value);
+      }
+      return CallFunction(tag.value, self, arguments);
+    }
 
 }  // namespace microbrowser::js
