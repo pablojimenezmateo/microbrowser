@@ -207,12 +207,10 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     const css::Length& basis = item_style.flex.basis;
     const css::Length& main_length = row ? item_style.width : item_style.height;
     if (!basis.IsAuto()) {
-      item.base_main = basis.IsPercent() ? main_size * basis.value / 100.0f
-                                         : basis.Resolve(font_size);
+      item.base_main = basis.Used(main_size, font_size);
       item.base_main += item.main_extra;
     } else if (!main_length.IsAuto()) {
-      item.base_main = main_length.IsPercent() ? main_size * main_length.value / 100.0f
-                                               : main_length.Resolve(font_size);
+      item.base_main = main_length.Used(main_size, font_size);
       item.base_main += item.main_extra;
     } else if (row) {
       item.base_main = MaxContentWidth(*item.box);

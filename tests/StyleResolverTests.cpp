@@ -1,4 +1,5 @@
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -86,6 +87,47 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "but a unitless five is not: `width: 5` is an invalid declaration, and treating "
            "it as pixels renders differently from every other browser");
     Expect(ParseLength("12pt") == Length::Pixels(16.0f), "points convert at 4/3");
+  });
+
+  AddTest(tests, "Css/EvaluatesCalc", [] {
+    Expect(ParseLength("calc(10px + 5px)") == Length::Pixels(15.0f), "absolute terms fold");
+    Expect(ParseLength("CALC(10px)") == Length::Pixels(10.0f), "the function name is not cased");
+    Expect(ParseLength("calc(2 * 10px)") == Length::Pixels(20.0f), "a number may scale a length");
+    Expect(ParseLength("calc(10px * 2)") == Length::Pixels(20.0f), "on either side");
+    Expect(ParseLength("calc(30px / 4)") == Length::Pixels(7.5f), "and may divide one");
+    Expect(ParseLength("calc(10px + 12pt)") == Length::Pixels(26.0f),
+           "a point is folded into pixels before the sum, not after");
+    Expect(ParseLength("calc(1rem + 4px)") == Length::Pixels(20.0f),
+           "and so is a rem, at the same root size Length::Resolve uses");
+
+    const std::optional<Length> mixed = ParseLength("calc(100% - 20px)");
+    Expect(mixed.has_value() && mixed->IsPercent() && mixed->value == 100.0f &&
+               mixed->offset == -20.0f,
+           "the form the feature exists for: a percentage and an absolute term, both kept");
+    Expect(mixed->Used(200.0f, 16.0f) == 180.0f,
+           "and the offset is applied where the percentage is finally resolved");
+    Expect(ParseLength("calc(1em + 4px)")->Resolve(10.0f) == 14.0f,
+           "an em term resolves against the font size and keeps its offset");
+    Expect(ParseLength("calc((100% - 20px) / 2)")->offset == -10.0f,
+           "division distributes over both terms");
+    Expect(ParseLength("calc(100% + calc(2px * 3))")->offset == 6.0f, "a calc may nest");
+
+    Expect(!ParseLength("calc(100% - 1em)").has_value(),
+           "two relative terms in one value is a calc this Length cannot hold, and an "
+           "unrepresentable value is dropped rather than rounded to whichever term was noticed");
+    Expect(!ParseLength("calc(10px / 0)").has_value(), "division by zero is invalid, not infinite");
+    Expect(!ParseLength("calc(10px * 2px)").has_value(), "a length times a length is an area");
+    Expect(!ParseLength("calc(10px + 2)").has_value(), "and a length plus a number is neither");
+    Expect(!ParseLength("calc(100%-20px)").has_value(),
+           "`+` and `-` need whitespace around them: without it `-20px` is a signed number, "
+           "and accepting it here would parse a value no other engine does");
+    Expect(!ParseLength("calc(1px +2px)").has_value(), "same rule on the trailing side");
+    Expect(!ParseLength("calc(10vw)").has_value(), "a unit this engine has no answer for");
+    Expect(!ParseLength("calc(10px").has_value(), "and an unclosed one is not a value at all");
+    Expect(!ParseLength("calc()").has_value(), "nor an empty one");
+    Expect(!ParseLength("calc(1e400px)").has_value(), "nor a number outside a double's range");
+    Expect(!ParseLength("calc(1e30px * 1e30)").has_value(),
+           "nor a product outside a float's, which would otherwise reach layout as infinity");
   });
 
   // Without a user-agent stylesheet a div is inline and the whole document is

@@ -46,7 +46,7 @@ void OffsetSubtree(Box& box, float dx, float dy) {
 
 // An inset, against the containing block extent it resolves against.
 float Inset(const css::Length& length, float font_size, float extent) {
-  return length.IsPercent() ? extent * length.value / 100.0f : length.Resolve(font_size);
+  return length.Used(extent, font_size);
 }
 
 }  // namespace
@@ -104,7 +104,7 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   const css::Edges& inset = style.inset;
 
   const auto resolve = [font_size](const css::Length& length, float extent) {
-    return length.IsPercent() ? extent * length.value / 100.0f : length.Resolve(font_size);
+    return length.Used(extent, font_size);
   };
   const css::Edges& border = style.has_border ? style.border_width : css::Edges{};
   const float horizontal_extra =

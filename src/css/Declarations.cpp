@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 
+#include "css/Calc.h"
 #include "css/CssText.h"
 #include "gfx/ColorText.h"
 #include "gfx/Font.h"
@@ -175,14 +176,13 @@ std::vector<std::string> ParseFontFamilyList(std::string_view value) {
 float Length::Resolve(float font_size, float fallback) const {
   switch (unit) {
     case Unit::Pixels:
-      return value;
+      return value + offset;
     case Unit::Em:
-      return value * font_size;
+      return value * font_size + offset;
     case Unit::Rem:
-      // The root font size is 16 until a root style exists to ask. Carrying the
-      // root style through every Resolve call would put a parameter on a
-      // function that is called per edge per element per frame.
-      return value * 16.0f;
+      // The root font size is a constant until a root style exists to ask; see
+      // kRootFontSize, which the `calc()` evaluator folds a `rem` with too.
+      return value * kRootFontSize + offset;
     case Unit::Percent:
     case Unit::Auto:
       return fallback;
@@ -203,6 +203,12 @@ std::optional<Length> ParseLength(std::string_view text) {
   }
   if (lowered == "auto") {
     return Length::Auto();
+  }
+  // Every property that takes a length takes a `calc()` of one, so the funnel
+  // is here rather than at each of them. A calc this engine cannot represent
+  // returns nullopt and drops its declaration, exactly as an unknown unit does.
+  if (lowered.compare(0, 5, "calc(") == 0) {
+    return ParseCalc(lowered);
   }
 
   std::size_t at = 0;

@@ -523,9 +523,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     // A percentage width resolves against the containing block, which is the
     // one place a percentage *can* be resolved — this is why the cascade
     // carried it instead of guessing.
-    content_width = style.width.IsPercent()
-                        ? available_width * style.width.value / 100.0f
-                        : style.width.Resolve(style.font_size, content_width);
+    content_width = style.width.Used(available_width, style.font_size);
   } else if (style.display == css::Display::Table) {
     // Shrink-to-fit, which is what a table with no stated width gets: as wide
     // as its columns want, but never wider than what is available and never

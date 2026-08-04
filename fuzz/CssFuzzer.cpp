@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <string_view>
 
+#include "css/ComputedStyle.h"
+#include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "css/Tokenizer.h"
 
@@ -42,7 +44,17 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   if (sheet.rules.size() + sheet.skipped > size + 1) {
     __builtin_trap();  // more rules than the input could possibly describe
   }
-  microbrowser::css::ParseDeclarationList(input);
+  // Every declaration is also *applied*, which is the only way the value
+  // parsers are reached at all: parsing a sheet stops at the text of a value,
+  // and `calc()` is a second recursive descent that starts there. Before this
+  // the fuzzer explored the grammar of a stylesheet and none of the grammar of
+  // what is in one.
+  const microbrowser::css::ComputedStyle initial;
+  for (const microbrowser::css::Declaration& declaration :
+       microbrowser::css::ParseDeclarationList(input)) {
+    microbrowser::css::ComputedStyle style;
+    microbrowser::css::ApplyDeclaration(declaration, initial, style);
+  }
 
   // Selector lists nest, so the parser recurses over attacker-controlled input
   // and the recursion is bounded. Checking the bound here rather than only in a

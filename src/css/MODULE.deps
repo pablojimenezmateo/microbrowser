@@ -27,7 +27,13 @@ budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
 budget: Selector         header_lines=25 public_methods=6  members=1
-budget: Length           header_lines=35 public_methods=10 members=2
+# Three members for `calc()`: a coefficient, the unit it is a coefficient of,
+# and the absolute pixels added to it. `calc(100% - 20px)` is the form the
+# feature is overwhelmingly used in and it is two terms, so a one-term Length
+# could only have stored it by rounding one of them away. The alternative --
+# a full expression tree per length -- would have put an allocation on the type
+# four of which sit in every Edges, for a grammar whose measured depth is one.
+budget: Length           header_lines=45 public_methods=10 members=3
 # One member per property, plus one grouped member for the twelve flex
 # properties. Twelve loose fields would have been more than a third of this
 # struct and would have said nothing about belonging together; grouped, the

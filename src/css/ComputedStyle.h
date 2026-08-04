@@ -82,6 +82,13 @@ enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed };
 // clipping half is layout's.
 enum class Overflow : std::uint8_t { Visible, Hidden, Scroll, Auto };
 
+// The font size `rem` is a multiple of. A constant rather than the root
+// element's resolved size, because carrying the root style into every Resolve
+// call would put a parameter on a function called once per edge per element per
+// frame. Named so that the two places that fold a `rem` into pixels — Resolve,
+// and the `calc()` evaluator — cannot disagree about it.
+inline constexpr float kRootFontSize = 16.0f;
+
 // A CSS length, resolved as far as it can be without a layout context.
 //
 // Percentages cannot be resolved here — they need a containing block, which
@@ -93,6 +100,12 @@ struct Length {
 
   float value = 0.0f;
   Unit unit = Unit::Pixels;
+  // The absolute part of a `calc()` that added pixels to a relative term:
+  // `calc(100% - 20px)` is value 100, unit Percent, offset -20. Zero for every
+  // length a stylesheet spells without `calc()`, which is why it is an addition
+  // to this type rather than a replacement of it — a one-term length still
+  // costs one float and one tag to read.
+  float offset = 0.0f;
 
   static Length Auto() { return Length{0.0f, Unit::Auto}; }
   static Length Pixels(float value) { return Length{value, Unit::Pixels}; }
@@ -104,6 +117,14 @@ struct Length {
   // and auto have no answer without a containing block, so they return the
   // fallback the caller supplies rather than silently becoming zero.
   float Resolve(float font_size, float fallback = 0.0f) const;
+
+  // Absolute pixels, given the containing-block extent a percentage is a
+  // fraction of. The one place a percentage becomes a number: written out at
+  // each call site instead, `calc()`'s offset is the term every one of them
+  // forgets.
+  float Used(float basis, float font_size) const {
+    return unit == Unit::Percent ? basis * value / 100.0f + offset : Resolve(font_size, 0.0f);
+  }
 
   friend bool operator==(const Length&, const Length&) = default;
 };
@@ -290,8 +311,7 @@ struct ComputedStyle {
  private:
   float ClampBy(float used, const Length& low, const Length& high, float container) const {
     const auto resolve = [this, container](const Length& length) {
-      return length.IsPercent() ? container * length.value / 100.0f
-                                : length.Resolve(font_size, container);
+      return length.Used(container, font_size);
     };
     if (!high.IsAuto()) {
       used = std::min(used, resolve(high));

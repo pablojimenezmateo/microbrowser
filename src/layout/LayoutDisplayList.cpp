@@ -68,7 +68,7 @@ gfx::FloatRect BackgroundTile(const css::ComputedStyle& style, const gfx::Image&
     if (length.IsAuto()) {
       return intrinsic;
     }
-    return length.IsPercent() ? box_extent * length.value / 100.0f
+    return length.IsPercent() ? length.Used(box_extent, style.font_size)
                               : length.Resolve(style.font_size, intrinsic);
   };
   const float intrinsic_width = static_cast<float>(image.Width());
@@ -94,10 +94,7 @@ gfx::FloatRect BackgroundTile(const css::ComputedStyle& style, const gfx::Image&
   // A percentage position is a fraction of the space the image does *not*
   // fill, which is why `50%` centres rather than offsetting by half the box.
   const auto place = [&style](const css::Length& length, float box_extent, float tile_extent) {
-    if (length.IsPercent()) {
-      return (box_extent - tile_extent) * length.value / 100.0f;
-    }
-    return length.Resolve(style.font_size, 0.0f);
+    return length.Used(box_extent - tile_extent, style.font_size);
   };
   return gfx::FloatRect{box.x + place(style.background.position_x, box.width, width),
                         box.y + place(style.background.position_y, box.height, height), width,
