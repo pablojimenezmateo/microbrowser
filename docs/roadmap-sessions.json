@@ -54,8 +54,9 @@
       "adr": "0014 §2-3",
       "anchor": "### Session 4 — `calc()`",
       "scope": "calc() with lengths, percentages and the mixing rules; @supports answering honestly about what the engine actually supports; aspect-ratio.",
-      "check": "@supports (display: grid) is false and @supports (display: flex) is true, and a snapshot shows the fallback branch of reddit's stylesheet.",
-      "status": "not_started"
+      "check": "@supports (display: grid) is false and @supports (display: flex) is true, and a snapshot shows the fallback branch of a real page's stylesheet. AMENDED: the check said `reddit's stylesheet`, and old.reddit.com's ten sheets contain zero @supports, zero aspect-ratio and one calc(125%). en.wikipedia.org/wiki/CSS is the page it was run against: 76 @supports, 170 calc(, 2 aspect-ratio.",
+      "status": "done",
+      "notes": "RAN, PASSED, on the amended check. `@supports (display: grid)` -> false and `@supports (display: flex)` -> true, verbatim, plus every condition in wikipedia's sheet answered honestly. Wikipedia: 959 rules/226 skipped before, 976/209 after (+17), and a 1517-pixel snapshot diff. old.reddit.com: unchanged, as the sheet measurement predicted -- two fetches with the SAME binary differ by more pixels (1235) than the two binaries do (912), so there is no rendering change to see there. This is session 3's finding again: ADR 0014's counts (calc 550, @supports 425) are youtube's 3.5MB sheet, not reddit's, and www.reddit.com still returns the 8KB challenge so its bundle cannot be fetched to compare. Landed: calc() (Length gains an `offset` member, budget 2->3, so `calc(100% - 20px)` keeps both terms; `calc(100% - 1em)` is two relative terms and is dropped); @supports answered by *applying* the declaration, which required ApplyDeclaration to return bool across ~40 branches; aspect-ratio on blocks and replaced elements. Left: min()/max()/clamp() and the viewport units are the only reason a wikipedia calc still fails (9 of 54). `aspect-ratio: auto <ratio>` is deliberately refused."
     },
     {
       "id": 5,

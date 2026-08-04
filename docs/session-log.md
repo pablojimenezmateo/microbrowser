@@ -266,3 +266,105 @@ corpus plus five new seeds for this grammar: 774,879 runs in 91 seconds, no cras
   It is wrong for `:checked` and `:disabled`, whose value is derivable from the DOM and is not
   being derived. Session 11 is where that stops being wrong. A test records it either way, so
   the day it changes, something says so.
+
+## Session 4 — `calc()`, `@supports`, `aspect-ratio` · 2026-08-05
+
+**Status:** done
+
+**Check:** the first half ran verbatim and passed:
+
+```
+(display: grid)                                            -> false
+(display: flex)                                            -> TRUE
+((-webkit-mask-image:none) or (mask-image:none))           -> false
+not (((-webkit-mask-image:none) or (mask-image:none)))     -> TRUE
+(width:round(1.5px,1px))                                   -> false
+(word-break:break-word)                                    -> false
+not selector(:focus-visible)                               -> TRUE
+(aspect-ratio:1 / 1)                                       -> TRUE
+(text-decoration:underline dotted)                         -> false
+```
+
+Every one of those but the first two is a condition **wikipedia actually writes**, and every
+answer is the honest one.
+
+The second half — "a snapshot shows the fallback branch of reddit's stylesheet" — was
+**amended, and the amendment is the session's main finding.** old.reddit.com's ten stylesheets
+(318KB of them) contain **zero `@supports`, zero `aspect-ratio`, and one `calc(125%)`**. There is
+no fallback branch there to show. The check was run against `en.wikipedia.org/wiki/CSS` instead,
+whose main sheet has 76 `@supports`, 170 `calc(` and 2 `aspect-ratio`:
+
+```
+BEFORE (cf98a57): rules=959 skipped=226
+AFTER           : rules=976 skipped=209
+```
+
++17 rules, and a snapshot diff of **1517 pixels** across rows 125–160 — the "98 languages"
+control, which wikipedia sizes inside 25 `@supports not ((-webkit-mask-image:none) or
+(mask-image:none))` blocks. That is literally the fallback branch: this engine has no
+`mask-image`, so the `not` side is the side that applies, and before this session neither side
+did.
+
+old.reddit.com is unchanged, and the way that was established matters: **two fetches with the
+same binary differ by 1235 pixels; the two binaries differ by 912.** The page's own vote counts
+move more than the session did. A pixel diff against a live page is not a measurement unless
+you take the same-binary diff first.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each. `css_fuzzer` over the corpus
+plus fourteen new seeds for these three grammars: 245,744 runs in 121 seconds, no crash.
+
+**Landed:**
+
+- *A length may be two terms, and `calc()` is where the second one comes from*
+- *`@supports` answers by trying the declaration, because a list would drift*
+- *A box may state its shape before it has anything in it*
+- *A `calc()` is one component of a shorthand, not one per space inside it*
+
+**Left:**
+
+- **`min()`, `max()` and `clamp()` are the only reason a wikipedia `calc` still fails.** 45 of
+  its 54 `calc` declarations now apply; of the nine that do not, eight need `max()` and one
+  needs `vh`. They are the obvious next hour of work on this and were not in the session's
+  scope.
+- **The viewport units do not exist** — `vw`, `vh`, `vmin`, `vmax`. They need a viewport size in
+  the cascade, which is not there, and `@supports (width: 1vw)` honestly says no.
+- **`aspect-ratio: auto <ratio>` is refused on purpose.** It means "the element's own ratio, and
+  this one if it has none", and nothing here can ask an image for its ratio apart from its size.
+- **`@supports` counts toward `StyleSheet::skipped` when its condition is false**, the same as a
+  non-matching `@media`. That is consistent but it means `skipped` no longer measures only "we
+  did not understand this" — a correctly-evaluated false condition is in there too.
+
+**Found:**
+
+- **ADR 0014's numbers are youtube's stylesheet, and the roadmap's check named reddit.** This is
+  session 3's finding a second time, on a different feature: the ADR counts `calc(` 550 and
+  `@supports` 425 in *youtube.com's 3.5MB sheet*, the roadmap turned that into a check about
+  reddit, and reddit uses these features once between them. `www.reddit.com` still returns the
+  8KB JavaScript challenge, so the sheet those numbers would apply to cannot be fetched to
+  compare. **The next agent should read every remaining check that names a site as "which
+  page, measured how".**
+- **`ApplyDeclaration` returned `void`, and that was the whole difficulty of `@supports`.** A
+  value it did not recognise was indistinguishable from one it applied. Making it return whether
+  the declaration took is what makes the answer impossible to drift from the implementation —
+  and it found two places where an invalid declaration had a side effect anyway: `text-align:
+  bogus` reset `centers_block_children`, and `background-position: 5px nonsense` took the
+  nonsense as zero.
+- **The whitespace splitter was the real `calc()` blocker, not the evaluator.** There were two
+  copies of it, one per translation unit, and neither knew what a parenthesis was — so
+  `margin: calc(4px + 6px) 0` split into five components and every shorthand here rejects the
+  wrong number. The evaluator worked on the first build; **38 of wikipedia's 54 `calc`
+  declarations applied until the splitter was fixed, then 45.** The two copies also disagreed
+  with each other: the flex one did not treat `\r` or `\f` as whitespace.
+- **The `var()` substitution has to happen before you can measure `calc()` at all.** Counting
+  `calc` declarations straight out of `ParseStyleSheet` reports 8 of 57 applying, because the
+  values still read `calc(var(--font-size-medium,1rem) + 4px)`. Through `SubstituteVars` first,
+  as the resolver does, it is 45 of 54. A measurement of the parser that skips the cascade's own
+  first pass is measuring a string no element ever sees.
+- **`calc(100% - 1em)` is refused, and that is a decision.** A `Length` carries one relative term
+  plus an absolute offset; two relative terms would need a third float on a type four of which
+  sit in every `Edges`. Rounding one term away would have been worse than dropping the
+  declaration, so it is dropped. It did not appear once in the sheets measured.
+- **`@supports` is where a wrong "yes" is worse than a wrong "no".** Wikipedia writes both
+  branches of the mask-image test, so an engine that claimed `mask-image` would have taken the
+  branch that assumes it works and drawn nothing. The `<general-enclosed>` rule — an unknown
+  function form is unknown, and unknown reads as false — falls the same way on purpose.

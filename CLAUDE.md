@@ -60,7 +60,7 @@ What exists:
 | `src/media` | Containers only, never codecs (ADR 0013). Fragmented-MP4 demux: `ftyp`, the `moov` track hierarchy, `moof` sample tables, into tracks and **byte ranges rather than bytes**. Bounds-checked, sticky-failing reader; fuzzed. May name `util` and nothing else, so a demuxer that started decoding would not compile. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
-| `src/css` | Tokenizer, parser, selectors — including the **functional pseudo-classes** `:not()`, `:is()`, `:where()` and the four `:nth-*()` with the whole `An+B` grammar, nested to a bounded depth, and the specificity rule that makes `:where()` worth zero — cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing, **custom properties and `var()`** — inherited, nested, with fallbacks and the invalid-at-computed-value rule. Matching lives in `SelectorMatch.cpp` and is a pure function of (element, selector) that never sees a token. |
+| `src/css` | Tokenizer, parser, selectors — including the **functional pseudo-classes** `:not()`, `:is()`, `:where()` and the four `:nth-*()` with the whole `An+B` grammar, nested to a bounded depth, and the specificity rule that makes `:where()` worth zero — cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing, **custom properties and `var()`** — inherited, nested, with fallbacks and the invalid-at-computed-value rule — **`calc()`** with one relative term plus an absolute offset, **`@supports`** answered by *applying* the declaration rather than by a list of names, and `aspect-ratio`. Matching lives in `SelectorMatch.cpp` and is a pure function of (element, selector) that never sees a token. |
 | `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), **`display: inline-block` and `inline-flex`** as real atomic inlines — block inside, one unbreakable rectangle outside, with a CSS 2.1 §10.8.1 baseline — min/max sizing, overflow clipping (and *not* on inline boxes, which it does not apply to), display-list building |
 | `src/engine` | Page (one document), PageScript (its interpreter, bindings, timers and animation frames), Loader (everything network, started/completed), PendingLoad (one navigation in flight), Engine (routes messages, drives the load). Hit testing for links, form controls and event targets; form submission; navigation from a click. Fetches a document's subresources **concurrently** and runs its scripts at the three points `defer`, `async` and `type=module` actually mean. |
 | `src/bindings` | **`requestAnimationFrame`**, which schedules a frame only while something has asked for one. The seam between script and the document, and the only module that sees both `js` and `dom`. **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **MutationObserver**, batched and delivered as a microtask. `window` is an event target. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. Where every same-origin check will live — ADR 0008. |
@@ -110,14 +110,16 @@ The list below is what was queued before that survey. It is still right about th
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
-1. **`calc()`, then `@supports`.** Custom properties and `var()` are **done** — substitution,
-   inheritance, fallbacks, nesting, cycle bounds, and the invalid-at-computed-value rule that
-   separates a correct implementation from one that merely skips the declaration. `calc()` is
-   next because it is nearly always found next to them and the same values need it to resolve
-   (550 uses). Then `@supports` (425), which is cheap and fails in the direction that produces a
-   wrong page rather than a missing effect — and whose one hard requirement is that it answer
-   honestly about what the engine actually supports, or it is the CSS version of ADR 0012's
-   stub problem.
+1. **`min()`, `max()` and `clamp()`.** Custom properties, `var()`, `calc()`, `@supports` and
+   `aspect-ratio` are all **done** (session 4). `calc()` holds one relative term plus an
+   absolute offset, so `calc(100% - 20px)` keeps both and `calc(100% - 1em)` is dropped rather
+   than rounded. `@supports` answers by *applying* the declaration to a scratch style and
+   reporting whether it took — there is no table of supported names to drift, which is what
+   ADR 0014 §3 asks for.
+
+   What is left of that family is the other math functions: on wikipedia's stylesheet, 45 of
+   54 `calc` declarations now apply and **eight of the nine failures need `max()`**. The ninth
+   needs `vh`, and the viewport units need a viewport size in the cascade, which is not there.
 
 2. **`getBoundingClientRect`.** `requestAnimationFrame` is **done** (ADR 0011). ADR 0012's list
    is now mostly done: the element type hierarchy, `MutationObserver`, custom elements (registry, upgrade,
