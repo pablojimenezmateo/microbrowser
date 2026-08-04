@@ -604,6 +604,43 @@ void DomBindings::Install() {
     }
     return owner->CreateElement(LowerCase(js::ToString(Argument(call.arguments, 0))));
   });
+  // The namespace is accepted and ignored, which is honest for this parser:
+  // it produces one tree with no XML in it, so `createElementNS(HTML_NS, 'div')`
+  // and `createElement('div')` describe the same element. A page that asks for
+  // a genuinely foreign namespace gets an HTML element and not a wrong answer
+  // about one -- SVG is rendered from its own decoder, not from the DOM.
+  method("createElementNS", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    return owner->CreateElement(LowerCase(js::ToString(Argument(call.arguments, 1))));
+  });
+  method("createComment", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    return owner->CreateComment(js::ToString(Argument(call.arguments, 0)));
+  });
+  method("createEvent", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    return owner == nullptr ? Value::Null() : owner->CreateLegacyEvent();
+  });
+  // Always "complete": scripts run after the parse here, which is written down
+  // in PageScript.h as a deviation. Reporting "loading" would be a lie a page
+  // acts on -- it would wait for a DOMContentLoaded that already happened.
+  // A property rather than a method, and always "complete": scripts run after
+  // the parse here, which PageScript.h writes down as a deviation. Reporting
+  // "loading" would be a lie a page acts on -- it would wait for a
+  // DOMContentLoaded that has already been and gone.
+  const Value ready = interpreter_->NewNativeValue("readyState", [](NativeCall& call) {
+    (void)call;
+    return Value::String(std::string("complete"));
+  });
+  if (ready.IsObject()) {
+    document.object->DefineAccessor("readyState", ready.object, nullptr);
+  }
 
   // `document.body` and `document.documentElement`, as accessors so they
   // follow the tree rather than freezing whatever it looked like at install.
@@ -644,6 +681,7 @@ void DomBindings::Install() {
   }
 
   interpreter_->GlobalScope()->Declare("document", document, false);
+  InstallEventConstructors();
   InstallWindow();
 }
 

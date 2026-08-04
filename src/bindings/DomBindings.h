@@ -60,6 +60,9 @@ class DomBindings {
   // lifetime in a page's hands.
   js::Value CreateElement(const std::string& tag_name);
   js::Value CreateText(const std::string& text);
+  // A comment node. A framework uses one as a placeholder marker far more
+  // often than a page author writes one.
+  js::Value CreateComment(const std::string& data);
   // Whether an element answers to one of the three selector forms this layer
   // supports. Shared by querySelector, querySelectorAll, matches and closest,
   // which would otherwise be four chances to disagree about what `.a` means.
@@ -68,6 +71,22 @@ class DomBindings {
   js::Value MakeClassList(dom::Element& element);
   js::Value MakeStyle(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
+  // One event object, with its flags and the two ways to stop it.
+  // `trusted` says whether the browser made it or a page did -- a page's own
+  // event must not be able to cause what a real one causes.
+  js::Value MakeEvent(const std::string& type, bool bubbles, bool cancelable, bool trusted);
+  // Runs the listeners for `event`'s type on `target` and, when it bubbles, on
+  // each ancestor. True when one called `preventDefault`.
+  bool DispatchEventTo(dom::Node& target, const js::Value& event);
+  // `Event`, `CustomEvent` and `MouseEvent`.
+  void InstallEventConstructors();
+  // One event interface and its constructor, built on first use. `parent` is
+  // the interface it extends, or null for Event itself -- which is the one
+  // that carries the methods.
+  js::Value EventPrototype(const char* name, const char* parent);
+  // What `document.createEvent` returns: an event with no type yet, and the
+  // `initEvent` that gives it one.
+  js::Value CreateLegacyEvent();
   void InstallMutationMethods(const js::Value& wrapper);
   // The interfaces, installed once each onto a prototype rather than once per
   // node onto every wrapper. See NodeInterfaces.cpp and ADR 0012.

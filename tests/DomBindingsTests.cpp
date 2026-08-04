@@ -124,6 +124,85 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "class,id");
   });
 
+  // Events a page makes and dispatches itself. Dispatch used to exist only as
+  // a C++ entry point for a real click; this is the script-facing half, and it
+  // is deliberately untrusted -- see the note on DispatchClick.
+  AddTest(tests, "DomBindings/APageCanMakeAndDispatchItsOwnEvents", [] {
+    ExpectScript(kPage,
+                 "var seen = ''; document.body.addEventListener('ping', e => seen = e.type);"
+                 "document.body.dispatchEvent(new Event('ping')); seen",
+                 "ping");
+    // Bubbling is opt-in, as it is in the specification, and the default is off.
+    ExpectScript(kPage,
+                 "var n = 0; document.body.addEventListener('ping', () => n++);"
+                 "document.getElementById('title').dispatchEvent(new Event('ping')); n",
+                 "0");
+    ExpectScript(kPage,
+                 "var n = 0; document.body.addEventListener('ping', () => n++);"
+                 "document.getElementById('title')"
+                 ".dispatchEvent(new Event('ping', { bubbles: true })); n",
+                 "1");
+    // `dispatchEvent` returns false when a handler cancelled it, which is the
+    // inverse of what the internal dispatch reports.
+    ExpectScript(kPage,
+                 "document.body.addEventListener('ping', e => e.preventDefault());"
+                 "document.body.dispatchEvent(new Event('ping', { cancelable: true }))",
+                 "false");
+    ExpectScript(kPage,
+                 "document.body.addEventListener('ping', e => e.preventDefault());"
+                 "document.body.dispatchEvent(new Event('ping'))",
+                 "true");
+    // `preventDefault` on an event that is not cancelable does nothing, so a
+    // handler cannot believe it stopped something it did not.
+    ExpectScript(kPage,
+                 "var p; document.body.addEventListener('ping', e => { e.preventDefault();"
+                 "  p = e.defaultPrevented }); document.body.dispatchEvent(new Event('ping')); p",
+                 "false");
+    // stopPropagation stops the walk; stopImmediatePropagation also stops the
+    // rest of the listeners on the node it was called from.
+    ExpectScript(kPage,
+                 "var n = 0; document.body.addEventListener('ping', () => n++);"
+                 "document.getElementById('title').addEventListener('ping', e => "
+                 "  e.stopPropagation());"
+                 "document.getElementById('title')"
+                 ".dispatchEvent(new Event('ping', { bubbles: true })); n",
+                 "0");
+    ExpectScript(kPage,
+                 "var n = 0; var t = document.getElementById('title');"
+                 "t.addEventListener('ping', e => { n++; e.stopImmediatePropagation() });"
+                 "t.addEventListener('ping', () => n++);"
+                 "t.dispatchEvent(new Event('ping')); n",
+                 "1");
+    // CustomEvent carries its detail.
+    ExpectScript(kPage,
+                 "var d; document.body.addEventListener('go', e => d = e.detail);"
+                 "document.body.dispatchEvent(new CustomEvent('go', { detail: 42 })); d",
+                 "42");
+    // An event a page made is not trusted, whatever else is true of it. This
+    // is the flag that keeps a forged click from doing what a real one does.
+    ExpectScript(kPage, "new Event('click').isTrusted", "false");
+
+    // The interface chain, which a polyfill patches through: it writes to
+    // `Event.prototype` and expects the others to inherit.
+    ExpectScript(kPage, "new Event('x') instanceof Event", "true");
+    ExpectScript(kPage, "new CustomEvent('x') instanceof Event", "true");
+    ExpectScript(kPage, "typeof Event.prototype.preventDefault", "function");
+    ExpectScript(kPage, "new Event('x').hasOwnProperty('preventDefault')", "false");
+
+    // The older two-step form, which is what a polyfill written for IE uses
+    // and where youtube.com's web components polyfill stopped.
+    ExpectScript(kPage,
+                 "var e = document.createEvent('Event'); e.initEvent('go', true, true);"
+                 "var seen = ''; document.body.addEventListener('go', ev => seen = ev.type);"
+                 "document.getElementById('title').dispatchEvent(e); seen",
+                 "go");
+    ExpectScript(kPage, "document.createEvent('Event').type", "");
+    ExpectScript(kPage, "document.readyState", "complete");
+    ExpectScript(kPage, "document.createComment('hi').nodeType", "8");
+    ExpectScript(kPage, "document.createElementNS('http://www.w3.org/1999/xhtml','div').tagName",
+                 "div");
+  });
+
   AddTest(tests, "DomBindings/ElementsHaveATypeHierarchy", [] {
     // The chain, from the bottom up.
     ExpectScript(kPage, "document.body instanceof HTMLElement", "true");

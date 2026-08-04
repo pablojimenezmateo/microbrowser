@@ -327,6 +327,13 @@ js::Value DomBindings::CreateText(const std::string& text) {
   return WrapperFor(raw);
 }
 
+js::Value DomBindings::CreateComment(const std::string& data) {
+  auto node = std::make_unique<dom::Comment>(data);
+  dom::Node* raw = node.get();
+  unattached_.push_back(std::move(node));
+  return WrapperFor(raw);
+}
+
 js::Value DomBindings::AppendTextTo(dom::Node& parent, const std::string& text) {
   auto node = std::make_unique<dom::Text>(text);
   dom::Node* raw = node.get();
