@@ -40,11 +40,9 @@ struct PngDecodeResult {
   bool Ok() const { return error == nullptr && image.IsValid(); }
 };
 
-// Upper bound on the pixels a single image may occupy. 64 megapixels is far
-// past any real page asset and still an eighth of a gigabyte once decoded,
-// which is the number that matters: the bound exists to cap memory, not to
-// express an opinion about photography.
-inline constexpr std::uint64_t kMaxImagePixels = 64ull * 1024ull * 1024ull;
+// The bound on decoded pixels this decoder enforces before allocating lives in
+// gfx/Image.h, because there is more than one decoder and one of them would
+// drift.
 
 PngDecodeResult DecodePng(std::span<const std::byte> bytes);
 

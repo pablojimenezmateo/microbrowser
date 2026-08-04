@@ -10,6 +10,16 @@
 
 namespace microbrowser::gfx {
 
+// Upper bound on the pixels a single image may occupy. 64 megapixels is far
+// past any real page asset and still an eighth of a gigabyte once decoded,
+// which is the number that matters: the bound exists to cap memory, not to
+// express an opinion about photography.
+//
+// It lives here rather than in a decoder's header because it is a property of a
+// decoded image, and there is more than one decoder now. Two copies of a bound
+// are a bound one decoder can be raised past without the other noticing.
+inline constexpr std::uint64_t kMaxImagePixels = 64ull * 1024ull * 1024ull;
+
 // A decoded image: tightly packed non-premultiplied ARGB8888, the same layout a
 // Canvas uses, so drawing one is a blend rather than a conversion.
 //
