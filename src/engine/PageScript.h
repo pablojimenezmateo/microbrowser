@@ -46,6 +46,19 @@ class PageScript {
     Async,
   };
 
+  // Lets go of the document this was bound to, which is about to be replaced.
+  //
+  // A fresh global scope per document is the rule this class exists to keep:
+  // leaving the previous page's globals in place would let one document's
+  // script see another's, which is a same-origin violation rather than a stale
+  // cache. Keeping the *binding layer* would be worse than that -- it holds a
+  // reference to the document, so the next page's first tree read would be a
+  // use-after-free.
+  //
+  // Called before the document is replaced rather than after, because by then
+  // the reference this drops is already dangling.
+  void Detach();
+
   // Finds the document's scripts and records them in document order, inline
   // text filled in and external ones left as a URL for the caller to fetch.
   //

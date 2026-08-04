@@ -90,4 +90,7 @@ budget: Page   header_lines=170 public_methods=36 members=12
 # browser chose. Both are asked for behind one question -- NextWakeDelay --
 # because the loop having to remember to ask twice is how one of them ends up
 # not being waited for. See ADR 0011.
-budget: PageScript header_lines=155 public_methods=17 members=9
+# The eighteenth method is Detach, and the lines are its comment. It is worth
+# them: a binding layer that outlives its document is a use-after-free on the
+# next page's first tree read, and that bug shipped once already.
+budget: PageScript header_lines=170 public_methods=18 members=9

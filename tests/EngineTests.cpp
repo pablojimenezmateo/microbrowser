@@ -2073,6 +2073,34 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!page.NextWakeDelay(now).has_value(),
            "and stops scheduling the moment the page stops asking");
   });
+
+  AddTest(tests, "Engine/ASecondNavigationGetsASecondGlobalScope", [] {
+    // Two documents in a row, each with a script that touches the tree. The
+    // rule is stated on PageScript: a fresh global scope per document, because
+    // leaving the previous page's globals in place would let one document's
+    // script see another's. The sharper reason is that the binding layer holds
+    // a *reference* to the document, so reusing it across a navigation is a
+    // use-after-free the moment the second page's first script reads the tree.
+    // Under a sanitizer this test is the one that says so; without one it still
+    // asserts that the second page's script saw the second page.
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<p id='one'>ABC</p><script>"
+        "if (!document.querySelector('#one')) throw 'first page missing';"
+        "globalThis.marker = 'first';"
+        "</" "script>")});
+    Expect(session.engine.ScriptErrors().empty(), "the first page's script ran cleanly");
+
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<p id='two'>DEF</p><script>"
+        "if (!document.querySelector('#two')) throw 'second page missing';"
+        "if (typeof marker !== 'undefined') throw 'the first page\\'s globals survived';"
+        "</" "script>")});
+    Expect(session.engine.ScriptErrors().empty(),
+           "the second page's script saw the second page's tree, and none of the first "
+           "page's globals");
+  });
 }
 
 }  // namespace microbrowser::tests

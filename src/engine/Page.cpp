@@ -273,6 +273,11 @@ void Page::Load(std::string_view html, std::string url) {
   util::PerformanceTrace::Scope scope("engine::Page::Load");
 
   url_ = std::move(url);
+  // Before the document goes, and this order is load-bearing: the binding layer
+  // holds a reference to it, so dropping the script half after replacing the
+  // document would leave that reference dangling for exactly as long as it took
+  // the next page's first script to read the tree.
+  script_.Detach();
   // A fresh resolver per document. Author sheets belong to the document that
   // carried them, and keeping the old one would let the previous page's CSS
   // style this one.

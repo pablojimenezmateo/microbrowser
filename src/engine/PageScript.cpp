@@ -56,6 +56,19 @@ std::string PageScript::SourceName(std::size_t slot) const {
   return "inline script #" + std::to_string(slot);
 }
 
+void PageScript::Detach() {
+  // The binding layer first: it is the one holding the reference.
+  bindings_.reset();
+  interpreter_.reset();
+  slots_.clear();
+  pending_urls_.clear();
+  pending_slots_.clear();
+  errors_.clear();
+  ran_ = false;
+  timers_ = bindings::TimerQueue{};
+  frames_ = bindings::AnimationFrames{};
+}
+
 void PageScript::Collect(dom::Document& document) {
   slots_.clear();
   pending_urls_.clear();
