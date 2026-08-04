@@ -40,11 +40,11 @@ What exists:
 | `src/net` | HTTP/1.1, cookies, cache, sockets, TLS. `Fetch` takes a `privacy::Verdict` and has no overload without one. |
 | `src/dom` | Node, Element, Text, Document |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes. Form-control predicates and form ownership. |
-| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images |
-| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, display-list building |
+| `src/css` | Tokenizer, parser, selectors, cascade, computed style, user-agent sheet, HTML presentational attributes, backgrounds including images, the flex properties, `position`/`inset`, `overflow`, min/max sizing |
+| `src/layout` | Box tree, block box model, line boxes with a shared baseline, line breaking and `<br>`, text alignment, auto margins, min/max-content widths, per-line text fragments, replaced elements, floats and clearance, automatic table layout, **flexbox** (both axes, grow/shrink/basis, wrap, justify/align, gaps, order), **positioning** (relative/absolute/fixed with a containing-block chain), min/max sizing, overflow clipping, display-list building |
 | `src/engine` | Page (one document), Loader (everything network), Engine (routes messages). Hit testing for links and form controls, form submission, navigation from a click. |
 | `src/platform` | The only module that knows what a window is. SDL and the system font database live here. |
-| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap, classes with accessors and `super`, `String.prototype`, most of `Array.prototype` and the `Object` statics, `call`/`apply`/`bind`, error constructors. A backtracking regular expression engine, wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type, and the iteration protocol `for...of`, spread and destructuring all run. `Map` and `Set`. Promises, `queueMicrotask` and the microtask queue. No bytecode VM, async/await or generators. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
+| `src/js` | JavaScript: lexer, parser, tree-walking interpreter, mark-sweep heap with an ephemeron pass, classes with accessors and `super`, object-literal accessors, tagged templates. `String`/`Array`/`Object`/`Number`/`Math`/`Date`/`JSON` (parse and stringify), the error constructors, the URI functions, `Reflect`. A backtracking regular expression engine wired to `RegExp` and to the String methods that take a pattern. Symbols as a real value type and the iteration protocol behind `for...of`, spread, rest and destructuring. `Map`, `Set`, `WeakMap`, `WeakSet`. Promises, `queueMicrotask` and the microtask queue. No bytecode VM, async/await, generators, `Proxy` or modules. No `eval` and no `Function(source)` — there is no path from a string to running code, and a test says so. Knows nothing about the DOM — bindings are M9's seam. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. |
 | `src/app` | Main loop: idle-wait policy, bounded event drain, dirty-region policy, composites chrome over page, present |
 
@@ -80,14 +80,17 @@ reasoning; this is the queue.
    because a promise only ever *schedules* a call; `await` is the one that needs the stack to be
    data. A VM's value stack is explicit, so precise collection, generators, `async`/`await` and
    the speed all arrive together. See the note at the top of `src/js/Heap.h`.
-3. **`Proxy` and `Reflect`, `WeakMap`, and modules.** The rest of the surface a framework's own
-   runtime uses. Smaller than the VM and independent of it.
+3. **`Proxy`, and modules.** `Reflect`, `WeakMap` and `WeakSet` are done. `Proxy` is the one
+   left that is not a pure addition: it means a check at every property access in the
+   interpreter, which is a change to the hot path. Modules bring the loading they imply.
 4. **A `setTimeout` that respects the idle invariant.** The microtask queue deliberately did not
    need a wakeup — a microtask exists only because something already ran. A timer genuinely does,
    and it has to arrive as an `IdleWaitState::next_deadline_ms` rather than as a poll. Nothing
    time-based works until this exists, which is most of what a page does after it loads.
-5. **Flexbox, then grid.** Not optional for reddit, google, Plex or YouTube. `position:
-   absolute/fixed/sticky` and a real overflow/scrolling model are in the same bucket.
+5. **Grid, and the rest of overflow.** Flexbox, `position` and overflow *clipping* are in.
+   What is not: grid, and scrolling an overflow container — which needs a scroll offset per box
+   and an input path to move it, and is engine work rather than layout's. `position: sticky`
+   parses as relative because there is no scroll offset to compare against.
 6. **DOM bindings (M9).** The seam where every same-origin check will live. Nothing interactive
    works without it, and `src/js/MODULE.deps` deliberately forbids `js` from reaching `dom`
    directly so that this layer cannot be bypassed.
