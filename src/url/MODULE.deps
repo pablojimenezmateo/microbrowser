@@ -7,7 +7,7 @@ purpose: URL, origin, site, and the partition key. The bottom of the web stack.
 # remove.
 allow: util
 
-public: PercentEncoding.h Host.h Url.h Origin.h PublicSuffixList.h PartitionKey.h
+public: Host.h Url.h Origin.h PublicSuffixList.h PartitionKey.h
 
 extern:
 

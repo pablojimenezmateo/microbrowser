@@ -168,17 +168,18 @@ microbrowser_module(util
     src/util/Env.cpp
     src/util/Inflate.cpp
     src/util/Parse.cpp
+    src/util/PercentEncoding.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
     src/util/StartupTrace.cpp
-    src/util/TraceChannel.cpp)
+    src/util/TraceChannel.cpp
+    src/util/UrlEncoded.cpp)
 
 microbrowser_module(url
   SOURCES
     src/url/Host.cpp
     src/url/Origin.cpp
     src/url/PartitionKey.cpp
-    src/url/PercentEncoding.cpp
     src/url/PublicSuffixList.cpp
     src/url/Url.cpp
   DEPS microbrowser_util)
@@ -440,6 +441,7 @@ add_executable(microbrowser_tests
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp
   tests/TreeBuilderTests.cpp
+  tests/UrlEncodedTests.cpp
   tests/UrlTests.cpp
   tests/ReferenceImageTests.cpp
   tests/support/ReferenceImage.cpp

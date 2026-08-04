@@ -7,9 +7,9 @@
 
 #include "dom/Node.h"
 #include "html/FormControl.h"
-#include "url/PercentEncoding.h"
 #include "util/Parse.h"
 #include "util/StringUtil.h"
+#include "util/UrlEncoded.h"
 
 namespace microbrowser::engine {
 
@@ -59,26 +59,6 @@ bool IsSuccessfulControl(const dom::Element& element, const dom::Element* submit
   return false;
 }
 
-void AppendFormComponent(std::string_view value, std::string& out) {
-  for (const char c : value) {
-    if (c == ' ') {
-      out.push_back('+');
-    } else {
-      const std::string_view piece(&c, 1);
-      url::PercentEncodeInto(piece, url::PercentEncodeSet::Component, out);
-    }
-  }
-}
-
-void AppendNamedFormComponent(std::string_view name, std::string_view value, std::string& out) {
-  if (!out.empty()) {
-    out.push_back('&');
-  }
-  AppendFormComponent(name, out);
-  out.push_back('=');
-  AppendFormComponent(value, out);
-}
-
 template <typename Callback>
 void ForEachSuccessfulFormValue(const dom::Document& document,
                                 const dom::Element& form,
@@ -116,7 +96,14 @@ std::string UrlEncodedFormData(const dom::Document& document,
   std::string out;
   ForEachSuccessfulFormValue(document, form, submitter,
                              [&](std::string_view name, std::string_view value) {
-                               AppendNamedFormComponent(name, value, out);
+                               // The urlencoded serializer, shared with
+                               // URLSearchParams. This used to be
+                               // `PercentEncodeSet::Component`, which keeps
+                               // `!'()~` -- close enough to look right, and
+                               // wrong enough that a field with an apostrophe
+                               // in it reached the server differently from
+                               // every other browser.
+                               util::AppendUrlEncodedPair(name, value, out);
                              });
   return out;
 }

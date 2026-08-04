@@ -3,7 +3,7 @@
 #include <algorithm>
 
 #include "url/Host.h"
-#include "url/PercentEncoding.h"
+#include "util/PercentEncoding.h"
 #include "url/PublicSuffixList.h"
 #include "util/PerformanceCounters.h"
 
@@ -45,7 +45,7 @@ bool ParameterNameMatches(std::string_view name, std::string_view parameter) {
   if (name.find('%') == std::string_view::npos) {
     return false;
   }
-  return url::PercentDecode(name) == parameter;
+  return util::PercentDecode(name) == parameter;
 }
 
 char ToLower(char c) {

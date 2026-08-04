@@ -18,7 +18,12 @@ allow:
 # vocabulary of a handoff between two modules that may not include each other.
 # net sends the string and bindings tells script the string, and they have to be
 # the same string -- a page that sniffs both would otherwise get two answers.
-public: Env.h Inflate.h Parse.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h WaitDescriptor.h UserAgent.h
+# PercentEncoding.h and UrlEncoded.h are here for the same reason, and it is
+# the stronger case of the three: url, privacy, engine and bindings all decode
+# percent escapes, and bindings may see only util, js and dom. Three separate
+# copies of the decoder existed before this line did. Two decoders that
+# disagree about what a URL means is a security bug, not a compatibility one.
+public: Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
 
 extern:
 

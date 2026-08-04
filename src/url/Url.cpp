@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "url/PercentEncoding.h"
+#include "util/PercentEncoding.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::url {
@@ -395,9 +395,9 @@ std::optional<Url> UrlParser::Run() {
             }
             const std::string_view piece(&buffer_[i], 1);
             if (password_token_seen_) {
-              PercentEncodeInto(piece, PercentEncodeSet::Userinfo, url_.password_);
+              util::PercentEncodeInto(piece, util::PercentEncodeSet::Userinfo, url_.password_);
             } else {
-              PercentEncodeInto(piece, PercentEncodeSet::Userinfo, url_.username_);
+              util::PercentEncodeInto(piece, util::PercentEncodeSet::Userinfo, url_.username_);
             }
           }
           buffer_.clear();
@@ -608,7 +608,7 @@ std::optional<Url> UrlParser::Run() {
           }
         } else {
           const std::string_view piece(&input_[pointer], 1);
-          PercentEncodeInto(piece, PercentEncodeSet::Path, buffer_);
+          util::PercentEncodeInto(piece, util::PercentEncodeSet::Path, buffer_);
         }
         break;
 
@@ -621,7 +621,7 @@ std::optional<Url> UrlParser::Run() {
           state = State::Fragment;
         } else if (c >= 0) {
           const std::string_view piece(&input_[pointer], 1);
-          PercentEncodeInto(piece, PercentEncodeSet::C0Control, url_.opaque_path_value_);
+          util::PercentEncodeInto(piece, util::PercentEncodeSet::C0Control, url_.opaque_path_value_);
         }
         break;
 
@@ -631,8 +631,8 @@ std::optional<Url> UrlParser::Run() {
           state = State::Fragment;
         } else if (c >= 0) {
           const std::string_view piece(&input_[pointer], 1);
-          PercentEncodeInto(piece, SchemeIsSpecial(url_.scheme_) ? PercentEncodeSet::SpecialQuery
-                                                                 : PercentEncodeSet::Query,
+          util::PercentEncodeInto(piece, SchemeIsSpecial(url_.scheme_) ? util::PercentEncodeSet::SpecialQuery
+                                                                 : util::PercentEncodeSet::Query,
                             *url_.query_);
         }
         break;
@@ -640,7 +640,7 @@ std::optional<Url> UrlParser::Run() {
       case State::Fragment:
         if (c >= 0) {
           const std::string_view piece(&input_[pointer], 1);
-          PercentEncodeInto(piece, PercentEncodeSet::Fragment, *url_.fragment_);
+          util::PercentEncodeInto(piece, util::PercentEncodeSet::Fragment, *url_.fragment_);
         }
         break;
     }

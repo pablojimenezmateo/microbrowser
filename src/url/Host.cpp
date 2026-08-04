@@ -4,7 +4,7 @@
 #include <array>
 #include <cstdio>
 
-#include "url/PercentEncoding.h"
+#include "util/PercentEncoding.h"
 
 namespace microbrowser::url {
 
@@ -409,7 +409,7 @@ std::optional<Host> Host::Parse(std::string_view input, bool is_special) {
       }
     }
     host.kind_ = input.empty() ? Kind::Empty : Kind::Opaque;
-    host.serialized_ = PercentEncode(input, PercentEncodeSet::C0Control);
+    host.serialized_ = util::PercentEncode(input, util::PercentEncodeSet::C0Control);
     return host;
   }
 
@@ -417,7 +417,7 @@ std::optional<Host> Host::Parse(std::string_view input, bool is_special) {
     return std::nullopt;  // a special scheme requires a host
   }
 
-  const std::string decoded = PercentDecode(input);
+  const std::string decoded = util::PercentDecode(input);
   std::string ascii;
   ascii.reserve(decoded.size());
   for (const char c : decoded) {

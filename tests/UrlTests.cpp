@@ -6,7 +6,6 @@
 #include "url/Host.h"
 #include "url/Origin.h"
 #include "url/PartitionKey.h"
-#include "url/PercentEncoding.h"
 #include "url/PublicSuffixList.h"
 #include "url/Url.h"
 
@@ -156,15 +155,6 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
     // non-special one's.
     ExpectSerializes("http://example.org/?a'b", "http://example.org/?a%27b");
     ExpectSerializes("sc://example.org/?a'b", "sc://example.org/?a'b");
-  });
-
-  AddTest(tests, "Url/PercentDecodingNeverFails", [] {
-    ExpectEqString(url::PercentDecode("a%20b"), "a b", "a valid escape decodes");
-    ExpectEqString(url::PercentDecode("a%zzb"), "a%zzb",
-                   "an invalid escape is literal text, because that is what every other "
-                   "browser does and disagreeing about what a URL means is a security bug");
-    ExpectEqString(url::PercentDecode("a%"), "a%", "a truncated escape is literal too");
-    ExpectEqString(url::PercentDecode("%41%42"), "AB", "consecutive escapes decode");
   });
 
   AddTest(tests, "Url/FileUrlsKeepTheirOwnRules", [] {

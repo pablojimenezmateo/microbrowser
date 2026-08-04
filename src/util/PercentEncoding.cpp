@@ -1,6 +1,6 @@
-#include "url/PercentEncoding.h"
+#include "util/PercentEncoding.h"
 
-namespace microbrowser::url {
+namespace microbrowser::util {
 
 namespace {
 
@@ -108,4 +108,4 @@ std::string PercentDecode(std::string_view input) {
   return out;
 }
 
-}  // namespace microbrowser::url
+}  // namespace microbrowser::util

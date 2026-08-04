@@ -2,47 +2,12 @@
 
 #include <utility>
 
+#include "util/PercentEncoding.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::engine {
 
 namespace {
-
-int HexValue(char c) {
-  if (c >= '0' && c <= '9') {
-    return c - '0';
-  }
-  if (c >= 'a' && c <= 'f') {
-    return c - 'a' + 10;
-  }
-  if (c >= 'A' && c <= 'F') {
-    return c - 'A' + 10;
-  }
-  return -1;
-}
-
-// Percent-decoding, for the path of a data: URL. Malformed escapes are left
-// alone rather than dropped: a lone `%` is a byte, and eating it would change
-// the document.
-std::string PercentDecode(std::string_view text) {
-  std::string out;
-  out.reserve(text.size());
-  for (std::size_t i = 0; i < text.size(); ++i) {
-    if (text[i] != '%' || i + 2 >= text.size()) {
-      out.push_back(text[i]);
-      continue;
-    }
-    const int high = HexValue(text[i + 1]);
-    const int low = HexValue(text[i + 2]);
-    if (high < 0 || low < 0) {
-      out.push_back(text[i]);
-      continue;
-    }
-    out.push_back(static_cast<char>(high * 16 + low));
-    i += 2;
-  }
-  return out;
-}
 
 std::string Base64Decode(std::string_view text, bool& ok) {
   constexpr std::string_view kAlphabet =
@@ -111,7 +76,9 @@ DataUrl DecodeDataUrl(std::string_view url) {
     result.ok = ok;
     return result;
   }
-  result.body = PercentDecode(payload);
+  // The one decoder, in util. The copy that used to live here was
+  // byte-for-byte the same as url's, which is how two of them drift.
+  result.body = util::PercentDecode(payload);
   result.ok = true;
   return result;
 }

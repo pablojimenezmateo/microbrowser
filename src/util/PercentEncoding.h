@@ -4,9 +4,19 @@
 #include <string>
 #include <string_view>
 
-namespace microbrowser::url {
+namespace microbrowser::util {
 
 // Percent-encoding, as the WHATWG URL Standard defines it.
+//
+// In `util` rather than in `url`, for the reason WaitDescriptor.h and
+// UserAgent.h are: it is the vocabulary of a handoff between modules that may
+// not include each other. `url` builds URLs out of it, `privacy` compares
+// decoded parameter names against it, `engine` decodes a data: URL with it, and
+// `bindings` needs it for URLSearchParams -- and `bindings` may see only
+// `util`, `js` and `dom`, which is a security boundary rather than an
+// oversight. The alternative was a fourth copy of a decoder whose failure mode
+// is disagreeing with the other three about what a URL means, which is a
+// security bug rather than a compatibility one. There were already three.
 //
 // The standard does not have "a" percent-encode set, it has six, and which one
 // applies depends on where in the URL the byte sits and whether the scheme is
@@ -42,4 +52,4 @@ std::string PercentEncode(std::string_view input, PercentEncodeSet set);
 // compatibility one.
 std::string PercentDecode(std::string_view input);
 
-}  // namespace microbrowser::url
+}  // namespace microbrowser::util
