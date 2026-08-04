@@ -197,6 +197,10 @@ void DomBindings::EnsureInterfaces() {
     interpreter_->GlobalScope()->Declare("Image", image, false);
   }
 
+  // After every interface exists, because a reflected property lands on the
+  // prototype of the tag it belongs to.
+  InstallReflections();
+
   InstallCustomElements();
   InstallMutationObserver();
   InstallWindowEvents();

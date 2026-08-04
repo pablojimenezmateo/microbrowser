@@ -2039,6 +2039,18 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // The call this method mostly exists for.
     ExpectEval("JSON.stringify(Object.fromEntries(new Map([['m', 9]])))", "{\"m\":9}");
     ExpectEval("JSON.stringify(Object.assign({}, { a: 1 }, { b: 2 }))", "{\"a\":1,\"b\":2}");
+    // assign *invokes* the target's setter rather than storing a slot, and the
+    // setter is usually on a prototype. This wrote the slot, so every
+    // `Object.assign(element, {...})` against a host object with reflected
+    // attributes -- the shape reddit's challenge is written in -- set
+    // properties on the wrapper and changed nothing it described.
+    ExpectEval("let seen = ''; const proto = { set a(v) { seen = 'set:' + v; } };"
+               "const t = Object.create(proto); Object.assign(t, { a: 1 });"
+               "seen + '/' + Object.hasOwn(t, 'a')",
+               "set:1/false");
+    ExpectEval("const t = { set a(v) { throw new Error('no'); } };"
+               "try { Object.assign(t, { a: 1 }); 'no throw' } catch (e) { e.message }",
+               "no");
     ExpectEval("[Object.hasOwn({ a: 1 }, 'a'), Object.hasOwn({}, 'a')].join(' ')", "true false");
     ExpectEval("Object.getPrototypeOf([]) === Array.prototype", "true");
   });

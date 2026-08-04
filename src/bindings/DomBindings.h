@@ -146,6 +146,18 @@ class DomBindings {
                       const js::Value& old_value, const std::vector<dom::Node*>& added,
                       const std::vector<dom::Node*>& removed);
 
+  // Writing an attribute, once: the old value read first, the write, the
+  // custom-element reaction and the mutation record. `setAttribute` and every
+  // reflected property go through these, because two implementations are two
+  // chances to forget one of the last two. See ReflectedAttributes.cpp.
+  void SetElementAttribute(dom::Element& element, const std::string& name,
+                           const std::string& value);
+  void RemoveElementAttribute(dom::Element& element, const std::string& name);
+  // The IDL attributes that reflect content attributes, as get/set pairs on
+  // the interface each belongs to. `el.value = 'x'` and `setAttribute('value',
+  // 'x')` are the same act; before this they were not.
+  void InstallReflections();
+
   void RunAttributeReaction(dom::Element& element, const std::string& name,
                             const js::Value& old_value, const js::Value& new_value);
   // Runs connected or disconnected reactions over `node` and its subtree. The

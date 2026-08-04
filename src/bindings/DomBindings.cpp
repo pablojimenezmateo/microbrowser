@@ -353,20 +353,9 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     }
     return Value::String(static_cast<dom::Element*>(self)->TagName());
   });
-  accessor("id", [](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    const std::string* id = self != nullptr && self->IsElement()
-                                ? static_cast<dom::Element*>(self)->GetAttribute("id")
-                                : nullptr;
-    return Value::String(id == nullptr ? std::string() : *id);
-  });
-  accessor("className", [](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    const std::string* name = self != nullptr && self->IsElement()
-                                  ? static_cast<dom::Element*>(self)->GetAttribute("class")
-                                  : nullptr;
-    return Value::String(name == nullptr ? std::string() : *name);
-  });
+  // `id` and `className` are not here any more. They were getter-only, so
+  // `el.id = 'x'` was a silent no-op -- see ReflectedAttributes.cpp, which
+  // installs both halves of every attribute a page writes through a property.
   method("getAttribute", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
@@ -390,18 +379,14 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (self == nullptr || !self->IsElement()) {
       return call.Throw("TypeError", "removeAttribute called on a non-element");
     }
-    auto& element = *static_cast<dom::Element*>(self);
-    const std::string name = LowerCase(js::ToString(Argument(call.arguments, 0)));
-    const std::string* previous = element.GetAttribute(name);
-    const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
-    element.RemoveAttribute(name);
-    if (owner != nullptr) {
-      // Removing is an attribute mutation like any other, and the reaction is
-      // told the new value is null -- which is how a class distinguishes "set
-      // to empty" from "gone".
-      owner->RunAttributeReaction(element, name, old_value, Value::Null());
-      owner->RecordMutation(element, "attributes", name, old_value, {}, {});
+    if (owner == nullptr) {
+      return Value::Undefined();
     }
+    // One implementation of "an attribute changed", shared with the reflected
+    // properties: two would be two chances to forget the custom-element
+    // reaction or the mutation record.
+    owner->RemoveElementAttribute(*static_cast<dom::Element*>(self),
+                                  LowerCase(js::ToString(Argument(call.arguments, 0))));
     return Value::Undefined();
   });
   method("matches", [](NativeCall& call) {
@@ -489,19 +474,12 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (self == nullptr || !self->IsElement()) {
       return call.Throw("TypeError", "setAttribute called on a non-element");
     }
-    auto& element = *static_cast<dom::Element*>(self);
-    const std::string name = LowerCase(js::ToString(Argument(call.arguments, 0)));
-    const std::string value = js::ToString(Argument(call.arguments, 1));
-    // The old value is read before the write, because that is what the
-    // reaction is given and there is no second chance to ask.
-    const std::string* previous = element.GetAttribute(name);
-    const Value old_value =
-        previous == nullptr ? Value::Null() : Value::String(*previous);
-    element.SetAttribute(name, value);
-    if (owner != nullptr) {
-      owner->RunAttributeReaction(element, name, old_value, Value::String(value));
-      owner->RecordMutation(element, "attributes", name, old_value, {}, {});
+    if (owner == nullptr) {
+      return Value::Undefined();
     }
+    owner->SetElementAttribute(*static_cast<dom::Element*>(self),
+                               LowerCase(js::ToString(Argument(call.arguments, 0))),
+                               js::ToString(Argument(call.arguments, 1)));
     return Value::Undefined();
   });
 }

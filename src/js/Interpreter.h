@@ -628,9 +628,16 @@ class Interpreter {
   Value GetPropertyValue(const Value& base, const PropertyKey& key) {
     return GetProperty(base, key);
   }
+  // And the write, for the same reason and a sharper one: `Object.assign` used
+  // `object->Set` directly, which stores a slot and skips a setter on the
+  // prototype chain and a proxy's `set` trap. The specification says assign
+  // *invokes* the setter, and a host that installs accessors on a prototype --
+  // which is what every reflected DOM attribute is -- had every
+  // `Object.assign(element, {...})` silently write a plain property onto the
+  // wrapper instead of the element.
+  Result SetProperty(const Value& base, const PropertyKey& key, const Value& value);
 
  private:
-  Result SetProperty(const Value& base, const PropertyKey& key, const Value& value);
 
   Object* NewObject();
   Object* NewArray(std::vector<Value> elements);

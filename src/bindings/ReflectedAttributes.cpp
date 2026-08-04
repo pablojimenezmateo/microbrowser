@@ -1,0 +1,213 @@
+// The IDL attributes that reflect content attributes.
+//
+// `el.value = 'x'` and `el.setAttribute('value', 'x')` are the same act, and a
+// browser where they are not is one where half a page's writes land somewhere
+// nothing reads. Before this file every one of these was a plain property on
+// the wrapper object: the assignment succeeded, the value read back, and the
+// element it was supposed to describe never changed -- so a form submitted
+// without it, the cascade never saw the class, and nothing anywhere reported a
+// problem.
+//
+// It is the shape of the failure that makes it worth its own file rather than
+// another handful of accessors: the survey's reddit challenge is
+//
+//     Object.assign(document.createElement("input"), {name: n, type: "hidden", value: e})
+//
+// which is three reflected attributes in one expression and no `setAttribute`
+// anywhere. Getting `Object.assign` to reach a DOM element is not a special
+// case -- it is [[Set]] finding a setter on the prototype chain, which is
+// exactly what these are.
+//
+// The table is deliberately not the whole of HTML. It is the attributes a page
+// writes through the property rather than through `setAttribute`, which is a
+// much shorter list and one that can be checked by reading it.
+
+#include <string>
+#include <string_view>
+
+#include "bindings/BindingSupport.h"
+#include "bindings/DomBindings.h"
+
+namespace microbrowser::bindings {
+
+using js::NativeCall;
+using js::Value;
+
+namespace {
+
+enum class Reflect : std::uint8_t {
+  // A string both ways: the attribute's value, or "" when it is absent.
+  Text,
+  // Presence: `disabled` is true when the attribute is there whatever it says,
+  // and setting it false removes the attribute rather than writing "false".
+  Presence,
+  // A string, with `type` defaulting to "text" when absent -- which is what a
+  // page that branches on `input.type` expects, and the one default worth
+  // spelling out because a missing `type` *is* a text input.
+  InputType,
+  // The one that is not a content attribute at all: a textarea's value is its
+  // text. Read as the `value` attribute when something set one and as the
+  // element's text otherwise, which is exactly what the engine's own
+  // ControlValue does -- the two have to agree or a page reads back something
+  // different from what it submits.
+  TextareaValue,
+};
+
+struct Reflection {
+  const char* interface;
+  const char* property;
+  const char* attribute;
+  Reflect kind;
+};
+
+constexpr Reflection kReflections[] = {
+    {"Element", "id", "id", Reflect::Text},
+    {"Element", "className", "class", Reflect::Text},
+    {"HTMLElement", "title", "title", Reflect::Text},
+    {"HTMLElement", "lang", "lang", Reflect::Text},
+    {"HTMLElement", "dir", "dir", Reflect::Text},
+
+    {"HTMLAnchorElement", "href", "href", Reflect::Text},
+    {"HTMLAnchorElement", "target", "target", Reflect::Text},
+    {"HTMLAnchorElement", "rel", "rel", Reflect::Text},
+
+    {"HTMLImageElement", "src", "src", Reflect::Text},
+    {"HTMLImageElement", "alt", "alt", Reflect::Text},
+
+    {"HTMLInputElement", "name", "name", Reflect::Text},
+    {"HTMLInputElement", "type", "type", Reflect::InputType},
+    {"HTMLInputElement", "value", "value", Reflect::Text},
+    {"HTMLInputElement", "placeholder", "placeholder", Reflect::Text},
+    {"HTMLInputElement", "checked", "checked", Reflect::Presence},
+    {"HTMLInputElement", "disabled", "disabled", Reflect::Presence},
+    {"HTMLInputElement", "required", "required", Reflect::Presence},
+    {"HTMLInputElement", "readOnly", "readonly", Reflect::Presence},
+
+    {"HTMLButtonElement", "name", "name", Reflect::Text},
+    {"HTMLButtonElement", "type", "type", Reflect::Text},
+    {"HTMLButtonElement", "value", "value", Reflect::Text},
+    {"HTMLButtonElement", "disabled", "disabled", Reflect::Presence},
+
+    {"HTMLSelectElement", "name", "name", Reflect::Text},
+    {"HTMLSelectElement", "disabled", "disabled", Reflect::Presence},
+    {"HTMLSelectElement", "multiple", "multiple", Reflect::Presence},
+    {"HTMLSelectElement", "required", "required", Reflect::Presence},
+
+    {"HTMLOptionElement", "value", "value", Reflect::Text},
+    {"HTMLOptionElement", "label", "label", Reflect::Text},
+    {"HTMLOptionElement", "selected", "selected", Reflect::Presence},
+    {"HTMLOptionElement", "disabled", "disabled", Reflect::Presence},
+
+    {"HTMLTextAreaElement", "name", "name", Reflect::Text},
+    {"HTMLTextAreaElement", "placeholder", "placeholder", Reflect::Text},
+    {"HTMLTextAreaElement", "value", "value", Reflect::TextareaValue},
+    {"HTMLTextAreaElement", "disabled", "disabled", Reflect::Presence},
+    {"HTMLTextAreaElement", "readOnly", "readonly", Reflect::Presence},
+
+    {"HTMLFormElement", "action", "action", Reflect::Text},
+    {"HTMLFormElement", "method", "method", Reflect::Text},
+    {"HTMLFormElement", "enctype", "enctype", Reflect::Text},
+    {"HTMLFormElement", "target", "target", Reflect::Text},
+    {"HTMLFormElement", "name", "name", Reflect::Text},
+
+    {"HTMLScriptElement", "src", "src", Reflect::Text},
+    {"HTMLScriptElement", "type", "type", Reflect::Text},
+    {"HTMLScriptElement", "defer", "defer", Reflect::Presence},
+    {"HTMLScriptElement", "async", "async", Reflect::Presence},
+
+    {"HTMLLinkElement", "href", "href", Reflect::Text},
+    {"HTMLLinkElement", "rel", "rel", Reflect::Text},
+    {"HTMLLinkElement", "type", "type", Reflect::Text},
+
+    {"HTMLIFrameElement", "src", "src", Reflect::Text},
+    {"HTMLIFrameElement", "name", "name", Reflect::Text},
+};
+
+dom::Element* ElementOf(const js::Value& value) {
+  dom::Node* node = NodeOf(value);
+  return node != nullptr && node->IsElement() ? static_cast<dom::Element*>(node) : nullptr;
+}
+
+}  // namespace
+
+void DomBindings::SetElementAttribute(dom::Element& element, const std::string& name,
+                                      const std::string& value) {
+  // The old value is read before the write, because that is what a reaction is
+  // given and there is no second chance to ask.
+  const std::string* previous = element.GetAttribute(name);
+  const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
+  element.SetAttribute(name, value);
+  RunAttributeReaction(element, name, old_value, Value::String(value));
+  RecordMutation(element, "attributes", name, old_value, {}, {});
+}
+
+void DomBindings::RemoveElementAttribute(dom::Element& element, const std::string& name) {
+  const std::string* previous = element.GetAttribute(name);
+  const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
+  element.RemoveAttribute(name);
+  // The reaction is told the new value is null, which is how a class
+  // distinguishes "set to empty" from "gone".
+  RunAttributeReaction(element, name, old_value, Value::Null());
+  RecordMutation(element, "attributes", name, old_value, {}, {});
+}
+
+void DomBindings::InstallReflections() {
+  for (const Reflection& entry : kReflections) {
+    const Value* prototype = interfaces_.object->GetOwn(entry.interface);
+    if (prototype == nullptr || !prototype->IsObject()) {
+      continue;
+    }
+    const char* attribute = entry.attribute;
+    const Reflect kind = entry.kind;
+
+    const Value get = interpreter_->NewNativeValue(entry.property, [attribute,
+                                                                    kind](NativeCall& call) {
+      dom::Element* element = ElementOf(call.self);
+      if (element == nullptr) {
+        return Value::Undefined();
+      }
+      const std::string* value = element->GetAttribute(attribute);
+      switch (kind) {
+        case Reflect::Presence:
+          return Value::Bool(value != nullptr);
+        case Reflect::InputType:
+          return Value::String(value == nullptr || value->empty() ? std::string("text") : *value);
+        case Reflect::TextareaValue:
+          return Value::String(value == nullptr ? element->TextContent() : *value);
+        case Reflect::Text:
+          break;
+      }
+      return Value::String(value == nullptr ? std::string() : *value);
+    });
+    const Value set = interpreter_->NewNativeValue(entry.property, [attribute,
+                                                                    kind](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Element* element = ElementOf(call.self);
+      if (owner == nullptr || element == nullptr) {
+        return Value::Undefined();
+      }
+      const Value assigned = Argument(call.arguments, 0);
+      if (kind == Reflect::Presence) {
+        // Presence, so a false is a removal. Writing "false" into the attribute
+        // would leave the element disabled, which is the opposite of what the
+        // page asked for and the reason this is not one code path with Text.
+        if (js::ToBoolean(assigned)) {
+          owner->SetElementAttribute(*element, attribute, std::string());
+        } else {
+          owner->RemoveElementAttribute(*element, attribute);
+        }
+        return Value::Undefined();
+      }
+      owner->SetElementAttribute(*element, attribute, js::ToString(assigned));
+      return Value::Undefined();
+    });
+    if (!get.IsObject() || !set.IsObject()) {
+      continue;
+    }
+    get.object->Set(kOwnerSlot, PointerValue(this));
+    set.object->Set(kOwnerSlot, PointerValue(this));
+    prototype->object->DefineAccessor(entry.property, get.object, set.object);
+  }
+}
+
+}  // namespace microbrowser::bindings

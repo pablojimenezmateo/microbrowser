@@ -550,6 +550,55 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.getElementById('title').id", "title");
   });
 
+  AddTest(tests, "DomBindings/ReflectedPropertiesWriteTheAttribute", [] {
+    // The half that was missing. `id` and `className` were getter-only, so
+    // assigning to either succeeded, read back, and changed nothing about the
+    // element -- which means the cascade never saw the class.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.id = 'moved';"
+                 "t.getAttribute('id') + '/' + document.getElementById('moved').tagName",
+                 "moved/h1");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.className = 'a b';"
+                 "t.getAttribute('class')",
+                 "a b");
+    // What the reddit challenge actually writes: three reflected attributes in
+    // one `Object.assign` and no setAttribute anywhere.
+    ExpectScript(kPage,
+                 "const i = Object.assign(document.createElement('input'),"
+                 "  {name: 'solution', type: 'hidden', value: 'abc'});"
+                 "[i.getAttribute('name'), i.getAttribute('type'), i.getAttribute('value')]"
+                 ".join(',')",
+                 "solution,hidden,abc");
+    // Presence, not text: assigning false removes the attribute, because
+    // writing "false" into it would leave the control disabled.
+    ExpectScript(kPage,
+                 "const i = document.createElement('input'); i.disabled = true;"
+                 "const on = i.hasAttribute('disabled'); i.disabled = false;"
+                 "on + '/' + i.hasAttribute('disabled') + '/' + i.disabled",
+                 "true/false/false");
+    // A missing `type` is a text input, which is what a page branching on it
+    // expects to read.
+    ExpectScript(kPage, "document.createElement('input').type", "text");
+    // A textarea's value is its text until something sets one, which is what
+    // the engine's own form data set reads.
+    ExpectScript(kPage,
+                 "const t = document.createElement('textarea'); t.appendText('typed'); t.value",
+                 "typed");
+    ExpectScript(kPage,
+                 "const t = document.createElement('textarea'); t.value = 'set'; t.value",
+                 "set");
+    // Reflection is an attribute write like any other, so an observer sees it
+    // and a custom element's attributeChangedCallback runs. That is the whole
+    // reason both paths go through one helper.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { attributes: true, attributeOldValue: true });"
+                 "document.body.id = 'first'; document.body.id = 'second';"
+                 "var r = o.takeRecords(); r.length + ':' + r[1].attributeName + ':' + r[1].oldValue",
+                 "2:id:first");
+  });
+
   AddTest(tests, "DomBindings/TheSameNodeIsTheSameObject", [] {
     // Identity, which is what script uses a wrapper for as often as it reads a
     // property off one: a fresh wrapper per access breaks every Set, Map and

@@ -516,17 +516,33 @@ void Interpreter::InstallGlobals() {
       if (!source.IsObject()) {
         continue;  // null and undefined sources are skipped rather than fatal
       }
+      // Written through SetProperty rather than `object->Set`, which is the
+      // difference between assigning and storing a slot: the specification says
+      // assign invokes the target's setter, and a setter is where a host puts a
+      // reflected DOM attribute. Writing the slot instead put `name`, `type`
+      // and `value` on the wrapper object and left the element unchanged --
+      // which is `Object.assign(document.createElement('input'), {...})`, the
+      // shape reddit's challenge is written in, doing nothing at all.
+      const auto copy = [&call, &target](const PropertyKey& key, const Value& value) {
+        return call.interpreter.SetProperty(target, key, value);
+      };
       if (source.object->GetKind() == Object::Kind::Array) {
         for (std::size_t index = 0; index < source.object->ElementCount(); ++index) {
           if (source.object->HasElement(index)) {
-            target.object->Set(std::to_string(index), source.object->GetElement(index));
+            const Result written = copy(std::to_string(index), source.object->GetElement(index));
+            if (written.IsAbrupt()) {
+              return call.ThrowValue(written.value);
+            }
           }
         }
       }
       for (const std::string& key : call.interpreter.OwnKeys(source, true)) {
         // Read through GetProperty, so a getter on the source runs -- assign
         // copies values, not accessors.
-        target.object->Set(key, call.interpreter.GetPropertyValue(source, key));
+        const Result written = copy(key, call.interpreter.GetPropertyValue(source, key));
+        if (written.IsAbrupt()) {
+          return call.ThrowValue(written.value);
+        }
       }
     }
     return target;

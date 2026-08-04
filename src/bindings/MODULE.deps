@@ -42,7 +42,14 @@ max_tu_lines: 700
 # the in-flight upgrade both live as properties of the interfaces object, which
 # is already a GC root, because a `js::Value` in a C++ field is invisible to
 # the collector and this module has had that bug once already.
-budget: DomBindings header_lines=175 public_methods=10 members=8
+# Raised to 190 for the reflected attributes and the two helpers under them.
+# The lines are declarations rather than state, and they bought a deletion: the
+# attribute-write path -- read the old value, write, run the custom-element
+# reaction, record the mutation -- existed twice in DomBindings.cpp and now
+# exists once, where every reflected property reaches it too. A getter-only
+# `id` meant `el.id = 'x'` was a silent no-op; the whole class of that bug is
+# what this pays for. See ReflectedAttributes.cpp.
+budget: DomBindings header_lines=190 public_methods=10 members=8
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it
