@@ -339,6 +339,15 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
   }
 
   Object* object = base.object;
+  if (object == global_ && named && object->GetOwnProperty(key) == nullptr) {
+    // `globalThis.Math`. The builtins are bindings in the global *scope*
+    // rather than properties of the global *object*, because that is where a
+    // name lookup finds them -- so reading one off `globalThis` has to reach
+    // the same place. One namespace with two spellings, not two that overlap.
+    if (Value* binding = global_scope_->Lookup(key.Text())) {
+      return *binding;
+    }
+  }
   if (object->GetKind() == Object::Kind::Array && named) {
     if (key.Text() == "length") {
       return Value::Number(static_cast<double>(object->ElementCount()));
@@ -365,6 +374,18 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
 }
 
 Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const Value& value) {
+  if (base.IsObject() && base.object == global_ && !key.IsSymbol() &&
+      base.object->GetOwnProperty(key) == nullptr) {
+    // The other direction of the same rule: `globalThis.Math = x` has to be
+    // the assignment `Math = x`, or the two spellings would disagree from the
+    // next read on.
+    if (global_scope_->HasOwn(key.Text())) {
+      if (!global_scope_->Assign(key.Text(), value)) {
+        return Throw("TypeError", "assignment to constant variable '" + key.Text() + "'");
+      }
+      return Result::Normal(value);
+    }
+  }
   if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
     Value target;
     if (Object* trap = ProxyTrap(base, "set", target)) {

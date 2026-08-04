@@ -34,7 +34,13 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
 // raw source for the parser to re-parse, which is what keeps the nesting rules
 // (a template inside a substitution inside a template) in one place.
 struct TemplateParts {
+  // The chunks with escapes processed: what `${}` interpolation joins.
   std::vector<std::string> literals;
+  // The same chunks with escapes left alone, which is what a tagged template's
+  // `.raw` is for -- `String.raw\`a\\nb\`` is five characters, and the whole
+  // point of the tag is that it can see the backslash the cooked form ate.
+  // One entry per literal, always, so the two index together.
+  std::vector<std::string> raws;
   std::vector<std::string_view> substitutions;
 };
 

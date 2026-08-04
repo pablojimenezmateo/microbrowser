@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace microbrowser::util {
@@ -75,6 +77,85 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b
   }
   const std::size_t end = text.find_last_not_of(kSpace);
   return text.substr(begin, end - begin + 1);
+}
+
+// --- UTF-8 ------------------------------------------------------------------
+//
+// Here rather than in each caller. Four files in `js` alone had written their
+// own encoder, which is four chances to disagree about what a lone surrogate
+// or an over-long sequence means -- and every one of those files is decoding
+// bytes a page supplied.
+
+// Appends `code` as UTF-8. Anything outside the Unicode range, and the
+// surrogate range itself, becomes U+FFFD: a page can name one, and a lone
+// surrogate written straight through is invalid UTF-8 that every consumer
+// downstream would then have to cope with.
+inline void AppendUtf8(std::string& out, std::uint32_t code) {
+  if (code > 0x10FFFFu || (code >= 0xD800u && code <= 0xDFFFu)) {
+    code = 0xFFFDu;
+  }
+  if (code < 0x80u) {
+    out.push_back(static_cast<char>(code));
+    return;
+  }
+  if (code < 0x800u) {
+    out.push_back(static_cast<char>(0xC0u | (code >> 6)));
+    out.push_back(static_cast<char>(0x80u | (code & 0x3Fu)));
+    return;
+  }
+  if (code < 0x10000u) {
+    out.push_back(static_cast<char>(0xE0u | (code >> 12)));
+    out.push_back(static_cast<char>(0x80u | ((code >> 6) & 0x3Fu)));
+    out.push_back(static_cast<char>(0x80u | (code & 0x3Fu)));
+    return;
+  }
+  out.push_back(static_cast<char>(0xF0u | (code >> 18)));
+  out.push_back(static_cast<char>(0x80u | ((code >> 12) & 0x3Fu)));
+  out.push_back(static_cast<char>(0x80u | ((code >> 6) & 0x3Fu)));
+  out.push_back(static_cast<char>(0x80u | (code & 0x3Fu)));
+}
+
+// Decodes the sequence beginning at `at`, advancing it past what it consumed.
+// False when the bytes there are not a well-formed sequence, in which case
+// `at` is left where it was -- the caller decides what a malformed byte means,
+// because the answer differs between a lexer and a string method.
+inline bool DecodeUtf8(std::string_view text, std::size_t& at, std::uint32_t& code) {
+  if (at >= text.size()) {
+    return false;
+  }
+  const auto lead = static_cast<unsigned char>(text[at]);
+  std::size_t extra = 0;
+  std::uint32_t value = 0;
+  if (lead < 0x80u) {
+    code = lead;
+    ++at;
+    return true;
+  }
+  if ((lead & 0xE0u) == 0xC0u) {
+    extra = 1;
+    value = lead & 0x1Fu;
+  } else if ((lead & 0xF0u) == 0xE0u) {
+    extra = 2;
+    value = lead & 0x0Fu;
+  } else if ((lead & 0xF8u) == 0xF0u) {
+    extra = 3;
+    value = lead & 0x07u;
+  } else {
+    return false;  // a continuation byte, or a lead byte no encoding produces
+  }
+  if (at + extra >= text.size() + 0 && at + extra > text.size() - 1) {
+    return false;
+  }
+  for (std::size_t i = 1; i <= extra; ++i) {
+    const auto byte = static_cast<unsigned char>(text[at + i]);
+    if ((byte & 0xC0u) != 0x80u) {
+      return false;
+    }
+    value = (value << 6) | (byte & 0x3Fu);
+  }
+  at += extra + 1;
+  code = value;
+  return true;
 }
 
 }  // namespace microbrowser::util

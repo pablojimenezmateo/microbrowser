@@ -1143,11 +1143,13 @@ Result Interpreter::EvaluateTaggedTemplate(const Node& node, Environment& scope)
       if (!strings.IsObject()) {
         return Throw("RangeError", "out of memory");
       }
-      // `raw` is the same array here. It is meant to be the text before escape
-      // processing, and this engine does not process escapes in a template
-      // separately -- so the two agree, which is right for every template
-      // without a backslash in it and wrong only for those with one.
-      strings.object->Set("raw", NewArrayValue(std::move(chunks)));
+      // `raw` is the text *before* escape processing, which is the whole
+      // reason a tag exists: it can see the backslash the cooked form ate.
+      std::vector<Value> raw_chunks;
+      for (const std::string& literal : parts.raws) {
+        raw_chunks.push_back(Value::String(literal));
+      }
+      strings.object->Set("raw", NewArrayValue(std::move(raw_chunks)));
 
       std::vector<Value> arguments{strings};
       for (const NodePtr& child : template_node->children) {

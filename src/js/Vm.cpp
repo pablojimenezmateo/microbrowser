@@ -890,10 +890,13 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           threw = true;
           break;
         }
-        // `raw` is the same text here: this engine does not process escapes in
-        // a template separately, so the two agree for every template without a
-        // backslash in it and differ only for those with one.
-        strings.object->Set("raw", NewArrayValue(std::move(chunks)));
+        // `raw` is the text *before* escape processing, which is the whole
+        // reason a tag exists: it can see the backslash the cooked form ate.
+        std::vector<Value> raw_chunks;
+        for (const std::string& literal : parts.raws) {
+          raw_chunks.push_back(Value::String(literal));
+        }
+        strings.object->Set("raw", NewArrayValue(std::move(raw_chunks)));
         vm_.stack.push_back(strings);
         break;
       }

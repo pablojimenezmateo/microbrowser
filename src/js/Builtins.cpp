@@ -245,112 +245,6 @@ void Interpreter::InstallGlobals() {
 
   // --- JSON -----------------------------------------------------------------
   Object* json = NewObject();
-  install(json, "stringify", [](NativeCall& call) {
-    // Enough of JSON.stringify to serialize plain data. Cycles are refused by
-    // depth rather than by tracking visited objects, which is the cheaper of
-    // the two and gives the same answer for anything that is not a cycle.
-    struct Writer {
-      std::string out;
-      bool Write(const Value& value, int depth) {
-        if (depth > 64) {
-          return false;
-        }
-        switch (value.type) {
-          case ValueType::Undefined:
-            out += "null";  // undefined in an array serializes as null
-            return true;
-          case ValueType::Null:
-            out += "null";
-            return true;
-          case ValueType::Symbol:
-            // JSON has no symbol. The spec drops one wherever `undefined`
-            // would be dropped, and this writer's callers are the array and
-            // object paths that already handle that.
-            out += "null";
-            return true;
-          case ValueType::Boolean:
-            out += value.boolean ? "true" : "false";
-            return true;
-          case ValueType::Number:
-            out += std::isfinite(value.number) ? NumberToString(value.number) : "null";
-            return true;
-          case ValueType::String:
-            WriteString(value.AsString());
-            return true;
-          case ValueType::Object:
-            break;
-        }
-        if (value.object->IsCallable()) {
-          out += "null";
-          return true;
-        }
-        if (value.object->GetKind() == Object::Kind::Array) {
-          out.push_back('[');
-          bool first = true;
-          for (std::size_t i = 0; i < value.object->ElementCount(); ++i) {
-            if (!first) {
-              out.push_back(',');
-            }
-            first = false;
-            if (!Write(value.object->GetElement(i), depth + 1)) {
-              return false;
-            }
-          }
-          out.push_back(']');
-          return true;
-        }
-        out.push_back('{');
-        bool first = true;
-        for (const std::string& key : value.object->Keys()) {
-          const Value* property = value.object->GetOwn(key);
-          if (property == nullptr || property->IsUndefined()) {
-            continue;  // an undefined property is omitted, not written as null
-          }
-          if (!first) {
-            out.push_back(',');
-          }
-          first = false;
-          WriteString(key);
-          out.push_back(':');
-          if (!Write(*property, depth + 1)) {
-            return false;
-          }
-        }
-        out.push_back('}');
-        return true;
-      }
-
-      void WriteString(const std::string& text) {
-        out.push_back('"');
-        for (const char c : text) {
-          switch (c) {
-            case '"': out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\n': out += "\\n"; break;
-            case '\r': out += "\\r"; break;
-            case '\t': out += "\\t"; break;
-            default:
-              if (static_cast<unsigned char>(c) < 0x20) {
-                char buffer[8];
-                std::snprintf(buffer, sizeof(buffer), "\\u%04x",
-                              static_cast<unsigned>(static_cast<unsigned char>(c)));
-                out += buffer;
-              } else {
-                out.push_back(c);
-              }
-              break;
-          }
-        }
-        out.push_back('"');
-      }
-    };
-
-    Writer writer;
-    if (!writer.Write(Argument(call.arguments, 0), 0)) {
-      return Value::Undefined();
-    }
-    return Value::String(std::move(writer.out));
-  });
   InstallJsonAndUri(json);
   global_scope_->Declare("JSON", Value::Obj(json), false);
 
@@ -602,6 +496,112 @@ void Interpreter::InstallGlobals() {
     // what makes `Object.isFrozen(1)` true.
     return Value::Bool(!target.IsObject() || target.object->IsFrozen());
   });
+  // The two weaker levels. Nested rather than independent: sealing is
+  // preventing extensions plus refusing deletes, and freezing is sealing plus
+  // refusing writes.
+  install(object_constructor, "seal", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    if (target.IsObject()) {
+      target.object->Restrict(Object::Integrity::Sealed);
+    }
+    return target;
+  });
+  install(object_constructor, "isSealed", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    return Value::Bool(!target.IsObject() || target.object->IsSealed());
+  });
+  install(object_constructor, "preventExtensions", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    if (target.IsObject()) {
+      target.object->Restrict(Object::Integrity::NonExtensible);
+    }
+    return target;
+  });
+  install(object_constructor, "isExtensible", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    return Value::Bool(target.IsObject() && target.object->IsExtensible());
+  });
+  // SameValueZero's stricter sibling: NaN is itself and the two zeros are not
+  // each other. Neither `===` nor `==` answers both that way, which is the
+  // only reason this function exists.
+  install(object_constructor, "is", [](NativeCall& call) {
+    const Value a = Argument(call.arguments, 0);
+    const Value b = Argument(call.arguments, 1);
+    if (a.IsNumber() && b.IsNumber()) {
+      if (std::isnan(a.number) && std::isnan(b.number)) {
+        return Value::Bool(true);
+      }
+      if (a.number == 0.0 && b.number == 0.0) {
+        return Value::Bool(std::signbit(a.number) == std::signbit(b.number));
+      }
+    }
+    return Value::Bool(StrictEquals(a, b));
+  });
+  install(object_constructor, "getOwnPropertySymbols", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    std::vector<Value> symbols;
+    if (target.IsObject()) {
+      for (const PropertyKey& key : target.object->SymbolKeys()) {
+        symbols.push_back(KeyValue(key));
+      }
+    }
+    return call.interpreter.NewArrayValue(std::move(symbols));
+  });
+  install(object_constructor, "getOwnPropertyDescriptors", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    const Value out = call.interpreter.NewObjectValue();
+    if (!target.IsObject() || !out.IsObject()) {
+      return out;
+    }
+    // Through getOwnPropertyDescriptor rather than around it, so the two
+    // cannot disagree about what a descriptor is.
+    const Value one = call.interpreter.GetPropertyValue(call.self, "getOwnPropertyDescriptor");
+    for (const std::string& key : target.object->Keys()) {
+      const Result described =
+          call.interpreter.CallFunction(one, call.self, {target, Value::String(key)});
+      if (described.IsAbrupt()) {
+        return call.ThrowValue(described.value);
+      }
+      out.object->Set(key, described.value);
+    }
+    return out;
+  });
+  install(object_constructor, "groupBy", [](NativeCall& call) {
+    const Value items = Argument(call.arguments, 0);
+    const Value callback = Argument(call.arguments, 1);
+    const Value out = call.interpreter.NewObjectValue();
+    if (!out.IsObject()) {
+      return out;
+    }
+    // A null prototype, which is what makes the result safe to index with a
+    // key a page supplied: `groups['toString']` must be the group and not
+    // Object.prototype's method.
+    out.object->SetPrototype(nullptr);
+    std::vector<Value> collected;
+    const Result gathered = call.interpreter.CollectIterable(items, collected);
+    if (gathered.IsAbrupt()) {
+      return call.ThrowValue(gathered.value);
+    }
+    for (std::size_t i = 0; i < collected.size(); ++i) {
+      const Result named = call.interpreter.CallFunction(
+          callback, Value::Undefined(), {collected[i], Value::Number(static_cast<double>(i))});
+      if (named.IsAbrupt()) {
+        return call.ThrowValue(named.value);
+      }
+      PropertyKey key;
+      const Result converted = call.interpreter.ToKeyOf(named.value, key);
+      if (converted.IsAbrupt()) {
+        return call.ThrowValue(converted.value);
+      }
+      const Value* existing = out.object->GetOwn(key);
+      if (existing != nullptr && existing->IsObject()) {
+        existing->object->PushElement(collected[i]);
+        continue;
+      }
+      out.object->Set(key, call.interpreter.NewArrayValue({collected[i]}));
+    }
+    return out;
+  });
   // `Object.prototype` had nothing on it, so `({}).hasOwnProperty` was
   // undefined -- and that method is how a great deal of code asks whether a
   // key is its own rather than inherited.
@@ -634,6 +634,32 @@ void Interpreter::InstallGlobals() {
                        call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
   });
   install(well_known_.object_prototype, "valueOf", [](NativeCall& call) { return call.self; });
+  install(well_known_.object_prototype, "toLocaleString", [](NativeCall& call) {
+    // Whatever `toString` says. No locale data here, and inventing one is a
+    // lie a page cannot detect.
+    const Value method = call.interpreter.GetPropertyValue(call.self, "toString");
+    const Result text = call.interpreter.CallFunction(method, call.self, {});
+    return text.IsAbrupt() ? call.ThrowValue(text.value) : text.value;
+  });
+  // `__proto__`, as the accessor it is rather than as a property. Legacy, and
+  // the web depends on it: it predates Object.getPrototypeOf and a great deal
+  // of code still reaches for it.
+  if (Object* proto_get = native("__proto__", [](NativeCall& call) {
+        if (!call.self.IsObject()) {
+          return Value::Undefined();
+        }
+        Object* prototype = call.self.object->Prototype();
+        return prototype == nullptr ? Value::Null() : Value::Obj(prototype);
+      })) {
+    Object* proto_set = native("__proto__", [](NativeCall& call) {
+      const Value prototype = Argument(call.arguments, 0);
+      if (call.self.IsObject() && (prototype.IsObject() || prototype.IsNull())) {
+        call.self.object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
+      }
+      return Value::Undefined();
+    });
+    well_known_.object_prototype->DefineAccessor("__proto__", proto_get, proto_set);
+  }
   install(well_known_.object_prototype, "toString", [](NativeCall& call) {
     // The `[object Kind]` form, which is what a page uses to tell an array
     // from a plain object without trusting `instanceof` across realms.
@@ -911,6 +937,14 @@ void Interpreter::InstallGlobals() {
   global_scope_->Declare(
       "isNaN", Value::Obj(native("isNaN", [](NativeCall& call) {
         return Value::Bool(std::isnan(ToNumber(Argument(call.arguments, 0))));
+      })),
+      false);
+  // The global one converts, unlike `Number.isFinite`: `isFinite('1')` is true
+  // and `Number.isFinite('1')` is false, because the string is not a number
+  // rather than being one that is infinite.
+  global_scope_->Declare(
+      "isFinite", Value::Obj(native("isFinite", [](NativeCall& call) {
+        return Value::Bool(std::isfinite(ToNumber(Argument(call.arguments, 0))));
       })),
       false);
 

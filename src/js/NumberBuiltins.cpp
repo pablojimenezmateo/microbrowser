@@ -79,6 +79,40 @@ void Interpreter::InstallNumbers(Object* math) {
   unary("acos", [](double v) { return std::acos(v); });
   unary("atan", [](double v) { return std::atan(v); });
   unary("cbrt", [](double v) { return std::cbrt(v); });
+  unary("sinh", [](double v) { return std::sinh(v); });
+  unary("cosh", [](double v) { return std::cosh(v); });
+  unary("tanh", [](double v) { return std::tanh(v); });
+  unary("asinh", [](double v) { return std::asinh(v); });
+  unary("acosh", [](double v) { return std::acosh(v); });
+  unary("atanh", [](double v) { return std::atanh(v); });
+  // The two that exist because `exp(x) - 1` and `log(1 + x)` lose every
+  // significant digit near zero. A page doing compound interest or a decay
+  // curve is the one that notices.
+  unary("expm1", [](double v) { return std::expm1(v); });
+  unary("log1p", [](double v) { return std::log1p(v); });
+  unary("fround", [](double v) {
+    // Round-trip through single precision, which is what a page uses to ask
+    // "what would a Float32Array make of this".
+    return static_cast<double>(static_cast<float>(v));
+  });
+  InstallNative(math, "clz32", [](NativeCall& call) {
+    const std::uint32_t bits = ToUint32(ArgumentNumber(call, 0));
+    if (bits == 0) {
+      return Value::Number(32.0);
+    }
+    int count = 0;
+    for (std::uint32_t mask = 0x80000000u; (bits & mask) == 0; mask >>= 1) {
+      ++count;
+    }
+    return Value::Number(count);
+  });
+  InstallNative(math, "imul", [](NativeCall& call) {
+    // Through uint32 and back: signed overflow is undefined behaviour and both
+    // operands came from a page. The wrap is the whole point of the function.
+    const std::uint32_t left = ToUint32(ArgumentNumber(call, 0));
+    const std::uint32_t right = ToUint32(ArgumentNumber(call, 1));
+    return Value::Number(static_cast<std::int32_t>(left * right));
+  });
   InstallNative(math, "atan2", [](NativeCall& call) {
     return Value::Number(std::atan2(ArgumentNumber(call, 0), ArgumentNumber(call, 1)));
   });
@@ -93,6 +127,9 @@ void Interpreter::InstallNumbers(Object* math) {
   math->Set("LN2", Value::Number(0.6931471805599453));
   math->Set("LN10", Value::Number(2.302585092994046));
   math->Set("SQRT2", Value::Number(1.4142135623730951));
+  math->Set("SQRT1_2", Value::Number(0.7071067811865476));
+  math->Set("LOG2E", Value::Number(1.4426950408889634));
+  math->Set("LOG10E", Value::Number(0.4342944819032518));
 
   // `Math.random`.
   //
@@ -228,6 +265,52 @@ void Interpreter::InstallNumbers(Object* math) {
   });
   InstallNative(number_prototype, "valueOf", [](NativeCall& call) {
     return Value::Number(ToNumber(call.self));
+  });
+  InstallNative(number_prototype, "toPrecision", [](NativeCall& call) {
+    const double value = ToNumber(call.self);
+    const Value digits_value = Argument(call.arguments, 0);
+    if (digits_value.IsUndefined()) {
+      return Value::String(NumberToString(value));
+    }
+    const double digits = ToNumber(digits_value);
+    if (digits < 1.0 || digits > 100.0) {
+      return call.Throw("RangeError", "toPrecision digits must be between 1 and 100");
+    }
+    if (!std::isfinite(value)) {
+      return Value::String(NumberToString(value));
+    }
+    char buffer[160];
+    std::snprintf(buffer, sizeof(buffer), "%.*g", static_cast<int>(digits), value);
+    return Value::String(std::string(buffer));
+  });
+  InstallNative(number_prototype, "toExponential", [](NativeCall& call) {
+    const double value = ToNumber(call.self);
+    const Value digits_value = Argument(call.arguments, 0);
+    const double digits = digits_value.IsUndefined() ? 6.0 : ToNumber(digits_value);
+    if (digits < 0.0 || digits > 100.0) {
+      return call.Throw("RangeError", "toExponential digits must be between 0 and 100");
+    }
+    if (!std::isfinite(value)) {
+      return Value::String(NumberToString(value));
+    }
+    char buffer[160];
+    std::snprintf(buffer, sizeof(buffer), "%.*e", static_cast<int>(digits), value);
+    // C prints at least two exponent digits and JavaScript prints the fewest
+    // it can: 1e+5, not 1e+05.
+    std::string text(buffer);
+    const std::size_t marker = text.find('e');
+    if (marker != std::string::npos && marker + 2 < text.size()) {
+      std::size_t first = marker + 2;
+      while (first + 1 < text.size() && text[first] == '0') {
+        text.erase(first, 1);
+      }
+    }
+    return Value::String(std::move(text));
+  });
+  // No locale data here, and standing in a formatted number for one would be
+  // a lie a page cannot detect. The plain form is the honest answer.
+  InstallNative(number_prototype, "toLocaleString", [](NativeCall& call) {
+    return Value::String(NumberToString(ToNumber(call.self)));
   });
 
   // --- Date -----------------------------------------------------------------

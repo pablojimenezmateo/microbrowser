@@ -157,7 +157,10 @@ budget: MatchOp             header_lines=45 public_methods=0  members=0
 # The pointer is on the object rather than in a table beside the heap, which is
 # where compiled patterns and the weak tables live, because this one is read on
 # every call and a hash lookup per call is the one place that cost would show.
-budget: Object      header_lines=160 public_methods=46 members=17
+# Grew for the integrity levels replacing the frozen flag -- three nested
+# states rather than one -- and for the symbol keys, which key_order_
+# deliberately does not hold.
+budget: Object      header_lines=200 public_methods=52 members=17
 # Grew by one member and by the slot half of its surface. Bindings live in a
 # vector now and the names index into it: compiled code resolved its names while
 # compiling and indexes straight in, everything else still asks by name and pays

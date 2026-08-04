@@ -120,6 +120,9 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
 TemplateParts SplitTemplate(std::string_view raw) {
   TemplateParts parts;
   std::string literal;
+  // The same span with escapes untouched, accumulated beside the cooked one so
+  // the two cannot get out of step.
+  std::string raw_literal;
   // The backticks are part of the token. An unterminated template never
   // reaches here -- the lexer refuses it -- but the bounds are written so that
   // one would produce a short last chunk rather than read past the end.
@@ -128,6 +131,7 @@ TemplateParts SplitTemplate(std::string_view raw) {
 
   while (at < end) {
     if (raw[at] == '\\') {
+      const std::size_t escape_start = at;
       ++at;
       std::size_t lines = 0;
       const std::size_t before = at;
@@ -140,9 +144,11 @@ TemplateParts SplitTemplate(std::string_view raw) {
           literal.push_back(raw[at++]);
         }
       }
+      raw_literal.append(raw.substr(escape_start, at - escape_start));
       continue;
     }
     if (raw[at] != '$' || at + 1 >= end || raw[at + 1] != '{') {
+      raw_literal.push_back(raw[at]);
       literal.push_back(raw[at++]);
       continue;
     }
@@ -164,16 +170,20 @@ TemplateParts SplitTemplate(std::string_view raw) {
     if (depth != 0) {
       // Unbalanced: the rest is literal text rather than a substitution that
       // silently swallows it.
+      raw_literal.push_back(raw[at]);
       literal.push_back(raw[at++]);
       continue;
     }
     parts.literals.push_back(std::move(literal));
+    parts.raws.push_back(std::move(raw_literal));
     literal.clear();
+    raw_literal.clear();
     parts.substitutions.push_back(raw.substr(begin, scan - begin - 1));
     at = scan;
   }
 
   parts.literals.push_back(std::move(literal));
+  parts.raws.push_back(std::move(raw_literal));
   return parts;
 }
 

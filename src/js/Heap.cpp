@@ -76,10 +76,15 @@ const Value* Object::Get(const PropertyKey& key) const {
 }
 
 void Object::Set(PropertyKey key, Value value) {
-  if (frozen_) {
+  if (IsFrozen()) {
     return;
   }
   const auto found = properties_.find(key);
+  if (found == properties_.end() && !IsExtensible()) {
+    // A *new* property on a non-extensible object. Writing an existing one is
+    // still allowed, which is the whole difference between sealed and frozen.
+    return;
+  }
   if (found != properties_.end()) {
     found->second.value = std::move(value);
     found->second.getter = nullptr;
@@ -87,13 +92,38 @@ void Object::Set(PropertyKey key, Value value) {
     return;
   }
   if (!key.IsSymbol()) {
-    key_order_.push_back(key.Text());
+    RecordKey(key.Text());
   }
   properties_.emplace(std::move(key), Property{std::move(value), nullptr, nullptr});
 }
 
+void Object::RecordKey(const std::string& text) {
+  // Integer-like keys come first, in ascending numeric order, and everything
+  // else follows in insertion order. That is the language's rule, not an
+  // implementation detail: `Object.keys({b:1, a:2, 1:3, 0:4})` is
+  // `['0','1','b','a']` everywhere, and a page that renders a keyed map in
+  // enumeration order can tell.
+  const std::optional<std::size_t> index = ParseArrayIndex(text);
+  if (!index) {
+    key_order_.push_back(text);
+    return;
+  }
+  // Only the leading run is numeric, so the search stops at the first key that
+  // is not -- which bounds it by how many integer keys there are rather than
+  // by how many keys there are.
+  std::size_t at = 0;
+  while (at < key_order_.size()) {
+    const std::optional<std::size_t> existing = ParseArrayIndex(key_order_[at]);
+    if (!existing || *existing > *index) {
+      break;
+    }
+    ++at;
+  }
+  key_order_.insert(key_order_.begin() + static_cast<std::ptrdiff_t>(at), text);
+}
+
 void Object::DefineAccessor(PropertyKey key, Object* getter, Object* setter) {
-  if (frozen_) {
+  if (IsFrozen()) {
     return;
   }
   const auto found = properties_.find(key);
@@ -110,13 +140,13 @@ void Object::DefineAccessor(PropertyKey key, Object* getter, Object* setter) {
     return;
   }
   if (!key.IsSymbol()) {
-    key_order_.push_back(key.Text());
+    RecordKey(key.Text());
   }
   properties_.emplace(std::move(key), Property{Value::Undefined(), getter, setter});
 }
 
 bool Object::Delete(const PropertyKey& key) {
-  if (frozen_) {
+  if (IsSealed()) {
     return false;
   }
   if (kind_ == Kind::Array && !key.IsSymbol()) {
@@ -179,8 +209,11 @@ void Object::ResizeElements(std::size_t size) {
 }
 
 void Object::SetElement(std::size_t index, Value value) {
-  if (frozen_) {
+  if (IsFrozen()) {
     return;
+  }
+  if (index >= elements_.size() && !IsExtensible()) {
+    return;  // growing an array is an extension
   }
   if (index >= elements_.size()) {
     elements_.resize(index + 1);
@@ -189,14 +222,14 @@ void Object::SetElement(std::size_t index, Value value) {
 }
 
 void Object::PushElement(Value value) {
-  if (frozen_) {
+  if (!IsExtensible()) {
     return;
   }
   elements_.push_back(ArrayElement{std::move(value), true});
 }
 
 Value Object::PopElement() {
-  if (frozen_ || elements_.empty()) {
+  if (IsSealed() || elements_.empty()) {
     return Value::Undefined();
   }
   Value value = elements_.back().present ? elements_.back().value : Value::Undefined();

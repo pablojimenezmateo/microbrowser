@@ -668,6 +668,90 @@ void Interpreter::InstallArrayPrototype() {
     return call.self;
   });
 
+  method("copyWithin", [](NativeCall& call) {
+    Object* self = Self(call);
+    if (self == nullptr) {
+      return call.self;
+    }
+    const std::size_t size = self->ElementCount();
+    const std::size_t target = Clamp(ToNumber(Argument(call.arguments, 0)), size);
+    const std::size_t begin = Clamp(ToNumber(Argument(call.arguments, 1)), size);
+    const std::size_t end = call.arguments.size() < 3 || call.arguments[2].IsUndefined()
+                                ? size
+                                : Clamp(ToNumber(call.arguments[2]), size);
+    // Copied out first: the source and the destination can overlap, and
+    // writing in place would read a value this call already replaced.
+    std::vector<Value> slice;
+    std::vector<bool> present;
+    for (std::size_t i = begin; i < end; ++i) {
+      slice.push_back(self->GetElement(i));
+      present.push_back(self->HasElement(i));
+    }
+    for (std::size_t i = 0; i < slice.size() && target + i < size; ++i) {
+      if (present[i]) {
+        self->SetElement(target + i, slice[i]);
+      }
+    }
+    return call.self;
+  });
+
+  // --- The copying forms ----------------------------------------------------
+  //
+  // Four methods that answer what `sort`, `reverse`, `splice` and an indexed
+  // write would have answered, without changing the receiver. The point of
+  // them is exactly that: a page can sort a list it does not own.
+
+  const auto elements_of = [](const NativeCall& call) {
+    std::vector<Value> out;
+    const Object* self = Self(call);
+    for (std::size_t i = 0; self != nullptr && i < self->ElementCount(); ++i) {
+      out.push_back(self->GetElement(i));
+    }
+    return out;
+  };
+  method("toReversed", [elements_of](NativeCall& call) {
+    std::vector<Value> out = elements_of(call);
+    std::reverse(out.begin(), out.end());
+    return call.interpreter.NewArrayValue(std::move(out));
+  });
+  method("with", [elements_of](NativeCall& call) {
+    std::vector<Value> out = elements_of(call);
+    const double index = ToNumber(Argument(call.arguments, 0));
+    const double at = index < 0 ? index + static_cast<double>(out.size()) : index;
+    if (at < 0 || at >= static_cast<double>(out.size())) {
+      return call.Throw("RangeError", "index is out of range");
+    }
+    out[static_cast<std::size_t>(at)] = Argument(call.arguments, 1);
+    return call.interpreter.NewArrayValue(std::move(out));
+  });
+  method("toSpliced", [elements_of](NativeCall& call) {
+    std::vector<Value> out = elements_of(call);
+    const std::size_t start = Clamp(ToNumber(Argument(call.arguments, 0)), out.size());
+    const std::size_t removed =
+        call.arguments.size() < 2
+            ? out.size() - start
+            : std::min(out.size() - start,
+                       Clamp(std::max(0.0, ToNumber(call.arguments[1])), out.size()));
+    std::vector<Value> inserted(call.arguments.begin() +
+                                    static_cast<std::ptrdiff_t>(std::min<std::size_t>(
+                                        2, call.arguments.size())),
+                                call.arguments.end());
+    out.erase(out.begin() + static_cast<std::ptrdiff_t>(start),
+              out.begin() + static_cast<std::ptrdiff_t>(start + removed));
+    out.insert(out.begin() + static_cast<std::ptrdiff_t>(start), inserted.begin(),
+               inserted.end());
+    return call.interpreter.NewArrayValue(std::move(out));
+  });
+  method("toSorted", [elements_of](NativeCall& call) {
+    // Through `sort` on a copy rather than a second sort: the comparator
+    // contract -- and the stability the sort promises -- should have one
+    // implementation.
+    const Value copy = call.interpreter.NewArrayValue(elements_of(call));
+    const Value sort = call.interpreter.GetPropertyValue(copy, "sort");
+    const Result sorted = call.interpreter.CallFunction(sort, copy, call.arguments);
+    return sorted.IsAbrupt() ? call.ThrowValue(sorted.value) : copy;
+  });
+
   // --- The constructor ------------------------------------------------------
 
   Object* constructor = NewNative("Array", [](NativeCall& call) {

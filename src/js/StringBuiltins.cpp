@@ -424,6 +424,80 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   method("replace", replace(false));
   method("replaceAll", replace(true));
 
+  // --- The rest of the surface ----------------------------------------------
+
+  method("codePointAt", [](NativeCall& call) {
+    // The whole code point at an index, where charCodeAt gives one unit of it.
+    // Under this file's byte model that means decoding the UTF-8 sequence
+    // starting there; a continuation byte has no code point of its own and
+    // reads as the byte itself, which is what keeps this total.
+    const std::string text = Self(call);
+    const double index = ToInteger(ToNumber(Argument(call.arguments, 0)));
+    if (index < 0.0 || index >= static_cast<double>(text.size())) {
+      return Value::Undefined();
+    }
+    std::size_t at = static_cast<std::size_t>(index);
+    std::uint32_t code = 0;
+    if (!util::DecodeUtf8(text, at, code)) {
+      return Value::Number(static_cast<unsigned char>(text[at]));
+    }
+    return Value::Number(code);
+  });
+  // No Unicode tables here, so the canonical forms cannot be computed. Handing
+  // the string back unchanged is right for every ASCII string, which is the
+  // overwhelming majority, and honest for the rest -- inventing a
+  // normalisation is worse than not having one.
+  method("normalize", [](NativeCall& call) {
+    const Value form = Argument(call.arguments, 0);
+    if (!form.IsUndefined()) {
+      const std::string name = ToString(form);
+      if (name != "NFC" && name != "NFD" && name != "NFKC" && name != "NFKD") {
+        return call.Throw("RangeError", "invalid normalization form");
+      }
+    }
+    return Value::String(Self(call));
+  });
+  // Byte order, which is code point order for UTF-8 and therefore the same
+  // answer a locale-unaware comparison gives. A real collation needs locale
+  // data this engine does not have; a page sorting a list gets a stable,
+  // predictable order rather than a fabricated one.
+  method("localeCompare", [](NativeCall& call) {
+    const std::string self = Self(call);
+    const std::string other = ToString(Argument(call.arguments, 0));
+    return Value::Number(self < other ? -1.0 : (self > other ? 1.0 : 0.0));
+  });
+  method("substr", [](NativeCall& call) {
+    // Legacy, and still in use. Unlike `slice` the second argument is a
+    // *length*, and a negative start counts from the end.
+    const std::string text = Self(call);
+    const std::size_t start = ClampRelative(ToNumber(Argument(call.arguments, 0)), text.size());
+    const Value length_value = Argument(call.arguments, 1);
+    double length = length_value.IsUndefined()
+                        ? static_cast<double>(text.size() - start)
+                        : ToInteger(ToNumber(length_value));
+    length = std::min(std::max(length, 0.0), static_cast<double>(text.size() - start));
+    return Value::String(text.substr(start, static_cast<std::size_t>(length)));
+  });
+
+  // The locale-aware spellings, which without locale data are the plain ones.
+  // Installed as separate function objects rather than aliases so that a page
+  // replacing one does not silently replace the other.
+  for (const char* pair : {"toLocaleUpperCase", "toLocaleLowerCase", "trimLeft", "trimRight"}) {
+    const std::string name(pair);
+    const std::string canonical = name == "toLocaleUpperCase"  ? "toUpperCase"
+                                  : name == "toLocaleLowerCase" ? "toLowerCase"
+                                  : name == "trimLeft"          ? "trimStart"
+                                                                : "trimEnd";
+    InstallNative(well_known_.string_prototype, pair,
+                  [canonical](NativeCall& call) {
+                    const Value method_value =
+                        call.interpreter.GetPropertyValue(call.self, canonical);
+                    const Result out =
+                        call.interpreter.CallFunction(method_value, call.self, call.arguments);
+                    return out.IsAbrupt() ? call.ThrowValue(out.value) : out.value;
+                  });
+  }
+
   // --- The constructor's own properties -------------------------------------
   string_constructor->Set("prototype", Value::Obj(well_known_.string_prototype));
   well_known_.string_prototype->Set("constructor", Value::Obj(string_constructor));
@@ -437,6 +511,57 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
     out.reserve(call.arguments.size());
     for (const Value& argument : call.arguments) {
       out.push_back(static_cast<char>(ToUint32(ToNumber(argument)) & 0xFFu));
+    }
+    return Value::String(std::move(out));
+  });
+  InstallNative(string_constructor, "fromCodePoint", [](NativeCall& call) {
+    // Unlike fromCharCode this is not the inverse of an index: a code point
+    // above U+FFFF is more than one unit however a string is stored, so it is
+    // encoded rather than truncated.
+    std::string out;
+    if (call.arguments.size() > kMaxAllocationLength) {
+      return call.Throw("RangeError", "string is too long");
+    }
+    for (const Value& argument : call.arguments) {
+      const double value = ToNumber(argument);
+      if (!std::isfinite(value) || value < 0.0 || value > 0x10FFFF ||
+          value != std::trunc(value)) {
+        return call.Throw("RangeError", "invalid code point");
+      }
+      util::AppendUtf8(out, static_cast<std::uint32_t>(value));
+    }
+    return Value::String(std::move(out));
+  });
+  InstallNative(string_constructor, "raw", [](NativeCall& call) {
+    // The tag that undoes escape processing: it reads `.raw` off the strings
+    // object a tagged template hands over, and joins the substitutions between
+    // its entries.
+    const Value strings = Argument(call.arguments, 0);
+    if (!strings.IsObject()) {
+      return call.Throw("TypeError", "String.raw needs a template strings object");
+    }
+    const Value raw = call.interpreter.GetPropertyValue(strings, "raw");
+    if (!raw.IsObject()) {
+      return Value::String(std::string());
+    }
+    std::string out;
+    const std::size_t count = raw.object->ElementCount();
+    for (std::size_t i = 0; i < count; ++i) {
+      std::string chunk;
+      const Result converted = call.interpreter.ToStringOf(raw.object->GetElement(i), chunk);
+      if (converted.IsAbrupt()) {
+        return call.ThrowValue(converted.value);
+      }
+      out += chunk;
+      if (i + 1 < count && i + 1 < call.arguments.size()) {
+        std::string substitution;
+        const Result made =
+            call.interpreter.ToStringOf(call.arguments[i + 1], substitution);
+        if (made.IsAbrupt()) {
+          return call.ThrowValue(made.value);
+        }
+        out += substitution;
+      }
     }
     return Value::String(std::move(out));
   });

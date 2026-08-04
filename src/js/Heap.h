@@ -188,14 +188,45 @@ class Object {
   // on a frozen array has to fail, and it does not go through SetProperty.
   // SetElements is the deliberate exception -- it is how a collection's own
   // storage is rebuilt, and freezing a Map is not what a page means by it.
-  bool IsFrozen() const { return frozen_; }
-  void Freeze() { frozen_ = true; }
+  // How far an object has been closed to change.
+  //
+  // One ordered field rather than three flags, because the three levels the
+  // language defines are nested: sealing is preventing extensions plus
+  // refusing deletes, and freezing is sealing plus refusing writes. Ordered so
+  // that `>= Sealed` is "cannot delete" and `== Frozen` is "cannot write",
+  // which is the whole of what the object model has to enforce.
+  enum class Integrity : std::uint8_t { Extensible, NonExtensible, Sealed, Frozen };
+  bool IsFrozen() const { return integrity_ == Integrity::Frozen; }
+  bool IsSealed() const { return integrity_ >= Integrity::Sealed; }
+  bool IsExtensible() const { return integrity_ == Integrity::Extensible; }
+  // Never loosens: an object that has been frozen cannot be made extensible
+  // again, which is what a page freezing its own state is relying on.
+  void Restrict(Integrity level) {
+    integrity_ = level > integrity_ ? level : integrity_;
+  }
+  void Freeze() { Restrict(Integrity::Frozen); }
 
   // Insertion order, which is what `for...in` and Object.keys use for string
   // keys that are not array indices. Symbol-keyed properties are deliberately
   // absent: nothing that enumerates an object is supposed to see them, which
   // is what makes a symbol a safe place to hang a protocol hook.
+  // Own string keys, in enumeration order -- integer-like first and ascending,
+  // then the rest in insertion order. Maintained on insert rather than sorted
+  // on read, because every enumeration would otherwise pay for it.
   const std::vector<std::string>& Keys() const { return key_order_; }
+  // The symbol-keyed own properties, which `key_order_` deliberately does not
+  // hold: a symbol has no text to file it under, and `Object.keys` must not
+  // report one. Built on demand rather than kept, because the one caller --
+  // Object.getOwnPropertySymbols -- is not on any hot path.
+  std::vector<PropertyKey> SymbolKeys() const {
+    std::vector<PropertyKey> keys;
+    for (const auto& entry : properties_) {
+      if (entry.first.IsSymbol()) {
+        keys.push_back(entry.first);
+      }
+    }
+    return keys;
+  }
 
   std::size_t ElementCount() const { return elements_.size(); }
   bool HasElement(std::size_t index) const;
@@ -271,7 +302,10 @@ class Object {
   std::vector<InstanceField> instance_fields_;
 
   bool marked_ = false;
-  bool frozen_ = false;
+  // Files a new string key in enumeration order. See Keys().
+  void RecordKey(const std::string& text);
+
+  Integrity integrity_ = Integrity::Extensible;
 };
 
 // Heterogeneous lookup for a scope's bindings.
