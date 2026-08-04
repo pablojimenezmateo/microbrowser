@@ -83,7 +83,11 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   // Exactly the set net::DecodeContentEncoding can undo. Advertising more than
   // that turns every response using the difference into a failed load.
   headers.Add("Accept-Encoding", kAcceptedContentEncodings);
-  headers.Add("Connection", "close");
+  // No `Connection` header at all. HTTP/1.1 is persistent by default, so
+  // `keep-alive` would be a byte on every request saying what the version
+  // already says, and one more bit for a fingerprinter to measure. The header
+  // stays in IsFetchOwnedHeader so a caller still cannot set it: whether a
+  // connection is kept is a decision the pool makes, not one a page influences.
 
   for (const HttpHeaders::Field& field : options.headers.Fields()) {
     if (IsFetchOwnedHeader(field.name)) {
@@ -113,11 +117,11 @@ bool MayUseHttpCache(const FetchOptions& options,
 }  // namespace
 
 FetchRequest::FetchRequest(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy,
-                           TransportFactory& transport, CookieJar& cookies, HttpCache& cache,
+                           ConnectionPool& pool, CookieJar& cookies, HttpCache& cache,
                            FetchOptions options, std::int64_t now)
     : verdict_(std::move(verdict)),
       policy_(policy),
-      transport_(transport),
+      pool_(pool),
       cookies_(cookies),
       cache_(cache),
       remaining_(std::move(options)),
@@ -195,14 +199,23 @@ bool FetchRequest::BeginExchange() {
   sent_ = 0;
   parser_ = ResponseParser{};
 
-  connection_ = transport_.Create();
+  const bool secure = url.Scheme() == "https";
+  const std::uint16_t port = url.EffectivePort().value_or(secure ? 443 : 80);
+  ConnectionPool::Lease lease =
+      pool_.Acquire(verdict_.Partition().Serialize(), url.HostSerialized(), port, secure,
+                    /*allow_reuse=*/!retried_);
+  connection_ = std::move(lease.connection);
+  reused_ = lease.reused;
   if (connection_ == nullptr) {
     Fail("no transport");
     return false;
   }
-  const bool secure = url.Scheme() == "https";
-  const std::uint16_t port = url.EffectivePort().value_or(secure ? 443 : 80);
-  if (!connection_->StartConnect(url.HostSerialized(), port, secure)) {
+  // A connection out of the pool is already connected and already through its
+  // handshake; one that is not has to be started. Both then go through
+  // `Stage::Connecting`, because an open transport answers `Ready` to
+  // `Advance()` and a second state machine for the reused case would be a
+  // second place for this to be wrong.
+  if (!reused_ && !connection_->StartConnect(url.HostSerialized(), port, secure)) {
     Fail("connect failed");
     return false;
   }
@@ -210,9 +223,63 @@ bool FetchRequest::BeginExchange() {
   return true;
 }
 
-void FetchRequest::FinishResponse() {
+bool FetchRequest::MayRetryOnFreshConnection() const {
+  // Only a pooled connection, only once, and only while the server has said
+  // nothing at all. The moment a byte of a response has arrived, resending the
+  // request would be sending it twice — which for anything but a GET is a
+  // second side effect, and for a GET is still a second request the user did
+  // not make.
+  return reused_ && !retried_ && parser_.NothingReceived();
+}
+
+void FetchRequest::ReleaseConnection(const HttpResponse& response, std::int64_t now_ms) {
+  if (connection_ == nullptr) {
+    return;
+  }
+  const url::Url& url = verdict_.FinalUrl();
+  const bool secure = url.Scheme() == "https";
+  const std::uint16_t port = url.EffectivePort().value_or(secure ? 443 : 80);
+
+  // Four things have to hold at once, and every one of them is the difference
+  // between a connection that can carry another request and one that cannot:
+  //
+  //  - the message said how long it was, rather than ending when the socket
+  //    did. A close-delimited body's only terminator is the close.
+  //  - nothing arrived after it. A byte past the end is either a response
+  //    nobody asked for or a second framing of the same bytes, and the next
+  //    request would start reading at an unknown offset.
+  //  - the server did not say `Connection: close`, which is a promise it is
+  //    about to close and a socket we would write into as it goes away.
+  //  - the version is persistent by default, or said `keep-alive` if it is not.
+  const std::optional<std::string_view> connection = response.headers.Get("connection");
+  const bool says_close =
+      connection.has_value() && util::EqualsAsciiCaseInsensitive(*connection, "close");
+  const bool says_keep_alive =
+      connection.has_value() && util::EqualsAsciiCaseInsensitive(*connection, "keep-alive");
+  const bool persistent_by_default = response.version_minor >= 1;
+  const bool keep = parser_.BodyWasSelfDelimiting() && parser_.Leftover() == 0 && !says_close &&
+                    (persistent_by_default || says_keep_alive);
+
+  if (!keep) {
+    connection_->Close();
+    connection_.reset();
+    return;
+  }
+  pool_.Release(verdict_.Partition().Serialize(), url.HostSerialized(), port, secure,
+                std::move(connection_), now_ms);
+  connection_.reset();
+}
+
+void FetchRequest::FinishResponse(std::int64_t now_ms) {
   const url::Url url = verdict_.FinalUrl();
   HttpResponse response = parser_.TakeResponse();
+
+  // First, while the parser still knows how the body was framed and while the
+  // verdict still names the URL this exchange was with. After a redirect
+  // rewrites either of those, the connection would be filed under the wrong key
+  // — and a connection under the wrong partition key is the cross-site linkage
+  // ADR 0005 exists to prevent.
+  ReleaseConnection(response, now_ms);
 
   // Before anything reads the body, and before the cache is offered it: what is
   // stored, matched against a redirect, or handed to a parser is the decoded
@@ -285,19 +352,42 @@ void FetchRequest::FinishResponse() {
     DropBodyHeaders(remaining_);
   }
 
-  // The old connection is finished with. Reuse across a redirect would need the
-  // partition-keyed pool from ADR 0010, which is a separate change.
+  // The connection has already gone back to the pool if it could. If the
+  // redirect stays on the same host in the same partition, the next exchange
+  // takes it straight back out — which is the case ADR 0010 was written for and
+  // the one that used to cost a whole handshake.
   if (connection_ != nullptr) {
     connection_->Close();
     connection_.reset();
   }
+  parser_ = ResponseParser{};
+  reused_ = false;
+  retried_ = false;
   stage_ = Stage::Begin;
 }
 
-bool FetchRequest::Advance() {
+bool FetchRequest::Advance(std::int64_t now_ms) {
   bool progress = false;
   blocked_ = false;
   std::array<std::byte, 16 * 1024> buffer{};
+
+  // A pooled connection the server closed while it was idle fails on the send
+  // or on the first read, and it looks exactly like a server that went away.
+  // The difference is that this one was never asked anything, so asking again
+  // on a fresh socket repeats nothing.
+  const auto retry_or_fail = [this](std::string_view reason) {
+    if (!MayRetryOnFreshConnection()) {
+      Fail(reason);
+      return;
+    }
+    connection_->Close();
+    connection_.reset();
+    retried_ = true;
+    reused_ = false;
+    sent_ = 0;
+    parser_ = ResponseParser{};
+    stage_ = Stage::Begin;
+  };
 
   while (true) {
     switch (stage_) {
@@ -337,7 +427,7 @@ bool FetchRequest::Advance() {
             return progress;
           }
           if (wrote.status != IoStatus::Ready || wrote.bytes == 0) {
-            Fail("send failed");
+            retry_or_fail("send failed");
             return true;
           }
           sent_ += wrote.bytes;
@@ -358,13 +448,13 @@ bool FetchRequest::Advance() {
             // A body delimited by the connection closing is complete here and
             // nowhere else, which is why Closed and Failed are separate answers.
             if (!parser_.Finish()) {
-              Fail(parser_.Error() != nullptr ? parser_.Error() : "truncated response");
+              retry_or_fail(parser_.Error() != nullptr ? parser_.Error() : "truncated response");
               return true;
             }
             break;
           }
           if (read.status != IoStatus::Ready) {
-            Fail("receive failed");
+            retry_or_fail("receive failed");
             return true;
           }
           progress = true;
@@ -378,7 +468,7 @@ bool FetchRequest::Advance() {
           Fail(parser_.Error() != nullptr ? parser_.Error() : "incomplete response");
           return true;
         }
-        FinishResponse();
+        FinishResponse(now_ms);
         return true;
       }
     }
@@ -393,11 +483,10 @@ std::optional<util::WaitDescriptor> FetchRequest::Interest() const {
 }
 
 std::unique_ptr<FetchRequest> Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy,
-                                    TransportFactory& transport, CookieJar& cookies,
-                                    HttpCache& cache, const FetchOptions& options,
-                                    std::int64_t now) {
-  return std::make_unique<FetchRequest>(std::move(verdict), policy, transport, cookies, cache,
-                                        options, now);
+                                    ConnectionPool& pool, CookieJar& cookies, HttpCache& cache,
+                                    const FetchOptions& options, std::int64_t now) {
+  return std::make_unique<FetchRequest>(std::move(verdict), policy, pool, cookies, cache, options,
+                                        now);
 }
 
 }  // namespace microbrowser::net

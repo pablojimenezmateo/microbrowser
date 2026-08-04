@@ -135,6 +135,7 @@ bool ResponseParser::ParseStatusLine(std::string_view line) {
   if (version != "1.0" && version != "1.1") {
     return Fail("unsupported HTTP version");
   }
+  response_.version_minor = version == "1.1" ? 1 : 0;
 
   std::string_view rest = line.substr(first_space + 1);
   if (rest.size() < 3) {

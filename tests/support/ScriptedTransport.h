@@ -67,12 +67,26 @@ class ScriptedTransport : public net::Transport {
   void Release() { released_ = true; }
 
  private:
+  // A second request written to a connection whose response has already been
+  // read in full is a *reused* connection, and it takes the next exchange from
+  // the script. Without this a pooled connection would answer the second
+  // request with silence, which is indistinguishable from a server that hung
+  // up — so every test that exercises reuse would be testing the retry path
+  // instead.
+  bool ClaimNextExchange();
+
   Factory& factory_;
   std::string request_;
   std::string pending_;
+  std::string host_;
   std::size_t index_ = 0;
+  std::uint16_t port_ = 0;
+  bool secure_ = false;
   bool sent_ = false;
   bool released_ = true;
+  // The response for the current exchange has been handed over in full, so the
+  // next thing written here starts a new one.
+  bool delivered_ = false;
 };
 
 class ScriptedTransport::Factory : public net::TransportFactory {
@@ -99,6 +113,10 @@ class ScriptedTransport::Factory : public net::TransportFactory {
   std::size_t cursor = 0;
   Log log;
   Delivery delivery = Delivery::Immediate;
+  // How many times a *new* connection was opened, as against a pooled one being
+  // written to a second time. This is the number the whole of ADR 0010 §2 is
+  // about, and it is the one a test asserts against the number of exchanges.
+  std::size_t connects = 0;
 
  private:
   friend class ScriptedTransport;

@@ -16,13 +16,13 @@ using util::PerfCounterId;
 
 RequestQueue::RequestQueue(const privacy::PrivacyPolicy& policy, TransportFactory& transport,
                            CookieJar& cookies, HttpCache& cache)
-    : policy_(policy), transport_(&transport), cookies_(cookies), cache_(cache) {}
+    : policy_(policy), pool_(transport), cookies_(cookies), cache_(cache) {}
 
 void RequestQueue::SetTransport(TransportFactory& transport) {
   if (!active_.empty() || !queued_.empty()) {
     return;
   }
-  transport_ = &transport;
+  pool_.SetFactory(transport);
 }
 
 std::size_t RequestQueue::ActiveInPartition(std::string_view partition) const {
@@ -58,7 +58,7 @@ bool RequestQueue::PromoteQueued(std::int64_t now_ms) {
     active.id = queued.id;
     active.partition = std::move(queued.partition);
     active.last_progress_ms = now_ms;
-    active.request = Fetch(std::move(queued.verdict), policy_, *transport_, cookies_, cache_,
+    active.request = Fetch(std::move(queued.verdict), policy_, pool_, cookies_, cache_,
                            queued.options, queued.now);
     active_.push_back(std::move(active));
     AddPerformanceCounter(PerfCounterId::NetRequestsStarted);
@@ -73,6 +73,13 @@ bool RequestQueue::PromoteQueued(std::int64_t now_ms) {
 }
 
 void RequestQueue::Advance(std::int64_t now_ms) {
+  // Before anything is promoted, so a request that starts on this turn cannot
+  // be handed a connection that has just run out of time. This is also the only
+  // place idle connections are ever closed, and it is why `Advance` is called
+  // even when nothing is loading: a pooled socket is one the user did not ask
+  // to keep open, and nothing else would ever come back for it.
+  pool_.CloseExpired(now_ms);
+
   // Promotion and advancing alternate rather than running once each: a request
   // served from the cache completes the moment it starts, freeing the slot the
   // next one was waiting for. Running one pass would make a fully cached page
@@ -83,7 +90,7 @@ void RequestQueue::Advance(std::int64_t now_ms) {
 
     for (std::size_t i = 0; i < active_.size();) {
       Active& active = active_[i];
-      if (active.request->Advance()) {
+      if (active.request->Advance(now_ms)) {
         active.last_progress_ms = now_ms;
       } else if (!active.request->IsComplete() &&
                  now_ms - active.last_progress_ms >= kRequestStallTimeoutMs) {
@@ -137,7 +144,11 @@ bool RequestQueue::HasRunnableWork() const {
 }
 
 std::optional<std::uint32_t> RequestQueue::NextDeadlineMs(std::int64_t now_ms) const {
-  std::optional<std::uint32_t> soonest;
+  // The idle pool's timeout is a deadline like any other, and it is the one
+  // that exists when nothing is loading. A browser holding no connections
+  // schedules nothing, which is the zero-idle-CPU invariant; one holding
+  // connections schedules exactly one wakeup, after which it holds none.
+  std::optional<std::uint32_t> soonest = pool_.NextDeadlineMs(now_ms);
   for (const Active& active : active_) {
     const std::int64_t due = active.last_progress_ms + kRequestStallTimeoutMs;
     const std::int64_t remaining = std::max<std::int64_t>(0, due - now_ms);

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "net/ConnectionPool.h"
 #include "net/CookieJar.h"
 #include "net/Fetch.h"
 #include "net/HttpCache.h"
@@ -108,8 +109,14 @@ class RequestQueue {
 
   // Swaps in a different socket layer. Tests use it to serve canned bytes.
   // Refused while anything is outstanding: changing the factory under a live
-  // connection would leave a descriptor nobody owns.
+  // connection would leave a descriptor nobody owns. Idle pooled connections
+  // are dropped with it, for the same reason.
   void SetTransport(TransportFactory& transport);
+
+  // The connections this queue keeps between requests. Exposed so a test can
+  // ask how many are idle and so the loop can be told when the soonest of them
+  // expires; not for handing one out.
+  const ConnectionPool& Connections() const { return pool_; }
 
  private:
   struct Active {
@@ -137,7 +144,7 @@ class RequestQueue {
   std::size_t ActiveInPartition(std::string_view partition) const;
 
   const privacy::PrivacyPolicy& policy_;
-  TransportFactory* transport_;
+  ConnectionPool pool_;
   CookieJar& cookies_;
   HttpCache& cache_;
   std::vector<Active> active_;

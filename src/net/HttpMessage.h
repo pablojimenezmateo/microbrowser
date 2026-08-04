@@ -48,6 +48,11 @@ bool IsValidHeaderValue(std::string_view value);
 
 struct HttpResponse {
   int status = 0;
+  // The minor version, so 0 for HTTP/1.0 and 1 for HTTP/1.1. Kept because
+  // persistence depends on it: 1.1 is persistent unless it says otherwise and
+  // 1.0 is the reverse, and guessing costs either a connection held open that
+  // the server has already closed or one thrown away that was fine.
+  int version_minor = 1;
   std::string reason;
   HttpHeaders headers;
   std::vector<std::byte> body;
@@ -102,6 +107,24 @@ class ResponseParser {
 
   const HttpResponse& Response() const { return response_; }
   HttpResponse TakeResponse() { return std::move(response_); }
+
+  // True when the message said how long its body was, rather than the body
+  // having ended because the connection did. A connection carrying the second
+  // kind cannot be kept: its end is the server's only way of saying "done".
+  bool BodyWasSelfDelimiting() const { return body_mode_ != BodyMode::UntilClose; }
+
+  // Bytes received after the end of the message. On a connection about to be
+  // kept these should be none: anything here is either a pipelined response
+  // nobody asked for or a second framing of the same bytes, and both are the
+  // ambiguity that request smuggling is made of.
+  std::size_t Leftover() const { return buffer_.size(); }
+
+  // True when not one byte of a response has been accepted or is waiting to be.
+  // Survives the parser having failed, which is the point: a connection that
+  // was closed before it said anything is one whose request can be sent again,
+  // and by the time `Finish` has refused the message the state alone no longer
+  // says whether anything arrived.
+  bool NothingReceived() const { return response_.status == 0 && buffer_.empty(); }
 
  private:
   bool ParseStatusLine(std::string_view line);

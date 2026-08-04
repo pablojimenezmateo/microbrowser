@@ -1216,6 +1216,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                 "the document and its stylesheet were both fetched");
     Expect(factory.log.requests.at(1).find("GET /s.css ") != std::string::npos,
            "and the second request is the sheet");
+    ExpectEqInt(static_cast<long long>(factory.connects), 1,
+                "on one connection: same host, same partition, and the document's connection "
+                "was still in the pool when the sheet was asked for");
 
     // The sheet must have applied *before* the first layout: laying out
     // without it and reflowing after is the flash of unstyled content.
@@ -2133,6 +2136,30 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!session.engine.NextDeadlineMs().has_value(),
            "a loaded page with no timer, no frame and nothing outstanding must hand the loop "
            "no deadline at all -- this is the zero-idle-CPU invariant at the seam");
+  });
+
+  AddTest(tests, "Engine/AKeptConnectionIsTheOnlyThingAFinishedLoadStillSchedules", [] {
+    // The other half of the invariant. A pooled connection is a socket the user
+    // did not ask to keep open, so something has to come back for it -- and the
+    // only thing that ever will is a deadline the loop is told about. Before
+    // ADR 0010 the engine handed back no deadline at all once a load was over,
+    // which would have left an idle socket open until the next navigation
+    // happened along.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("text/html", "<p>ABC</p>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+    Expect(!session.engine.IsLoading(), "the load is over");
+
+    const std::optional<std::uint32_t> deadline = session.engine.NextDeadlineMs();
+    Expect(deadline.has_value(),
+           "and the connection it left behind is still a deadline, with no load in flight");
+    Expect(*deadline <= net::kIdleConnectionTimeoutMs,
+           "one no later than the idle timeout, not one wakeup per anything");
   });
 
   AddTest(tests, "Page/AnAnimationFrameIsADeadlineAndAStoppedOneIsNot", [] {

@@ -232,6 +232,7 @@ microbrowser_module(media
 
 microbrowser_module(net
   SOURCES
+    src/net/ConnectionPool.cpp
     src/net/ContentEncoding.cpp
     src/net/CookieJar.cpp
     src/net/Fetch.cpp

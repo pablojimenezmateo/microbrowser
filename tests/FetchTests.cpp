@@ -11,6 +11,7 @@
 
 #include "TestSupport.h"
 #include "support/ScriptedTransport.h"
+#include "net/ConnectionPool.h"
 #include "net/Fetch.h"
 #include "net/SocketTransport.h"
 #include "net/Transport.h"
@@ -45,9 +46,10 @@ Url MustParse(std::string_view text) {
 // always runnable -- so a test can turn the crank itself. Bounded rather than
 // `while (!complete)`: a request that stopped making progress must fail the
 // test rather than hang it.
-FetchResult RunToCompletion(std::unique_ptr<net::FetchRequest> request) {
+FetchResult RunToCompletion(std::unique_ptr<net::FetchRequest> request,
+                            std::int64_t now_ms = 1000) {
   for (int turn = 0; turn < 1000 && !request->IsComplete(); ++turn) {
-    if (!request->Advance() && !request->IsComplete()) {
+    if (!request->Advance(now_ms) && !request->IsComplete()) {
       break;
     }
   }
@@ -65,8 +67,12 @@ FetchResult Run(const PrivacyPolicy& policy, ScriptedFactory& factory, CookieJar
   request.top_level_site = url::Site::FromUrl(request.url);
   request.type = privacy::ResourceType::Document;
   request.is_subresource = false;
+  // A pool per call, so a helper that a test uses twice does not accidentally
+  // make those two requests share a connection. The tests that are *about*
+  // reuse build one pool and keep it.
+  net::ConnectionPool pool(factory);
   return RunToCompletion(
-      net::Fetch(policy.Decide(request), policy, factory, cookies, cache, options, now));
+      net::Fetch(policy.Decide(request), policy, pool, cookies, cache, options, now));
 }
 
 FetchResult RunWithReferrer(const PrivacyPolicy& policy, ScriptedFactory& factory,
@@ -80,7 +86,8 @@ FetchResult RunWithReferrer(const PrivacyPolicy& policy, ScriptedFactory& factor
   request.initiator = url::Origin::FromUrl(top);
   request.type = privacy::ResourceType::Script;
   const Url referrer_url = MustParse(referrer);
-  return RunToCompletion(net::Fetch(policy.Decide(request, &referrer_url), policy, factory,
+  net::ConnectionPool pool(factory);
+  return RunToCompletion(net::Fetch(policy.Decide(request, &referrer_url), policy, pool,
                                     cookies, cache, {}, now));
 }
 
@@ -399,7 +406,12 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "content coding stays explicit, and names exactly what can be decoded");
     ExpectEqInt(static_cast<long long>(CountOccurrences(request, "Accept-Encoding:")), 1,
                 "the caller's own Accept-Encoding does not join it");
-    Expect(request.find("Connection: close\r\n") != std::string::npos, "one connection policy");
+    // No Connection header at all, in either direction. HTTP/1.1 is persistent
+    // by default so `keep-alive` would say what the version already says, and
+    // the caller's `keep-alive` must not travel either: whether a connection is
+    // kept is the pool's decision, not a page's.
+    Expect(request.find("Connection:") == std::string::npos,
+           "connection persistence is not something a caller states");
     Expect(request.find("User-Agent: fingerprint\r\n") == std::string::npos,
            "no caller-supplied user agent");
     ExpectEqInt(static_cast<long long>(CountOccurrences(request, "User-Agent:")), 1,
@@ -435,6 +447,177 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     Expect(result.error.find("bound") != std::string::npos,
            std::string("the failure should name the bound, and said: ") + result.error);
     Expect(result.response.body.empty(), "and nothing partial comes back with it");
+  });
+
+  // --- Connection reuse, ADR 0010 §2 ----------------------------------------
+
+  AddTest(tests, "Fetch/ASecondRequestToTheSameOriginReusesTheConnection", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    factory.script.push_back({"example.com", 443, true, OkResponse("text/css", "body{}")});
+    CookieJar cookies;
+    HttpCache cache;
+    net::ConnectionPool pool(factory);
+
+    const auto fetch = [&](std::string_view target) {
+      privacy::Request request;
+      request.url = MustParse(target);
+      request.top_level_site = url::Site::FromUrl(MustParse("https://example.com/"));
+      request.type = privacy::ResourceType::Script;
+      return RunToCompletion(
+          net::Fetch(policy.Decide(request), policy, pool, cookies, cache, {}, 1000));
+    };
+
+    Expect(fetch("https://example.com/one").ok, "the first request succeeds");
+    ExpectEqInt(static_cast<long long>(pool.IdleCount()), 1,
+                "and its connection goes back to the pool rather than being closed");
+    Expect(fetch("https://example.com/two").ok, "the second request succeeds");
+    ExpectEqInt(static_cast<long long>(factory.connects), 1,
+                "on the same connection: two exchanges, one connect");
+    ExpectEqInt(static_cast<long long>(pool.IdleCount()), 1, "and it is idle again afterwards");
+    Expect(factory.log.requests.at(1).rfind("GET /two", 0) == 0,
+           "the second request really did go out on it");
+  });
+
+  // The privacy content of the whole change. A reused connection is a linkage
+  // two requests share, visible to the server; pooling by host would create the
+  // cross-site correlation the ADR 0005 key exists to prevent.
+  AddTest(tests, "Fetch/TwoTopLevelSitesDoNotShareAConnectionToTheSameHost", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"cdn.example", 443, true, std::string(kOk)});
+    factory.script.push_back({"cdn.example", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+    net::ConnectionPool pool(factory);
+
+    const auto fetch_under = [&](std::string_view top_level) {
+      privacy::Request request;
+      request.url = MustParse("https://cdn.example/lib.js");
+      request.top_level_site = url::Site::FromUrl(MustParse(top_level));
+      request.type = privacy::ResourceType::Script;
+      return RunToCompletion(
+          net::Fetch(policy.Decide(request), policy, pool, cookies, cache, {}, 1000));
+    };
+
+    Expect(fetch_under("https://news.example/").ok, "the first site loads it");
+    Expect(fetch_under("https://shop.example/").ok, "and so does the second");
+    ExpectEqInt(static_cast<long long>(factory.connects), 2,
+                "same host, two partitions, two connections -- pooling by host would be the "
+                "cross-site linkage ADR 0005 exists to prevent");
+    ExpectEqInt(static_cast<long long>(pool.IdleCount()), 2, "and both are held separately");
+  });
+
+  AddTest(tests, "Fetch/AConnectionWhoseEndNobodyIsSureOfIsNotKept", [] {
+    CookieJar cookies;
+    HttpCache cache;
+    const auto keeps = [&](std::string_view response) {
+      PrivacyPolicy policy;
+      ScriptedFactory factory;
+      factory.script.push_back({"example.com", 443, true, std::string(response)});
+      net::ConnectionPool pool(factory);
+      privacy::Request request;
+      request.url = MustParse("https://example.com/page");
+      request.top_level_site = url::Site::FromUrl(request.url);
+      request.type = privacy::ResourceType::Document;
+      RunToCompletion(net::Fetch(policy.Decide(request), policy, pool, cookies, cache, {}, 1000));
+      return pool.IdleCount() == 1;
+    };
+
+    Expect(keeps("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi"),
+           "a self-delimited response leaves a connection worth keeping");
+    Expect(!keeps("HTTP/1.1 200 OK\r\n\r\nhi"),
+           "a body that ends when the socket does has no other terminator, so the socket is "
+           "the message and cannot carry a second one");
+    Expect(!keeps("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nhi"),
+           "a server that says it is about to close is not argued with");
+    Expect(!keeps("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nhi"),
+           "HTTP/1.0 is not persistent unless it says so");
+    Expect(keeps("HTTP/1.0 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nhi"),
+           "and when it says so, it is");
+    Expect(!keeps("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi_EXTRA"),
+           "bytes past the end of the message mean the next request would start reading at an "
+           "unknown offset, which is request smuggling with one browser playing both parsers");
+  });
+
+  AddTest(tests, "Fetch/ARedirectToTheSameHostKeepsTheConnection", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true,
+                              "HTTP/1.1 302 Found\r\nLocation: /moved\r\nContent-Length: 0\r\n\r\n"});
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+    net::ConnectionPool pool(factory);
+
+    const FetchResult result = Run(policy, factory, cookies, cache, "https://example.com/start");
+    Expect(result.ok, result.error.empty() ? "the redirect chain failed" : result.error.c_str());
+    ExpectEqInt(result.redirects, 1, "one redirect was followed");
+    ExpectEqInt(static_cast<long long>(factory.connects), 1,
+                "and the second request went out on the connection the first left behind");
+  });
+
+  AddTest(tests, "Fetch/IdleConnectionsExpireAndScheduleExactlyOneWakeup", [] {
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    CookieJar cookies;
+    HttpCache cache;
+    net::ConnectionPool pool(factory);
+
+    Expect(!pool.NextDeadlineMs(0).has_value(),
+           "an empty pool schedules nothing at all, which is the zero-idle-CPU invariant");
+
+    privacy::Request request;
+    request.url = MustParse("https://example.com/page");
+    request.top_level_site = url::Site::FromUrl(request.url);
+    request.type = privacy::ResourceType::Document;
+    RunToCompletion(net::Fetch(policy.Decide(request), policy, pool, cookies, cache, {}, 1000),
+                    /*now_ms=*/5000);
+    ExpectEqInt(static_cast<long long>(pool.IdleCount()), 1, "one connection is held");
+    ExpectEqInt(pool.NextDeadlineMs(5000).value_or(0), net::kIdleConnectionTimeoutMs,
+                "and it schedules one wakeup, at its timeout");
+
+    pool.CloseExpired(5000 + net::kIdleConnectionTimeoutMs - 1);
+    ExpectEqInt(static_cast<long long>(pool.IdleCount()), 1, "not a millisecond early");
+    pool.CloseExpired(5000 + net::kIdleConnectionTimeoutMs);
+    ExpectEqInt(static_cast<long long>(pool.IdleCount()), 0,
+                "and a socket the user did not ask to keep open does not outlive its timeout");
+    Expect(!pool.NextDeadlineMs(5000 + net::kIdleConnectionTimeoutMs).has_value(),
+           "after which the loop is asked to wake for nothing again");
+  });
+
+  AddTest(tests, "Fetch/APooledConnectionTheServerClosedIsRetriedOnce", [] {
+    // The race every connection pool has: the server closed it while it sat
+    // idle, and the browser finds out by writing into it. Nothing was asked, so
+    // asking again repeats nothing.
+    PrivacyPolicy policy;
+    ScriptedFactory factory;
+    factory.script.push_back({"example.com", 443, true, std::string(kOk)});
+    factory.script.push_back({"example.com", 443, true, ""});  // the dead one: no bytes at all
+    factory.script.push_back({"example.com", 443, true, OkResponse("text/css", "body{}")});
+    CookieJar cookies;
+    HttpCache cache;
+    net::ConnectionPool pool(factory);
+
+    const auto fetch = [&](std::string_view target) {
+      privacy::Request request;
+      request.url = MustParse(target);
+      request.top_level_site = url::Site::FromUrl(MustParse("https://example.com/"));
+      request.type = privacy::ResourceType::Script;
+      return RunToCompletion(
+          net::Fetch(policy.Decide(request), policy, pool, cookies, cache, {}, 1000));
+    };
+
+    Expect(fetch("https://example.com/one").ok, "the first request succeeds");
+    const FetchResult second = fetch("https://example.com/two");
+    Expect(second.ok, second.error.empty() ? "the retry failed" : second.error.c_str());
+    ExpectEqString(BodyString(second.response), "body{}",
+                   "the answer came from the fresh connection the retry opened");
+    ExpectEqInt(static_cast<long long>(factory.connects), 2,
+                "one connect for the first request, one for the retry -- and the dead pooled "
+                "connection cost no third");
   });
 
   AddTest(tests, "Fetch/StoresAndSendsCookiesInTheRequestsOwnPartition", [] {
@@ -751,6 +934,9 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     CookieJar cookies;
     HttpCache cache;
 
+    // One pool across both loads on purpose: the connection is partitioned by
+    // the same key the cache is, so this test says both at once.
+    net::ConnectionPool pool(factory);
     const Url resource = MustParse("https://cdn.example/lib.js");
     const auto fetch_under = [&](std::string_view top_level) {
       privacy::Request request;
@@ -758,7 +944,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
       request.top_level_site = url::Site::FromUrl(MustParse(top_level));
       request.type = privacy::ResourceType::Script;
       return RunToCompletion(
-          net::Fetch(policy.Decide(request), policy, factory, cookies, cache, {}, 1000));
+          net::Fetch(policy.Decide(request), policy, pool, cookies, cache, {}, 1000));
     };
 
     const FetchResult on_news = fetch_under("https://news.example/");

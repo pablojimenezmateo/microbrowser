@@ -179,6 +179,11 @@ bool Engine::HandlePendingMessages() {
 
 bool Engine::Advance() {
   if (!load_.active) {
+    // Nothing is loading, and the loader still has to turn: connections kept
+    // between requests time out, and a socket the user did not ask to keep open
+    // is not something to leave until the next navigation happens to come
+    // along. It promotes nothing and starts nothing here.
+    loader_.Advance(NowMilliseconds());
     return false;
   }
   loader_.Advance(NowMilliseconds());
@@ -207,8 +212,10 @@ bool Engine::HasRunnableWork() const {
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   const std::int64_t now_ms = NowMilliseconds();
   const std::optional<std::uint32_t> timers = page_.NextWakeDelay(now_ms);
-  const std::optional<std::uint32_t> network =
-      load_.active ? loader_.NextDeadlineMs(now_ms) : std::nullopt;
+  // Not gated on `load_.active` any more: with nothing loading the loader still
+  // answers when it holds an idle connection, and that deadline is the only
+  // thing that will ever close it.
+  const std::optional<std::uint32_t> network = loader_.NextDeadlineMs(now_ms);
   if (!timers.has_value()) {
     return network;
   }

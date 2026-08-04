@@ -8,6 +8,18 @@ namespace microbrowser::tests {
 ScriptedTransport::~ScriptedTransport() { factory_.Forget(*this); }
 
 bool ScriptedTransport::StartConnect(std::string_view host, std::uint16_t port, bool secure) {
+  host_ = std::string(host);
+  port_ = port;
+  secure_ = secure;
+  if (!ClaimNextExchange()) {
+    return false;
+  }
+  ++factory_.connects;
+  factory_.Register(*this);
+  return true;
+}
+
+bool ScriptedTransport::ClaimNextExchange() {
   if (factory_.cursor >= factory_.script.size()) {
     return false;
   }
@@ -16,13 +28,13 @@ bool ScriptedTransport::StartConnect(std::string_view host, std::uint16_t port, 
   // same exchange.
   index_ = factory_.cursor++;
   const Exchange& exchange = factory_.script[index_];
-  if (!exchange.expected_host.empty() && exchange.expected_host != host) {
+  if (!exchange.expected_host.empty() && exchange.expected_host != host_) {
     return false;
   }
-  if (exchange.expected_port != 0 && exchange.expected_port != port) {
+  if (exchange.expected_port != 0 && exchange.expected_port != port_) {
     return false;
   }
-  if (exchange.expected_secure != secure) {
+  if (exchange.expected_secure != secure_) {
     return false;
   }
   if (factory_.log.hosts.size() <= index_) {
@@ -30,17 +42,26 @@ bool ScriptedTransport::StartConnect(std::string_view host, std::uint16_t port, 
     factory_.log.secure.resize(index_ + 1);
     factory_.log.requests.resize(index_ + 1);
   }
-  factory_.log.hosts[index_] = std::string(host);
-  factory_.log.secure[index_] = secure;
+  factory_.log.hosts[index_] = host_;
+  factory_.log.secure[index_] = secure_;
   pending_ = exchange.response;
+  request_.clear();
+  sent_ = false;
+  delivered_ = false;
   released_ = factory_.delivery == Factory::Delivery::Immediate;
-  factory_.Register(*this);
   return true;
 }
 
 net::IoStatus ScriptedTransport::Advance() { return net::IoStatus::Ready; }
 
 net::IoResult ScriptedTransport::Send(std::span<const std::byte> data) {
+  if (delivered_ && !ClaimNextExchange()) {
+    // A second request on this connection with no exchange left for it, or one
+    // whose expectations it does not meet. Failing here rather than answering
+    // silence is deliberate: silence looks like a stale pooled connection and
+    // would be quietly retried.
+    return net::IoResult{net::IoStatus::Failed, 0};
+  }
   request_.append(reinterpret_cast<const char*>(data.data()), data.size());
   return net::IoResult{net::IoStatus::Ready, data.size()};
 }
@@ -59,6 +80,7 @@ net::IoResult ScriptedTransport::Receive(std::span<std::byte> out) {
   const std::size_t take = std::min(out.size(), pending_.size());
   std::memcpy(out.data(), pending_.data(), take);
   pending_.erase(0, take);
+  delivered_ = pending_.empty();
   return net::IoResult{net::IoStatus::Ready, take};
 }
 

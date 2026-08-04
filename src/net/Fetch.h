@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "net/ConnectionPool.h"
 #include "net/CookieJar.h"
 #include "net/HttpCache.h"
 #include "net/HttpMessage.h"
@@ -59,9 +60,11 @@ struct FetchResult {
 // appears under load.
 class FetchRequest {
  public:
-  FetchRequest(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy,
-               TransportFactory& transport, CookieJar& cookies, HttpCache& cache,
-               FetchOptions options, std::int64_t now);
+  // Takes the pool rather than a factory, and for the reason it takes a
+  // Verdict: with the pool in the way there is no path from a request to a
+  // socket that does not go past the ADR 0005 partition key.
+  FetchRequest(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy, ConnectionPool& pool,
+               CookieJar& cookies, HttpCache& cache, FetchOptions options, std::int64_t now);
   ~FetchRequest();
 
   FetchRequest(const FetchRequest&) = delete;
@@ -71,7 +74,12 @@ class FetchRequest {
   // made progress — connected, sent bytes, received bytes, or finished. That is
   // what an inactivity deadline is measured against, which is why it is the
   // return value rather than "am I done".
-  bool Advance();
+  //
+  // `now_ms` is steady time, and it is here rather than in the constructor
+  // because a request that completes hands its connection back to the pool and
+  // the pool times that connection out from the moment it arrived, not from the
+  // moment the request started.
+  bool Advance(std::int64_t now_ms);
 
   bool IsComplete() const { return complete_; }
   // True when the last `Advance()` stopped because the transport had nothing
@@ -109,12 +117,21 @@ class FetchRequest {
   // when the request finished here rather than moving on.
   bool BeginExchange();
   // Cookies, cache, and the redirect decision. Sets the next stage.
-  void FinishResponse();
+  void FinishResponse(std::int64_t now_ms);
   void Complete(HttpResponse response, const url::Url& url);
+  // Hands the connection back to the pool, or closes it. Everything that
+  // decides between those two is in one place on purpose: a connection kept
+  // when it should not have been is the next request reading a body as a
+  // status line.
+  void ReleaseConnection(const HttpResponse& response, std::int64_t now_ms);
+  // True when a reused connection failed before it said anything, which is the
+  // race every pool has: the server closed it while it was idle. Worth exactly
+  // one retry on a fresh socket, and no more.
+  bool MayRetryOnFreshConnection() const;
 
   privacy::Verdict verdict_;
   const privacy::PrivacyPolicy& policy_;
-  TransportFactory& transport_;
+  ConnectionPool& pool_;
   CookieJar& cookies_;
   HttpCache& cache_;
   FetchOptions remaining_;
@@ -131,6 +148,10 @@ class FetchRequest {
   bool may_use_cache_ = false;
   bool complete_ = false;
   bool blocked_ = false;
+  // Whether the connection in hand came out of the pool, and whether the one
+  // retry that fact buys has been spent.
+  bool reused_ = false;
+  bool retried_ = false;
   Stage stage_ = Stage::Begin;
   FetchResult result_;
 };
@@ -155,8 +176,7 @@ class FetchRequest {
 // codebase with both shapes grows calls that block inside a completion, which
 // is the one thing an event loop cannot survive. See ADR 0011.
 std::unique_ptr<FetchRequest> Fetch(privacy::Verdict verdict, const privacy::PrivacyPolicy& policy,
-                                    TransportFactory& transport, CookieJar& cookies,
-                                    HttpCache& cache, const FetchOptions& options,
-                                    std::int64_t now);
+                                    ConnectionPool& pool, CookieJar& cookies, HttpCache& cache,
+                                    const FetchOptions& options, std::int64_t now);
 
 }  // namespace microbrowser::net
