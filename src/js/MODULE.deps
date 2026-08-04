@@ -78,4 +78,8 @@ budget: Heap        header_lines=105 public_methods=18 members=7
 # it lives, along with the microtask record. Lines here are description; the
 # member and method counts are what say whether this is becoming a god object,
 # and both have room.
+# The well-known values, grouped. One field per thing the language requires to
+# exist and one `Roots()` that cannot disagree with the fields -- which is the
+# whole reason it is a struct. It grows as the language does.
+budget: WellKnown   header_lines=45 public_methods=2  members=8
 budget: Interpreter header_lines=300 public_methods=40 members=14

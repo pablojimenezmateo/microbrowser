@@ -213,6 +213,15 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
         well_known_.string_prototype == nullptr ? nullptr : well_known_.string_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
+  if (base.IsNumber()) {
+    // Read straight off the shared prototype, the same way a string's methods
+    // are: a number is a primitive here, so there is nothing to box.
+    const Object::Property* method =
+        well_known_.number_prototype == nullptr
+            ? nullptr
+            : well_known_.number_prototype->GetProperty(key);
+    return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
+  }
   if (base.IsSymbol()) {
     // A symbol is a primitive, but its cell is an object, so `sym.description`
     // and `sym.toString` are an ordinary prototype walk from the cell. No

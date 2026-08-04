@@ -237,6 +237,15 @@ class Interpreter {
   void InstallCollections();
   // Promise, and the microtask queue it settles through.
   void InstallPromises();
+  // `JSON.parse` and the URI functions. In their own translation unit because
+  // both parse text a page handed over -- one of them usually straight off the
+  // network -- and a parser belongs with the bounds that make it safe.
+  void InstallJsonAndUri(Object* json);
+  // `Math`, `Number` and `Date`. One translation unit because all three are
+  // arithmetic wearing different names, and because two of them touch the
+  // clock -- which is a fingerprinting surface and is argued about once there
+  // rather than in three places.
+  void InstallNumbers(Object* math);
 
   // The values the language requires to exist, allocated once and handed out.
   //
@@ -257,6 +266,9 @@ class Interpreter {
     Object* string_prototype = nullptr;
     Object* regexp_prototype = nullptr;
     Object* promise_prototype = nullptr;
+    // Where a number's methods live. A number is a primitive here, like a
+    // string, so GetProperty consults this directly rather than boxing.
+    Object* number_prototype = nullptr;
     // Not a prototype, but the same category: the cell every iteration goes
     // through. Held here rather than looked up through the global `Symbol`,
     // which a page can reassign -- the protocol has to keep working when it
@@ -264,8 +276,8 @@ class Interpreter {
     Object* symbol_iterator = nullptr;
 
     std::vector<Object*> Roots() const {
-      return {object_prototype, array_prototype,  function_prototype, string_prototype,
-              regexp_prototype, promise_prototype, symbol_iterator};
+      return {object_prototype, array_prototype,   function_prototype, string_prototype,
+              regexp_prototype, promise_prototype, symbol_iterator,    number_prototype};
     }
   };
 

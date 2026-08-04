@@ -1448,6 +1448,126 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("let n = 2; n **= 0; n", "1");
   });
 
+  // --- The builtins a probe found missing ------------------------------------
+
+  AddTest(tests, "JsInterpreter/JsonParsesWhatItStringifies", [] {
+    ExpectEval("JSON.parse('{\"a\":[1,2,{\"b\":\"c\"}]}').a[2].b", "c");
+    ExpectEval("JSON.stringify(JSON.parse('{\"x\":1,\"y\":[true,null]}'))",
+               "{\"x\":1,\"y\":[true,null]}");
+    ExpectEval("typeof JSON.parse('null')", "object");
+    ExpectEval("JSON.parse('-1.5e2')", "-150");
+    ExpectEval("JSON.parse('[]').length", "0");
+  });
+
+  AddTest(tests, "JsInterpreter/JsonRefusesWhatIsNotJson", [] {
+    // Every one of these is accepted by a lenient parser and is a different
+    // document from what was sent. Trailing content matters most: accepting
+    // the prefix is how a truncated response gets treated as a whole one.
+    const auto refuses = [](const char* text) {
+      return "SyntaxError" ==
+             Eval(std::string("try { JSON.parse('") + text + "') } catch (e) { e.name }");
+    };
+    Expect(refuses("{"), "an unterminated object");
+    Expect(refuses("{\"a\":1}x"), "trailing content");
+    Expect(refuses("[1,]"), "a trailing comma");
+    Expect(refuses("+1"), "a leading plus");
+    // Depth is bounded, so a wall of brackets is an error rather than a
+    // stack overflow.
+    ExpectEval("let deep = '1'; for (let i = 0; i < 500; i++) deep = '[' + deep + ']'; "
+               "try { JSON.parse(deep) } catch (e) { e.name }",
+               "SyntaxError");
+  });
+
+  AddTest(tests, "JsInterpreter/TheUriFunctionsDifferInWhatTheyKeep", [] {
+    // The whole reason both exist: encodeURI keeps the punctuation that
+    // separates the parts of a URL, encodeURIComponent escapes it so a value
+    // cannot become a separator.
+    ExpectEval("encodeURIComponent('a b&c=d/e')", "a%20b%26c%3Dd%2Fe");
+    ExpectEval("encodeURI('http://x/a b?c=d')", "http://x/a%20b?c=d");
+    ExpectEval("decodeURIComponent('a%20b%26c')", "a b&c");
+    ExpectEval("decodeURI('a%20b%2Fc')", "a b%2Fc");
+    ExpectEval("try { decodeURIComponent('%zz') } catch (e) { e.name }", "URIError");
+  });
+
+  AddTest(tests, "JsInterpreter/NumbersHaveMethodsWithoutBeingBoxed", [] {
+    ExpectEval("(1.5).toFixed(2)", "1.50");
+    ExpectEval("(255).toString(16)", "ff");
+    ExpectEval("(255).toString(2)", "11111111");
+    ExpectEval("(-10).toString(36)", "-a");
+    ExpectEval("try { (1).toString(1) } catch (e) { e.name }", "RangeError");
+    // The static predicates do not convert, which is the whole difference from
+    // the global ones: `isNaN('x')` is true and `Number.isNaN('x')` is false.
+    ExpectEval("[Number.isNaN('x'), isNaN('x')].join(' ')", "false true");
+    ExpectEval("[Number.isInteger(4), Number.isInteger(4.5)].join(' ')", "true false");
+    ExpectEval("Number.MAX_SAFE_INTEGER", "9007199254740991");
+  });
+
+  AddTest(tests, "JsInterpreter/MathAndTheClock", [] {
+    ExpectEval("[Math.trunc(4.7), Math.sign(-3), Math.log2(8), Math.hypot(3, 4)].join(' ')",
+               "4 -1 3 5");
+    // NaN has no sign and both zeros keep theirs, which `v > 0 ? 1 : -1` gets
+    // wrong for all three.
+    ExpectEval("[Math.sign(0), Math.sign(NaN)].join(' ')", "0 NaN");
+    ExpectEval("const r = Math.random(); typeof r === 'number' && r >= 0 && r < 1", "true");
+    // Different draws, which is the property a shuffle depends on. Two hundred
+    // is far past any collision a working generator would produce.
+    ExpectEval("const seen = new Set(); for (let i = 0; i < 200; i++) seen.add(Math.random()); "
+               "seen.size",
+               "200");
+    ExpectEval("new Date(0).toISOString()", "1970-01-01T00:00:00Z");
+    ExpectEval("new Date(0).getTime()", "0");
+    // An unparsed date is an honest NaN rather than a wrong instant.
+    ExpectEval("new Date('the third of never').getTime()", "NaN");
+    ExpectEval("typeof Date.now()", "number");
+  });
+
+  AddTest(tests, "JsInterpreter/PropertiesCanBeDefinedRatherThanAssigned", [] {
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', { value: 1 }); o.x", "1");
+    ExpectEval("const o = {}; Object.defineProperty(o, 'g', { get(){ return 4 } }); o.g", "4");
+    ExpectEval("let taken = 0; const o = {}; "
+               "Object.defineProperty(o, 's', { set(v){ taken = v } }); o.s = 9; taken",
+               "9");
+    ExpectEval("const o = Object.defineProperties({}, { a: { value: 1 }, b: { value: 2 } }); "
+               "o.a + o.b",
+               "3");
+    ExpectEval("Object.getOwnPropertyDescriptor({ a: 1 }, 'a').value", "1");
+    ExpectEval("typeof Object.getOwnPropertyDescriptor({}, 'a')", "undefined");
+    ExpectEval("Object.getOwnPropertyNames({ a: 1, b: 2 }).join(',')", "a,b");
+    // An array's indices live in element storage rather than the property map,
+    // so they have to be listed separately or they go missing.
+    ExpectEval("Object.getOwnPropertyNames([7, 8]).join(',')", "0,1,length");
+  });
+
+  AddTest(tests, "JsInterpreter/ObjectPrototypeHasItsOwnMethods", [] {
+    ExpectEval("[({ a: 1 }).hasOwnProperty('a'), ({}).hasOwnProperty('a')].join(' ')",
+               "true false");
+    // The `[object Kind]` form, which is how a page tells an array from a
+    // plain object without trusting `instanceof`.
+    ExpectEval("Object.prototype.toString.call([])", "[object Array]");
+    ExpectEval("Object.prototype.toString.call({})", "[object Object]");
+    ExpectEval("Object.prototype.toString.call(/x/)", "[object RegExp]");
+    ExpectEval("Object.prototype.toString.call(() => 1)", "[object Function]");
+    // Every built-in prototype chains to Object.prototype, which is what makes
+    // any of this resolve on an array or a number at all.
+    ExpectEval("Array.prototype.isPrototypeOf([])", "true");
+    ExpectEval("Object.prototype.isPrototypeOf([])", "true");
+    ExpectEval("[].hasOwnProperty(0)", "false");
+  });
+
+  AddTest(tests, "JsInterpreter/AnIteratorIsItselfIterable", [] {
+    // The bug this test was written after finding: the built-in iterator had a
+    // comment saying it was iterable and no code that made it so, which is
+    // invisible until something spreads the result of calling one.
+    ExpectEval("[...['a', 'b'].values()].join(',')", "a,b");
+    ExpectEval("[...['a', 'b'].keys()].join(',')", "0,1");
+    ExpectEval("JSON.stringify([...['a'].entries()])", "[[0,\"a\"]]");
+    ExpectEval("[...[1, 2][Symbol.iterator]()].length", "2");
+    ExpectEval("let out = ''; for (const c of 'ab'[Symbol.iterator]()) out += c; out", "ab");
+    // `values` is the same function the protocol hook is, so the two cannot
+    // disagree about what iterating an array means.
+    ExpectEval("[].values === [][Symbol.iterator]", "true");
+  });
+
   AddTest(tests, "JsInterpreter/StringMethodsCoexistWithLengthAndIndexing", [] {
     // `length` and `[i]` predate the prototype and still win over it, which is
     // the ordering GetProperty has to preserve.

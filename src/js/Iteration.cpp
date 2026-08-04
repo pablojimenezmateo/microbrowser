@@ -148,7 +148,8 @@ void Interpreter::InstallIteration() {
 
   // An iterator over something indexable. The array and string iterators
   // differ only in what they read out of the target, so they share this.
-  const auto make_indexed_iterator = [this](const Value& target, bool by_character) {
+  const auto make_indexed_iterator = [this, iterator_key](const Value& target,
+                                                          bool by_character) {
     Object* iterator = NewObject();
     if (iterator == nullptr) {
       return Value::Undefined();
@@ -183,8 +184,12 @@ void Interpreter::InstallIteration() {
       call.self.object->Set(kIndexKey, Value::Number(static_cast<double>(index + 1)));
       return result;
     });
-    // An iterator is itself iterable, which is what lets `for...of` accept the
-    // result of calling one directly.
+    // An iterator is itself iterable, which is what lets `for...of` and a
+    // spread accept the result of calling one directly. This has to be *set*
+    // and not merely intended: `[...arr.values()]` is the call that finds it
+    // missing.
+    iterator->Set(iterator_key, NewNativeValue("[Symbol.iterator]",
+                                               [](NativeCall& inner) { return inner.self; }));
     return Value::Obj(iterator);
   };
 
@@ -200,6 +205,61 @@ void Interpreter::InstallIteration() {
   };
   install_iterator_hook(well_known_.array_prototype, false);
   install_iterator_hook(well_known_.string_prototype, true);
+
+  // `keys`, `values` and `entries` on an array are the same walk yielding a
+  // different part of each step, and `values` is the same function the
+  // `Symbol.iterator` hook is -- aliased rather than reimplemented, so the two
+  // cannot disagree about what iterating an array means.
+  enum class ArrayYield { Keys, Values, Entries };
+  const auto array_iterator = [this](const char* name, ArrayYield yield) {
+    InstallNative(well_known_.array_prototype, name, [yield](NativeCall& call) {
+      Value iterator = call.interpreter.NewObjectValue();
+      if (!iterator.IsObject()) {
+        return iterator;
+      }
+      iterator.object->Set(kTargetKey, call.self);
+      iterator.object->Set(kIndexKey, Value::Number(0.0));
+      iterator.object->Set(
+          "next", call.interpreter.NewNativeValue("next", [yield](NativeCall& step) {
+            Value result = step.interpreter.NewObjectValue();
+            if (!result.IsObject() || !step.self.IsObject()) {
+              return result;
+            }
+            const Value* target = step.self.object->GetOwn(kTargetKey);
+            const Value* at = step.self.object->GetOwn(kIndexKey);
+            const std::size_t index = at == nullptr ? 0 : static_cast<std::size_t>(ToNumber(*at));
+            const std::size_t size =
+                target != nullptr && target->IsObject() ? target->object->ElementCount() : 0;
+            if (index >= size) {
+              result.object->Set("value", Value::Undefined());
+              result.object->Set("done", Value::Bool(true));
+              return result;
+            }
+            const Value key = Value::Number(static_cast<double>(index));
+            const Value value = target->object->GetElement(index);
+            Value yielded = key;
+            if (yield == ArrayYield::Values) {
+              yielded = value;
+            } else if (yield == ArrayYield::Entries) {
+              yielded = step.interpreter.NewArrayValue({key, value});
+            }
+            step.self.object->Set(kIndexKey, Value::Number(static_cast<double>(index + 1)));
+            result.object->Set("value", yielded);
+            result.object->Set("done", Value::Bool(false));
+            return result;
+          }));
+      iterator.object->Set(
+          PropertyKey::Symbol(call.interpreter.SymbolIterator()),
+          call.interpreter.NewNativeValue("[Symbol.iterator]",
+                                          [](NativeCall& inner) { return inner.self; }));
+      return iterator;
+    });
+  };
+  array_iterator("keys", ArrayYield::Keys);
+  array_iterator("entries", ArrayYield::Entries);
+  if (const Value* hook = well_known_.array_prototype->GetOwn(iterator_key)) {
+    well_known_.array_prototype->Set("values", *hook);
+  }
 }
 
 // --- The protocol ----------------------------------------------------------

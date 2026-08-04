@@ -147,6 +147,19 @@ void Interpreter::InstallGlobals() {
     InstallNative(target, name, std::move(function));
   };
 
+  // Every built-in prototype chains to Object.prototype, which is what makes
+  // `[].hasOwnProperty` and `(1).toString` resolve at all. Done here rather
+  // than at each allocation because forgetting one is invisible until a page
+  // calls the one method that lives up the chain.
+  for (Object* prototype :
+       {well_known_.array_prototype, well_known_.function_prototype,
+        well_known_.string_prototype, well_known_.regexp_prototype,
+        well_known_.promise_prototype}) {
+    if (prototype != nullptr) {
+      prototype->SetPrototype(well_known_.object_prototype);
+    }
+  }
+
   // First, because every native installed after this one inherits from it.
   InstallFunctionPrototype();
 
@@ -226,6 +239,9 @@ void Interpreter::InstallGlobals() {
     return Value::Number(best);
   });
   global_scope_->Declare("Math", Value::Obj(math), false);
+  // Deferred: it reads `Number`, `parseInt` and `parseFloat` back out of the
+  // global scope, and none of them is declared yet at this point.
+  const auto install_numbers = [this, math] { InstallNumbers(math); };
 
   // --- JSON -----------------------------------------------------------------
   Object* json = NewObject();
@@ -335,6 +351,7 @@ void Interpreter::InstallGlobals() {
     }
     return Value::String(std::move(writer.out));
   });
+  InstallJsonAndUri(json);
   global_scope_->Declare("JSON", Value::Obj(json), false);
 
   // --- Object ---------------------------------------------------------------
@@ -386,6 +403,106 @@ void Interpreter::InstallGlobals() {
       }
     }
     return call.interpreter.NewArrayValue(std::move(values));
+  });
+  install(object_constructor, "defineProperty", [](NativeCall& call) {
+    // The workhorse of every transpiled module and every framework's own
+    // property machinery. Only the parts that mean something here are read:
+    // `value`, `get` and `set`. `writable`, `enumerable` and `configurable`
+    // have nowhere to be stored -- a property has no attributes in this object
+    // model -- so they are accepted and ignored rather than refused, which is
+    // the behaviour a page survives.
+    const Value target = Argument(call.arguments, 0);
+    if (!target.IsObject()) {
+      return call.Throw("TypeError", "Object.defineProperty called on a non-object");
+    }
+    const Value descriptor = Argument(call.arguments, 2);
+    if (!descriptor.IsObject()) {
+      return call.Throw("TypeError", "a property descriptor must be an object");
+    }
+    const PropertyKey key = KeyFrom(Argument(call.arguments, 1));
+    const Value* getter = descriptor.object->GetOwn("get");
+    const Value* setter = descriptor.object->GetOwn("set");
+    if (getter != nullptr || setter != nullptr) {
+      target.object->DefineAccessor(
+          key, getter != nullptr && getter->IsObject() ? getter->object : nullptr,
+          setter != nullptr && setter->IsObject() ? setter->object : nullptr);
+      return target;
+    }
+    const Value* value = descriptor.object->GetOwn("value");
+    target.object->Set(key, value == nullptr ? Value::Undefined() : *value);
+    return target;
+  });
+  install(object_constructor, "defineProperties", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    const Value descriptors = Argument(call.arguments, 1);
+    if (!target.IsObject() || !descriptors.IsObject()) {
+      return call.Throw("TypeError", "Object.defineProperties requires two objects");
+    }
+    const Value define = call.interpreter.GetPropertyValue(call.self, "defineProperty");
+    for (const std::string& key : descriptors.object->Keys()) {
+      const Value* descriptor = descriptors.object->GetOwn(key);
+      if (descriptor == nullptr) {
+        continue;
+      }
+      // Through defineProperty rather than around it, so the two cannot
+      // disagree about what a descriptor means.
+      const Result defined = call.interpreter.CallFunction(
+          define, call.self, {target, Value::String(key), *descriptor});
+      if (defined.IsAbrupt()) {
+        return call.ThrowValue(defined.value);
+      }
+    }
+    return target;
+  });
+  install(object_constructor, "getOwnPropertyDescriptor", [](NativeCall& call) {
+    const Value target = Argument(call.arguments, 0);
+    if (!target.IsObject()) {
+      return Value::Undefined();
+    }
+    const Object::Property* property =
+        target.object->GetOwnProperty(KeyFrom(Argument(call.arguments, 1)));
+    if (property == nullptr) {
+      return Value::Undefined();
+    }
+    const Value descriptor = call.interpreter.NewObjectValue();
+    if (!descriptor.IsObject()) {
+      return descriptor;
+    }
+    if (property->IsAccessor()) {
+      descriptor.object->Set("get", property->getter == nullptr
+                                        ? Value::Undefined()
+                                        : Value::Obj(property->getter));
+      descriptor.object->Set("set", property->setter == nullptr
+                                        ? Value::Undefined()
+                                        : Value::Obj(property->setter));
+    } else {
+      descriptor.object->Set("value", property->value);
+      descriptor.object->Set("writable", Value::Bool(!target.object->IsFrozen()));
+    }
+    descriptor.object->Set("enumerable", Value::Bool(true));
+    descriptor.object->Set("configurable", Value::Bool(!target.object->IsFrozen()));
+    return descriptor;
+  });
+  install(object_constructor, "getOwnPropertyNames", [](NativeCall& call) {
+    // Every own string key, including an array's indices -- which `keys` also
+    // reports, but which live in the element storage rather than the property
+    // map, so they have to be listed separately.
+    const Value target = Argument(call.arguments, 0);
+    std::vector<Value> names;
+    if (target.IsObject()) {
+      if (target.object->GetKind() == Object::Kind::Array) {
+        for (std::size_t i = 0; i < target.object->ElementCount(); ++i) {
+          if (target.object->HasElement(i)) {
+            names.push_back(Value::String(std::to_string(i)));
+          }
+        }
+        names.push_back(Value::String("length"));
+      }
+      for (const std::string& key : target.object->Keys()) {
+        names.push_back(Value::String(key));
+      }
+    }
+    return call.interpreter.NewArrayValue(std::move(names));
   });
   install(object_constructor, "entries", [](NativeCall& call) {
     // Own string keys and their values, in insertion order -- which is what
@@ -484,6 +601,56 @@ void Interpreter::InstallGlobals() {
     // A primitive is frozen by definition, which is what the spec says and
     // what makes `Object.isFrozen(1)` true.
     return Value::Bool(!target.IsObject() || target.object->IsFrozen());
+  });
+  // `Object.prototype` had nothing on it, so `({}).hasOwnProperty` was
+  // undefined -- and that method is how a great deal of code asks whether a
+  // key is its own rather than inherited.
+  object_constructor->Set("prototype", Value::Obj(well_known_.object_prototype));
+  well_known_.object_prototype->Set("constructor", Value::Obj(object_constructor));
+  install(well_known_.object_prototype, "hasOwnProperty", [](NativeCall& call) {
+    return Value::Bool(call.self.IsObject() &&
+                       call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
+  });
+  install(well_known_.object_prototype, "isPrototypeOf", [](NativeCall& call) {
+    const Value value = Argument(call.arguments, 0);
+    if (!value.IsObject() || !call.self.IsObject()) {
+      return Value::Bool(false);
+    }
+    // Bounded, because a prototype cycle is buildable from a page.
+    const Object* walk = value.object->Prototype();
+    for (int depth = 0; walk != nullptr && depth < 1000; ++depth) {
+      if (walk == call.self.object) {
+        return Value::Bool(true);
+      }
+      walk = walk->Prototype();
+    }
+    return Value::Bool(false);
+  });
+  install(well_known_.object_prototype, "propertyIsEnumerable", [](NativeCall& call) {
+    // Every own property is enumerable here: the object model has no
+    // attributes to say otherwise, so this is `hasOwnProperty` under another
+    // name rather than a second answer.
+    return Value::Bool(call.self.IsObject() &&
+                       call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
+  });
+  install(well_known_.object_prototype, "valueOf", [](NativeCall& call) { return call.self; });
+  install(well_known_.object_prototype, "toString", [](NativeCall& call) {
+    // The `[object Kind]` form, which is what a page uses to tell an array
+    // from a plain object without trusting `instanceof` across realms.
+    if (!call.self.IsObject()) {
+      return Value::String(std::string("[object ") +
+                           (call.self.IsNullish() ? "Undefined" : "Object") + "]");
+    }
+    switch (call.self.object->GetKind()) {
+      case Object::Kind::Array: return Value::String(std::string("[object Array]"));
+      case Object::Kind::Function:
+      case Object::Kind::Native: return Value::String(std::string("[object Function]"));
+      case Object::Kind::Error: return Value::String(std::string("[object Error]"));
+      case Object::Kind::RegExp: return Value::String(std::string("[object RegExp]"));
+      case Object::Kind::Symbol: return Value::String(std::string("[object Symbol]"));
+      case Object::Kind::Plain: break;
+    }
+    return Value::String(std::string("[object Object]"));
   });
   global_scope_->Declare("Object", Value::Obj(object_constructor), false);
 
@@ -600,6 +767,10 @@ void Interpreter::InstallGlobals() {
         return Value::Bool(std::isnan(ToNumber(Argument(call.arguments, 0))));
       })),
       false);
+
+  // Last: it reads `Number`, `parseInt` and `parseFloat` back out of the
+  // global scope, so every one of them has to be declared first.
+  install_numbers();
 }
 
 }  // namespace microbrowser::js
