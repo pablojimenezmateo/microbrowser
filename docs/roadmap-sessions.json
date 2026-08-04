@@ -66,7 +66,8 @@
       "anchor": "### Session 5 — JPEG",
       "scope": "A baseline and progressive JPEG decoder written here, with saturating size arithmetic, a maximum decoded pixel count enforced before allocation, and a fuzz target on the same commit.",
       "check": "reddit's front page renders its 8 JPEG thumbnails. Previously: empty boxes.",
-      "status": "not_started"
+      "status": "done",
+      "notes": "Baseline and progressive, in three translation units: JpegScan (entropy-coded bit stream), JpegDecoder (marked segments and the frame), JpegPixels (dequantise, IDCT, upsample, colour convert). Check ran on old.reddit.com: images 6 loaded / 20 failed -> 24 loaded / 1 failed, 18 jpeg decodes, no decode failures. The remaining failure is a GIF (session ordering puts GIF after srcset). ADR 0023 counted 8 JPEGs on reddit's front page; today's front page has ~20, and three of them are JPEG bytes at a URL ending .png, which is why the decoder is chosen by magic number. reddit's preview service serves JPEG rather than WebP because we send no Accept header at all -- ADR 0023's honest Accept string cannot be written until FetchOptions carries a request destination, and today's silence happens to have the same effect. Chroma is upsampled with a triangle filter; nearest-neighbour measured 4.3 mean levels against libjpeg and would have hidden a one-row misalignment."
     },
     {
       "id": 6,

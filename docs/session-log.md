@@ -368,3 +368,89 @@ plus fourteen new seeds for these three grammars: 245,744 runs in 121 seconds, n
   branches of the mask-image test, so an engine that claimed `mask-image` would have taken the
   branch that assumes it works and drawn nothing. The `<general-enclosed>` rule — an unknown
   function form is unknown, and unknown reads as false — falls the same way on purpose.
+
+## Session 5 — JPEG · 2026-08-05
+
+**Status:** done
+**Check:** "reddit's front page renders its 8 JPEG thumbnails. Previously: empty boxes."
+Run against `https://old.reddit.com/` with `microbrowser_snapshot` and `MICROBROWSER_PERF_COUNTERS=1`:
+
+```
+BEFORE (7fc5531): engine.images_loaded 6    engine.images_failed 20
+AFTER            : engine.images_loaded 24   engine.images_failed 1
+                   gfx.jpeg_decodes 18       gfx.jpeg_decode_failures 0
+                   gfx.jpeg_pixels_decoded 307440
+```
+
+Rendered both PPMs and looked at them. Before: every story is a bare title with an empty
+left column. After: the thumbnails are photographs. The one remaining failure is the single
+GIF on the page, which is the session after next.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each. `jpeg_fuzzer` over the
+seventeen checked-in seeds: **373,084 runs across three sessions totalling 21 minutes, no
+crash**; the corpus grew to 414 inputs and 884 coverage edges and stopped finding new ones.
+
+**Landed:**
+
+- *A bound on decoded pixels belongs to the image, not to one decoder*
+- *JPEG, baseline and progressive, and the fuzzer that lands with it*
+- *Exactly one decoder is offered an image, and reddit's thumbnails arrive*
+- *Two million signed differences do not add up inside an int*
+
+**Left:**
+
+- **GIF is the one image on reddit's front page that still fails**, and ADR 0023 §5 puts it
+  third, after `srcset`. Nothing about this session changes that ordering.
+- **`Accept` is still not sent at all.** ADR 0023's consequence says the browser should send
+  `image/png, image/gif, image/jpeg, image/svg+xml, */*` and honestly omit `image/webp`.
+  It cannot be written yet: `net::FetchOptions` carries no request destination, so one header
+  builder serves documents, stylesheets, scripts and images alike, and an image `Accept` on a
+  document request would be worse than none. Today's silence happens to have the intended
+  effect — see Found.
+- **Four-component (CMYK/YCCK) and 12-bit JPEG are refused, deliberately.** So is arithmetic
+  coding. Each returns an error rather than a guess; ADR 0012's rule, applied to pixels.
+- **EXIF orientation is not applied**, and belongs where an image is placed rather than where
+  it is decoded.
+- **The IDCT is the separable float definition with a zero-row shortcut**, not a fast integer
+  form. It is the obvious thing to measure if a photographic page feels slow; nothing has been
+  measured yet, because a 140-pixel thumbnail is 300 blocks.
+
+**Found:**
+
+- **ADR 0023's count is stale in the direction that mattered.** It says reddit's front page
+  references 25 PNG and 8 JPEG. Today it is 26 `<img>` elements of which about twenty are
+  JPEG, and **three of them are JPEG bytes at a URL ending `.png`** — reddit's preview service
+  takes `format=jpg` in the query and leaves the extension alone. A decoder chosen by
+  extension, or by the `.png` in the path, would have shown three empty boxes and no error.
+  The magic-number rule ADR 0023 §2 states is not theoretical.
+- **We get JPEG from reddit because we send no `Accept` header at all.** Every preview URL
+  carries `auto=webp`, which means "WebP if the client says it takes it". Sending nothing is
+  read as taking nothing special, so the JPEG arrives. That is the outcome ADR 0023 wanted
+  from an honest `Accept`, reached by silence rather than by honesty, and it will stop being
+  true the moment anything else needs an `Accept` header.
+- **Nearest-neighbour chroma upsampling is what makes a decoder test worthless.** Measured
+  against libjpeg on the same files it costs a mean of **4.3 levels per channel** and a worst
+  case of 53. A tolerance loose enough to accept that is loose enough to accept a chroma plane
+  that is off by an entire row, which is the bug a subsampled JPEG decoder actually has. With
+  a triangle filter — the same one libjpeg uses, written as general bilinear with the sample
+  centres half a pixel in — the difference falls to **0.44 mean and 3 worst**, and the test
+  bound is now tight enough to be worth running. The filter was written to make the test
+  possible, not the other way round.
+- **A fixture with a discontinuity in it measures the filter, not the decoder.** The first
+  subsampled fixtures used `(x * 17 + 8) % 256`, whose wrap is a 241-level cliff. A chroma
+  plane at half resolution cannot represent a cliff, so every upsampling method disagrees
+  there by the size of the cliff. `tools/make-jpeg-fixtures.py` now has two generators and
+  says which is for which.
+- **A restart interval that divides the MCU count exactly produces no restart markers.** The
+  first "restarts" fixture was 32x24 at 4:2:0 — four MCUs, interval four — and contained zero
+  RST markers. It passed, and it tested nothing. Counting the markers in the generated file
+  is the only way to know a fixture is the fixture it claims to be.
+- **The DC predictor was a signed overflow and neither the fixtures nor five minutes of
+  fuzzing found it.** It accumulates one difference per block; each fits in sixteen bits and
+  a component may hold two million blocks. Reaching it needs a file specifically built to,
+  which is exactly the class of bug a decoder has to be read for rather than fuzzed for.
+- **The module line cap was right about what it was pointing at.** JpegDecoder.cpp came in at
+  950 lines against a cap of 800, and the honest split was not "the big functions" — it was
+  the entropy-coded bit stream (no framing, ends wherever a 0xFF says) against the container
+  of marked segments (lengths, tables, a frame description). They fail differently and read
+  differently. Raising the cap would have hidden a seam that was already there.
