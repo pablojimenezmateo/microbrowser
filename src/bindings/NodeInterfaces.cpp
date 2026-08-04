@@ -133,8 +133,11 @@ void DomBindings::EnsureInterfaces() {
 
   const Value node = MakeInterface("Node", Value::Undefined());
   InstallNodeInterface(node);
+  InstallNodeQueries(node);
   const Value element = MakeInterface("Element", node);
   InstallElementInterface(element);
+  InstallParentQueries(element);
+  InstallElementIdentity(element);
   const Value html_element = MakeInterface("HTMLElement", element);
   // Every per-tag interface, up front rather than when its tag is first seen.
   // Lazily was tempting and wrong: `x instanceof HTMLAnchorElement` has to
@@ -146,7 +149,9 @@ void DomBindings::EnsureInterfaces() {
   }
   MakeInterface("Text", node);
   MakeInterface("Comment", node);
-  MakeInterface("Document", node);
+  // A Document is a ParentNode too: `document.querySelector` and
+  // `container.querySelector` are one operation from two roots.
+  InstallParentQueries(MakeInterface("Document", node));
 }
 
 js::Value DomBindings::PrototypeFor(const dom::Node& node) {

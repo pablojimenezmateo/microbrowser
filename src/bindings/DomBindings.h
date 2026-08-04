@@ -73,6 +73,13 @@ class DomBindings {
   // node onto every wrapper. See NodeInterfaces.cpp and ADR 0012.
   void InstallNodeInterface(const js::Value& target);
   void InstallElementInterface(const js::Value& target);
+  // Searching and walking, in ElementQueries.cpp. Three rather than one
+  // because the specification's mixins are three: what every Node answers,
+  // what a ParentNode (Element or Document) answers, and what only an Element
+  // does.
+  void InstallNodeQueries(const js::Value& target);
+  void InstallParentQueries(const js::Value& target);
+  void InstallElementIdentity(const js::Value& target);
   // The prototype a wrapper for `node` gets: the one its tag names, whose
   // chain runs up through HTMLElement, Element and Node. Built on first use.
   js::Value PrototypeFor(const dom::Node& node);

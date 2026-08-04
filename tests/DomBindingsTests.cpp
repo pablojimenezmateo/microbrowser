@@ -65,6 +65,65 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   // missing *type*, so `class X extends HTMLElement` could not be written at
   // all. ADR 0012 puts this first because it is structural: everything after
   // it assumes an element already has a prototype to inherit from.
+  // Searching from an element rather than from the document. `querySelector`
+  // existed only on `document`, which is half the API -- a page that has a
+  // container and wants something inside it writes `container.querySelector`,
+  // and every framework does.
+  AddTest(tests, "DomBindings/AnElementCanBeSearchedAndWalked", [] {
+    ExpectScript(kPage, "document.getElementById('list').querySelectorAll('p').length", "2");
+    ExpectScript(kPage, "document.getElementById('list').querySelector('p').textContent", "one");
+    // Scoped to the subtree: the h1 is in the document but not in the list.
+    ExpectScript(kPage, "document.getElementById('list').querySelector('h1') === null", "true");
+    ExpectScript(kPage, "document.getElementById('list').getElementsByTagName('p').length", "2");
+    ExpectScript(kPage, "document.body.getElementsByTagName('*').length", "4");
+    ExpectScript(kPage, "document.body.getElementsByClassName('big').length", "1");
+    // Document is a ParentNode too, and it is the same operation from a
+    // different root.
+    ExpectScript(kPage, "document.querySelectorAll('p').length", "2");
+
+    // `contains` is inclusive, which is the specification's and the surprising
+    // half: a node contains itself, and a polyfill that walks up asking
+    // `root.contains(node)` depends on that terminating.
+    ExpectScript(kPage, "document.body.contains(document.getElementById('list'))", "true");
+    ExpectScript(kPage, "document.body.contains(document.body)", "true");
+    ExpectScript(kPage,
+                 "document.getElementById('list').contains(document.getElementById('title'))",
+                 "false");
+    ExpectScript(kPage, "document.body.hasChildNodes()", "true");
+
+    // Element-only walking. Without these a walk over `firstChild` and
+    // `nextSibling` stops on the whitespace between two tags.
+    ExpectScript(kPage, "document.getElementById('list').firstElementChild.textContent", "one");
+    ExpectScript(kPage, "document.getElementById('list').lastElementChild.textContent", "two");
+    ExpectScript(kPage,
+                 "document.getElementById('list').firstElementChild"
+                 ".nextElementSibling.textContent",
+                 "two");
+    ExpectScript(kPage,
+                 "document.getElementById('list').lastElementChild"
+                 ".previousElementSibling.textContent",
+                 "one");
+    ExpectScript(kPage, "document.getElementById('list').firstElementChild"
+                        ".previousElementSibling === null", "true");
+    ExpectScript(kPage, "document.getElementById('list').parentElement.tagName", "body");
+    // `parentElement` is null where `parentNode` is the document, which is the
+    // whole difference between them.
+    ExpectScript(kPage, "document.documentElement.parentElement === null", "true");
+    ExpectScript(kPage, "document.documentElement.parentNode === document", "true");
+
+    // In the tree or merely made. A framework checks this before it does
+    // anything that depends on layout.
+    ExpectScript(kPage, "document.body.isConnected", "true");
+    ExpectScript(kPage, "document.createElement('div').isConnected", "false");
+    ExpectScript(kPage, "document.body.ownerDocument === document", "true");
+    ExpectScript(kPage, "document.getElementById('title').localName", "h1");
+    ExpectScript(kPage, "document.getElementById('title').hasAttributes()", "true");
+    ExpectScript(kPage, "document.createElement('div').hasAttributes()", "false");
+    ExpectScript(kPage,
+                 "document.getElementById('title').attributes.map(a => a.name).sort().join()",
+                 "class,id");
+  });
+
   AddTest(tests, "DomBindings/ElementsHaveATypeHierarchy", [] {
     // The chain, from the bottom up.
     ExpectScript(kPage, "document.body instanceof HTMLElement", "true");
