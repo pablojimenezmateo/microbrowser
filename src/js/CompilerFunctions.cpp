@@ -98,14 +98,6 @@ void Compiler::Function(const Node& node, bool arrow) {
   const auto flags = static_cast<std::uint8_t>(node.number);
   function_.is_async = (flags & kFunctionAsync) != 0;
   function_.is_generator = (flags & kFunctionGenerator) != 0;
-  if (function_.is_async && function_.is_generator) {
-    // An async generator suspends two ways at once, and the two do not compose
-    // yet -- see the note at the top of Async.cpp. Refusing it here sends the
-    // program to the tree-walker, which refuses the call, rather than running
-    // a body that would settle the wrong thing.
-    ThrowSyntax("async generators are not implemented");
-    return;
-  }
   function_.parameter_count =
       parameters == nullptr ? 0 : static_cast<std::uint32_t>(parameters->children.size());
   function_.needs_arguments =

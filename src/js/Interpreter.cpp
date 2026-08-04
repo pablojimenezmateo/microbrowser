@@ -35,6 +35,7 @@ Interpreter::Interpreter() {
   well_known_.regexp_prototype = heap_.AllocateObject(Object::Kind::Plain);
   well_known_.promise_prototype = heap_.AllocateObject(Object::Kind::Plain);
   well_known_.generator_prototype = heap_.AllocateObject(Object::Kind::Plain);
+  well_known_.async_generator_prototype = heap_.AllocateObject(Object::Kind::Plain);
   InstallGlobals();
 }
 

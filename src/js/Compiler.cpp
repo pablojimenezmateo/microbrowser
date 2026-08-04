@@ -386,6 +386,14 @@ void Compiler::Yield(const Node& node) {
     } else {
       Expression(*argument);
     }
+    if (function_.is_async) {
+      // `yield` in an async generator awaits its operand before handing it
+      // over, which is what makes `yield fetch(x)` give the page the response
+      // rather than the promise. Two instructions rather than a third kind of
+      // suspend: the Await files the frame and a microtask puts it back, and
+      // the Yield that follows then has a value to settle the request with.
+      Emit(Op::Await, 0, 0);
+    }
     Emit(Op::Yield, 0, 0);
     return;
   }

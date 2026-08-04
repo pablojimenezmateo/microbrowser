@@ -30,6 +30,11 @@ budget: RegExp         header_lines=40 public_methods=10 members=3
 budget: RegExpFlags    header_lines=30 public_methods=2  members=7
 budget: RegExpMatch    header_lines=30 public_methods=6  members=1
 # --- The machine ------------------------------------------------------------
+# Two translation units, split by subject the way the compiler's four are: the
+# instruction loop in Vm.cpp, and what a frame is in VmFrames.cpp -- how one is
+# pushed, how a name finds a slot in it, how a throw takes one off, and what the
+# collector sees through it. The loop reads all of that and none of it reads the
+# loop.
 # One entry per thing the machine can do, with its effect on the operand stack
 # written beside it. That comment is the contract the compiler and the VM have
 # with each other, so the lines here are description rather than surface: the
@@ -40,7 +45,11 @@ budget: RegExpMatch    header_lines=30 public_methods=6  members=1
 # IterateDelegate is the step `yield*` needs and no other loop does -- it is
 # the only one that pushes the iterator's *return* value rather than dropping
 # it.
-budget: Op              header_lines=195 public_methods=0  members=0
+# Grew by three more for `for await`. Two of them can end its loop, which is
+# what the third line of each comment is for: a sync iterable answers "no more"
+# when it is stepped and an async one answers inside the promise that step
+# returned, so the branch is on either side of the Await between them.
+budget: Op              header_lines=210 public_methods=0  members=0
 # One function's code and everything it names. Data: seven vectors, three
 # scalars, and no behaviour. It grows when a chunk has to remember one more
 # kind of thing, which has happened twice and should be argued for each time.
@@ -104,6 +113,11 @@ budget: Compiler        header_lines=175 public_methods=4  members=14
 # own Environment; in a flattened function every scope shares the frame's one
 # slice, so a block has to say where in it its own run of slots begins.
 budget: CompiledScope   header_lines=28 public_methods=0  members=3
+# One generator, as the machine sees it: which filed frame is its, and whether
+# that frame may be put back. Two members, and the second is an enum whose
+# entries are written out beside it -- Awaiting and Suspended look alike and are
+# not, which is the thing a reader has to be told.
+budget: GeneratorState header_lines=35 public_methods=0 members=2
 
 # The instruction list, its constant pools, and the flags the matcher reads off
 # it. Data, with no behaviour of its own -- every member is one of those three.
@@ -185,7 +199,10 @@ budget: Heap        header_lines=145 public_methods=24 members=9
 # itself. One object shared by every generator rather than one per generator
 # function, which is the one place a page could tell and is not a place a page
 # looks.
-budget: WellKnown   header_lines=52 public_methods=2  members=9
+# Grew by two for async generators: their prototype, which shares no method
+# with the sync one, and the `Symbol.asyncIterator` cell `for await` resolves
+# against. Both are what the entry above calls the language growing.
+budget: WellKnown   header_lines=62 public_methods=2  members=11
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -209,7 +226,15 @@ budget: WellKnown   header_lines=52 public_methods=2  members=9
 # the compiled patterns and the weak tables, so nothing new is held here. What
 # grew is description -- the two halves a suspend was split into, and what each
 # of `yield`, `next`, `throw` and `return` does to a filed frame.
-budget: Interpreter header_lines=530 public_methods=44 members=16
+#
+# And again for async generators, and again by lines alone -- the member count
+# has not moved through any of this. What a running async generator needs that
+# nothing else does is a queue of unanswered requests, and that went into the
+# Suspensions struct beside the filed frames rather than becoming a member of
+# its own, because every promise in it is a GC root and the root walk for those
+# already exists. Five methods and the record they pass around are the growth,
+# and the record is written out where it lives for the reason Suspension is.
+budget: Interpreter header_lines=640 public_methods=44 members=16
 # The machine's state, grouped. Five vectors and nothing else: it is a bag of
 # stacks by design, and anything that wants to be a *method* on it belongs on
 # Interpreter, next to the property lookups the opcodes call.

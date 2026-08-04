@@ -30,6 +30,10 @@
 //     which is a thing you can only write down about a machine whose state is
 //     already written down.
 //
+// What a frame *is* -- how one is pushed, how a name finds a slot in it, how a
+// throw takes one off, and what the collector sees through it -- is next door in
+// VmFrames.cpp. This file is the loop.
+//
 // The one rule that runs through every case below: **read operands in place and
 // pop after**. A property read can run a getter, a getter can allocate, and
 // allocation can collect -- so a receiver moved into a C++ local and popped
@@ -38,257 +42,6 @@
 // call has finished.
 
 namespace microbrowser::js {
-
-Environment* Interpreter::CurrentScope() {
-  if (vm_.frames.empty()) {
-    return global_scope_;
-  }
-  const Frame& frame = vm_.frames.back();
-  return vm_.scopes.size() > frame.scope_base ? vm_.scopes.back() : frame.scope;
-}
-
-Binding* Interpreter::SlotBinding(const Frame& frame, std::uint32_t packed) {
-  const std::uint32_t hops = SlotHops(packed);
-  const std::uint32_t index = SlotIndex(packed);
-  if (frame.code->frame_locals) {
-    if (hops == 0) {
-      // The frame's own bindings, and every block's inside it: a flattened
-      // function has one slice and the compiler numbered it function-wide.
-      const std::size_t at = frame.locals_base + index;
-      return at < vm_.locals.size() ? &vm_.locals[at] : nullptr;
-    }
-    // Past the frame, the chain is ordinary scopes again, starting at the one
-    // the function was defined in -- so one hop of the compiler's count has
-    // already been spent getting out of the frame.
-    Environment* scope = frame.scope == nullptr ? nullptr : frame.scope->Ancestor(hops - 1);
-    return scope == nullptr ? nullptr : scope->Slot(index);
-  }
-  Environment* scope = CurrentScope()->Ancestor(hops);
-  return scope == nullptr ? nullptr : scope->Slot(index);
-}
-
-Value* Interpreter::FrameName(std::string_view name, std::uint32_t slot) {
-  if (!vm_.frames.empty()) {
-    const Frame& frame = vm_.frames.back();
-    if (frame.code->frame_locals) {
-      const std::size_t at = frame.locals_base + slot;
-      if (at < vm_.locals.size() && vm_.locals[at].live) {
-        return &vm_.locals[at].value;
-      }
-      return frame.scope == nullptr ? nullptr : frame.scope->Lookup(name);
-    }
-  }
-  return CurrentScope()->Lookup(name);
-}
-
-void Interpreter::GatherVmRoots(std::vector<Object*>& objects,
-                                std::vector<Environment*>& scopes) const {
-  for (const Value& value : vm_.stack) {
-    if (value.IsObject() || value.IsSymbol()) {
-      objects.push_back(value.object);
-    }
-  }
-  // A flattened frame's bindings are reachable from nothing else -- there is no
-  // Environment holding them -- so this is the only thing keeping them alive.
-  for (const Binding& binding : vm_.locals) {
-    if (binding.live && (binding.value.IsObject() || binding.value.IsSymbol())) {
-      objects.push_back(binding.value.object);
-    }
-  }
-  for (const Frame& frame : vm_.frames) {
-    for (Object* held : {frame.function, frame.promise, frame.generator}) {
-      if (held != nullptr) {
-        objects.push_back(held);
-      }
-    }
-    if (frame.scope != nullptr) {
-      scopes.push_back(frame.scope);
-    }
-  }
-  for (Environment* scope : vm_.scopes) {
-    if (scope != nullptr) {
-      scopes.push_back(scope);
-    }
-  }
-  // An open cursor is the only thing keeping what it is walking alive.
-  for (const Iteration& cursor : vm_.iterations) {
-    if (cursor.array != nullptr) {
-      objects.push_back(cursor.array);
-    }
-    for (const Value* held : {&cursor.iterator, &cursor.next}) {
-      if (held->IsObject() || held->IsSymbol()) {
-        objects.push_back(held->object);
-      }
-    }
-  }
-}
-
-Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
-                              std::uint32_t argument_count) {
-  if (call_depth_ + static_cast<int>(vm_.frames.size()) >= kMaxCallDepth ||
-      vm_.frames.size() >= kFrameCapacity) {
-    // A page can write unbounded recursion. The frames are on the heap now, so
-    // this bound is a policy rather than a property of the C++ stack -- but a
-    // page still has to get a RangeError rather than an allocator failure.
-    return Throw("RangeError", "maximum call stack size exceeded");
-  }
-  const CompiledFunction* code = function->Code();
-  Environment* scope = nullptr;
-  const std::size_t locals_base = vm_.locals.size();
-  if (code->frame_locals) {
-    // Nothing made inside this call can outlive it, so its bindings go on the
-    // locals stack and the call allocates nothing at all. The chain continues
-    // at the scope the function was defined in.
-    if (locals_base + code->scope_slots > kLocalsCapacity) {
-      return Throw("RangeError", "maximum call stack size exceeded");
-    }
-    // Reserved on the first call that needs it rather than in the constructor.
-    // The rule is the value stack's -- fixed capacity, because an instruction
-    // holds a Binding* into this while it runs -- but the cost is three
-    // megabytes, and a page that runs no script should not pay it. Measured:
-    // the benchmark harness holds twenty-six interpreters and only one of them
-    // ever pushes a frame.
-    if (vm_.locals.capacity() < kLocalsCapacity) {
-      vm_.locals.reserve(kLocalsCapacity);
-    }
-    vm_.locals.resize(locals_base + code->scope_slots);
-    scope = function->Closure();
-  } else {
-    scope = heap_.AllocateEnvironment(function->Closure());
-    if (scope == nullptr) {
-      return Throw("RangeError", "out of memory");
-    }
-    // The prologue, at the four fixed slots Compiler::Function reserved. The
-    // two agreeing is what lets a parameter's index be a compile-time
-    // constant; see kSlotThis in Bytecode.h.
-    scope->Reserve(code->scope_slots);
-  }
-
-  // An arrow function has no `this` of its own: it uses the one captured where
-  // it was written. That is the whole difference between the two forms.
-  const Value self = vm_.stack[callee_slot + 1];
-  const auto declare = [&](std::uint32_t index, const char* name, Value value, bool is_const) {
-    if (code->frame_locals) {
-      vm_.locals[locals_base + index] = Binding{std::move(value), is_const, true};
-      return;
-    }
-    scope->DeclareSlot(index, name, std::move(value), is_const);
-  };
-  declare(kSlotThis, "this", function->IsArrow() ? function->BoundThis() : self, true);
-  if (function->HomeObject() != nullptr) {
-    declare(kSlotHome, "__home__", Value::Obj(function->HomeObject()), true);
-  }
-  declare(kSlotFunction, "__function__", Value::Obj(function), true);
-  if (code->needs_arguments) {
-    std::vector<Value> arguments(vm_.stack.begin() + static_cast<std::ptrdiff_t>(callee_slot) + 2,
-                                 vm_.stack.end());
-    Object* list = NewArray(std::move(arguments));
-    if (list == nullptr) {
-      vm_.locals.resize(locals_base);
-      return Throw("RangeError", "out of memory");
-    }
-    declare(kSlotArguments, "arguments", Value::Obj(list), false);
-  }
-
-  Frame frame;
-  frame.code = code;
-  frame.function = function;
-  frame.scope = scope;
-  frame.locals_base = locals_base;
-  if (code->is_async) {
-    // Made before a line of the body runs, because the body can suspend on its
-    // first instruction and the caller has to be handed this either way.
-    const Value promise = NewPromiseValue();
-    if (!promise.IsObject()) {
-      vm_.locals.resize(locals_base);
-      return Throw("RangeError", "out of memory");
-    }
-    frame.promise = promise.object;
-  }
-  if (code->is_generator) {
-    // Made before a line of the body runs, for the reason the promise above is:
-    // the GeneratorEntry that follows the parameter prologue hands this to the
-    // caller, and the caller has to be handed it whatever the body does next.
-    Object* generator = NewGenerator();
-    if (generator == nullptr) {
-      vm_.locals.resize(locals_base);
-      return Throw("RangeError", "out of memory");
-    }
-    frame.generator = generator;
-  }
-  frame.stack_base = callee_slot;
-  frame.argument_base = callee_slot + 2;
-  frame.argument_count = argument_count;
-  frame.scope_base = vm_.scopes.size();
-  frame.iteration_base = vm_.iterations.size();
-  vm_.frames.push_back(frame);
-  return Result::Normal();
-}
-
-bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) {
-  while (vm_.frames.size() > entry_depth) {
-    Frame& frame = vm_.frames.back();
-    // The instruction that threw, not the one after it: ip has already moved on
-    // by the time anything can fail.
-    const std::uint32_t at = frame.ip == 0 ? 0 : frame.ip - 1;
-    const std::size_t working_base = frame.stack_base + 2 + frame.argument_count;
-    for (const Handler& handler : frame.code->handlers) {
-      if (at < handler.begin || at >= handler.end) {
-        continue;
-      }
-      // Back to the state the `try` started from: the cursors it had open, the
-      // scopes it was inside, and the stack as deep as it was. A throw can
-      // happen half way through an expression, which is why this is a
-      // truncation and not a pop.
-      vm_.iterations.resize(frame.iteration_base + handler.iteration_depth);
-      vm_.scopes.resize(frame.scope_base + handler.scope_depth);
-      vm_.stack.resize(working_base + handler.stack_depth);
-      vm_.stack.push_back(thrown);
-      frame.ip = handler.target;
-      return true;
-    }
-    // Nothing here catches it. The frame goes, and the search continues in the
-    // caller -- which is what makes a throw cross a call boundary.
-    const Frame done = frame;
-    vm_.frames.pop_back();
-    vm_.iterations.resize(done.iteration_base);
-    vm_.scopes.resize(done.scope_base);
-    vm_.locals.resize(done.locals_base);
-    vm_.stack.resize(done.stack_base);
-    if (done.promise != nullptr) {
-      // The throw stops here. An async function does not throw at its caller,
-      // it returns a rejected promise -- which its caller already has, since
-      // the promise was handed over when the call was made.
-      SettleAsyncResult(done.promise, thrown, true);
-      vm_.stack.push_back(Value::Obj(done.promise));
-      return true;
-    }
-  }
-  return false;
-}
-
-Result Interpreter::CallCompiled(Object* function, const Value& self,
-                                 const std::vector<Value>& arguments) {
-  if (vm_.stack.size() + arguments.size() + 2 > kValueStackCapacity) {
-    return Throw("RangeError", "maximum call stack size exceeded");
-  }
-  const std::size_t entry_depth = vm_.frames.size();
-  const std::size_t callee_slot = vm_.stack.size();
-  vm_.stack.push_back(Value::Obj(function));
-  vm_.stack.push_back(self);
-  for (const Value& argument : arguments) {
-    vm_.stack.push_back(argument);
-  }
-  const Result pushed =
-      PushFrame(function, callee_slot, static_cast<std::uint32_t>(arguments.size()));
-  if (pushed.IsAbrupt()) {
-    vm_.stack.resize(callee_slot);
-    return pushed;
-  }
-  Result result = RunFrames(entry_depth);
-  vm_.stack.resize(callee_slot);
-  return result;
-}
 
 Result Interpreter::RunFrames(std::size_t entry_depth) {
   while (vm_.frames.size() > entry_depth) {
@@ -751,7 +504,16 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::Return: {
         Value value = vm_.stack.back();
         const Frame done = *frame;
-        if (done.promise != nullptr) {
+        if (IsAsyncGeneratorFrame(done)) {
+          // The body ran off its end. The request being answered gets
+          // `{value, done: true}`, the generator is finished, and everything
+          // queued behind it is told the same -- which is what stops a second
+          // `next` waiting on a body that will never run again.
+          SettleAsyncRequest(done.generator, value, true, false);
+          CloseGenerator(done.generator);
+          DrainAsyncRequests(done.generator, false, Value::Undefined());
+          value = Value::Obj(done.generator);
+        } else if (done.promise != nullptr) {
           // An async call does not return its value to its caller. It settles
           // the promise it handed over -- at the first `await` if it suspended,
           // or right here if it never did -- and the promise is what goes back.
@@ -811,11 +573,19 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         } else {
           handed = Value::Obj(frame->generator);
         }
+        // Read before the suspend, which invalidates `frame`.
+        Object* async_generator = IsAsyncGeneratorFrame(*frame) ? frame->generator : nullptr;
         const Result suspended = SuspendForYield(handed, status);
         if (suspended.IsAbrupt()) {
           pending = suspended;
           threw = true;
           break;
+        }
+        if (async_generator != nullptr && instruction.op == Op::Yield) {
+          // Settled after the frame is filed, so that a state saying Suspended
+          // and a frame that is not yet filed never coexist. The entry suspend
+          // is excluded: nothing has asked anything yet.
+          SettleAsyncRequest(async_generator, handed, false, false);
         }
         // `frame` is dangling from here, exactly as it is after an Await.
         if (vm_.frames.size() == entry_depth) {
@@ -1115,6 +885,71 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           break;
         }
         vm_.stack.push_back(std::move(item));
+        break;
+      }
+      case Op::IterateOpenAsync: {
+        if (vm_.iterations.size() >= kIterationCapacity) {
+          pending = Throw("RangeError", "too many open iterations");
+          threw = true;
+          break;
+        }
+        if (vm_.iterations.capacity() < kIterationCapacity) {
+          vm_.iterations.reserve(kIterationCapacity);
+        }
+        Iteration cursor;
+        const Result opened = OpenAsyncIteration(vm_.stack.back(), cursor);
+        if (opened.IsAbrupt()) {
+          pending = opened;
+          threw = true;
+          break;
+        }
+        vm_.iterations.push_back(cursor);
+        vm_.stack.pop_back();
+        break;
+      }
+      case Op::IterateAsyncStep: {
+        Value item;
+        bool done = false;
+        const Result advanced = StepAsyncIteration(vm_.iterations.back(), item, done);
+        if (advanced.IsAbrupt()) {
+          pending = advanced;
+          threw = true;
+          break;
+        }
+        if (done) {
+          // Only a sync iterable can answer done here; an async one's answer is
+          // inside the promise, and IterateAsyncUnpack is where that is read.
+          frame->ip = instruction.a;
+          break;
+        }
+        // One value either way: the promise for an async iterator, the next
+        // value for a sync one. Which of the two it is decides what the Await
+        // after this produces, and IterateAsyncUnpack asks the cursor again.
+        vm_.stack.push_back(std::move(item));
+        break;
+      }
+      case Op::IterateAsyncUnpack: {
+        if (!vm_.iterations.back().is_async) {
+          // A sync iterable: what the Await left is already the value the loop
+          // wanted, which is the whole point of awaiting the value rather than
+          // the step for that case.
+          break;
+        }
+        const Value result = vm_.stack.back();
+        if (!result.IsObject()) {
+          pending = Throw("TypeError", "the async iterator returned a non-object");
+          threw = true;
+          break;
+        }
+        const bool done = ToBoolean(GetProperty(result, "done"));
+        const Value item = GetProperty(result, "value");
+        vm_.stack.pop_back();
+        if (done) {
+          vm_.iterations.back().done = true;
+          frame->ip = instruction.a;
+          break;
+        }
+        vm_.stack.push_back(item);
         break;
       }
       case Op::IterateDelegate: {

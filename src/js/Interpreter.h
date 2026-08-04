@@ -132,7 +132,23 @@ class Interpreter {
     // again after it finished is observable -- so it is asked once and the
     // answer remembered.
     bool done = false;
+    // Whether `next` hands back a promise of `{value, done}` rather than the
+    // pair itself, which is what `Symbol.asyncIterator` means. Only `for await`
+    // opens one of these, and it is a flag rather than a second cursor type
+    // because everything else about walking one is identical.
+    bool is_async = false;
   };
+  // The same, resolving `Symbol.asyncIterator` first and falling back to the
+  // sync protocol -- which is the spec's own rule for `for await` and the
+  // reason a loop over an array of promises works.
+  Result OpenAsyncIteration(const Value& iterable, Iteration& state);
+  // One step of an async iteration, as something to await.
+  //
+  // For a real async iterator that is the promise `next` returned, and `done`
+  // cannot be answered yet -- it is inside the promise, which is why the loop
+  // has a second branch after the await. For a sync one it is the next value
+  // itself, and awaiting *that* is what the spec's wrapping does.
+  Result StepAsyncIteration(Iteration& state, Value& out, bool& done);
   // Begins iterating `iterable`, or throws the TypeError the spec throws for
   // something that is not iterable.
   Result OpenIteration(const Value& iterable, Iteration& state);
@@ -327,10 +343,59 @@ class Interpreter {
   Result ResumeGenerator(Object* generator, const Value& sent, bool thrown);
   // A generator object, with nothing filed against it yet. Made by PushFrame
   // before the body runs, for the reason an async call's promise is: the
-  // caller has to be handed one whatever the body does next.
-  Object* NewGenerator();
-  // Installs %GeneratorPrototype%. In Async.cpp, beside what it drives.
+  // caller has to be handed one whatever the body does next. The flag picks
+  // which of the two prototypes it gets, which is the only thing that differs
+  // between the two kinds from the object's side.
+  Object* NewGenerator(bool is_async);
+  // Installs %GeneratorPrototype% and %AsyncGeneratorPrototype%. In Async.cpp,
+  // beside what they drive.
   void InstallGeneratorPrototype();
+  // --- Async generators ------------------------------------------------------
+  //
+  // One `next`, `throw` or `return` an async generator has been asked for and
+  // has not answered yet.
+  //
+  // An async generator's methods hand back a promise immediately and settle it
+  // when the body gets there, so a second `next` before the first has settled
+  // cannot resume the frame -- it is already on the machine, or awaiting. It
+  // queues instead, which is what makes `Promise.all([it.next(), it.next()])`
+  // give two values in order rather than one value and a TypeError.
+  struct AsyncRequest {
+    enum class Kind : std::uint8_t { Next, Throw, Return };
+    Object* promise = nullptr;
+    Value value;
+    Kind kind = Kind::Next;
+  };
+
+  //
+  // Both suspends at once, which is the whole of what makes them their own
+  // thing rather than a flag: the body stops at a `yield` and at an `await`,
+  // and only the first of those has anything to hand back. So a call's answer
+  // is not one promise made once, it is one promise per request -- and the
+  // requests queue, because a second `next` cannot resume a frame that is
+  // already on the machine.
+  //
+  // Queues a request and pumps. What every method on the prototype does, with
+  // the kind being the only difference between them.
+  Value EnqueueAsyncRequest(Object* generator, AsyncRequest::Kind kind, const Value& value);
+  // Answers as many queued requests as it can without waiting: resumes the
+  // frame when one is suspended at a `yield`, and settles straight away when
+  // the generator is finished. Does nothing while a resume is in flight, which
+  // is what keeps the frame from being put back twice -- whoever finishes that
+  // resume pumps again.
+  void PumpAsyncGenerator(Object* generator);
+  // Settles the request at the front of the queue with `{value, done}`, or
+  // rejects it. What a `yield`, a `return` and a throw out of an async
+  // generator body each do, and the reason each of them has to find the
+  // generator through its frame.
+  void SettleAsyncRequest(Object* generator, const Value& value, bool done, bool rejected);
+  // Settles every request still queued on a finished generator, which is what
+  // a `return` or a throw owes the ones behind it.
+  void DrainAsyncRequests(Object* generator, bool rejected, const Value& reason);
+  // Whether this frame belongs to an async generator, which is the pair of
+  // flags rather than either one: an async function has a promise, a generator
+  // has a generator, and this has both.
+  static bool IsAsyncGeneratorFrame(const Frame& frame);
   // Completes a generator without resuming it, and drops the frame it had
   // filed. What `return` does, and what a `for...of` that breaks does through
   // IterateClose -- the filed frame is a root, so a generator nobody finishes
@@ -440,16 +505,23 @@ class Interpreter {
     // is this rather than `gen.prototype`, which is the one place a page could
     // tell and is not a place any page looks.
     Object* generator_prototype = nullptr;
+    // The same for an async generator, and a separate object rather than the
+    // one above because every method on it differs: `next` hands back a
+    // promise of `{value, done}` rather than the pair itself, and the hook it
+    // answers to is `Symbol.asyncIterator`.
+    Object* async_generator_prototype = nullptr;
     // Not a prototype, but the same category: the cell every iteration goes
     // through. Held here rather than looked up through the global `Symbol`,
     // which a page can reassign -- the protocol has to keep working when it
     // does.
     Object* symbol_iterator = nullptr;
+    // What `for await` resolves against, held for the reason above.
+    Object* symbol_async_iterator = nullptr;
 
     std::vector<Object*> Roots() const {
-      return {object_prototype, array_prototype,   function_prototype,  string_prototype,
-              regexp_prototype, promise_prototype, symbol_iterator,     number_prototype,
-              generator_prototype};
+      return {object_prototype,    array_prototype,   function_prototype,  string_prototype,
+              regexp_prototype,    promise_prototype, symbol_iterator,     number_prototype,
+              generator_prototype, symbol_async_iterator, async_generator_prototype};
     }
   };
 
@@ -514,9 +586,24 @@ class Interpreter {
   // A suspension whose promise never settles is never resumed and never freed,
   // which is a leak a page can ask for -- so the count is capped and `await`
   // past the cap throws, the same answer as running out of call depth.
+  // Every call waiting, by id, and every request waiting on one.
+  //
+  // Keyed rather than pointed at, because what holds a suspension alive is a
+  // promise reaction, and a reaction is an object a page can reach. An id is a
+  // number it can do nothing with; a pointer would be a pointer.
+  //
+  // A suspension whose promise never settles is never resumed and never freed,
+  // which is a leak a page can ask for -- so the count is capped and `await`
+  // past the cap throws, the same answer as running out of call depth.
+  //
+  // The request queues are here rather than beside the generator states on the
+  // heap for the reason the suspensions are here: every promise and value in
+  // one is a GC root, and GatherSuspensionRoots is what walks them. A queue is
+  // erased when it empties, so nothing accumulates.
   struct Suspensions {
     std::unordered_map<std::uint64_t, Suspension> live;
     std::uint64_t next = 1;
+    std::unordered_map<Object*, std::vector<AsyncRequest>> requests;
   };
 
   Heap heap_;

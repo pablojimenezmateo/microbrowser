@@ -239,6 +239,20 @@ enum class Op : std::uint8_t {
   // yielded value when there is one, and the delegate's *return* value when
   // there is not -- which is what the whole expression evaluates to.
   IterateDelegate,  // a = target; -> [value], or [return value] and jumps
+  // The three `for await` uses. The step and the unpack are separate because
+  // an Await sits between them: an async iterator's `next` hands back a
+  // promise, and what the loop needs is the `{value, done}` inside it.
+  // The three `for await` uses. Two of them can end the loop, which is the one
+  // odd thing about the shape and is forced: a sync iterable answers `done`
+  // when it is stepped, and an async one answers it inside the promise that
+  // step returned -- so the branch is on either side of the Await between them.
+  IterateOpenAsync,    // [iterable] -> []; resolves Symbol.asyncIterator first
+  // a = target. Sync: the next value, or jumps when there is none. Async: the
+  // promise `next` returned, and never jumps.
+  IterateAsyncStep,
+  // a = target. Async: [{value, done}] -> [value], or jumps when done. Sync: a
+  // no-op -- what is on the stack is already the awaited value.
+  IterateAsyncUnpack,
   IterateRest,   // -> [array] of everything the iterator has left
   IterateClose,  // a = how many
   ForInKeys,     // [object] -> [array of key strings]

@@ -395,6 +395,11 @@ struct GeneratorState {
     Start,
     // Waiting at a `yield`.
     Suspended,
+    // Waiting at an `await`, which only an async generator can be. Distinct
+    // from Suspended because a settled promise is what puts this one back: a
+    // `next` arriving now has to queue rather than resume, or the frame goes
+    // back twice.
+    Awaiting,
     // Its frame is on the machine right now. `next` on one of these is a
     // generator resuming itself, which the spec makes a TypeError -- and here
     // it would be the same frame put back twice.

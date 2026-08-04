@@ -63,6 +63,11 @@ namespace {
 // bounded resource.
 constexpr std::size_t kMaxSuspendedCalls = 10'000;
 
+// The same bound, one queue over. A page can call an async generator's `next`
+// in a loop without awaiting any of them, and every unanswered request is a
+// promise held here until the body gets to it.
+constexpr std::size_t kMaxQueuedRequests = 10'000;
+
 }  // namespace
 
 void Interpreter::GatherSuspensionRoots(std::vector<Object*>& objects,
@@ -188,16 +193,33 @@ bool Interpreter::PutFrameBack(Suspension& held) {
 }
 
 Result Interpreter::SuspendForAwait(const Value& awaited) {
-  if (vm_.frames.empty() || vm_.frames.back().promise == nullptr) {
+  const bool inside_async =
+      !vm_.frames.empty() &&
+      (vm_.frames.back().promise != nullptr || IsAsyncGeneratorFrame(vm_.frames.back()));
+  if (!inside_async) {
     // The compiler rejects `await` outside an async function, so reaching this
     // means a chunk and a frame that disagree rather than a program that does
     // something unusual. An error beats reading a null.
     return Throw("SyntaxError", "await is only valid inside an async function");
   }
+  // An async generator has no promise of its own -- its promises are one per
+  // request -- so what goes where the call's result would have gone is the
+  // generator. Nobody reads it either way: what the caller actually received
+  // went to it at the entry suspend.
+  Object* generator = vm_.frames.back().generator;
   Object* promise = vm_.frames.back().promise;
-  const std::uint64_t id = FileRunningFrame(Value::Obj(promise));
+  const std::uint64_t id =
+      FileRunningFrame(promise != nullptr ? Value::Obj(promise) : Value::Obj(generator));
   if (id == 0) {
     return Throw("RangeError", "too many suspended async calls");
+  }
+  if (generator != nullptr) {
+    // Awaiting, not Suspended: a `next` arriving now must queue rather than
+    // put the frame back, because a settled promise is already going to.
+    if (GeneratorState* state = heap_.FindGenerator(generator)) {
+      state->suspension = id;
+      state->status = GeneratorState::Status::Awaiting;
+    }
   }
   AwaitOn(awaited, id);
   return Result::Normal();
@@ -210,6 +232,10 @@ Result Interpreter::ResumeSuspended(std::uint64_t suspension, const Value& value
   }
   Suspension held = std::move(found->second);
   suspensions_.live.erase(found);
+  // Null unless this is an async generator's `await`, in which case the
+  // request being answered has not been settled yet and the pump owes it a
+  // turn once the body gets somewhere.
+  Object* generator = IsAsyncGeneratorFrame(held.frame) ? held.frame.generator : nullptr;
 
   const std::size_t entry_depth = vm_.frames.size();
   const std::size_t stack_base = vm_.stack.size();
@@ -217,8 +243,20 @@ Result Interpreter::ResumeSuspended(std::uint64_t suspension, const Value& value
     // Nowhere to put it back. The call cannot continue, so its promise is
     // rejected rather than the frame being dropped silently.
     const Result out = Throw("RangeError", "maximum call stack size exceeded");
+    if (generator != nullptr) {
+      SettleAsyncRequest(generator, out.value, true, true);
+      CloseGenerator(generator);
+      DrainAsyncRequests(generator, true, out.value);
+      return out;
+    }
     SettleAsyncResult(held.frame.promise, out.value, true);
     return out;
+  }
+  if (generator != nullptr) {
+    if (GeneratorState* state = heap_.FindGenerator(generator)) {
+      state->suspension = 0;
+      state->status = GeneratorState::Status::Running;
+    }
   }
 
   if (rejected) {
@@ -241,17 +279,30 @@ Result Interpreter::ResumeSuspended(std::uint64_t suspension, const Value& value
 
   Result result = RunFrames(entry_depth);
   vm_.stack.resize(stack_base);
+  if (generator != nullptr) {
+    // The body ran to a `yield`, a `return`, another `await`, or off the end;
+    // each of those settled the request it was answering. Whatever is queued
+    // behind it is this pump's business, and this is the one place that can
+    // do it -- a microtask is what put the frame back, so there is no `next`
+    // above waiting to.
+    const GeneratorState* state = heap_.FindGenerator(generator);
+    if (state != nullptr && state->status == GeneratorState::Status::Running) {
+      CloseGenerator(generator);
+    }
+    PumpAsyncGenerator(generator);
+  }
   return result;
 }
 
 // --- Generators -------------------------------------------------------------
 
-Object* Interpreter::NewGenerator() {
+Object* Interpreter::NewGenerator(bool is_async) {
   Object* generator = heap_.AllocateObject(Object::Kind::Plain);
   if (generator == nullptr) {
     return nullptr;
   }
-  generator->SetPrototype(well_known_.generator_prototype);
+  generator->SetPrototype(is_async ? well_known_.async_generator_prototype
+                                   : well_known_.generator_prototype);
   // Attached now rather than at the first suspend, so that every generator
   // object in existence has state -- a lookup that comes back null is then a
   // page calling `next` on something that is not a generator, which is a
@@ -328,6 +379,14 @@ Result Interpreter::ResumeGenerator(Object* generator, const Value& sent, bool t
       state->status = GeneratorState::Status::Done;
       vm_.stack.resize(stack_base);
       return Result{Completion::Throw, sent, {}};
+    }
+    if (vm_.frames.size() == entry_depth) {
+      // The unwinder handled it and popped the frame, which for an async
+      // generator means it rejected the request rather than letting the throw
+      // out. There is nothing left to run, and the value it left behind is the
+      // generator, which nobody wants.
+      vm_.stack.resize(stack_base);
+      return Result::Normal();
     }
   } else {
     vm_.stack.push_back(sent);
@@ -452,6 +511,170 @@ void Interpreter::InstallGeneratorPrototype() {
   // every other thing that goes through OpenIteration.
   prototype->Set(PropertyKey::Symbol(SymbolIterator()),
                  NewNativeValue("[Symbol.iterator]", [](NativeCall& call) { return call.self; }));
+
+  // %AsyncGeneratorPrototype%. Every method is the same shape: queue a request
+  // of one of the three kinds and hand back the promise it will be answered
+  // with. Which is the whole difference from the three above -- there, `next`
+  // has an answer by the time it returns; here it has one later, and the queue
+  // is what lets a second `next` arrive before the first is answered.
+  Object* async_prototype = well_known_.async_generator_prototype;
+  const auto request = [this, async_prototype](const char* name, AsyncRequest::Kind kind) {
+    InstallNative(async_prototype, name, [kind, name](NativeCall& call) {
+      Object* generator = call.self.IsObject() ? call.self.object : nullptr;
+      if (generator == nullptr ||
+          call.interpreter.GetHeap().FindGenerator(generator) == nullptr) {
+        // A rejected promise rather than a throw: these return promises, and a
+        // method that sometimes throws and sometimes rejects is two error
+        // paths for one mistake.
+        const Value promise = call.interpreter.NewPromiseValue();
+        if (promise.IsObject()) {
+          call.interpreter.SettleAsyncResult(
+              promise.object,
+              call.interpreter.MakeError(
+                  "TypeError", std::string(name) + " called on something that is not an async "
+                                                   "generator"),
+              true);
+        }
+        return promise;
+      }
+      return call.interpreter.EnqueueAsyncRequest(generator, kind, Argument(call.arguments, 0));
+    });
+  };
+  request("next", AsyncRequest::Kind::Next);
+  request("throw", AsyncRequest::Kind::Throw);
+  request("return", AsyncRequest::Kind::Return);
+
+  if (well_known_.symbol_async_iterator != nullptr) {
+    async_prototype->Set(
+        PropertyKey::Symbol(well_known_.symbol_async_iterator),
+        NewNativeValue("[Symbol.asyncIterator]", [](NativeCall& call) { return call.self; }));
+  }
+}
+
+// --- Async generators -------------------------------------------------------
+
+bool Interpreter::IsAsyncGeneratorFrame(const Frame& frame) {
+  return frame.generator != nullptr && frame.code != nullptr && frame.code->is_async;
+}
+
+void Interpreter::SettleAsyncRequest(Object* generator, const Value& value, bool done,
+                                     bool rejected) {
+  const auto found = suspensions_.requests.find(generator);
+  if (found == suspensions_.requests.end() || found->second.empty()) {
+    // Nothing asked. Reachable when a body runs on past a `yield` nobody is
+    // waiting for, which the pump does not do -- so this is a state that
+    // disagrees with itself rather than an ordinary path, and dropping the
+    // value is the only thing left to do with it.
+    return;
+  }
+  const AsyncRequest request = found->second.front();
+  found->second.erase(found->second.begin());
+  if (found->second.empty()) {
+    suspensions_.requests.erase(found);
+  }
+  if (rejected) {
+    SettleAsyncResult(request.promise, value, true);
+    return;
+  }
+  SettleAsyncResult(request.promise, IterationResult(*this, value, done), false);
+}
+
+void Interpreter::DrainAsyncRequests(Object* generator, bool rejected, const Value& reason) {
+  const auto found = suspensions_.requests.find(generator);
+  if (found == suspensions_.requests.end()) {
+    return;
+  }
+  std::vector<AsyncRequest> queued = std::move(found->second);
+  suspensions_.requests.erase(found);
+  for (const AsyncRequest& request : queued) {
+    if (rejected) {
+      SettleAsyncResult(request.promise, reason, true);
+      continue;
+    }
+    SettleAsyncResult(request.promise, IterationResult(*this, Value::Undefined(), true), false);
+  }
+}
+
+Value Interpreter::EnqueueAsyncRequest(Object* generator, AsyncRequest::Kind kind,
+                                       const Value& value) {
+  const Value promise = NewPromiseValue();
+  if (!promise.IsObject()) {
+    return promise;
+  }
+  std::vector<AsyncRequest>& queue = suspensions_.requests[generator];
+  if (queue.size() >= kMaxQueuedRequests) {
+    // A page can call `next` in a loop without ever awaiting one, and every
+    // unanswered request is a promise held here. Bounded for the reason the
+    // suspensions are: past it the promise is rejected, which is an answer the
+    // page can catch rather than an allocator failure.
+    SettleAsyncResult(promise.object,
+                      MakeError("RangeError", "too many pending requests on one async generator"),
+                      true);
+    return promise;
+  }
+  AsyncRequest request;
+  request.promise = promise.object;
+  request.value = value;
+  request.kind = kind;
+  queue.push_back(std::move(request));
+  PumpAsyncGenerator(generator);
+  return promise;
+}
+
+void Interpreter::PumpAsyncGenerator(Object* generator) {
+  for (;;) {
+    const GeneratorState* state = heap_.FindGenerator(generator);
+    if (state == nullptr) {
+      return;
+    }
+    if (state->status == GeneratorState::Status::Running ||
+        state->status == GeneratorState::Status::Awaiting) {
+      // A resume is in flight. Whoever finishes it pumps again, which is what
+      // keeps this from putting the same frame back twice.
+      return;
+    }
+    const auto found = suspensions_.requests.find(generator);
+    if (found == suspensions_.requests.end() || found->second.empty()) {
+      return;
+    }
+    const AsyncRequest::Kind kind = found->second.front().kind;
+    const Value sent = found->second.front().value;
+
+    // A finished generator, or one that has not started and is being asked for
+    // something other than a value: answered without running a line, because
+    // there is no `try` in the body that could have been entered.
+    const bool unstarted_abrupt =
+        state->status == GeneratorState::Status::Start && kind != AsyncRequest::Kind::Next;
+    if (state->status == GeneratorState::Status::Done || unstarted_abrupt) {
+      CloseGenerator(generator);
+      switch (kind) {
+        case AsyncRequest::Kind::Next:
+          SettleAsyncRequest(generator, Value::Undefined(), true, false);
+          break;
+        case AsyncRequest::Kind::Return:
+          SettleAsyncRequest(generator, sent, true, false);
+          break;
+        case AsyncRequest::Kind::Throw:
+          SettleAsyncRequest(generator, sent, true, true);
+          break;
+      }
+      continue;
+    }
+
+    if (kind == AsyncRequest::Kind::Return) {
+      // The same deviation the sync generator's `return` has, written out
+      // there: the frame is dropped rather than resumed with a return
+      // completion, so a `finally` around the `yield` does not run.
+      CloseGenerator(generator);
+      SettleAsyncRequest(generator, sent, true, false);
+      continue;
+    }
+
+    // Suspended at a `yield`, or not started. Put the frame back and let it
+    // run; whichever of Yield, Return or the unwinder it reaches settles the
+    // request at the front of the queue, and the loop comes back for the next.
+    ResumeGenerator(generator, sent, kind == AsyncRequest::Kind::Throw);
+  }
 }
 
 void Interpreter::CloseGenerator(Object* generator) {

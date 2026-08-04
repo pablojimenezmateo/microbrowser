@@ -373,7 +373,7 @@ void Compiler::ForInStatement(const Node& node) {
     // side effects must not be stepped past a `break`.
     Emit(Op::ForInKeys);
   }
-  Emit(Op::IterateOpen, 0, -1);
+  Emit(is_await ? Op::IterateOpenAsync : Op::IterateOpen, 0, -1);
   ++iteration_depth_;
 
   LoopContext loop;
@@ -394,19 +394,17 @@ void Compiler::ForInStatement(const Node& node) {
     }
   }
   const std::uint32_t top = Here();
-  const std::uint32_t to_end = Emit(Op::IterateNext, 0, 1);
+  // `for await` branches on either side of its Await, and that is forced rather
+  // than untidy. A sync iterable answers "no more" when it is *stepped*, and
+  // its value is what has to be awaited; an async one answers inside the
+  // promise that step returned, so its "no more" is only readable after. One
+  // loop, two exits, and the cursor is what each of the two asks.
+  std::uint32_t to_unpack_end = 0;
+  const std::uint32_t to_end =
+      Emit(is_await ? Op::IterateAsyncStep : Op::IterateNext, 0, 1);
   if (is_await) {
-    // `for await (const x of xs)`, as the spec's own fallback for an iterable
-    // that has no `Symbol.asyncIterator`: walk the sync iterator and await each
-    // value. That is exactly right for the case a page has today -- a sequence
-    // of promises -- and it is why this is an Await on the value rather than an
-    // Await on the result of `next`.
-    //
-    // What it is not is the async-iterator path, which needs async generators
-    // to exist before anything can produce one. Until then an object with only
-    // `Symbol.asyncIterator` is not iterable here and says so, which is a
-    // refusal rather than a wrong sequence.
     Emit(Op::Await, 0, 0);
+    to_unpack_end = Emit(Op::IterateAsyncUnpack, 0, 0);
   }
   EnterScope();
   if (left->kind == NodeKind::VariableDeclaration) {
@@ -426,6 +424,9 @@ void Compiler::ForInStatement(const Node& node) {
   Patch(Emit(Op::Jump, 0, 0), top);
 
   Patch(to_end, Here());
+  if (is_await) {
+    Patch(to_unpack_end, Here());
+  }
   const LoopContext done = std::move(loops_.back());
   loops_.pop_back();
   PatchAll(done.continue_jumps, continue_target);

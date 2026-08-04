@@ -88,7 +88,10 @@ void Interpreter::InstallIteration() {
     return cell;
   };
   well_known_.symbol_iterator = well_known("iterator");
-  well_known("asyncIterator");
+  // Held for the reason `Symbol.iterator` is: `for await` resolves against it,
+  // and a page can reassign the global `Symbol` but cannot make another cell
+  // that compares equal to this one.
+  well_known_.symbol_async_iterator = well_known("asyncIterator");
   well_known("hasInstance");
   well_known("toPrimitive");
   well_known("toStringTag");
@@ -328,6 +331,63 @@ Result Interpreter::CollectIterable(const Value& iterable, std::vector<Value>& o
     }
     out.push_back(std::move(item));
   }
+}
+
+Result Interpreter::OpenAsyncIteration(const Value& iterable, Iteration& state) {
+  // `Symbol.asyncIterator` first, and the sync protocol when there is none.
+  // That fallback is the spec's own and is the reason `for await` over an
+  // array of promises works: each value is awaited by the loop rather than by
+  // the iterator.
+  if (well_known_.symbol_async_iterator != nullptr && iterable.IsObject()) {
+    const Value hook =
+        GetProperty(iterable, PropertyKey::Symbol(well_known_.symbol_async_iterator));
+    if (hook.IsObject() && hook.object->IsCallable()) {
+      const Result opened = CallFunction(hook, iterable, {});
+      if (opened.IsAbrupt()) {
+        return opened;
+      }
+      if (!opened.value.IsObject()) {
+        return Throw("TypeError", "Symbol.asyncIterator did not return an object");
+      }
+      state.iterator = opened.value;
+      state.next = GetProperty(opened.value, "next");
+      state.is_async = true;
+      if (!state.next.IsObject() || !state.next.object->IsCallable()) {
+        return Throw("TypeError", "the async iterator has no next method");
+      }
+      return Result::Normal();
+    }
+  }
+  return OpenIteration(iterable, state);
+}
+
+Result Interpreter::StepAsyncIteration(Iteration& state, Value& out, bool& done) {
+  out = Value::Undefined();
+  done = false;
+  if (state.is_async) {
+    if (++state.index > kMaxIterationSteps) {
+      return Throw("RangeError", "iteration ran too long");
+    }
+    // Whatever `next` returned, unexamined. It is a promise of `{value, done}`
+    // and the Await the loop emits next is what turns it into the pair, which
+    // is why `done` cannot be answered here -- it is inside the promise.
+    const Result stepped = CallFunction(state.next, state.iterator, {});
+    if (stepped.IsAbrupt()) {
+      return stepped;
+    }
+    out = stepped.value;
+    return Result::Normal();
+  }
+  // A sync iterable walked by `for await`. Stepped now and the *value* awaited
+  // by the loop, which is the wrapping the spec describes: `for await (const x
+  // of [p, q])` gives the page what the promises resolved to.
+  done = state.done;
+  if (done) {
+    return Result::Normal();
+  }
+  const Result advanced = StepIteration(state, out, done);
+  state.done = done;
+  return advanced;
 }
 
 Result Interpreter::CloseIterationCursor(Iteration& cursor) {

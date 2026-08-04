@@ -1470,6 +1470,115 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                "throw SyntaxError: for await is only valid inside an async function");
   });
 
+  AddTest(tests, "JsInterpreter/AnAsyncGeneratorSuspendsBothWays", [] {
+    // Both suspends in one body, which is the whole of what makes an async
+    // generator its own thing: it stops at the `await` and at the `yield`, and
+    // only the second has anything to hand back.
+    const std::vector<std::string> log = Log(
+        "async function* g(){\n"
+        "  const a = await Promise.resolve(1);\n"
+        "  yield a;\n"
+        "  yield await Promise.resolve(a + 1);\n"
+        "}\n"
+        "async function run(){\n"
+        "  const it = g();\n"
+        "  console.log('made');\n"
+        "  console.log((await it.next()).value);\n"
+        "  console.log((await it.next()).value);\n"
+        "  console.log((await it.next()).done);\n"
+        "}\n"
+        "run();\n"
+        "console.log('sync');\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 5, "five lines");
+    ExpectEqString(log.at(0), "made", "the call itself runs no line of the body");
+    ExpectEqString(log.at(1), "sync", "and the caller carries on at the first await");
+    ExpectEqString(log.at(2), "1", "then the values, each through a turn");
+    ExpectEqString(log.at(3), "2", "and the awaited one");
+    ExpectEqString(log.at(4), "true", "and then it is done");
+  });
+
+  AddTest(tests, "JsInterpreter/AnAsyncGeneratorHandsBackPromisesNotPairs", [] {
+    // `next` returns a promise even when the body could answer at once. That
+    // is the contract, and it is what a page's `await it.next()` relies on.
+    const std::vector<std::string> log = Log(
+        "async function* g(){ yield 1 }\n"
+        "const it = g();\n"
+        "const first = it.next();\n"
+        "console.log(typeof first.then);\n"
+        "first.then(r => console.log(r.value + ' ' + r.done));\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 2, "two lines");
+    ExpectEqString(log.at(0), "function", "next gave back a thenable");
+    ExpectEqString(log.at(1), "1 false", "which settles with the pair");
+  });
+
+  AddTest(tests, "JsInterpreter/AsyncGeneratorRequestsQueueRatherThanCollide", [] {
+    // A second `next` before the first has settled cannot resume the frame --
+    // it is on the machine, or awaiting. It queues, and the two come back in
+    // order rather than as one value and a TypeError.
+    const std::vector<std::string> log = Log(
+        "async function* g(){ yield 'a'; await Promise.resolve(0); yield 'b'; yield 'c' }\n"
+        "async function run(){\n"
+        "  const it = g();\n"
+        "  const all = await Promise.all([it.next(), it.next(), it.next()]);\n"
+        "  console.log(all.map(r => r.value).join(','));\n"
+        "}\n"
+        "run();\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 1, "one line");
+    ExpectEqString(log.at(0), "a,b,c", "three requests, three values, in order");
+  });
+
+  AddTest(tests, "JsInterpreter/AnAsyncGeneratorThatThrowsRejectsTheRequest", [] {
+    const std::vector<std::string> log = Log(
+        "async function* g(){ yield 1; throw 'boom' }\n"
+        "async function run(){\n"
+        "  const it = g();\n"
+        "  console.log((await it.next()).value);\n"
+        "  try { await it.next() } catch (e) { console.log('caught ' + e) }\n"
+        "  console.log((await it.next()).done);\n"
+        "}\n"
+        "run();\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 3, "three lines");
+    ExpectEqString(log.at(0), "1", "the value before the throw still arrives");
+    ExpectEqString(log.at(1), "caught boom", "the throw arrives as a rejection");
+    ExpectEqString(log.at(2), "true", "and the generator is finished");
+    // A rejected await inside the body is the same thing one suspend over.
+    const std::vector<std::string> rejected = Log(
+        "async function* g(){ try { await Promise.reject('no') } catch (e) { yield 'caught ' + e } }\n"
+        "async function run(){ console.log((await g().next()).value) }\n"
+        "run();\n");
+    ExpectEqInt(static_cast<long long>(rejected.size()), 1, "one line");
+    ExpectEqString(rejected.at(0), "caught no", "and the body's own catch sees it");
+  });
+
+  AddTest(tests, "JsInterpreter/ForAwaitWalksAnAsyncGenerator", [] {
+    const std::vector<std::string> log = Log(
+        "async function* g(){ yield 1; await Promise.resolve(0); yield 2; yield 3 }\n"
+        "async function run(){\n"
+        "  for await (const n of g()) console.log(n);\n"
+        "  console.log('done');\n"
+        "}\n"
+        "run();\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 4, "four lines");
+    ExpectEqString(log.at(0), "1", "the first value");
+    ExpectEqString(log.at(1), "2", "including the one after an await");
+    ExpectEqString(log.at(2), "3", "and the last");
+    ExpectEqString(log.at(3), "done", "then the rest of the body");
+  });
+
+  AddTest(tests, "JsInterpreter/AsyncGeneratorsAreWrittenInEveryFormAMethodTakes", [] {
+    const std::vector<std::string> log = Log(
+        "const o = { n: 7, async *g(){ yield this.n } };\n"
+        "class C { async *g(){ yield 'class' } }\n"
+        "async function run(){\n"
+        "  console.log((await o.g().next()).value);\n"
+        "  console.log((await new C().g().next()).value);\n"
+        "}\n"
+        "run();\n");
+    ExpectEqInt(static_cast<long long>(log.size()), 2, "two lines");
+    ExpectEqString(log.at(0), "7", "and `this` survives the filed frame");
+    ExpectEqString(log.at(1), "class", "and a class method is the same shape");
+  });
+
   AddTest(tests, "JsInterpreter/YieldOutsideAGeneratorIsRejected", [] {
     ExpectEval("function f(){ return yield 1 }\n f()", "throw SyntaxError: yield is only valid "
                                                       "inside a generator");

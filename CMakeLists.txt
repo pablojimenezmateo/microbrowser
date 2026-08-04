@@ -312,6 +312,7 @@ microbrowser_module(js
     src/js/CompilerFunctions.cpp
     src/js/Async.cpp
     src/js/Vm.cpp
+    src/js/VmFrames.cpp
     src/js/Statements.cpp
     src/js/Builtins.cpp
     src/js/StringBuiltins.cpp
