@@ -384,6 +384,52 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
       }
       return owner->MakeClassList(static_cast<dom::Element&>(*self));
     });
+    // `el.style.display = 'none'`, backed by the `style` attribute the cascade
+    // already reads. A fresh object per read, like `classList`, and for the
+    // same reason: the attribute is the state, and a parsed copy would go
+    // stale the moment anything else wrote it.
+    accessor("style", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr || !self->IsElement()) {
+        return Value::Undefined();
+      }
+      return owner->MakeStyle(static_cast<dom::Element&>(*self));
+    });
+    // `data-*` attributes, under the names a page uses for them.
+    accessor("dataset", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr || !self->IsElement()) {
+        return Value::Undefined();
+      }
+      // A plain object rather than a live view: the set of `data-` attributes
+      // an element has does not change under a page's feet the way `class`
+      // does, and reading one is what a page overwhelmingly does with it.
+      const Value data = call.interpreter.NewObjectValue();
+      if (data.IsObject()) {
+        for (const dom::Attribute& attribute :
+             static_cast<dom::Element&>(*self).Attributes()) {
+          if (attribute.name.rfind("data-", 0) != 0) {
+            continue;
+          }
+          // `data-user-id` is `dataset.userId`, which is the same kebab-to-
+          // camel rule the style properties use.
+          std::string name;
+          bool upper = false;
+          for (const char c : attribute.name.substr(5)) {
+            if (c == '-') {
+              upper = true;
+              continue;
+            }
+            name.push_back(upper && c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c);
+            upper = false;
+          }
+          data.object->Set(name, Value::String(attribute.value));
+        }
+      }
+      return data;
+    });
     method("setAttribute", [](NativeCall& call) {
       dom::Node* self = NodeOf(call.self);
       if (self == nullptr || !self->IsElement()) {

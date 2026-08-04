@@ -288,6 +288,7 @@ microbrowser_module(platform
 microbrowser_module(bindings
   SOURCES
     src/bindings/DomBindings.cpp
+    src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp
     src/bindings/TreeMutation.cpp
     src/bindings/EventBindings.cpp

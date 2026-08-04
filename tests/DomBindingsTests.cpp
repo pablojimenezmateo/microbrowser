@@ -581,6 +581,55 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "Hello");
   });
 
+  AddTest(tests, "DomBindings/StyleWritesThroughToTheAttribute", [] {
+    // Backed by the `style` attribute rather than a parsed copy, because the
+    // attribute is the state: the cascade reads it and `setAttribute` can
+    // rewrite it, so a copy held here would go stale the moment either did.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.style.display = 'none';"
+                 "t.getAttribute('style')",
+                 "display: none");
+    // camelCase in, kebab-case out.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.style.backgroundColor = 'red';"
+                 "t.getAttribute('style')",
+                 "background-color: red");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.style.display = 'none';"
+                 "t.style.display",
+                 "none");
+    // An unset property is the empty string, not undefined: a page tests
+    // `if (el.style.display === 'none')` and both answers have to be strings
+    // or the comparison is wrong in a way nothing reports.
+    ExpectScript(kPage, "'' + document.getElementById('title').style.display", "");
+    // Set twice leaves one declaration, in the place the first one had.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.style.color = 'red'; t.style.display = 'none'; t.style.color = 'blue';"
+                 "t.getAttribute('style')",
+                 "color: blue; display: none");
+    // An empty value removes the property, which is what `= ''` means.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.style.color = 'red';"
+                 "t.style.color = ''; t.getAttribute('style')",
+                 "");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); t.style.cssText = 'color: blue';"
+                 "t.style.color",
+                 "blue");
+  });
+
+  AddTest(tests, "DomBindings/DatasetReadsTheDataAttributes", [] {
+    ExpectScript("<div id=d data-user-id='7' data-x='1' class='c'></div>",
+                 "document.getElementById('d').dataset.userId", "7");
+    // Only the `data-` ones, under their camel-cased names.
+    ExpectScript("<div id=d data-user-id='7' data-x='1' class='c'></div>",
+                 "JSON.stringify(document.getElementById('d').dataset)",
+                 "{\"userId\":\"7\",\"x\":\"1\"}");
+    ExpectScript("<div id=d></div>",
+                 "JSON.stringify(document.getElementById('d').dataset)", "{}");
+  });
+
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {
     // The point of the whole layer: a change made by script is a change to the
     // document, not to a copy of it.

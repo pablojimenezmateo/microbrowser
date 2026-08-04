@@ -66,6 +66,7 @@ class DomBindings {
   static bool Matches(const dom::Element& element, const std::string& selector);
   void InstallWindow();
   js::Value MakeClassList(dom::Element& element);
+  js::Value MakeStyle(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
   void InstallMutationMethods(const js::Value& wrapper);
   js::Value AdoptInto(dom::Node& parent, dom::Node* child);
