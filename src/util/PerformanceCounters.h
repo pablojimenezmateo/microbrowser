@@ -177,7 +177,23 @@ namespace microbrowser::util {
   X(EngineDomContentLoaded, "engine.dom_content_loaded")                         \
   X(EngineLoadEvents, "engine.load_events")                                      \
   X(EngineFormSubmissions, "engine.form_submissions")                            \
-  X(EnginePaintsProduced, "engine.paints_produced")
+  X(EnginePaintsProduced, "engine.paints_produced")                              \
+  /* --- focus --------------------------------------------------------------- */ \
+  /* Focus is the input router, so these answer "where did the keys go" from a */ \
+  /* real session rather than from a guess. Moves are counted apart from Tab   */ \
+  /* because a page's own `focus()` calls and the user's are the same event    */ \
+  /* here and are not the same problem: a page that focuses something on every */ \
+  /* keystroke is a page fighting the user for the caret.                      */ \
+  X(FocusMoves, "focus.moves")                                                   \
+  /* The Tab walk is the one part of the focus model whose cost grows with the */ \
+  /* document: it collects every tab-reachable element and sorts them, once    */ \
+  /* per Tab, and each candidate asks its ancestors about `hidden`. Nothing    */ \
+  /* caches it, because the answer changes whenever the tree or an attribute   */ \
+  /* does and a stale tab order sends a keystroke to the wrong element. These  */ \
+  /* two are how a next session decides whether an index is worth its          */ \
+  /* invalidation: candidates/walks is the average document's answer.          */ \
+  X(FocusTabWalks, "focus.tab_walks")                                            \
+  X(FocusTabCandidates, "focus.tab_candidates")
 
 enum class PerfCounterId : std::size_t {
 #define MICROBROWSER_PERF_COUNTER_ENUM(id, name) id,

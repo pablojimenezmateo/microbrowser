@@ -10,6 +10,7 @@
 #include "engine/FormAlgorithms.h"
 #include "html/Focus.h"
 #include "html/FormControl.h"
+#include "util/PerformanceCounters.h"
 
 // Focus, and what a key does to whatever has it.
 //
@@ -34,6 +35,9 @@
 // what would let it, and it is not here yet.
 
 namespace microbrowser::engine {
+
+using util::AddPerformanceCounter;
+using util::PerfCounterId;
 
 namespace {
 
@@ -98,27 +102,40 @@ bool Page::MoveFocus(dom::Element* target, bool visible) {
   if (document_ == nullptr) {
     return false;
   }
+  // Through the binding layer when there is one, because it fires the four
+  // events on the way; it writes the same document the branch below does.
+  //
+  // No interpreter means no handlers and no events -- but focus still moves, or
+  // a page with no script would have no keyboard at all. The focusability rule
+  // is repeated in that branch rather than skipped: a click on a `<div>` must
+  // blur the field rather than focus the div, whether or not the page has
+  // script.
+  bool moved = false;
   if (script_.HasListeners()) {
-    // Through the binding layer, which fires the four events on the way. It
-    // writes the same document this would.
-    return script_.MoveFocus(target, visible);
+    moved = script_.MoveFocus(target, visible);
+  } else if (target == nullptr || html::IsFocusable(*target)) {
+    moved = document_->Focus().element != target;
+    document_->SetFocus(target, visible);
   }
-  // No interpreter, so no handlers and no events -- but focus still moves, or a
-  // page with no script would have no keyboard at all. The focusability rule is
-  // repeated here rather than skipped: a click on a `<div>` must blur the field
-  // rather than focus the div, whether or not the page has script.
-  if (target != nullptr && !html::IsFocusable(*target)) {
-    return false;
+  // Counted here and not in either branch, so the number means "focus moved"
+  // rather than "focus moved on a page with script".
+  if (moved) {
+    AddPerformanceCounter(PerfCounterId::FocusMoves);
   }
-  const bool changed = document_->Focus().element != target;
-  document_->SetFocus(target, visible);
-  return changed;
+  return moved;
 }
 
 bool Page::MoveFocusByTab(bool backwards) {
   if (document_ == nullptr) {
     return false;
   }
+  // The one part of the focus model whose cost grows with the document, and
+  // nothing caches it: the answer changes whenever the tree or an attribute
+  // does, and a stale tab order sends a keystroke to the wrong element. The
+  // counters are here so that "is an index worth its invalidation" is a
+  // measurement rather than an argument -- candidates over walks is the
+  // average document's answer, and on a page with none this costs one walk.
+  AddPerformanceCounter(PerfCounterId::FocusTabWalks);
   // Everything Tab can stop on, in the specification's order: positive
   // `tabindex` first in increasing order, then everything else in tree order.
   // A stable sort is what keeps the second group in document order and what
@@ -133,6 +150,7 @@ bool Page::MoveFocusByTab(bool backwards) {
       order.push_back(&element);
     }
   });
+  AddPerformanceCounter(PerfCounterId::FocusTabCandidates, order.size());
   std::stable_sort(order.begin(), order.end(), [](const dom::Element* a, const dom::Element* b) {
     const int left = html::TabIndex(*a).value_or(0);
     const int right = html::TabIndex(*b).value_or(0);
