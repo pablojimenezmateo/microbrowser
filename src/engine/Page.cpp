@@ -264,6 +264,10 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
     // Found now, run later: an external script has to arrive before anything
     // after it in the document may run, and what a URL turns into is the
     // loader's problem rather than this one's.
+    // Before Collect, because a module script's source can arrive and be asked
+    // what it imports long before there is an interpreter -- and resolving a
+    // relative specifier needs a base.
+    script_.SetModuleDocumentUrl(url_);
     script_.Collect(*document_, policy_);
   }
   if (document_ != nullptr) {

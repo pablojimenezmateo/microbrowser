@@ -53,6 +53,7 @@ void RegisterMediaQueryTests(std::vector<TestCase>& tests);
 void RegisterGlyphCacheTests(std::vector<TestCase>& tests);
 void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests);
 void RegisterHistoryTests(std::vector<TestCase>& tests);
+void RegisterModuleLoaderTests(std::vector<TestCase>& tests);
 void RegisterPerformanceApiTests(std::vector<TestCase>& tests);
 void RegisterInflateTests(std::vector<TestCase>& tests);
 void RegisterIntegrityTests(std::vector<TestCase>& tests);
@@ -195,6 +196,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterGlyphCacheTests(tests);
   microbrowser::tests::RegisterIdleWaitStrategyTests(tests);
   microbrowser::tests::RegisterHistoryTests(tests);
+  microbrowser::tests::RegisterModuleLoaderTests(tests);
   microbrowser::tests::RegisterPerformanceApiTests(tests);
   microbrowser::tests::RegisterInflateTests(tests);
   microbrowser::tests::RegisterIntegrityTests(tests);

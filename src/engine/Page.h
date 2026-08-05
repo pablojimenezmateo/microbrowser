@@ -194,6 +194,18 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // drops rather than repainting for.
   bool DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response);
 
+  // --- modules -------------------------------------------------------------
+  // The engine fetches; the page decides what needs fetching. See
+  // engine/ModuleLoader.h for why the two are split.
+  std::vector<std::string> TakeModuleFetches() { return script_.TakeModuleFetches(); }
+  void AddModuleSource(std::string url, std::string source) {
+    script_.AddModuleSource(std::move(url), std::move(source));
+  }
+  // Settles every dynamic import whose graph has closed. True when one did, which
+  // means a page's code ran.
+  bool AdvanceModules() { return script_.AdvanceModules(); }
+  bool HasPendingModules() const { return script_.HasPendingModules(); }
+
   // Milliseconds until the page's soonest timer or animation frame, or nothing
   // when it has asked for neither. The loop asks this to decide how long it may
   // sleep.

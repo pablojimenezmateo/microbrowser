@@ -85,7 +85,8 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // far as everything else is concerned, and a browser that stopped turning
   // there would show a page with holes where its visible images go.
   bool IsLoading() const {
-    return load_.active || !late_images_.empty() || !script_fetches_.empty();
+    return load_.active || !late_images_.empty() || !script_fetches_.empty() ||
+           !module_fetches_.empty() || page_.HasPendingModules();
   }
 
   // What the page's script threw, so a host that is debugging one can say why
@@ -197,6 +198,18 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // changed and a frame should go out.
   bool OnLateImage(Loader::Completion completion);
 
+  // Fetches whatever the module graph is missing, and settles the dynamic imports
+  // whose graph has closed. True when a promise settled, which means a page's
+  // `then` ran and the document may have changed.
+  //
+  // A module fetch is like a late image and unlike a subresource: it happens
+  // *after* the navigation that carried the document, because `import()` is
+  // reached whenever the page reaches it. So it follows the same two rules -- a
+  // navigation clears it, and one in flight keeps the loop turning.
+  bool AdvanceModules();
+  // One module's source. True when the completion was one.
+  bool OnModuleFetch(Loader::Completion completion);
+
   // bindings::HistorySource. ADR 0026 §1-2, implemented in EngineHistory.cpp.
   // Private for the reason NetworkSource is, and the interesting one is
   // PushHistoryState: `src/bindings` may not see `url`, so the same-origin check
@@ -306,6 +319,9 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // when the answer arrives. Same two rules as `late_images_`: a navigation
   // clears it, and something in it keeps the loop turning.
   std::set<Loader::RequestId> script_fetches_;
+  // The modules in flight, and which URL each is. A map rather than a set because
+  // the graph is keyed by URL and the completion only carries an id.
+  std::map<Loader::RequestId, std::string> module_fetches_;
   // Back and forward, for this tab. ADR 0026 §1: it is here rather than in
   // `src/ui` because a `pushState` entry is a URL *plus a state object owned by a
   // document*, and the chrome cannot see a document.

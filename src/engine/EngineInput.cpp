@@ -301,4 +301,91 @@ bool Engine::HandleScriptSideEffects(bool ran) {
   return true;
 }
 
+// The wheel, and the damage a scroll produces.
+//
+// Moved out of Engine.cpp when that file reached its module cap, and it belongs
+// here rather than in a third file: a wheel is an input, it arrives as an input
+// message, and ADR 0018's whole argument is that what it produces is a *paint*
+// rather than a layout. The two functions are one decision -- where the delta
+// goes, and what that costs -- split only because the second is asked again by
+// the frame that honours a blit.
+
+void Engine::ScrollBy(const ipc::ScrollMessage& scroll) {
+  const float scale = device_scale_ > 0.0f ? device_scale_ : 1.0f;
+  // Where the wheel is, in the document's coordinates -- which is what routing
+  // needs, because a box's geometry is where the flow put it and the pointer is
+  // somewhere over the scrolled result.
+  const gfx::FloatPoint document_point{
+      static_cast<float>(scroll.position.x) / scale,
+      static_cast<float>(scroll.position.y) / scale + static_cast<float>(ScrollY())};
+  const gfx::FloatPoint delta{static_cast<float>(scroll.delta_x) / scale,
+                              static_cast<float>(scroll.delta_y) / scale};
+
+  // The deepest scrolling box under the pointer that can still move takes it;
+  // when none can, the document does. ADR 0018 §4, and the case that makes it
+  // worth writing down is a menu at its end: the wheel goes on rather than
+  // stopping dead.
+  const Page::ScrollOutcome outcome = page_.ScrollAt(document_point, delta);
+  if (outcome.moved) {
+    // Only the scroller's own rectangle changed, so this frame is not a
+    // document blit -- it is an ordinary partial repaint, and the display-list
+    // diff would find it anyway. Reported explicitly because the diff cannot
+    // bound it: every command inside the box moved.
+    PaintAndSend(gfx::IntPoint{}, &outcome.damage);
+    return;
+  }
+  if (!outcome.viewport) {
+    return;
+  }
+
+  const int previous = ScrollY();
+  page_.SetScrollOffsetY(
+      static_cast<float>(std::clamp(previous + scroll.delta_y, 0, MaxScroll())));
+  const int moved = ScrollY() - previous;
+  if (moved == 0) {
+    return;
+  }
+  // Paints without laying out. The geometry has not changed, and a scroll that
+  // relaid out is the classic reason scrolling is slow. The delta says how far
+  // the previous frame's pixels moved, which is what lets the UI blit the
+  // overlap and repaint only the strip that came into view.
+  PaintAndSend(gfx::IntPoint{0, -moved}, nullptr);
+}
+
+// The band a scroll of `delta` newly exposes, plus everything that did not move
+// with it.
+//
+// Two exceptions and both are known in advance rather than discovered: a
+// `fixed` box does not move at all, and a `sticky` one moves sometimes. ADR
+// 0018 §2 names them as the two things that break a blit and says to subtract
+// them from it -- and over-reporting here is safe where under-reporting is not,
+// because damage that is too small leaves a stale rectangle on screen forever.
+std::vector<gfx::IntRect> Engine::ScrollDamage(gfx::IntPoint delta) const {
+  std::vector<gfx::IntRect> damage;
+  const int width = viewport_size_.width;
+  const int height = viewport_size_.height;
+  if (delta.y > 0) {
+    damage.push_back(gfx::IntRect{0, 0, width, std::min(delta.y, height)});
+  } else if (delta.y < 0) {
+    const int band = std::min(-delta.y, height);
+    damage.push_back(gfx::IntRect{0, height - band, width, band});
+  }
+  const std::size_t band = damage.size();
+  page_.AppendScrollInvariantRects(damage);
+  // Clipped to the viewport, and only the boxes are: a sticky box's damage is
+  // the strip between where the flow put it and where it sticks, and most of
+  // that strip is usually off screen. Reporting it unclipped is what turned a
+  // 40-pixel header on a 900-pixel window into 38% of the surface -- true, and
+  // useless, because damage outside the window costs a repaint of nothing.
+  std::vector<gfx::IntRect> clipped(damage.begin(), damage.begin() + static_cast<long>(band));
+  const gfx::IntRect viewport{0, 0, viewport_size_.width, viewport_size_.height};
+  for (std::size_t i = band; i < damage.size(); ++i) {
+    const gfx::IntRect visible = damage[i].Intersected(viewport);
+    if (!visible.IsEmpty()) {
+      clipped.push_back(visible);
+    }
+  }
+  return clipped;
+}
+
 }  // namespace microbrowser::engine

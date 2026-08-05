@@ -63,6 +63,10 @@ struct PendingLoad {
   std::map<Loader::RequestId, PendingResource> resources;
   std::size_t sheets_outstanding = 0;
   std::size_t scripts_outstanding = 0;
+  // Modules the graph is still missing. Held apart from `scripts_outstanding`
+  // because a module script's *source* arriving is not the same event as its
+  // imports having arrived, and only the second lets evaluation start.
+  std::size_t modules_outstanding = 0;
   // Counted apart from the rest, because the whole meaning of `async` is that
   // the page does not wait for it. One that is still in flight when everything
   // else has landed does not hold the first paint; it runs when it arrives and
@@ -84,9 +88,13 @@ struct PendingLoad {
   // Nothing render-blocking is still owed. Stylesheets and scripts both are:
   // a script may ask about a style, so it must not run before the sheets that
   // set it have landed.
+  // `modules_outstanding` is the module *graph*, not the module scripts: a
+  // `<script type=module>` whose source has arrived may still name an import
+  // nobody has fetched, and evaluating it then would ask a resolver that cannot
+  // go to the network. See engine/PageModules.cpp.
   bool MayRunScripts() const {
     return active && document_arrived && !scripts_ran && sheets_outstanding == 0 &&
-           scripts_outstanding == 0;
+           scripts_outstanding == 0 && modules_outstanding == 0;
   }
 
   // Everything that holds the first frame back has resolved.

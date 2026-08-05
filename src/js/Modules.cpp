@@ -52,8 +52,43 @@ constexpr int kMaxModuleDepth = 64;
 
 }  // namespace
 
+std::vector<std::string> ModuleImportSpecifiers(std::string_view source) {
+  // Parse-only, and deliberately not "evaluate and see what it asks for": the
+  // host has to fetch a module's whole static graph *before* anything in it runs,
+  // because the resolver it will be asked through is synchronous and cannot go to
+  // the network. This is what makes that possible.
+  //
+  // An unparseable module answers with nothing rather than with an error: the
+  // parse error is the *evaluation's* to report, at the point where a page can
+  // see it, and reporting it twice from two places is two different messages for
+  // one fault.
+  std::vector<std::string> specifiers;
+  const ParseResult parsed = Parse(source);
+  if (!parsed.Ok() || parsed.program == nullptr) {
+    return specifiers;
+  }
+  for (const NodePtr& statement : parsed.program->children) {
+    if (statement == nullptr) {
+      continue;
+    }
+    // `import ... from "x"` and `export ... from "x"` both name a module, and a
+    // graph that followed only the first would leave a re-export unfetched.
+    const bool imports = statement->kind == NodeKind::ImportDeclaration;
+    const bool re_exports =
+        statement->kind == NodeKind::ExportDeclaration && !statement->string.empty();
+    if ((imports || re_exports) && !statement->string.empty()) {
+      specifiers.push_back(statement->string);
+    }
+  }
+  return specifiers;
+}
+
 void Interpreter::SetModuleResolver(ModuleResolver resolver) {
   module_resolver_ = std::move(resolver);
+}
+
+void Interpreter::SetDynamicImportStarter(DynamicImportStarter starter) {
+  dynamic_import_starter_ = std::move(starter);
 }
 
 Interpreter::Module* Interpreter::FindModule(const std::string& specifier) {
@@ -297,6 +332,22 @@ Value Interpreter::ImportDynamically(const std::string& specifier,
   if (!promise.IsObject()) {
     return Value::Undefined();
   }
+  if (dynamic_import_starter_) {
+    // The host fetches and settles this on a later turn. Rooted meanwhile: the
+    // page's own `.then` chain holds the promise, but between this call and the
+    // host's answer the *host* is the only other reference and it holds a raw
+    // pointer -- and a raw pointer is not something the collector walks.
+    PendingImports()->PushElement(promise);
+    if (dynamic_import_starter_(specifier, referrer, promise.object)) {
+      return promise;
+    }
+    // The host refused to start it. Rejected here rather than left pending,
+    // because a promise nobody will settle is a page that waits forever.
+    DropPendingImport(promise.object);
+    SettleAsyncResult(promise.object,
+                      MakeError("TypeError", "cannot resolve module '" + specifier + "'"), true);
+    return promise;
+  }
   Module* loaded = nullptr;
   const Result found = LoadModule(specifier, referrer, 1, loaded);
   if (found.IsAbrupt() || loaded == nullptr) {
@@ -313,6 +364,60 @@ Value Interpreter::ImportDynamically(const std::string& specifier,
   }
   SettleAsyncResult(promise.object, Value::Obj(loaded->exports), false);
   return promise;
+}
+
+void Interpreter::SettleDynamicImport(Object* promise, std::string_view specifier,
+                                     std::string_view referrer) {
+  if (promise == nullptr) {
+    return;
+  }
+  DropPendingImport(promise);
+  Module* loaded = nullptr;
+  const Result found = LoadModule(std::string(specifier), std::string(referrer), 1, loaded);
+  if (found.IsAbrupt() || loaded == nullptr) {
+    SettleAsyncResult(promise, found.value, true);
+    return;
+  }
+  const Result ran = EvaluateModule(*loaded);
+  if (ran.IsAbrupt()) {
+    SettleAsyncResult(promise, ran.value, true);
+    return;
+  }
+  SettleAsyncResult(promise, Value::Obj(loaded->exports), false);
+}
+
+// The promises handed out for imports nobody has answered yet.
+//
+// A JavaScript array on the global rather than a C++ container, because the
+// collector cannot see a `js::Value` in a C++ field -- and the host's copy is a
+// raw `Object*`, which is worse than invisible: it survives the collection that
+// freed what it points at.
+Object* Interpreter::PendingImports() {
+  if (const Value* existing = global_->GetOwn("#pending-imports")) {
+    if (existing->IsObject()) {
+      return existing->object;
+    }
+  }
+  const Value list = NewArrayValue({});
+  if (list.IsObject()) {
+    global_->SetHidden("#pending-imports", list);
+  }
+  return list.IsObject() ? list.object : nullptr;
+}
+
+void Interpreter::DropPendingImport(Object* promise) {
+  Object* pending = PendingImports();
+  if (pending == nullptr) {
+    return;
+  }
+  std::vector<Value> kept;
+  for (std::size_t i = 0; i < pending->ElementCount(); ++i) {
+    const Value entry = pending->GetElement(i);
+    if (!entry.IsObject() || entry.object != promise) {
+      kept.push_back(entry);
+    }
+  }
+  pending->SetElements(kept, std::vector<bool>(kept.size(), true));
 }
 
 Result Interpreter::PublishExports(const Node& statement, Module& module) {

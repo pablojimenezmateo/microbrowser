@@ -72,6 +72,10 @@ void PageScript::Detach() {
   errors_.clear();
   ran_ = false;
   timers_ = bindings::TimerQueue{};
+  pending_imports_.clear();
+  module_fetches_.clear();
+  requested_modules_.clear();
+  modules_.Clear();
   frames_ = bindings::AnimationFrames{};
   performance_ = bindings::Performance{};
 }
@@ -147,7 +151,17 @@ void PageScript::AddFetched(std::size_t index, std::string source) {
   if (index >= pending_slots_.size()) {
     return;
   }
-  slots_[pending_slots_[index]].source = std::move(source);
+  const std::size_t slot = pending_slots_[index];
+  if (slots_[slot].module) {
+    // A module script's own source goes into the graph too, keyed by the URL it
+    // came from, so that a *static* `import` inside it can be resolved -- and so
+    // that asking the graph what is missing names that import before anything is
+    // evaluated. See PageModules.cpp: the resolver cannot fetch, so the graph has
+    // to be closed first.
+    modules_.Add(pending_urls_[index].url, source);
+    RefreshModuleFetches();
+  }
+  slots_[slot].source = std::move(source);
 }
 
 void PageScript::EnsureInterpreter(dom::Document& document, const std::string& url,
@@ -162,6 +176,9 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   timers_.Install(*interpreter_, now_ms);
   frames_.Install(*interpreter_, now_ms);
   performance_.Install(*interpreter_, now_ms);
+  // After the interpreter exists and before anything runs: a module's first
+  // `import` is resolved during evaluation, and the resolver has to be there.
+  InstallModuleHost(url);
 }
 
 bool PageScript::RunTiming(Timing timing) {

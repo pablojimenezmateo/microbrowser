@@ -2294,12 +2294,18 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     const std::vector<std::string>& errors = session.engine.ScriptErrors();
     ExpectEqInt(static_cast<long long>(errors.size()), 2, "both module scripts were evaluated");
     Expect(errors.at(0).find("ran") != std::string::npos, "an inline module runs");
-    // The host half of the module loader is what ADR 0011 unblocks rather than
-    // what it builds. What matters is that `import` fails as an unresolved
-    // import rather than as a syntax error, because the second would be the
-    // engine claiming the page is malformed.
-    Expect(errors.at(1).find("modules are not available") != std::string::npos,
-           "and an import says there is no resolver rather than reporting a parse error");
+    // **This assertion changed with the module loader (ledger session 50).** It
+    // used to be "modules are not available in this context", which was the
+    // engine saying there was no resolver at all. There is one now, so the
+    // failure is the specific one it should be: `./x.js` is relative and this
+    // document is a `data:` URL, which is not a base anything can be relative
+    // to, so the specifier resolves to nothing. What matters is unchanged and is
+    // why the test exists -- an `import` that cannot be resolved fails *as an
+    // unresolved import* rather than as a syntax error, because the second would
+    // be the engine claiming the page is malformed.
+    Expect(errors.at(1).find("cannot resolve module") != std::string::npos,
+           "and an unresolvable import says so rather than reporting a parse error: " +
+               errors.at(1));
   });
 
   AddTest(tests, "Engine/AStaticPageSchedulesNothing", [] {

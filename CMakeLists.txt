@@ -304,14 +304,17 @@ microbrowser_module(engine
     src/engine/EngineFetch.cpp
     src/engine/EngineImages.cpp
     src/engine/EngineHistory.cpp
+    src/engine/EngineModules.cpp
     src/engine/EngineSubresources.cpp
     src/engine/FormAlgorithms.cpp
     src/engine/GeometryQueries.cpp
     src/engine/ImageSelection.cpp
     src/engine/SessionHistory.cpp
     src/engine/Loader.cpp
+    src/engine/ModuleLoader.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
+    src/engine/PageModules.cpp
     src/engine/PageResources.cpp
     src/engine/PageScrolling.cpp
     src/engine/PageStyle.cpp
@@ -474,6 +477,7 @@ add_executable(microbrowser_tests
   tests/GlyphCacheTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/HistoryTests.cpp
+  tests/ModuleLoaderTests.cpp
   tests/PerformanceApiTests.cpp
   tests/InflateTests.cpp
   tests/IntegrityTests.cpp

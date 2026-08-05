@@ -50,6 +50,16 @@ struct Result {
 // same semantics with an explicit value stack -- and that stack is exactly what
 // a precise collector needs, which is why the two arrive together rather than
 // the VM being a pure speed change.
+// Every module `source` names with a *static* `import` or a re-`export`, in
+// order, unresolved.
+//
+// The host needs this because the resolver it is asked through is synchronous: it
+// has to have fetched a module's whole static graph before evaluation starts, and
+// the only way to know what is in that graph is to parse. Declared beside the
+// interpreter rather than on it because it needs no interpreter at all -- it is a
+// question about text.
+std::vector<std::string> ModuleImportSpecifiers(std::string_view source);
+
 class Interpreter {
  public:
   Interpreter();
@@ -84,6 +94,31 @@ class Interpreter {
                                             std::string_view referrer,
                                             std::string& resolved, std::string& source)>;
   void SetModuleResolver(ModuleResolver resolver);
+
+  // A dynamic `import()` the host will answer *later*.
+  //
+  // The resolver above is synchronous, which is right for a static import graph
+  // -- the host can have the whole thing before evaluation starts -- and wrong
+  // for `import()`, which a page reaches at a moment nobody could predict.
+  // Fetching from inside the resolver would block the one loop this browser has,
+  // which ADR 0011 exists to prevent, so the promise is handed back pending and
+  // the host settles it when the graph is closed.
+  //
+  // The starter is given the promise. False means the host cannot start the load
+  // at all -- an unparseable specifier, a scheme it will not fetch -- and the
+  // engine rejects immediately rather than leaving a promise nobody will settle.
+  using DynamicImportStarter = std::function<bool(std::string_view specifier,
+                                                  std::string_view referrer, Object* promise)>;
+  void SetDynamicImportStarter(DynamicImportStarter starter);
+
+  // The host has made every module in `specifier`'s graph resolvable and is
+  // asking for it to be linked, evaluated and the promise settled. Settles with
+  // the module's namespace object, or rejects with whatever went wrong.
+  //
+  // Called from a later turn of the loop, which is the whole point: by then the
+  // synchronous resolver can answer from sources the host already has.
+  void SettleDynamicImport(Object* promise, std::string_view specifier,
+                           std::string_view referrer);
   // Runs `source` as a module named `specifier`, loading and evaluating what it
   // imports first. Answers the module's namespace object.
   Result RunModule(std::string_view source, std::string_view specifier);
@@ -954,6 +989,7 @@ class Interpreter {
     Value error;
   };
   ModuleResolver module_resolver_;
+  DynamicImportStarter dynamic_import_starter_;
   std::unordered_map<std::string, std::unique_ptr<Module>> modules_;
 
   Module* FindModule(const std::string& specifier);
@@ -969,6 +1005,12 @@ class Interpreter {
   // though loading here is synchronous -- a page cannot tell the difference
   // except in ordering, and the ordering is the one every `then` sees.
   Value ImportDynamically(const std::string& specifier, const std::string& referrer);
+  // The promises handed out for dynamic imports the host has not answered yet,
+  // as a JavaScript array on the global -- which the collector already walks.
+  // The host holds a raw `Object*` meanwhile, and a raw pointer is worse than
+  // invisible to a collector: it survives the sweep that freed its target.
+  Object* PendingImports();
+  void DropPendingImport(Object* promise);
   // Every name a declaration binds, so `export const {a, b} = o` publishes
   // both. The same walk a binding pattern does.
   static void CollectDeclaredNames(const Node& node, std::vector<std::string>& out);

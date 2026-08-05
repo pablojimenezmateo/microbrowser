@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include "bindings/Timers.h"
 #include "dom/Node.h"
 #include "engine/DocumentPolicy.h"
+#include "engine/ModuleLoader.h"
 #include "engine/Subresource.h"
 #include "js/Interpreter.h"
 
@@ -217,6 +219,36 @@ class PageScript {
   // document from costing a relayout.
   bool HasListeners() const { return interpreter_ != nullptr; }
 
+  // --- modules, in PageModules.cpp ------------------------------------------
+  //
+  // The engine fetches; this decides what needs fetching and what to do when it
+  // arrives. Split that way because a fetch needs a privacy verdict and a
+  // connection pool, and because the *resolver* the interpreter asks is
+  // synchronous -- so the graph has to be closed before evaluation, which is a
+  // thing only this side knows how to determine. See ModuleLoader.h.
+
+  // URLs the module graph needs and nobody has been asked for yet, marked as
+  // asked. A take rather than a read, for the reason the image list is one: it is
+  // recomputed from the graph after every arrival and the engine must not be told
+  // to fetch the same URL twice.
+  // What a relative specifier resolves against. Set when the document is parsed
+  // and *not* when the interpreter is built: a module script's source reaches the
+  // graph before there is an interpreter, and asking what that module imports
+  // needs a base for the answer.
+  void SetModuleDocumentUrl(const std::string& url);
+  std::vector<std::string> TakeModuleFetches();
+  // One module's source, by the URL it was fetched from. An empty source for a
+  // fetch that failed, which the module will fail to parse -- a failure reported
+  // once at evaluation beats a graph that never closes.
+  void AddModuleSource(std::string url, std::string source);
+  // Settles every dynamic import whose graph is now closed, and works out what
+  // still has to be fetched. True when a promise settled, which is the caller's
+  // signal that a page's code ran and the document may have changed.
+  bool AdvanceModules();
+  // Whether anything is waiting on a module. The loop asks so it keeps turning
+  // while a graph is still arriving.
+  bool HasPendingModules() const;
+
   // Anything the page wrote with `console.log`, in order. Collected rather
   // than printed: a page must not be able to write to the terminal the browser
   // was started from.
@@ -254,6 +286,14 @@ class PageScript {
     bool module = false;
   };
 
+  // Installs the resolver and the dynamic-import starter, and resets the graph.
+  // Called once per document with the interpreter: a source kept across a
+  // navigation would let one document's code be evaluated in another's scope.
+  void InstallModuleHost(const std::string& document_url);
+  // Records that `url` has to be fetched, once.
+  void Want(const std::string& url);
+  // Asks the graph what is missing and queues it.
+  void RefreshModuleFetches();
   // Builds the interpreter and the binding layer, once. Kept apart from `Run`
   // because an `async` script that lands after the main pass still needs them.
   void EnsureInterpreter(dom::Document& document, const std::string& url,
@@ -281,6 +321,25 @@ class PageScript {
   // measurement is a fact the page recorded, and the only thing they have in
   // common is the clock.
   bindings::Performance performance_;
+  // What a specifier means and the sources the synchronous resolver answers
+  // from. ADR 0011's unanswered question; see ModuleLoader.h.
+  ModuleLoader modules_;
+  // A dynamic `import()` handed a promise nobody has settled.
+  //
+  // The promise is a raw pointer *and that is safe*, because the interpreter
+  // keeps it in a JavaScript array on the global for exactly this reason -- a raw
+  // pointer is worse than invisible to a collector, since it survives the sweep
+  // that freed its target.
+  struct PendingImport {
+    std::string specifier;
+    std::string referrer;
+    js::Object* promise = nullptr;
+  };
+  std::vector<PendingImport> pending_imports_;
+  // Asked for and not yet arrived, plus what has been handed to the engine, so a
+  // URL is fetched once.
+  std::vector<std::string> module_fetches_;
+  std::set<std::string, std::less<>> requested_modules_;
   std::vector<std::string> errors_;
   bindings::GeometrySource* geometry_ = nullptr;
   bindings::NetworkSource* network_ = nullptr;

@@ -234,6 +234,14 @@ namespace microbrowser::util {
   X(JsCompileBailoutCaptured, "js.compile_bailout_captured")                      \
   X(JsCompileBailoutUnreserved, "js.compile_bailout_unreserved")                   \
   X(JsCompileBailoutArithmetic, "js.compile_bailout_arithmetic")                    \
+  /* The module graph. `dynamic_imports` against `dynamic_imports_settled` is   */ \
+  /* the pair to read: the difference is a page waiting on a promise nobody     */ \
+  /* answered, which is a page that hangs with no error anywhere.               */ \
+  X(JsModulesLoaded, "js.modules_loaded")                                         \
+  X(JsModuleFetches, "js.module_fetches")                                         \
+  X(JsDynamicImports, "js.dynamic_imports")                                       \
+  X(JsDynamicImportsSettled, "js.dynamic_imports_settled")                        \
+  X(JsDynamicImportsRefused, "js.dynamic_imports_refused")                        \
   X(JsCompileBailoutNode, "js.compile_bailout_node")                              \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \
