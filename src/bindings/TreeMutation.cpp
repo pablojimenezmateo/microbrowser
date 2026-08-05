@@ -64,9 +64,21 @@ std::unique_ptr<dom::Node> CopyNode(const dom::Node& node, bool deep) {
   if (!deep) {
     return copy;
   }
-  for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+  // A template's markup is in its contents rather than in its children, so a
+  // deep clone that copied only the children would produce an empty template --
+  // and `template.cloneNode(true)` is precisely how a page stamps out a
+  // repeated subtree.
+  const dom::Node* source = &node;
+  dom::Node* destination = copy.get();
+  if (node.IsElement()) {
+    if (const dom::DocumentFragment* content = static_cast<const dom::Element&>(node).Content()) {
+      source = content;
+      destination = static_cast<dom::Element&>(*copy).Content();
+    }
+  }
+  for (const std::unique_ptr<dom::Node>& child : source->Children()) {
     if (std::unique_ptr<dom::Node> child_copy = CopyNode(*child, true)) {
-      copy->Append(std::move(child_copy));
+      destination->Append(std::move(child_copy));
     }
   }
   return copy;
@@ -110,29 +122,9 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
         return Value::Undefined();
       });
 
-  // `innerHTML` and `outerHTML`, readable only.
-  //
-  // Writing either means running the HTML parser on a string from script into
-  // a live tree. That is not merely a bigger feature: a *fragment* parses
-  // differently depending on where it is going -- `<td>` inside a table is a
-  // cell and anywhere else is nothing -- and this parser parses documents. A
-  // setter that ignored that would build wrong trees quietly, which is worse
-  // than not having one. See ADR 0008.
-  const auto read_only = [this, &wrapper](const char* name, js::NativeFunction get) {
-    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
-    if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      wrapper.object->DefineAccessor(name, getter.object, nullptr);
-    }
-  };
-  read_only("innerHTML", [](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    return self == nullptr ? Value::Undefined() : Value::String(self->SerializeChildren());
-  });
-  read_only("outerHTML", [](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    return self == nullptr ? Value::Undefined() : Value::String(self->Serialize());
-  });
+  // `innerHTML` and `outerHTML` are on the Element interface, in
+  // HtmlParsing.cpp -- which is where the specification puts them, and where
+  // the fragment parsing algorithm that writes them lives.
 
   const auto method = [this, &wrapper](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
@@ -228,6 +220,26 @@ void DomBindings::ClearChildren(dom::Node& parent) {
   // Detached rather than destroyed, one at a time from the front, for the
   // reason every removal here is: script may still hold a wrapper for any of
   // them.
+  //
+  // The reactions and the record are owed here as much as they are on a single
+  // `removeChild`. Before this they were not delivered at all, so
+  // `el.textContent = ''` disconnected a subtree of custom elements without
+  // telling any of them and without an observer seeing a childList record --
+  // which is exactly the leak `disconnectedCallback` exists to let a page
+  // avoid. One record for the batch, like the insertion side.
+  std::vector<dom::Node*> removed;
+  for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
+    removed.push_back(child.get());
+  }
+  if (removed.empty()) {
+    return;
+  }
+  // Before the detach, not after: asking whether a node is in the document has
+  // to be asked while the answer is still yes.
+  for (dom::Node* child : removed) {
+    NotifyConnection(*child, false);
+  }
+  RecordMutation(parent, "childList", {}, Value::Null(), {}, removed);
   while (parent.FirstChild() != nullptr) {
     std::unique_ptr<dom::Node> owned = parent.Detach(parent.FirstChild());
     if (owned == nullptr) {
@@ -277,14 +289,14 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // The fragment itself is not inserted and stays owned where it was, so a
   // page that keeps a reference to it and fills it again gets an empty
   // fragment rather than a detached one.
+  //
+  // The batch is announced the same way an `innerHTML` insertion is, and
+  // through the same code: before this, appending a fragment fired no
+  // `connectedCallback` and produced no childList record at all, so a framework
+  // that assembled its subtree in a fragment -- which is the whole reason to
+  // use one -- got neither.
   if (child != nullptr && child->IsDocumentFragment()) {
-    while (dom::Node* first = child->FirstChild()) {
-      std::unique_ptr<dom::Node> moved = child->Detach(first);
-      if (moved == nullptr) {
-        break;
-      }
-      parent.InsertBefore(std::move(moved), reference);
-    }
+    InsertFragmentChildren(parent, *child, reference);
     return WrapperFor(child);
   }
   // A node with a parent is moved rather than refused, now that detaching is

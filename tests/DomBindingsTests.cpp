@@ -335,6 +335,27 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "holder.appendChild(document.createElement('x-t'));"
                  "log.length + ':' + (document.body.appendChild(holder), log.join())",
                  "0:in");
+    // The parser makes elements and knows nothing about a registry, so a
+    // subtree that arrived through `innerHTML` has to be upgraded before it is
+    // announced as connected -- `connectedCallback` is a method of the
+    // upgraded class, and an element that ran one first would see a half-built
+    // object.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { constructor(){ super(); log.push('made') }"
+                 "  connectedCallback(){ log.push('in') } }"
+                 "customElements.define('x-t', T);"
+                 "document.body.innerHTML = '<div><x-t></x-t></div>'; log.join()",
+                 "made,in");
+    // And a subtree that leaves through the same path is told it left. Before
+    // session 14, clearing children ran no reaction at all.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { disconnectedCallback(){ log.push('out') } }"
+                 "customElements.define('x-t', T);"
+                 "document.body.innerHTML = '<x-t></x-t>';"
+                 "document.body.innerHTML = ''; log.join()",
+                 "out");
     // `observedAttributes` is read once, when the class is defined, and an
     // attribute outside it produces no call at all.
     ExpectScript(kPage,
@@ -405,6 +426,28 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.getElementById('list').remove();"
                  "var r = o.takeRecords(); r[0].removedNodes.length + ':' + r[0].addedNodes.length",
                  "1:0");
+
+    // A batch is one record carrying every node, whichever way the batch
+    // arrived. All three of these produced *no* record before session 14:
+    // appending a fragment, writing `innerHTML`, and clearing children --
+    // which meant a framework that assembled its subtree in a fragment, which
+    // is the only reason to use one, was invisible to every observer.
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.body, { childList: true });"
+                 "var f = document.createDocumentFragment();"
+                 "f.appendChild(document.createElement('i'));"
+                 "f.appendChild(document.createElement('b'));"
+                 "document.body.appendChild(f);"
+                 "var r = o.takeRecords(); r.length + ':' + r[0].addedNodes.length",
+                 "1:2");
+    ExpectScript(kPage,
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(document.getElementById('list'), { childList: true });"
+                 "document.getElementById('list').innerHTML = '<p>a</p><p>b</p>';"
+                 "var r = o.takeRecords();"
+                 "r.length + ':' + r[0].removedNodes.length + ':' + r[1].addedNodes.length",
+                 "2:2:2");
 
     // Attributes, with the name and the old value -- the old value only when
     // it was asked for, because keeping it otherwise copies every write.
@@ -1498,20 +1541,110 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "0 safe &lt;b&gt;text&lt;/b&gt;");
   });
 
-  AddTest(tests, "DomBindings/TheHtmlPropertiesAreReadableAndNotWritable", [] {
+  AddTest(tests, "DomBindings/TheHtmlPropertiesReadAndWrite", [] {
     ExpectScript(kPage, "document.getElementById('list').innerHTML",
                  "<p>one</p><p>two</p>");
     ExpectScript(kPage, "document.getElementById('title').outerHTML",
                  "<h1 id=\"title\" class=\"big head\">Hello</h1>");
-    // Writing either means running the HTML parser on a string from script
-    // into a live tree, and a *fragment* parses differently depending on where
-    // it is going -- `<td>` inside a table is a cell and anywhere else is
-    // nothing. A setter that ignored that would build wrong trees quietly.
+    // Writing runs the fragment parsing algorithm with this element as the
+    // context, which is what makes the markup become nodes rather than text.
+    // Until session 14 both were read-only, because a document parser given a
+    // fragment builds the wrong tree quietly.
     ExpectScript(kPage,
                  "const t = document.getElementById('title');"
                  "t.innerHTML = '<i>x</i>';"
-                 "t.innerHTML",
-                 "Hello");
+                 "t.children.length + ':' + t.children[0].tagName + ':' + t.textContent",
+                 "1:i:x");
+    // The context element is the observable difference: `<td>` becomes a cell
+    // in a row and bare text anywhere else.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.innerHTML = '<td>c</td>';"
+                 "t.children.length + ':' + t.innerHTML",
+                 "0:c");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.innerHTML = '<table><tr><td>c</td></tr></table>';"
+                 "t.querySelector('td').textContent + ':' + "
+                 "  (t.querySelector('tbody') !== null)",
+                 "c:true");
+    // Writing replaces what was there, rather than appending to it.
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.innerHTML = '<p>only</p>';"
+                 "list.children.length + ':' + list.textContent",
+                 "1:only");
+    // `outerHTML` replaces the element itself, in place.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "const parent = t.parentNode;"
+                 "t.outerHTML = '<h2 id=\"t2\">new</h2>';"
+                 "document.getElementById('title') === null ? "
+                 "  document.getElementById('t2').tagName : 'still there'",
+                 "h2");
+  });
+
+  AddTest(tests, "DomBindings/InnerHtmlDoesNotRunScripts", [] {
+    // The property that stops `el.innerHTML = userText` from being arbitrary
+    // code execution. A script element that arrives this way is an element and
+    // nothing more -- `PageScript::Collect` gathers a document's scripts once,
+    // when the document is parsed.
+    ExpectScript(kPage,
+                 "window.ran = false;"
+                 "document.getElementById('title').innerHTML = "
+                 "  '<script>window.ran = true<\\/script>';"
+                 "String(window.ran) + ':' + "
+                 "  document.getElementById('title').children.length",
+                 "false:1");
+  });
+
+  AddTest(tests, "DomBindings/InsertAdjacentHtmlPlacesNodesRelativeToTheElement", [] {
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.insertAdjacentHTML('afterbegin', '<p>zero</p>');"
+                 "list.insertAdjacentHTML('beforeend', '<p>three</p>');"
+                 "Array.from(list.children).map(c => c.textContent).join(',')",
+                 "zero,one,two,three");
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.insertAdjacentHTML('beforebegin', '<div id=\"before\"></div>');"
+                 "list.insertAdjacentHTML('afterend', '<div id=\"after\"></div>');"
+                 "const kids = Array.from(list.parentNode.children).map(c => c.id || c.tagName);"
+                 "kids.indexOf('before') + ',' + kids.indexOf('list') + ',' + kids.indexOf('after')",
+                 "1,2,3");
+    // A mistyped position throws rather than silently doing nothing, which
+    // otherwise looks exactly like markup the parser dropped.
+    ExpectScript(kPage,
+                 "try { document.getElementById('list').insertAdjacentHTML('inside', 'x'); 'no' }"
+                 "catch (e) { 'threw' }",
+                 "threw");
+  });
+
+  AddTest(tests, "DomBindings/TemplateContentIsReachableOnlyThroughContent", [] {
+    // A template's markup is not document content: no walk of the tree finds
+    // it, and `content` is the only way to reach it. That is what makes a
+    // template a place a page keeps markup it has not used yet.
+    static constexpr const char* kTemplatePage =
+        "<html><body><template id='t'><p class='row'>x</p></template></body></html>";
+    ExpectScript(kTemplatePage, "document.querySelectorAll('.row').length", "0");
+    ExpectScript(kTemplatePage, "document.getElementById('t').children.length", "0");
+    ExpectScript(kTemplatePage,
+                 "const c = document.getElementById('t').content;"
+                 "c.children.length + ':' + c.children[0].className",
+                 "1:row");
+    // The usual idiom: clone the contents and append the clone. It only works
+    // if a deep clone follows the contents rather than the (empty) child list.
+    ExpectScript(kTemplatePage,
+                 "const t = document.getElementById('t');"
+                 "document.body.appendChild(t.content.cloneNode(true));"
+                 "document.querySelectorAll('.row').length + ':' + t.content.children.length",
+                 "1:1");
+    // Writing a template's `innerHTML` writes its contents, not its children.
+    ExpectScript(kTemplatePage,
+                 "const t = document.getElementById('t');"
+                 "t.innerHTML = '<span>y</span>';"
+                 "t.children.length + ':' + t.content.children.length + ':' + t.innerHTML",
+                 "0:1:<span>y</span>");
   });
 
   AddTest(tests, "DomBindings/StyleWritesThroughToTheAttribute", [] {

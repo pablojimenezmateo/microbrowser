@@ -383,6 +383,34 @@ class DomBindings {
   // three.
   void AbortSignalled(const js::Value& signal, const js::Value& reason);
 
+  // --- HTML from script, in HtmlParsing.cpp ---------------------------------
+  // `innerHTML`, `outerHTML` and `insertAdjacentHTML`: a page's string of
+  // markup becoming nodes, through the fragment parsing algorithm with a
+  // context element. On the Element interface, which is where the
+  // specification puts all three.
+  void InstallHtmlParsing(const js::Value& element_interface);
+  // Parses `markup` with `context_tag_name` as the fragment parsing
+  // algorithm's context element and inserts what it produced into `parent`
+  // before `reference`. The one place a page's string becomes tree, so that
+  // "was the parser given the right context" is a question with one answer.
+  void InsertParsedHtml(std::string_view context_tag_name, dom::Node& parent,
+                        dom::Node* reference, const std::string& markup);
+  // The same, with the context taken from `parent` -- an element's tag name, or
+  // `body` when the parent is a document or a fragment and has none.
+  void InsertAdjacentParsedHtml(dom::Node& parent, dom::Node* reference,
+                                const std::string& markup);
+  // `outerHTML`: the parsed nodes in, then `target` out, in that order.
+  void ReplaceWithParsedHtml(dom::Node& parent, dom::Node& target, const std::string& markup);
+  // Moves every child of `fragment` into `parent` before `reference` as one
+  // operation: one childList record for the batch, and an upgrade and a
+  // connection reaction for each node that arrived. Shared with `appendChild`
+  // of a DocumentFragment, which is the same insertion by another name.
+  void InsertFragmentChildren(dom::Node& parent, dom::Node& fragment, dom::Node* reference);
+  // Upgrades every custom element in a subtree. The parser makes elements and
+  // knows nothing about a registry, so a subtree that arrived through the
+  // parser has to be walked once before it is announced as connected.
+  void UpgradeSubtree(dom::Node& node);
+
   void RunAttributeReaction(dom::Element& element, const std::string& name,
                             const js::Value& old_value, const js::Value& new_value);
   // Runs connected or disconnected reactions over `node` and its subtree. The

@@ -149,6 +149,10 @@ void DomBindings::EnsureInterfaces() {
   InstallParentQueries(element);
   InstallElementIdentity(element);
   InstallGeometry(element);
+  // `innerHTML`, `outerHTML` and `insertAdjacentHTML`, on Element because that
+  // is where the specification puts them and because a Text node with an
+  // `innerHTML` would be a name a page could feature-detect and then misuse.
+  InstallHtmlParsing(element);
   const Value html_element = MakeInterface("HTMLElement", element);
   // On HTMLElement rather than Element, which is where the specification puts
   // them: focus is an HTML concept, and an SVG element in this tree is an
@@ -161,6 +165,26 @@ void DomBindings::EnsureInterfaces() {
   // a type before it has one far more often than after.
   for (const TagInterface& entry : kTagInterfaces) {
     MakeInterface(entry.interface, html_element);
+  }
+  // `template.content`, on HTMLTemplateElement and nowhere else. It is the only
+  // way a page can reach a template's markup -- the tree walks cannot, which is
+  // the point of the element -- and it is read-only: the fragment is the
+  // element's, and letting a page swap it would put a node with two owners in
+  // the tree.
+  if (const Value* template_interface = interfaces_.object->GetOwn("HTMLTemplateElement")) {
+    const Value getter = interpreter_->NewNativeValue("content", [](js::NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr || !self->IsElement()) {
+        return Value::Undefined();
+      }
+      dom::DocumentFragment* content = static_cast<dom::Element&>(*self).Content();
+      return content == nullptr ? Value::Undefined() : owner->WrapperFor(content);
+    });
+    if (getter.IsObject() && template_interface->IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      template_interface->object->DefineAccessor("content", getter.object, nullptr);
+    }
   }
   // Text and Comment share a base, and it is not decoration: a polyfill that
   // patches `data` or `length` patches CharacterData once rather than both.

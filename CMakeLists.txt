@@ -334,6 +334,7 @@ microbrowser_module(bindings
     src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp
     src/bindings/TreeMutation.cpp
+    src/bindings/HtmlParsing.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/ViewObservers.cpp
     src/bindings/EventBindings.cpp

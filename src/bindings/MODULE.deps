@@ -113,7 +113,17 @@ max_tu_lines: 700
 # received one. The requests in flight are *not* a member: they live in a
 # JavaScript array hung off the interfaces object, because a promise in a C++
 # field is invisible to the collector.
-budget: DomBindings header_lines=355 public_methods=18 members=11
+# 385 lines for the fragment parsing algorithm reached from script: the four
+# entry points ADR 0020 §6 names -- `innerHTML`, `outerHTML`,
+# `insertAdjacentHTML` and `<template>` -- plus the one shared insertion path
+# under them. No new members: a parsed fragment is a local `unique_ptr` whose
+# children are moved into the tree and whose remains are dropped before the
+# call returns, so there is nothing for this class to hold. The lines are
+# declarations in HtmlParsing.cpp's block, and the reason they are declarations
+# at all rather than four separate implementations is that the *context
+# element* is the whole algorithm -- four call sites deciding it independently
+# is four chances to build a tree that differs from every other browser.
+budget: DomBindings header_lines=385 public_methods=18 members=11
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and
