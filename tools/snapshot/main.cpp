@@ -112,6 +112,17 @@ void DumpDisplayList(const microbrowser::gfx::DisplayList& list) {
                    static_cast<double>(bounds.x), static_cast<double>(bounds.y),
                    static_cast<double>(bounds.width), static_cast<double>(bounds.height),
                    fill_path->color.argb);
+    } else if (const auto* transform = std::get_if<PushTransformCommand>(&command)) {
+      // Printed as the matrix rather than as a name, because "the transform is
+      // wrong" is almost always "the matrix is right and the origin is not", and
+      // only the six numbers can tell those apart.
+      const AffineTransform matrix = list.TransformAt(transform->matrix);
+      std::fprintf(stderr, "PushXform  [%.3f %.3f %.3f %.3f %.1f %.1f]\n",
+                   static_cast<double>(matrix.A()), static_cast<double>(matrix.B()),
+                   static_cast<double>(matrix.C()), static_cast<double>(matrix.D()),
+                   static_cast<double>(matrix.E()), static_cast<double>(matrix.F()));
+    } else if (std::holds_alternative<PopTransformCommand>(command)) {
+      std::fprintf(stderr, "PopXform\n");
     } else if (const auto* stroke = std::get_if<StrokePathCommand>(&command)) {
       const Path* path = list.PathAt(stroke->path);
       const FloatRect bounds = path == nullptr ? FloatRect{} : path->ControlBounds();

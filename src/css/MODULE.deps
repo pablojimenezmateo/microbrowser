@@ -64,7 +64,7 @@ budget: Length           header_lines=45 public_methods=10 members=3
 # two halves of `transform-origin`. The list itself is `css::TransformList` in its own
 # header rather than fields here -- see Transform.h for why it stays a list of
 # operations instead of a matrix.
-budget: ComputedStyle    header_lines=240 public_methods=25 members=34
+budget: ComputedStyle    header_lines=250 public_methods=25 members=35
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

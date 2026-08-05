@@ -238,6 +238,10 @@ bool PropertyAffectsLayout(std::string_view property) {
       // rect rather than a relayout of the page. It is also why the display list
       // carries the matrix instead of layout carrying the geometry.
       "transform",        "transform-origin",
+      // `z-index` moves a box between layers and never between positions. It is on
+      // this list for the same reason `transform` is: the box occupies the space it
+      // already occupied.
+      "z-index",
       "visibility",
   };
   return std::find(std::begin(kPaintOnly), std::end(kPaintOnly), property) ==

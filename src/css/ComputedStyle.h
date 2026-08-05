@@ -185,6 +185,10 @@ struct ComputedStyle {
   // the initial value of any other property in this struct and is the reason a
   // rotation looks right without the author saying anything.
   TransformList transform;
+  // `z-index`. Nothing means `auto`, which is *not* the same as zero: a zero
+  // establishes a stacking context and an auto does not, and the difference decides
+  // whether a positioned descendant can paint above this box's siblings.
+  std::optional<int> z_index;
   Length transform_origin_x = Length{50.0f, Length::Unit::Percent};
   Length transform_origin_y = Length{50.0f, Length::Unit::Percent};
   // Per axis, because a page sets them separately as often as together --

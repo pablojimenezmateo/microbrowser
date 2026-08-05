@@ -8,6 +8,7 @@
 #include "TestSupport.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
+#include "gfx/AffineTransform.h"
 #include "gfx/DisplayList.h"
 #include "html/TreeBuilder.h"
 #include "layout/LayoutEngine.h"
@@ -1162,6 +1163,122 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(FindBox(*degenerate.root, "div")->Geometry().content.height == 0.0f,
            "a zero ratio is `auto` per the specification, which for an empty box is no height "
            "at all rather than a division nobody can draw");
+  });
+
+  AddTest(tests, "Layout/ATransformIsPaintedWithoutMovingTheBox", [] {
+    // ADR 0014 §4, and the property that makes `transform` worth having: the box
+    // occupies exactly the space it would have occupied untransformed, and the
+    // matrix is the display list's business. A layout that *moved* the box would
+    // reflow every sibling around a hover.
+    const LaidOut result = Run(
+        "<div id=a>x</div>",
+        "body { margin: 0 } div { width: 100px; height: 40px; background-color: red;"
+        " transform: translate(20px, 5px) }",
+        400.0f);
+    const Box* box = FindBox(*result.root, "div");
+    Expect(box != nullptr, "the box exists");
+    Expect(box->Geometry().BorderBox().x == 0.0f && box->Geometry().BorderBox().y == 0.0f,
+           "and layout left it where it was");
+
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    std::size_t pushes = 0;
+    gfx::AffineTransform pushed;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* push = std::get_if<gfx::PushTransformCommand>(&command)) {
+        ++pushes;
+        pushed = list.TransformAt(push->matrix);
+      }
+    }
+    ExpectEqInt(static_cast<long long>(pushes), 1, "one transform pushed");
+    // A translation is origin-independent, so this is the one operation whose
+    // matrix can be checked without reasoning about `transform-origin`.
+    Expect(std::abs(pushed.E() - 20.0f) < 1e-3f && std::abs(pushed.F() - 5.0f) < 1e-3f,
+           "and it is the translation the page asked for");
+  });
+
+  AddTest(tests, "Layout/ARotationIsAboutTheBoxCentreAndNotThePageOrigin", [] {
+    // The bug this is here to prevent: the display list has one coordinate space,
+    // so a matrix resolved in the box's *local* coordinates rotates it about the
+    // top-left of the page -- which throws the box off screen rather than turning
+    // it. The centre of the border box must be the fixed point.
+    const LaidOut result =
+        Run("<div id=a>x</div>",
+            "body { margin: 0 } div { margin-left: 100px; margin-top: 50px; width: 40px;"
+            " height: 20px; transform: rotate(90deg) }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    gfx::AffineTransform pushed;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* push = std::get_if<gfx::PushTransformCommand>(&command)) {
+        pushed = list.TransformAt(push->matrix);
+      }
+    }
+    const gfx::FloatPoint centre{120.0f, 60.0f};
+    const gfx::FloatPoint mapped = pushed.MapPoint(centre);
+    Expect(std::abs(mapped.x - centre.x) < 1e-2f && std::abs(mapped.y - centre.y) < 1e-2f,
+           "the centre of the border box is where the rotation is anchored");
+  });
+
+  AddTest(tests, "Layout/NoTransformMeansNoCommands", [] {
+    // Every box on every page goes through this, so a pair of commands per box
+    // would be the cost of the feature existing.
+    const LaidOut result = Run("<div id=a>x</div>", "div { width: 10px; height: 10px }", 400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      Expect(!std::holds_alternative<gfx::PushTransformCommand>(command),
+             "an untransformed page pushes nothing");
+    }
+  });
+
+  AddTest(tests, "Layout/ZIndexOrdersBetweenSubtreesWhichTreeOrderCannot", [] {
+    // The case that could not be expressed before this session, and the one
+    // old.reddit.com is made of: two positioned boxes in *different* subtrees,
+    // where the later one in tree order must paint underneath. Tree order can
+    // only ever put the second one on top.
+    const LaidOut result = Run(
+        "<div id=w1><div id=a></div></div><div id=w2><div id=b></div></div>",
+        "body { margin: 0 } div { width: 50px; height: 50px }"
+        " #a { position: absolute; z-index: 5; background-color: red }"
+        " #b { position: absolute; z-index: 1; background-color: blue }",
+        400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    std::vector<gfx::Color> fills;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        fills.push_back(fill->color);
+      }
+    }
+    Expect(fills.size() >= 2, "both backgrounds painted");
+    Expect(fills.at(0) == gfx::Color::Rgb(0, 0, 0xFF), "the lower z-index paints first");
+    Expect(fills.at(1) == gfx::Color::Rgb(0xFF, 0, 0), "and the higher one on top of it");
+  });
+
+  AddTest(tests, "Layout/ANegativeZIndexPaintsUnderItsParentsContent", [] {
+    // Appendix E's order, and the reason collecting is a separate walk from
+    // painting: a negative layer paints before the in-flow content of the box it
+    // is in, and the units that belong to it can be arbitrarily deep in subtrees
+    // whose content paints after. One traversal cannot produce that order.
+    const LaidOut result = Run(
+        "<div id=parent><div id=under></div><div id=flow></div></div>",
+        "body { margin: 0 } div { width: 30px; height: 30px }"
+        " #under { position: absolute; z-index: -1; background-color: red }"
+        " #flow { background-color: blue }",
+        400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    std::vector<gfx::Color> fills;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        fills.push_back(fill->color);
+      }
+    }
+    Expect(fills.size() >= 2, "both painted");
+    Expect(fills.at(0) == gfx::Color::Rgb(0xFF, 0, 0), "the negative layer is underneath");
+    Expect(fills.at(1) == gfx::Color::Rgb(0, 0, 0xFF), "the in-flow content is over it");
   });
 
   AddTest(tests, "Layout/PaintsNothingForAnEmptyDocument", [] {

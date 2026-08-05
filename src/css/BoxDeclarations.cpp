@@ -90,6 +90,20 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     }
     return true;
   }
+  if (property == "z-index") {
+    if (value == "auto") {
+      style.z_index = std::nullopt;
+      return true;
+    }
+    // An integer, and only an integer: `z-index: 1.5` is invalid, and rounding it
+    // would put a box in a layer the author did not write.
+    const std::optional<int> parsed = util::ParseInt(value);
+    if (!parsed.has_value()) {
+      return false;
+    }
+    style.z_index = *parsed;
+    return true;
+  }
   if (property == "overflow" || property == "overflow-x" || property == "overflow-y") {
     Overflow parsed = Overflow::Visible;
     if (value == "hidden" || value == "clip") {
