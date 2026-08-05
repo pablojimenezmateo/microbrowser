@@ -271,6 +271,10 @@ class DomBindings {
   // `popstate` carries a state and `hashchange` carries two URLs, and neither
   // can be added after the listeners have run.
   bool DispatchAtWindowWith(const char* type, const js::Value& event);
+  // Puts `composedPath()` on an event, over the path dispatch already built.
+  // Stored rather than recomputed, because the path is fixed before any handler
+  // runs -- a handler that reparents the target must not change it.
+  void InstallComposedPath(const js::Value& event, const std::vector<js::Value>& path);
   void SetReadyState(const char* state);
   js::Value MakeClassList(dom::Element& element);
   js::Value MakeStyle(dom::Element& element);

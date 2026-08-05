@@ -1,5 +1,6 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "dom/FlatTree.h"
 
 #include <cstddef>
 #include <string>
@@ -179,14 +180,48 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
   // not a detail: capture goes *down* from the window, so a page that captures
   // clicks at the window sees every click, and one that captures a `submit`
   // sees every submission.
+  // The walk crosses a shadow boundary through the *host*, which is what makes an
+  // event fired inside a component reach a listener on the page. A shadow root has
+  // no parent -- deliberately, ADR 0019 §2 -- so this is the one place the two
+  // trees are joined for propagation.
   std::vector<js::Value> path;
+  std::vector<dom::Node*> nodes;
   path.push_back(WrapperFor(&target));
-  for (dom::Node* walk = target.Parent(); walk != nullptr; walk = walk->Parent()) {
+  nodes.push_back(&target);
+  for (dom::Node* walk = &target; walk != nullptr;) {
+    if (walk->Parent() != nullptr) {
+      walk = walk->Parent();
+    } else if (const dom::Element* host = dom::ShadowHostOf(*walk)) {
+      walk = const_cast<dom::Element*>(host);
+    } else {
+      break;
+    }
     path.push_back(WrapperFor(walk));
+    nodes.push_back(walk);
   }
   path.push_back(Value::Obj(interpreter_->Global()));
 
-  event.object->Set("target", path.front());
+  // **Retargeting**, ADR 0019 §5. `target` is not the node the event fired on
+  // when that node is inside a shadow tree: it is the outermost host on the path,
+  // so a listener on the page sees the *component* rather than a node it was
+  // never given a reference to. Without this, a click on a button inside a
+  // component reports a target the page cannot have obtained, which is both a
+  // leak of the tree's shape and a `target` a page's own code cannot compare
+  // against anything it holds.
+  std::size_t retargeted = 0;
+  for (std::size_t i = 0; i < nodes.size(); ++i) {
+    if (dom::ShadowHostOf(*nodes[i]) != nullptr) {
+      // Still inside a shadow tree, so the visible target is further out.
+      retargeted = i + 1 < nodes.size() ? i + 1 : i;
+    }
+  }
+  event.object->Set("target", path[retargeted]);
+  // `composedPath()` answers the *whole* path, shadow trees included, and only
+  // for an event that says `composed`. A page inside the component uses it to
+  // find the real target that retargeting hid, which is why the two exist
+  // together: one is what the page outside sees, the other is what the component
+  // can still ask for.
+  InstallComposedPath(event, path);
 
   // Down, then at, then up: the three phases, in the one place every event goes
   // through. ADR 0017 §2 -- two events with two dispatch paths is how a browser
@@ -365,6 +400,42 @@ bool DomBindings::DispatchScroll(dom::Element* target) {
   }
   DispatchEventTo(*from, event);
   return true;
+}
+
+void DomBindings::InstallComposedPath(const js::Value& event,
+                                     const std::vector<js::Value>& path) {
+  if (interpreter_ == nullptr || !event.IsObject()) {
+    return;
+  }
+  // Stored on the event and handed back by a method, rather than computed when
+  // asked: the path is built before any handler runs -- a handler that reparents
+  // the target must not change it -- and `composedPath()` has to answer with that
+  // same path afterwards.
+  const Value stored = interpreter_->NewArrayValue(path);
+  event.object->SetHidden("#path", stored);
+  const Value method = interpreter_->NewNativeValue("composedPath", [](js::NativeCall& call) {
+    const Value* composed =
+        call.self.IsObject() ? call.self.object->GetOwn("composed") : nullptr;
+    const Value* stored_path =
+        call.self.IsObject() ? call.self.object->GetOwn("#path") : nullptr;
+    if (stored_path == nullptr || !stored_path->IsObject()) {
+      return call.interpreter.NewArrayValue({});
+    }
+    if (composed == nullptr || !js::ToBoolean(*composed)) {
+      // A non-composed event does not escape its tree, so its path stops at the
+      // root it was fired in. Answering with the full path would tell a listener
+      // outside about nodes the event never reached.
+      std::vector<Value> inside;
+      for (std::size_t i = 0; i < stored_path->object->ElementCount(); ++i) {
+        inside.push_back(stored_path->object->GetElement(i));
+      }
+      return call.interpreter.NewArrayValue(std::move(inside));
+    }
+    return *stored_path;
+  });
+  if (method.IsObject()) {
+    event.object->Set("composedPath", method);
+  }
 }
 
 bool DomBindings::DispatchAtWindow(const char* type) {

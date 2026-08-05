@@ -205,6 +205,56 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
         "1 one|1 two|true", "and assignedSlot is the other direction of the same answer");
   });
 
+  AddTest(tests, "ShadowDom/AnEventFromInsideAComponentIsRetargetedToTheHost", [] {
+    // ADR 0019 §5, and the reason it matters is not tidiness: without
+    // retargeting, a listener on the page gets a `target` it could never have
+    // obtained a reference to -- which leaks the component's internal shape and
+    // gives the page a node it cannot compare against anything it holds.
+    ExpectEqString(
+        Run("<div id=h></div>",
+            "const h = document.getElementById('h');"
+            "const r = h.attachShadow({mode: 'open'});"
+            "const inner = document.createElement('span');"
+            "r.appendChild(inner);"
+            "h.addEventListener('ping', function (e) {"
+            "  console.log('host sees ' + (e.target === h) + ' ' + (e.target === inner));"
+            "});"
+            "inner.dispatchEvent(new Event('ping', {bubbles: true, composed: true}));"),
+        "host sees true false",
+        "the listener outside the tree sees the component, not what is inside it");
+  });
+
+  AddTest(tests, "ShadowDom/ComposedPathIsTheWholePathAndOnlyForAComposedEvent", [] {
+    // The other half of retargeting: the component can still ask what the real
+    // target was, and a *non*-composed event does not hand that out.
+    ExpectEqString(
+        Run("<div id=h></div>",
+            "const h = document.getElementById('h');"
+            "const r = h.attachShadow({mode: 'open'});"
+            "const inner = document.createElement('span');"
+            "r.appendChild(inner);"
+            "inner.addEventListener('ping', function (e) {"
+            "  const p = e.composedPath();"
+            "  console.log('first ' + (p[0] === inner) + ' has host ' + p.includes(h));"
+            "});"
+            "inner.dispatchEvent(new Event('ping', {bubbles: true, composed: true}));"),
+        "first true has host true",
+        "the path starts at the real target and reaches out through the host");
+  });
+
+  AddTest(tests, "ShadowDom/AnEventThatCrossesNoBoundaryIsNotRetargeted", [] {
+    // The case that would break every existing page if retargeting were applied
+    // unconditionally: an ordinary event in the light DOM keeps its own target.
+    ExpectEqString(
+        Run("<div id=h><span id=s></span></div>",
+            "const s = document.getElementById('s');"
+            "document.getElementById('h').addEventListener('ping', function (e) {"
+            "  console.log('target is s: ' + (e.target === s));"
+            "});"
+            "s.dispatchEvent(new Event('ping', {bubbles: true}));"),
+        "target is s: true", "no shadow tree, no retargeting");
+  });
+
   AddTest(tests, "ShadowDom/AnEmptySlotAnswersWithNothingRatherThanItsFallback", [] {
     // `assignedNodes()` is the *assignment*, and the fallback is not assigned to
     // anything -- which is the distinction a page uses to decide whether to
