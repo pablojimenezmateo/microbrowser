@@ -732,3 +732,98 @@ were rendered and looked at before and after.
   phrased as interactions ("typing in reddit's search box works", "Escape closes a menu"); each of
   them needs an input path into `microbrowser_snapshot` that does not exist yet, and writing one is
   probably session 9's first deliverable rather than a surprise at its end.
+
+---
+
+## Session 9 — input, events and focus (1 of 2) · 2026-08-05
+
+**Status:** done
+
+**Check:** amended, and the amendment is a finding of its own — see **Found**. The original check is
+one sentence shared verbatim with session 10, and its last clause is session 10's own scope. What
+was run:
+
+```
+$ microbrowser_snapshot https://old.reddit.com/ -click 1120,103 -type cats -key Enter
+https://old.reddit.com/search?q=cats: 902 commands, 640 runs, 22 fonts, 21 images,
+  title "reddit.com: search results - cats" -> /tmp/r3.ppm
+```
+
+Clicked old.reddit's search field, typed four characters, pressed Enter, and the browser navigated
+to the search results and rendered them with `cats` in the box. Before this session there was no
+message that could have carried the Enter: a key crossed the seam as *the text it produced*, and
+Enter produces none, so it arrived as an `InputCommandMessage` enum with three values.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each. The IPC fuzzer: 65,651 runs, no
+crash.
+
+**Landed:**
+
+- *Three input messages become two, and a key finally has an identity*
+- *Eight rules of dispatch, each one silently wrong until something asserted it*
+- *Three seeds, because a corpus of version-2 frames never reaches a version-3 decoder*
+
+**Left:**
+
+- **Session 10 is the focus model** — `activeElement`, `focus()`, `blur()`, Tab order,
+  `:focus-visible` — **and `src/app`'s chrome-or-page decision as a tested security boundary.** Key
+  routing today is `Page::DispatchKeyToFocus`, which goes to the one element a *click* focused, or
+  to the document. Nothing lets script move focus, so a page that calls `input.focus()` and then
+  expects to be typed into is still broken. The ordering in `Application::HandleInputEvent` is
+  already chrome-first; what session 10 owes is the test that says so.
+- **`Escape closes a menu` needs a menu, not a key.** Escape reaches a page now, pressed and
+  released, with `key === 'Escape'` and `keyCode === 27`, and `tests/EngineTests.cpp` asserts it.
+  old.reddit's own two Escape handlers are both `keyup` with `keyCode == 27` — a report modal and a
+  saved-category bubble — and both need a logged-in session to open the thing they close. Pick a
+  different page for that half of session 10's check rather than discovering this at its end.
+- **Deliberately absent, each with its ADR paragraph:** composition/IME (§1), touch events (§6 —
+  `ontouchstart` stays undefined), `keypress` (Alternatives). `PointerInputMessage::Kind` has only
+  `Move`/`Down`/`Up`: `Enter`/`Leave` arrive with `:hover` in session 11, and a wheel is still
+  `ScrollMessage` because session 8 built it and two paths for a wheel is exactly what ADR 0017 §2
+  forbids.
+- **A `keyup` for a printable character now exists and nothing consumes it.** It was suppressed
+  along with the keydown that would otherwise have typed the character twice, which is why it had
+  never been noticed as missing.
+
+**Found:**
+
+- **The check was one sentence for two sessions, and could not gate either.** Sessions 9 and 10
+  share the string "Typing in reddit's search box works; Escape closes a menu; a page cannot type
+  into the omnibox." The third clause is session 10's scope by the roadmap's own words, so session 9
+  could never pass its own check as written and session 10 would inherit a clause already passed.
+  The ledger now splits it. This is the second session in a row to find its check unrunnable as
+  phrased — session 8's named a browser-only environment variable — and both times the cause was the
+  same: **a check written as a user interaction, in a repo whose only headless tool took a URL and
+  nothing else.** `microbrowser_snapshot` now has `-type` and `-key`; sessions 10, 11 and 12 all
+  need them.
+- **The typed text was painted and invisible, for the third session running.** The display list has
+  `Text 979.0,106.7 "cats"` exactly inside the input's `975,92 300x21.6` box, and the picture shows
+  an empty field: old.reddit's "Welcome to Reddit" interstitial is a positioned box in another
+  subtree that paints over it. That is session 21's problem and session 8 already measured it —
+  full CSS 2.1 Appendix E paint order was implemented, measured against this same site, and
+  reverted. Recording it again because the pattern is the lesson: **reading the display list said
+  the feature worked and looking at the image said it did not, and this time the display list was
+  right.**
+- **`Object::Set` clobbers an accessor rather than refusing it.** `Heap.cpp:92` returns early for a
+  non-writable *data* property and then falls through for an accessor, overwriting `getter`/`setter`
+  with a value — while the comment beside `Freeze` says assigning to a getter-only property is a
+  silent no-op. It is a no-op from *script*, because `Interpreter::SetProperty` handles the accessor
+  case before it ever gets there; it is not a no-op from C++. `isTrusted` is safe because nothing in
+  the engine writes it, but the next getter-only property installed by a binding will be silently
+  destroyed by any `Set` on the same key.
+- **Bumping a protocol version silently invalidates a fuzz corpus.** With the version at 3 every one
+  of the ipc corpus's ~1,400 inputs was refused before its tag byte was read: 3,347 runs in 90
+  seconds and *zero* executions of the two new decoders. Three hand-written seeds took the same 90
+  seconds to 65,651 runs. A fuzzer that finds nothing because it decodes nothing is indistinguishable
+  from a fuzzer that found nothing.
+- **Three translation units passed their cap at once, and each split was real.** `EventBindings.cpp`
+  became registration plus `EventDispatch.cpp`, which is the one dispatch algorithm; `Engine.cpp`
+  became routing plus `EngineInput.cpp`, which is dispatch-then-default-action for a click and a
+  key; `Page.cpp` became boxes plus `PageEditing.cpp`, which is the one caret's worth of editing
+  there is — and writing that file down is what makes it obvious that "delete forwards" is missing
+  because there is no caret, not because the key was forgotten.
+- **SDL splits one keypress across two events and neither has both halves.** `KEY_DOWN` knows which
+  physical key was struck; `TEXT_INPUT` knows what it typed. ADR 0017 needs `code`, `key` and `text`
+  in one message, so `SdlWindow` carries the scancode from the first to the second — its fourth
+  member. This is the only part of the session that cannot be tested here, because it needs a
+  display.
