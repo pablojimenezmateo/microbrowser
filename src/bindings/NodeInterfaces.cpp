@@ -148,6 +148,7 @@ void DomBindings::EnsureInterfaces() {
   InstallElementInterface(element);
   InstallParentQueries(element);
   InstallElementIdentity(element);
+  InstallGeometry(element);
   const Value html_element = MakeInterface("HTMLElement", element);
   // Every per-tag interface, up front rather than when its tag is first seen.
   // Lazily was tempting and wrong: `x instanceof HTMLAnchorElement` has to

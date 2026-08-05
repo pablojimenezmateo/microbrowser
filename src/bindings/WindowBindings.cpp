@@ -166,6 +166,7 @@ void DomBindings::InstallWindow() {
   }
 
   InstallUrlSearchParams();
+  InstallComputedStyle();
 
   // `navigator`, with one property and a deliberate one.
   //

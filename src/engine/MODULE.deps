@@ -78,7 +78,15 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # which decides what to fetch, and layout, which decides what to draw. Threading
 # it through both is how the two end up answering with different viewports and
 # an <img> draws nothing, because the URL layout asked for was never fetched.
-budget: Page   header_lines=200 public_methods=39 members=13
+# The fourteenth member is the layout state, and it is one member rather than
+# three: what the last layout ran at, the document version it described, and
+# where the viewport sits over it are three facts about one layout. The version
+# is the layout-clean flag of ADR 0015 -- a geometry query compares against it
+# and runs layout before answering rather than returning last frame's rectangle.
+# The scroll offset moved here from Engine for the reason it is on this list at
+# all: painting subtracts it and a script's getBoundingClientRect subtracts it,
+# and two copies of one offset is the pair that drifts.
+budget: Page   header_lines=250 public_methods=43 members=14
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -114,4 +122,8 @@ budget: Page   header_lines=200 public_methods=39 members=13
 # take the submission a script asked for, and fire `load`. All three are the
 # same shape as DispatchClick -- the browser calling into the page, through the
 # one layer allowed to. Members did not move.
-budget: PageScript header_lines=185 public_methods=21 members=9
+# The tenth member is the geometry source the binding layer asks its layout
+# questions through. Borrowed from the Page that owns this, and null in a
+# binding layer with no layout behind it -- which is an absence rather than a
+# stub: getBoundingClientRect is then not declared at all. See ADR 0012.
+budget: PageScript header_lines=200 public_methods=22 members=10

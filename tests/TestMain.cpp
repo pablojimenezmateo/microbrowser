@@ -16,6 +16,7 @@ namespace microbrowser::tests {
 void RegisterAffineTransformTests(std::vector<TestCase>& tests);
 void RegisterAppDirectoriesTests(std::vector<TestCase>& tests);
 void RegisterArchitectureInvariantsTests(std::vector<TestCase>& tests);
+void RegisterGeometryQueryTests(std::vector<TestCase>& tests);
 void RegisterBlitterTests(std::vector<TestCase>& tests);
 void RegisterCanvasTests(std::vector<TestCase>& tests);
 void RegisterCssTests(std::vector<TestCase>& tests);
@@ -143,6 +144,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterAffineTransformTests(tests);
   microbrowser::tests::RegisterAppDirectoriesTests(tests);
   microbrowser::tests::RegisterArchitectureInvariantsTests(tests);
+  microbrowser::tests::RegisterGeometryQueryTests(tests);
   microbrowser::tests::RegisterBlitterTests(tests);
   microbrowser::tests::RegisterCanvasTests(tests);
   microbrowser::tests::RegisterCssTests(tests);

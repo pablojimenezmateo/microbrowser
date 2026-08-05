@@ -8,6 +8,7 @@
 
 #include "bindings/AnimationFrames.h"
 #include "bindings/DomBindings.h"
+#include "bindings/Geometry.h"
 #include "bindings/Timers.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
@@ -45,6 +46,13 @@ class PageScript {
     // waiting for it, which is the entire reason the attribute exists.
     Async,
   };
+
+  // Where the binding layer's geometry questions go. Set once, by the Page
+  // that owns this, before any script runs. Borrowed, not owned -- and a
+  // pointer rather than a reference because it is set after construction: this
+  // is a member of Page, so Page cannot hand itself over in an initializer
+  // list before its own bases exist.
+  void SetGeometrySource(bindings::GeometrySource* geometry) { geometry_ = geometry; }
 
   // Lets go of the document this was bound to, which is about to be replaced.
   //
@@ -199,6 +207,7 @@ class PageScript {
   // while something has asked for it. See AnimationFrames.
   bindings::AnimationFrames frames_;
   std::vector<std::string> errors_;
+  bindings::GeometrySource* geometry_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

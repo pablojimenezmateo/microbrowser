@@ -104,6 +104,10 @@ class Engine {
   bool FollowScriptNavigation();
   void SetViewport(const gfx::IntSize& size, float device_scale);
   void ScrollBy(int delta_x, int delta_y);
+  // Where the viewport sits over the document. Kept on the Page rather than
+  // here, because painting and a script's `getBoundingClientRect` both have to
+  // subtract it and two copies of a scroll offset drift. See Page and ADR 0015.
+  int ScrollY() const;
   bool HandlePointer(const ipc::PointerMessage& pointer);
 
   // Acts on one thing that arrived.
@@ -152,7 +156,6 @@ class Engine {
   gfx::DisplayList pending_;
   gfx::IntSize viewport_size_;
   float device_scale_ = 1.0f;
-  int scroll_y_ = 0;
   PendingLoad load_;
 };
 

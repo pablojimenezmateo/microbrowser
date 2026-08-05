@@ -288,6 +288,7 @@ microbrowser_module(engine
   SOURCES
     src/engine/Engine.cpp
     src/engine/FormAlgorithms.cpp
+    src/engine/GeometryQueries.cpp
     src/engine/ImageSelection.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
@@ -314,6 +315,7 @@ microbrowser_module(bindings
     src/bindings/AnimationFrames.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp
+    src/bindings/GeometryBindings.cpp
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
     src/bindings/StyleBindings.cpp
@@ -415,6 +417,7 @@ add_executable(microbrowser_tests
   tests/BlitterTests.cpp
   tests/CanvasTests.cpp
   tests/CssTests.cpp
+  tests/GeometryQueryTests.cpp
   tests/ImageSelectionTests.cpp
   tests/MediaQueryTests.cpp
   tests/DirtyRegionPolicyTests.cpp

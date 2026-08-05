@@ -20,8 +20,11 @@ using js::Value;
 }  // namespace
 
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
-                         std::string url)
-    : interpreter_(&interpreter), document_(&document), url_(std::move(url)) {}
+                         std::string url, GeometrySource* geometry)
+    : interpreter_(&interpreter),
+      document_(&document),
+      url_(std::move(url)),
+      geometry_(geometry) {}
 
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
   if (selector.empty()) {

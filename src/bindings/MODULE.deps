@@ -22,7 +22,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # of bug ADR 0012 calls worse than an absence.
 allow: util js dom html
 
-public: AnimationFrames.h DomBindings.h Timers.h
+public: AnimationFrames.h DomBindings.h Geometry.h Timers.h
 
 extern:
 
@@ -65,7 +65,13 @@ max_tu_lines: 700
 # see a URL, a loader or a network -- and, more to the point, a navigation
 # started from inside a running script would tear down the interpreter that is
 # running it. The engine takes it after the turn ends. See FormBindings.cpp.
-budget: DomBindings header_lines=220 public_methods=12 members=9
+# The tenth member is the geometry source, and the lines are the interface it
+# implements plus the two Install functions under it. ADR 0015: 891 measured
+# occurrences of a page asking layout a question, answered through a pointer to
+# an interface *this* module declares -- not by adding `layout` or `engine` to
+# the allow: line above, which is the one-line change that would delete the
+# reason this module exists.
+budget: DomBindings header_lines=240 public_methods=12 members=10
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

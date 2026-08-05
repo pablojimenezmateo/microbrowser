@@ -258,7 +258,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.RunScripts(0);
     page.Layout(800.0f);
     gfx::DisplayList list;
-    page.Paint(list, 0.0f);
+    page.Paint(list);
     int rows = 0;
     for (const gfx::DisplayCommand& command : list.Commands()) {
       if (const auto* text = std::get_if<gfx::DrawTextCommand>(&command)) {
@@ -332,7 +332,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
               "");
     page.Layout(400.0f);
     gfx::DisplayList list;
-    page.Paint(list, 0.0f);
+    page.Paint(list);
     // Width is asserted through layout rather than by reaching into the box
     // tree, because the point is that the sheet reached the cascade.
     Expect(page.ContentHeight() > 0.0f, "the document laid out");
@@ -357,9 +357,10 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     gfx::DisplayList top;
-    page.Paint(top, 0.0f);
+    page.Paint(top);
     gfx::DisplayList scrolled;
-    page.Paint(scrolled, 40.0f);
+    page.SetScrollOffsetY(40.0f);
+    page.Paint(scrolled);
     Expect(!(top == scrolled), "scrolling changed the recorded geometry");
     Expect(top.Bounds().y - scrolled.Bounds().y == 40, "by exactly the scroll offset");
   });
@@ -1274,7 +1275,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     gfx::DisplayList list;
-    page.Paint(list, 0.0f);
+    page.Paint(list);
     const gfx::IntRect bounds = list.Bounds();
     Expect(bounds.width >= 24 && bounds.height >= 12,
            "the intrinsic size of the decoded image is the used size");
@@ -1291,7 +1292,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(400.0f);
 
     gfx::DisplayList list;
-    page.Paint(list, 0.0f);
+    page.Paint(list);
     Expect(list.Bounds().width >= 40 && list.Bounds().height >= 30,
            "the width and height attributes are where most of the web still puts an image's "
            "size, and the cascade never sees them");

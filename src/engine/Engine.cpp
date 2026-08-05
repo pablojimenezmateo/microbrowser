@@ -473,7 +473,7 @@ bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
   }
   const gfx::FloatPoint document_point{
       static_cast<float>(pointer.position.x) / device_scale_,
-      static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(scroll_y_)};
+      static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(ScrollY())};
   // The page's own handlers run first, and a `preventDefault` stops everything
   // below. That ordering is the whole contract of the method: a script that
   // intercepts a click on a link expects the link not to be followed, and
@@ -538,7 +538,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   util::PerformanceTrace::Scope scope("engine::Navigate");
   AddPerformanceCounter(PerfCounterId::EngineNavigations);
 
-  scroll_y_ = 0;
+  page_.SetScrollOffsetY(0.0f);
 
   // Everything the previous navigation had in flight goes now, connections and
   // all. That is what makes a response for a document that is gone
@@ -635,15 +635,19 @@ void Engine::SetViewport(const gfx::IntSize& size, float device_scale) {
   LayoutAndPaint();
 }
 
+int Engine::ScrollY() const {
+  return static_cast<int>(page_.ScrollOffsetY());
+}
+
 int Engine::MaxScroll() const {
   return std::max(0, static_cast<int>(page_.ContentHeight()) - viewport_size_.height);
 }
 
 void Engine::ScrollBy(int delta_x, int delta_y) {
   (void)delta_x;  // No horizontal overflow yet: layout never exceeds the width.
-  const int previous = scroll_y_;
-  scroll_y_ = std::clamp(scroll_y_ + delta_y, 0, MaxScroll());
-  if (scroll_y_ != previous) {
+  const int previous = ScrollY();
+  page_.SetScrollOffsetY(static_cast<float>(std::clamp(previous + delta_y, 0, MaxScroll())));
+  if (ScrollY() != previous) {
     // Paints without laying out. The geometry has not changed, and a scroll
     // that relaid out is the classic reason scrolling is slow.
     PaintAndSend();
@@ -653,7 +657,7 @@ void Engine::ScrollBy(int delta_x, int delta_y) {
 void Engine::LayoutAndPaint() {
   if (viewport_size_.width > 0) {
     page_.Layout(static_cast<float>(viewport_size_.width) / device_scale_);
-    scroll_y_ = std::clamp(scroll_y_, 0, MaxScroll());
+    page_.SetScrollOffsetY(static_cast<float>(std::clamp(ScrollY(), 0, MaxScroll())));
   }
   PaintAndSend();
 }
@@ -673,7 +677,7 @@ void Engine::PaintAndSend() {
   // document shorter than the viewport still has a window under it, and the
   // page has no opinion about pixels it does not cover.
   pending_.FillRect(viewport, gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
-  page_.Paint(pending_, static_cast<float>(scroll_y_));
+  page_.Paint(pending_);
 
   gfx::DirtyRegion damage;
   const bool bounded = gfx::ComputeDamage(display_list_, pending_, viewport, damage);

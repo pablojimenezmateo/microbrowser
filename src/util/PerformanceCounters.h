@@ -144,6 +144,12 @@ namespace microbrowser::util {
   X(LayoutTreeBuilds, "layout.tree_builds")                                      \
   X(LayoutBoxesCreated, "layout.boxes_created")                                  \
   X(LayoutRuns, "layout.runs")                                                   \
+  /* A layout that ran in the middle of a script turn, because the page asked  */ \
+  /* a geometry question the box tree could no longer answer. ADR 0015 makes   */ \
+  /* this visible rather than cheap: a write-then-read loop can make the       */ \
+  /* browser do unbounded work, and the count going up per iteration is the    */ \
+  /* only way to tell that page apart from a slow one.                         */ \
+  X(LayoutForcedByScript, "layout.forced_by_script")                             \
   X(LayoutDisplayListsBuilt, "layout.display_lists_built")                       \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \

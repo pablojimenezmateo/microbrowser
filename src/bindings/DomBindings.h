@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "bindings/Geometry.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 
@@ -48,7 +49,14 @@ class DomBindings {
   // rather than read from anywhere, because this module cannot see `src/url`
   // and should not: what a URL means is the loader's problem, and all this
   // layer needs is the text a page reads back.
-  DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {});
+  // `geometry` is where the layout questions go, or null when the caller has
+  // no layout to answer them -- a test with a bare document, for now. Null is
+  // an *absence*: `getBoundingClientRect` and `getComputedStyle` are then not
+  // declared at all, rather than declared and answering zero. See ADR 0012 --
+  // a page that feature-detects a name and finds it walks into the wall behind
+  // it, where a missing name sends it to a polyfill that works.
+  DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
+              GeometrySource* geometry = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -211,6 +219,17 @@ class DomBindings {
   // 'x')` are the same act; before this they were not.
   void InstallReflections();
 
+  // --- Geometry, in GeometryBindings.cpp ------------------------------------
+  // `getBoundingClientRect`, `offsetWidth`/`offsetHeight` and
+  // `clientWidth`/`clientHeight` on Element, and `getComputedStyle` on the
+  // window. Installed only when there is a GeometrySource, for the reason on
+  // the constructor.
+  void InstallGeometry(const js::Value& element_interface);
+  void InstallComputedStyle();
+  // The read-only declaration `getComputedStyle` returns: a Proxy over the
+  // element, so a property name nobody enumerated in advance still resolves.
+  js::Value MakeComputedStyle(dom::Element& element);
+
   void RunAttributeReaction(dom::Element& element, const std::string& name,
                             const js::Value& old_value, const js::Value& new_value);
   // Runs connected or disconnected reactions over `node` and its subtree. The
@@ -252,6 +271,9 @@ class DomBindings {
   std::vector<std::unique_ptr<dom::Node>> detached_;
   // The submission a script asked for. See PendingSubmit for why it waits.
   std::optional<PendingSubmit> pending_submit_;
+  // Borrowed, like the interpreter and the document, and null when there is no
+  // layout behind this binding layer.
+  GeometrySource* geometry_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings

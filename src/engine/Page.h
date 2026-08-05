@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "bindings/Geometry.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "gfx/DisplayList.h"
@@ -48,7 +49,7 @@ struct FormSubmission {
 // display list and stops there. Fonts arrive as a gfx::FontProvider from the
 // caller, because *which* fonts exist is a property of the machine and the
 // engine is the half of the seam that does not know what machine it is on.
-class Page : private layout::ImageProvider {
+class Page : private layout::ImageProvider, private bindings::GeometrySource {
  public:
   explicit Page(gfx::FontProvider& fonts);
 
@@ -61,6 +62,19 @@ class Page : private layout::ImageProvider {
   // what a scrollbar needs.
   float Layout(float width);
 
+  // Where the viewport sits over the document, which is what makes a geometry
+  // answer viewport-relative rather than document-relative -- the coordinate
+  // system `getBoundingClientRect` is defined in.
+  //
+  // The page owns it rather than the engine so that painting and measuring
+  // cannot disagree about it: `Paint` translates the display list by the same
+  // number this subtracts, and two copies of a scroll offset is exactly the
+  // kind of pair that drifts. The scroll *model* -- a per-box offset, wheel
+  // routing, `scrollTop` -- is ADR 0018 and session 8; this is only the
+  // viewport's, moved to where both readers are.
+  void SetScrollOffsetY(float y) { layout_.scroll_y = y; }
+  float ScrollOffsetY() const { return layout_.scroll_y; }
+
   // Anything the page's script wrote with `console.log`, in order. Collected
   // rather than printed: a page must not be able to write to the terminal the
   // browser was started from.
@@ -68,11 +82,11 @@ class Page : private layout::ImageProvider {
   // Every script on this page that ended on a throw. See PageScript.
   const std::vector<std::string>& ScriptErrors() const;
 
-  // Records the page into `out`, translated by `scroll_y`. The scroll offset is
-  // baked into the geometry rather than expressed as a transform command,
+  // Records the page into `out`, translated by the scroll offset. That offset
+  // is baked into the geometry rather than expressed as a transform command,
   // because the display list has no transform and adding one to move the page
   // would make every damage rect depend on replaying it.
-  void Paint(gfx::DisplayList& out, float scroll_y) const;
+  void Paint(gfx::DisplayList& out) const;
 
   // Stylesheet URLs the document referenced, in document order, exactly as
   // written. Resolving them against the document is the loader's job, because
@@ -210,6 +224,24 @@ class Page : private layout::ImageProvider {
     std::map<const dom::Element*, std::string> selected_image_urls;
   };
 
+  // bindings::GeometrySource. Private inheritance for the reason ImageProvider
+  // is private: the binding layer holds a reference to the interface, and
+  // nothing else has business calling these. See ADR 0015 -- values out, never
+  // pointers, and the answer is never stale.
+  //
+  // Both live in GeometryQueries.cpp, with the property table.
+  std::optional<bindings::BoxGeometry> QueryBox(const dom::Node& node) override;
+  std::optional<std::string> QueryUsedValue(const dom::Element& element,
+                                            std::string_view property) override;
+  // Runs layout if anything has changed the document since the last one, and
+  // counts it as forced. The one place a geometry question can cost a page
+  // arbitrary work, which is why it is also the one place that counts it.
+  void EnsureLayoutClean();
+  // The cascade for an element that generated no box -- `display: none`, or a
+  // subtree script has built and not inserted. Resolved down the ancestor
+  // chain, because inheritance only runs that direction.
+  css::ComputedStyle StyleWithoutBox(const dom::Element& element) const;
+
   // layout::ImageProvider. Private inheritance: layout asks the page for an
   // image, and nobody else has business calling this.
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
@@ -242,6 +274,25 @@ class Page : private layout::ImageProvider {
   std::map<const dom::Element*, std::pair<std::string, bool>> control_defaults_;
   dom::Element* focused_text_control_ = nullptr;
   css::MediaContext viewport_;
+  // What the last layout was for, so a query that forces one can repeat it.
+  // One member rather than three: the width it ran at, the document version it
+  // described, and where the viewport sits over the result are three facts
+  // about one layout, and loose on Page they would say nothing about belonging
+  // together.
+  struct LayoutState {
+    // What the next forced layout runs at. Set by SetViewport as well as by
+    // Layout, because a script can ask for a rectangle before the first layout
+    // of a document has happened -- and laying that one out at zero would
+    // answer with a page one column wide.
+    float width = 0.0f;
+    // dom::Document::MutationVersion() as of the last layout. Anything that
+    // changes the tree moves it, so a mismatch is the layout-clean flag of
+    // ADR 0015 -- and it is a comparison rather than a bit because a bit that
+    // each reader cleared would hide the change from the next.
+    std::uint64_t document_version = 0;
+    float scroll_y = 0.0f;
+  };
+  LayoutState layout_;
   float content_height_ = 0.0f;
 };
 

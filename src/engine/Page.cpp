@@ -248,7 +248,13 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
 
 }  // namespace
 
-Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {}
+Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {
+  // The binding layer asks its geometry questions here. Handed over in the
+  // constructor rather than per navigation because it is this object for the
+  // life of the page, and a source that arrived later would leave the first
+  // script of a document without one.
+  script_.SetGeometrySource(this);
+}
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
 
@@ -285,6 +291,9 @@ void Page::Load(std::string_view html, std::string url) {
   resolver_ = css::StyleResolver{};
   document_ = html::ParseDocument(html);
   boxes_.reset();
+  // A new document starts at the top, and the scroll offset goes with the
+  // layout state rather than surviving it.
+  layout_ = LayoutState{};
   focused_text_control_ = nullptr;
   content_height_ = 0.0f;
   resources_ = DocumentResources{};
@@ -460,6 +469,9 @@ std::shared_ptr<const gfx::Image> Page::ImageForElement(const dom::Element& elem
 
 void Page::SetViewport(const css::MediaContext& viewport) {
   viewport_ = viewport;
+  // So that a layout forced by a geometry query before the engine's first
+  // Layout still runs at the width the document will be shown at.
+  layout_.width = viewport.viewport_width;
 }
 
 void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {
@@ -490,10 +502,15 @@ void Page::ExtractTitle() {
 
 float Page::Layout(float width) {
   util::PerformanceTrace::Scope scope("engine::Page::Layout");
+  layout_.width = width;
   if (document_ == nullptr) {
     content_height_ = 0.0f;
     return 0.0f;
   }
+  // Recorded before the layout rather than after: nothing here mutates the
+  // document, and reading it afterwards would fold any future mutation made
+  // *during* layout into the version this claims to describe.
+  layout_.document_version = document_->MutationVersion();
   const layout::LayoutEngine engine(resolver_, measurer_, this);
   // The box tree is rebuilt per layout for now. It depends only on the document
   // and the cascade, neither of which changes here, so this is the obvious
@@ -504,12 +521,12 @@ float Page::Layout(float width) {
   return content_height_;
 }
 
-void Page::Paint(gfx::DisplayList& out, float scroll_y) const {
+void Page::Paint(gfx::DisplayList& out) const {
   util::PerformanceTrace::Scope scope("engine::Page::Paint");
   if (boxes_ == nullptr) {
     return;
   }
-  layout::BuildDisplayList(*boxes_, out, gfx::FloatPoint{0.0f, -scroll_y});
+  layout::BuildDisplayList(*boxes_, out, gfx::FloatPoint{0.0f, -layout_.scroll_y});
   AddPerformanceCounter(PerfCounterId::DisplayListBuilds);
 }
 
