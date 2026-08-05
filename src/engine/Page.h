@@ -11,6 +11,7 @@
 
 #include "bindings/Geometry.h"
 #include "bindings/Network.h"
+#include "engine/DocumentPolicy.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "gfx/DisplayList.h"
@@ -58,7 +59,23 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // Replaces the document. `url` is recorded as the document's address; it is
   // not fetched here, because what a URL turns into is the loader's problem and
   // parsing is this one's.
-  void Load(std::string_view html, std::string url);
+  //
+  // `header_policy` is the `Content-Security-Policy` the response carried.
+  // Passed in at Load rather than set afterwards because the policy has to be
+  // in force *before* the document's own scripts and stylesheets are collected
+  // -- a blocked inline script that was collected and then filtered would be
+  // one refusal away from running.
+  void Load(std::string_view html, std::string url, csp::PolicyList header_policy);
+  // The same for a document that arrived with no policy, which is most of them
+  // and every test that does not care.
+  void Load(std::string_view html, std::string url) {
+    Load(html, std::move(url), csp::PolicyList{});
+  }
+
+  // This document's policy, and what it is relative to. The engine asks it the
+  // two questions this class cannot answer for itself: whether a `fetch` may go
+  // out (`connect-src`) and whether a form may be submitted (`form-action`).
+  const DocumentPolicy& Policy() const { return policy_; }
 
   // Lays out at `width` CSS pixels and returns the content height, which is
   // what a scrollbar needs.
@@ -327,6 +344,12 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   std::optional<FormSubmission> FocusedFormSubmission();
 
   const std::string& Url() const { return url_; }
+  // What a relative URL in this document resolves against: `<base href>` when
+  // the document has one the policy allowed, and the address otherwise. The
+  // loader uses this rather than re-parsing `Url()`, because two answers to
+  // "what is this document's base" is how a `<base>` ends up applying to the
+  // stylesheets and not to the images.
+  const std::optional<url::Url>& BaseUrl() const { return policy_.Base(); }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.
   const std::string& Title() const { return title_; }
@@ -444,6 +467,10 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   void CollectStyleSheets();
   void RebuildAuthorStyleSheets();
   void CollectImages();
+  // Reads the document's `<meta http-equiv="Content-Security-Policy">` elements
+  // and its `<base href>`, in that order, because a `<base>` is subject to the
+  // `base-uri` a `<meta>` may have just declared.
+  void ApplyDocumentHeadPolicy();
 
   gfx::TextRenderer text_;
   layout::FontTextMeasurer measurer_;
@@ -459,6 +486,9 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   DocumentResources resources_;
   std::map<const dom::Element*, std::pair<std::string, bool>> control_defaults_;
   css::MediaContext viewport_;
+  // The page's own Content-Security-Policy, and the base its URLs resolve
+  // against. One member and not three: see DocumentPolicy.h.
+  DocumentPolicy policy_;
   // What the last layout was for, so a query that forces one can repeat it.
   // One member rather than three: the width it ran at, the document version it
   // described, and where the viewport sits over the result are three facts

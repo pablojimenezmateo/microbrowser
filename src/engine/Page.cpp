@@ -220,10 +220,13 @@ void Page::RunScripts(std::int64_t now_ms) {
   CollectImages();
 }
 
-void Page::Load(std::string_view html, std::string url) {
+void Page::Load(std::string_view html, std::string url, csp::PolicyList header_policy) {
   util::PerformanceTrace::Scope scope("engine::Page::Load");
 
   url_ = std::move(url);
+  // Before anything is collected. The policy decides which stylesheets and
+  // scripts this document even has.
+  policy_.Reset(std::move(header_policy), url_);
   // Before the document goes, and this order is load-bearing: the binding layer
   // holds a reference to it, so dropping the script half after replacing the
   // document would leave that reference dangling for exactly as long as it took
@@ -246,6 +249,11 @@ void Page::Load(std::string_view html, std::string url) {
   resources_ = DocumentResources{};
   control_defaults_.clear();
 
+  // The `<meta>` policies and the `<base href>`, before the collections that
+  // depend on both: a policy delivered in the document governs that document's
+  // own resources, and a `<base>` changes what every relative URL in it means.
+  ApplyDocumentHeadPolicy();
+
   CollectStyleSheets();
   CollectImages();
   // `:target` comes from the address rather than from the markup, so it is set
@@ -256,7 +264,7 @@ void Page::Load(std::string_view html, std::string url) {
     // Found now, run later: an external script has to arrive before anything
     // after it in the document may run, and what a URL turns into is the
     // loader's problem rather than this one's.
-    script_.Collect(*document_);
+    script_.Collect(*document_, policy_);
   }
   if (document_ != nullptr) {
     document_->ForEachDescendant([&](const dom::Node& node) {

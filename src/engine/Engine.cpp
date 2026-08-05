@@ -315,13 +315,28 @@ void Engine::OnDocument(Loader::Result result) {
     return;
   }
 
-  page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url);
+  // Every `Content-Security-Policy` header, in the order they arrived, and
+  // *all* of them have to allow -- so a second header cannot loosen the first.
+  // Report-Only is deliberately not read: it is neither enforced nor reported.
+  csp::PolicyList policies;
+  for (const auto& [name, value] : result.headers) {
+    if (util::EqualsAsciiCaseInsensitive(name, "content-security-policy")) {
+      policies.AddFromHeader(value);
+      AddPerformanceCounter(PerfCounterId::CspPolicies);
+    }
+  }
+
+  page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url,
+             std::move(policies));
   endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
 
   // A data: or about: document has no base to resolve against, so a relative
-  // href in one has nowhere to point.
-  load_.base = url::Url::Parse(page_.Url());
+  // href in one has nowhere to point. The page's own base is what this reads,
+  // rather than its address, because a `<base href>` the document declared is
+  // what its relative URLs mean -- and one answer to that question is what
+  // stops a `<base>` from applying to the stylesheets and not to the images.
+  load_.base = page_.BaseUrl();
   if (load_.base.has_value()) {
     StartSubresources();
   }
@@ -483,6 +498,12 @@ bool Engine::FollowScriptNavigation() {
 
 bool Engine::Navigate(const FormSubmission& submission) {
   AddPerformanceCounter(PerfCounterId::EngineFormSubmissions);
+  // `form-action`. Here rather than where the submission is built, because a
+  // click, the Enter key and a script all arrive at this one function -- and
+  // three places checking a policy is two chances to have the wrong answer.
+  if (!page_.Policy().AllowsUrl(csp::Directive::FormAction, submission.url)) {
+    return false;
+  }
   const std::optional<std::string> resolved = ResolveLink(submission.url, page_.Url());
   if (!resolved.has_value()) {
     return false;

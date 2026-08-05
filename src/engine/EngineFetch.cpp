@@ -77,8 +77,17 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
   // frames -- the top-level site. `StartSubresource` does all of that and puts
   // the result through `privacy::PrivacyPolicy`, which is why a page's own
   // request takes exactly the same road as an image.
-  const std::optional<url::Url> base = url::Url::Parse(page_.Url());
+  const std::optional<url::Url>& base = page_.BaseUrl();
   if (!base.has_value()) {
+    return 0;
+  }
+  // `connect-src`, and this is the only place a page's own request can be
+  // stopped: `fetch` and `XMLHttpRequest` both come through here, so the check
+  // is on the request rather than on the API that made it. A refused request is
+  // *not* started, and the caller sees the same zero it sees for a URL that
+  // does not parse -- which rejects the promise without telling the page which
+  // of the two happened.
+  if (!page_.Policy().AllowsUrl(csp::Directive::Connect, request.url)) {
     return 0;
   }
 

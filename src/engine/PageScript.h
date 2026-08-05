@@ -12,6 +12,7 @@
 #include "bindings/Network.h"
 #include "bindings/Timers.h"
 #include "dom/Node.h"
+#include "engine/DocumentPolicy.h"
 #include "js/Interpreter.h"
 
 namespace microbrowser::engine {
@@ -87,7 +88,11 @@ class PageScript {
   // scripts must run in the order they appear whether each is inline or
   // external, so nothing can run until every external one has arrived. The
   // same shape the stylesheets already use.
-  void Collect(dom::Document& document);
+  // `policy` is the document's Content-Security-Policy. A script it refuses is
+  // never recorded, which is where "enforced rather than logged" has to happen:
+  // a slot that existed and was skipped at run time would still have been
+  // fetched, and a fetch the policy forbids is the request enforcement is for.
+  void Collect(dom::Document& document, const DocumentPolicy& policy);
   // The external scripts, in the order they were found. The caller fetches
   // them, because what a URL turns into is the loader's problem -- and because
   // a fetch needs a privacy verdict, which this layer has no business

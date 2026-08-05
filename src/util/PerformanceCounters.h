@@ -198,6 +198,18 @@ namespace microbrowser::util {
   X(FetchDelivered, "fetch.delivered")                                           \
   X(FetchFailed, "fetch.failed")                                                 \
   X(FetchAborted, "fetch.aborted")                                               \
+  /* The page's own policy, and the resource integrity it asked for. Both are  */ \
+  /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \
+  /* §3 -- so these counters are the only signal that a page's policy is doing */ \
+  /* anything at all. `csp.violations` on a page that renders wrong is the     */ \
+  /* first thing to look at, and `sri.mismatches` above zero means a resource  */ \
+  /* the site itself does not trust was served to it.                          */ \
+  X(CspPolicies, "csp.policies")                                                 \
+  X(CspViolations, "csp.violations")                                             \
+  X(CspInlineBlocked, "csp.inline_blocked")                                      \
+  X(SriChecks, "sri.checks")                                                     \
+  X(SriMismatches, "sri.mismatches")                                            \
+  X(SriUnparseable, "sri.unparseable")                                           \
   X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \
   X(EngineStyleSheetsFailed, "engine.stylesheets_failed")                          \
   X(EngineScriptsLoaded, "engine.scripts_loaded")                                  \

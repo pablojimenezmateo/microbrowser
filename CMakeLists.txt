@@ -297,6 +297,7 @@ microbrowser_module(ipc
 
 microbrowser_module(engine
   SOURCES
+    src/engine/DocumentPolicy.cpp
     src/engine/Engine.cpp
     src/engine/EngineInput.cpp
     src/engine/EngineFetch.cpp
@@ -451,6 +452,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/CorsTests.cpp
+  tests/CspEnforcementTests.cpp
   tests/CspTests.cpp
   tests/FetchTests.cpp
   tests/FetchApiTests.cpp

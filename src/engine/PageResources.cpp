@@ -63,6 +63,14 @@ std::string DirectText(const dom::Element& element) {
   return text;
 }
 
+// The `nonce` an element carries, or empty. A string rather than a pointer so
+// that "no nonce" and "an empty nonce" are the same thing, which is what the
+// policy needs: an empty nonce never matches a nonce-source.
+std::string_view NonceOf(const dom::Element& element) {
+  const std::string* nonce = element.GetAttribute("nonce");
+  return nonce == nullptr ? std::string_view{} : std::string_view(*nonce);
+}
+
 bool IsLinkedStyleSheet(const dom::Element& link) {
   if (link.TagName() != "link") {
     return false;
@@ -85,6 +93,41 @@ bool IsLinkedStyleSheet(const dom::Element& link) {
 
 }  // namespace
 
+void Page::ApplyDocumentHeadPolicy() {
+  if (document_ == nullptr) {
+    return;
+  }
+  // The `<meta>` policies first, then the `<base>`: a policy the document
+  // declares governs that document's own `<base href>`, and doing them in the
+  // other order would let a page point its relative URLs anywhere and then
+  // declare a policy that pretends it did not.
+  for (const dom::Element* meta : document_->ElementsByTagName("meta")) {
+    const std::string* equiv = meta->GetAttribute("http-equiv");
+    if (equiv == nullptr ||
+        !util::EqualsAsciiCaseInsensitive(*equiv, "content-security-policy")) {
+      continue;
+    }
+    const std::string* content = meta->GetAttribute("content");
+    if (content == nullptr || content->empty()) {
+      continue;
+    }
+    policy_.AddFromMeta(*content);
+    AddPerformanceCounter(PerfCounterId::CspPolicies);
+  }
+  // `<base href>`, which is the first thing in this browser to change what a
+  // relative URL in a document means. The *first* one with an href wins, which
+  // is the specification's rule -- a second `<base>` is ignored, so a script
+  // that appends one cannot retarget every link on the page.
+  for (const dom::Element* base : document_->ElementsByTagName("base")) {
+    const std::string* href = base->GetAttribute("href");
+    if (href == nullptr || href->empty()) {
+      continue;
+    }
+    policy_.SetBase(*href);
+    break;
+  }
+}
+
 void Page::CollectStyleSheets() {
   resources_.pending_sheets.clear();
   resources_.pending_sheet_slots.clear();
@@ -98,7 +141,15 @@ void Page::CollectStyleSheets() {
     }
     const auto& element = static_cast<const dom::Element&>(node);
     if (element.TagName() == "style") {
-      resources_.author_sheet_slots.emplace_back(DirectText(element));
+      const std::string text = DirectText(element);
+      // `style-src` governs an inline sheet exactly as `script-src` governs an
+      // inline script, and a refused sheet is not applied rather than applied
+      // and then hidden -- ADR 0020 §3, enforced and not logged.
+      if (!policy_.AllowsInline(csp::Directive::Style, NonceOf(element), text)) {
+        AddPerformanceCounter(PerfCounterId::CspInlineBlocked);
+        return;
+      }
+      resources_.author_sheet_slots.emplace_back(text);
       return;
     }
     if (!IsLinkedStyleSheet(element)) {
@@ -106,6 +157,11 @@ void Page::CollectStyleSheets() {
     }
     const std::string* href = element.GetAttribute("href");
     if (href == nullptr || href->empty()) {
+      return;
+    }
+    // Refused before it is requested, which is what enforcement means: a
+    // stylesheet the policy forbids must not become a request the server sees.
+    if (!policy_.AllowsUrl(csp::Directive::Style, *href, NonceOf(element))) {
       return;
     }
     resources_.pending_sheets.push_back(*href);
@@ -144,6 +200,12 @@ void Page::CollectImages() {
     if (src.empty() || std::find(resources_.pending_images.begin(),
                                  resources_.pending_images.end(),
                                  src) != resources_.pending_images.end()) {
+      return;
+    }
+    // `img-src`, at the one place every image URL in this document passes --
+    // an `<img>`'s chosen candidate and a background the cascade named both
+    // arrive here, and gating them separately is two chances to miss one.
+    if (!policy_.AllowsUrl(csp::Directive::Img, src)) {
       return;
     }
     resources_.pending_images.push_back(src);

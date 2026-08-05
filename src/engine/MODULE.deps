@@ -6,9 +6,13 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # `bindings` and not `js`: the engine owns the interpreter but reaches the
 # document through the binding layer like everything else, so there is still
 # exactly one path from script to the tree. See docs/adr/0008-dom-bindings.md.
-allow: util gfx ipc url privacy net dom html css layout js bindings
+# `csp` alongside `privacy`, and the pairing is the point: privacy answers
+# whether a request is allowed by *our* policy and csp whether it is allowed by
+# the *page's*. Both are decided here, at one seam, because the alternative is
+# each of the four resource paths deciding for itself. See ADR 0020 §3.
+allow: util gfx ipc url privacy csp net dom html css layout js bindings
 
-public: Engine.h ImageSelection.h Loader.h Page.h PendingLoad.h
+public: DocumentPolicy.h Engine.h ImageSelection.h Loader.h Page.h PendingLoad.h
 
 extern:
 
@@ -185,7 +189,15 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # page's requests go is the engine's to know, and this forwards it to the
 # script half like it forwards the geometry source. The methods are that and
 # the delivery of one answer.
-budget: Page   header_lines=450 public_methods=58 members=14
+# 480 lines, 60 methods and a fifteenth member for ADR 0020 §3. The member is
+# the document's own Content-Security-Policy, and it is one member rather than
+# three because the policy, the origin `'self'` names and the base its relative
+# URLs resolve against are three facts about one document -- see
+# DocumentPolicy.h. The two methods are `Policy()` and `BaseUrl()`, and the
+# second is the interesting one: `<base href>` means this page's base is no
+# longer derivable from its address, so the loader has to ask rather than parse
+# `Url()` a second time.
+budget: Page   header_lines=480 public_methods=60 members=15
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -235,3 +247,8 @@ budget: Page   header_lines=450 public_methods=58 members=14
 # an interpreter, because a response for a document that never ran a script
 # has nothing to settle.
 budget: PageScript header_lines=230 public_methods=24 members=11
+# This document's policy plus the two things every question about one needs.
+# Three members and one of them mutable: a refusal is recorded where it is
+# decided, because eight call sites remembering to log is how a browser ends up
+# enforcing silently. ADR 0020 §3.
+budget: DocumentPolicy header_lines=60 public_methods=12 members=4

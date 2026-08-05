@@ -2,12 +2,18 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
+
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::engine {
 
 namespace {
+
+using util::AddPerformanceCounter;
+using util::PerfCounterId;
 
 // A `type` that is not JavaScript is data the page put in a script tag so the
 // parser would leave it alone -- a template, a JSON blob -- and running it
@@ -69,7 +75,7 @@ void PageScript::Detach() {
   frames_ = bindings::AnimationFrames{};
 }
 
-void PageScript::Collect(dom::Document& document) {
+void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) {
   slots_.clear();
   pending_urls_.clear();
   pending_slots_.clear();
@@ -78,7 +84,7 @@ void PageScript::Collect(dom::Document& document) {
   // Gathered before any of them runs, because running one can add elements to
   // the tree -- and a walk that collected as it went would then try to run
   // whatever a script had just written.
-  document.ForEachDescendant([this](const dom::Node& node) {
+  document.ForEachDescendant([this, &policy](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
     }
@@ -89,6 +95,22 @@ void PageScript::Collect(dom::Document& document) {
     const std::string* src = element.GetAttribute("src");
     const bool external = src != nullptr && !src->empty();
     const bool module = IsModule(element);
+    const std::string* nonce_attribute = element.GetAttribute("nonce");
+    const std::string_view nonce =
+        nonce_attribute == nullptr ? std::string_view{} : std::string_view(*nonce_attribute);
+
+    // `script-src`. An external script is judged by its URL and an inline one
+    // by its text, and a nonce answers for either -- which is CSP2's change and
+    // what makes reddit's `default-src 'none'; script-src 'nonce-…'` a page that
+    // runs rather than a page that does not.
+    if (external) {
+      if (!policy.AllowsUrl(csp::Directive::Script, *src, nonce)) {
+        return;
+      }
+    } else if (!policy.AllowsInline(csp::Directive::Script, nonce, node.TextContent())) {
+      AddPerformanceCounter(PerfCounterId::CspInlineBlocked);
+      return;
+    }
 
     Slot slot;
     slot.timing = TimingFor(element, external, module);
