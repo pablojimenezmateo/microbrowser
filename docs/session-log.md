@@ -1595,3 +1595,48 @@ of which exists yet.
   raw `Object*` while the fetch is in flight, and a raw pointer is *worse* than invisible to a
   collector: it survives the sweep that freed its target. It lives in a JavaScript array on the
   global for the same reason the fetch table does.
+
+## Session 17 — Shadow DOM, the tree · 2026-08-05
+
+**Status:** done
+
+**Check:** 13 assertions in `tests/ShadowDomTests.cpp`; 1539 tests, 0 failed; asan clean. Hacker
+News, old.reddit.com, www.reddit.com and wikipedia render unchanged (705/2, 1050/20, 210/1,
+2827/9 commands/images).
+
+The session's original check — "youtube.com's home page shows video thumbnails and a masthead" — is
+**sessions 17 and 18 together** and was rewritten, for the reason session 14's and 16's were: it
+needs the scoped cascade, which is session 18. www.youtube.com currently renders 16 display-list
+commands and 0 text runs.
+
+**Landed:**
+
+- *The flattened tree, as a traversal, and the shadow roots layout walks through it*
+- *Event retargeting, and composedPath as the thing it hides*
+
+**Left:** session 18 — the scoped cascade. The concrete blocker is small and worth naming: a
+`<style>` **inside a shadow root is not collected**, because `CollectStyleSheets` walks the document
+and a shadow root is deliberately not reachable from it. So a component that styles itself renders
+unstyled today. `:host`, `::slotted()`, `adoptedStyleSheets` and `::part` follow. Declarative shadow
+DOM (`<template shadowrootmode>`) is also still absent, and ADR 0019 §1 groups it with this session.
+
+**Found:**
+
+- **`textContent` on a Text node was the empty string.** `Node::TextContent()` walked *descendants*,
+  and a Text node has none. The DOM says it is the node's data, and a caller that asked a node it had
+  not type-checked got a silent "". Four of these tests found it, which is the argument for asserting
+  on values a page can read rather than on internal structure.
+- **The three cases a materialised flat tree gets wrong each needed their own assertion**, because
+  none of them is visible in the common one: a host with no `<slot>` renders none of its own
+  children; a slot's fallback is *conditional*, so a tree built once is stale the moment a matching
+  child appears; and an assigned node appears exactly once — at the slot, not also where it is
+  written.
+- **Retargeting is not tidiness.** Without it a listener on the page receives a `target` it could
+  never have obtained a reference to: the component's internal shape leaks, and the page holds a node
+  it cannot compare against anything of its own. And it must apply *only* where a boundary was
+  crossed — an ordinary light-DOM event keeps its own target, which is the assertion that would have
+  caught an unconditional implementation breaking every existing page.
+- **A shadow root must not have a parent.** Giving it one would make it reachable by every ordinary
+  tree walk — the cascade, the script collector, `querySelectorAll`, the image loader — and being
+  unreachable that way is the entire point. The one link back is `DocumentFragment::Host()`, which is
+  what dispatch crosses and what tells a slot which children it may be filled from.
