@@ -57,6 +57,7 @@ void RegisterModuleLoaderTests(std::vector<TestCase>& tests);
 void RegisterPerformanceApiTests(std::vector<TestCase>& tests);
 void RegisterInflateTests(std::vector<TestCase>& tests);
 void RegisterIntegrityTests(std::vector<TestCase>& tests);
+void RegisterShadowDomTests(std::vector<TestCase>& tests);
 void RegisterStructuredCloneTests(std::vector<TestCase>& tests);
 void RegisterXhrTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
@@ -200,6 +201,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterPerformanceApiTests(tests);
   microbrowser::tests::RegisterInflateTests(tests);
   microbrowser::tests::RegisterIntegrityTests(tests);
+  microbrowser::tests::RegisterShadowDomTests(tests);
   microbrowser::tests::RegisterStructuredCloneTests(tests);
   microbrowser::tests::RegisterXhrTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);

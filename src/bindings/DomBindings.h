@@ -209,6 +209,12 @@ class DomBindings {
   // page holds a reference to it.
   void SetDocumentUrl(std::string url);
 
+  // Fires `slotchange` at every slot whose assignment changed since the last
+  // time this was asked. A C++ entry point for the reason DispatchScroll is: the
+  // browser is the only thing that knows the tree moved, and it is called at the
+  // frame -- one place, so a page cannot make it fire from inside its own handler.
+  bool DeliverSlotChanges();
+
   bool DispatchPopState();
   // Fires `hashchange`, for a navigation that changed only the fragment: the one
   // case that has always been able to move the URL without a load.
@@ -452,6 +458,11 @@ class DomBindings {
   // context element. On the Element interface, which is where the
   // specification puts all three.
   void InstallHtmlParsing(const js::Value& element_interface);
+
+  // --- shadow DOM, in ShadowBindings.cpp ------------------------------------
+  // `attachShadow`, `shadowRoot`, `assignedSlot` and a slot's assignment. On
+  // Element because that is where the specification puts them. ADR 0019 §1-2.
+  void InstallShadowDom(const js::Value& element_interface);
   // Parses `markup` with `context_tag_name` as the fragment parsing
   // algorithm's context element and inserts what it produced into `parent`
   // before `reference`. The one place a page's string becomes tree, so that

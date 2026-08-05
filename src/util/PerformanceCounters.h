@@ -242,6 +242,11 @@ namespace microbrowser::util {
   X(JsDynamicImports, "js.dynamic_imports")                                       \
   X(JsDynamicImportsSettled, "js.dynamic_imports_settled")                        \
   X(JsDynamicImportsRefused, "js.dynamic_imports_refused")                        \
+  /* Shadow trees. `slot_changes` is the one to watch on a page that renders    */ \
+  /* the wrong thing inside a custom element: a slot whose assignment keeps     */ \
+  /* changing is a component being rebuilt rather than updated.                */ \
+  X(DomShadowRootsAttached, "dom.shadow_roots_attached")                          \
+  X(DomSlotChanges, "dom.slot_changes")                                          \
   X(JsCompileBailoutNode, "js.compile_bailout_node")                              \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \

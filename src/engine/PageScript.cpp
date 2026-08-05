@@ -377,6 +377,11 @@ bool PageScript::DeliverViewObservations(std::int64_t now_ms) {
   // delivery that is running.
   bool ran = bindings_->DeliverViewObservations(frames_.Timestamp(now_ms));
   ran = performance_.DeliverObservations(*interpreter_) || ran;
+  // And `slotchange`, at the same one place and for the same reason: a page that
+  // could make one fire from inside its own handler controls how deep that goes.
+  // ADR 0019 §2 -- assignment is the one piece of eager state in the flat-tree
+  // design, and this is where the change in it is noticed.
+  ran = bindings_->DeliverSlotChanges() || ran;
   return ran;
 }
 

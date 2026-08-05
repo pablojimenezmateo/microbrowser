@@ -201,6 +201,7 @@ microbrowser_module(csp
 
 microbrowser_module(dom
   SOURCES
+    src/dom/FlatTree.cpp
     src/dom/Node.cpp
   DEPS microbrowser_util)
 
@@ -349,6 +350,7 @@ microbrowser_module(bindings
     src/bindings/HistoryBindings.cpp
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
+    src/bindings/ShadowBindings.cpp
     src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp
     src/bindings/TreeMutation.cpp
@@ -481,6 +483,7 @@ add_executable(microbrowser_tests
   tests/PerformanceApiTests.cpp
   tests/InflateTests.cpp
   tests/IntegrityTests.cpp
+  tests/ShadowDomTests.cpp
   tests/StructuredCloneTests.cpp
   tests/XhrTests.cpp
   tests/IpcMessageTests.cpp

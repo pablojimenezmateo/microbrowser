@@ -142,7 +142,14 @@ max_tu_lines: 700
 # the address this layer answers with, and the `location` object is rewritten in
 # place rather than replaced because a page holds a reference to it --
 # `document.location === window.location` is something pages check.
-budget: DomBindings header_lines=450 public_methods=21 members=12
+# 470 lines and a twenty-second public method for ADR 0019's shadow trees. The
+# method is DeliverSlotChanges, a C++ entry point for the reason DispatchScroll
+# is: the browser is the only thing that knows the tree moved, and it is called at
+# the frame so a page cannot make a `slotchange` fire from inside its own handler.
+# No new members -- the flat tree is a *traversal* (dom::FlatChildren), so there is
+# no second tree for this layer to hold, and the one piece of state a slotchange
+# needs lives on the slot's own wrapper.
+budget: DomBindings header_lines=470 public_methods=22 members=12
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

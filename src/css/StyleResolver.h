@@ -6,6 +6,7 @@
 
 #include "css/ComputedStyle.h"
 #include "css/StyleSheet.h"
+#include "dom/FlatTree.h"
 #include "dom/Node.h"
 
 namespace microbrowser::css {
@@ -108,7 +109,7 @@ class StyleResolver {
   template <typename Visitor>
   void ForEachStyledElement(const dom::Document& document, Visitor&& visit) const {
     const ComputedStyle root = InitialStyle();
-    for (const std::unique_ptr<dom::Node>& child : document.Children()) {
+    for (dom::Node* child : dom::FlatChildren(document)) {
       Walk(*child, root, visit);
     }
   }
@@ -138,7 +139,13 @@ class StyleResolver {
       style = StyleFor(element, parent);
       visit(element, style);
     }
-    for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+    // The *flattened* tree, so that inheritance crosses a shadow boundary the way
+    // the specification says it does -- a slotted node inherits from where it
+    // renders, not from where it is written. ADR 0019 §2-3, and the reason the
+    // traversal is shared with layout rather than reimplemented: two answers to
+    // "what are this node's children for rendering" is the disagreement the ADR
+    // refuses to allow.
+    for (dom::Node* child : dom::FlatChildren(node)) {
       Walk(*child, style, visit);
     }
   }

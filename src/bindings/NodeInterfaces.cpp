@@ -153,6 +153,8 @@ void DomBindings::EnsureInterfaces() {
   // is where the specification puts them and because a Text node with an
   // `innerHTML` would be a name a page could feature-detect and then misuse.
   InstallHtmlParsing(element);
+  // `attachShadow` and what a slot answers. On Element for the same reason.
+  InstallShadowDom(element);
   const Value html_element = MakeInterface("HTMLElement", element);
   // On HTMLElement rather than Element, which is where the specification puts
   // them: focus is an HTML concept, and an SVG element in this tree is an

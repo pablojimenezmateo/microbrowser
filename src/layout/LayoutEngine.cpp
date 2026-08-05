@@ -1,5 +1,7 @@
 #include "layout/LayoutEngine.h"
 
+#include "dom/FlatTree.h"
+
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -333,7 +335,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   std::vector<std::unique_ptr<Box>> children;
   bool any_inline = false;
   bool any_block = false;
-  for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+  // The flattened tree, not the node tree: ADR 0019 §2.
+  for (dom::Node* child : dom::FlatChildren(node)) {
     bool child_inline = false;
     std::unique_ptr<Box> child_box = BuildFor(*child, style, child_inline);
     if (child_box == nullptr) {
@@ -449,7 +452,7 @@ std::unique_ptr<Box> LayoutEngine::BuildBoxTree(const dom::Document& document) c
   root_style.display = css::Display::Block;
 
   auto root = std::make_unique<Box>(Box::Kind::Block, root_style);
-  for (const std::unique_ptr<dom::Node>& child : document.Children()) {
+  for (dom::Node* child : dom::FlatChildren(document)) {
     bool produced_inline = false;
     if (std::unique_ptr<Box> box = BuildFor(*child, root_style, produced_inline)) {
       root->Append(std::move(box));

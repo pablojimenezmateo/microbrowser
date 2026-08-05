@@ -233,6 +233,26 @@ class Element : public Node {
   // parent -- and so a node inside template contents has no owner document,
   // which is why mutating one costs the live document nothing.
   DocumentFragment* Content() const { return content_.get(); }
+
+  // --- shadow DOM, ADR 0019 -------------------------------------------------
+
+  // This element's shadow root, or null. A `DocumentFragment` for the reason
+  // template contents are one: it has children and no parent.
+  //
+  // Held whether the mode is open or closed -- `mode: "closed"` is not a
+  // security boundary and ADR 0019 refuses to pretend otherwise, since any
+  // script that could call `attachShadow` could have kept the reference. What
+  // closed changes is one thing: `element.shadowRoot` answers null. The bit is
+  // here rather than in the binding layer because the *tree* is what has a
+  // shadow root, and layout and the cascade have to walk it either way.
+  DocumentFragment* ShadowRoot() const { return shadow_.get(); }
+  bool ShadowIsOpen() const { return shadow_open_; }
+  // Attaches one, or returns the existing one -- a second `attachShadow` on the
+  // same element is an error the caller reports, and returning the first is what
+  // makes that reportable rather than a silent replacement of a subtree a page is
+  // holding references into.
+  DocumentFragment* AttachShadow(bool open);
+
   const std::vector<Attribute>& Attributes() const { return attributes_; }
 
   const std::string* GetAttribute(std::string_view name) const;
@@ -260,6 +280,11 @@ class Element : public Node {
   // subclass, because the parser and the bindings both create elements by tag
   // name and neither has anywhere to put a second type.
   std::unique_ptr<DocumentFragment> content_;
+  // Allocated only for a host, for the reason `content_` is: the parser and the
+  // bindings both make elements by tag name and neither has anywhere to put a
+  // second type.
+  std::unique_ptr<DocumentFragment> shadow_;
+  bool shadow_open_ = true;
 };
 
 class Text : public Node {
@@ -309,6 +334,19 @@ class DocumentFragment : public Node {
  public:
   DocumentFragment() : Node(Kind::DocumentFragment) {}
   std::string Serialize() const override;
+
+  // The element this is the shadow root of, or null for every other fragment.
+  //
+  // Deliberately *not* the fragment's `parent_`: a shadow root with a parent
+  // would be reachable by every ordinary tree walk -- the cascade, the script
+  // collector, `querySelectorAll` -- and being unreachable that way is the whole
+  // point of it. This is the one link back, and it is what event retargeting
+  // walks and what tells a slot which children it may be filled from.
+  Element* Host() const { return host_; }
+  void SetHost(Element* host) { host_ = host; }
+
+ private:
+  Element* host_ = nullptr;
 };
 
 class Document : public Node {

@@ -162,6 +162,13 @@ std::unique_ptr<Node> Node::Detach(Node* child) {
 
 std::string Node::TextContent() const {
   std::string out;
+  // *This* node when it is text, and not only its descendants. A Text node has no
+  // children, so the descendant walk answered "" for one -- which is wrong twice
+  // over: the DOM says `textContent` on a Text node is its data, and a caller
+  // asking a node it did not have to type-check got a silent empty string.
+  if (IsText()) {
+    return static_cast<const Text&>(*this).Data();
+  }
   ForEachDescendant([&out](const Node& node) {
     if (node.IsText()) {
       out += static_cast<const Text&>(node).Data();
@@ -260,6 +267,18 @@ Element::Element(std::string tag_name)
 }
 
 Element::~Element() = default;
+
+DocumentFragment* Element::AttachShadow(bool open) {
+  if (shadow_ == nullptr) {
+    shadow_ = std::make_unique<DocumentFragment>();
+    shadow_->SetHost(this);
+    shadow_open_ = open;
+  }
+  // The existing one, not a replacement. A second `attachShadow` is an error the
+  // caller reports, and handing back the first is what makes that reportable
+  // rather than a silent replacement of a subtree the page holds references into.
+  return shadow_.get();
+}
 
 std::string Element::Serialize() const {
   std::string out;

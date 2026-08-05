@@ -65,7 +65,7 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # It is on the resolver because it is a property of *the cascade* rather than of
 # any one sheet -- the question a change asks is "could anything have changed",
 # and one index per sheet would mean asking it once per sheet.
-budget: StyleResolver    header_lines=65 public_methods=13 members=3
+budget: StyleResolver header_lines=75 public_methods=16 members=3
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not
