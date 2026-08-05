@@ -11,6 +11,7 @@
 #include "gfx/Color.h"
 #include "gfx/Font.h"
 #include "gfx/Image.h"
+#include "gfx/AffineTransform.h"
 #include "gfx/Geometry.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
@@ -56,6 +57,37 @@ struct PushClipCommand {
 
 struct PopClipCommand {
   friend bool operator==(const PopClipCommand&, const PopClipCommand&) = default;
+};
+
+// A transform, pushed for a subtree the way a clip is, and for the same reason: a
+// per-command matrix would be re-multiplied for every command under it, and a stack
+// is what nested transformed elements actually are.
+//
+// The matrix is in **layout space** and composes with whatever is already current, so
+// a transformed element inside a transformed element multiplies rather than replaces.
+// ADR 0014 §4.
+//
+// What the executor can and cannot honour is worth knowing here rather than in the
+// executor: paths and text go through the rasterizer and are transformed exactly;
+// images are resampled through the inverse matrix; but a **clip** under a rotation
+// becomes the bounding box of the rotated rectangle, because a canvas clip is a
+// rectangle and the alternative is a per-pixel mask. That errs wide -- content that
+// should have been clipped can show -- which is the direction that keeps a page
+// readable rather than blank.
+// The matrix is named by index into the list's own table rather than carried
+// inline, for the same reason a path is: six floats plus the variant tag is over
+// `DisplayCommand`'s 24-byte budget, and paying that on *every* command on the page
+// to hold a matrix on a few of them is the wrong trade. Like a path index, this
+// never crosses the IPC wire -- the codec writes the matrix inline and replays it
+// through the builder.
+struct PushTransformCommand {
+  std::uint32_t matrix = 0;
+
+  friend bool operator==(const PushTransformCommand&, const PushTransformCommand&) = default;
+};
+
+struct PopTransformCommand {
+  friend bool operator==(const PopTransformCommand&, const PopTransformCommand&) = default;
 };
 
 // Path commands name their geometry by index into the list's own path table
@@ -142,7 +174,8 @@ struct DrawSurfaceCommand {
 
 using DisplayCommand =
     std::variant<FillRectCommand, PushClipCommand, PopClipCommand, FillPathCommand,
-                 StrokePathCommand, DrawTextCommand, DrawImageCommand, DrawSurfaceCommand>;
+                 StrokePathCommand, DrawTextCommand, DrawImageCommand, DrawSurfaceCommand,
+                 PushTransformCommand, PopTransformCommand>;
 
 class DisplayList {
  public:
@@ -151,6 +184,14 @@ class DisplayList {
   std::size_t Size() const { return commands_.size(); }
   const std::vector<DisplayCommand>& Commands() const { return commands_; }
   const std::vector<Path>& Paths() const { return paths_; }
+  const std::vector<AffineTransform>& Transforms() const { return transforms_; }
+
+  // The identity for an index no transform command produced -- the same reasoning
+  // as PathAt, and the same answer shape: a missing matrix paints in place rather
+  // than not at all.
+  AffineTransform TransformAt(std::uint32_t index) const {
+    return index < transforms_.size() ? transforms_[index] : AffineTransform();
+  }
 
   // Null for an index no path command produced. The builder cannot emit one,
   // but a DisplayList is a value type that a caller can assemble field by
@@ -187,6 +228,13 @@ class DisplayList {
   void FillRect(const IntRect& rect, Color color);
   void PushClip(const IntRect& rect);
   void PopClip();
+
+  // Recorded even when the matrix is the identity: the push and the pop have to be
+  // dropped together or not at all, and a pop that outlives its push restores a
+  // transform the list never saved. The builder is where "is this worth a pair of
+  // commands" belongs.
+  void PushTransform(const AffineTransform& matrix);
+  void PopTransform();
   void FillPath(const Path& path, Color color, FillRule rule = FillRule::NonZero);
   void StrokePath(const Path& path, const StrokeStyle& style, Color color);
 
@@ -219,6 +267,7 @@ class DisplayList {
  private:
   std::vector<DisplayCommand> commands_;
   std::vector<Path> paths_;
+  std::vector<AffineTransform> transforms_;
   std::vector<TextRun> texts_;
   // Deduplicated: a page has a handful of fonts and thousands of runs, and a
   // FontRequest holds a std::string.

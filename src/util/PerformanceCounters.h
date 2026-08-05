@@ -288,6 +288,7 @@ namespace microbrowser::util {
   X(EngineImagesLoaded, "engine.images_loaded")                                    \
   X(EngineImagesFailed, "engine.images_failed")                                    \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
+  X(GfxImagesTransformed, "gfx.images_transformed")                               \
   X(GfxImagesScaled, "gfx.images_scaled")                                         \
   X(DamageDiffs, "paint.damage_diffs")                                           \
   X(DamageDiffsIdentical, "paint.damage_diffs_identical")                        \

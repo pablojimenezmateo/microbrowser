@@ -41,7 +41,10 @@ budget: DirtyRegion  header_lines=60 public_methods=10 members=1
 # One more method for the surface hole, and no more members: a surface is named
 # rather than stored, so unlike every other resource here it needs no side
 # table. That asymmetry is the point -- see gfx/Surface.h. ADR 0013.
-budget: DisplayList  header_lines=115 public_methods=23 members=5
+# +2 methods and +1 member for ADR 0014 §4's transform: PushTransform/PopTransform
+# and the matrix table they name, which exists for the same reason the path table
+# does -- a matrix does not fit in a 24-byte command.
+budget: DisplayList  header_lines=115 public_methods=25 members=6
 # The surface itself, its registry and one placement.
 #
 # A Surface is a value with an identity, which is why it is a class rather than
@@ -60,7 +63,7 @@ budget: PathRasterizer header_lines=40 public_methods=8  members=2
 # The scaled DrawImage overload and the reasoning for choosing bilinear. Both
 # image entry points are here rather than one taking an optional rect, so that
 # "this call resamples" is visible at the call site.
-budget: Painter        header_lines=100 public_methods=20 members=6
+budget: Painter        header_lines=115 public_methods=21 members=6
 budget: GlyphCache     header_lines=60 public_methods=14 members=8
 budget: Image          header_lines=45 public_methods=16 members=4
 budget: FontLibrary    header_lines=30 public_methods=8  members=1

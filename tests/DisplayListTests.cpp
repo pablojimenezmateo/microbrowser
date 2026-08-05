@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "gfx/AffineTransform.h"
 #include "gfx/Canvas.h"
 #include "gfx/DisplayList.h"
 #include "gfx/Painter.h"
@@ -48,6 +49,65 @@ void RegisterDisplayListTests(std::vector<TestCase>& tests) {
     list.FillRect(IntRect{10, 10, 5, 5}, Color::Rgb(0, 0, 0));
     list.FillRect(IntRect{100, 0, 5, 5}, Color::Rgb(0, 0, 0));
     Expect(list.Bounds() == (IntRect{10, 0, 95, 15}), "bounds must be the union of all fills");
+  });
+
+  AddTest(tests, "DisplayList/ATransformMovesWhatIsPaintedUnderIt", [] {
+    // ADR 0014 §4. A translation is the case a `FillRect` can still take through the
+    // canvas, so it is the one that proves the *stack* works rather than the
+    // rasterizer: the rect is recorded at the origin and lands at 4,4.
+    Canvas canvas(16, 16);
+    canvas.Clear(Color::Rgb(0, 0, 0));
+    DisplayList list;
+    list.PushTransform(gfx::AffineTransform::Translation(4.0f, 4.0f));
+    list.FillRect(IntRect{0, 0, 4, 4}, Color::Rgb(0xFF, 0, 0));
+    list.PopTransform();
+    list.FillRect(IntRect{0, 0, 2, 2}, Color::Rgb(0, 0xFF, 0));
+    gfx::Painter painter(canvas);
+    gfx::Execute(list, painter, canvas.Bounds(), nullptr);
+    Expect(Color{canvas.Row(5)[5]} == Color::Rgb(0xFF, 0, 0), "the transformed fill moved");
+    Expect(Color{canvas.Row(1)[1]} == Color::Rgb(0, 0xFF, 0),
+           "and the fill after the pop did not: a transform is a subtree, not a mode");
+  });
+
+  AddTest(tests, "DisplayList/AnUnbalancedTransformCannotEscapeTheList", [] {
+    // A list that pushes more than it pops must not leave the painter mapping
+    // whatever the *next* caller draws -- and the entry transform is how the page is
+    // placed under the browser chrome, so losing it paints the page at the wrong
+    // origin.
+    Canvas canvas(8, 8);
+    DisplayList list;
+    list.PushTransform(gfx::AffineTransform::Translation(2.0f, 2.0f));
+    list.PushTransform(gfx::AffineTransform::Scaling(2.0f, 2.0f));
+    gfx::Painter painter(canvas);
+    const gfx::AffineTransform entry = gfx::AffineTransform::Translation(1.0f, 30.0f);
+    painter.SetTransform(entry);
+    gfx::Execute(list, painter, canvas.Bounds(), nullptr);
+    Expect(painter.Transform() == entry, "the entry transform is restored");
+    // And a pop with nothing pushed leaves it alone rather than restoring garbage.
+    DisplayList stray;
+    stray.PopTransform();
+    gfx::Execute(stray, painter, canvas.Bounds(), nullptr);
+    Expect(painter.Transform() == entry, "an unmatched pop changes nothing");
+  });
+
+  AddTest(tests, "DisplayList/ARotatedFillIsRasterizedRatherThanBoxed", [] {
+    // Under anything but a translation a rect fill goes through the painter, which
+    // rasterizes the mapped quad with analytic coverage. A rotated background painted
+    // as its bounding box would be a visibly wrong shape -- so the corner of the
+    // bounding box must be *empty* while the middle is painted.
+    Canvas canvas(40, 40);
+    canvas.Clear(Color::Rgb(0, 0, 0));
+    DisplayList list;
+    list.PushTransform(gfx::AffineTransform::Translation(-20.0f, -20.0f)
+                           .Then(gfx::AffineTransform::Rotation(0.7853982f))
+                           .Then(gfx::AffineTransform::Translation(20.0f, 20.0f)));
+    list.FillRect(IntRect{8, 8, 24, 24}, Color::Rgb(0xFF, 0xFF, 0xFF));
+    list.PopTransform();
+    gfx::Painter painter(canvas);
+    gfx::Execute(list, painter, canvas.Bounds(), nullptr);
+    Expect(Color{canvas.Row(20)[20]} == Color::Rgb(0xFF, 0xFF, 0xFF), "the centre is filled");
+    Expect(Color{canvas.Row(5)[5]} == Color::Rgb(0, 0, 0),
+           "and the corner of the bounding box is not: the rotation is a shape, not a box");
   });
 
   AddTest(tests, "DisplayList/ExecuteRespectsDamage", [] {

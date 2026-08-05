@@ -189,6 +189,21 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     RoundTrip(ipc::EngineToUi{paint}, ipc::DeserializeEngineToUi, "PaintFrame(paths)");
   });
 
+  AddTest(tests, "Ipc/TransformCommandsRoundTripAsMatricesRatherThanIndices", [] {
+    // ADR 0014 §4 over ADR 0004's rule: a display list names its matrices by index
+    // internally, and that index must not reach the wire. A receiver indexing a
+    // table with a number a hostile renderer chose is an out-of-bounds read on
+    // request -- the same reasoning the path table already carries.
+    ipc::PaintFrameMessage paint;
+    paint.display_list.PushTransform(gfx::AffineTransform{1.5f, 0.25f, -0.5f, 2.0f, 12.0f, -8.0f});
+    paint.display_list.FillRect(IntRect{0, 0, 4, 4}, Color::Rgb(1, 2, 3));
+    paint.display_list.PushTransform(gfx::AffineTransform::Rotation(0.5f));
+    paint.display_list.FillRect(IntRect{0, 0, 2, 2}, Color::Rgb(4, 5, 6));
+    paint.display_list.PopTransform();
+    paint.display_list.PopTransform();
+    RoundTrip(ipc::EngineToUi{paint}, ipc::DeserializeEngineToUi, "PaintFrame(transforms)");
+  });
+
   AddTest(tests, "Ipc/TextCommandsRoundTrip", [] {
     ipc::PaintFrameMessage paint;
     paint.display_list.DrawText("Hello, world", 84.5f,

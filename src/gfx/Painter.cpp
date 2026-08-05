@@ -201,8 +201,78 @@ void Painter::DrawImage(const Image& image, IntPoint at) {
   }
 }
 
+// An image under a transform that is more than a translation: every device pixel in
+// the mapped quad's bounds is taken back through the *inverse* matrix into the image
+// and sampled there.
+//
+// Backwards, from destination to source, because the forward direction leaves holes:
+// a scaled-up image walked source-first writes one pixel per source sample and skips
+// the gaps between them. This is also why a degenerate matrix draws nothing rather
+// than something -- a transform with no inverse has collapsed the image to a line,
+// and a line has no interior to fill.
+void Painter::DrawImageTransformed(const Image& image, const IntRect& destination) {
+  const std::optional<AffineTransform> inverse = transform_.Inverted();
+  if (!inverse.has_value()) {
+    return;
+  }
+  const FloatRect box{static_cast<float>(destination.x), static_cast<float>(destination.y),
+                      static_cast<float>(destination.width),
+                      static_cast<float>(destination.height)};
+  const IntRect target =
+      EnclosingIntRect(transform_.MapRect(box)).Intersected(canvas_->Clip().Intersected(canvas_->Bounds()));
+  if (target.IsEmpty()) {
+    return;
+  }
+  AddPerformanceCounter(PerfCounterId::GfxImagesTransformed);
+
+  const float scale_x = static_cast<float>(image.Width()) / box.width;
+  const float scale_y = static_cast<float>(image.Height()) / box.height;
+  const int max_x = image.Width() - 1;
+  const int max_y = image.Height() - 1;
+  for (int y = target.Top(); y < target.Bottom(); ++y) {
+    std::uint32_t* row = canvas_->Row(y);
+    if (row == nullptr) {
+      continue;
+    }
+    for (int x = target.Left(); x < target.Right(); ++x) {
+      // The pixel *centre*, un-mapped. Sampling by corner is the classic
+      // half-pixel shift, and under a rotation it is a half-pixel shift in a
+      // direction that changes with the angle.
+      const FloatPoint local = inverse->MapPoint(
+          FloatPoint{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f});
+      // Outside the destination rectangle is outside the image: the bounding box of
+      // a rotated quad contains four corners that are not in it, and drawing those
+      // would put the edge pixels of the image in them.
+      if (local.x < box.x || local.x >= box.x + box.width || local.y < box.y ||
+          local.y >= box.y + box.height) {
+        continue;
+      }
+      const float source_x = (local.x - box.x) * scale_x - 0.5f;
+      const float source_y = (local.y - box.y) * scale_y - 0.5f;
+      const int x0 = std::clamp(static_cast<int>(std::floor(source_x)), 0, max_x);
+      const int x1 = std::clamp(x0 + 1, 0, max_x);
+      const int y0 = std::clamp(static_cast<int>(std::floor(source_y)), 0, max_y);
+      const int y1 = std::clamp(y0 + 1, 0, max_y);
+      const std::uint32_t* top_row = image.Row(y0);
+      const std::uint32_t* bottom_row = image.Row(y1);
+      if (top_row == nullptr || bottom_row == nullptr) {
+        continue;
+      }
+      const float fx = std::clamp(source_x - static_cast<float>(x0), 0.0f, 1.0f);
+      const float fy = std::clamp(source_y - static_cast<float>(y0), 0.0f, 1.0f);
+      const Color sample = BilinearSample(Color{top_row[x0]}, Color{top_row[x1]},
+                                          Color{bottom_row[x0]}, Color{bottom_row[x1]}, fx, fy);
+      row[x] = image.IsOpaque() ? sample.argb : BlendSrcOver(row[x], sample);
+    }
+  }
+}
+
 void Painter::DrawImage(const Image& image, const IntRect& destination) {
   if (!image.IsValid() || destination.IsEmpty()) {
+    return;
+  }
+  if (!transform_.IsTranslationOnly()) {
+    DrawImageTransformed(image, destination);
     return;
   }
   if (destination.width == image.Width() && destination.height == image.Height()) {

@@ -59,6 +59,7 @@ void DisplayList::Clear() {
   // reusing the capacity is what keeps painting off the allocator.
   commands_.clear();
   paths_.clear();
+  transforms_.clear();
   texts_.clear();
   fonts_.clear();
   images_.clear();
@@ -74,6 +75,23 @@ void DisplayList::FillRect(const IntRect& rect, Color color) {
 
 void DisplayList::PushClip(const IntRect& rect) {
   commands_.emplace_back(PushClipCommand{rect});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
+void DisplayList::PushTransform(const AffineTransform& matrix) {
+  // An identity matrix is *recorded* here, deliberately. Dropping it would make the
+  // push conditional and the pop unconditional -- and a pop that outlives its push
+  // restores a transform the list never saved. Whoever builds the list decides
+  // whether an identity transform is worth a pair of commands; see
+  // layout/LayoutDisplayList.cpp, which does not emit one.
+  transforms_.push_back(matrix);
+  commands_.emplace_back(
+      PushTransformCommand{static_cast<std::uint32_t>(transforms_.size() - 1)});
+  AddPerformanceCounter(PerfCounterId::DisplayListCommands);
+}
+
+void DisplayList::PopTransform() {
+  commands_.emplace_back(PopTransformCommand{});
   AddPerformanceCounter(PerfCounterId::DisplayListCommands);
 }
 
@@ -248,18 +266,29 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
   AddPerformanceCounter(PerfCounterId::DisplayListExecutions);
 
   // Rect commands go through the canvas directly, which knows nothing about the
-  // painter's transform -- so the translation is applied here. Only the
-  // translation: a rotated FillRect is not a rect, and pretending otherwise
-  // would silently drop the rotation rather than refusing it.
+  // painter's transform -- so the translation is applied here. Without this, a
+  // list executed under a translation would draw its paths and text in one place
+  // and its rects and clips in another, which is exactly what compositing the
+  // page below the browser chrome does.
   //
-  // Without this, a list executed under a translation would draw its paths and
-  // text in one place and its rects and clips in another, which is exactly what
-  // compositing the page below the browser chrome does.
-  const int offset_x = SaturateFloatToInt(painter.Transform().E());
-  const int offset_y = SaturateFloatToInt(painter.Transform().F());
-  const auto placed = [offset_x, offset_y](const IntRect& rect) {
-    return rect.Translated(offset_x, offset_y);
+  // `placed` reads the painter's *current* transform rather than the one it had
+  // on entry, because a PushTransformCommand changes it mid-list. When that
+  // transform is more than a translation the rect is mapped and its bounding box
+  // taken: a rotated rectangle is not a rectangle, and this is the one place
+  // where that is answered with a box that is never smaller than the truth
+  // rather than with a silently dropped rotation. A *filled* rect does not go
+  // this way at all -- it goes through the painter, which rasterizes the rotated
+  // quad exactly.
+  const auto placed = [&painter](const IntRect& rect) {
+    const AffineTransform& current = painter.Transform();
+    if (current.IsTranslationOnly()) {
+      return rect.Translated(SaturateFloatToInt(current.E()), SaturateFloatToInt(current.F()));
+    }
+    return EnclosingIntRect(current.MapRect(FloatRect{
+        static_cast<float>(rect.x), static_cast<float>(rect.y),
+        static_cast<float>(rect.width), static_cast<float>(rect.height)}));
   };
+  std::vector<AffineTransform> transforms;
 
   Canvas& canvas = painter.Target();
   const IntRect region = damage.Intersected(canvas.Bounds());
@@ -272,9 +301,33 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
 
   for (const DisplayCommand& command : list.Commands()) {
     if (const auto* fill = std::get_if<FillRectCommand>(&command)) {
-      canvas.FillRect(placed(fill->rect), fill->color);
+      if (painter.Transform().IsTranslationOnly()) {
+        canvas.FillRect(placed(fill->rect), fill->color);
+      } else {
+        // Through the painter, which rasterizes the mapped quad with the same
+        // analytic coverage a path gets. A rotated background painted as its
+        // bounding box would be a visibly wrong shape rather than a soft edge.
+        painter.FillRect(FloatRect{static_cast<float>(fill->rect.x),
+                                   static_cast<float>(fill->rect.y),
+                                   static_cast<float>(fill->rect.width),
+                                   static_cast<float>(fill->rect.height)},
+                         fill->color);
+      }
     } else if (const auto* push = std::get_if<PushClipCommand>(&command)) {
       canvas.PushClip(placed(push->rect));
+    } else if (const auto* transform = std::get_if<PushTransformCommand>(&command)) {
+      transforms.push_back(painter.Transform());
+      // `Then`, not assignment: a transform inside a transform composes, and the
+      // outer one is also how the page is placed under the browser chrome.
+      painter.SetTransform(list.TransformAt(transform->matrix).Then(painter.Transform()));
+    } else if (std::holds_alternative<PopTransformCommand>(command)) {
+      // An unbalanced list must not restore a transform it never saved: the
+      // damage clip and the chrome offset both live in the entry transform, and
+      // losing them would paint the page at the wrong origin.
+      if (!transforms.empty()) {
+        painter.SetTransform(transforms.back());
+        transforms.pop_back();
+      }
     } else if (const auto* fill_path = std::get_if<FillPathCommand>(&command)) {
       if (const Path* geometry = list.PathAt(fill_path->path)) {
         painter.FillPath(*geometry, fill_path->color, fill_path->rule);
@@ -316,6 +369,12 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
   // turned out to be.
   while (canvas.ClipDepth() > entry_depth) {
     canvas.PopClip();
+  }
+  // And whatever transform, for the same reason: a list that pushed more than it
+  // popped would otherwise leave the painter mapping everything the *next*
+  // caller draws.
+  if (!transforms.empty()) {
+    painter.SetTransform(transforms.front());
   }
 }
 

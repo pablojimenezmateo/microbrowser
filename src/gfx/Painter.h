@@ -50,6 +50,15 @@ class Painter {
   void StrokePath(const Path& path, const StrokeStyle& style, Color color);
   void StrokeLine(FloatPoint from, FloatPoint to, const StrokeStyle& style, Color color);
 
+  // An image into `destination`, resampled. Honours the whole current transform:
+  // a translation or a scale takes the axis-aligned path, and anything else --
+  // a rotation, a skew -- is sampled through the inverse matrix.
+  //
+  // ADR 0014 §4. This was translation-only before `transform` existed, and a
+  // rotated image drawn axis-aligned is the failure this file's own comment called
+  // out: the rotation would be silently dropped rather than refused.
+  void DrawImageTransformed(const Image& image, const IntRect& destination);
+
   // Draws a shaped run with its baseline origin at `origin`.
   //
   // Takes a run rather than a string: shaping is a separate, cacheable step,

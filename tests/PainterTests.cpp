@@ -177,6 +177,51 @@ void RegisterPainterTests(std::vector<TestCase>& tests) {
     const ComparisonResult result = CompareAgainstGolden(canvas, "path/star-fill-rules");
     Expect(result.matches, result.message);
   });
+
+  AddTest(tests, "Painter/ARotatedImageIsSampledThroughTheInverseMatrix", [] {
+    // ADR 0014 §4. Before this the image path honoured only the translation, which
+    // for a rotated image is the rotation silently dropped -- a wrong page rather
+    // than a missing effect. Backwards sampling is what fills the quad: walking the
+    // *source* forwards leaves holes between the pixels it writes.
+    gfx::Image image;
+    image.Adopt(4, 4, std::vector<std::uint32_t>(16, gfx::Color::Rgb(0xFF, 0, 0).argb));
+    gfx::Canvas canvas(40, 40);
+    canvas.Clear(gfx::Color::Rgb(0, 0, 0));
+    gfx::Painter painter(canvas);
+    // A quarter turn about the middle of the destination, and a destination big
+    // enough that a dropped rotation would be visible as a different shape.
+    const gfx::IntRect destination{10, 16, 20, 8};
+    painter.SetTransform(gfx::AffineTransform::Translation(-20.0f, -20.0f)
+                             .Then(gfx::AffineTransform::Rotation(1.5707964f))
+                             .Then(gfx::AffineTransform::Translation(20.0f, 20.0f)));
+    painter.DrawImage(image, destination);
+    // Rotated, the 20x8 destination is 8 wide and 20 tall about the same centre.
+    Expect(gfx::Color{canvas.Row(20)[20]} == gfx::Color::Rgb(0xFF, 0, 0), "the centre is drawn");
+    Expect(gfx::Color{canvas.Row(12)[20]} == gfx::Color::Rgb(0xFF, 0, 0),
+           "and so is a point that is only inside the *rotated* rectangle");
+    Expect(gfx::Color{canvas.Row(20)[12]} == gfx::Color::Rgb(0, 0, 0),
+           "while a point only inside the unrotated one is not");
+  });
+
+  AddTest(tests, "Painter/ADegenerateTransformDrawsNoImageRatherThanAWrongOne", [] {
+    // A matrix with no inverse has collapsed the image to a line, and a line has no
+    // interior to fill. Drawing *something* would mean picking a source pixel for a
+    // destination that does not exist.
+    gfx::Image image;
+    image.Adopt(2, 2, std::vector<std::uint32_t>(4, gfx::Color::Rgb(0xFF, 0xFF, 0xFF).argb));
+    gfx::Canvas canvas(8, 8);
+    canvas.Clear(gfx::Color::Rgb(0, 0, 0));
+    gfx::Painter painter(canvas);
+    painter.SetTransform(gfx::AffineTransform::Scaling(0.0f, 1.0f));
+    painter.DrawImage(image, gfx::IntRect{0, 0, 4, 4});
+    bool any = false;
+    for (int y = 0; y < 8; ++y) {
+      for (int x = 0; x < 8; ++x) {
+        any = any || gfx::Color{canvas.Row(y)[x]} != gfx::Color::Rgb(0, 0, 0);
+      }
+    }
+    Expect(!any, "nothing was drawn");
+  });
 }
 
 }  // namespace microbrowser::tests

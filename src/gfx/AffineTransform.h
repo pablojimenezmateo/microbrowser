@@ -40,6 +40,14 @@ class AffineTransform {
   constexpr float E() const { return e_; }
   constexpr float F() const { return f_; }
 
+  // Whether the transform only moves things: the linear part is the identity. What
+  // it decides is whether a rectangle stays a rectangle, which is the question a
+  // clip, a rect fill and an image blit each have to ask before taking their fast
+  // path -- so it is asked once, here, rather than reinvented three times.
+  constexpr bool IsTranslationOnly() const {
+    return a_ == 1.0f && b_ == 0.0f && c_ == 0.0f && d_ == 1.0f;
+  }
+
   constexpr bool IsIdentity() const {
     return a_ == 1.0f && b_ == 0.0f && c_ == 0.0f && d_ == 1.0f && e_ == 0.0f && f_ == 0.0f;
   }

@@ -38,6 +38,8 @@ enum class CommandTag : std::uint8_t {
   DrawText = 6,
   DrawImage = 7,
   DrawSurface = 8,
+  PushTransform = 9,
+  PopTransform = 10,
 };
 
 }  // namespace
@@ -387,6 +389,21 @@ void WriteDisplayList(ByteWriter& writer, const gfx::DisplayList& list) {
     } else if (const auto* push = std::get_if<gfx::PushClipCommand>(&command)) {
       writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PushClip));
       WriteRect(writer, push->rect);
+    } else if (const auto* transform = std::get_if<gfx::PushTransformCommand>(&command)) {
+      // The matrix inline, not the index. An index is a *representation* of the
+      // sending list, and a receiver that indexed a table with a number a hostile
+      // renderer chose would be reading out of bounds on request -- the same
+      // reasoning as paths, written where the decision is made.
+      writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PushTransform));
+      const gfx::AffineTransform matrix = list.TransformAt(transform->matrix);
+      writer.WriteF32(matrix.A());
+      writer.WriteF32(matrix.B());
+      writer.WriteF32(matrix.C());
+      writer.WriteF32(matrix.D());
+      writer.WriteF32(matrix.E());
+      writer.WriteF32(matrix.F());
+    } else if (std::holds_alternative<gfx::PopTransformCommand>(command)) {
+      writer.WriteU8(static_cast<std::uint8_t>(CommandTag::PopTransform));
     } else if (const auto* fill_path = std::get_if<gfx::FillPathCommand>(&command)) {
       writer.WriteU8(static_cast<std::uint8_t>(CommandTag::FillPath));
       writer.WriteU32(fill_path->color.argb);
@@ -575,6 +592,26 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
         out.DrawSurface(id, destination);
         break;
       }
+      case CommandTag::PushTransform: {
+        const float a = reader.ReadF32();
+        const float b = reader.ReadF32();
+        const float c = reader.ReadF32();
+        const float d = reader.ReadF32();
+        const float e = reader.ReadF32();
+        const float f = reader.ReadF32();
+        if (!reader.Ok()) {
+          return false;
+        }
+        // No bound on the values, and none is possible: every finite matrix is a
+        // legal transform, and a degenerate one collapses the plane rather than
+        // reading anything. What the *rasterizer* does with a huge coordinate is
+        // its own saturation, which is where that bound belongs.
+        out.PushTransform(gfx::AffineTransform{a, b, c, d, e, f});
+        break;
+      }
+      case CommandTag::PopTransform:
+        out.PopTransform();
+        break;
       default:
         return false;
     }
