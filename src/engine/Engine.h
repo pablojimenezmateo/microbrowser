@@ -2,9 +2,11 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "bindings/Network.h"
 #include "engine/Loader.h"
 #include "engine/Page.h"
 #include "engine/PendingLoad.h"
@@ -39,7 +41,7 @@ namespace microbrowser::engine {
 // where "the browser" lives. Document, navigation history, network, and script
 // each get their own type; Engine stays the thing that routes messages to them.
 // Its budget in src/engine/MODULE.deps is the tripwire.
-class Engine {
+class Engine : private bindings::NetworkSource {
  public:
   // Fonts arrive from the caller because which fonts exist is a property of
   // the machine, and the engine is the half of the seam that does not know
@@ -80,7 +82,9 @@ class Engine {
   // requested at the *first frame*, which is after the navigation is over as
   // far as everything else is concerned, and a browser that stopped turning
   // there would show a page with holes where its visible images go.
-  bool IsLoading() const { return load_.active || !late_images_.empty(); }
+  bool IsLoading() const {
+    return load_.active || !late_images_.empty() || !script_fetches_.empty();
+  }
 
   // What the page's script threw, so a host that is debugging one can say why
   // a document rendered the way it did. Forwarded rather than exposing the
@@ -175,6 +179,21 @@ class Engine {
   // One image that arrived with no navigation behind it. True when the page
   // changed and a frame should go out.
   bool OnLateImage(Loader::Completion completion);
+
+  // bindings::NetworkSource. Private inheritance for the reason Page's
+  // GeometrySource is private: the binding layer holds a reference to the
+  // interface and nothing else has business calling these.
+  //
+  // This is where a page's own request becomes a real one -- resolved against
+  // the document, put through `privacy::Verdict` like everything else, and
+  // handed the CORS parameters that decide what comes back. The engine is the
+  // implementation rather than the Page because a fetch needs the loader, and
+  // the loader is here.
+  std::uint64_t StartFetch(const bindings::ScriptRequest& request) override;
+  void AbortFetch(std::uint64_t id) override;
+  // One response for a request a script made. True when the page's script ran,
+  // which is the caller's signal that the document may have changed under it.
+  bool OnScriptFetch(Loader::Completion completion);
   // Runs the scripts once every render-blocking resource has resolved, puts
   // the page on screen, and lets the navigation go once even the scripts the
   // page said it would not wait for have landed.
@@ -234,6 +253,14 @@ class Engine {
   // HasRunnableWork says so, or a canned transport would hand the answer to
   // nobody.
   std::map<Loader::RequestId, std::string> late_images_;
+  // The requests this page's own script made and has not been answered for.
+  //
+  // A set rather than a map: everything about a `fetch` -- the promise waiting
+  // on it, the signal that may cancel it -- lives in the JavaScript heap where
+  // the collector can see it, and all the engine needs is to recognise the id
+  // when the answer arrives. Same two rules as `late_images_`: a navigation
+  // clears it, and something in it keeps the loop turning.
+  std::set<Loader::RequestId> script_fetches_;
 };
 
 }  // namespace microbrowser::engine

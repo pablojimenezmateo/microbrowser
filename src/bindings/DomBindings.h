@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "bindings/Geometry.h"
+#include "bindings/Network.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 
@@ -95,8 +96,12 @@ class DomBindings {
   // declared at all, rather than declared and answering zero. See ADR 0012 --
   // a page that feature-detects a name and finds it walks into the wall behind
   // it, where a missing name sends it to a polyfill that works.
+  // `network` is where a page's own requests go, or null when this binding
+  // layer has no loader behind it. Null is an *absence* for the reason a null
+  // `geometry` is: `fetch` is then not declared at all, rather than declared
+  // and always rejecting. See ADR 0012 and Network.h.
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
-              GeometrySource* geometry = nullptr);
+              GeometrySource* geometry = nullptr, NetworkSource* network = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -179,6 +184,16 @@ class DomBindings {
   // no `load` handler must not cost a relayout for having been loaded.
   bool NotifyDomContentLoaded();
   bool NotifyLoad();
+
+  // Settles the promise `fetch` handed out for request `id`, and runs the
+  // microtasks that answer queues. False when nothing was waiting -- an
+  // aborted request, or a second delivery -- which the caller drops.
+  //
+  // A C++ entry point for the reason DispatchClick is: the only thing allowed
+  // to say a response arrived is the thing that received one. `response` is
+  // already whatever this document may see; nothing here can widen it. See
+  // Network.h and FetchBindings.cpp.
+  bool DeliverFetchResponse(std::uint64_t id, const ScriptResponse& response);
 
  private:
   // Where an event is on its way through the propagation path. The numbers are
@@ -347,6 +362,26 @@ class DomBindings {
   // element, so a property name nobody enumerated in advance still resolves.
   js::Value MakeComputedStyle(dom::Element& element);
 
+  // --- fetch, in FetchBindings.cpp and FetchTypes.cpp -----------------------
+  // Installed only when there is a NetworkSource, for the reason the geometry
+  // bindings are installed only when there is a GeometrySource: a `fetch` that
+  // always rejected is worse than no `fetch` at all (ADR 0012).
+  void InstallFetch();
+  void InstallHeaders();
+  void InstallResponse();
+  void InstallAbortController();
+  // The requests in flight, as a JavaScript array hung off the interfaces
+  // object -- which is already a GC root. A C++ table of promises would be
+  // invisible to the collector, which is the bug this module has had once.
+  js::Value PendingFetches();
+  // A `Headers` and a `Response`, built from what the network half answered.
+  js::Value MakeHeaders(const std::vector<ScriptHeader>& fields);
+  js::Value MakeResponse(const ScriptResponse& response);
+  // Marks `signal` aborted, rejects every fetch waiting on it, cancels those at
+  // the network, and fires `abort`. In that order, because a handler reads all
+  // three.
+  void AbortSignalled(const js::Value& signal, const js::Value& reason);
+
   void RunAttributeReaction(dom::Element& element, const std::string& name,
                             const js::Value& old_value, const js::Value& new_value);
   // Runs connected or disconnected reactions over `node` and its subtree. The
@@ -391,6 +426,9 @@ class DomBindings {
   // Borrowed, like the interpreter and the document, and null when there is no
   // layout behind this binding layer.
   GeometrySource* geometry_ = nullptr;
+  // The same, for a page's own requests, and null when there is no loader
+  // behind this binding layer -- in which case `fetch` is not declared.
+  NetworkSource* network_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings

@@ -73,7 +73,17 @@ max_tu_lines: 800
 # `fetch` and `XMLHttpRequest` arrive on in session 13, so the two rules it
 # establishes -- a navigation clears it, and a request in it keeps the loop
 # turning -- are worth the budget. The three new methods are private.
-budget: Engine header_lines=205 public_methods=15 members=9
+# 225 lines and a tenth member for ADR 0020 §1. The member is the set of
+# requests this page's own script made -- a `fetch` -- and it is a set rather
+# than a map because everything about one lives in the JavaScript heap where
+# the collector can see it: the promise, the abort signal, the handlers. All
+# the engine needs is to recognise the id when the answer arrives. It follows
+# the two rules `late_images_` established and is the second user of them: a
+# navigation clears it, and a request in it keeps the loop turning. The three
+# new methods are the `bindings::NetworkSource` implementation, which lives in
+# EngineFetch.cpp rather than here for the reason the input path lives in
+# EngineInput.cpp.
+budget: Engine header_lines=225 public_methods=15 members=10
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -82,7 +92,17 @@ budget: Engine header_lines=205 public_methods=15 members=9
 # gone. Members did not move -- the transport pointer and the owned block
 # reason were replaced by the request queue and the answers it needs no network
 # for.
-budget: Loader header_lines=105 public_methods=14 members=6
+# 130 lines and a fifteenth method for ADR 0020. The method is `Cancel`, which
+# `AbortController` needs and which `CancelAll` -- the right hammer for a page
+# going away -- is no help at all for. The lines are the headers a `fetch`
+# reads back off a `Response`: a document load wants one header and reads it
+# out of `content_type`, and a page's own request enumerates them.
+budget: Loader header_lines=130 public_methods=15 members=6
+# What a load produced. A struct with no invariant, which is why it is one --
+# but a budget so that "what does a caller learn about a response" stays a
+# decision. Everything on it is already filtered: what a cross-origin response
+# may say is decided in `net`, and nothing here can widen it.
+budget: Result header_lines=35 public_methods=0 members=12
 # One document: DOM, styles, box tree, and the display list they produce. This
 # is the unit a second tab duplicates.
 # Member 9 is the document resource plan: linked stylesheet slots, image URLs,
@@ -161,7 +181,11 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # is not wanted *yet* is still part of it. The methods are the frame's
 # observation step, the images nobody has been handed yet, and the lazy ones
 # that have come within reach of the scrollport.
-budget: Page   header_lines=440 public_methods=56 members=14
+# 450 lines and two more methods for ADR 0020 §1, and no new members: where a
+# page's requests go is the engine's to know, and this forwards it to the
+# script half like it forwards the geometry source. The methods are that and
+# the delivery of one answer.
+budget: Page   header_lines=450 public_methods=58 members=14
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -204,4 +228,10 @@ budget: Page   header_lines=440 public_methods=56 members=14
 # The twenty-third method is MoveFocus, forwarded to the binding layer for the
 # reason DispatchKey is: moving focus fires four events, and the binding layer
 # is the only module allowed to run a page's handlers.
-budget: PageScript header_lines=210 public_methods=23 members=10
+# The eleventh member is the network source, borrowed like the geometry source
+# and null in a binding layer with no loader behind it -- which is an absence
+# rather than a stub: `fetch` is then not declared at all. The twenty-fourth
+# method is the delivery of one response, which is false before this page has
+# an interpreter, because a response for a document that never ran a script
+# has nothing to settle.
+budget: PageScript header_lines=230 public_methods=24 members=11

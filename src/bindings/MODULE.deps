@@ -22,7 +22,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # of bug ADR 0012 calls worse than an absence.
 allow: util js dom html
 
-public: AnimationFrames.h DomBindings.h Geometry.h Timers.h ViewObservers.h
+public: AnimationFrames.h DomBindings.h Geometry.h Network.h Timers.h ViewObservers.h
 
 extern:
 
@@ -103,7 +103,17 @@ max_tu_lines: 700
 # in JavaScript objects hung off the interfaces object, because a `js::Value` in
 # a C++ field is invisible to the collector -- the same rule MutationObserver
 # follows and the same bug this module has had once already.
-budget: DomBindings header_lines=320 public_methods=17 members=10
+# 355 lines and an eleventh member for ADR 0020 §1. The member is the
+# NetworkSource, borrowed like the geometry source and null when there is no
+# loader behind this layer -- in which case `fetch` is not declared at all,
+# which is ADR 0012's rule at the place it matters most: a page that finds
+# `fetch` and gets a rejection has no fallback path left. The eighteenth public
+# method is DeliverFetchResponse, a C++ entry point for the reason DispatchClick
+# is -- the only thing allowed to say a response arrived is the thing that
+# received one. The requests in flight are *not* a member: they live in a
+# JavaScript array hung off the interfaces object, because a promise in a C++
+# field is invisible to the collector.
+budget: DomBindings header_lines=355 public_methods=18 members=11
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and

@@ -216,6 +216,10 @@ void DomBindings::EnsureInterfaces() {
     // that works. ADR 0012, and the same rule getBoundingClientRect follows.
     InstallViewObservers();
   }
+  // Absent for the same reason when there is no loader behind this layer, and
+  // it is the place that rule matters most: a page that finds `fetch` and gets
+  // a rejection has no fallback path left. InstallFetch answers that itself.
+  InstallFetch();
   InstallWindowEvents();
 }
 

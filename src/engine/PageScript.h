@@ -9,6 +9,7 @@
 #include "bindings/AnimationFrames.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Geometry.h"
+#include "bindings/Network.h"
 #include "bindings/Timers.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
@@ -53,6 +54,18 @@ class PageScript {
   // is a member of Page, so Page cannot hand itself over in an initializer
   // list before its own bases exist.
   void SetGeometrySource(bindings::GeometrySource* geometry) { geometry_ = geometry; }
+
+  // The same, for the requests a page makes itself. Borrowed and set before
+  // any script runs, for the reason the geometry source is: a source that
+  // arrived later would leave the first script of a document without one, and
+  // `fetch` is declared or not declared at construction.
+  void SetNetworkSource(bindings::NetworkSource* network) { network_ = network; }
+
+  // Settles the promise `fetch` handed out for `id`. False when nothing was
+  // waiting -- the request was aborted, or this is a second delivery -- and
+  // false too before this page has an interpreter, which is a response for a
+  // document that never ran a script.
+  bool DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response);
 
   // Lets go of the document this was bound to, which is about to be replaced.
   //
@@ -235,6 +248,7 @@ class PageScript {
   bindings::AnimationFrames frames_;
   std::vector<std::string> errors_;
   bindings::GeometrySource* geometry_ = nullptr;
+  bindings::NetworkSource* network_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

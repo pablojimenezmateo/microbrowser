@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "bindings/Geometry.h"
+#include "bindings/Network.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "gfx/DisplayList.h"
@@ -143,6 +144,16 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // rebuilt, and one that fired from a timer would be a 60Hz wakeup on a page
   // nothing is happening to.
   bool DeliverObservations(std::int64_t now_ms);
+
+  // Where this page's own requests go, set once by the engine that owns both
+  // this and the loader. Null in a page with no network behind it, which is an
+  // absence rather than a stub: `fetch` is then not declared at all. See
+  // bindings/Network.h and ADR 0012.
+  void SetNetworkSource(bindings::NetworkSource* network);
+  // Hands one answer to the script that asked for it. False when nothing was
+  // waiting -- an aborted request, or a second delivery -- which the caller
+  // drops rather than repainting for.
+  bool DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response);
 
   // Milliseconds until the page's soonest timer or animation frame, or nothing
   // when it has asked for neither. The loop asks this to decide how long it may

@@ -1,0 +1,462 @@
+// `Headers` and `Response`: the object model a page holds, apart from the act
+// of fetching, which is in FetchBindings.cpp.
+//
+// **Nothing in this file decides who may read what.** What a `Response` is made
+// of arrives from `src/engine` already filtered: an opaque response is empty
+// because `net` threw the bytes away before this module existed in the call
+// stack, not because a getter here refuses to return them (ADR 0020 §2). That
+// is the difference between a check and a curtain, and it is why there is no
+// same-origin comparison in this file at all.
+//
+// One absence is deliberate and is ADR 0012's rule about stubs:
+// `response.body` is not declared. A `ReadableStream` is real work with no
+// target-site requirement, and a `body` that was present and buffering would
+// make `if (response.body)` lie to every page that streams.
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "bindings/BindingSupport.h"
+#include "bindings/DomBindings.h"
+#include "bindings/FetchSupport.h"
+#include "bindings/Network.h"
+#include "util/PerformanceCounters.h"
+
+namespace microbrowser::bindings {
+
+namespace {
+
+using js::NativeCall;
+using js::Value;
+using util::AddPerformanceCounter;
+using util::PerfCounterId;
+
+// Header names are compared folded and stored folded, which is what makes
+// `headers.get('Content-Type')` and `headers.get('content-type')` the same
+// question. The value keeps its case: only the name is case-insensitive.
+std::string FoldName(const Value& value) { return LowerCase(js::ToString(value)); }
+
+}  // namespace
+
+// --- Headers ----------------------------------------------------------------
+
+js::Value DomBindings::MakeHeaders(const std::vector<ScriptHeader>& fields) {
+  const Value made = interpreter_->NewObjectValue();
+  if (!made.IsObject()) {
+    return Value::Undefined();
+  }
+  const Value* prototype = interfaces_.IsObject() ? interfaces_.object->GetOwn("Headers") : nullptr;
+  if (prototype != nullptr && prototype->IsObject()) {
+    made.object->SetPrototype(prototype->object);
+  }
+  std::vector<Value> pairs;
+  pairs.reserve(fields.size());
+  for (const ScriptHeader& field : fields) {
+    pairs.push_back(MakePair(*interpreter_, LowerCase(field.name), field.value));
+  }
+  WritePairs(*interpreter_, made, kHeaderPairsSlot, std::move(pairs));
+  return made;
+}
+
+void DomBindings::InstallHeaders() {
+  EnsureInterfaces();
+  if (!interfaces_.IsObject()) {
+    return;
+  }
+  const Value prototype = interpreter_->NewObjectValue();
+  if (!prototype.IsObject()) {
+    return;
+  }
+  interfaces_.object->Set("Headers", prototype);
+
+  const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      prototype.object->Set(name, native);
+    }
+  };
+
+  method("get", [](NativeCall& call) {
+    const std::string wanted = FoldName(Argument(call.arguments, 0));
+    // Every match, joined with ", ". A page reading `set-cookie` will not see
+    // one -- `net` removed it -- but `Accept` legitimately repeats, and
+    // returning only the first is the bug that makes a content negotiation
+    // library ask for the wrong thing.
+    std::string joined;
+    bool found = false;
+    for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
+      if (PairPart(pair, 0) != wanted) {
+        continue;
+      }
+      if (found) {
+        joined += ", ";
+      }
+      joined += PairPart(pair, 1);
+      found = true;
+    }
+    return found ? Value::String(std::move(joined)) : Value::Null();
+  });
+  method("has", [](NativeCall& call) {
+    const std::string wanted = FoldName(Argument(call.arguments, 0));
+    for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
+      if (PairPart(pair, 0) == wanted) {
+        return Value::Bool(true);
+      }
+    }
+    return Value::Bool(false);
+  });
+  method("set", [](NativeCall& call) {
+    const std::string name = FoldName(Argument(call.arguments, 0));
+    const std::string value = js::ToString(Argument(call.arguments, 1));
+    std::vector<Value> kept;
+    bool written = false;
+    for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
+      if (PairPart(pair, 0) != name) {
+        kept.push_back(pair);
+        continue;
+      }
+      if (!written) {
+        // In place, because `set` replaces the value and keeps the position:
+        // a page that sets a header twice and then iterates must not see it
+        // move to the end.
+        kept.push_back(MakePair(call.interpreter, name, value));
+        written = true;
+      }
+    }
+    if (!written) {
+      kept.push_back(MakePair(call.interpreter, name, value));
+    }
+    WritePairs(call.interpreter, call.self, kHeaderPairsSlot, std::move(kept));
+    return Value::Undefined();
+  });
+  method("append", [](NativeCall& call) {
+    const std::string name = FoldName(Argument(call.arguments, 0));
+    std::vector<Value> pairs = ReadPairs(call.self, kHeaderPairsSlot);
+    pairs.push_back(MakePair(call.interpreter, name,
+                             js::ToString(Argument(call.arguments, 1))));
+    WritePairs(call.interpreter, call.self, kHeaderPairsSlot, std::move(pairs));
+    return Value::Undefined();
+  });
+  method("delete", [](NativeCall& call) {
+    const std::string name = FoldName(Argument(call.arguments, 0));
+    std::vector<Value> kept;
+    for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
+      if (PairPart(pair, 0) != name) {
+        kept.push_back(pair);
+      }
+    }
+    WritePairs(call.interpreter, call.self, kHeaderPairsSlot, std::move(kept));
+    return Value::Undefined();
+  });
+  method("forEach", [](NativeCall& call) {
+    const Value callback = Argument(call.arguments, 0);
+    if (!callback.IsObject() || !callback.object->IsCallable()) {
+      return call.Throw("TypeError", "Headers.forEach requires a function");
+    }
+    for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
+      // Value, name, this -- the order every headers implementation uses and
+      // the reverse of what reading the pair suggests.
+      const js::Result ran = call.interpreter.CallFunction(
+          callback, Argument(call.arguments, 1),
+          {Value::String(PairPart(pair, 1)), Value::String(PairPart(pair, 0)), call.self});
+      if (ran.IsAbrupt()) {
+        return call.ThrowValue(ran.value);
+      }
+    }
+    return Value::Undefined();
+  });
+
+  // `entries`, `keys`, `values` and `for (const [k, v] of headers)`. All four
+  // are one list built four ways, handed to the array iterator -- which is
+  // taken from the interpreter rather than from the global, because a page can
+  // reassign `Symbol.iterator` and the protocol must not follow it.
+  const auto iterator = [this](int part) {
+    return [part](NativeCall& call) {
+      std::vector<Value> out;
+      for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
+        if (part == 0) {
+          out.push_back(Value::String(PairPart(pair, 0)));
+        } else if (part == 1) {
+          out.push_back(Value::String(PairPart(pair, 1)));
+        } else {
+          out.push_back(call.interpreter.NewArrayValue(
+              {Value::String(PairPart(pair, 0)), Value::String(PairPart(pair, 1))}));
+        }
+      }
+      const Value entries = call.interpreter.NewArrayValue(std::move(out));
+      if (!entries.IsObject()) {
+        return Value::Undefined();
+      }
+      const Value* protocol =
+          entries.object->Get(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
+      if (protocol == nullptr) {
+        return Value::Undefined();
+      }
+      const js::Result made = call.interpreter.CallFunction(*protocol, entries, {});
+      return made.IsAbrupt() ? Value::Undefined() : made.value;
+    };
+  };
+  method("keys", iterator(0));
+  method("values", iterator(1));
+  method("entries", iterator(2));
+  const Value iterate = interpreter_->NewNativeValue("[Symbol.iterator]", iterator(2));
+  if (iterate.IsObject()) {
+    prototype.object->Set(js::PropertyKey::Symbol(interpreter_->SymbolIterator()), iterate);
+  }
+
+  const Value constructor =
+      interpreter_->NewNativeValue("Headers", [prototype](NativeCall& call) {
+        const Value made = call.interpreter.NewObjectValue();
+        if (!made.IsObject()) {
+          return Value::Undefined();
+        }
+        made.object->SetPrototype(prototype.object);
+        WritePairs(call.interpreter, made, kHeaderPairsSlot, {});
+        const Value init = Argument(call.arguments, 0);
+        if (init.IsObject()) {
+          const Value* existing = init.object->GetOwn(kHeaderPairsSlot);
+          if (existing != nullptr) {
+            // Copied rather than shared: `new Headers(other)` is a snapshot,
+            // and aliasing the array would make a write to one show up in both.
+            std::vector<Value> copy;
+            for (const Value& pair : ReadPairs(init, kHeaderPairsSlot)) {
+              copy.push_back(
+                  MakePair(call.interpreter, PairPart(pair, 0), PairPart(pair, 1)));
+            }
+            WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(copy));
+          } else if (init.object->ElementCount() > 0) {
+            std::vector<Value> copy;
+            for (std::size_t i = 0; i < init.object->ElementCount(); ++i) {
+              const Value entry = init.object->GetElement(i);
+              copy.push_back(MakePair(call.interpreter, LowerCase(PairPart(entry, 0)),
+                                      PairPart(entry, 1)));
+            }
+            WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(copy));
+          } else {
+            std::vector<Value> copy;
+            for (const std::string& key : init.object->EnumerableKeys()) {
+              const Value* value = init.object->Get(key);
+              copy.push_back(MakePair(call.interpreter, LowerCase(key),
+                                      value == nullptr ? std::string() : js::ToString(*value)));
+            }
+            WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(copy));
+          }
+        }
+        return made;
+      });
+  if (constructor.IsObject()) {
+    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set("prototype", prototype);
+    prototype.object->SetHidden("constructor", constructor);
+    interpreter_->Global()->Set("Headers", constructor);
+    interpreter_->GlobalScope()->Declare("Headers", constructor, false);
+  }
+}
+
+// --- Response ---------------------------------------------------------------
+
+js::Value DomBindings::MakeResponse(const ScriptResponse& response) {
+  const Value made = interpreter_->NewObjectValue();
+  if (!made.IsObject()) {
+    return Value::Undefined();
+  }
+  const Value* prototype =
+      interfaces_.IsObject() ? interfaces_.object->GetOwn("Response") : nullptr;
+  if (prototype != nullptr && prototype->IsObject()) {
+    made.object->SetPrototype(prototype->object);
+  }
+  made.object->Set("status", Value::Number(response.status));
+  made.object->Set("statusText", Value::String(response.status_text));
+  // `ok` is about the status and nothing else. A 404 that arrived is not `ok`
+  // and did not fail; a page that treats every settled fetch as success is the
+  // most common bug in this API and the reason the two are separate.
+  made.object->Set("ok", Value::Bool(response.status >= 200 && response.status <= 299));
+  made.object->Set("url", Value::String(response.url));
+  made.object->Set("redirected", Value::Bool(response.redirected));
+  made.object->Set("type", Value::String(response.opaque ? "opaque" : "basic"));
+  made.object->Set("headers", MakeHeaders(response.headers));
+  made.object->SetHidden(kBodySlot, Value::String(response.body));
+  made.object->SetHidden(kBodyUsedSlot, Value::Bool(false));
+  return made;
+}
+
+void DomBindings::InstallResponse() {
+  EnsureInterfaces();
+  if (!interfaces_.IsObject()) {
+    return;
+  }
+  const Value prototype = interpreter_->NewObjectValue();
+  if (!prototype.IsObject()) {
+    return;
+  }
+  interfaces_.object->Set("Response", prototype);
+
+  const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      prototype.object->Set(name, native);
+    }
+  };
+
+  // A body may be read once. The flag is set before the value is produced, so
+  // the second `text()` on the same response rejects rather than handing out a
+  // buffer a stream would already have consumed -- which is the behaviour a
+  // page written against a streaming implementation depends on.
+  const auto take_body = [](NativeCall& call, std::string& out) -> bool {
+    if (!HasSlot(call.self, kBodySlot)) {
+      call.Throw("TypeError", "not a Response");
+      return false;
+    }
+    const Value* used = call.self.object->GetOwn(kBodyUsedSlot);
+    if (used != nullptr && js::ToBoolean(*used)) {
+      call.Throw("TypeError", "body already read");
+      return false;
+    }
+    call.self.object->SetHidden(kBodyUsedSlot, Value::Bool(true));
+    const Value* body = call.self.object->GetOwn(kBodySlot);
+    out = body == nullptr ? std::string() : js::ToString(*body);
+    return true;
+  };
+
+  // A promise that is already settled. Every body method answers with one of
+  // these: the bytes are in hand, and a promise is the shape of the API rather
+  // than a claim that anything is still happening.
+  const auto settled = [](js::Interpreter& interpreter, const Value& value, bool rejected) {
+    const Value promise = interpreter.NewPromiseValue();
+    if (promise.IsObject()) {
+      interpreter.SettleAsyncResult(promise.object, value, rejected);
+    }
+    return promise;
+  };
+
+  method("text", [take_body, settled](NativeCall& call) {
+    std::string body;
+    if (!take_body(call, body)) {
+      return settled(call.interpreter, call.ThrownValue(), true);
+    }
+    return settled(call.interpreter, Value::String(std::move(body)), false);
+  });
+  method("json", [take_body, settled](NativeCall& call) {
+    std::string body;
+    if (!take_body(call, body)) {
+      return settled(call.interpreter, call.ThrownValue(), true);
+    }
+    // The page's own `JSON.parse`, not a second parser. A browser with two
+    // JSON implementations has two answers for a duplicate key, and the one
+    // reached through `fetch` would be the one nobody tested.
+    //
+    // From the global *scope* rather than the global object, which is where
+    // `src/js` declares its builtins: a language global is a binding, and only
+    // the things this module installs are properties of `window`.
+    const Value* json = call.interpreter.GlobalScope()->Lookup("JSON");
+    const Value* parse =
+        json != nullptr && json->IsObject() ? json->object->Get("parse") : nullptr;
+    if (parse == nullptr) {
+      return settled(call.interpreter,
+                     call.interpreter.MakeError("TypeError", "JSON.parse is unavailable"), true);
+    }
+    const js::Result parsed =
+        call.interpreter.CallFunction(*parse, Value::Undefined(), {Value::String(body)});
+    return settled(call.interpreter, parsed.value, parsed.IsAbrupt());
+  });
+  method("arrayBuffer", [take_body, settled](NativeCall& call) {
+    std::string body;
+    if (!take_body(call, body)) {
+      return settled(call.interpreter, call.ThrownValue(), true);
+    }
+    const Value* constructor = call.interpreter.GlobalScope()->Lookup("ArrayBuffer");
+    if (constructor == nullptr) {
+      return settled(call.interpreter,
+                     call.interpreter.MakeError("TypeError", "ArrayBuffer is unavailable"), true);
+    }
+    const js::Result buffer = call.interpreter.ConstructValue(
+        *constructor, {Value::Number(static_cast<double>(body.size()))});
+    if (buffer.IsAbrupt() || !buffer.value.IsObject()) {
+      return settled(call.interpreter, buffer.value, true);
+    }
+    // Copied straight into the buffer's bytes rather than through a typed array
+    // one element at a time: a megabyte of response would otherwise be a
+    // million property writes through the interpreter.
+    const js::BufferView* view = buffer.value.object->View();
+    if (view != nullptr && view->bytes != nullptr && view->bytes->size() >= body.size()) {
+      std::copy(body.begin(), body.end(), view->bytes->begin());
+    }
+    return settled(call.interpreter, buffer.value, false);
+  });
+  method("clone", [](NativeCall& call) {
+    if (!HasSlot(call.self, kBodySlot)) {
+      return call.Throw("TypeError", "not a Response");
+    }
+    const Value* used = call.self.object->GetOwn(kBodyUsedSlot);
+    if (used != nullptr && js::ToBoolean(*used)) {
+      return call.Throw("TypeError", "body already read");
+    }
+    const Value made = call.interpreter.NewObjectValue();
+    if (!made.IsObject()) {
+      return Value::Undefined();
+    }
+    made.object->SetPrototype(call.self.object->Prototype());
+    for (const std::string& key : call.self.object->EnumerableKeys()) {
+      if (const Value* value = call.self.object->Get(key)) {
+        made.object->Set(key, *value);
+      }
+    }
+    const Value* body = call.self.object->GetOwn(kBodySlot);
+    made.object->SetHidden(kBodySlot, body == nullptr ? Value::String("") : *body);
+    made.object->SetHidden(kBodyUsedSlot, Value::Bool(false));
+    return made;
+  });
+
+  const Value used = interpreter_->NewNativeValue("bodyUsed", [](NativeCall& call) {
+    const Value* flag =
+        call.self.IsObject() ? call.self.object->GetOwn(kBodyUsedSlot) : nullptr;
+    return Value::Bool(flag != nullptr && js::ToBoolean(*flag));
+  });
+  if (used.IsObject()) {
+    prototype.object->DefineAccessor("bodyUsed", used.object, nullptr);
+  }
+
+  // `new Response(body, init)`, which a page uses to hand a synthesised answer
+  // to something that expects one -- a service worker's shape, in a browser
+  // with no service workers, and cheap enough to have anyway.
+  const Value constructor =
+      interpreter_->NewNativeValue("Response", [this, prototype](NativeCall& call) {
+        ScriptResponse made;
+        made.ok = true;
+        made.status = 200;
+        made.status_text = "OK";
+        const Value body = Argument(call.arguments, 0);
+        if (!body.IsUndefined() && !body.IsNull()) {
+          made.body = js::ToString(body);
+        }
+        const Value init = Argument(call.arguments, 1);
+        if (init.IsObject()) {
+          if (const Value* status = init.object->Get("status")) {
+            made.status = static_cast<int>(js::ToNumber(*status));
+          }
+          if (const Value* text = init.object->Get("statusText")) {
+            made.status_text = js::ToString(*text);
+          }
+        }
+        Value response = MakeResponse(made);
+        if (response.IsObject() && prototype.IsObject()) {
+          response.object->SetPrototype(prototype.object);
+        }
+        return response;
+      });
+  if (constructor.IsObject()) {
+    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set("prototype", prototype);
+    prototype.object->SetHidden("constructor", constructor);
+    interpreter_->Global()->Set("Response", constructor);
+    interpreter_->GlobalScope()->Declare("Response", constructor, false);
+  }
+}
+
+}  // namespace microbrowser::bindings

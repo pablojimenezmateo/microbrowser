@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "net/CookieJar.h"
@@ -51,6 +52,22 @@ class Loader {
     // URL: a document's base URL is where it ended up.
     std::string final_url;
     int status = 0;
+    // The reason phrase, and every header this request is allowed to read.
+    //
+    // Here for `fetch` and for nothing else so far: a document load wants one
+    // header and reads it out of `content_type`, but a page's own request is
+    // handed a `Response` whose `headers` it enumerates. The list is already
+    // *filtered* -- a cross-origin CORS response arrives with only the
+    // safelisted fields and whatever `Access-Control-Expose-Headers` named,
+    // because `net` removed the rest before this struct existed. Copying them
+    // here cannot widen that.
+    std::string status_text;
+    std::vector<std::pair<std::string, std::string>> headers;
+    // A `no-cors` response to a cross-origin request: status 0, no headers, no
+    // body. Not a curtain over readable bytes -- there are none. See
+    // net::FetchResult::opaque.
+    bool opaque = false;
+    bool redirected = false;
   };
 
   struct Completion {
@@ -103,6 +120,12 @@ class Loader {
   // calls it, and that is what makes "a response for a document that is gone is
   // dropped by construction" true rather than aspirational.
   void CancelAll();
+
+  // Drops one. `AbortController` is why it exists: a page cancelling its own
+  // search-as-you-type is not a navigation, and `CancelAll` is the wrong
+  // hammer for it. No completion follows, so an aborted request cannot run its
+  // own `then`.
+  bool Cancel(RequestId id);
 
   bool IsIdle() const { return queue_.IsIdle() && ready_.empty(); }
 

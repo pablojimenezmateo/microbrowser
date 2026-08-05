@@ -1,5 +1,6 @@
 #include "engine/Loader.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "util/PercentEncoding.h"
@@ -214,11 +215,21 @@ std::vector<Loader::Completion> Loader::TakeCompletions() {
     }
     completion.result.ok = true;
     completion.result.status = fetched.result.response.status;
+    completion.result.status_text = fetched.result.response.reason;
     completion.result.final_url = fetched.result.final_url.Serialize();
     completion.result.body = BodyAsString(fetched.result.response.body);
+    completion.result.opaque = fetched.result.opaque;
+    completion.result.redirected = fetched.result.redirects > 0;
     if (const std::optional<std::string_view> type =
             fetched.result.response.headers.Get("content-type")) {
       completion.result.content_type = std::string(*type);
+    }
+    // Copied wholesale rather than by name: what a page may read was decided
+    // in `net`, and a second filter here would be a second policy to keep in
+    // step with the first.
+    completion.result.headers.reserve(fetched.result.response.headers.Size());
+    for (const net::HttpHeaders::Field& field : fetched.result.response.headers.Fields()) {
+      completion.result.headers.emplace_back(field.name, field.value);
     }
     out.push_back(std::move(completion));
   }
@@ -238,6 +249,19 @@ std::optional<std::uint32_t> Loader::NextDeadlineMs(std::int64_t now_ms) const {
 void Loader::CancelAll() {
   queue_.CancelAll();
   ready_.clear();
+}
+
+bool Loader::Cancel(RequestId id) {
+  const auto found = std::remove_if(ready_.begin(), ready_.end(),
+                                    [id](const Completion& done) { return done.id == id; });
+  const bool was_ready = found != ready_.end();
+  ready_.erase(found, ready_.end());
+  // Both, rather than the first that matches: an answer this class produced
+  // without a network -- a `data:` URL, a refusal -- lives in `ready_`, and one
+  // the queue is still working on lives there. An id is in exactly one of them,
+  // and looking in both is what makes an abort mean "no completion" rather than
+  // "probably no completion".
+  return queue_.Cancel(id) || was_ready;
 }
 
 }  // namespace microbrowser::engine

@@ -155,6 +155,17 @@ class Interpreter {
   // A pending promise. Public so the host can hand one out: a fetch that
   // resolves later is the shape every browser API takes.
   Value NewPromiseValue();
+  // Settles one, with a value or with what it threw. Public for the same
+  // reason, and the pair is what makes a host-owned promise usable at all: a
+  // host that can create one and not settle one can only hand a page something
+  // that never resolves. A *resolve* rather than a fulfil, so settling with a
+  // promise flattens -- which is what `async function f(){ return g() }` needs
+  // and what a host settling with something a page handed it needs equally.
+  //
+  // Also what an async call's own promise goes through, which is why there is
+  // one of these rather than two: two settle paths is two answers to what
+  // resolving with a thenable does.
+  void SettleAsyncResult(Object* promise, const Value& value, bool rejected);
   // A bigint, as a value. Its digits go beside the heap under a fresh cell,
   // which is what makes `1n === 1n` a comparison of digits rather than of
   // identity -- see ValueType::BigInt.
@@ -587,10 +598,6 @@ class Interpreter {
   // which is what the language says and what a page's ordering depends on.
   // In Promises.cpp, where the reaction machinery lives.
   void AwaitOn(const Value& value, std::uint64_t suspension);
-  // Settles an async call's own promise, with its return value or with what it
-  // threw. Also in Promises.cpp, and a resolve rather than a fulfil: returning
-  // a promise from an async function has to flatten.
-  void SettleAsyncResult(Object* promise, const Value& value, bool rejected);
   // The binding a resolved slot names, in whichever of the two places the
   // running frame keeps its bindings. Null when the slot was never reserved,
   // which is a compiler bug rather than a program one; an unset slot comes

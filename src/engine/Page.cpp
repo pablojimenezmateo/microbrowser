@@ -422,6 +422,14 @@ bool Page::RunDueWork(std::int64_t now_ms) {
   return true;
 }
 
+void Page::SetNetworkSource(bindings::NetworkSource* network) {
+  script_.SetNetworkSource(network);
+}
+
+bool Page::DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response) {
+  return script_.DeliverFetchResponse(id, response);
+}
+
 bool Page::DeliverObservations(std::int64_t now_ms) {
   if (document_ == nullptr) {
     return false;

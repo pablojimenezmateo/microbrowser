@@ -1,5 +1,7 @@
 #include "engine/Engine.h"
 
+#include "engine/Clock.h"
+
 #include "engine/LinkResolution.h"
 
 #include <algorithm>
@@ -17,6 +19,7 @@
 #include "gfx/PngDecoder.h"
 #include "gfx/SvgDecoder.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
 
 namespace microbrowser::engine {
@@ -60,22 +63,6 @@ std::string EscapeHtml(std::string_view text) {
   return out;
 }
 
-std::int64_t NowSeconds() {
-  return std::chrono::duration_cast<std::chrono::seconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
-}
-
-// A steady clock, unlike the one above. Cache and cookie expiry are about wall
-// time and must follow it; a timer's delay is about elapsed time and must not
-// -- a page whose `setTimeout` fired early because the machine's clock was
-// corrected is a page that broke for a reason nobody will find.
-std::int64_t NowMilliseconds() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-             std::chrono::steady_clock::now().time_since_epoch())
-      .count();
-}
-
 // The blank document. Not an empty string: "" parses to a document with a body
 // too, but saying it here means about:blank is a real page rather than a
 // failure that happens to look like one.
@@ -106,7 +93,14 @@ net::FetchOptions FetchOptionsForSubmission(const FormSubmission& submission) {
 }  // namespace
 
 Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
-    : endpoint_(endpoint), page_(fonts) {}
+    : endpoint_(endpoint), page_(fonts) {
+  // A page's own requests come back here, because a fetch needs the loader and
+  // the loader is on this side. Handed over in the constructor rather than per
+  // navigation for the reason the geometry source is: it is this object for the
+  // life of the engine, and a source that arrived later would leave the first
+  // script of the first document without a `fetch`.
+  page_.SetNetworkSource(this);
+}
 
 bool Engine::HandlePendingMessages() {
   bool produced_output = false;
@@ -161,7 +155,7 @@ bool Engine::Advance() {
   // ask to keep open is not something to leave until the next navigation
   // happens along. It promotes nothing and starts nothing here.
   loader_.Advance(NowMilliseconds());
-  if (!load_.active && late_images_.empty()) {
+  if (!load_.active && late_images_.empty() && script_fetches_.empty()) {
     return false;
   }
   std::vector<Loader::Completion> completions = loader_.TakeCompletions();
@@ -169,6 +163,15 @@ bool Engine::Advance() {
   for (Loader::Completion& completion : completions) {
     if (late_images_.find(completion.id) != late_images_.end()) {
       moved = OnLateImage(std::move(completion)) || moved;
+      continue;
+    }
+    if (script_fetches_.find(completion.id) != script_fetches_.end()) {
+      moved = OnScriptFetch(std::move(completion)) || moved;
+      // A `then` handler can navigate, and a navigation from inside one leaves
+      // every id in this batch belonging to a document that is gone.
+      if (FollowScriptNavigation()) {
+        return true;
+      }
       continue;
     }
     if (!load_.active) {
@@ -198,7 +201,8 @@ bool Engine::HasRunnableWork() const {
   // would ever come back to collect it. Not simply `loader_.HasRunnableWork()`
   // -- with nothing owed, that is always true for a canned transport and the
   // loop would spin instead of blocking, which is the zero-idle invariant.
-  return (load_.active || !late_images_.empty()) && loader_.HasRunnableWork();
+  return (load_.active || !late_images_.empty() || !script_fetches_.empty()) &&
+         loader_.HasRunnableWork();
 }
 
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
@@ -354,65 +358,6 @@ void Engine::StartSubresources() {
   load_.total_resources = load_.resources.size();
 }
 
-void Engine::StartImageRequests() {
-  // The reveal first: an `<img loading="lazy">` becomes an image the page wants
-  // at the moment its box comes within reach of the scrollport, and both
-  // callers -- the initial subresource pass and every frame after it -- have to
-  // ask in the same order or the first frame would fetch nothing lazy.
-  page_.RevealLazyImages();
-  const std::vector<std::string> wanted = page_.TakeUnrequestedImages();
-  if (wanted.empty()) {
-    return;
-  }
-  // The document's own address when no navigation is in flight -- a lazy image
-  // revealed by a scroll belongs to a page that finished loading, and there is
-  // no `load_.base` left to resolve it against. Parsed here rather than kept
-  // as a member so that "where did this document come from" has one answer,
-  // which is the page.
-  std::optional<url::Url> parsed;
-  const url::Url* base = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
-  if (base == nullptr) {
-    parsed = url::Url::Parse(page_.Url());
-    if (!parsed.has_value()) {
-      return;
-    }
-    base = &*parsed;
-  }
-
-  net::FetchOptions options;
-  options.bypass_cache = load_.active && load_.bypass_cache;
-  for (const std::string& src : wanted) {
-    const Loader::RequestId id = loader_.StartSubresource(
-        src, *base, privacy::ResourceType::Image, NowSeconds(), options);
-    // Before the first frame the load owns it, so that an image already on
-    // screen is there when the page appears rather than a beat later. After
-    // it, the load is over as far as the user is concerned and the image is
-    // decoded and painted on its own.
-    if (load_.active && !load_.painted) {
-      load_.resources[id] = PendingResource{ResourceKind::Image, 0, src};
-      ++load_.images_outstanding;
-    } else {
-      late_images_[id] = src;
-    }
-  }
-}
-
-bool Engine::OnLateImage(Loader::Completion completion) {
-  const auto found = late_images_.find(completion.id);
-  if (found == late_images_.end()) {
-    return false;
-  }
-  const std::string src = found->second;
-  late_images_.erase(found);
-  if (!completion.result.ok) {
-    AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
-    return false;
-  }
-  DecodeImage(src, completion.result.body);
-  LayoutAndPaint();
-  return true;
-}
-
 void Engine::AdvanceLoad() {
   if (!load_.active || !load_.document_arrived) {
     return;
@@ -454,56 +399,6 @@ void Engine::AdvanceLoad() {
   }
 }
 
-void Engine::DecodeImage(const std::string& src, const std::string& bytes) {
-  // The bytes are attacker-controlled and the decoder says so: a failure here
-  // is an image that does not draw, not a page that does not render.
-  //
-  // Which decoder is chosen by sniffing rather than by the Content-Type
-  // header, for the reason every browser sniffs: the header is a claim by the
-  // server, and a server that mislabels a PNG must not stop it rendering.
-  // reddit serves a JPEG from a URL ending .png on its own front page.
-  //
-  // Exactly one decoder is offered the bytes, and only if their magic number
-  // named it — ADR 0023 §2. Trying each decoder until one succeeds is the
-  // shape that makes every decoder reachable by every image, which is three
-  // times the attack surface for no compatibility gained.
-  const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
-                                        bytes.size());
-  gfx::Image image;
-  if (gfx::LooksLikeSvg(span)) {
-    // SVG is a document, so it has to be rasterized at a size. The element's
-    // attributes are the size the page asked for; the document's own is the
-    // fallback, applied inside the decoder.
-    const gfx::IntSize requested = page_.RequestedImageSize(src);
-    gfx::SvgDecodeResult decoded = gfx::DecodeSvg(span, requested.width, requested.height);
-    if (decoded.Ok()) {
-      image = std::move(decoded.image);
-    }
-  } else if (gfx::LooksLikeJpeg(span)) {
-    gfx::JpegDecodeResult decoded = gfx::DecodeJpeg(span);
-    if (decoded.Ok()) {
-      image = std::move(decoded.image);
-    }
-  } else if (gfx::LooksLikePng(span)) {
-    gfx::PngDecodeResult decoded = gfx::DecodePng(span);
-    if (decoded.Ok()) {
-      image = std::move(decoded.image);
-    }
-  }
-  if (!image.IsValid()) {
-    AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
-    return;
-  }
-  page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(image)));
-  AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
-}
-
-void Engine::DecodePendingImages() {
-  for (auto& [src, bytes] : load_.image_bytes) {
-    DecodeImage(src, bytes);
-  }
-}
-
 void Engine::Paint() {
   DecodePendingImages();
   load_.painted = true;
@@ -540,6 +435,11 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // reason `load_` does: a response for a page that is gone must be
   // undeliverable rather than merely ignored.
   late_images_.clear();
+  // And so do the requests its script made. A `fetch` belongs to the document
+  // that asked for it: ADR 0020 §1 says a request that outlives its navigation
+  // is what `AbortController` exists to prevent, and a navigation is the one
+  // abort nobody has to ask for.
+  script_fetches_.clear();
   load_.active = true;
   load_.url = url.empty() ? std::string("about:blank") : url;
   load_.bypass_cache = options.bypass_cache;
