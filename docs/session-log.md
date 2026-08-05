@@ -1006,3 +1006,97 @@ yellow, a link recolours on hover, `:checked + label`, `:disabled`, `:focus`, `:
   reached when some rule depends on the state. The measurement that would justify changing it is
   `style.state_changes` against `style.hover_hit_tests`.
 - **`:has()` is still out**, as ADR 0016 §1 said it might be.
+
+## Session 12 — `IntersectionObserver`, `ResizeObserver`, lazy images · 2026-08-05
+
+**Status:** done
+
+**Check:** *"reddit's front page fetches the images on screen, not all 33."* Run against
+`https://www.reddit.com/` with `MICROBROWSER_PERF_COUNTERS=1`, comparing this binary with one
+built from the previous commit (`58cd8dd`) in a worktree, twice each because reddit's page varies
+between loads:
+
+| | 58cd8dd | this commit |
+|---|---|---|
+| `net.requests_started` | 29, 29 | 15, 13 |
+| `engine.images_loaded` | 26, 26 | 12, 10 |
+| `engine.images_revealed` | — | 7, 7 |
+| `engine.images_deferred` | — | 114 |
+
+The base binary fetched 26 images on every run; this one fetches 8–12, and the rendered page still
+shows every image above the fold (checked by looking at the PPM, not by counting). Corroborated
+deterministically on `en.wikipedia.org/wiki/CSS`, which does not vary: 12 deferrals at load,
+18 images drawn → 16, and with `-y 30000` the two below-the-fold images are revealed, fetched,
+decoded and drawn (`engine.images_revealed` 2, `engine.images_loaded` 19 → 21, 4685 → 4687
+commands). Suite green; asan and ubsan green; `root_margin_fuzzer` 200,000 runs clean.
+
+**Landed:**
+
+- *Two observers that sample at the frame, and an image below the fold that is not fetched* —
+  `src/bindings/ViewObservers.{h,cpp}`, `GeometrySource::QueryViewport`,
+  `window.innerWidth`/`innerHeight`, `Page::DeliverObservations`, `Page::RevealLazyImages`,
+  `Page::TakeUnrequestedImages`, `Engine::StartImageRequests`/`OnLateImage`,
+  `src/engine/PageResources.cpp`, `fuzz/RootMarginFuzzer.cpp`, `tests/ViewObserverTests.cpp`,
+  six counters.
+
+**Found:**
+
+- **An image first named by an external stylesheet was collected and never fetched**, and had
+  been since stylesheets became asynchronous. `Engine::StartSubresources` runs **once**, at
+  document arrival; `Page::CollectImages` re-runs whenever a sheet lands and adds the background
+  images that sheet named. Those went into `pending_images` and stayed there. `CLAUDE.md` and the
+  comment on `RebuildAuthorStyleSheets` both assert the re-collection exists so that "a page whose
+  icons come from an external sheet would never fetch one" — the re-collection was there and
+  nothing acted on it. The frame now asks for anything unrequested. On old.reddit.com that is four
+  more requests and the *same* 23 images decoded, because the four are formats with no decoder yet.
+- **`rootMargin: '1e300px'` made an observer go silent.** The value is a finite double and `inf`
+  once narrowed to a float; an infinite root bound makes every ratio `inf/inf`, and a NaN compares
+  false against every threshold — so the observer stops firing rather than firing wrongly. That is
+  precisely the failure ADR 0018 §5 forbids, reachable from one string a page writes. Clamped as a
+  double before the cast. The fuzz target exists for this class and asserts finiteness rather than
+  absence of a crash; there was never a memory bug to find here.
+- **`microbrowser_snapshot -y` did not turn the crank after scrolling.** The click and key paths
+  called `RunLoadToCompletion` and the scroll path did not, which was invisible until a scroll
+  could *start a fetch*. A `-y` snapshot wrote the frame from before the revealed image arrived,
+  which looks exactly like a lazy loader that does not work. Fixed in the same commit.
+- **ADR 0018 §5's premise about which reddit is off by one site, again.** It says `loading="lazy"`
+  has "27 uses on reddit's front page alone". `old.reddit.com` has **zero** — `engine.images_deferred`
+  does not move there. It is `www.reddit.com`, behind the Phase A challenge, that defers 114. This
+  is the third session to find the survey's counts belong to the site the roadmap was not naming
+  (sessions 3 and 4 found the same for `:not()` and `calc()`), and the pattern is now worth
+  believing: **a count from the survey is about `www.reddit.com` unless it says otherwise.**
+- **`engine.images_deferred` counts deferrals, not distinct images**, and the counter's comment
+  says so. Collection re-runs on every stylesheet and every script turn, so an image below the fold
+  is counted once per collection. `engine.images_revealed` is per image, exactly once. Making the
+  first one distinct needs the deferred set to survive `CollectImages`, and it deliberately does
+  not: its keys are `const dom::Element*`, and an element a script removed must not be asked for
+  its box.
+
+**Left:**
+
+- **The intersection is not clipped by intermediate containers.** The specification intersects the
+  target with every clipping ancestor between it and the root; this intersects with the root alone.
+  A target positioned inside the viewport but hidden by an `overflow: hidden` ancestor smaller than
+  it is reported as visible. Closing it needs the geometry seam to answer *which of my ancestors
+  clip*, which it cannot — `GeometrySource` returns boxes, and `overflow` is a property.
+  Recorded in the file header rather than here alone.
+- **`devicePixelContentBoxSize` is refused with a `TypeError`, not answered.** It is the device
+  pixel ratio times a size, which is ADR 0029's decision rather than a geometry one, and a
+  CSS-pixel answer under that name renders a canvas at the wrong resolution. A page that
+  feature-detects it in a `try`/`catch` gets its own fallback.
+- **`loading="lazy"` reaches within one viewport in each direction**, a number this browser chose
+  and no specification states. If reddit's feed ever looks like it is loading images too late, that
+  constant (`Page::RevealLazyImages`) is the dial, and `engine.images_revealed` against
+  `net.requests_started` is how to tell whether turning it helped.
+- **The lazy reveal is a geometry test, not an `IntersectionObserver`.** It runs on a page with no
+  script, which is right, but it means there are now two implementations of "is this box near the
+  scrollport". They agree today because both ask `QueryBox`; if the observer ever grows the
+  ancestor clipping above, this will not follow it unless somebody makes it.
+- **`ResizeObserver`'s loop bound is 8 and it fires no error event.** The specification dispatches
+  `ResizeObserverLoopError` at the window when the loop is cut off; this counts
+  `view.resize_loop_limit` and stops. Adding the event is a few lines and was left out rather than
+  landed untested.
+- **Nothing observes yet on the target sites.** `view.observation_frames` stays at zero on both
+  reddits, because their own scripts still die early — `www.reddit.com` on the masked-error problem
+  session 11's log describes. The observers are proven by `tests/ViewObserverTests.cpp` and by the
+  lazy-image path that shares their frame step, not by a real page having used one.
