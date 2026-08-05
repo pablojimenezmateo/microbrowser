@@ -520,6 +520,83 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
                    quoted.rules[0].declarations[0].value,
                    "the quoted and unquoted spellings mean the same thing");
   });
+
+  // --- @font-face, ADR 0024 --------------------------------------------------
+
+  AddTest(tests, "Css/AtFontFaceIsADescriptorBlockRatherThanARule", [] {
+    // It matches nothing and styles nothing: it adds a face to the font database.
+    // Which is why it is a separate list on the sheet, and why the rule count does
+    // not move.
+    const StyleSheet sheet = ParseStyleSheet(
+        "@font-face { font-family: Inter; src: url(inter.woff2) format(\"woff2\"),"
+        " url(inter.woff) format(\"woff\"); font-weight: 700; font-style: italic;"
+        " font-display: swap; unicode-range: U+0000-00FF }"
+        "p { color: red }");
+    ExpectEqInt(static_cast<long long>(sheet.rules.size()), 1, "one rule, the p");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 1, "and one face");
+    const css::FontFace& face = sheet.font_faces.at(0);
+    ExpectEqString(face.family, "Inter", "the family a font stack will name");
+    ExpectEqInt(face.weight, 700, "bold, as a number");
+    Expect(face.italic, "and italic");
+    ExpectEqString(face.display, "swap", "font-display, lowercased");
+    // The *fact* of a range and not the range: the declaration value arrives
+    // reconstructed from tokens and `U+0000-00FF` comes back as `U00FF`, so
+    // keeping the text would be keeping a lie the next reader would trust.
+    Expect(face.has_unicode_range, "the face declared a range");
+    // The order is the author's fallback chain: the first decodable one wins, and
+    // the format hint is what lets an undecodable entry be skipped *without*
+    // fetching it.
+    ExpectEqInt(static_cast<long long>(face.sources.size()), 2, "two sources");
+    ExpectEqString(face.sources.at(0).url, "inter.woff2", "in order");
+    ExpectEqString(face.sources.at(0).format, "woff2", "with its format");
+    ExpectEqString(face.sources.at(1).url, "inter.woff", "then the fallback");
+  });
+
+  AddTest(tests, "Css/AFontFaceWithNoFamilyOrNoSourceIsSkipped", [] {
+    // It names nothing and fetches nothing, and counting it is how a page whose
+    // font never appears finds out the browser read the block and found it empty.
+    const StyleSheet sheet = ParseStyleSheet(
+        "@font-face { src: url(a.woff2) }"
+        "@font-face { font-family: Nope }"
+        "@font-face { font-family: Yes; src: url(b.woff2) }");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 1, "only the complete one");
+    ExpectEqInt(static_cast<long long>(sheet.skipped), 2, "and the other two are counted");
+  });
+
+  AddTest(tests, "Css/AFontFaceDefaultsToNormalWeightAndUpright", [] {
+    const StyleSheet sheet =
+        ParseStyleSheet("@font-face { font-family: A; src: url(a.woff2) }");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 1, "one face");
+    // Defaulted rather than absent: a face with no `font-weight` *is* a
+    // normal-weight face, and an absent value meaning "any" would make one face
+    // answer for all nine.
+    ExpectEqInt(sheet.font_faces.at(0).weight, 400, "normal");
+    Expect(!sheet.font_faces.at(0).italic, "and upright");
+  });
+
+  AddTest(tests, "Css/AVariableFontsWeightRangeTakesItsFirstValue", [] {
+    // `font-weight: 100 900` is a variable font. Taken as 100 rather than
+    // rejected: the face still renders, and refusing it would drop a working font
+    // over a descriptor this browser cannot vary along.
+    const StyleSheet sheet = ParseStyleSheet(
+        "@font-face { font-family: A; src: url(a.woff2); font-weight: 100 900 }"
+        "@font-face { font-family: B; src: url(b.woff2); font-weight: bold }");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 2, "both faces");
+    ExpectEqInt(sheet.font_faces.at(0).weight, 100, "the range's first value");
+    ExpectEqInt(sheet.font_faces.at(1).weight, 700, "and the keyword");
+  });
+
+  AddTest(tests, "Css/ALocalSourceIsSkippedRatherThanAnswered", [] {
+    // `local(...)` names a font on the *machine*, and answering it from the system
+    // database would let a page ask which fonts are installed -- the
+    // fingerprinting surface ADR 0029 prices separately.
+    const StyleSheet sheet = ParseStyleSheet(
+        "@font-face { font-family: A; src: local(\"Helvetica\"), url(a.woff2) }");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 1, "the face survives");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.at(0).sources.size()), 1,
+                "with only the URL source");
+    ExpectEqString(sheet.font_faces.at(0).sources.at(0).url, "a.woff2", "the one it can fetch");
+  });
 }
 
 }  // namespace microbrowser::tests

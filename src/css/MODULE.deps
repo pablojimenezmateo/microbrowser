@@ -79,3 +79,11 @@ budget: StyleResolver header_lines=95 public_methods=18 members=3
 # depends on. Collapsing them loses "a hover that changes only colour does not
 # run layout", which is the second of the ADR's two properties.
 budget: StyleInvalidation header_lines=45 public_methods=6 members=2
+# One `@font-face`, as the sheet declares it (ADR 0024). A descriptor block rather
+# than a rule: it matches nothing and styles nothing, it adds a face to the font
+# database -- which is why it is a separate list on the sheet. Five members, and
+# the fifth is a *bool* rather than the unicode-range text on purpose: the value
+# arrives reconstructed from tokens and `U+0000-00FF` does not survive that, so
+# keeping it would be keeping a lie.
+budget: FontFace       header_lines=40 public_methods=2 members=6
+budget: FontFaceSource header_lines=20 public_methods=2 members=2

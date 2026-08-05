@@ -175,8 +175,59 @@ struct StyleRule {
   friend bool operator==(const StyleRule&, const StyleRule&) = default;
 };
 
+// One `@font-face`, as the sheet declares it.
+//
+// ADR 0024. A descriptor block rather than a rule: it matches nothing and styles
+// nothing -- it *adds a face to the font database*, which is why it is a separate
+// list on the sheet instead of a StyleRule with an odd selector.
+//
+// The sources are kept in order and with their declared format, because that
+// order is the author's fallback chain: the first one this browser can decode
+// wins, and picking any other is downloading a font that will not render.
+struct FontFaceSource {
+  std::string url;
+  // The `format(...)` hint, lowercased, or empty. Advisory -- the bytes decide --
+  // but it is what lets a `woff2` entry be skipped without fetching it, which is
+  // the whole reason authors write it.
+  std::string format;
+
+  friend bool operator==(const FontFaceSource&, const FontFaceSource&) = default;
+};
+
+struct FontFace {
+  std::string family;
+  std::vector<FontFaceSource> sources;
+  // 400 and normal unless the descriptors say otherwise. Defaulted rather than
+  // optional because a face with no `font-weight` *is* a normal-weight face, and
+  // an absent value that meant "any" would make one face answer for all nine.
+  int weight = 400;
+  bool italic = false;
+  // `font-display`, lowercased: "auto", "block", "swap", "fallback", "optional".
+  // Kept as text because what it changes is *when the browser paints*, which is
+  // the engine's decision rather than the parser's.
+  std::string display;
+  // Whether the face declared a `unicode-range` at all, and *not* the range
+  // itself.
+  //
+  // A bool rather than the text, because the text this layer could give is a
+  // lie: the declaration value arrives reconstructed from tokens, and the `U+`
+  // syntax does not survive that -- `U+0000-00FF` comes back as `U00FF`. Keeping
+  // a mangled range would be worse than keeping nothing, since the next reader
+  // would trust it. The flag is here because it is the one thing a caller can act
+  // on honestly: a face with a range covers *some* of the alphabet, so it must
+  // not be treated as a complete substitute for the family. Whoever honours the
+  // descriptor parses it from the token run, which is ADR 0024's subsetting work.
+  bool has_unicode_range = false;
+
+  friend bool operator==(const FontFace&, const FontFace&) = default;
+};
+
 struct StyleSheet {
   std::vector<StyleRule> rules;
+  // The `@font-face` blocks, in document order. Order matters twice: a later face
+  // with the same family and weight replaces an earlier one, and a font stack is
+  // resolved against the database as it stands when text is measured.
+  std::vector<FontFace> font_faces;
   // Rules and at-rules the parser did not understand. Counted rather than
   // guessed at, for the same reason a filter list's unknown option skips the
   // whole rule: a partially-understood rule applies to requests, or elements,

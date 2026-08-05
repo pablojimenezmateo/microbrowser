@@ -1,6 +1,7 @@
 #include "css/StyleSheet.h"
 
 #include "css/MediaQuery.h"
+#include "util/Parse.h"
 
 #include <optional>
 #include <utility>
@@ -358,6 +359,117 @@ bool SupportsPreludeMatches(const std::vector<Token>& tokens, std::size_t from, 
 // behaviour correct at the cost of doing the work again. Keeping the condition
 // on the rule and asking it during the cascade is the right end state and is a
 // bigger change than the bug deserved.
+// The index of the `)` closing the function at `open`, or `to`.
+using util::ParseInt;
+
+std::size_t FunctionEnd(const std::vector<Token>& tokens, std::size_t open, std::size_t to) {
+  int depth = 1;
+  std::size_t at = open + 1;
+  while (at < to && tokens[at].kind != Token::Kind::EndOfFile) {
+    if (tokens[at].kind == Token::Kind::Function || tokens[at].kind == Token::Kind::LeftParen) {
+      ++depth;
+    } else if (tokens[at].kind == Token::Kind::RightParen) {
+      if (--depth == 0) {
+        return at;
+      }
+    }
+    ++at;
+  }
+  return to;
+}
+
+// `src: url(a.woff2) format("woff2"), url(a.woff)`. One entry per comma, each a
+// URL and an optional format hint.
+//
+// Anything else in an entry -- `local(...)`, which names a font on the machine --
+// is skipped rather than guessed at: this browser has a system font database and
+// answering `local()` from it would let a page ask which fonts are installed,
+// which is the fingerprinting surface ADR 0029 prices separately.
+std::vector<FontFaceSource> ParseFontFaceSources(std::string_view value) {
+  std::vector<FontFaceSource> sources;
+  const std::vector<Token> tokens = Tokenize(value);
+  std::size_t at = 0;
+  FontFaceSource current;
+  const auto flush = [&sources, &current]() {
+    if (!current.url.empty()) {
+      sources.push_back(current);
+    }
+    current = FontFaceSource{};
+  };
+  while (at < tokens.size() && tokens[at].kind != Token::Kind::EndOfFile) {
+    const Token& token = tokens[at];
+    if (token.kind == Token::Kind::Comma) {
+      flush();
+      ++at;
+      continue;
+    }
+    if (token.kind == Token::Kind::Url) {
+      current.url = token.value;
+      ++at;
+      continue;
+    }
+    if (token.kind == Token::Kind::Function) {
+      const std::string function = Lowered(token.value);
+      const std::size_t close = FunctionEnd(tokens, at, tokens.size());
+      if (function == "url" && at + 1 < close) {
+        current.url = tokens[at + 1].value;
+      } else if (function == "format" && at + 1 < close) {
+        current.format = Lowered(tokens[at + 1].value);
+      }
+      at = close < tokens.size() ? close + 1 : tokens.size();
+      continue;
+    }
+    ++at;
+  }
+  flush();
+  return sources;
+}
+
+void ParseFontFace(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                   StyleSheet& sheet) {
+  FontFace face;
+  for (const Declaration& declaration : ParseDeclarations(tokens, from, to)) {
+    const std::string name = Lowered(declaration.property);
+    if (name == "font-family") {
+      // Unquoted or quoted; the tokenizer has already taken the quotes off, so
+      // this is the family exactly as a `font-family` stack will name it.
+      face.family = declaration.value;
+    } else if (name == "src") {
+      face.sources = ParseFontFaceSources(declaration.value);
+    } else if (name == "font-weight") {
+      // One number, or `normal`/`bold`. A *range* -- `font-weight: 100 900`, a
+      // variable font -- is deliberately taken as its first value rather than
+      // rejected: the face still renders, and refusing it would drop a font that
+      // works for a descriptor this browser cannot vary along.
+      const std::string lowered = Lowered(declaration.value);
+      if (lowered == "bold") {
+        face.weight = 700;
+      } else if (lowered == "normal") {
+        face.weight = 400;
+      } else if (const std::optional<int> parsed =
+                     ParseInt(std::string_view(lowered).substr(0, lowered.find(' ')))) {
+        face.weight = *parsed;
+      }
+    } else if (name == "font-style") {
+      const std::string lowered = Lowered(declaration.value);
+      face.italic = lowered == "italic" || lowered.rfind("oblique", 0) == 0;
+    } else if (name == "font-display") {
+      face.display = Lowered(declaration.value);
+    } else if (name == "unicode-range") {
+      // Recorded as a fact, not as a value: see FontFace::has_unicode_range.
+      face.has_unicode_range = !declaration.value.empty();
+    }
+  }
+  // A face with no family or no source names nothing and fetches nothing. Counted
+  // as skipped, because a page whose font never appears wants to know that the
+  // browser read the block and found it empty.
+  if (face.family.empty() || face.sources.empty()) {
+    ++sheet.skipped;
+    return;
+  }
+  sheet.font_faces.push_back(std::move(face));
+}
+
 bool MediaPreludeMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
                          const MediaContext& context) {
   // Through `Reconstruct`, which already turns a token run back into text for a
@@ -419,6 +531,20 @@ void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size
       at = block_end;
       if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
         ++at;
+      }
+
+      if (at_rule == "font-face") {
+        // A descriptor block, not a rule: it matches nothing and adds a face to
+        // the font database. ADR 0024, and the reason it is parsed here rather
+        // than by whoever loads fonts is that the declaration grammar is this
+        // file's and a second parser for `src:` would be a second answer about
+        // what `format("woff2")` means.
+        ParseFontFace(tokens, block_start, block_end, sheet);
+        at = block_end;
+        if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
+          ++at;
+        }
+        continue;
       }
 
       const bool conditional_holds =
