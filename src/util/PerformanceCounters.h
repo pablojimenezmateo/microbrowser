@@ -247,6 +247,11 @@ namespace microbrowser::util {
   /* changing is a component being rebuilt rather than updated.                */ \
   X(DomShadowRootsAttached, "dom.shadow_roots_attached")                          \
   X(DomSlotChanges, "dom.slot_changes")                                          \
+  /* Web fonts. `refused` above zero means a face this browser cannot decode -- */ \
+  /* a WOFF2 until ADR 0024's brotli lands -- and the page rendered in the next */ \
+  /* family of its stack, which is what a stack is for.                        */ \
+  X(GfxWebFontsRegistered, "gfx.web_fonts_registered")                            \
+  X(GfxWebFontsRefused, "gfx.web_fonts_refused")                                 \
   X(JsCompileBailoutNode, "js.compile_bailout_node")                              \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \

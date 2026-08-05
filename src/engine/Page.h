@@ -194,6 +194,28 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // drops rather than repainting for.
   bool DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response);
 
+  // --- web fonts, ADR 0024 --------------------------------------------------
+
+  // One `@font-face` the document declared and the URL to fetch for it. The
+  // *chosen* source: the first one whose declared format this browser can decode,
+  // which is what the author's source order means. A face whose every source is
+  // undecodable is not here at all -- fetching a WOFF2 to fail on it is a
+  // request that buys nothing.
+  struct PendingFontFace {
+    std::string url;
+    std::string family;
+    int weight = 400;
+    bool italic = false;
+  };
+  // The ones nobody has been handed yet, marked as handed out -- the same take
+  // the image list uses and for the same reason: the face list is rebuilt from the
+  // sheets every time one lands.
+  std::vector<PendingFontFace> TakeUnrequestedFontFaces();
+  // A face's bytes. True when the provider took them, which is false for a format
+  // it cannot decode -- and a refused face is a page rendering in the next family
+  // of its stack, which is what a stack is for.
+  bool AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes);
+
   // --- modules -------------------------------------------------------------
   // The engine fetches; the page decides what needs fetching. See
   // engine/ModuleLoader.h for why the two are split.
@@ -415,6 +437,12 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
     // RebuildAuthorStyleSheets throws the resolver away and rebuilds it, and a
     // component's styles have to come back with it. ADR 0019 §3.
     std::vector<std::pair<const dom::Node*, std::string>> shadow_sheets;
+    // The `@font-face` blocks the author sheets declared, and the URLs already
+    // asked for. Kept because RebuildAuthorStyleSheets throws the parsed sheet
+    // away, and a face declared in the first sheet must survive the second
+    // arriving.
+    std::vector<css::FontFace> font_faces;
+    std::set<std::string, std::less<>> requested_fonts;
     std::vector<std::size_t> pending_sheet_slots;
     std::vector<std::optional<std::string>> author_sheet_slots;
     std::vector<std::string> pending_images;

@@ -73,7 +73,11 @@ budget: FontProvider   header_lines=35 public_methods=8  members=0
 # the matcher is -- platform ranks unloaded files against the identical list,
 # and a second implementation of the ordering would page in a file the matcher
 # then declines to use.
-budget: FontCatalog    header_lines=105 public_methods=14 members=5
+# 115 lines and a sixteenth method for ADR 0024: RegisterWebFont, which for a
+# catalog is an ordinary registration -- the family, weight and slant come from the
+# `@font-face` descriptors rather than from the file, because the descriptors are
+# what a `font-family` stack names.
+budget: FontCatalog header_lines=115 public_methods=16 members=6
 # Owns a shaper and an LRU of shaped runs, which is four members before the
 # provider it borrows. Shaping is the most expensive step in the text stack and
 # the cache is why this type exists at all -- see the class comment.

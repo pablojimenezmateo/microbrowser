@@ -221,11 +221,18 @@ void Page::CollectStyleSheets() {
 
 void Page::RebuildAuthorStyleSheets() {
   resolver_ = css::StyleResolver{};
+  resources_.font_faces.clear();
   for (const std::optional<std::string>& css : resources_.author_sheet_slots) {
     if (css.has_value()) {
       // With the viewport, so `@media (min-width: …)` is answered rather than
       // dropped. This is why SetViewport re-parses: the answer is baked in here.
-      resolver_.AddStyleSheet(css::ParseStyleSheet(*css, viewport_), css::Origin::Author);
+      const css::StyleSheet sheet = css::ParseStyleSheet(*css, viewport_);
+      // The faces before the rules, because a face is not a rule: it is kept for
+      // the loader rather than added to the cascade, and the parsed sheet is
+      // discarded here.
+      resources_.font_faces.insert(resources_.font_faces.end(), sheet.font_faces.begin(),
+                                   sheet.font_faces.end());
+      resolver_.AddStyleSheet(sheet, css::Origin::Author);
     }
   }
   // And each shadow root's own sheets, *scoped* to it: a rule inside a component
@@ -233,7 +240,13 @@ void Page::RebuildAuthorStyleSheets() {
   // ADR 0019 §3 asks for. Added after the document's, so document order still
   // decides between two rules of equal specificity in the same tree.
   for (const auto& [scope, css] : resources_.shadow_sheets) {
-    resolver_.AddStyleSheet(css::ParseStyleSheet(css, viewport_), css::Origin::Author, scope);
+    const css::StyleSheet sheet = css::ParseStyleSheet(css, viewport_);
+    // A component's `@font-face` is *not* scoped: the font database is the
+    // document's, which is what the specification says and is why a component can
+    // ship a font at all.
+    resources_.font_faces.insert(resources_.font_faces.end(), sheet.font_faces.begin(),
+                                 sheet.font_faces.end());
+    resolver_.AddStyleSheet(sheet, css::Origin::Author, scope);
   }
   // A background image is named by the cascade, so the set of images a document
   // wants is not known until its stylesheets have arrived. Re-collected here
@@ -300,6 +313,60 @@ void Page::CollectImages() {
                                                      const css::ComputedStyle& style) {
     want(style.background.image);
   });
+}
+
+namespace {
+
+// Whether this browser can decode a source with this declared `format()`.
+//
+// The hint is advisory -- the bytes decide -- but it is what lets an undecodable
+// entry be skipped *without fetching it*, which is the only reason authors write
+// it. An empty hint is accepted: a bare `url(x.ttf)` is the common spelling and
+// refusing it would skip most faces on the web.
+//
+// `woff2` is the one that matters and the one that is refused: it is brotli inside
+// a container, and neither exists here until ADR 0024's session 20. Fetching one
+// to fail on it is a request that buys nothing.
+bool CanDecodeFontFormat(std::string_view format) {
+  return format.empty() || format == "truetype" || format == "opentype" ||
+         format == "truetype-variations" || format == "opentype-variations";
+}
+
+}  // namespace
+
+std::vector<Page::PendingFontFace> Page::TakeUnrequestedFontFaces() {
+  std::vector<PendingFontFace> wanted;
+  for (const css::FontFace& face : resources_.font_faces) {
+    for (const css::FontFaceSource& source : face.sources) {
+      if (!CanDecodeFontFormat(source.format)) {
+        continue;
+      }
+      // The author's order is a fallback chain, so the first decodable source wins
+      // and the rest are not fetched. Keyed by URL and family together: two
+      // families can legitimately name one file at two weights.
+      const std::string key = face.family + "|" + std::to_string(face.weight) + "|" +
+                              (face.italic ? "i" : "n") + "|" + source.url;
+      if (resources_.requested_fonts.insert(key).second) {
+        wanted.push_back(PendingFontFace{source.url, face.family, face.weight, face.italic});
+      }
+      break;
+    }
+  }
+  return wanted;
+}
+
+bool Page::AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes) {
+  if (!text_.Fonts().RegisterWebFont(face.family, face.weight, face.italic, std::move(bytes))) {
+    AddPerformanceCounter(PerfCounterId::GfxWebFontsRefused);
+    return false;
+  }
+  AddPerformanceCounter(PerfCounterId::GfxWebFontsRegistered);
+  // Text measured before the face arrived was measured in a different font, so
+  // every line box on the page is wrong. This is what `font-display: swap` looks
+  // like from the inside, and it is the whole reason a face arriving late is not
+  // free.
+  boxes_.reset();
+  return true;
 }
 
 std::vector<std::string> Page::TakeUnrequestedImages() {

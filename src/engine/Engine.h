@@ -86,7 +86,7 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // there would show a page with holes where its visible images go.
   bool IsLoading() const {
     return load_.active || !late_images_.empty() || !script_fetches_.empty() ||
-           !module_fetches_.empty() || page_.HasPendingModules();
+           !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules();
   }
 
   // What the page's script threw, so a host that is debugging one can say why
@@ -190,6 +190,14 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // `<img loading="lazy">` becomes wanted when it is scrolled towards -- which
   // may be long after the navigation that carried the document is over.
   void StartImageRequests();
+  // Fetches every `@font-face` source the page wants and has not been given.
+  // Called from the subresource pass and again whenever a stylesheet lands, since
+  // a face is declared *in* a sheet and the sheet arrives after the document.
+  void StartFontRequests();
+  // One face's bytes. True when the provider took them and the page therefore
+  // needs laying out again -- text measured before a face arrived was measured in
+  // a different font, which is what `font-display: swap` looks like from inside.
+  bool OnFontFetch(Loader::Completion completion);
   // Decodes one image's bytes into the page. Shared by the load's batch and by
   // an image that arrived after it, so that sniffing, the bounds and the
   // failure counter exist once rather than twice.
@@ -322,6 +330,10 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // The modules in flight, and which URL each is. A map rather than a set because
   // the graph is keyed by URL and the completion only carries an id.
   std::map<Loader::RequestId, std::string> module_fetches_;
+  // The faces in flight. A map because the completion carries an id and
+  // registering needs the family, weight and slant the descriptors declared -- the
+  // file cannot be asked, since what a `font-family` stack names is the descriptor.
+  std::map<Loader::RequestId, Page::PendingFontFace> font_fetches_;
   // Back and forward, for this tab. ADR 0026 §1: it is here rather than in
   // `src/ui` because a `pushState` entry is a URL *plus a state object owned by a
   // document*, and the chrome cannot see a document.

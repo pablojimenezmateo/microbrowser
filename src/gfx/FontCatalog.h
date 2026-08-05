@@ -31,6 +31,23 @@ class FontProvider {
   // is destroyed or a new face is registered.
   virtual Font* FontFor(const FontRequest& request) = 0;
 
+  // A face the *document* supplied -- an `@font-face` whose bytes have arrived.
+  //
+  // Virtual here rather than only on FontCatalog because the engine holds a
+  // `FontProvider&` and a downcast would be the engine deciding which provider it
+  // has. False by default, which is the honest answer for a provider that cannot
+  // take one and for bytes this browser cannot decode -- a WOFF2 today, until
+  // ADR 0024's brotli lands. A page whose web font is refused renders in the next
+  // family of its stack, which is what a font stack is for.
+  virtual bool RegisterWebFont(std::string family, int weight, bool italic,
+                               std::vector<std::byte> bytes) {
+    (void)family;
+    (void)weight;
+    (void)italic;
+    (void)bytes;
+    return false;
+  }
+
  protected:
   FontProvider() = default;
 };
@@ -53,6 +70,13 @@ class FontCatalog : public FontProvider {
   // False for bytes FreeType will not parse. Font files are attacker
   // controlled once @font-face exists, so this is a routine outcome.
   bool Register(std::string family, int weight, bool italic, std::vector<std::byte> bytes);
+  // A document's own face, which for a catalog is an ordinary registration: the
+  // family, weight and slant come from the `@font-face` descriptors rather than
+  // from the file, because the descriptors are what a `font-family` stack names.
+  bool RegisterWebFont(std::string family, int weight, bool italic,
+                       std::vector<std::byte> bytes) override {
+    return Register(std::move(family), weight, italic, std::move(bytes));
+  }
 
   // Registers a face under the family, weight and slant it reports about
   // itself. This is the form a font database wants: a filename says "Bold"

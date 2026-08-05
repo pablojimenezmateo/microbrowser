@@ -485,6 +485,7 @@ add_executable(microbrowser_tests
   tests/IntegrityTests.cpp
   tests/ShadowDomTests.cpp
   tests/StructuredCloneTests.cpp
+  tests/WebFontTests.cpp
   tests/XhrTests.cpp
   tests/IpcMessageTests.cpp
   tests/IsoBmffTests.cpp

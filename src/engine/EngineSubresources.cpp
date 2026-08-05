@@ -126,8 +126,41 @@ void Engine::StartSubresources() {
   }
 
   StartImageRequests();
+  StartFontRequests();
 
   load_.total_resources = load_.resources.size();
+}
+
+void Engine::StartFontRequests() {
+  if (!page_.BaseUrl().has_value()) {
+    return;
+  }
+  for (const Page::PendingFontFace& face : page_.TakeUnrequestedFontFaces()) {
+    const Loader::RequestId id = loader_.StartSubresource(
+        face.url, *page_.BaseUrl(), privacy::ResourceType::Font, NowSeconds(), {});
+    font_fetches_[id] = face;
+  }
+}
+
+bool Engine::OnFontFetch(Loader::Completion completion) {
+  const auto found = font_fetches_.find(completion.id);
+  if (found == font_fetches_.end()) {
+    return false;
+  }
+  const Page::PendingFontFace face = found->second;
+  font_fetches_.erase(found);
+  if (!completion.result.ok || completion.result.body.empty()) {
+    AddPerformanceCounter(PerfCounterId::GfxWebFontsRefused);
+    return false;
+  }
+  std::vector<std::byte> bytes;
+  bytes.reserve(completion.result.body.size());
+  for (const char byte : completion.result.body) {
+    bytes.push_back(static_cast<std::byte>(byte));
+  }
+  // True only when the provider took them. A refused face is not an error: the
+  // page renders in the next family of its stack, which is what a stack is for.
+  return page_.AddWebFont(face, std::move(bytes));
 }
 
 }  // namespace microbrowser::engine

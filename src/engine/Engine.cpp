@@ -161,7 +161,7 @@ bool Engine::Advance() {
   // happens along. It promotes nothing and starts nothing here.
   loader_.Advance(NowMilliseconds());
   if (!load_.active && late_images_.empty() && script_fetches_.empty() &&
-      module_fetches_.empty() && !page_.HasPendingModules()) {
+      module_fetches_.empty() && font_fetches_.empty() && !page_.HasPendingModules()) {
     return false;
   }
   std::vector<Loader::Completion> completions = loader_.TakeCompletions();
@@ -169,6 +169,13 @@ bool Engine::Advance() {
   for (Loader::Completion& completion : completions) {
     if (late_images_.find(completion.id) != late_images_.end()) {
       moved = OnLateImage(std::move(completion)) || moved;
+      continue;
+    }
+    if (font_fetches_.find(completion.id) != font_fetches_.end()) {
+      if (OnFontFetch(std::move(completion))) {
+        moved = true;
+        LayoutAndPaint();
+      }
       continue;
     }
     if (module_fetches_.find(completion.id) != module_fetches_.end()) {
@@ -223,7 +230,7 @@ bool Engine::HasRunnableWork() const {
   // -- with nothing owed, that is always true for a canned transport and the
   // loop would spin instead of blocking, which is the zero-idle invariant.
   return (load_.active || !late_images_.empty() || !script_fetches_.empty() ||
-          !module_fetches_.empty() || page_.HasPendingModules()) &&
+          !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
 }
 
@@ -295,6 +302,9 @@ void Engine::OnCompletion(Loader::Completion completion) {
       }
       if (completion.result.ok) {
         page_.AddStyleSheet(resource.index, completion.result.body);
+        // A sheet can declare an `@font-face`, and the sheet arrives after the
+        // document -- so the font pass runs again here rather than only once.
+        StartFontRequests();
         AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
       } else {
         // A stylesheet that does not load is a page rendered without it, which
@@ -541,6 +551,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   script_fetches_.clear();
   // And the modules its graph was still fetching, for the same reason.
   module_fetches_.clear();
+  font_fetches_.clear();
   load_.active = true;
   load_.started_ms = NowMilliseconds();
   load_.url = url.empty() ? std::string("about:blank") : url;

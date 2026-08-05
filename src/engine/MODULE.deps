@@ -99,7 +99,12 @@ max_tu_lines: 800
 # traversal from script cannot happen with the interpreter on the stack, and a
 # traversal's entry is already in the list at its own index so committing it must
 # not push. Six private methods, in EngineHistory.cpp.
-budget: Engine header_lines=310 public_methods=15 members=15
+# 320 lines and a sixteenth member for ADR 0024's web fonts. The member is the
+# faces in flight, and it is a *map* rather than a set because registering one
+# needs the family, weight and slant the `@font-face` descriptors declared -- the
+# file cannot be asked, since what a `font-family` stack names is the descriptor
+# and not what the font calls itself.
+budget: Engine header_lines=320 public_methods=15 members=16
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -218,7 +223,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # belongs to is Engine's. `UpdateUrl` is the one worth naming -- it moves the
 # address, recomputes `:target` from the new fragment and moves the base with it,
 # which is the whole of what a `pushState` does to a document.
-budget: Page   header_lines=555 public_methods=67 members=15
+budget: Page   header_lines=580 public_methods=70 members=15
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -316,4 +321,9 @@ budget: ModuleLoader header_lines=70 public_methods=14 members=2
 # The shadow sheets are here rather than in the resolver because
 # RebuildAuthorStyleSheets throws the resolver away, and a component's styles have
 # to come back with it.
-budget: DocumentResources header_lines=35 public_methods=0 members=9
+# 11 members now: the two web-font ones are the faces the sheets declared and the
+# URLs already asked for. Kept here because RebuildAuthorStyleSheets throws the
+# parsed sheet away, and a face declared in the first sheet has to survive the
+# second arriving.
+budget: DocumentResources header_lines=45 public_methods=0 members=11
+budget: PendingFontFace   header_lines=15 public_methods=0 members=4
