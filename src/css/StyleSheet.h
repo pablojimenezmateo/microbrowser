@@ -128,6 +128,16 @@ struct Selector {
   Specificity ComputeSpecificity() const;
   bool Matches(const dom::Element& element) const;
 
+  // Every dynamic state whose value this selector's match depends on, ORed
+  // together -- including the ones inside `:is()`, `:where()` and `:not()`, and
+  // including the ones in a compound that is not the last, because `li:hover +
+  // li` matches on a state that is not on the element it styles.
+  //
+  // This is the key an invalidation index files the rule under (ADR 0016 §3),
+  // and it is a method on the selector rather than a walk in the index so that
+  // it cannot disagree with the matcher about which name means which state.
+  dom::ElementState DynamicStates() const;
+
   friend bool operator==(const Selector&, const Selector&) = default;
 };
 

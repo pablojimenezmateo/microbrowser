@@ -102,6 +102,13 @@ class Node {
   // Nearest ancestor element with this tag name, or null.
   Element* ClosestAncestor(std::string_view tag_name) const;
 
+  // The document at the root of this tree, or null when there is none -- which
+  // is a node script built and has not inserted, and is the common case during
+  // a parse. A walk rather than a stored pointer, for the reason NoteMutation
+  // says: a pointer is a second invariant to maintain across every subtree
+  // move, for a depth ADR 0009 already bounds.
+  Document* OwnerDocument() const;
+
   // Serializes the subtree back to HTML. Used by tests to state an expected
   // tree in one string, and by nothing else — it is not a sanitizer, and a
   // round trip through it is not a security boundary.
@@ -151,6 +158,59 @@ struct Attribute {
   friend bool operator==(const Attribute&, const Attribute&) = default;
 };
 
+// The dynamic state a selector can match on: the states whose truth changes
+// without the tree changing.
+//
+// One enum naming all of them, and deliberately not one enum per storage
+// location, because two vocabularies for one set is how a rule ends up keyed
+// under a name nothing ever sets. Where each answer *lives* is the second
+// question and it has three answers:
+//
+//   * `Hover`, `Active` and `Target` are stored here, as bits on the element,
+//     set by the engine and read by the matcher. That is ADR 0016 §2's
+//     decision, and it is what keeps `src/css` a pure function of (element,
+//     selector) that does not know a mouse exists.
+//   * `Checked`, `Disabled`, `Required` and `PlaceholderShown` are stored here
+//     too, and they are refreshed from the document by the engine before every
+//     cascade. They are HTML semantics -- "actually disabled" includes an
+//     ancestor `fieldset`, and `src/html` is the one module that defines that
+//     -- so a bit is what carries the answer to a module that may not see
+//     `src/html` at all.
+//   * `Focus`, `FocusVisible` and `FocusWithin` are **not stored**. Focus is
+//     one element on one document (ADR 0017 §4) and a bit per element would be
+//     the second copy that disagrees -- which is the bug the focus model was
+//     built to remove. They are derived at match time from Document::Focus(),
+//     and they are named here anyway because the invalidation index has to file
+//     a `:focus-within` rule under something.
+enum class ElementState : std::uint16_t {
+  None = 0,
+  Hover = 1u << 0,
+  Active = 1u << 1,
+  Target = 1u << 2,
+  Checked = 1u << 3,
+  Disabled = 1u << 4,
+  Required = 1u << 5,
+  PlaceholderShown = 1u << 6,
+  Focus = 1u << 7,
+  FocusVisible = 1u << 8,
+  FocusWithin = 1u << 9,
+};
+
+constexpr ElementState operator|(ElementState a, ElementState b) {
+  return static_cast<ElementState>(static_cast<std::uint16_t>(a) | static_cast<std::uint16_t>(b));
+}
+constexpr ElementState operator&(ElementState a, ElementState b) {
+  return static_cast<ElementState>(static_cast<std::uint16_t>(a) & static_cast<std::uint16_t>(b));
+}
+constexpr ElementState& operator|=(ElementState& a, ElementState b) { return a = a | b; }
+constexpr bool Any(ElementState state) { return state != ElementState::None; }
+
+// The states an element stores. The rest are derived, and writing one would be
+// creating the second copy the enum's comment refuses.
+inline constexpr ElementState kStoredElementStates =
+    ElementState::Hover | ElementState::Active | ElementState::Target | ElementState::Checked |
+    ElementState::Disabled | ElementState::Required | ElementState::PlaceholderShown;
+
 class Element : public Node {
  public:
   explicit Element(std::string tag_name)
@@ -164,11 +224,22 @@ class Element : public Node {
   void SetAttribute(std::string name, std::string value);
   bool RemoveAttribute(std::string_view name);
 
+  // The dynamic state on this element. See ElementState: a bit here is a fact
+  // the tree does not otherwise record, and the three focus states are
+  // deliberately absent from it.
+  bool HasState(ElementState state) const { return Any(state_ & state); }
+  // True when the stored set changed, which is what tells a caller whether a
+  // restyle is owed at all. Setting a state that is not stored is a caller bug
+  // and is ignored rather than half-recorded.
+  bool SetState(ElementState state, bool on);
+  ElementState State() const { return state_; }
+
   std::string Serialize() const override;
 
  private:
   std::string tag_name_;
   std::vector<Attribute> attributes_;
+  ElementState state_ = ElementState::None;
 };
 
 class Text : public Node {

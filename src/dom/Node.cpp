@@ -57,8 +57,8 @@ bool IsVoidElement(std::string_view tag_name) {
   return std::find(kVoidElements.begin(), kVoidElements.end(), tag_name) != kVoidElements.end();
 }
 
-void Node::NoteMutation() {
-  Node* node = this;
+Document* Node::OwnerDocument() const {
+  const Node* node = this;
   while (node->parent_ != nullptr) {
     node = node->parent_;
   }
@@ -66,20 +66,23 @@ void Node::NoteMutation() {
   // derived from the tree describes it. That is the common case during a parse,
   // where attributes are set before the element is inserted, and it is why this
   // is cheap there.
-  if (node->kind_ == Kind::Document) {
-    static_cast<Document*>(node)->NoteTreeMutation();
+  if (node->kind_ != Kind::Document) {
+    return nullptr;
+  }
+  return const_cast<Document*>(static_cast<const Document*>(node));
+}
+
+void Node::NoteMutation() {
+  if (Document* document = OwnerDocument(); document != nullptr) {
+    document->NoteTreeMutation();
   }
 }
 
 void Node::ReleaseFocusWithin(const Node& removed) {
-  Node* node = this;
-  while (node->parent_ != nullptr) {
-    node = node->parent_;
-  }
-  if (node->kind_ != Kind::Document) {
+  Document* document = OwnerDocument();
+  if (document == nullptr) {
     return;
   }
-  auto* document = static_cast<Document*>(node);
   const Element* focused = document->Focus().element;
   if (focused == nullptr) {
     return;
@@ -219,6 +222,29 @@ bool Element::RemoveAttribute(std::string_view name) {
   }
   attributes_.erase(found);
   NoteMutation();
+  return true;
+}
+
+bool Element::SetState(ElementState state, bool on) {
+  // Only the stored states are storable. A caller asking to write `Focus` has
+  // the wrong model of where focus lives, and half-recording it here is how the
+  // second copy gets created -- so it is dropped, loudly enough to be found by
+  // the assertion in the test that names each state and its writer.
+  const auto storable = static_cast<std::uint16_t>(state & kStoredElementStates);
+  if (storable == 0) {
+    return false;
+  }
+  const auto before = static_cast<std::uint16_t>(state_);
+  const auto after =
+      static_cast<std::uint16_t>(on ? (before | storable) : (before & ~storable));
+  if (after == before) {
+    return false;
+  }
+  state_ = static_cast<ElementState>(after);
+  // Deliberately *not* a tree mutation. Nothing about the document changed: the
+  // box tree still describes it, and bumping the version here would make every
+  // mouse move look like a DOM edit to layout's clean flag -- which is the
+  // opposite of what ADR 0016 is for.
   return true;
 }
 

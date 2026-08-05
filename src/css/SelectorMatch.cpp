@@ -217,6 +217,92 @@ std::int64_t SiblingIndex(const dom::Element& element, const NthPattern& nth) {
   return nth.from_end ? total - position + 1 : position;
 }
 
+// The three states that are not bits, answered from the one copy of focus that
+// lives on the document. ADR 0017 §4 makes focus a document property, and
+// session 10 removed the second copy of it; a bit per element would put one
+// back, and the failure mode is a `:focus` rule matching an element the next
+// keystroke does not go to.
+//
+// Null for `element`'s document is not an error: a subtree a script has built
+// and not inserted has no document, and nothing in it has focus.
+bool FocusStateMatches(const dom::Element& element, dom::ElementState state) {
+  const dom::Document* document = element.OwnerDocument();
+  if (document == nullptr) {
+    return false;
+  }
+  const dom::Document::FocusState& focus = document->Focus();
+  if (focus.element == nullptr) {
+    return false;
+  }
+  if (state == dom::ElementState::FocusWithin) {
+    // Walking up from the focused element rather than down over the subtree,
+    // which is the same trade Node::ReleaseFocusWithin makes and for the same
+    // reason: the depth is bounded and the subtree is not.
+    for (const dom::Node* at = focus.element; at != nullptr; at = at->Parent()) {
+      if (at == &element) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (focus.element != &element) {
+    return false;
+  }
+  return state != dom::ElementState::FocusVisible || focus.visible;
+}
+
+// Which elements `:disabled`/`:enabled` and `:required`/`:optional` can speak
+// about at all. Neither pair is a plain complement: a `<div>` is neither
+// enabled nor disabled, and a rule that treated "not disabled" as "enabled"
+// would style every element on the page.
+bool CanBeDisabled(std::string_view tag) {
+  return tag == "button" || tag == "input" || tag == "select" || tag == "textarea" ||
+         tag == "optgroup" || tag == "option" || tag == "fieldset";
+}
+
+bool CanBeRequired(std::string_view tag) {
+  return tag == "input" || tag == "select" || tag == "textarea";
+}
+
+// The state a pseudo-class name names, or None when it names none. One table
+// rather than a chain of comparisons, because the *invalidation index* has to
+// ask the same question of a selector it is filing and a second copy of the
+// mapping is how a rule gets filed under a state the matcher answers
+// differently.
+dom::ElementState StateForPseudoClass(std::string_view name) {
+  if (name == "hover") {
+    return dom::ElementState::Hover;
+  }
+  if (name == "active") {
+    return dom::ElementState::Active;
+  }
+  if (name == "target") {
+    return dom::ElementState::Target;
+  }
+  if (name == "checked") {
+    return dom::ElementState::Checked;
+  }
+  if (name == "disabled") {
+    return dom::ElementState::Disabled;
+  }
+  if (name == "required") {
+    return dom::ElementState::Required;
+  }
+  if (name == "placeholder-shown") {
+    return dom::ElementState::PlaceholderShown;
+  }
+  if (name == "focus") {
+    return dom::ElementState::Focus;
+  }
+  if (name == "focus-visible") {
+    return dom::ElementState::FocusVisible;
+  }
+  if (name == "focus-within") {
+    return dom::ElementState::FocusWithin;
+  }
+  return dom::ElementState::None;
+}
+
 bool EmptyPseudoClassMatches(const dom::Element& element) {
   for (const std::unique_ptr<dom::Node>& child : element.Children()) {
     if (child->IsElement() || child->IsText()) {
@@ -338,6 +424,35 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
           if (element.TagName() != "a" || element.GetAttribute("href") == nullptr) {
             return false;
           }
+        } else if (part.name == "disabled" || part.name == "enabled") {
+          // Neither is the complement of the other: `:enabled` matches a *form
+          // control* that is not disabled, so a `<div>` matches neither -- and
+          // a `<div disabled>` matches neither either, which is what the tag
+          // test is for. The list is the one CSS Selectors 4 names, and it is
+          // here for the same reason `:link`'s `a[href]` test is: the
+          // selector's definition is written in HTML's vocabulary and the
+          // matcher is where it is applied.
+          const bool disabled = element.HasState(dom::ElementState::Disabled);
+          if (!CanBeDisabled(element.TagName()) || disabled != (part.name == "disabled")) {
+            return false;
+          }
+        } else if (part.name == "required" || part.name == "optional") {
+          const bool required = element.HasState(dom::ElementState::Required);
+          if (!CanBeRequired(element.TagName()) || required != (part.name == "required")) {
+            return false;
+          }
+        } else if (const dom::ElementState state = StateForPseudoClass(part.name);
+                   state != dom::ElementState::None) {
+          // The dynamic states of ADR 0016 §2. A bit read, or -- for the three
+          // focus states -- one question asked of the document that owns the
+          // one copy of focus. Either way the matcher stays a pure function of
+          // (element, selector) and does not know that a mouse exists.
+          const bool matches = Any(state & dom::kStoredElementStates)
+                                   ? element.HasState(state)
+                                   : FocusStateMatches(element, state);
+          if (!matches) {
+            return false;
+          }
         } else {
           // A pseudo-class we do not implement must not match. Matching would
           // apply a rule the author scoped to a state we cannot observe.
@@ -414,5 +529,44 @@ bool Selector::Matches(const dom::Element& element) const {
   }
   return MatchesFrom(compounds, compounds.size() - 1, element);
 }
+
+namespace {
+
+// Bounded by the same constant the parser is: a selector list nested inside a
+// selector list is attacker-controlled input, and this walk recurses over the
+// shape the parser produced. The parser refuses to build one deeper than
+// kMaxSelectorNestingDepth, so this bound can only be reached by a selector
+// assembled in code -- and stopping is the right answer there too, because the
+// alternative is a stack overflow reachable from a stylesheet.
+dom::ElementState StatesIn(const std::vector<CompoundSelector>& compounds, int depth) {
+  dom::ElementState states = dom::ElementState::None;
+  if (depth > kMaxSelectorNestingDepth) {
+    return states;
+  }
+  for (const CompoundSelector& compound : compounds) {
+    for (const SelectorPart& part : compound.parts) {
+      if (part.kind == SelectorPart::Kind::PseudoClass) {
+        states |= StateForPseudoClass(part.name);
+        // `:enabled` and `:optional` are the complements of two of the bits and
+        // depend on them, which the name table does not say because the matcher
+        // answers them from a tag list as well.
+        if (part.name == "enabled") {
+          states |= dom::ElementState::Disabled;
+        } else if (part.name == "optional") {
+          states |= dom::ElementState::Required;
+        }
+        continue;
+      }
+      for (const Selector& argument : part.arguments) {
+        states |= StatesIn(argument.compounds, depth + 1);
+      }
+    }
+  }
+  return states;
+}
+
+}  // namespace
+
+dom::ElementState Selector::DynamicStates() const { return StatesIn(compounds, 0); }
 
 }  // namespace microbrowser::css

@@ -26,7 +26,11 @@ budget: SelectorPart     header_lines=50 public_methods=2  members=6
 budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
-budget: Selector         header_lines=25 public_methods=6  members=1
+# Raised for DynamicStates, which is the key an invalidation index files a rule
+# under. A method on the selector rather than a walk inside the index, so that
+# the two cannot disagree about which pseudo-class name means which state --
+# a rule filed under a name nothing sets is a rule that never re-applies.
+budget: Selector         header_lines=40 public_methods=6  members=1
 # Three members for `calc()`: a coefficient, the unit it is a coefficient of,
 # and the absolute pixels added to it. `calc(100% - 20px)` is the form the
 # feature is overwhelmingly used in and it is two terms, so a one-term Length
@@ -56,4 +60,14 @@ budget: Length           header_lines=45 public_methods=10 members=3
 # same reason: applied at each call site, one of them eventually forgets.
 budget: ComputedStyle    header_lines=225 public_methods=25 members=31
 budget: FlexStyle        header_lines=50  public_methods=2  members=12
-budget: StyleResolver    header_lines=60 public_methods=12 members=2
+# The third member is the invalidation index of ADR 0016 §3: which dynamic
+# states any rule in this cascade depends on, and which of those can move a box.
+# It is on the resolver because it is a property of *the cascade* rather than of
+# any one sheet -- the question a change asks is "could anything have changed",
+# and one index per sheet would mean asking it once per sheet.
+budget: StyleResolver    header_lines=65 public_methods=13 members=3
+# The index itself. Two members and they are the two answers ADR 0016 §3
+# separates: what any rule depends on, and what a rule that can move a box
+# depends on. Collapsing them loses "a hover that changes only colour does not
+# run layout", which is the second of the ADR's two properties.
+budget: StyleInvalidation header_lines=45 public_methods=6 members=2

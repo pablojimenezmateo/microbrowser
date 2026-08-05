@@ -31,8 +31,18 @@ max_tu_lines: 800
 # and there for the same reason: the document's focus is a raw Element* and
 # *missing a call* is the failure mode. Script removing the focused element
 # would otherwise leave the next key routed at a node no longer in the tree.
-budget: Node     header_lines=130 public_methods=21 members=3
-budget: Element      header_lines=35 public_methods=12 members=2
+# The twenty-second public method is OwnerDocument, and it is a deduplication
+# rather than a widening: NoteMutation and ReleaseFocusWithin both walked to the
+# root and both had to know what a Document is, and the selector matcher needs
+# the same walk to answer `:focus` from the one copy of focus. Three copies of a
+# loop is how one of them ends up stopping at the wrong node.
+budget: Node     header_lines=140 public_methods=22 members=3
+# The third member is the element's dynamic state: a bitmask of the states a
+# selector can match on that the tree does not otherwise record. ADR 0016 §2
+# decided it belongs here rather than in the matcher, and the enum's comment in
+# Node.h says which states are stored, which are derived, and why focus is
+# deliberately not one of them.
+budget: Element      header_lines=60 public_methods=15 members=3
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
 budget: DocumentType header_lines=25 public_methods=6  members=1
