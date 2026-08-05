@@ -257,6 +257,13 @@ void Engine::OnCompletion(Loader::Completion completion) {
   load_.resources.erase(found);
   ++load_.finished_resources;
 
+  // One `resource` entry per subresource, whatever became of it. Recorded even
+  // for a failure, because a page computing a cache hit rate or a total transfer
+  // size counts what it asked for rather than what worked -- and an entry list
+  // that quietly omitted the failures would make every such number wrong in a
+  // direction nobody could see.
+  RecordResourceTiming(resource, completion.result);
+
   switch (resource.kind) {
     case ResourceKind::StyleSheet:
       --load_.sheets_outstanding;
@@ -328,6 +335,31 @@ void Engine::OnCompletion(Loader::Completion completion) {
   }
 }
 
+void Engine::RecordResourceTiming(const PendingResource& resource,
+                                  const Loader::Result& result) {
+  const char* initiator = "other";
+  switch (resource.kind) {
+    case ResourceKind::StyleSheet:
+      initiator = "css";
+      break;
+    case ResourceKind::Script:
+      initiator = "script";
+      break;
+    case ResourceKind::Image:
+      initiator = "img";
+      break;
+  }
+  const double start = 0.0;
+  const double end = static_cast<double>(NowMilliseconds() - load_.started_ms);
+  // The name is the URL the page wrote, resolved -- which is what
+  // `getEntriesByName` is asked with and what a page matches against its own
+  // `<script src>`. `decodedBodySize` is what arrived; `encodedBodySize` is the
+  // same, because the loader has already undone any content coding by here and a
+  // number this layer invented would be worse than one that is honestly equal.
+  const std::string name = result.final_url.empty() ? resource.src : result.final_url;
+  page_.AddResourceTiming(name, initiator, start, end, result.body.size(), result.body.size());
+}
+
 void Engine::OnDocument(Loader::Result result) {
   if (!result.ok) {
     const std::string url = load_.url;
@@ -393,6 +425,10 @@ void Engine::AdvanceLoad() {
   if (load_.MayRunScripts()) {
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
+    // When the document's own scripts finished, which is what a page reads as
+    // `domContentLoadedEventStart`. The counter for it is fired by the binding
+    // layer that dispatches the event; this is only the number.
+    load_.dom_content_loaded_ms = NowMilliseconds();
     // A script that submitted a form navigates now, which throws this load
     // away -- so nothing below may touch `load_`. reddit's front door is this
     // line: its interstitial fills in a form from `DOMContentLoaded` and
@@ -405,6 +441,15 @@ void Engine::AdvanceLoad() {
     Paint();
   }
   if (load_.IsFinished()) {
+    // The `navigation` entry, before `load_` goes: it is the only thing that
+    // knows when this navigation started, and a page observing `navigation` with
+    // `buffered: true` reads it from a script that has not run yet.
+    const std::int64_t finished_ms = NowMilliseconds();
+    const auto since_start = [&](std::int64_t at) {
+      return static_cast<double>(at - load_.started_ms);
+    };
+    page_.SetNavigationTiming(since_start(load_.dom_content_loaded_ms), since_start(finished_ms),
+                              since_start(finished_ms));
     // Only now is the navigation over. It stayed alive past the first frame
     // for the `async` scripts the page said it would not wait for, which is
     // the difference between not blocking on one and dropping it.
@@ -414,6 +459,19 @@ void Engine::AdvanceLoad() {
     // The relayout happens only when something was listening, so a page with
     // no handler does not pay for having finished.
     if (page_.NotifyLoad()) {
+      if (FollowScriptNavigation()) {
+        return;
+      }
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+    }
+    // And the observers, because the `navigation` entry was produced *after* the
+    // last paint of this load: it cannot exist before the load is over, and the
+    // frame that would have delivered it has already happened. Without this a
+    // page observing `navigation` hears nothing until something else causes a
+    // frame -- which on a settled page is never, and is exactly the shape of a
+    // `PerformanceObserver` that appears to work.
+    if (page_.DeliverObservations(NowMilliseconds())) {
       if (FollowScriptNavigation()) {
         return;
       }
@@ -465,6 +523,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // abort nobody has to ask for.
   script_fetches_.clear();
   load_.active = true;
+  load_.started_ms = NowMilliseconds();
   load_.url = url.empty() ? std::string("about:blank") : url;
   load_.bypass_cache = options.bypass_cache;
 

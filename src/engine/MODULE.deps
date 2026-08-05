@@ -142,7 +142,7 @@ budget: Result header_lines=35 public_methods=0 members=12
 # Sixteen fields, and the two newest are the point of the ADR 0011 script
 # decision: an `async` script is counted apart from the rest and the first
 # frame is a state the load passes through rather than the state it ends in.
-budget: PendingLoad header_lines=70 public_methods=6 members=16
+budget: PendingLoad header_lines=95 public_methods=8 members=18
 
 # 185 lines and 38 methods for the form lifecycle: taking the submission a
 # script asked for, firing `load`, and the private SubmitForm every route to a
@@ -267,7 +267,14 @@ budget: Page   header_lines=510 public_methods=63 members=15
 # HistorySource, borrowed like the other two and handed to the binding layer at
 # construction, because `history` is declared or not declared then. The methods
 # are the two traversal events plus the setter.
-budget: PageScript header_lines=240 public_methods=27 members=12
+# 265 lines, 31 methods and a thirteenth member for `performance` and
+# `PerformanceObserver` (ledger session 50). The member is the Performance object
+# and it holds one field -- the epoch -- because the entries, the observers and
+# their queued records live in the JavaScript heap where the collector can see
+# them. The methods are the clock tick and the two entry sources the engine feeds,
+# and those exist because an observer with nothing behind it is the stub ADR 0012
+# forbids.
+budget: PageScript header_lines=265 public_methods=31 members=13
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

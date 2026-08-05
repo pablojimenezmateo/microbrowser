@@ -382,3 +382,11 @@ budget: Module      header_lines=30 public_methods=0  members=7
 # per frame is a heap allocation per call, which is the cost this whole change
 # exists to remove. It is a GC root like the rest, and GatherVmRoots walks it.
 budget: VmState     header_lines=36 public_methods=0  members=6
+# Why the bytecode compiler gave up on a program, when it does. An enum rather
+# than a bool because a bailout is otherwise invisible -- the program still runs,
+# on the tree-walker, which refuses an async function *at the call*, so the
+# visible failure is a TypeError in an unrelated function. Two of these reasons
+# are bounds and three are defects, and telling them apart is the point: it is
+# what found the destructuring-default bug that made reddit's whole bundle fall
+# back. See `MICROBROWSER_PERF_COUNTERS=1` and `js.compile_bailout_*`.
+budget: BailoutReason header_lines=35 public_methods=0 members=0

@@ -73,6 +73,7 @@ void PageScript::Detach() {
   ran_ = false;
   timers_ = bindings::TimerQueue{};
   frames_ = bindings::AnimationFrames{};
+  performance_ = bindings::Performance{};
 }
 
 void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) {
@@ -160,6 +161,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   bindings_->Install();
   timers_.Install(*interpreter_, now_ms);
   frames_.Install(*interpreter_, now_ms);
+  performance_.Install(*interpreter_, now_ms);
 }
 
 bool PageScript::RunTiming(Timing timing) {
@@ -217,6 +219,7 @@ void PageScript::Run(dom::Document& document, const std::string& url,
     return;  // no script, no interpreter: a document that runs nothing costs nothing
   }
   EnsureInterpreter(document, url, now_ms);
+  performance_.Tick(*interpreter_, now_ms);
 
   // The three points in the lifecycle, in the order they happen. Blocking
   // first, because that is document order; deferred after every blocking one,
@@ -242,6 +245,30 @@ bool PageScript::DeliverFetchResponse(std::uint64_t id,
   // waiting -- and building one here to deliver into would be a second way to
   // create a page's global scope.
   return bindings_ != nullptr && bindings_->DeliverFetchResponse(id, response);
+}
+
+void PageScript::TickClock(std::int64_t now_ms) {
+  if (interpreter_ != nullptr) {
+    performance_.Tick(*interpreter_, now_ms);
+  }
+}
+
+void PageScript::SetNavigationTiming(double dom_content_loaded_ms, double load_event_ms,
+                                     double duration_ms) {
+  // Not gated on there being an interpreter: `Performance` holds what arrives
+  // early as plain data and flushes it when one exists. Every subresource of a
+  // document completes before its first script runs -- that is what
+  // render-blocking means -- so the entries a page observes with
+  // `buffered: true` are exactly the ones a gate here would have dropped.
+  performance_.SetNavigationTiming(interpreter_.get(), dom_content_loaded_ms, load_event_ms,
+                                   duration_ms);
+}
+
+void PageScript::AddResourceTiming(const std::string& name, const std::string& initiator,
+                                   double start_ms, double response_end_ms,
+                                   std::size_t encoded_size, std::size_t decoded_size) {
+  performance_.AddResourceTiming(interpreter_.get(), name, initiator, start_ms, response_end_ms,
+                                 encoded_size, decoded_size);
 }
 
 void PageScript::SetDocumentUrl(const std::string& url) {
@@ -278,6 +305,9 @@ std::optional<std::uint32_t> PageScript::NextWakeDelay(std::int64_t now_ms) cons
 }
 
 bool PageScript::RunDueWork(std::int64_t now_ms) {
+  if (interpreter_ != nullptr) {
+    performance_.Tick(*interpreter_, now_ms);
+  }
   if (interpreter_ == nullptr) {
     return false;
   }
@@ -321,7 +351,16 @@ bool PageScript::DispatchScroll(dom::Element* target) {
 }
 
 bool PageScript::DeliverViewObservations(std::int64_t now_ms) {
-  return bindings_ != nullptr && bindings_->DeliverViewObservations(frames_.Timestamp(now_ms));
+  if (bindings_ == nullptr) {
+    return false;
+  }
+  // Both kinds of observer at the one place a frame is produced, and the
+  // performance ones second: a geometry callback can `mark`, and an entry
+  // produced during a delivery belongs to the next one rather than to the
+  // delivery that is running.
+  bool ran = bindings_->DeliverViewObservations(frames_.Timestamp(now_ms));
+  ran = performance_.DeliverObservations(*interpreter_) || ran;
+  return ran;
 }
 
 const std::vector<std::string>& PageScript::ConsoleOutput() const {

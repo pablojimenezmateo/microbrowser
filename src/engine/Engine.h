@@ -176,6 +176,10 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // and "refuse to execute" cannot come to mean two different things.
   static bool IntegrityHolds(const std::vector<SubresourceRequest>& requests,
                              std::size_t index, std::string_view body);
+  // One `resource` entry for a subresource that finished, however it finished.
+  // A page computing a cache hit rate counts what it asked for, so a failure is
+  // an entry too.
+  void RecordResourceTiming(const PendingResource& resource, const Loader::Result& result);
   // Starts every subresource the parsed document referenced, all at once.
   // Concurrency is bounded per partition key inside the request queue, which is
   // where that bound belongs -- see ADR 0005 for why it is per key.

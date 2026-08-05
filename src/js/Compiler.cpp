@@ -3,6 +3,8 @@
 #include <utility>
 
 #include "js/CompilerImpl.h"
+
+#include "util/PerformanceCounters.h"
 #include "js/TemplateParts.h"
 
 // The compiler's emitter, and its expressions.
@@ -39,7 +41,7 @@ std::uint32_t Compiler::Emit(Op op, std::uint32_t a, int delta) {
     return 0;
   }
   if (++state_.emitted > kMaxEmittedInstructions) {
-    Fail();
+    Fail(BailoutReason::Instructions);
     return 0;
   }
   const auto at = static_cast<std::uint32_t>(function_.code.size());
@@ -49,7 +51,7 @@ std::uint32_t Compiler::Emit(Op op, std::uint32_t a, int delta) {
     // The compiler and its own arithmetic disagreeing. Not reachable from a
     // page -- it is a bug in an emitter above -- but running the program would
     // read a slot belonging to someone else, so it stops here.
-    Fail();
+    Fail(BailoutReason::ScopeArithmetic);
     return at;
   }
   stack_depth_ = static_cast<std::uint32_t>(depth);
@@ -93,7 +95,15 @@ std::uint32_t Compiler::NodeIndex(const Node& node) {
   return static_cast<std::uint32_t>(function_.nodes.size() - 1);
 }
 
-void Compiler::Fail() { state_.failed = true; }
+void Compiler::Fail(BailoutReason reason) {
+  if (!state_.failed) {
+    // The first reason only. `Fail` is sticky and every emitter above checks
+    // `failed` and fails in turn, so the last reason is always Depth or
+    // Instructions and always a consequence rather than the cause.
+    state_.reason = reason;
+  }
+  state_.failed = true;
+}
 
 void Compiler::ThrowSyntax(std::string message) {
   Emit(Op::ThrowSyntaxError, Constant(Value::String(std::move(message))), 0);
@@ -172,7 +182,7 @@ void Compiler::RunFinalizers(std::size_t depth) {
 void Compiler::Expression(const Node& node) {
   const CompileDepth depth(state_, kMaxCompileDepth);
   if (depth.Exceeded() || state_.failed) {
-    Fail();
+    Fail(BailoutReason::Depth);
     return;
   }
 
@@ -387,7 +397,7 @@ void Compiler::Expression(const Node& node) {
     default:
       // A node kind that is neither an expression nor anything this knows how
       // to reject. The tree-walker answers these, so the program goes there.
-      Fail();
+      Fail(BailoutReason::Node);
       return;
   }
 }
@@ -1184,10 +1194,40 @@ std::unique_ptr<CompiledFunction> Compile(const Node& program) {
   auto compiled = std::make_unique<CompiledFunction>();
   Compiler compiler(state, *compiled);
   compiler.Program(program);
-  if (state.failed) {
-    return nullptr;
+  if (!state.failed) {
+    return compiled;
   }
-  return compiled;
+  // Counted by reason, because a bailout is otherwise invisible: the program
+  // still runs, on the tree-walker, and the tree-walker refuses an async
+  // function or a generator *at the call* -- so the visible failure is a
+  // TypeError somewhere else entirely, naming neither the bound nor the file.
+  util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailouts);
+  switch (state.reason) {
+    case BailoutReason::Depth:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutDepth);
+      break;
+    case BailoutReason::Instructions:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutInstructions);
+      break;
+    case BailoutReason::Slots:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutSlots);
+      break;
+    case BailoutReason::ScopeCaptured:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutCaptured);
+      break;
+    case BailoutReason::ScopeUnreserved:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutUnreserved);
+      break;
+    case BailoutReason::ScopeArithmetic:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutArithmetic);
+      break;
+    case BailoutReason::Node:
+      util::AddPerformanceCounter(util::PerfCounterId::JsCompileBailoutNode);
+      break;
+    case BailoutReason::None:
+      break;
+  }
+  return nullptr;
 }
 
 }  // namespace microbrowser::js

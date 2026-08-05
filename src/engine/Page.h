@@ -164,6 +164,21 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // nothing is happening to.
   bool DeliverObservations(std::int64_t now_ms);
 
+  // The `navigation` entry for this document and one `resource` entry per
+  // subresource, from the engine -- the only thing that knows when a request
+  // started. A `PerformanceObserver` with nothing behind it is the stub ADR 0012
+  // forbids, which is why these exist rather than the observer alone.
+  void SetNavigationTiming(double dom_content_loaded_ms, double load_event_ms,
+                           double duration_ms) {
+    script_.SetNavigationTiming(dom_content_loaded_ms, load_event_ms, duration_ms);
+  }
+  void AddResourceTiming(const std::string& name, const std::string& initiator, double start_ms,
+                         double response_end_ms, std::size_t encoded_size,
+                         std::size_t decoded_size) {
+    script_.AddResourceTiming(name, initiator, start_ms, response_end_ms, encoded_size,
+                              decoded_size);
+  }
+
   // Where this page's own requests go, set once by the engine that owns both
   // this and the loader. Null in a page with no network behind it, which is an
   // absence rather than a stub: `fetch` is then not declared at all. See

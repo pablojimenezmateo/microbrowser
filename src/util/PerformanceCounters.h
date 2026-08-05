@@ -214,6 +214,27 @@ namespace microbrowser::util {
   X(HistoryTraversals, "history.traversals")                                     \
   X(HistorySameDocumentTraversals, "history.same_document_traversals")            \
   X(HistoryOriginRefusals, "history.origin_refusals")                            \
+  /* What a page measured about itself, and how often it was told. A page whose */ \
+  /* observer never fires is one whose telemetry silently reports nothing --    */ \
+  /* which is what four roadmap sessions were blocked by.                       */ \
+  X(PerformanceEntries, "performance.entries")                                   \
+  X(PerformanceObserverCallbacks, "performance.observer_callbacks")               \
+  /* Why the bytecode compiler gave up on a program, when it does. A bailout is */ \
+  /* not a bug -- the tree-walker takes the program -- but it is otherwise      */ \
+  /* *invisible*, and the tree-walker refuses an async function at the call, so */ \
+  /* the visible failure is a TypeError somewhere else naming neither the bound */ \
+  /* nor the file. `js.compile_bailouts` above zero on a page that misbehaves   */ \
+  /* is the first thing to look at.                                            */ \
+  X(JsCompileBailouts, "js.compile_bailouts")                                     \
+  X(JsCompileBailoutDepth, "js.compile_bailout_depth")                            \
+  X(JsCompileBailoutInstructions, "js.compile_bailout_instructions")               \
+  X(JsCompileBailoutSlots, "js.compile_bailout_slots")                            \
+  /* The three scope reasons are apart from the bounds on purpose: a bound is a */ \
+  /* decision and `unreserved` and `arithmetic` are *defects* in the compiler.  */ \
+  X(JsCompileBailoutCaptured, "js.compile_bailout_captured")                      \
+  X(JsCompileBailoutUnreserved, "js.compile_bailout_unreserved")                   \
+  X(JsCompileBailoutArithmetic, "js.compile_bailout_arithmetic")                    \
+  X(JsCompileBailoutNode, "js.compile_bailout_node")                              \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \
   /* §3 -- so these counters are the only signal that a page's policy is doing */ \

@@ -10,6 +10,7 @@
 #include "bindings/DomBindings.h"
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
+#include "bindings/Performance.h"
 #include "bindings/Network.h"
 #include "bindings/Timers.h"
 #include "dom/Node.h"
@@ -187,6 +188,18 @@ class PageScript {
   // and a frame take; the record's `time` is measured from the page's origin,
   // which is why this converts rather than passing it through. ADR 0018 §5.
   bool DeliverViewObservations(std::int64_t now_ms);
+  // The `navigation` entry for this document, and one `resource` entry per
+  // subresource. From the engine, because it is the only thing that knows when a
+  // request started -- and a `PerformanceObserver` that answered with nothing is
+  // the stub ADR 0012 forbids, which is why these exist rather than the observer
+  // alone.
+  void SetNavigationTiming(double dom_content_loaded_ms, double load_event_ms,
+                           double duration_ms);
+  void AddResourceTiming(const std::string& name, const std::string& initiator, double start_ms,
+                         double response_end_ms, std::size_t encoded_size,
+                         std::size_t decoded_size);
+  // The page's clock, published so `performance.now()` can answer with it.
+  void TickClock(std::int64_t now_ms);
   // The submission this page's script asked for through `submit()` or
   // `requestSubmit()` and has not had yet. Taken after the script turn ends
   // rather than performed during it: a navigation tears down the interpreter,
@@ -263,6 +276,11 @@ class PageScript {
   // is one the browser chose, shared by every callback, and existing only
   // while something has asked for it. See AnimationFrames.
   bindings::AnimationFrames frames_;
+  // `performance` and `PerformanceObserver`. Not folded into AnimationFrames even
+  // though they share an epoch: a frame is a deadline the browser chose and a
+  // measurement is a fact the page recorded, and the only thing they have in
+  // common is the clock.
+  bindings::Performance performance_;
   std::vector<std::string> errors_;
   bindings::GeometrySource* geometry_ = nullptr;
   bindings::NetworkSource* network_ = nullptr;

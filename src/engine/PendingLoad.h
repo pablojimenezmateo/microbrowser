@@ -44,6 +44,16 @@ struct PendingResource {
 struct PendingLoad {
   bool active = false;
   std::string url;
+  // Steady milliseconds when this navigation started, so a `PerformanceObserver`
+  // watching `navigation` and `resource` can be told a duration rather than a
+  // timestamp. Zero on a load that never started, which is not a valid time and
+  // is why the entries are only produced when the document arrived.
+  std::int64_t started_ms = 0;
+  // When the document's scripts finished, which is what a page reads as
+  // `domContentLoadedEventStart`. reddit's own perf module reports its metric
+  // only when that number is non-zero, so an entry that answered zero would be
+  // one that silently does nothing.
+  std::int64_t dom_content_loaded_ms = 0;
   bool bypass_cache = false;
   Loader::RequestId document = 0;
   bool document_arrived = false;

@@ -23,8 +23,47 @@ namespace microbrowser::js {
 // program -- half a chunk is not runnable -- and threading that through fifty
 // mutually recursive emitters would bury the code that matters. Nothing checks
 // the flag except the top level and the recursion bounds.
+// Why a compile gave up, when one does.
+//
+// A bailout is not a bug -- the tree-walker takes the program and the difference
+// is speed -- but it is *invisible*, and the invisibility is what makes it
+// dangerous: the tree-walker refuses an async function or a generator at the
+// call, so a program that bailed out fails later, somewhere else, with an error
+// that names neither the bound it hit nor the file it was in. Four roadmap
+// sessions' worth of debugging says this needs a name.
+//
+// See `MICROBROWSER_PERF_COUNTERS=1` and the `js.compile_bailout_*` counters.
+enum class BailoutReason : std::uint8_t {
+  None,
+  // Nesting deeper than the compiler recurses. Minified code reaches this
+  // legitimately: an expression written as one line of chained ternaries is
+  // arbitrarily deep and perfectly valid.
+  Depth,
+  // More instructions than the bound allows, across every function in the
+  // program.
+  Instructions,
+  // More block-scoped names in one function than a slot index holds.
+  Slots,
+  // A closure that captures a binding the compiler put in a frame slot. Reading
+  // it from the closure would find nothing, so the compile is abandoned.
+  ScopeCaptured,
+  // A declaration that was never reserved when its scope opened. **A gap in the
+  // reserving rather than a program the language forbids** -- which is to say a
+  // bug in this compiler, and the reason this reason is counted apart from the
+  // bounds: a bound is a decision and this is a defect.
+  ScopeUnreserved,
+  // The compiler's own stack arithmetic going negative. Not reachable from a
+  // page; a bug in an emitter above.
+  ScopeArithmetic,
+  // A node kind this compiler has no emitter for.
+  Node,
+};
+
 struct CompileState {
   bool failed = false;
+  // The *first* reason, because the ones after it are consequences: `Fail` is
+  // sticky and every emitter above checks `failed` and fails in turn.
+  BailoutReason reason = BailoutReason::None;
   // Every instruction emitted across every function in the program. Bounded
   // because a finalizer is emitted once per path that leaves its try, and
   // nested try/finally multiplies. A page can write that on purpose.
@@ -154,7 +193,7 @@ class Compiler {
   // does not fit the packing.
   bool ResolveSlot(std::string_view name, std::uint32_t& packed);
   std::uint32_t NodeIndex(const Node& node);
-  void Fail();
+  void Fail(BailoutReason reason);
   // Pops scopes, closes iterators and drops stack slots until the machine is
   // back at the depths a jump target expects.
   void UnwindTo(std::uint32_t stack, std::uint32_t scopes, std::uint32_t iterations);

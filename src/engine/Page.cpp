@@ -459,6 +459,8 @@ bool Page::DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse
 }
 
 bool Page::DeliverObservations(std::int64_t now_ms) {
+  // The page's clock, published before anything a script can read it from runs.
+  script_.TickClock(now_ms);
   if (document_ == nullptr) {
     return false;
   }

@@ -336,6 +336,7 @@ microbrowser_module(bindings
     src/bindings/CustomElements.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
+    src/bindings/Performance.cpp
     src/bindings/AnimationFrames.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp
@@ -473,6 +474,7 @@ add_executable(microbrowser_tests
   tests/GlyphCacheTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/HistoryTests.cpp
+  tests/PerformanceApiTests.cpp
   tests/InflateTests.cpp
   tests/IntegrityTests.cpp
   tests/StructuredCloneTests.cpp

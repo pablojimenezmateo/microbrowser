@@ -175,6 +175,32 @@ void ExpectSameOnBothEngines(std::string_view source) {
 }  // namespace
 
 void RegisterJsVmTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "JsVm/ADestructuringDefaultBehindARenameIsCompiledRatherThanBailedOn", [] {
+    // A pattern is read with the *expression* grammar, so the default in
+    // `{a: c = 1}` and in `[c = 1]` arrives as a plain `Assignment` rather than
+    // as an AssignmentPattern -- only the shorthand `{c = 1}` and an arrow's
+    // parameters get rewritten. The scope reserver did not know that, so the
+    // name behind the default was never reserved, `DeclareSlot` found no slot
+    // and **abandoned the compile of the entire program**.
+    //
+    // The symptom was not a wrong answer: the tree-walker took the program and
+    // then refused an async function at the call, thousands of lines away. On
+    // www.reddit.com this is what made the whole bundle fail with
+    // "an async function or generator needs the bytecode machine". These
+    // assertions are the values; `js.compile_bailout_unreserved` staying at zero
+    // is the property, and JsVm runs on the machine by construction.
+    ExpectEval("function f({a: c = 'd'}) { return c } f({})", "d");
+    ExpectEval("function f({a: c = 'd'}) { return c } f({a: 'given'})", "given");
+    ExpectEval("function f([c = 7]) { return c } f([])", "7");
+    ExpectEval("function f([c = 7]) { return c } f([9])", "9");
+    ExpectEval("function f({a: {b: c = 1}}) { return c } f({a: {}})", "1");
+    ExpectEval("function f() { const {a: c = 5} = {}; return c } f()", "5");
+    ExpectEval("function f() { const [x, y = 2] = [1]; return x + y } f()", "3");
+    // And the same shapes still bind normally when a value *is* supplied, which
+    // is the half a reservation bug would not have broken.
+    ExpectEval("function f({a: c = 1}, [d = 2]) { return c + d } f({a: 10}, [20])", "30");
+  });
+
   AddTest(tests, "JsVm/TheLanguageInTheSuiteActuallyCompiles", [] {
     // One line per construct that has an opcode. A silent fallback to the
     // tree-walker is the failure this catches, and it is the failure that would

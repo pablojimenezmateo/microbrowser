@@ -22,7 +22,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # of bug ADR 0012 calls worse than an absence.
 allow: util js dom html
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h Network.h Timers.h ViewObservers.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h Network.h Performance.h Timers.h ViewObservers.h
 
 extern:
 
@@ -179,3 +179,19 @@ budget: Timer       header_lines=20 public_methods=0 members=4
 # is how a page's animation and its observers end up disagreeing about when the
 # same frame happened.
 budget: AnimationFrames header_lines=55 public_methods=6 members=4
+# `performance` and `PerformanceObserver`. One member -- the epoch -- and that is
+# the claim: the entries, the observers and their queued records all live in
+# JavaScript objects hung off the global, because the collector cannot see a
+# `js::Value` in a C++ field and a callback it cannot see is one it frees while
+# this still points at it. Not folded into AnimationFrames even though they share
+# a clock: a frame is a deadline the browser chose and a measurement is a fact the
+# page recorded.
+# Two members: the epoch, and the entries the engine produced before this page
+# had an interpreter. The second is not an optimisation -- every subresource of a
+# document completes before its first script runs, so the entries a page observes
+# with `buffered: true` are exactly the ones there was no heap for. Held as plain
+# data, so there is no `js::Value` the collector cannot see. Everything that
+# survives Install -- the entries, the observers, their queued records -- lives in
+# JavaScript objects hung off the global for that reason.
+budget: Performance header_lines=130 public_methods=12 members=2
+budget: PendingEntry header_lines=25 public_methods=0 members=9

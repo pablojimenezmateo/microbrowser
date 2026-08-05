@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "js/Interpreter.h"
+#include "util/PerformanceCounters.h"
 #include "js/Parser.h"
 #include "js/Value.h"
 
@@ -111,6 +112,13 @@ int main(int argc, char** argv) {
 
   microbrowser::js::Interpreter interpreter;
   const microbrowser::js::Result result = interpreter.Run(source);
+  // The counters, because the one thing this tool could not tell you was *which
+  // engine ran your file*. A compile bailout is invisible from the outside -- the
+  // program still runs, on the tree-walker, and the tree-walker refuses an async
+  // function at the call -- so `MICROBROWSER_PERF_COUNTERS=1 jsshell file.js` is
+  // now how you find out, and `js.compile_bailout_unreserved` above zero is a bug
+  // in the compiler rather than a bound.
+  microbrowser::util::DumpPerformanceCountersOnce();
   if (!quiet) {
     for (const std::string& line : interpreter.ConsoleOutput()) {
       std::fprintf(stdout, "%s\n", line.c_str());

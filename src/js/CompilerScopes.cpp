@@ -46,7 +46,7 @@ void Compiler::Reserve(std::string_view name) {
   // function with four thousand block-scoped names is the only way to get
   // there.
   if (frame_slots_ >= kMaxSlotIndex) {
-    Fail();
+    Fail(BailoutReason::Slots);
     return;
   }
   if (scope.count == 0) {
@@ -101,6 +101,23 @@ void Compiler::ReservePattern(const Node& target) {
     case NodeKind::RestElement:
     case NodeKind::Spread:
       if (target.Child(0) != nullptr) {
+        ReservePattern(*target.Child(0));
+      }
+      return;
+    case NodeKind::Assignment:
+      // `{a: c = 1}` and `[c = 1]`. A pattern is read with the *expression*
+      // grammar, so a default in either of those positions arrives as a plain
+      // `Assignment` and not as an AssignmentPattern -- only the shorthand
+      // `{c = 1}` and an arrow's parameter list get rewritten. `BindTarget`
+      // already knows this and has the comment saying so; this walk did not,
+      // so the name behind the default was never reserved and `DeclareSlot`
+      // then found no slot for it and abandoned the compile.
+      //
+      // The whole program went to the tree-walker as a result, which refuses an
+      // async function *at the call* -- so the visible symptom was a TypeError
+      // in an unrelated function, several thousand lines away. See
+      // `js.compile_bailout_unreserved`.
+      if (target.string == "=" && target.Child(0) != nullptr) {
         ReservePattern(*target.Child(0));
       }
       return;
@@ -167,7 +184,7 @@ bool Compiler::ResolveSlot(std::string_view name, std::uint32_t& packed) {
           // binding is in a frame -- so where that is the answer, the compile
           // is abandoned and the tree-walker takes the program instead.
           if (flat) {
-            Fail();
+            Fail(BailoutReason::ScopeCaptured);
           }
           return false;
         }
@@ -227,7 +244,7 @@ void Compiler::EmitDeclare(std::string_view name, bool is_const) {
     // here is supposed to have been reserved when its scope opened, so this is
     // a gap in the reserving rather than a program the language allows; the
     // tree-walker takes the program and the difference is speed.
-    Fail();
+    Fail(BailoutReason::ScopeUnreserved);
     return;
   }
   Emit(is_const ? Op::DeclareConst : Op::DeclareLet, Name(name), -1);

@@ -112,7 +112,7 @@ void Compiler::Block(const Node& node) {
 void Compiler::Statement(const Node& node) {
   const CompileDepth depth(state_, kMaxCompileDepth);
   if (depth.Exceeded() || state_.failed) {
-    Fail();
+    Fail(BailoutReason::Depth);
     return;
   }
 
@@ -243,7 +243,7 @@ void Compiler::Statement(const Node& node) {
       if (node.kind == NodeKind::Declarator || node.kind == NodeKind::Parameters ||
           node.kind == NodeKind::Property || node.kind == NodeKind::SwitchCase ||
           node.kind == NodeKind::MethodDefinition) {
-        Fail();
+        Fail(BailoutReason::Node);
         return;
       }
       Expression(node);
@@ -857,7 +857,7 @@ void Compiler::StoreToMember(const Node& target) {
 void Compiler::BindTarget(const Node& target, bool declare, bool is_const) {
   const CompileDepth depth(state_, kMaxCompileDepth);
   if (depth.Exceeded()) {
-    Fail();
+    Fail(BailoutReason::Depth);
     return;
   }
   switch (target.kind) {

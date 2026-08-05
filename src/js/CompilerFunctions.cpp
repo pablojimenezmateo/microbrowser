@@ -83,7 +83,7 @@ bool CreatesClosure(const Node& node) {
 void Compiler::Function(const Node& node, bool arrow) {
   const CompileDepth depth(state_, kMaxCompileDepth);
   if (depth.Exceeded()) {
-    Fail();
+    Fail(BailoutReason::Depth);
     return;
   }
   const Node* parameters = node.Child(0);
