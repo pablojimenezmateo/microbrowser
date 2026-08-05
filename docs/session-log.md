@@ -1377,3 +1377,42 @@ is allowed to load.
   brace at depth 1, which resets the statement start, so the `) const;` that follows is counted as a
   field. `= std::string_view()` is the spelling that does not. Worth knowing before the next budget
   argument, because the symptom is a class that appears to have one more member than it has.
+
+## Session 16 — history and the SPA URL · 2026-08-05 (in progress)
+
+**Status:** in_progress
+
+**Check:** not run. The session's check is "reddit's route changes update the URL bar and Back
+returns; the origin tests reject a different port, a `data:` URL and a `javascript:` URL", and none
+of it is reachable yet — `history` is not bound and `pushState` does not exist.
+
+**Landed:**
+
+- *The structured clone algorithm, as bytes, because a history entry outlives its document* —
+  `src/js/StructuredClone.{h,cpp}`, `tests/StructuredCloneTests.cpp`.
+
+**Left:** the history model itself. `docs/roadmap-sessions.json` session 16 `notes` carries the
+five decisions that are already made and should not be re-derived — the entry shape, the
+`HistorySource` inversion and *why* the origin check has to sit on the engine side of it, the
+memoization `history.state` needs, the two IPC messages and the `src/ui` deletion, and the
+`<base href>`-versus-address question `pushState` raises inside `DocumentPolicy`.
+
+**Found:**
+
+- **ADR 0026 §1's "structured-clone bytes, not a live object" is a precondition, not a detail.**
+  Nothing in this repository could serialize a value, so the history entry could not be written
+  before this existed. It also turns out to be most of session 38 and all of ADR 0021's storage
+  format, which is why it landed as its own commit rather than inside a history change.
+- **A Set's `#entries` holds one-element arrays, not bare values.** `Collections.cpp` builds a
+  Map's pair and a Set's member with the same `NewArrayValue`, so a serializer that wrote the
+  entry directly produced a clone whose `size` was right and whose `has` was false — a wrong
+  answer that no test of the size or the contents would have caught.
+- **Anything a deserializer allocates has to be rooted while it is being built.** Rebuilding a Map
+  calls the page's own `set`, the collector runs at every call, and a `js::Value` in a C++ field is
+  invisible to it. A JavaScript array hung off the global holds the half-built graph, which is the
+  same fix `src/bindings` uses for the same reason. This was a segfault, not a wrong answer.
+- **`Object::Get` hands back a pointer into a property table.** Holding one across a call into the
+  page is holding it across a possible collection and rehash. Two call sites here copied by value.
+- **A test's failure message is evaluated eagerly.** `Expect(ok, "…" + ToString(value))` on a
+  self-referential array recurses until the stack ends, so a test file about cycles cannot
+  stringify its own fixtures unconditionally. The crash looked like a bug in the code under test.
