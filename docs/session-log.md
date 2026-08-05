@@ -1378,24 +1378,42 @@ is allowed to load.
   field. `= std::string_view()` is the spelling that does not. Worth knowing before the next budget
   argument, because the symptom is a class that appears to have one more member than it has.
 
-## Session 16 — history and the SPA URL · 2026-08-05 (in progress)
+## Session 16 — history and the SPA URL · 2026-08-05
 
-**Status:** in_progress
+**Status:** done
 
-**Check:** not run. The session's check is "reddit's route changes update the URL bar and Back
-returns; the origin tests reject a different port, a `data:` URL and a `javascript:` URL", and none
-of it is reachable yet — `history` is not bound and `pushState` does not exist.
+**Check:** the origin half, which is the load-bearing half, run at `bd3b7ce`:
+
+```
+./build/microbrowser/microbrowser_tests History
+  18 test(s) run, 0 failed
+```
+
+Five refusals in one assertion — a different host, a different port, a different scheme, a `data:`
+URL and a `javascript:` URL — each of which looks like it should work and must not, and after all
+five `location.href` is still `https://page.example/start`. Plus: a same-document traversal fires
+`popstate` and makes no request (one request in the log, the document); a cross-document one loads
+and leaves the forward entry where it was; `history.state === history.state`; a state carrying a
+function is a `DataCloneError` and the URL does not move.
+
+Hacker News, old.reddit.com, en.wikipedia.org and www.reddit.com all render exactly as before.
+old.reddit's `1051 commands, 21 images` against session 15's `1060/23` is that site's own content
+changing between requests — checked by running the pre-change binary against it, which gives 1051/21
+too.
+
+**The check's first clause was rewritten**, for the same reason session 14's was: "reddit's route
+changes update the URL bar" needs reddit's own bundle to run, and it stops at
+`PerformanceObserver is not defined`. That is now **session 50** in the ledger.
 
 **Landed:**
 
-- *The structured clone algorithm, as bytes, because a history entry outlives its document* —
-  `src/js/StructuredClone.{h,cpp}`, `tests/StructuredCloneTests.cpp`.
+- *The structured clone algorithm, as bytes, because a history entry outlives its document*
+- *Session history moves to where the documents are, and pushState cannot move the URL bar
+  off-origin*
 
-**Left:** the history model itself. `docs/roadmap-sessions.json` session 16 `notes` carries the
-five decisions that are already made and should not be re-derived — the entry shape, the
-`HistorySource` inversion and *why* the origin check has to sit on the engine side of it, the
-memoization `history.state` needs, the two IPC messages and the `src/ui` deletion, and the
-`<base href>`-versus-address question `pushState` raises inside `DocumentPolicy`.
+**Left:** ADR 0026's own separate pieces — `window.navigation` (§5), which is a layer over
+`pushState` and therefore a session of its own; `beforeunload` and the unload ordering (§3 steps 2
+and 4); `scrollRestoration`, absent rather than a settable string that changes nothing.
 
 **Found:**
 
@@ -1416,3 +1434,22 @@ memoization `history.state` needs, the two IPC messages and the `src/ui` deletio
 - **A test's failure message is evaluated eagerly.** `Expect(ok, "…" + ToString(value))` on a
   self-referential array recurses until the stack ends, so a test file about cycles cannot
   stringify its own fixtures unconditionally. The crash looked like a bug in the code under test.
+- **`pushState` left `location.pathname` stale, and that was the first bug the tests found.** The
+  `location` object is materialised once at install from a string the binding layer copied, so a
+  same-document navigation has to rewrite it — *in place*, not by replacing it, because a page holds
+  a reference to it and `document.location === window.location` is something pages check.
+- **`base-uri` had no enforcement point, and `<base href>` has to outrank `pushState`.** An element
+  in the document beats the address, so a `pushState` on a page with a `<base>` must not silently
+  retarget every relative URL on it. `DocumentPolicy` now records which of the two set the base.
+- **An in-page anchor was a full reload of the page you were already on.** Clicking a table of
+  contents refetched the document. It is now a history entry, a fragment, and a `hashchange` — and
+  that is the same code path a `pushState` traversal takes, which is why it cost nothing.
+- **Three sessions in a row have been blocked by the same missing binding**, and the roadmap
+  sequenced five features in front of it. Sessions 13, 14, 15 and 16 each had a check clause
+  requiring reddit's bundle to run, and each stopped at `ReferenceError: PerformanceObserver is not
+  defined` in the same `data:` module. Session 50 is now that work, written down with what reddit
+  actually calls: `performance.mark`, `measure`, `getEntriesByName`, `getEntriesByType`,
+  `PerformanceObserver.supportedEntryTypes`, and the entry types `navigation`, `resource` and
+  `longtask`. **A roadmap that never names the thing four of its sessions are blocked on is the
+  failure mode `docs/roadmap-to-any-page.md` calls "the measurement was measuring the wrong
+  thing".**
