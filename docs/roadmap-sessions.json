@@ -76,8 +76,9 @@
       "adr": "0023 §4",
       "anchor": "### Session 6 — picking the right image",
       "scope": "srcset, sizes, <picture>. loading=\"lazy\" waits for session 12.",
-      "check": "A high-density snapshot picks the 2x candidate.",
-      "status": "not_started"
+      "check": "tools/srcset-check.sh: renders a data: document whose two candidates are data: PNGs at 1x and 2x, at both densities, and reads the pixels back. PASS on 2026-08-05.",
+      "status": "done",
+      "notes": "srcset (x and w descriptors), sizes, and <picture> with type and media, in engine/ImageSelection.cpp -- beside FormAlgorithms, because choosing a candidate needs a media condition and a CSS length and src/html may name only util, url and dom. The media query evaluator is css/MediaQuery.{h,cpp} and is new: this browser had no parenthesised media conditions at all. layout::ImageProvider gained ImageForElement; Page selects once per CollectImages and records the URL per element, so a viewport change does not re-select (the new candidate's bytes were never fetched). The roadmap's check named no page: old.reddit.com has zero srcset and zero <picture>, so the check is a data: document, corroborated on wikipedia (420,240 JPEG pixels decoded at 2x against 228,500 at 1x). Not done, deliberately: loading=lazy (session 12), density-scaled intrinsic sizes (nothing in the paint path scales by the device ratio yet), calc() in a sizes value."
     },
     {
       "id": 7,
@@ -476,6 +477,16 @@
       "anchor": "## Phase E — any page",
       "scope": "7 occurrences and the largest implementation on the storage list; here because \"any page\" eventually means one that uses it.",
       "check": null,
+      "status": "not_started"
+    },
+    {
+      "id": 49,
+      "phase": "A",
+      "title": "@media, which has been dropping every rule inside a parenthesised prelude",
+      "adr": "0014",
+      "anchor": null,
+      "scope": "Wire css::MediaQueryListMatches (landed in session 6) into StyleSheet.cpp's MediaListItemMatches, which today accepts only a bare `screen` or `all` and so drops the whole block of any `@media (min-width: ...)` rule. ADR 0014 counts @media at 791 occurrences and marks it supported; it is not. Needs the viewport in the cascade, which is the same MediaContext Page already holds, and a snapshot of old.reddit.com and wikipedia before and after -- this changes which declarations apply to every page ever rendered, which is why session 6 wrote the evaluator and did not turn it on.",
+      "check": "old.reddit.com and en.wikipedia.org render at 1280 and at 500 CSS pixels wide and differ, and neither regresses at 1280.",
       "status": "not_started"
     }
   ]

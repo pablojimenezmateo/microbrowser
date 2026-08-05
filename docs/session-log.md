@@ -454,3 +454,96 @@ crash**; the corpus grew to 414 inputs and 884 coverage edges and stopped findin
   the entropy-coded bit stream (no framing, ends wherever a 0xFF says) against the container
   of marked segments (lengths, tables, a frame description). They fail differently and read
   differently. Raising the cap would have hidden a seam that was already there.
+
+## Session 6 — picking the right image · 2026-08-05
+
+**Status:** done
+**Check:** `tools/srcset-check.sh`, written this session because the roadmap's check ("a
+high-density snapshot picks the 2x candidate") named no page and no page on the compatibility
+list uses `srcset` in markup this browser can reach. It renders a `data:` document whose two
+candidates are `data:` PNGs — a 20x20 red one at 1x and a 40x40 blue one at 2x — at both
+densities, and reads the pixels back:
+
+```
+=== device pixel ratio 1 ===        === device pixel ratio 2 ===
+  [  1] Image      0,0 20x20          [  1] Image      0,0 40x40
+  [  2] Image     20,0 20x20          [  2] Image     40,20 20x20
+  ok   at 1x the img picks the 1x candidate: (220, 20, 20)
+  ok   at 2x the img picks the 2x candidate: (20, 20, 220)
+  ok   at 1x the picture falls back to the img: (220, 20, 20)
+  ok   at 2x the picture still declines the webp source: (220, 20, 20)
+PASS
+```
+
+The corroborating measurement is a real page. `en.wikipedia.org/wiki/Main_Page` uses `srcset`
+19 times and `<picture>` twice, and the same document decodes **420,240 JPEG pixels at 2x
+against 228,500 at 1x**, and **175,081 PNG pixels against 22,321** — the larger candidates are
+being fetched and decoded, not merely parsed. old.reddit.com is unchanged: 24 images loaded, 1
+failed (the GIF), the same numbers session 5 recorded.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each. `image_selection_fuzzer` over
+its seven seeds: **2,355,500 runs in 301 seconds, no crash**, corpus grown to 4,755 inputs.
+
+**Landed:**
+
+- *A media query is a question about the viewport, and something now answers it*
+- *An <img> may name several images, and the viewport decides which one arrives*
+
+**Left:**
+
+- **`@media` still does not use the evaluator this session wrote.** See Found — it is the
+  single highest-value thing left in the CSS module and it is now four lines of wiring plus a
+  session's worth of looking at what moved.
+- **A selected candidate's density does not scale its intrinsic size, deliberately.** The spec
+  says a 40x40-pixel image chosen at 2x is 20x20 CSS pixels. Doing that today would make it
+  *paint* at 20x20 device pixels, because nothing in the paint path scales by the device ratio
+  (see Found). The two wrongs currently cancel on screen and disagree in layout, which is the
+  better half to be wrong in until the paint path is fixed.
+- **Re-selection on a viewport change does not happen.** `Page::CollectImages` selects once, at
+  load and whenever a stylesheet arrives. A resize afterwards keeps the old candidate, because
+  the new one's bytes were never fetched and swapping the URL would produce an empty box where
+  an image was. Session 12's lazy-image work is where a second fetch pass belongs.
+- **`loading="lazy"` is untouched**, as ADR 0023 §4 and the roadmap both say: it is an
+  `IntersectionObserver` against the scrollport and it waits for sessions 8 and 12.
+- **`calc()` in a `sizes` value resolves to nothing** and the entry is skipped. `css::Calc.h` is
+  private to the css module and a `sizes` length needs viewport units the cascade's `Length`
+  cannot hold; the honest failure is to fall through to the next entry or the 100vw default.
+
+**Found:**
+
+- **`@media (min-width: 600px) { … }` has been dropping every rule inside it, on every page,
+  for as long as `@media` has been parsed.** `MediaListItemMatches` in `css/StyleSheet.cpp`
+  accepts a media list item only when it is exactly one Ident token — `screen`, `all` — so any
+  prelude with a parenthesis in it is false and `ParseRuleList` is never called for the block.
+  ADR 0014 counts `@media` at **791 occurrences** and marks it "yes". It is not yes. This
+  session wrote the evaluator that fixes it and deliberately did not wire it in: turning it on
+  changes which declarations apply to every page this browser has ever rendered, and that is a
+  session with a snapshot on either side of it, not a footnote in an image session. **It is
+  session 49 in the ledger.**
+- **The device pixel ratio has no effect on painting at all.** `Engine::SetViewport` stores it,
+  `LayoutAndPaint` divides the viewport width by it, and nothing else reads it: a display list
+  is in CSS pixels and the canvas treats them as device pixels. So `-dpr 2` lays the page out
+  at half the width and draws it in the top-left quarter of the canvas. That is why `-dpr` is
+  documented as "which srcset candidate an `<img>` picks" rather than as a HiDPI switch, and it
+  is why intrinsic-size scaling is in Left rather than in this diff.
+- **A `srcset` is separated by whitespace, and the comma is the trap.** `a.png,b.png 2x` is
+  *one* candidate whose URL contains a comma, and the spec is explicit about it because
+  CDN URLs contain commas — reddit's preview service produces them, and so does wikimedia's
+  thumbnailer. The obvious implementation (split on commas, then on whitespace) turns that into
+  two candidates and fetches neither. Both forms have a test.
+- **The compatibility targets do not exercise this feature in markup we can reach.**
+  old.reddit.com has **zero** `srcset` and zero `<picture>`; `www.reddit.com` returns an 8KB
+  challenge to curl, and ADR 0023's "6 uses of `srcset`" comes from the 405KB document behind
+  it. The feature is right and it is on the roadmap for a real reason, but the page that
+  proves it is wikipedia's, not reddit's, and the check had to be built rather than found.
+- **A `<source type>` this browser cannot decode is a fork in the road, not a filter.** The
+  list of decodable MIME types and the magic-number sniffing in `Engine::DecodePendingImages`
+  are the same fact stated twice, and there is no way to derive one from the other — a MIME
+  type is not a magic number. `ImageSelectionTests` asserts the list exhaustively so that
+  landing GIF fails a test that points at the other copy, which is the cheapest honest version
+  of keeping them in step.
+- **GCC's `maybe-uninitialized` fires on `std::optional<float>` at -O2 and not at -O0**, so it
+  appeared only in the asan log after the debug build and the whole test suite were green. The
+  fix was to return a `bool` and an out-parameter from the two functions that get inlined into
+  every feature comparison. Worth knowing before spending an hour on a diagnostic that names an
+  offsetof into an optional's storage.
