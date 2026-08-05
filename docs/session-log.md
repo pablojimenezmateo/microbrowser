@@ -1687,3 +1687,40 @@ declarative shadow DOM (`<template shadowrootmode>` — §1 groups it with sessi
   "which root did this rule come from" is neither. `StyleResolver::ScopeAdmits` answers both, and the
   bare `:host` needed its own selector *kind* rather than a pseudo-class name the matcher
   special-cases — otherwise the purity rule would have been broken to make it work.
+
+## Session 19 — web fonts, @font-face · 2026-08-05
+
+**Status:** done
+
+**Check:** 6 assertions in `tests/WebFontTests.cpp` plus 5 in `tests/CssTests.cpp`; 1558 tests, 0
+failed; asan clean. Hacker News, old.reddit.com and wikipedia render unchanged.
+
+**Landed:**
+
+- *@font-face, parsed as the descriptor block it is*
+- *A declared face is fetched and registered, and a WOFF2 is not fetched at all*
+
+**Left:** `font-display` is parsed and not honoured — *when a browser paints* is a paint decision and
+belongs where the first paint is gated, not in the font loader. `unicode-range` is recorded as a
+bool rather than a range, for the reason below.
+
+**Found:**
+
+- **The measurement that says where ADR 0024's value actually is:** `gfx.web_fonts_registered` is
+  **zero** on Hacker News, old.reddit.com and wikipedia. None of them has a *decodable* `@font-face`,
+  because the web ships WOFF2. So this session built the machinery and session 20 — brotli and the
+  WOFF2 container — is what makes it visible. The machinery is what will make that landing observable
+  the moment it happens, which is the right order: a decoder with nothing wired to it proves nothing.
+- **`Engine::IsLoading()` had gained `module_fetches_` and not `font_fetches_`.** So the loop stopped
+  turning while a font was in flight and the request never went out — zero requests with the face
+  parsed perfectly, which is exactly the shape that sends you looking at the parser for an hour. The
+  probe that found it printed the parsed face and the started request id, and the absence of a
+  *third* probe line was the answer. Worth remembering: when a fetch is started and nothing arrives,
+  the question is not "was it refused" but "did anything ask the loop to keep going".
+- **`unicode-range` cannot be kept as text at this layer.** A declaration value arrives reconstructed
+  from tokens and `U+0000-00FF` comes back as `U00FF`. Keeping the mangled string would be keeping a
+  lie the next reader trusts, so what is kept is the one thing that is true: the face covers part of
+  the alphabet and is therefore not a complete substitute for the family.
+- **`local(...)` is skipped rather than answered**, and that is a privacy decision: answering it from
+  the system font database would let a page ask which fonts are installed, which is the
+  fingerprinting surface ADR 0029 prices separately. The URL sources beside it still work.
