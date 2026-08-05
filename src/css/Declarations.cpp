@@ -562,6 +562,9 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
   // means a missing module rather than a bigger file. These are the properties
   // that arrived together and are read together, so they are the ones that
   // move.
+  if (ApplyTransformDeclaration(property, value, parent, style)) {
+    return true;
+  }
   if (ApplyBoxDeclaration(property, value, parent, style)) {
     return true;
   }

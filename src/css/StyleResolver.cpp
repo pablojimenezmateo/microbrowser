@@ -232,6 +232,12 @@ bool PropertyAffectsLayout(std::string_view property) {
       "outline-color",    "outline-offset",        "outline-style",
       "outline-width",    "text-decoration",       "text-decoration-color",
       "text-decoration-line", "text-decoration-style", "text-shadow",
+      // `transform` is paint-only, and this is the line that makes a hover worth
+      // having: a transformed box occupies exactly the space it would have occupied
+      // untransformed, so `a:hover { transform: scale(1.05) }` costs a repaint of a
+      // rect rather than a relayout of the page. It is also why the display list
+      // carries the matrix instead of layout carrying the geometry.
+      "transform",        "transform-origin",
       "visibility",
   };
   return std::find(std::begin(kPaintOnly), std::end(kPaintOnly), property) ==

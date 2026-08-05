@@ -1,10 +1,13 @@
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "TestSupport.h"
+#include "css/ComputedStyle.h"
+#include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "css/Tokenizer.h"
 #include "dom/Node.h"
@@ -12,6 +15,8 @@
 
 namespace microbrowser::tests {
 
+using css::ApplyDeclaration;
+using css::ComputedStyle;
 using css::Declaration;
 using css::ParseDeclarationList;
 using css::ParseSelectorList;
@@ -587,6 +592,93 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     const StyleSheet other = ParseStyleSheet("p { font-family: u }");
     ExpectEqInt(static_cast<long long>(other.rules.size()), 1, "an ordinary rule");
     ExpectEqString(other.rules.at(0).declarations.at(0).value, "u", "keeps its value");
+  });
+
+  AddTest(tests, "Css/TransformIsParsedAsOperationsRatherThanAMatrix", [] {
+    const StyleSheet sheet = ParseStyleSheet(
+        "p { transform: translate(10px, 50%) rotate(90deg) scale(2) }");
+    const std::vector<Declaration>& declarations = sheet.rules.at(0).declarations;
+    ComputedStyle parent;
+    ComputedStyle style;
+    Expect(ApplyDeclaration(declarations.at(0), parent, style),
+           "the declaration applies");
+    ExpectEqInt(static_cast<long long>(style.transform.operations.size()), 3, "three operations");
+    // Kept as operations because a percentage translation resolves against the box's
+    // own border box, which the cascade does not know -- and because interpolating a
+    // rotation needs the rotation rather than the matrix it became.
+    const css::TransformOperation& translate = style.transform.operations.at(0);
+    Expect(translate.kind == css::TransformOperation::Kind::Translate, "translate first");
+    ExpectEqInt(static_cast<long long>(translate.length_x.value), 10, "10px");
+    Expect(translate.length_y.IsPercent(), "and a percentage that stayed one");
+    const css::TransformOperation& rotate = style.transform.operations.at(1);
+    Expect(rotate.kind == css::TransformOperation::Kind::Rotate, "then rotate");
+    Expect(std::abs(rotate.a - 1.5707964f) < 1e-5f, "90deg is a quarter turn in radians");
+    const css::TransformOperation& scale = style.transform.operations.at(2);
+    // `scale(2)` is uniform where `translate(10px)` leaves the other axis at zero:
+    // the two functions disagree about a missing argument, and both are tested.
+    Expect(scale.kind == css::TransformOperation::Kind::Scale, "then scale");
+    Expect(scale.a == 2.0f && scale.b == 2.0f, "which is uniform from one argument");
+  });
+
+  AddTest(tests, "Css/OneBadFunctionDropsTheWholeTransform", [] {
+    // The specification's error rule, and the safe direction: half a transform puts
+    // the box somewhere the author never wrote, while a dropped one leaves it where
+    // layout put it.
+    ComputedStyle parent;
+    ComputedStyle style;
+    Expect(!ApplyDeclaration(Declaration{"transform", "translate(10px) rotate(oops)"}, parent, style),
+           "the declaration is refused");
+    Expect(style.transform.IsNone(), "and nothing of it was kept");
+    // 3D is refused rather than flattened. `rotateY(90deg)` flattened to 2D is a box
+    // at full width where the page meant an edge-on sliver -- a wrong page rather
+    // than a missing effect.
+    Expect(!ApplyDeclaration(Declaration{"transform", "rotateY(90deg)"}, parent, style), "3D is refused");
+    Expect(!ApplyDeclaration(Declaration{"transform", "translate3d(1px, 2px, 3px)"}, parent, style),
+           "including the translate that looks 2D");
+    Expect(style.transform.IsNone(), "and none of it applied");
+  });
+
+  AddTest(tests, "Css/ATransformResolvesAboutItsOriginAndNotTheBoxCorner", [] {
+    // The default origin is the centre of the border box, which is why a rotation
+    // looks right without the author saying anything -- and why applying the origin
+    // is `TransformList`'s job rather than each caller's.
+    ComputedStyle style;
+    ComputedStyle parent;
+    Expect(ApplyDeclaration(Declaration{"transform", "rotate(90deg)"}, parent, style), "rotate applies");
+    const gfx::FloatSize size{100.0f, 40.0f};
+    const gfx::FloatPoint centre{50.0f, 20.0f};
+    const gfx::AffineTransform about_centre = style.transform.ToMatrix(size, centre, 16.0f);
+    const gfx::FloatPoint mapped = about_centre.MapPoint(centre);
+    Expect(std::abs(mapped.x - centre.x) < 1e-3f && std::abs(mapped.y - centre.y) < 1e-3f,
+           "the origin is the one point a rotation leaves alone");
+    // And the same rotation about the corner moves the centre, which is the
+    // difference `transform-origin` names.
+    const gfx::AffineTransform about_corner =
+        style.transform.ToMatrix(size, gfx::FloatPoint{0.0f, 0.0f}, 16.0f);
+    const gfx::FloatPoint moved = about_corner.MapPoint(centre);
+    Expect(std::abs(moved.x - centre.x) > 1.0f || std::abs(moved.y - centre.y) > 1.0f,
+           "about the corner it does not");
+  });
+
+  AddTest(tests, "Css/TransformOriginTakesKeywordsAndOneValueMeansCentredVertically", [] {
+    ComputedStyle style;
+    ComputedStyle parent;
+    Expect(ApplyDeclaration(Declaration{"transform-origin", "left top"}, parent, style), "keywords");
+    Expect(style.transform_origin_x.IsPercent() && style.transform_origin_x.value == 0.0f, "left");
+    Expect(style.transform_origin_y.IsPercent() && style.transform_origin_y.value == 0.0f, "top");
+    Expect(ApplyDeclaration(Declaration{"transform-origin", "10px"}, parent, style), "one length");
+    ExpectEqInt(static_cast<long long>(style.transform_origin_x.value), 10, "x is the length");
+    Expect(style.transform_origin_y.IsPercent() && style.transform_origin_y.value == 50.0f,
+           "and the missing axis is centred rather than zero");
+  });
+
+  AddTest(tests, "Css/TransformIsPaintOnlyAndTheInvalidationIndexKnowsIt", [] {
+    // ADR 0016 §3. A transformed box occupies the space it would have occupied
+    // untransformed, so a `:hover` rule that only transforms must not relayout the
+    // page -- which is most of what makes `transform` worth having over `top`/`left`.
+    Expect(!css::PropertyAffectsLayout("transform"), "transform is paint-only");
+    Expect(!css::PropertyAffectsLayout("transform-origin"), "and so is its origin");
+    Expect(css::PropertyAffectsLayout("width"), "while width is not, for contrast");
   });
 
   AddTest(tests, "Css/AFontFaceWithNoFamilyOrNoSourceIsSkipped", [] {

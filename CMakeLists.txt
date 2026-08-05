@@ -235,7 +235,8 @@ microbrowser_module(css
     src/css/SelectorParse.cpp
     src/css/StyleResolver.cpp
     src/css/StyleSheet.cpp
-    src/css/Tokenizer.cpp
+    src/css/TransformDeclarations.cpp
+  src/css/Tokenizer.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_gfx)
 
 microbrowser_module(html
