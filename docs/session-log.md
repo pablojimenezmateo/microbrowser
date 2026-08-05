@@ -643,3 +643,92 @@ render as session 6 left them — checked by looking at the images, not by count
   the measured number back into a second element's width, and reading it off the display list
   with `-v`, is the way to make a script's result observable from the command line — worth
   remembering for every later session whose check is about a number rather than a picture.
+
+## Session 8 — the scroll model · 2026-08-05
+
+**Status:** done
+**Check:** the ledger's check needs `MICROBROWSER_TRACE_REDRAW=1` and a wheel event, and the
+browser's copy of that trace lives in `Application::PaintAndPresent` — which needs a display this
+machine does not have. So the trace was added to `microbrowser_snapshot`, which already takes `-y`
+and already sends a `ScrollMessage`. On a page with a `position: sticky; top: 0` header over three
+400px blocks, at 1280x900:
+
+```
+$ MICROBROWSER_TRACE_REDRAW=1 microbrowser_snapshot <page> -o out.ppm -y 53
+[redraw] partial rects=1 coverage=100.0% surface=1280x900 scroll=0,0 commands=1
+[redraw] partial rects=1 coverage=100.0% surface=1280x900 scroll=0,0 commands=9
+[redraw] partial rects=2 coverage= 10.3% surface=1280x900 scroll=0,-53 commands=9
+```
+
+Two frames of load at 100%, then the scroll at **10.3%** — a 1280x53 band (5.9%) plus the sticky
+header's own strip (4.4%). Before this session every scroll printed 100%. The image after the
+scroll has the red header at y=0 with the second block under it, so the header sticks; the check's
+second half was verified by looking at the picture, not by counting commands.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each. Hacker News and old.reddit.com
+were rendered and looked at before and after.
+
+**Landed:**
+
+- *A box may be scrolled, and sticky stops being relative with the truth left out*
+- *A page may ask where it has scrolled to, and move it, and be told once per frame*
+- *A scroll is a wheel over a box, and a frame that is the last one moved*
+- *Fourteen ways for a scroll to become a layout again, each with a test*
+
+**Left:**
+
+- **No scrollbars are painted.** ADR 0018's consequence list calls them the first thing this
+  browser draws that is neither page content nor browser chrome, and says they belong to
+  `src/layout` plus `src/gfx` rather than to `src/ui`. Nothing here draws one, and `clientWidth`
+  therefore does not subtract one — which is currently correct and will silently stop being so on
+  the day one appears.
+- **No smooth scrolling.** `scroll-behavior: smooth` and the smooth flag on `scrollTo` are ignored;
+  every scroll is a jump. That is a missing behaviour rather than a stub, and ADR 0018 §3 has the
+  design: an animation registered the way `bindings::AnimationFrames` registers one, running while
+  it runs and then stopping.
+- **The viewport scrolls vertically only.** Layout never exceeds the viewport width, so there is no
+  horizontal document overflow to reach; a *box* scrolls both axes and is tested doing it.
+- **`IntersectionObserver` and `ResizeObserver` are session 12 and are now tractable** — both are
+  "is this box in that scrollport", sampled at the frame this session gave them.
+- **`BoxFor` is still a tree walk per query** (session 7's note), and `scrollTop` now goes through
+  it too. A page reading `scrollTop` in a scroll handler walks the box tree once per frame.
+
+**Found:**
+
+- **Full CSS 2.1 Appendix E paint order was implemented, measured against a real page, and
+  reverted.** Hoisting every positioned box after every in-flow sibling is what the specification
+  says, and it deleted the top row of old.reddit.com: its `#sr-header-area` background is a
+  positioned box in one subtree and the subreddit list is in another, so the background painted over
+  the list. Ordering *between* subtrees is what a stacking context decides and what per-parent tree
+  order cannot express. Only `sticky` and `fixed` are hoisted now, with the reason written where the
+  code is. **That is session 21, and this is the measurement it should start from.**
+- **A sticky box painted in tree order is invisible, not misplaced.** The first attempt had the
+  display list right — `FillPath 0.0,0.0 1280.0x40.0 #FFCC0000` at the top, exactly where it should
+  stick — and the picture had no header in it, because three later siblings drew over it. Reading
+  the display list said the feature worked; looking at the image said it did not. This is the third
+  session in a row where that pair disagreed.
+- **`position: fixed` was scrolling with the page**, and had been since it was implemented. Nothing
+  reported it because nothing scrolled far enough to notice, and the fix is one line in the paint
+  recursion. Its *containing block* is still the nearest positioned ancestor rather than the
+  viewport, which is wrong and is layout's half of the same bug; it only shows on a fixed box
+  underneath a positioned one.
+- **`DispatchEventTo` reports `preventDefault`, not "a listener ran".** For a non-cancelable event
+  those are not the same question, and using the return value as the second would have relaid out
+  the whole document on every wheel notch — the exact cost this ADR exists to avoid. The `scroll`
+  path asks whether anything is listening first, walking the ancestor chain for the `#on:scroll`
+  slot the way `DispatchAtWindow` already did for the window. **Every other caller of
+  `DispatchEventTo` that treats its return value as "something happened" has the same bug waiting.**
+- **Damage that over-reports is safe and still worth bounding.** A sticky box's damage is the strip
+  between where the flow put it and where it sticks, and most of that strip is off screen: reporting
+  it unclipped turned a 40-pixel header on a 900-pixel window into 38% of the surface — true,
+  useless, and a 3.7x pessimisation of the number the check reads.
+- **The paint is partial and the texture upload is still whole**, and that is not a shortcut. A
+  streaming texture cannot be told its contents slid, so the pixels that moved have to be re-sent.
+  Rasterizing paths, glyphs and images is the expensive half; a full-surface upload is a memcpy.
+  Two flags on `Application` and not one, because conflating them either repaints the window or
+  leaves the texture one scroll out of step with the canvas.
+- **The `check` in the ledger named a tool that could not run it.** `MICROBROWSER_TRACE_REDRAW` was
+  a browser-only flag, and the browser needs a display and a wheel. Sessions 9–12 all have checks
+  phrased as interactions ("typing in reddit's search box works", "Escape closes a menu"); each of
+  them needs an input path into `microbrowser_snapshot` that does not exist yet, and writing one is
+  probably session 9's first deliverable rather than a surprise at its end.
