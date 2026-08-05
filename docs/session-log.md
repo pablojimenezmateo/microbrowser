@@ -1863,3 +1863,91 @@ it. 6.3M woff2 fuzz runs and 2M sfnt runs, ASan and UBSan clean, 1576 tests.
 
 Still refused: the `hmtx` transform, which no measured font uses, and which would
 mean reading every glyph's bounding box back out of the `glyf` just rebuilt.
+
+### `transform` and stacking contexts · 2026-08-06 (session 21)
+
+Four commits: `a644836` the property, `6dbb25a` the display-list command,
+`04e4f8d` stacking contexts and `z-index`, `8e9affc` hit testing.
+
+**The value is stored as the operations the author wrote and not as a matrix**, and
+the reason generalises: a matrix cannot hold `translate(50%)`, whose percentage
+resolves against the box's own border box — something the cascade does not know and
+layout has not decided. The second reason is session 35's: interpolating
+`rotate(0deg)` to `rotate(90deg)` means interpolating the *rotation*, because
+interpolating those two matrices component-wise gives something that is not a
+rotation at all. `Length` moved into its own header to break the include cycle that
+storing a transform on `ComputedStyle` created — a length was the one type in that
+file with no dependency on the rest of it.
+
+Two error rules, both the specification's and both in the safe direction. One
+unparsable function drops the whole declaration, because half a transform puts the
+box somewhere the author never wrote while a dropped one leaves it where layout put
+it. And **3D is refused rather than flattened**: `rotateY(90deg)` flattened to 2D is
+a box at full width where the page meant an edge-on sliver, which is a wrong page
+rather than a missing effect. Flattening is the tempting thing for a 2D engine to do
+and it is the wrong thing.
+
+**How much of this already worked.** Paths and text go through the rasterizer, which
+has taken a transform since M1 — so rotated and skewed *text* worked the moment the
+command existed, glyph outlines and all. What did not: images honoured only the
+translation, and now sample through the inverse matrix (backwards, destination to
+source, because walking the source forwards leaves holes between the pixels it
+writes). A clip is still the bounding box of the rotated rectangle, because a canvas
+clip is a rectangle and the alternative is a per-pixel mask; it errs wide, which
+keeps a page readable rather than blank.
+
+The matrix is named by index into a side table, like a path, because six floats plus
+the variant tag is over `DisplayCommand`'s 24-byte budget and that budget is paid on
+every command on the page. A first version dropped an *identity* push to save two
+commands and a test caught it within a minute: dropping the push made it conditional
+while the pop stayed unconditional, and a pop that outlives its push restores a
+transform the list never saved — which is how the page ends up painted at the wrong
+origin under the browser chrome. Whether an identity transform is worth a pair of
+commands is the builder's question, and the builder does not emit one.
+
+**The stacking-context model took two wrong versions, and both were found by
+rendering rather than by a test.** The distinctions are subtle to state and not at
+all subtle to see:
+
+1. **A unit is not a context.** A positioned or transformed box is *collected* into
+   its ancestor context's z-ordered buckets; it becomes a context itself only with a
+   transform or an explicit `z-index`. The first version let every ancestor collect,
+   which paints each descendant once per ancestor — a page drawn three times over,
+   visible immediately in `-v` as the same three commands repeated.
+2. **The collect walk descends through a non-context unit.** `z-index: auto` means
+   "order me, but let my own positioned descendants be ordered against my siblings"
+   (CSS 2.1 E.2). Stopping at the unit left those descendants collected by nobody,
+   and old.reddit.com went from 1055 display-list commands to **40** — because nearly
+   everything on that page is inside a positioned box with no z-index. The command
+   count was what caught it; the page still had a plausible-looking header.
+
+Collecting has to be a separate walk from painting, and that is the shape of
+Appendix E rather than a preference: a negative layer paints *before* the in-flow
+content of the box it is in, and the units that belong in it can be arbitrarily deep
+in subtrees whose content paints after. One traversal cannot produce that order.
+
+The two-pass sticky/fixed hoist this replaces had a comment saying that hoisting
+`relative` and `absolute` too had been tried and broke old.reddit.com. That comment
+named this session, and it was right about the cause: ordering between subtrees is
+what a stacking context decides. Both of its cases now fall out of the general rule.
+
+**An anonymous box carries a copy of its parent's style.** A transformed `<div>` with
+text in it pushed the same matrix three times — once for the div and again for each
+generated wrapper — and applied it three times over. Emission is restricted to boxes
+that came from an element. This is the second time this session that "a generated box
+looks like its parent" cost an hour; the first was session 19's text boxes carrying a
+background.
+
+Hit testing un-maps the pointer through the inverse matrix, in `UntransformedPoint`
+beside `PointInside`, because that function is already the single answer to "how does
+a point change as it enters this box" — scroll offset and clipping were already
+there. All three walks map at entry rather than at their own rectangle test, since a
+transformed box's *own* border box has to be tested against the mapped point too. A
+matrix with no inverse hits nothing, matching what the painter does with it: `scale(0)`
+paints nothing, and a hit test that answered would be an invisible element eating
+clicks.
+
+**youtube.com is still 16 display-list commands, and its blockers are now named** —
+`performance.timing.responseStart`, `canvas.getContext`, and a `prototype` read in
+its webcomponents polyfill. None of them is `transform`. That is what the check for
+this session was measuring against and it belongs to Gate C, not here.
