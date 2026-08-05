@@ -1193,3 +1193,82 @@ no crash and no assertion.
   not name is the thing worth being strict about.
 - **`PerformanceObserver` is what www.reddit.com's script now dies on**, past the challenge and
   past the `fetch`. It is the next name on that page's list, not a CORS problem.
+
+## Session 14 — fragment parsing · 2026-08-05
+
+**Status:** in_progress — the work landed and is verified; the session's `check` cannot be met by
+this session, and it is measuring the wrong thing. See **Found**.
+
+**Check:** `./build/microbrowser/microbrowser_snapshot https://www.reddit.com/ -o /tmp/out.ppm`
+printed `143 commands, 3 runs, 1 fonts, 0 images, title "Reddit - The heart of the internet"`.
+At `896d353` — the commit before this session — the same command printed
+`331 commands, 98 runs, 4 fonts, 10 images`. **The drop is correct**, and the reason is the whole
+of this session's finding.
+
+Everything else run and green: `tools/run-checks.sh tests`, `asan` and `ubsan` all
+`100% tests passed, 0 tests failed out of 24`; `html_fragment_fuzzer` 1,629,116 runs in 61s with
+no finding; `microbrowser_snapshot` on `news.ycombinator.com` (`705 commands, 485 runs, 2 images`)
+and `old.reddit.com` (`1079 commands, 641 runs, 19 images`) byte-identical to `896d353`.
+
+**Landed:**
+
+- *The parser, entered with a context element, and a template whose contents are not its children*
+  — `html::ParseFragment` (§13.2.6), the "in template" insertion mode (§13.2.6.4.4),
+  `dom::Element::Content`, `TreeBuilderTable.cpp`, `fuzz/HtmlFragmentFuzzer.cpp`.
+- *innerHTML, and the three things that were silently not being announced* —
+  `src/bindings/HtmlParsing.cpp`, `template.content`, and the three bugs under **Found**.
+
+**Found:**
+
+- **`<template>` was rendering its own contents, and reddit's front page depended on it.** The
+  element was on the tree builder's unsupported list, so its start tag was dropped and its markup
+  became ordinary document content — styled, laid out, its images fetched. On www.reddit.com that
+  is 729 and 1668 nodes in two `<template for="s_8a5ed_N">` elements, which the page's own
+  `<suspense-replace>` custom element is supposed to hoist. So the sidebar that used to render did
+  so **because of a parser bug**, and the drop from 331 display-list commands to 143 is the bug
+  being fixed. The feed never rendered either way.
+- **The session's check was measuring the wrong thing.** "reddit's feed fills in past the three
+  server-rendered posts" requires reddit's own bundle to run, and it still dies where the previous
+  session left it: `ReferenceError: PerformanceObserver is not defined`, in the same `data:` module,
+  before any `fetch`. Past that it needs the module loader — `Interpreter::SetModuleResolver` is
+  synchronous, which session 15's notes already call out as undecided. Fragment parsing is a
+  precondition for that check, not a cause of it. A check that measures *this* session is a
+  fragment-parsing assertion, and the ones in `tests/TreeBuilderTests.cpp` and
+  `tests/DomBindingsTests.cpp` are that.
+- **Three bugs in the mutation layer, none from this session.** Appending a `DocumentFragment`
+  fired no `connectedCallback` and produced no `childList` record — `InsertNodeBefore` moved the
+  children and returned before reaching either, so a framework that assembles its subtree in a
+  fragment was invisible to every `MutationObserver`. `ClearChildren` announced nothing either, so
+  `el.textContent = ''` disconnected a subtree of custom elements without telling any of them.
+  And `CopyNode` had to learn about template contents in the same commit, or
+  `template.content.cloneNode(true)` — the idiom its own comment names — would have returned an
+  empty template.
+- **Upgrade order is load-bearing and not obvious.** `UpgradeElement` fires `connectedCallback`
+  itself for an element that is *already* in the document, which is what `customElements.define`
+  needs when it walks the page. So a parsed subtree has to be upgraded **before** it is moved into
+  the tree, or the reaction fires twice. The walk is by index rather than by range-for, because an
+  upgrade runs a page's constructor and a constructor that moves a node invalidates an iterator
+  into the list being walked.
+- **A fragment parse's open-element stack needs a floor.** Both inputs are chosen by a page, and
+  the pair a page will find is the one whose end tags unbalance the stack — `</div></div></body>`
+  into a `div` context. Past the bottom, every later node lands in the throwaway document the parse
+  builds into and the caller silently gets fewer nodes than the markup described. `stack_floor_` is
+  that, every pop goes through `PopCurrent`, and the fuzz target asserts the property directly.
+
+**Left:**
+
+- **`DOMParser` is deliberately absent**, though the session's `scope` names it. It returns a
+  *Document*, and `document.getElementById`, `document.body`, `document.head` and `document.title`
+  are bound to the binding layer's one document rather than to their receiver — so a second
+  Document would answer queries about the *main page*. That is worse than absent (ADR 0012), and
+  fixing it means making the whole `document` surface receiver-relative, which is its own change
+  and touches everything in `DocumentBindings.cpp`.
+- **`PerformanceObserver` is still the wall on www.reddit.com**, unchanged from session 13's note.
+  It is on nobody's roadmap and it is what a real reddit check depends on first.
+- **Foreign content is still absent**, and `<template>` leaving the unsupported list makes
+  `<frameset>` the only member. `TreeBuilder/ReportsWhenItNeededAnUnimplementedInsertionMode`
+  changed its subject accordingly, and says so.
+- **The list of active formatting elements does not exist.** The spec's `</template>` clause says
+  "clear the list of active formatting elements up to the last marker", and there is nothing to
+  clear. That is a pre-existing gap — the adoption agency algorithm has never been here — and it
+  is what makes `<b><template>` recovery differ from a real browser's.
