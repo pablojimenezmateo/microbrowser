@@ -928,3 +928,81 @@ half, against the real dispatch algorithm. `Chrome/NothingTypedIntoTheOmniboxRea
   destination is decided per event, so a key pressed while the omnibox had focus and released after
   it lost it delivers its release to the page. Enter is the case. Closing it means state in the
   routing rule, for a keyup with no keydown on a document being navigated away from.
+
+## Session 11 — dynamic pseudo-classes and the invalidation index · 2026-08-05
+
+**Status:** done
+
+**Check:** *"A page with no `:hover` rules does not restyle, does not relayout and does not repaint
+when the pointer crosses it."* Run as
+`StyleInvalidation/MouseCrossingAPageWithNoHoverRulesCostsNothing`, in `tests/StyleInvalidationTests.cpp`
+— twenty-two pointer moves across a loaded page, with `css.styles_resolved`, `layout.runs` and
+`engine.paints_produced` read before and after. All three deltas are **0**, and so is
+`style.hover_hit_tests`: the index is asked before the box tree is walked, so a mouse move on such
+a page does not even hit-test. `tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each.
+
+The check is a unit test because there is no other observable — a browser that restyles the
+document on every mouse move renders identically to one that does not. It lives next to
+`IdleWaitStrategyTests` in spirit and says so in its header comment.
+
+Verified on real pages with the new `microbrowser_snapshot -hover x,y`:
+`nav:hover .menu { display: block }` reveals the menu, `li:hover + li` paints the *next* sibling
+yellow, a link recolours on hover, `:checked + label`, `:disabled`, `:focus`, `:focus-within` and
+`:target` all apply.
+
+**Landed:**
+
+- *A state a selector matches on is a bit on the element, except focus, which is one element on one
+  document* — `dom::ElementState`, the matcher, `Selector::DynamicStates`.
+- *A pointer crossing a page no rule cares about costs a bitmask test* — `css::StyleInvalidation`,
+  `css::PropertyAffectsLayout`, `Page::RestyleWithoutLayout`, the engine's pointer path, five
+  counters.
+- *A pointer may be moved at a page from outside it, and a fragment stops being document content* —
+  `-hover`, and the data-URL fragment bug it found.
+- *The fieldset walk asks only the elements that could be inside one.*
+
+**Found:**
+
+- **Focus must not be a bit, and the enum says so in code rather than in a comment.** ADR 0016 §2
+  says every dynamic state is "a bit on the element". Applied literally that would have put
+  `:focus` back into the shape session 10 removed — two copies of focus, disagreeing about where the
+  next keystroke goes. `dom::ElementState` names all ten states so the index can file a rule under
+  any of them, `kStoredElementStates` names the seven that are stored, and `Element::SetState`
+  **refuses** to write the other three. `DynamicState/FocusComesFromTheDocumentAndNotFromABit` sets
+  the Focus bit and asserts that `:focus` still does not match.
+- **`:disabled`/`:enabled` and `:required`/`:optional` are not complements**, and treating them as
+  such styles the whole page: a `<div>` matches neither, and so does a `<div disabled>`. The tag
+  list is in the matcher, beside `:link`'s `a[href]` test and there for the same reason.
+- **The index is per-*state*, not per-element, and that is the measured cost.** On Hacker News one
+  rule — `pre:hover { overflow: auto }` — makes **every** hover anywhere on the page a full
+  relayout, because `overflow` is layout-affecting and `Hover` is therefore in the layout set.
+  Three dynamic rules out of 182 on HN; 387–977 out of 4901–7640 on old.reddit (the page varies).
+  ADR 0016 §3's table asks for "E, plus the subtree reachable by the combinators", which is element
+  granularity; what landed is document granularity. Closing that gap needs the *last compound* of
+  each rule indexed by tag/class/id as well as by state, and it only helps the style half —
+  `layout::LayoutEngine` has no partial layout, so a layout-affecting hover relays out the document
+  either way.
+- **A data URL's fragment was being decoded as body.** `data:text/html,<h1 id=x>t</h1>#x` rendered
+  `:target` correctly *and* drew the text "#x" after the heading. Found by rendering, not by a test.
+  One existing test changed with the fix and the commit message says why: `DataUrl` in
+  `EngineTests.cpp` embedded `querySelector('#one')` unescaped and had been relying on the fragment
+  not being honoured.
+- **`text-decoration: underline` is parsed and never painted.** `a:hover { text-decoration:
+  underline }` changes the colour and nothing else. Not this session's to fix, and not on any
+  roadmap row.
+
+**Left:**
+
+- **The other three rows of ADR 0016 §3's table** — a class change, an attribute change, a DOM
+  insertion. They are not in the index, deliberately: they need a change signal finer than
+  `dom::Document::MutationVersion`, which today says only that *something* moved, and keys nothing
+  can query would be an index that is always right and never consulted.
+- **A focus move does not consult the index.** `Page::MoveFocus`'s callers still invalidate the
+  layout and repaint unconditionally, which is correct and more than necessary. The states are
+  there; the wiring is four lines and was left out of this session rather than done untested.
+- **The hover chain is recomputed rather than remembered**, one document walk per state change.
+  That is the safe shape — a stored `Element*` dangles the moment a script removes what the pointer
+  is over, and unlike focus there is no `ReleaseFocusWithin` choke point for it — and it is only
+  reached when some rule depends on the state. The measurement that would justify changing it is
+  `style.state_changes` against `style.hover_hit_tests`.
+- **`:has()` is still out**, as ADR 0016 §1 said it might be.
