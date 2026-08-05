@@ -108,6 +108,17 @@ bool IsRequiredControl(const dom::Element& element) {
          element.HasAttribute("required");
 }
 
+// Whether this element could carry any of the document-derived states at all.
+//
+// The guard matters rather than being tidiness: `IsDisabledFormControl` walks
+// the ancestor chain looking for a disabled `fieldset`, and asking it about
+// every element would make the refresh O(elements x depth) on every layout of
+// every page -- for an answer that is `false` for all but a handful of them.
+bool CouldBeAControl(std::string_view tag) {
+  return tag == "input" || tag == "select" || tag == "textarea" || tag == "button" ||
+         tag == "option" || tag == "optgroup" || tag == "fieldset";
+}
+
 }  // namespace
 
 bool Page::StyleDependsOn(dom::ElementState state) const {
@@ -203,6 +214,9 @@ void Page::RefreshDocumentStates() {
       return;
     }
     auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+    if (!CouldBeAControl(element.TagName())) {
+      return;
+    }
     // Recomputed from the document every time rather than maintained at each
     // of the dozen places that can change one -- a click on a checkbox, a form
     // reset, a script's setAttribute, the parser. Maintaining it would be
