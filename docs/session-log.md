@@ -1724,3 +1724,50 @@ bool rather than a range, for the reason below.
 - **`local(...)` is skipped rather than answered**, and that is a privacy decision: answering it from
   the system font database would let a page ask which fonts are installed, which is the
   fingerprinting surface ADR 0029 prices separately. The URL sources beside it still work.
+
+## Session 20 — brotli, and the WOFF2 container · 2026-08-05 (brotli done)
+
+**Status:** in_progress — brotli landed; the WOFF2 container has not.
+
+**Check:** the measurement, not a test:
+
+```
+MICROBROWSER_PERF_COUNTERS=1 microbrowser_snapshot \
+  'data:text/html,<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js">…'
+  [counters]  28462  net.bytes_received
+  [counters]  87533  util.brotli_bytes_produced
+  [counters]      1  util.brotli_streams
+```
+
+3.1x, on a resource that arrived **uncompressed** before this — because we did not advertise the
+coding the server already had on disk. Plus 10 assertions in `tests/NetTests.cpp` and 400k fuzz runs
+with no finding; 1559 tests, 0 failed; asan clean.
+
+**Landed:**
+
+- *Brotli, which Content-Encoding needed as much as WOFF2 does*
+
+**Left:** the WOFF2 container, which is the harder half. Its shape is known and worth writing down: a
+WOFF2 file is a table directory plus **one brotli stream holding every table concatenated**, and
+`glyf`/`loca` are stored *transformed* — the outlines are re-encoded and `loca` is dropped entirely,
+so both have to be **reconstructed** rather than copied. That reconstruction is the bulk of the work,
+it is a hostile-input parser, and it lands with its own fuzz target on the same commit.
+`gfx::FontCatalog::RegisterWebFont` and `Page::CanDecodeFontFormat` are the two places that then stop
+refusing `format("woff2")` — session 19 built both so this landing is one line each and immediately
+visible in `gfx.web_fonts_registered`.
+
+**Found:**
+
+- **Brotli's bound cannot be the gzip bound, and that is the whole reason it is a separate
+  function.** gzip carries ISIZE, so a bomb is refused from its own claim before a byte is produced.
+  A brotli stream declares nothing, so the ceiling has to be enforced *during* the decode — checked
+  before each chunk is kept, not after. A brotli bomb therefore reads as `Malformed` where a gzip bomb
+  reads as `TooLarge`, and that is a diagnostic difference rather than a decision.
+- **A refusal must empty its output.** "Fails rather than truncates" is only true at the call site if
+  the buffer is empty, so the fuzz target asserts `!ok ⇒ out.empty()` alongside the ceiling. The
+  target is deliberately not doubting the third-party decoder — it is checking the bound, which is
+  ours.
+- **Wikipedia serves gzip even when `br` is offered first.** So does redditstatic. The saving is on
+  CDN-fronted assets (cdnjs served `br` immediately), which is where the bytes are — and it means the
+  three rendering sites' `net.bytes_received` is unchanged by this, which would look like the feature
+  doing nothing if the measurement had not been taken against a host that actually serves it.
