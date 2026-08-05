@@ -101,17 +101,27 @@ struct Session {
 
 void RegisterCspEnforcementTests(std::vector<TestCase>& tests) {
   AddTest(tests, "CspEnforcement/ANoncedInlineScriptRunsAndAnInjectedOneDoesNot", [] {
-    // reddit's shape: `default-src 'none'` with a nonce for the scripts the
-    // server itself emitted. The second script is what an injection looks like
-    // -- same document, same origin, no nonce.
+    // www.reddit.com's actual header, copied verbatim on 2026-08-05 with only
+    // the nonce's random part changed. The second script is what an injection
+    // looks like: same document, same origin, no nonce.
     Session session;
-    session.Load("Content-Security-Policy: default-src 'none'; script-src 'nonce-r4nd0m'\r\n",
-                 "<html><body>"
-                 "<script nonce=\"r4nd0m\">console.log('nonced')</script>"
-                 "<script>console.log('injected')</script>"
-                 "</body></html>");
+    session.Load(
+        "Content-Security-Policy: default-src 'none'; "
+        "script-src 'nonce-fbaef209-b0dd-4c7e-ba73-f3fffe633ee7'; style-src 'unsafe-inline'; "
+        "img-src https://www.redditstatic.com; form-action 'self';\r\n",
+        "<html><body>"
+        "<script nonce=\"fbaef209-b0dd-4c7e-ba73-f3fffe633ee7\">console.log('nonced')</script>"
+        "<script>console.log('injected')</script>"
+        "<style>body { color: red }</style>"
+        "<img src=\"https://www.redditstatic.com/ok.png\">"
+        "<img src=\"https://evil.example/no.png\">"
+        "</body></html>");
     ExpectEqString(session.Console(), "nonced",
                    "the nonced script ran and the injected one did not");
+    // The other three directives of the same header, so that the whole of what
+    // reddit asks for is asserted in one place rather than inferred.
+    Expect(session.Requested("/ok.png"), "img-src names redditstatic, so that one loads");
+    Expect(!session.Requested("/no.png"), "and nothing else does");
   });
 
   AddTest(tests, "CspEnforcement/ARefusedScriptIsNeverRequested", [] {

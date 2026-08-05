@@ -1272,3 +1272,108 @@ and `old.reddit.com` (`1079 commands, 641 runs, 19 images`) byte-identical to `8
   "clear the list of active formatting elements up to the last marker", and there is nothing to
   clear. That is a pre-existing gap — the adoption agency algorithm has never been here — and it
   is what makes `<b><template>` recovery differ from a real browser's.
+
+## Session 15 — CSP, SRI, XHR · 2026-08-05
+
+**Status:** done
+
+**Check:** run against the live sites at `3166596`.
+
+```
+MICROBROWSER_PERF_COUNTERS=1 microbrowser_snapshot https://www.reddit.com/ -o out.ppm
+  [counters] 2  csp.policies        (no csp.violations line, so: none)
+  [counters] 3  engine.scripts_loaded
+  https://www.reddit.com/?solution=…&js_challenge=1&…:
+    143 commands, 3 runs, 1 fonts, 0 images, title "Reddit - The heart of the internet"
+
+MICROBROWSER_PERF_COUNTERS=1 microbrowser_snapshot https://app.plex.tv/desktop/ -o out.ppm
+  [counters] 4  sri.checks          (no sri.mismatches line, so: none)
+  [counters] 2  engine.scripts_loaded
+  [counters] 2  engine.stylesheets_loaded
+  https://app.plex.tv/desktop/: 3 commands, 0 runs, 0 fonts, 0 images, title "Plex"
+```
+
+reddit really does serve `default-src 'none'; script-src 'nonce-…'; style-src 'unsafe-inline';
+img-src https://www.redditstatic.com; form-action 'self';` — ADR 0020 §3 predicted the shape and it
+is exact. Two policies were parsed (the challenge interstitial's and the page's), nothing was
+refused, and the page renders identically to before the session. Plex really does serve four
+`integrity="sha384-…"` resources, all four with `crossorigin="anonymous"`, and all four verify.
+
+Hacker News and old.reddit.com are unchanged — 705/2 and 1060/23 commands/images, no violations —
+which is the check that mattered most: this session changes which resources every page in the world
+is allowed to load.
+
+**Landed:**
+
+- *SHA-2 and one base64 decoder, in util, where a policy module can reach them*
+- *The page's own policy, parsed and answered, in a module that cannot act on it* — `src/csp`
+- *CSP at the four places a resource is named, and `<base href>`, which base-uri needed*
+- *Subresource Integrity, and the crossorigin rule that keeps it from being an oracle*
+- *XMLHttpRequest, as a shim over the one request path rather than beside it*
+
+**Left:**
+
+- **Gate B is not reached and this session was never going to reach it.** www.reddit.com's own
+  bundle still stops at `ReferenceError: PerformanceObserver is not defined`, in the same `data:`
+  module sessions 13 and 14 both named, *before* the module loader question. Two things are needed
+  and neither is on the roadmap: `PerformanceObserver` (plus `performance.mark`/`measure`/
+  `getEntriesByName`, which the same file calls), and a decision about
+  `Interpreter::SetModuleResolver` being synchronous. Session 16 is history and the SPA URL; the
+  gate needs a session nobody has written down.
+- **`base-uri` and `<base href>` are tested and unexercised in the wild.** No page in the
+  compatibility set has a `<base>`, so the only coverage is `tests/CspEnforcementTests.cpp`.
+- **`report-uri`, `report-to`, `NEL` and Report-Only are refusals, not gaps.** A violation report is
+  an outbound request the user did not cause. There is deliberately no entry point that takes a
+  Report-Only header, so a page cannot get a *partial* implementation of one.
+- **`frame-src` is absent** for the same reason `<base>`'s directive nearly was: there are no nested
+  browsing contexts, and a directive that parses and decides nothing reads as enforcement in a
+  review of the file. It arrives with ADR 0027.
+
+**Found:**
+
+- **The snapshot tool's `N runs` is text runs on the display list, not script runs.** Session 14's
+  notes read it as "3 script runs" and built an argument on it. It is
+  `display_list.Texts().size()` (`tools/snapshot/main.cpp:392`). Script counts come from
+  `engine.scripts_loaded` under `MICROBROWSER_PERF_COUNTERS=1`, which is also how this session's
+  check was phrased. Plex's "0 runs" is a page that drew no text, not a page whose scripts did not
+  run.
+- **Session 14's check was Gate B's check, and leaving it `in_progress` was a process bug.**
+  `tools/agent-loop.sh` picks the lowest unfinished session, so a session whose check can never pass
+  makes every future run pick it forever. Its check now names what that session built — the
+  fragment-parsing assertions and the fuzz target — and it is `done`. The roadmap's own list of
+  failure modes includes "the measurement was measuring the wrong thing"; this is one, and the fix
+  belongs in the ledger rather than in a note about the ledger.
+- **ADR 0020 §4 says the digest is a `MODULE.deps` question rather than an ADR 0001 one. The answer
+  is `util`, not `net`.** The TLS stack's SHA-2 is unreachable from `src/csp`, whose `allow:` line is
+  `util url` precisely so that a policy engine cannot open a socket — and CSP's hash-sources need a
+  digest. A digest in `net` is one that two of its three callers cannot reach, and reaching it would
+  mean widening the line that makes the module worth having. `util::Sha2` is hand-written against
+  the FIPS 180-4 vectors plus every padding boundary.
+- **`base-uri` had no enforcement point at all, because `<base>` did not exist.** The tree builder
+  parsed the tag and nothing read it. Implementing the directive without the element would have been
+  a directive that decides nothing, so `<base href>` landed with it — and it is the first thing in
+  this browser that changes what a relative URL in a document means, which is why the base is a
+  member of `engine::DocumentPolicy` and `Engine` asks the page for it rather than parsing
+  `page_.Url()` a second time.
+- **Four call sites resolving a URL for a policy decision is four chances to disagree.** That is the
+  whole reason `DocumentPolicy` exists rather than three members on `Page`: a stylesheet, a script,
+  an image and a `fetch` all ask "may I load this", and each of them had its own idea of what the
+  base was.
+- **`integrity` on a cross-origin resource with no `crossorigin` had to be a *refusal*, not an
+  unchecked fetch.** Without CORS the response would be opaque in a browser with the process split;
+  here, where it is not, an integrity check over bytes the page may not read is an oracle for them,
+  one guess per reload. So the resource is not fetched at all. Plex sets both attributes on all four
+  of its resources, which is what makes this rule cost nothing on the site it was measured against.
+- **`'unsafe-inline'` next to a nonce or a hash means nothing**, and getting that backwards would
+  make every modern policy in the world permissive. It is stated as its own test rather than
+  inferred from the parser.
+- **`*` must not match `data:`.** `img-src *` allowing `data:image/svg+xml,<svg onload=…>` is the
+  one case in the source-matching table where a wrong answer is an XSS rather than a broken page.
+- **`JSON` is a binding in the global *scope*, not a property of the global object.**
+  `interpreter.Global()->Get("JSON")` returns null; `GlobalScope()->Lookup("JSON")` is the way in.
+  `globalThis.JSON` answering correctly is what makes it look like a property, and it cost twenty
+  minutes on `xhr.responseType = 'json'`.
+- **The class-budget lint counts `= {}` as a data member.** A default argument of `{}` puts the
+  brace at depth 1, which resets the statement start, so the `) const;` that follows is counted as a
+  field. `= std::string_view()` is the spelling that does not. Worth knowing before the next budget
+  argument, because the symptom is a class that appears to have one more member than it has.
