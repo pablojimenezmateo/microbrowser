@@ -145,6 +145,33 @@ namespace microbrowser::util {
   /* against layout.runs: a `:hover { color }` rule that starts moving         */ \
   /* layout.runs means the property table has lost an entry.                   */ \
   X(StyleRestylesWithoutLayout, "style.restyles_without_layout")                 \
+  /* --- the view observers (ADR 0018 §5) ------------------------------------ */ \
+  /* A frame at which observers were sampled at all. Zero on a page that has  */ \
+  /* constructed none, which is the property that matters: the observers cost */ \
+  /* one pointer comparison per frame until something asks for them.          */ \
+  X(ViewObservationFrames, "view.observation_frames")                            \
+  /* Targets measured, against records delivered. The ratio is what the whole */ \
+  /* design is for -- an observer samples every target every frame and fires  */ \
+  /* only when an answer changed, so records climbing with samples means      */ \
+  /* something is reporting a change that is not one.                         */ \
+  X(ViewIntersectionSamples, "view.intersection_samples")                        \
+  X(ViewIntersectionRecords, "view.intersection_records")                        \
+  X(ViewResizeSamples, "view.resize_samples")                                    \
+  X(ViewResizeRecords, "view.resize_records")                                    \
+  /* A frame where a resize callback resized something and the loop was cut   */ \
+  /* off at the depth bound. Non-zero means a page is fighting itself and the */ \
+  /* browser stopped it, which is a fact worth having a number for rather     */ \
+  /* than a hang.                                                             */ \
+  X(ViewResizeLoopLimit, "view.resize_loop_limit")                               \
+  /* An `<img loading="lazy">` passed over at collection time, and one that    */ \
+  /* later came within reach of the scrollport and was fetched. Read the first */ \
+  /* as deferrals rather than as distinct images: collection re-runs whenever  */ \
+  /* the document or its stylesheets change, so an image below the fold is     */ \
+  /* counted once per collection. The second is per image, exactly once.       */ \
+  /* Against net.requests_started they say what the feature is worth: on       */ \
+  /* www.reddit.com, 29 requests and 26 images decoded became 13 and 10.       */ \
+  X(EngineImagesDeferred, "engine.images_deferred")                              \
+  X(EngineImagesRevealed, "engine.images_revealed")                              \
   X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \
   X(EngineStyleSheetsFailed, "engine.stylesheets_failed")                          \
   X(EngineScriptsLoaded, "engine.scripts_loaded")                                  \

@@ -98,6 +98,17 @@ class GeometrySource {
   // effect is read back with QueryBox, through the same clamp.
   virtual void SetScrollOffset(const dom::Node& node, float x, float y) = 0;
 
+  // The scrollport the document scrolls inside, in the coordinate system every
+  // other answer here is measured in -- so its origin is (0, 0) by definition
+  // and only the size carries information. A rectangle rather than a size
+  // because that is what it *is* to the caller: `window.innerWidth`, and the
+  // `rootBounds` an `IntersectionObserver` with no `root` intersects against.
+  //
+  // Not optional. A document always has a viewport, even when it is zero by
+  // zero because nothing has been laid out yet -- and zero by zero is the
+  // honest answer there rather than an absence, since nothing is on screen.
+  virtual GeometryRect QueryViewport() = 0;
+
   // Scrolls every scrolling ancestor of `node` -- not just the nearest one --
   // until `node` is inside each of their scrollports. `scrollIntoView` on an
   // item in a menu inside a scrolled page has to move both, and an

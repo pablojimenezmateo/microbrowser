@@ -22,7 +22,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # of bug ADR 0012 calls worse than an absence.
 allow: util js dom html
 
-public: AnimationFrames.h DomBindings.h Geometry.h Timers.h
+public: AnimationFrames.h DomBindings.h Geometry.h Timers.h ViewObservers.h
 
 extern:
 
@@ -94,15 +94,27 @@ max_tu_lines: 700
 # keystroke goes. No new members: the state is on `dom::Document`, which is what
 # focus *is* (ADR 0017 §4), and a copy here would be that same disagreement in
 # one module.
-budget: DomBindings header_lines=300 public_methods=16 members=10
+# 320 lines and one more public method for ADR 0018 §5. The method is
+# DeliverViewObservations, and it is public for the reason DispatchScroll is:
+# the browser is the only thing that knows a frame happened, and an observer a
+# page could sample on demand is one it could fire from inside its own scroll
+# handler. The lines are that plus the three private declarations under it. No
+# new members: an observer's callback, its targets and its queued records live
+# in JavaScript objects hung off the interfaces object, because a `js::Value` in
+# a C++ field is invisible to the collector -- the same rule MutationObserver
+# follows and the same bug this module has had once already.
+budget: DomBindings header_lines=320 public_methods=17 members=10
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and
 # ADR 0015's rule is that each one answers in values that outlive nothing.
-# Five: the destructor, two questions, and the two commands ADR 0018 §1 adds --
+# Six: the destructor, three questions, and the two commands ADR 0018 §1 adds --
 # moving a scroll offset, and moving every scrolling ancestor until a box is in
-# view.
-budget: GeometrySource header_lines=60 public_methods=5 members=0
+# view. The third question is the viewport, and it earns its place twice over:
+# it is `window.innerWidth`, which was simply missing, and it is the
+# `rootBounds` every IntersectionObserver with no `root` measures against. It is
+# the one answer here that is not about a node, which is why it takes none.
+budget: GeometrySource header_lines=75 public_methods=6 members=0
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it
@@ -115,4 +127,9 @@ budget: Timer       header_lines=20 public_methods=0 members=4
 # the pending ids, the counter that names them, the epoch a timestamp is
 # measured from, and when the next frame is due. The callbacks live in the
 # JavaScript heap for the reason the timers' do. See ADR 0011.
-budget: AnimationFrames header_lines=45 public_methods=6 members=4
+# Timestamp is the fourth method and there are still four members: the frame
+# clock is now read by two things -- the callbacks it hands a timestamp to, and
+# the observation records ADR 0018 §5 stamps -- and two sources for one number
+# is how a page's animation and its observers end up disagreeing about when the
+# same frame happened.
+budget: AnimationFrames header_lines=55 public_methods=6 members=4

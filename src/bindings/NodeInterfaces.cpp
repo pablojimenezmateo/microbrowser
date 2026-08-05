@@ -209,6 +209,13 @@ void DomBindings::EnsureInterfaces() {
   InstallFormApis();
   InstallCustomElements();
   InstallMutationObserver();
+  if (geometry_ != nullptr) {
+    // Absent, not stubbed, when nothing can answer a geometry question. An
+    // IntersectionObserver that exists and never fires is what sends a feed
+    // down the native path into a wall; a missing name sends it to a polyfill
+    // that works. ADR 0012, and the same rule getBoundingClientRect follows.
+    InstallViewObservers();
+  }
   InstallWindowEvents();
 }
 

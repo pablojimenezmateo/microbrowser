@@ -82,6 +82,23 @@ ScrollTarget ScrollTargetFrom(js::NativeCall& call, const BoxGeometry& current, 
 
 }  // namespace
 
+js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect) {
+  const Value result = interpreter.NewObjectValue();
+  if (!result.IsObject()) {
+    return Value::Undefined();
+  }
+  const auto number = [](float value) { return Value::Number(static_cast<double>(value)); };
+  result.object->Set("x", number(rect.x));
+  result.object->Set("y", number(rect.y));
+  result.object->Set("width", number(rect.width));
+  result.object->Set("height", number(rect.height));
+  result.object->Set("left", number(rect.x));
+  result.object->Set("top", number(rect.y));
+  result.object->Set("right", number(rect.x + rect.width));
+  result.object->Set("bottom", number(rect.y + rect.height));
+  return result;
+}
+
 void DomBindings::InstallGeometry(const js::Value& element_interface) {
   if (geometry_ == nullptr || !element_interface.IsObject()) {
     return;
@@ -105,22 +122,7 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
         if (const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self)) {
           box = found->border_box;
         }
-        const Value result = owner->interpreter_->NewObjectValue();
-        if (!result.IsObject()) {
-          return Value::Undefined();
-        }
-        const auto number = [](float value) {
-          return Value::Number(static_cast<double>(value));
-        };
-        result.object->Set("x", number(box.x));
-        result.object->Set("y", number(box.y));
-        result.object->Set("width", number(box.width));
-        result.object->Set("height", number(box.height));
-        result.object->Set("left", number(box.x));
-        result.object->Set("top", number(box.y));
-        result.object->Set("right", number(box.x + box.width));
-        result.object->Set("bottom", number(box.y + box.height));
-        return result;
+        return MakeDomRect(*owner->interpreter_, box);
       });
   if (rect_of.IsObject()) {
     rect_of.object->Set(kOwnerSlot, PointerValue(this));
@@ -353,6 +355,34 @@ void DomBindings::InstallWindowScroll() {
     if (getter.IsObject()) {
       getter.object->Set(kOwnerSlot, PointerValue(this));
       global->DefineAccessor(reading.name, getter.object, nullptr);
+    }
+  }
+
+  // `innerWidth`/`innerHeight`, which are the scrollport and nothing else.
+  //
+  // They were simply absent, which for a browser that had a viewport all along
+  // is an omission rather than a decision: a page that sizes a carousel from
+  // `window.innerWidth` got `undefined` and laid it out at `NaN` pixels. They
+  // are here rather than in InstallWindow because this is the file that is
+  // allowed to ask the geometry seam a question, and the viewport is one.
+  struct Extent {
+    const char* name;
+    bool vertical;
+  };
+  static constexpr Extent kExtents[] = {{"innerWidth", false}, {"innerHeight", true}};
+  for (const Extent& extent : kExtents) {
+    const bool vertical = extent.vertical;
+    const Value getter = interpreter_->NewNativeValue(extent.name, [vertical](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      if (owner == nullptr || owner->geometry_ == nullptr) {
+        return Value::Number(0.0);
+      }
+      const GeometryRect viewport = owner->geometry_->QueryViewport();
+      return Value::Number(static_cast<double>(vertical ? viewport.height : viewport.width));
+    });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      global->DefineAccessor(extent.name, getter.object, nullptr);
     }
   }
 

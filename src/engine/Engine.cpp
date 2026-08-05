@@ -147,17 +147,34 @@ bool Engine::HandlePendingMessages() {
 }
 
 bool Engine::Advance() {
-  if (!load_.active) {
-    // Nothing is loading, and the loader still has to turn: connections kept
-    // between requests time out, and a socket the user did not ask to keep open
-    // is not something to leave until the next navigation happens to come
-    // along. It promotes nothing and starts nothing here.
-    loader_.Advance(NowMilliseconds());
+  // The turn boundary, and the one safe place to act on a navigation a script
+  // asked for. An observer callback or a resize callback can submit a form, and
+  // both run inside the frame -- where navigating would tear down the document
+  // being painted and, worse, could be re-entered by the paint of the page it
+  // replaced it with. Taking it here is what makes that a queue rather than a
+  // recursion a page controls the depth of.
+  if (FollowScriptNavigation()) {
+    return true;
+  }
+  // Nothing is loading and nothing is owed: the loader still has to turn, since
+  // connections kept between requests time out and a socket the user did not
+  // ask to keep open is not something to leave until the next navigation
+  // happens along. It promotes nothing and starts nothing here.
+  loader_.Advance(NowMilliseconds());
+  if (!load_.active && late_images_.empty()) {
     return false;
   }
-  loader_.Advance(NowMilliseconds());
   std::vector<Loader::Completion> completions = loader_.TakeCompletions();
+  bool moved = false;
   for (Loader::Completion& completion : completions) {
+    if (late_images_.find(completion.id) != late_images_.end()) {
+      moved = OnLateImage(std::move(completion)) || moved;
+      continue;
+    }
+    if (!load_.active) {
+      // A completion for a load that is gone. Only a late image outlives one.
+      continue;
+    }
     OnCompletion(std::move(completion));
     if (!load_.active) {
       // The document failed, or a navigation replaced this one from inside a
@@ -165,8 +182,10 @@ bool Engine::Advance() {
       return true;
     }
   }
-  const bool moved = !completions.empty();
-  AdvanceLoad();
+  moved = moved || !completions.empty();
+  if (load_.active) {
+    AdvanceLoad();
+  }
   return moved;
 }
 
@@ -175,7 +194,11 @@ void Engine::AppendWaitDescriptors(util::WaitDescriptorList& out) const {
 }
 
 bool Engine::HasRunnableWork() const {
-  return load_.active && loader_.HasRunnableWork();
+  // Late images count: a canned transport answers instantly and nothing else
+  // would ever come back to collect it. Not simply `loader_.HasRunnableWork()`
+  // -- with nothing owed, that is always true for a canned transport and the
+  // loop would spin instead of blocking, which is the zero-idle invariant.
+  return (load_.active || !late_images_.empty()) && loader_.HasRunnableWork();
 }
 
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
@@ -326,14 +349,68 @@ void Engine::StartSubresources() {
                                      : load_.scripts_outstanding);
   }
 
-  for (const std::string& src : page_.PendingImages()) {
-    const Loader::RequestId id = loader_.StartSubresource(
-        src, document, privacy::ResourceType::Image, NowSeconds(), options);
-    load_.resources[id] = PendingResource{ResourceKind::Image, 0, src};
-    ++load_.images_outstanding;
-  }
+  StartImageRequests();
 
   load_.total_resources = load_.resources.size();
+}
+
+void Engine::StartImageRequests() {
+  // The reveal first: an `<img loading="lazy">` becomes an image the page wants
+  // at the moment its box comes within reach of the scrollport, and both
+  // callers -- the initial subresource pass and every frame after it -- have to
+  // ask in the same order or the first frame would fetch nothing lazy.
+  page_.RevealLazyImages();
+  const std::vector<std::string> wanted = page_.TakeUnrequestedImages();
+  if (wanted.empty()) {
+    return;
+  }
+  // The document's own address when no navigation is in flight -- a lazy image
+  // revealed by a scroll belongs to a page that finished loading, and there is
+  // no `load_.base` left to resolve it against. Parsed here rather than kept
+  // as a member so that "where did this document come from" has one answer,
+  // which is the page.
+  std::optional<url::Url> parsed;
+  const url::Url* base = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
+  if (base == nullptr) {
+    parsed = url::Url::Parse(page_.Url());
+    if (!parsed.has_value()) {
+      return;
+    }
+    base = &*parsed;
+  }
+
+  net::FetchOptions options;
+  options.bypass_cache = load_.active && load_.bypass_cache;
+  for (const std::string& src : wanted) {
+    const Loader::RequestId id = loader_.StartSubresource(
+        src, *base, privacy::ResourceType::Image, NowSeconds(), options);
+    // Before the first frame the load owns it, so that an image already on
+    // screen is there when the page appears rather than a beat later. After
+    // it, the load is over as far as the user is concerned and the image is
+    // decoded and painted on its own.
+    if (load_.active && !load_.painted) {
+      load_.resources[id] = PendingResource{ResourceKind::Image, 0, src};
+      ++load_.images_outstanding;
+    } else {
+      late_images_[id] = src;
+    }
+  }
+}
+
+bool Engine::OnLateImage(Loader::Completion completion) {
+  const auto found = late_images_.find(completion.id);
+  if (found == late_images_.end()) {
+    return false;
+  }
+  const std::string src = found->second;
+  late_images_.erase(found);
+  if (!completion.result.ok) {
+    AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
+    return false;
+  }
+  DecodeImage(src, completion.result.body);
+  LayoutAndPaint();
+  return true;
 }
 
 void Engine::AdvanceLoad() {
@@ -377,49 +454,53 @@ void Engine::AdvanceLoad() {
   }
 }
 
+void Engine::DecodeImage(const std::string& src, const std::string& bytes) {
+  // The bytes are attacker-controlled and the decoder says so: a failure here
+  // is an image that does not draw, not a page that does not render.
+  //
+  // Which decoder is chosen by sniffing rather than by the Content-Type
+  // header, for the reason every browser sniffs: the header is a claim by the
+  // server, and a server that mislabels a PNG must not stop it rendering.
+  // reddit serves a JPEG from a URL ending .png on its own front page.
+  //
+  // Exactly one decoder is offered the bytes, and only if their magic number
+  // named it — ADR 0023 §2. Trying each decoder until one succeeds is the
+  // shape that makes every decoder reachable by every image, which is three
+  // times the attack surface for no compatibility gained.
+  const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
+                                        bytes.size());
+  gfx::Image image;
+  if (gfx::LooksLikeSvg(span)) {
+    // SVG is a document, so it has to be rasterized at a size. The element's
+    // attributes are the size the page asked for; the document's own is the
+    // fallback, applied inside the decoder.
+    const gfx::IntSize requested = page_.RequestedImageSize(src);
+    gfx::SvgDecodeResult decoded = gfx::DecodeSvg(span, requested.width, requested.height);
+    if (decoded.Ok()) {
+      image = std::move(decoded.image);
+    }
+  } else if (gfx::LooksLikeJpeg(span)) {
+    gfx::JpegDecodeResult decoded = gfx::DecodeJpeg(span);
+    if (decoded.Ok()) {
+      image = std::move(decoded.image);
+    }
+  } else if (gfx::LooksLikePng(span)) {
+    gfx::PngDecodeResult decoded = gfx::DecodePng(span);
+    if (decoded.Ok()) {
+      image = std::move(decoded.image);
+    }
+  }
+  if (!image.IsValid()) {
+    AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
+    return;
+  }
+  page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(image)));
+  AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
+}
+
 void Engine::DecodePendingImages() {
   for (auto& [src, bytes] : load_.image_bytes) {
-    // The bytes are attacker-controlled and the decoder says so: a failure here
-    // is an image that does not draw, not a page that does not render.
-    //
-    // Which decoder is chosen by sniffing rather than by the Content-Type
-    // header, for the reason every browser sniffs: the header is a claim by the
-    // server, and a server that mislabels a PNG must not stop it rendering.
-    // reddit serves a JPEG from a URL ending .png on its own front page.
-    //
-    // Exactly one decoder is offered the bytes, and only if their magic number
-    // named it — ADR 0023 §2. Trying each decoder until one succeeds is the
-    // shape that makes every decoder reachable by every image, which is three
-    // times the attack surface for no compatibility gained.
-    const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
-                                          bytes.size());
-    gfx::Image image;
-    if (gfx::LooksLikeSvg(span)) {
-      // SVG is a document, so it has to be rasterized at a size. The element's
-      // attributes are the size the page asked for; the document's own is the
-      // fallback, applied inside the decoder.
-      const gfx::IntSize requested = page_.RequestedImageSize(src);
-      gfx::SvgDecodeResult decoded = gfx::DecodeSvg(span, requested.width, requested.height);
-      if (decoded.Ok()) {
-        image = std::move(decoded.image);
-      }
-    } else if (gfx::LooksLikeJpeg(span)) {
-      gfx::JpegDecodeResult decoded = gfx::DecodeJpeg(span);
-      if (decoded.Ok()) {
-        image = std::move(decoded.image);
-      }
-    } else if (gfx::LooksLikePng(span)) {
-      gfx::PngDecodeResult decoded = gfx::DecodePng(span);
-      if (decoded.Ok()) {
-        image = std::move(decoded.image);
-      }
-    }
-    if (!image.IsValid()) {
-      AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
-      continue;
-    }
-    page_.AddImage(src, std::make_shared<const gfx::Image>(std::move(image)));
-    AddPerformanceCounter(PerfCounterId::EngineImagesLoaded);
+    DecodeImage(src, bytes);
   }
 }
 
@@ -455,6 +536,10 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // construction, and this is the construction.
   loader_.CancelAll();
   load_ = PendingLoad{};
+  // The images the previous document was still fetching go with it, for the
+  // reason `load_` does: a response for a page that is gone must be
+  // undeliverable rather than merely ignored.
+  late_images_.clear();
   load_.active = true;
   load_.url = url.empty() ? std::string("about:blank") : url;
   load_.bypass_cache = options.bypass_cache;
@@ -649,6 +734,25 @@ void Engine::PaintAndSend(gfx::IntPoint scroll_delta, const gfx::IntRect* only) 
   if (viewport.IsEmpty()) {
     return;
   }
+
+  // The frame's observation step, and the single place it happens: every path
+  // that puts something on screen comes through here, so an observer cannot be
+  // sampled twice for one frame or missed for another. ADR 0018 §5 -- the
+  // sample is at the frame and never inside the scroll that caused it.
+  //
+  // A callback that ran may have moved the document, and a frame whose
+  // geometry changed is no longer the previous frame shifted: the blit is off
+  // the table and the damage goes back to being whatever the display-list diff
+  // finds.
+  if (page_.DeliverObservations(NowMilliseconds())) {
+    scroll_delta = gfx::IntPoint{};
+    only = nullptr;
+  }
+  // And the images that came within reach of the scrollport while all that was
+  // happening. Here rather than beside the observers because it is not one: a
+  // lazy image is a geometry test the browser performs, not a callback a page
+  // registered, and it works on a page with no script at all.
+  StartImageRequests();
 
   pending_.Clear();
   // The canvas behind the document, painted here rather than by the page: a

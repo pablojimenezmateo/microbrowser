@@ -274,4 +274,9 @@ std::string SelectImageSource(const dom::Element& image, const css::MediaContext
   return best->url;
 }
 
+bool ImageLoadingIsLazy(const dom::Element& image) {
+  const std::string* attribute = image.GetAttribute("loading");
+  return attribute != nullptr && util::EqualsAsciiCaseInsensitive(*attribute, "lazy");
+}
+
 }  // namespace microbrowser::engine

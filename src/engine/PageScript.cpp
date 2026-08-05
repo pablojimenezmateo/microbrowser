@@ -267,6 +267,10 @@ bool PageScript::DispatchScroll(dom::Element* target) {
   return bindings_ != nullptr && bindings_->DispatchScroll(target);
 }
 
+bool PageScript::DeliverViewObservations(std::int64_t now_ms) {
+  return bindings_ != nullptr && bindings_->DeliverViewObservations(frames_.Timestamp(now_ms));
+}
+
 const std::vector<std::string>& PageScript::ConsoleOutput() const {
   static const std::vector<std::string> kNone;
   return interpreter_ == nullptr ? kNone : interpreter_->ConsoleOutput();

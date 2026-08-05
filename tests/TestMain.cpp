@@ -22,6 +22,7 @@ void RegisterCanvasTests(std::vector<TestCase>& tests);
 void RegisterScrollTests(std::vector<TestCase>& tests);
 void RegisterCssTests(std::vector<TestCase>& tests);
 void RegisterStyleInvalidationTests(std::vector<TestCase>& tests);
+void RegisterViewObserverTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionPolicyTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionTests(std::vector<TestCase>& tests);
 void RegisterDisplayListTests(std::vector<TestCase>& tests);
@@ -153,6 +154,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterScrollTests(tests);
   microbrowser::tests::RegisterCssTests(tests);
   microbrowser::tests::RegisterStyleInvalidationTests(tests);
+  microbrowser::tests::RegisterViewObserverTests(tests);
   microbrowser::tests::RegisterImageSelectionTests(tests);
   microbrowser::tests::RegisterMediaQueryTests(tests);
   microbrowser::tests::RegisterDirtyRegionPolicyTests(tests);

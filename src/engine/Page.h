@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -132,6 +133,17 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // subresources first and one that does not can both end with it.
   void RunScripts(std::int64_t now_ms);
 
+  // Samples this page's `IntersectionObserver`s and `ResizeObserver`s against
+  // the layout about to be painted, and runs the callbacks whose answers
+  // changed. True when one ran and the page therefore needs painting again.
+  //
+  // Called at the frame and nowhere else -- ADR 0018 §5. That is the whole
+  // design: an observer that fired from inside a scroll would run its callback
+  // once per wheel notch and could see a layout part-way through being
+  // rebuilt, and one that fired from a timer would be a 60Hz wakeup on a page
+  // nothing is happening to.
+  bool DeliverObservations(std::int64_t now_ms);
+
   // Milliseconds until the page's soonest timer or animation frame, or nothing
   // when it has asked for neither. The loop asks this to decide how long it may
   // sleep.
@@ -153,8 +165,30 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
 
   // Image URLs the document referenced, in document order, exactly as written.
   // One per <img>, already chosen from its `srcset` and any `<picture>` around
-  // it, plus every background image the cascade names.
+  // it, plus every background image the cascade names. An `<img loading="lazy">`
+  // that is not near the scrollport yet is *not* here -- see RevealLazyImages.
   const std::vector<std::string>& PendingImages() const { return resources_.pending_images; }
+
+  // The ones nobody has been handed yet, marked as handed out.
+  //
+  // A take rather than a read, because the list above is rebuilt from the
+  // document every time anything changes it and the loader must not be told to
+  // fetch the same URL again on the next stylesheet that lands. The bookkeeping
+  // is here rather than on the caller so that the two callers -- the initial
+  // subresource pass and the frame that reveals a lazy image -- cannot disagree
+  // about what has been asked for.
+  std::vector<std::string> TakeUnrequestedImages();
+
+  // Moves every deferred `<img loading="lazy">` whose box has come within reach
+  // of the scrollport into the pending list. True when one did, which is the
+  // caller's signal to go and fetch it.
+  //
+  // Reach is one viewport height and width beyond the scrollport in every
+  // direction, which is the number this browser chose rather than one any
+  // specification states: it is far enough that an image is usually there
+  // before it is scrolled to, and near enough that a page of two hundred
+  // thumbnails fetches a handful. ADR 0018 §5.
+  bool RevealLazyImages();
 
   // The size the document asks for `src` to be drawn at, or a zero extent for
   // an axis nothing states. Only a vector image needs it -- a bitmap has its
@@ -298,6 +332,15 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
     std::vector<std::optional<std::string>> author_sheet_slots;
     std::vector<std::string> pending_images;
     std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images;
+    // The lazy images this document has not asked for yet, and their chosen
+    // URL. Keyed by element because "is it near the scrollport" is a question
+    // about a box, and two `<img loading="lazy">` sharing a URL are two boxes.
+    std::map<const dom::Element*, std::string> deferred_images;
+    // Every image URL the loader has already been told to fetch. It survives
+    // CollectImages, which rebuilds `pending_images` from the document from
+    // scratch -- without this, every stylesheet that lands would re-request the
+    // whole page's images.
+    std::set<std::string, std::less<>> requested_images;
     // Which candidate each <img> resolved to. Recorded rather than recomputed
     // because selection depends on the viewport and the fetch does not: an
     // element whose chosen URL changed after its image was fetched would
@@ -314,6 +357,7 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   std::optional<bindings::BoxGeometry> QueryBox(const dom::Node& node) override;
   std::optional<std::string> QueryUsedValue(const dom::Element& element,
                                             std::string_view property) override;
+  bindings::GeometryRect QueryViewport() override;
   void SetScrollOffset(const dom::Node& node, float x, float y) override;
   void ScrollIntoView(const dom::Node& node) override;
   // Records that `element` -- or the viewport, when null -- moved, so that one

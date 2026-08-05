@@ -157,6 +157,18 @@ class DomBindings {
   // The submission a script asked for, taken. Empty when it asked for none.
   std::optional<PendingSubmit> TakePendingSubmit();
 
+  // Samples every `IntersectionObserver` and `ResizeObserver` against the
+  // layout about to be painted and runs the callbacks whose answers changed.
+  // True when one ran, which is the caller's signal that the document may have
+  // moved under it.
+  //
+  // A C++ entry point for the reason DispatchScroll is: the browser is the only
+  // thing that knows a frame happened, and an observer a page could sample on
+  // demand would be one it could make fire from inside its own scroll handler.
+  // `time_ms` is the page's own origin-relative clock, the same one an
+  // animation frame is stamped with. See ADR 0018 §5 and ViewObservers.cpp.
+  bool DeliverViewObservations(double time_ms);
+
   // The document lifecycle. `readyState` moves loading -> interactive ->
   // complete, and the two events fire on the transitions rather than being
   // announced separately: a page that hears `DOMContentLoaded` and then reads
@@ -293,6 +305,16 @@ class DomBindings {
   // --- MutationObserver, in MutationObserver.cpp ----------------------------
   void InstallMutationObserver();
   js::Value ObserverList();
+  // --- IntersectionObserver and ResizeObserver, in ViewObservers.cpp --------
+  // Installed only when there is a GeometrySource: an observer with no layout
+  // behind it would exist, never fire, and send a feed down the native path
+  // into a wall. ADR 0012 -- a stub is worse than an absence.
+  void InstallViewObservers();
+  js::Value ViewObserverList();
+  // Measures one observer's targets and queues the records that changed. It
+  // does not call anything: sampling every observer before delivering any is
+  // what stops a callback's mutation from changing what the next one saw.
+  void SampleViewObserver(const js::Value& observer, double time_ms);
   // Queues one delivery per observer per turn, however many mutations it saw.
   void ScheduleObserverDelivery(const js::Value& observer);
   // Records a mutation against every observer watching `node`. `type` is

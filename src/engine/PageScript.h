@@ -150,6 +150,13 @@ class PageScript {
   // scroll has already happened by the time a page hears about it, which is why
   // there is no `preventDefault` to report. See ADR 0018 §3.
   bool DispatchScroll(dom::Element* target);
+  // Samples the page's `IntersectionObserver`s and `ResizeObserver`s against
+  // the layout that is about to be painted, and runs the callbacks whose
+  // answers changed. True when one ran, which is the caller's signal that the
+  // document may have moved under it. `now_ms` is the same steady clock a timer
+  // and a frame take; the record's `time` is measured from the page's origin,
+  // which is why this converts rather than passing it through. ADR 0018 §5.
+  bool DeliverViewObservations(std::int64_t now_ms);
   // The submission this page's script asked for through `submit()` or
   // `requestSubmit()` and has not had yet. Taken after the script turn ends
   // rather than performed during it: a navigation tears down the interpreter,

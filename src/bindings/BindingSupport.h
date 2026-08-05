@@ -5,9 +5,14 @@
 #include <string_view>
 #include <vector>
 
+#include "bindings/Geometry.h"
 #include "dom/Node.h"
 #include "js/Heap.h"
 #include "js/Value.h"
+
+namespace microbrowser::js {
+class Interpreter;
+}  // namespace microbrowser::js
 
 // Shared by the binding translation units, and private to the module: a
 // binding is an implementation detail of the seam, not part of its interface,
@@ -71,6 +76,16 @@ inline DomBindings* OwnerOf(const js::NativeCall& call) {
   }
   return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
 }
+
+// A rectangle as a page reads one: the eight members of a `DOMRect`, where
+// `x`/`y`/`width`/`height` and `top`/`right`/`bottom`/`left` are the same four
+// numbers under two names.
+//
+// One implementation rather than one per caller, which is not tidiness: a page
+// that gets one set of names and not the other silently computes zero, and
+// `getBoundingClientRect`, an intersection record and a resize record all have
+// to answer with the same object shape. Defined in GeometryBindings.cpp.
+js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect);
 
 inline std::string LowerCase(std::string_view text) {
   std::string out(text);

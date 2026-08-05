@@ -322,6 +322,12 @@ int main(int argc, char** argv) {
     channel.Ui().Send(
         microbrowser::ipc::ScrollMessage{0, options.scroll_y, microbrowser::gfx::IntPoint{}});
     engine.HandlePendingMessages();
+    // And then turn the crank, like the click and the key above already do. A
+    // scroll can start a fetch now -- an `<img loading="lazy">` that came
+    // within reach of the scrollport -- and a snapshot that stopped here would
+    // write out the frame from *before* the image arrived, which looks exactly
+    // like a lazy loader that does not work.
+    RunLoadToCompletion(engine);
   }
 
   // Keep the last frame. A navigation sends more than one -- resize, then load

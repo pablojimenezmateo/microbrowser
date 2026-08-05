@@ -22,28 +22,6 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
-// Splits an attribute on ASCII whitespace, per the HTML spec's
-// "space-separated tokens".
-std::vector<std::string_view> SplitTokens(std::string_view value) {
-  std::vector<std::string_view> tokens;
-  std::size_t i = 0;
-  while (i < value.size()) {
-    while (i < value.size() && (value[i] == ' ' || value[i] == '\t' || value[i] == '\n' ||
-                                value[i] == '\r' || value[i] == '\f')) {
-      ++i;
-    }
-    const std::size_t start = i;
-    while (i < value.size() && value[i] != ' ' && value[i] != '\t' && value[i] != '\n' &&
-           value[i] != '\r' && value[i] != '\f') {
-      ++i;
-    }
-    if (i > start) {
-      tokens.push_back(value.substr(start, i - start));
-    }
-  }
-  return tokens;
-}
-
 // The text of an element's direct text children, concatenated. Enough for
 // <title>, which is a text-only element by definition.
 std::string DirectText(const dom::Element& element) {
@@ -54,26 +32,6 @@ std::string DirectText(const dom::Element& element) {
     }
   }
   return text;
-}
-
-bool IsLinkedStyleSheet(const dom::Element& link) {
-  if (link.TagName() != "link") {
-    return false;
-  }
-  // `rel` is a space-separated set of tokens, and a sheet is only a sheet
-  // when "stylesheet" is one of them: `rel="alternate stylesheet"` is not
-  // applied, and `rel="preload"` is not a stylesheet at all.
-  const std::string* rel = link.GetAttribute("rel");
-  if (rel == nullptr) {
-    return false;
-  }
-  bool is_stylesheet = false;
-  bool is_alternate = false;
-  for (const std::string_view token : SplitTokens(*rel)) {
-    is_stylesheet = is_stylesheet || util::EqualsAsciiCaseInsensitive(token, "stylesheet");
-    is_alternate = is_alternate || util::EqualsAsciiCaseInsensitive(token, "alternate");
-  }
-  return is_stylesheet && !is_alternate;
 }
 
 bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
@@ -316,167 +274,11 @@ void Page::Load(std::string_view html, std::string url) {
   ExtractTitle();
 }
 
-void Page::CollectStyleSheets() {
-  resources_.pending_sheets.clear();
-  resources_.pending_sheet_slots.clear();
-  resources_.author_sheet_slots.clear();
-  if (document_ == nullptr) {
-    return;
-  }
-  document_->ForEachDescendant([&](const dom::Node& node) {
-    if (!node.IsElement()) {
-      return;
-    }
-    const auto& element = static_cast<const dom::Element&>(node);
-    if (element.TagName() == "style") {
-      resources_.author_sheet_slots.emplace_back(DirectText(element));
-      return;
-    }
-    if (!IsLinkedStyleSheet(element)) {
-      return;
-    }
-    const std::string* href = element.GetAttribute("href");
-    if (href == nullptr || href->empty()) {
-      return;
-    }
-    resources_.pending_sheets.push_back(*href);
-    resources_.pending_sheet_slots.push_back(resources_.author_sheet_slots.size());
-    resources_.author_sheet_slots.push_back(std::nullopt);
-  });
-  RebuildAuthorStyleSheets();
-}
-
-void Page::RebuildAuthorStyleSheets() {
-  resolver_ = css::StyleResolver{};
-  for (const std::optional<std::string>& css : resources_.author_sheet_slots) {
-    if (css.has_value()) {
-      resolver_.AddStyleSheet(css::ParseStyleSheet(*css), css::Origin::Author);
-    }
-  }
-  // A background image is named by the cascade, so the set of images a document
-  // wants is not known until its stylesheets have arrived. Re-collected here
-  // rather than only at load, or a page whose icons come from an external sheet
-  // -- which is every page that has any -- would never fetch one.
-  CollectImages();
-  boxes_.reset();
-}
-
-void Page::CollectImages() {
-  resources_.pending_images.clear();
-  resources_.selected_image_urls.clear();
-  if (document_ == nullptr) {
-    return;
-  }
-  // Deduplicated: a page that shows one icon forty times fetches and decodes
-  // it once. That matters more for background images than for <img>, since a
-  // sprite is by definition the same file behind every icon on the page.
-  const auto want = [this](const std::string& src) {
-    if (src.empty() || std::find(resources_.pending_images.begin(),
-                                 resources_.pending_images.end(),
-                                 src) != resources_.pending_images.end()) {
-      return;
-    }
-    resources_.pending_images.push_back(src);
-  };
-  // Which candidate an <img> wants is a question about the viewport as well as
-  // about the element, so the answer is recorded here and read again at layout
-  // rather than computed twice. A viewport that changes afterwards does not
-  // re-select: the bytes for the new candidate were never fetched, so the only
-  // thing re-selecting would achieve is an empty box where an image was.
-  for (const dom::Element* image : document_->ElementsByTagName("img")) {
-    std::string selected = SelectImageSource(*image, viewport_);
-    if (selected.empty()) {
-      continue;
-    }
-    want(selected);
-    resources_.selected_image_urls[image] = std::move(selected);
-  }
-  // Background images are named by the *cascade*, not by an attribute, so
-  // finding them means resolving style -- which happens again at layout. The
-  // duplicate resolve is the price of loading before the first layout, and the
-  // alternative (laying out once with no backgrounds, then again) costs more
-  // and shows the page twice.
-  resolver_.ForEachStyledElement(*document_, [&want](const dom::Element&,
-                                                     const css::ComputedStyle& style) {
-    want(style.background.image);
-  });
-}
-
-gfx::IntSize Page::RequestedImageSize(std::string_view src) const {
-  gfx::IntSize size;
-  if (document_ == nullptr) {
-    return size;
-  }
-  // The largest request wins, and both axes are taken independently. One
-  // resource may be drawn at several sizes, and a vector rasterized at the
-  // smallest of them is blurry everywhere else; rasterizing at the largest
-  // only ever scales down, which the painter resamples cleanly.
-  for (const dom::Element* image : document_->ElementsByTagName("img")) {
-    // The selected candidate rather than the `src` attribute: an <img> whose
-    // srcset chose a different URL is still the element that says how big the
-    // thing at that URL should be drawn.
-    const auto selected = resources_.selected_image_urls.find(image);
-    if (selected == resources_.selected_image_urls.end() || selected->second != src) {
-      continue;
-    }
-    for (const char* attribute : {"width", "height"}) {
-      const std::string* text = image->GetAttribute(attribute);
-      if (text == nullptr) {
-        continue;
-      }
-      const std::optional<int> value = util::ParseInt(*text);
-      if (!value.has_value() || *value <= 0 || *value > gfx::kMaxSvgEdge) {
-        continue;
-      }
-      int& axis = attribute[0] == 'w' ? size.width : size.height;
-      axis = std::max(axis, *value);
-    }
-  }
-  return size;
-}
-
-void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
-  if (image == nullptr || !image->IsValid()) {
-    return;
-  }
-  resources_.images[std::move(src)] = std::move(image);
-  // The box tree sized its replaced boxes against what was available then.
-  boxes_.reset();
-}
-
-std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {
-  const auto found = resources_.images.find(src);
-  return found == resources_.images.end() ? nullptr : found->second;
-}
-
-std::shared_ptr<const gfx::Image> Page::ImageForElement(const dom::Element& element) const {
-  const auto selected = resources_.selected_image_urls.find(&element);
-  if (selected == resources_.selected_image_urls.end()) {
-    // An <img> a script created after the images were collected. Nothing was
-    // fetched for it, so there is nothing to draw -- which is what the box
-    // already looked like, rather than a new kind of failure.
-    return nullptr;
-  }
-  return ImageFor(selected->second);
-}
-
 void Page::SetViewport(const css::MediaContext& viewport) {
   viewport_ = viewport;
   // So that a layout forced by a geometry query before the engine's first
   // Layout still runs at the width the document will be shown at.
   layout_.width = viewport.viewport_width;
-}
-
-void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {
-  if (pending_index >= resources_.pending_sheet_slots.size()) {
-    return;
-  }
-  const std::size_t slot = resources_.pending_sheet_slots[pending_index];
-  if (slot >= resources_.author_sheet_slots.size()) {
-    return;
-  }
-  resources_.author_sheet_slots[slot] = std::string(css);
-  RebuildAuthorStyleSheets();
 }
 
 void Page::ExtractTitle() {
@@ -618,6 +420,40 @@ bool Page::RunDueWork(std::int64_t now_ms) {
   }
   InvalidateLayout();
   return true;
+}
+
+bool Page::DeliverObservations(std::int64_t now_ms) {
+  if (document_ == nullptr) {
+    return false;
+  }
+  // A loop, and the bound is the reason it is one. A `ResizeObserver` callback
+  // that resizes what it observes is a page fighting itself: each delivery
+  // makes the next one have something to say, and the specification's answer is
+  // a depth limit rather than a promise that it settles. Without one this is a
+  // hang a page can cause on purpose.
+  //
+  // The relayout inside the loop is what makes the second pass mean anything:
+  // a callback that moved something must be measured against where it moved it
+  // to, not against where it was.
+  static constexpr int kObservationDepthLimit = 8;
+  bool ran = false;
+  int depth = 0;
+  for (; depth < kObservationDepthLimit; ++depth) {
+    EnsureLayoutClean();
+    if (!script_.DeliverViewObservations(now_ms)) {
+      break;
+    }
+    ran = true;
+  }
+  if (depth == kObservationDepthLimit) {
+    AddPerformanceCounter(PerfCounterId::ViewResizeLoopLimit);
+  }
+  if (ran) {
+    // Whatever the last callback did has to be on screen, and the caller paints
+    // from the box tree rather than from the document.
+    EnsureLayoutClean();
+  }
+  return ran;
 }
 
 const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {

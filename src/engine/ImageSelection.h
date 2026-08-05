@@ -62,4 +62,13 @@ bool ImageTypeIsSupported(std::string_view mime_type);
 // image at all.
 std::string SelectImageSource(const dom::Element& image, const css::MediaContext& context);
 
+// Whether `<img loading>` says this one waits until it is near the scrollport.
+//
+// The attribute is an enumerated one with an invalid-value default of `eager`,
+// so anything that is not the literal string `lazy` loads immediately -- which
+// matters more than it looks: a typo that deferred an image forever would be a
+// blank page nobody could explain, and the specification chose the safe
+// direction on purpose. ADR 0018 §5, and 27 uses on reddit's front page alone.
+bool ImageLoadingIsLazy(const dom::Element& image);
+
 }  // namespace microbrowser::engine

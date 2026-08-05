@@ -296,6 +296,7 @@ microbrowser_module(engine
     src/engine/Loader.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
+    src/engine/PageResources.cpp
     src/engine/PageScrolling.cpp
     src/engine/PageStyle.cpp
     src/engine/PageScript.cpp
@@ -328,6 +329,7 @@ microbrowser_module(bindings
     src/bindings/Timers.cpp
     src/bindings/TreeMutation.cpp
     src/bindings/UrlSearchParams.cpp
+    src/bindings/ViewObservers.cpp
     src/bindings/EventBindings.cpp
     src/bindings/EventDispatch.cpp
     src/bindings/FocusBindings.cpp
@@ -467,6 +469,7 @@ add_executable(microbrowser_tests
   tests/StrokerTests.cpp
   tests/SvgTests.cpp
   tests/StyleInvalidationTests.cpp
+    tests/ViewObserverTests.cpp
   tests/StyleResolverTests.cpp
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp
@@ -531,6 +534,8 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
   microbrowser_fuzzer(image_selection_fuzzer fuzz/ImageSelectionFuzzer.cpp
     microbrowser_engine microbrowser_css microbrowser_html microbrowser_dom)
+  microbrowser_fuzzer(root_margin_fuzzer fuzz/RootMarginFuzzer.cpp
+    microbrowser_bindings microbrowser_js microbrowser_dom microbrowser_html)
   microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
   microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
   microbrowser_fuzzer(js_parser_fuzzer fuzz/JsParserFuzzer.cpp microbrowser_js)

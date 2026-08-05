@@ -64,7 +64,16 @@ max_tu_lines: 800
 # the cascade, and doing it. They are separate because a click that ends in a
 # layout has already done everything the restyle would have asked for, and
 # painting twice for one click is a frame the user sees flicker.
-budget: Engine header_lines=180 public_methods=15 members=9
+# 205 lines and a tenth member for ADR 0018 §5. The member is the images the
+# document asked for *after* the navigation that carried it finished -- an
+# `<img loading="lazy">` the user scrolled towards. They cannot live in
+# `load_`, which is cleared the moment a navigation ends and exists precisely so
+# that a response for a document that is gone is undeliverable. This is the
+# first resource this browser fetches outside a navigation and it is the seam
+# `fetch` and `XMLHttpRequest` arrive on in session 13, so the two rules it
+# establishes -- a navigation clears it, and a request in it keeps the loop
+# turning -- are worth the budget. The three new methods are private.
+budget: Engine header_lines=205 public_methods=15 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -146,7 +155,13 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # thing the pointer is over. The methods are the two questions (does any rule
 # depend on this state, what would recomputing cost), the two writers (the
 # pointer's chain, and dropping it), and the paint-only restyle.
-budget: Page   header_lines=400 public_methods=53 members=14
+# 440 lines and three more public methods for ADR 0018 §5, and no new members:
+# the two new maps are fields of the resource plan that was already member nine,
+# because "which images does this document want" is one fact and a lazy one that
+# is not wanted *yet* is still part of it. The methods are the frame's
+# observation step, the images nobody has been handed yet, and the lazy ones
+# that have come within reach of the scrollport.
+budget: Page   header_lines=440 public_methods=56 members=14
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #

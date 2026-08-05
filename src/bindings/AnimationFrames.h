@@ -40,6 +40,15 @@ class AnimationFrames {
   // block forever on a settled page.
   std::optional<std::uint32_t> NextDelay(std::int64_t now_ms) const;
 
+  // The page's own clock: `now_ms` measured from the epoch this was installed
+  // at. The number a callback is handed, and the one an observation record is
+  // stamped with -- shared rather than recomputed, because two frame-time
+  // sources is how a page's animation and its observer records end up
+  // disagreeing about when the same frame happened.
+  double Timestamp(std::int64_t now_ms) const {
+    return static_cast<double>(now_ms - origin_ms_);
+  }
+
   // Runs every callback registered before this frame, each with the same
   // timestamp -- one frame is one moment, and handing two callbacks two
   // different times is how animations desynchronise. True when any ran.

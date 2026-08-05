@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -71,9 +72,15 @@ class Engine {
   // in this state and a canned transport always is; without the question the
   // loop would block on input while a test's load stood still.
   bool HasRunnableWork() const;
-  // True while a navigation has not finished. The snapshot tool and the tests
+  // True while a navigation has not finished, or while an image the document
+  // asked for after it is still in flight. The snapshot tool and the tests
   // drive the loop until this goes false.
-  bool IsLoading() const { return load_.active; }
+  //
+  // The second half is not padding: an `<img loading="lazy">` on screen is
+  // requested at the *first frame*, which is after the navigation is over as
+  // far as everything else is concerned, and a browser that stopped turning
+  // there would show a page with holes where its visible images go.
+  bool IsLoading() const { return load_.active || !late_images_.empty(); }
 
   // What the page's script threw, so a host that is debugging one can say why
   // a document rendered the way it did. Forwarded rather than exposing the
@@ -156,6 +163,18 @@ class Engine {
   // Concurrency is bounded per partition key inside the request queue, which is
   // where that bound belongs -- see ADR 0005 for why it is per key.
   void StartSubresources();
+  // Fetches every image the page wants and has not been given. Called from the
+  // initial subresource pass and again at each frame, because an
+  // `<img loading="lazy">` becomes wanted when it is scrolled towards -- which
+  // may be long after the navigation that carried the document is over.
+  void StartImageRequests();
+  // Decodes one image's bytes into the page. Shared by the load's batch and by
+  // an image that arrived after it, so that sniffing, the bounds and the
+  // failure counter exist once rather than twice.
+  void DecodeImage(const std::string& src, const std::string& bytes);
+  // One image that arrived with no navigation behind it. True when the page
+  // changed and a frame should go out.
+  bool OnLateImage(Loader::Completion completion);
   // Runs the scripts once every render-blocking resource has resolved, puts
   // the page on screen, and lets the navigation go once even the scripts the
   // page said it would not wait for have landed.
@@ -203,6 +222,18 @@ class Engine {
   gfx::IntSize viewport_size_;
   float device_scale_ = 1.0f;
   PendingLoad load_;
+  // Images requested after the navigation that carried the document finished:
+  // an `<img loading="lazy">` the user scrolled towards. They cannot live in
+  // `load_`, which is cleared the moment a navigation is over and exists to
+  // make a response for a document that is gone undeliverable.
+  //
+  // This is the first resource this browser fetches outside a navigation, and
+  // it is the seam `fetch` and `XMLHttpRequest` arrive on -- so the two rules
+  // it establishes are worth stating here. A navigation clears it, for the
+  // reason it clears `load_`. And a request in it keeps the loop turning:
+  // HasRunnableWork says so, or a canned transport would hand the answer to
+  // nobody.
+  std::map<Loader::RequestId, std::string> late_images_;
 };
 
 }  // namespace microbrowser::engine

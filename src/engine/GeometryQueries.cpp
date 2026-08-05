@@ -454,6 +454,15 @@ std::optional<bindings::BoxGeometry> Page::QueryBox(const dom::Node& node) {
   return answer;
 }
 
+bindings::GeometryRect Page::QueryViewport() {
+  // No EnsureLayoutClean: the viewport is what the *browser* told this page it
+  // has, not something a layout computes. Forcing one here would make reading
+  // `window.innerWidth` in a loop cost a relayout per iteration for an answer
+  // that cannot have changed.
+  return bindings::GeometryRect{0.0f, 0.0f, viewport_.viewport_width,
+                                viewport_.viewport_height};
+}
+
 bool Page::IsViewportScroller(const dom::Element& element) const {
   return document_ != nullptr && document_->DocumentElement() == &element;
 }
