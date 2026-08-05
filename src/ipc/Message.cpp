@@ -23,9 +23,12 @@ enum class UiTag : std::uint8_t {
   StopLoad = 3,
   ResizeViewport = 4,
   Scroll = 5,
-  Pointer = 6,
-  TextInput = 7,
-  InputCommand = 8,
+  // 6, 7 and 8 were Pointer, TextInput and InputCommand. Reused rather than
+  // retired because the protocol version moved with them: a peer old enough to
+  // send the previous tag 6 is refused by the version check before the tag is
+  // ever read.
+  PointerInput = 6,
+  KeyInput = 7,
 };
 
 enum class EngineTag : std::uint8_t {
@@ -62,6 +65,26 @@ bool FrameFullyConsumed(const ByteReader& reader) {
   return reader.Ok() && reader.AtEnd();
 }
 
+void WriteModifiers(ByteWriter& writer, const InputModifiers& modifiers) {
+  writer.WriteU8(modifiers.control ? 1u : 0u);
+  writer.WriteU8(modifiers.shift ? 1u : 0u);
+  writer.WriteU8(modifiers.alt ? 1u : 0u);
+  writer.WriteU8(modifiers.meta ? 1u : 0u);
+}
+
+// Any nonzero byte is true. A bool that only accepts 0 and 1 would make a
+// frame from a peer that writes 0xFF for true a decode failure rather than a
+// held control key, and there is nothing to confuse here: the field is one bit
+// of meaning however it was spelled.
+InputModifiers ReadModifiers(ByteReader& reader) {
+  InputModifiers modifiers;
+  modifiers.control = reader.ReadU8() != 0;
+  modifiers.shift = reader.ReadU8() != 0;
+  modifiers.alt = reader.ReadU8() != 0;
+  modifiers.meta = reader.ReadU8() != 0;
+  return modifiers;
+}
+
 std::vector<std::byte> FinishFrame(ByteWriter& writer) {
   AddPerformanceCounter(PerfCounterId::IpcBytesSerialized,
                         static_cast<std::uint64_t>(writer.Size()));
@@ -93,19 +116,25 @@ std::vector<std::byte> Serialize(const UiToEngine& message) {
     writer.WriteI32(scroll->delta_y);
     writer.WriteI32(scroll->position.x);
     writer.WriteI32(scroll->position.y);
-  } else if (const auto* pointer = std::get_if<PointerMessage>(&message)) {
-    writer.WriteU8(static_cast<std::uint8_t>(UiTag::Pointer));
+  } else if (const auto* pointer = std::get_if<PointerInputMessage>(&message)) {
+    writer.WriteU8(static_cast<std::uint8_t>(UiTag::PointerInput));
     writer.WriteU8(static_cast<std::uint8_t>(pointer->kind));
-    writer.WriteI32(pointer->position.x);
-    writer.WriteI32(pointer->position.y);
+    writer.WriteF32(pointer->position.x);
+    writer.WriteF32(pointer->position.y);
+    writer.WriteI32(pointer->pointer_id);
+    writer.WriteU8(static_cast<std::uint8_t>(pointer->type));
+    writer.WriteU16(pointer->buttons);
     writer.WriteU8(pointer->button);
-  } else if (const auto* text = std::get_if<TextInputMessage>(&message)) {
-    writer.WriteU8(static_cast<std::uint8_t>(UiTag::TextInput));
-    writer.WriteString(text->text);
+    WriteModifiers(writer, pointer->modifiers);
   } else {
-    const auto& command = std::get<InputCommandMessage>(message);
-    writer.WriteU8(static_cast<std::uint8_t>(UiTag::InputCommand));
-    writer.WriteU8(static_cast<std::uint8_t>(command.command));
+    const auto& key = std::get<KeyInputMessage>(message);
+    writer.WriteU8(static_cast<std::uint8_t>(UiTag::KeyInput));
+    writer.WriteU8(static_cast<std::uint8_t>(key.kind));
+    writer.WriteString(key.code);
+    writer.WriteString(key.key);
+    writer.WriteString(key.text);
+    WriteModifiers(writer, key.modifiers);
+    writer.WriteU8(key.repeat ? 1u : 0u);
   }
 
   return FinishFrame(writer);
@@ -200,45 +229,65 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
       message = value;
       break;
     }
-    case UiTag::Pointer: {
-      PointerMessage value;
+    case UiTag::PointerInput: {
+      PointerInputMessage value;
       const std::uint8_t kind = reader.ReadU8();
-      if (kind > static_cast<std::uint8_t>(PointerMessage::Kind::Up)) {
+      if (kind > static_cast<std::uint8_t>(PointerInputMessage::Kind::Up)) {
         return std::nullopt;
       }
-      value.kind = static_cast<PointerMessage::Kind>(kind);
-      value.position.x = reader.ReadI32();
-      value.position.y = reader.ReadI32();
+      value.kind = static_cast<PointerInputMessage::Kind>(kind);
+      value.position.x = reader.ReadF32();
+      value.position.y = reader.ReadF32();
+      value.pointer_id = reader.ReadI32();
+      const std::uint8_t type = reader.ReadU8();
+      if (type > static_cast<std::uint8_t>(PointerInputMessage::Type::Touch)) {
+        return std::nullopt;
+      }
+      value.type = static_cast<PointerInputMessage::Type>(type);
+      value.buttons = reader.ReadU16();
       value.button = reader.ReadU8();
+      value.modifiers = ReadModifiers(reader);
       if (!reader.Ok()) {
         return std::nullopt;
       }
-      // A pointer position is hit-tested against layout geometry, which is the
-      // same coordinate range every rect is required to stay inside.
-      if (!gfx::IsWithinDeviceRange(gfx::IntRect{value.position.x, value.position.y, 0, 0})) {
+      // A pointer position is hit-tested against layout geometry, so it is held
+      // to the same coordinate range every rect is. NaN is checked first and
+      // separately, because a NaN compares false against every bound that would
+      // otherwise have caught it -- which is how one gets past a range check and
+      // into the rasterizer.
+      if (!std::isfinite(value.position.x) || !std::isfinite(value.position.y) ||
+          std::fabs(value.position.x) > static_cast<float>(gfx::kMaxDeviceCoordinate) ||
+          std::fabs(value.position.y) > static_cast<float>(gfx::kMaxDeviceCoordinate)) {
         return std::nullopt;
       }
       message = value;
       break;
     }
-    case UiTag::TextInput: {
-      TextInputMessage value;
+    case UiTag::KeyInput: {
+      KeyInputMessage value;
+      const std::uint8_t kind = reader.ReadU8();
+      if (kind > static_cast<std::uint8_t>(KeyInputMessage::Kind::Up)) {
+        return std::nullopt;
+      }
+      value.kind = static_cast<KeyInputMessage::Kind>(kind);
+      value.code = reader.ReadString();
+      value.key = reader.ReadString();
       value.text = reader.ReadString();
+      value.modifiers = ReadModifiers(reader);
+      value.repeat = reader.ReadU8() != 0;
       if (!reader.Ok()) {
+        return std::nullopt;
+      }
+      // Each of these becomes a JavaScript string a page reads, and `text`
+      // becomes characters inserted into a control. A keyboard names one key and
+      // inserts at most a grapheme cluster; a megabyte here is a sender that is
+      // not a keyboard, and refusing it is cheaper than every consumer having to
+      // remember it might be.
+      if (value.code.size() > kMaxKeyNameBytes || value.key.size() > kMaxKeyNameBytes ||
+          value.text.size() > kMaxKeyTextBytes) {
         return std::nullopt;
       }
       message = std::move(value);
-      break;
-    }
-    case UiTag::InputCommand: {
-      InputCommandMessage value;
-      const std::uint8_t command = reader.ReadU8();
-      if (!reader.Ok() ||
-          command > static_cast<std::uint8_t>(InputCommandMessage::Command::Enter)) {
-        return std::nullopt;
-      }
-      value.command = static_cast<InputCommandMessage::Command>(command);
-      message = value;
       break;
     }
     default:

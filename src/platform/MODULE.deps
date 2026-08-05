@@ -12,7 +12,18 @@ max_tu_lines: 800
 # here rather than in app because this module is where the process is allowed
 # to sleep, and that rule is what lets the loop policy be tested with no window
 # system present.
-budget: SdlWindow      header_lines=95 public_methods=15 members=3
+# The fourth member is the physical key of a press SDL is still describing.
+# ADR 0017 §1 splits a key event into what key it was, what it means and what it
+# inserts; SDL splits the same press into two events, one carrying each half, so
+# something has to hold one until the other arrives. It belongs to the window
+# because the event queue does.
+budget: SdlWindow      header_lines=105 public_methods=15 members=4
+# A key event, which is now five facts and not four: what character it made,
+# what named key it was, which physical key that is, what was held, and whether
+# the platform's auto-repeat produced it. The physical key is the one that
+# cannot be recovered downstream -- 'a' is KeyA on QWERTY and KeyQ on AZERTY --
+# which is why it is on this side of the seam. ADR 0017 §1.
+budget: KeyEvent      header_lines=30 public_methods=0 members=6
 budget: SdlPresenter   header_lines=60 public_methods=6  members=3
 budget: AppDirectories header_lines=50 public_methods=6  members=3
 # Owns a catalog, an index of what is installed, and the fallback family. The

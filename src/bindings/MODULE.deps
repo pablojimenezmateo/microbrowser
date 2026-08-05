@@ -77,7 +77,15 @@ max_tu_lines: 700
 # could make a lazy-loading feed fetch its whole backlog. The private
 # InstallScroll is the other line. No new members: a scroll offset is a number
 # on a box, and this module is not allowed to see a box.
-budget: DomBindings header_lines=250 public_methods=13 members=10
+# 270 lines and one more public method for ADR 0017. The method is DispatchKey
+# -- keyboard input reaching a page at all, which the message set this replaces
+# made impossible: it carried the *text a key produced* and no key identity, so
+# there was no way to tell a page that Escape had been pressed. The lines are
+# that plus the two input structs above the class and the EventPhase enum below
+# it. No new members: an input event is a value that arrives, runs handlers and
+# is gone, and anything this layer kept about one would be state the next event
+# could disagree with.
+budget: DomBindings header_lines=270 public_methods=14 members=10
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and

@@ -56,6 +56,9 @@ void AppendUtf8(char32_t codepoint, std::string& out) {
   }
 }
 
+// The text a key inserts, or empty. Not the same question as what the key
+// *is*: a key with a modifier on it is a shortcut and inserts nothing, and a
+// control character is not text however it arrived.
 std::string TextInputFor(const platform::KeyEvent& event) {
   if (!event.pressed || !event.modifiers.PlainTyping() || event.codepoint < 0x20 ||
       event.codepoint == 0x7F) {
@@ -66,21 +69,58 @@ std::string TextInputFor(const platform::KeyEvent& event) {
   return text;
 }
 
-std::optional<ipc::InputCommandMessage> InputCommandFor(const platform::KeyEvent& event) {
-  if (!event.pressed || event.modifiers.Any()) {
-    return std::nullopt;
-  }
-  using Command = ipc::InputCommandMessage::Command;
+// What the key *means*, as the DOM names it. The named keys get their DOM
+// spelling; anything else is the character it produced, which is what `key` is
+// for a printable key. "Unidentified" is the specification's answer for a key
+// that produced neither, and it is a real answer rather than an empty string
+// that a page would read as a key with no name.
+std::string KeyNameFor(const platform::KeyEvent& event) {
   switch (event.key) {
-    case platform::Key::Backspace:
-      return ipc::InputCommandMessage{Command::Backspace};
-    case platform::Key::Delete:
-      return ipc::InputCommandMessage{Command::Delete};
-    case platform::Key::Enter:
-      return ipc::InputCommandMessage{Command::Enter};
-    default:
-      return std::nullopt;
+    case platform::Key::Enter: return "Enter";
+    case platform::Key::Escape: return "Escape";
+    case platform::Key::Backspace: return "Backspace";
+    case platform::Key::Delete: return "Delete";
+    case platform::Key::Tab: return "Tab";
+    case platform::Key::Left: return "ArrowLeft";
+    case platform::Key::Right: return "ArrowRight";
+    case platform::Key::Up: return "ArrowUp";
+    case platform::Key::Down: return "ArrowDown";
+    case platform::Key::Home: return "Home";
+    case platform::Key::End: return "End";
+    case platform::Key::PageUp: return "PageUp";
+    case platform::Key::PageDown: return "PageDown";
+    case platform::Key::None:
+      break;
   }
+  if (event.codepoint == 0x20) {
+    return " ";
+  }
+  if (event.codepoint >= 0x20 && event.codepoint != 0x7F) {
+    std::string name;
+    AppendUtf8(event.codepoint, name);
+    return name;
+  }
+  return "Unidentified";
+}
+
+ipc::InputModifiers ModifiersFor(const platform::Modifiers& modifiers) {
+  return ipc::InputModifiers{modifiers.control, modifiers.shift, modifiers.alt, modifiers.meta};
+}
+
+// A platform key event as the message ADR 0017 §1 describes: what key it was,
+// what it means, and what it inserts, as three separate strings. The split
+// happens here rather than in the engine because the engine is the process that
+// will be sandboxed, and a keyboard layout is host state.
+ipc::KeyInputMessage KeyMessageFor(const platform::KeyEvent& event) {
+  ipc::KeyInputMessage message;
+  message.kind =
+      event.pressed ? ipc::KeyInputMessage::Kind::Down : ipc::KeyInputMessage::Kind::Up;
+  message.code = event.code;
+  message.key = KeyNameFor(event);
+  message.text = TextInputFor(event);
+  message.modifiers = ModifiersFor(event.modifiers);
+  message.repeat = event.repeat;
+  return message;
 }
 
 }  // namespace
@@ -264,14 +304,26 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
     if (response.handled) {
       return;
     }
-    ipc::PointerMessage message;
-    message.kind = static_cast<ipc::PointerMessage::Kind>(pointer->kind);
-    // In page coordinates. The page's idea of where the pointer is has to match
-    // where its own pixels are, or every hit test is off by the toolbar.
+    ipc::PointerInputMessage message;
+    message.kind = static_cast<ipc::PointerInputMessage::Kind>(pointer->kind);
+    // In page coordinates, and in CSS pixels. The page's idea of where the
+    // pointer is has to match where its own pixels are, or every hit test is
+    // off by the toolbar; and the scale is divided out here, once, because
+    // every answer the engine gives about this point -- a rect, a clientX -- is
+    // in CSS pixels too.
     const gfx::IntPoint origin = PageOrigin();
-    message.position = gfx::IntPoint{pointer->position.x - origin.x,
-                                     pointer->position.y - origin.y};
-    message.button = pointer->button;
+    const float device_scale = window_.DeviceScale();
+    const float scale = device_scale > 0.0f ? device_scale : 1.0f;
+    message.position = gfx::FloatPoint{
+        static_cast<float>(pointer->position.x - origin.x) / scale,
+        static_cast<float>(pointer->position.y - origin.y) / scale};
+    // The platform numbers buttons from one; the DOM numbers them from zero and
+    // keeps a separate bitmask of what is still held.
+    message.button = pointer->button > 0 ? static_cast<std::uint8_t>(pointer->button - 1) : 0;
+    if (pointer->kind != platform::PointerEvent::Kind::Up && pointer->button > 0) {
+      message.buttons = static_cast<std::uint16_t>(1u << message.button);
+    }
+    message.modifiers = ModifiersFor(pointer->modifiers);
     channel_.Ui().Send(message);
     return;
   }
@@ -282,11 +334,12 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
     const ui::BrowserChrome::Response response = chrome_.HandleKey(*key);
     ApplyChromeResponse(response);
     if (!response.handled) {
-      if (const std::optional<ipc::InputCommandMessage> command = InputCommandFor(*key)) {
-        channel_.Ui().Send(*command);
-      } else if (std::string text = TextInputFor(*key); !text.empty()) {
-        channel_.Ui().Send(ipc::TextInputMessage{std::move(text)});
-      }
+      // One message for every key the chrome did not take, whatever it was.
+      // Deciding here which keys are "text" and which are "commands" is what
+      // the message set this replaces did, and it is why a page could never
+      // learn that Escape was pressed: the decision belongs to the page's own
+      // handlers, and the engine's default action runs after them.
+      channel_.Ui().Send(KeyMessageFor(*key));
     }
     return;
   }

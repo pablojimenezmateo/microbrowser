@@ -248,11 +248,15 @@ bool PageScript::NotifyLoad() {
   return bindings_ != nullptr && bindings_->NotifyLoad();
 }
 
-bool PageScript::DispatchClick(dom::Element& target) {
+bool PageScript::DispatchClick(dom::Element& target, const bindings::PointerInput& pointer) {
   // No script, no handlers: a page that ran nothing cannot have registered
   // anything, and building an interpreter to find that out would make every
   // click on a static page cost one.
-  return bindings_ != nullptr && bindings_->DispatchClick(target);
+  return bindings_ != nullptr && bindings_->DispatchClick(target, pointer);
+}
+
+bool PageScript::DispatchKey(dom::Node* target, const bindings::KeyInput& key) {
+  return bindings_ != nullptr && bindings_->DispatchKey(target, key);
 }
 
 bool PageScript::DispatchScroll(dom::Element* target) {

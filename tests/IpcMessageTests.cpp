@@ -46,13 +46,26 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     RoundTrip(ipc::UiToEngine{ipc::ResizeViewportMessage{gfx::IntSize{1280, 800}, 2.0f}},
               ipc::DeserializeUiToEngine, "ResizeViewport");
     RoundTrip(ipc::UiToEngine{ipc::ScrollMessage{-3, 42, gfx::IntPoint{7, 9}}}, ipc::DeserializeUiToEngine, "Scroll");
-    RoundTrip(ipc::UiToEngine{ipc::PointerMessage{ipc::PointerMessage::Kind::Down,
-                                                  gfx::IntPoint{5, 7}, 1}},
-              ipc::DeserializeUiToEngine, "Pointer");
-    RoundTrip(ipc::UiToEngine{ipc::TextInputMessage{"abc"}}, ipc::DeserializeUiToEngine,
-              "TextInput");
-    RoundTrip(ipc::UiToEngine{ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Enter}},
-              ipc::DeserializeUiToEngine, "InputCommand");
+    ipc::PointerInputMessage pointer;
+    pointer.kind = ipc::PointerInputMessage::Kind::Down;
+    pointer.position = gfx::FloatPoint{5.5f, 7.25f};
+    pointer.pointer_id = 3;
+    pointer.type = ipc::PointerInputMessage::Type::Pen;
+    pointer.buttons = 5;
+    pointer.button = 2;
+    pointer.modifiers = ipc::InputModifiers{true, false, true, false};
+    RoundTrip(ipc::UiToEngine{pointer}, ipc::DeserializeUiToEngine, "PointerInput");
+
+    ipc::KeyInputMessage key;
+    key.kind = ipc::KeyInputMessage::Kind::Up;
+    key.code = "KeyA";
+    key.key = "A";
+    key.text = "A";
+    key.modifiers = ipc::InputModifiers{false, true, false, true};
+    key.repeat = true;
+    RoundTrip(ipc::UiToEngine{key}, ipc::DeserializeUiToEngine, "KeyInput");
+    RoundTrip(ipc::UiToEngine{ipc::KeyInputMessage{}}, ipc::DeserializeUiToEngine,
+              "KeyInput(empty)");
   });
 
   AddTest(tests, "Ipc/EngineToUiRoundTripsEveryMessage", [] {
@@ -308,20 +321,55 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
              "false");
     }
 
-    const auto pointer = [](int x, int y) {
+    const auto pointer = [](float x, float y) {
       ipc::ByteWriter writer;
       writer.WriteU32(ipc::kProtocolVersion);
-      writer.WriteU8(6);  // Pointer
+      writer.WriteU8(6);  // PointerInput
       writer.WriteU8(0);  // Down
-      writer.WriteI32(x);
-      writer.WriteI32(y);
-      writer.WriteU8(1);  // button
+      writer.WriteF32(x);
+      writer.WriteF32(y);
+      writer.WriteI32(1);  // pointer id
+      writer.WriteU8(0);   // Mouse
+      writer.WriteU16(1);  // buttons
+      writer.WriteU8(0);   // button
+      for (int i = 0; i < 4; ++i) {
+        writer.WriteU8(0);  // modifiers
+      }
       return writer.Take();
     };
-    Expect(ipc::DeserializeUiToEngine(pointer(10, 10)).has_value(), "a real position decodes");
-    Expect(!ipc::DeserializeUiToEngine(pointer(2000000000, 10)).has_value(),
+    Expect(ipc::DeserializeUiToEngine(pointer(10.0f, 10.0f)).has_value(),
+           "a real position decodes");
+    Expect(!ipc::DeserializeUiToEngine(pointer(2.0e9f, 10.0f)).has_value(),
            "a pointer position is hit-tested against layout geometry, so it lives in the same "
            "coordinate range every rect does");
+    Expect(!ipc::DeserializeUiToEngine(
+                pointer(std::numeric_limits<float>::quiet_NaN(), 10.0f)).has_value(),
+           "and NaN is refused first, because it compares false against every bound that "
+           "would otherwise have caught it");
+
+    // A key's three strings are bounded. Each becomes a JavaScript string a page
+    // reads and `text` becomes characters inserted into a control, so a sender
+    // that is not a keyboard is refused at the seam rather than everywhere after
+    // it.
+    const auto key_frame = [](std::size_t code_length, std::size_t text_length) {
+      ipc::ByteWriter writer;
+      writer.WriteU32(ipc::kProtocolVersion);
+      writer.WriteU8(7);  // KeyInput
+      writer.WriteU8(0);  // Down
+      writer.WriteString(std::string(code_length, 'a'));
+      writer.WriteString("a");
+      writer.WriteString(std::string(text_length, 'a'));
+      for (int i = 0; i < 4; ++i) {
+        writer.WriteU8(0);  // modifiers
+      }
+      writer.WriteU8(0);  // repeat
+      return writer.Take();
+    };
+    Expect(ipc::DeserializeUiToEngine(key_frame(4, 1)).has_value(), "an ordinary key decodes");
+    Expect(!ipc::DeserializeUiToEngine(key_frame(ipc::kMaxKeyNameBytes + 1, 1)).has_value(),
+           "a key name past the bound is refused");
+    Expect(!ipc::DeserializeUiToEngine(key_frame(4, ipc::kMaxKeyTextBytes + 1)).has_value(),
+           "so is the text it claims to insert");
   });
 
   AddTest(tests, "Ipc/APathIsSerializedAsGeometryRatherThanAnIndex", [] {

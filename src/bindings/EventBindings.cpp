@@ -28,10 +28,18 @@ namespace {
 using js::NativeCall;
 using js::Value;
 
-// Where a `{once: true}` listener keeps the function it wraps. A listener is
+// Where a listener with flags keeps the function it wraps. A listener is
 // stored as the function itself unless it needs a flag, which keeps the common
-// case one object rather than two.
+// case one object rather than two -- and the common case is most of the 930
+// registrations ADR 0017 counted.
 constexpr const char* kListenerFunctionSlot = "#fn";
+constexpr const char* kListenerCaptureSlot = "#capture";
+constexpr const char* kListenerPassiveSlot = "#passive";
+constexpr const char* kListenerOnceSlot = "#once";
+// Set on the *event* while a passive listener runs. `preventDefault` reads it
+// and does nothing, which is the whole point of the flag: a page promises not
+// to cancel so the browser can start scrolling before the handler returns.
+constexpr const char* kEventInPassiveSlot = "#inPassive";
 
 Value ListenerFunction(const Value& entry) {
   if (!entry.IsObject()) {
@@ -44,8 +52,14 @@ Value ListenerFunction(const Value& entry) {
   return wrapped == nullptr ? Value::Undefined() : *wrapped;
 }
 
-bool ListenerIsOnce(const Value& entry) {
-  return entry.IsObject() && !entry.object->IsCallable();
+// A flag on a listener entry. A bare function has none of them, which is why
+// the fast path never allocates.
+bool ListenerFlag(const Value& entry, const char* slot) {
+  if (!entry.IsObject() || entry.object->IsCallable()) {
+    return false;
+  }
+  const Value* found = entry.object->GetOwn(slot);
+  return found != nullptr && js::ToBoolean(*found);
 }
 
 // Whether an options argument asked for something. `addEventListener(t, f,
@@ -59,19 +73,14 @@ bool Option(const Value& options, const char* name) {
   return found != nullptr && js::ToBoolean(*found);
 }
 
-// Removes one listener entry from a live list, by identity of the entry.
-void ForgetListener(const Value& listeners, const Value& entry) {
-  if (!listeners.IsObject()) {
-    return;
+// `addEventListener(type, fn, true)` and `addEventListener(type, fn, {capture:
+// true})` mean the same thing, and the third argument is a boolean far more
+// often than it is an object.
+bool CaptureOption(const Value& options) {
+  if (options.IsObject()) {
+    return Option(options, "capture");
   }
-  std::vector<Value> kept;
-  for (std::size_t i = 0; i < listeners.object->ElementCount(); ++i) {
-    const Value each = listeners.object->GetElement(i);
-    if (!js::StrictEquals(each, entry)) {
-      kept.push_back(each);
-    }
-  }
-  listeners.object->SetElements(std::move(kept), {});
+  return js::ToBoolean(options);
 }
 
 }  // namespace
@@ -105,16 +114,22 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
       return Value::Undefined();
     }
     const std::string slot = "#on:" + js::ToString(Argument(call.arguments, 0));
-    // `{once: true}` is a wrapper around the function rather than a flag beside
-    // it, so the list stays one array and removal stays identity on the
-    // function. `capture` and `passive` are ADR 0017's, and are deliberately
-    // not read here: accepting an option and ignoring it is the stub problem.
+    // The flags are a wrapper around the function rather than fields beside it,
+    // so the list stays one array and removal stays identity on the function.
+    // A listener with no flags -- which is most of them -- is stored as itself.
+    const Value options = Argument(call.arguments, 2);
+    const bool capture = CaptureOption(options);
+    const bool passive = Option(options, "passive");
+    const bool once = Option(options, "once");
     Value entry = handler;
-    if (Option(Argument(call.arguments, 2), "once")) {
-      const Value once = call.interpreter.NewObjectValue();
-      if (once.IsObject()) {
-        once.object->Set(kListenerFunctionSlot, handler);
-        entry = once;
+    if (capture || passive || once) {
+      const Value flagged = call.interpreter.NewObjectValue();
+      if (flagged.IsObject()) {
+        flagged.object->Set(kListenerFunctionSlot, handler);
+        if (capture) flagged.object->Set(kListenerCaptureSlot, Value::Bool(true));
+        if (passive) flagged.object->Set(kListenerPassiveSlot, Value::Bool(true));
+        if (once) flagged.object->Set(kListenerOnceSlot, Value::Bool(true));
+        entry = flagged;
       }
     }
     const Value* existing = target.object->GetOwn(slot);
@@ -141,7 +156,8 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
       const Value* type = event.object->GetOwn("type");
       event.object->Set("target", call.self);
       owner->RunListenersOn(call.self, event,
-                            "#on:" + (type == nullptr ? std::string() : js::ToString(*type)));
+                            "#on:" + (type == nullptr ? std::string() : js::ToString(*type)),
+                            EventPhase::AtTarget);
       const Value* prevented_here = event.object->GetOwn("defaultPrevented");
       return Value::Bool(prevented_here == nullptr || !js::ToBoolean(*prevented_here));
     }
@@ -157,6 +173,7 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
       return Value::Undefined();
     }
     const Value handler = Argument(call.arguments, 1);
+    const bool capture = CaptureOption(Argument(call.arguments, 2));
     const std::string slot = "#on:" + js::ToString(Argument(call.arguments, 0));
     const Value* listeners = target.object->GetOwn(slot);
     if (listeners == nullptr || !listeners->IsObject()) {
@@ -167,9 +184,15 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
       const Value each = listeners->object->GetElement(i);
       // Identity, so removing works only with the same function object that
       // was added -- which is why an inline arrow cannot be removed, and is
-      // the behaviour every browser has. Through the wrapper for a `once`
-      // listener, so that one can be removed before it fires.
-      if (!js::StrictEquals(ListenerFunction(each), handler)) {
+      // the behaviour every browser has. Through the wrapper for a flagged
+      // listener, so one can be removed before it fires.
+      //
+      // The capture flag is part of the identity, not a detail: a page that
+      // registers the same function for both phases and removes one of them
+      // means the one it named. Removing both would silence a handler that is
+      // still registered.
+      if (!js::StrictEquals(ListenerFunction(each), handler) ||
+          ListenerFlag(each, kListenerCaptureSlot) != capture) {
         kept.push_back(each);
       }
     }
@@ -214,9 +237,17 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
             // `preventDefault` on an event that is not cancelable does
             // nothing, which is the rule and is what keeps a handler from
             // believing it stopped something it did not.
+            //
+            // Nor does it do anything inside a passive listener. That is the
+            // whole content of `{passive: true}`: the page promised not to
+            // cancel, the browser is entitled to have already started, and
+            // honouring the call afterwards would make the promise meaningless.
             const Value* is_cancelable = call.self.object->Get("cancelable");
+            const Value* in_passive = call.self.object->GetOwn(kEventInPassiveSlot);
+            const bool passive = in_passive != nullptr && js::ToBoolean(*in_passive);
             const bool allowed =
-                !guard_cancelable || (is_cancelable != nullptr && js::ToBoolean(*is_cancelable));
+                !guard_cancelable ||
+                (!passive && is_cancelable != nullptr && js::ToBoolean(*is_cancelable));
             if (allowed) {
               call.self.object->Set(field, Value::Bool(true));
             }
@@ -235,6 +266,14 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     flag("preventDefault", "defaultPrevented", true, false);
     flag("stopPropagation", "cancelBubble", false, false);
     flag("stopImmediatePropagation", "cancelBubble", false, true);
+
+    // The phase constants, on the interface a page reads them from. A handler
+    // that compares `e.eventPhase === Event.CAPTURING_PHASE` needs both halves
+    // to exist or the comparison is against undefined and always false.
+    prototype.object->Set("NONE", Value::Number(0));
+    prototype.object->Set("CAPTURING_PHASE", Value::Number(1));
+    prototype.object->Set("AT_TARGET", Value::Number(2));
+    prototype.object->Set("BUBBLING_PHASE", Value::Number(3));
   }
 
   // A constructor, so the name resolves and `Event.prototype` is reachable --
@@ -264,6 +303,13 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
   if (constructor.IsObject()) {
     constructor.object->Set(kOwnerSlot, PointerValue(this));
     constructor.object->Set("prototype", prototype);
+    // On the constructor as well as the prototype, because that is where a page
+    // spells them: `Event.CAPTURING_PHASE`, not `Event.prototype.…`.
+    for (const char* constant_name : {"NONE", "CAPTURING_PHASE", "AT_TARGET", "BUBBLING_PHASE"}) {
+      if (const Value* constant = prototype.object->Get(constant_name)) {
+        constructor.object->Set(constant_name, *constant);
+      }
+    }
     prototype.object->Set("constructor", constructor);
     interpreter_->Global()->Set(name, constructor);
     interpreter_->GlobalScope()->Declare(name, constructor, false);
@@ -288,258 +334,44 @@ js::Value DomBindings::MakeEvent(const std::string& type, bool bubbles, bool can
   event.object->Set("cancelBubble", Value::Bool(false));
   event.object->Set("target", Value::Null());
   event.object->Set("currentTarget", Value::Null());
+  event.object->Set("eventPhase", Value::Number(static_cast<double>(EventPhase::None)));
   // Whether the *browser* made this event or a page did. A page's own event
   // must never be able to cause what a real one causes -- see DispatchClick --
   // and the flag is how anything downstream can tell without having to know
   // where it came from.
-  event.object->Set("isTrusted", Value::Bool(trusted));
+  //
+  // A getter with no setter, and set from the constructor that was used rather
+  // than assigned afterwards. ADR 0017 §3: there must be no way to make it
+  // true, because the gates that will eventually read it -- opening a window,
+  // entering fullscreen, reading the clipboard -- are reading it as a statement
+  // about the user. Assigning to a getter-only property is a silent no-op in
+  // this engine, so `event.isTrusted = true` leaves it false.
+  const Value getter = TrustedGetter(trusted);
+  if (getter.IsObject()) {
+    event.object->DefineAccessor("isTrusted", getter.object, nullptr);
+  }
   return event;
 }
 
-bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event,
-                                 const std::string& slot) {
-  if (!holder.IsObject() || !event.IsObject()) {
-    return false;
+js::Value DomBindings::TrustedGetter(bool trusted) {
+  EnsureInterfaces();
+  if (!interfaces_.IsObject()) {
+    return Value::Undefined();
   }
-  const Value* type = event.object->GetOwn("type");
-  const Value* listeners = holder.object->GetOwn(slot);
-  // `el.onsubmit = fn` is a property, not a listener, and a page sets one as
-  // readily as it calls addEventListener -- reddit's challenge writes
-  // `form.onsubmit = …` and would otherwise have its handler never run. The
-  // property runs before the registered listeners, which is an approximation:
-  // the specification registers it in the position it was first assigned.
-  const Value* attribute = type == nullptr ? nullptr : holder.object->Get("on" + js::ToString(*type));
-  if ((listeners == nullptr || !listeners->IsObject()) &&
-      (attribute == nullptr || !attribute->IsObject() || !attribute->object->IsCallable())) {
-    return false;
+  // Two functions for the whole process, not one per event. They close over
+  // nothing and read nothing: what an event's `isTrusted` answers is decided
+  // by which of the two it was given, and there is no slot on the event for a
+  // page to reach for.
+  const char* name = trusted ? "#isTrustedTrue" : "#isTrustedFalse";
+  if (const Value* existing = interfaces_.object->GetOwn(name)) {
+    return *existing;
   }
-  event.object->Set("currentTarget", holder);
-
-  if (attribute != nullptr && attribute->IsObject() && attribute->object->IsCallable()) {
-    const js::Result answer = interpreter_->CallFunction(*attribute, holder, {event});
-    // The legacy cancellation: an event handler *attribute* that returns false
-    // has prevented the default. A listener returning false has not, which is
-    // why this lives here and not in the loop below.
-    if (answer.completion != js::Completion::Throw && answer.value.type == js::ValueType::Boolean &&
-        !answer.value.boolean) {
-      const Value* cancelable = event.object->Get("cancelable");
-      if (cancelable != nullptr && js::ToBoolean(*cancelable)) {
-        event.object->Set("defaultPrevented", Value::Bool(true));
-      }
-    }
+  const Value native = interpreter_->NewNativeValue(
+      "isTrusted", [trusted](NativeCall&) { return Value::Bool(trusted); });
+  if (native.IsObject()) {
+    interfaces_.object->Set(name, native);
   }
-  if (listeners == nullptr || !listeners->IsObject()) {
-    const Value* stopped_here = event.object->GetOwn("cancelBubble");
-    return stopped_here != nullptr && js::ToBoolean(*stopped_here);
-  }
-
-  // A copy, because a handler is allowed to add or remove listeners and the
-  // set that runs is the set that existed when the event was dispatched.
-  std::vector<Value> handlers;
-  for (std::size_t i = 0; i < listeners->object->ElementCount(); ++i) {
-    handlers.push_back(listeners->object->GetElement(i));
-  }
-  for (const Value& entry : handlers) {
-    // Removed before it is called, not after: a `once` listener that dispatches
-    // the same event again must not see itself still registered.
-    if (ListenerIsOnce(entry)) {
-      ForgetListener(*listeners, entry);
-    }
-    // `this` is the object the listener was registered on, which is what a
-    // handler written as an ordinary function expects.
-    (void)interpreter_->CallFunction(ListenerFunction(entry), holder, {event});
-    const Value* immediate = event.object->GetOwn("#stopImmediate");
-    if (immediate != nullptr && js::ToBoolean(*immediate)) {
-      break;
-    }
-  }
-  const Value* stopped = event.object->GetOwn("cancelBubble");
-  return stopped != nullptr && js::ToBoolean(*stopped);
-}
-
-bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
-  if (interpreter_ == nullptr || !event.IsObject()) {
-    return false;
-  }
-  const Value* type_value = event.object->GetOwn("type");
-  if (type_value == nullptr) {
-    return false;
-  }
-  const std::string slot = "#on:" + js::ToString(*type_value);
-  const Value* bubbles = event.object->GetOwn("bubbles");
-  const bool propagates = bubbles != nullptr && js::ToBoolean(*bubbles);
-
-  event.object->Set("target", WrapperFor(&target));
-
-  // From the target up to the root, which is what bubbling is. The ancestor
-  // chain is read before any handler runs: a handler that reparents the target
-  // must not change which ancestors see the event.
-  std::vector<dom::Node*> chain;
-  for (dom::Node* walk = &target; walk != nullptr; walk = walk->Parent()) {
-    chain.push_back(walk);
-    if (!propagates) {
-      break;  // a non-bubbling event reaches its target and stops
-    }
-  }
-
-  bool stopped = false;
-  for (dom::Node* node : chain) {
-    stopped = RunListenersOn(WrapperFor(node), event, slot);
-    if (stopped) {
-      break;
-    }
-  }
-  // Then the window, which is the last thing a bubbling event reaches. A page
-  // that listens for `resize` or `load` listens there and nowhere else, and
-  // one that listens for a click on `window` expects to see clicks on the
-  // document.
-  if (!stopped && propagates) {
-    RunListenersOn(Value::Obj(interpreter_->Global()), event, slot);
-  }
-  // Handlers run as a turn of their own, so anything they queued settles
-  // before the event is over -- the same rule a script gets.
-  interpreter_->DrainMicrotasks();
-
-  const Value* prevented = event.object->GetOwn("defaultPrevented");
-  return prevented != nullptr && js::ToBoolean(*prevented);
-}
-
-bool DomBindings::DispatchClick(dom::Element& target) {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  // Trusted, because the only caller is the thing that saw a real click. A
-  // page's own `dispatchEvent` produces an untrusted one, which is why this
-  // stayed a C++ entry point with no script-facing counterpart: an event a
-  // page can forge must not be able to make a form submit itself.
-  const Value event = MakeEvent("click", true, true, true);
-  if (!event.IsObject()) {
-    return false;
-  }
-  // A click is a MouseEvent, and a page tests for that: `e instanceof
-  // MouseEvent` is how a handler tells a pointer event from a keyboard one.
-  const Value mouse = EventPrototype("MouseEvent", "Event");
-  if (mouse.IsObject()) {
-    event.object->SetPrototype(mouse.object);
-  }
-  return DispatchEventTo(target, event);
-}
-
-
-bool DomBindings::DispatchSubmit(dom::Element& form) {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  // Bubbles and is cancelable, which is the whole point: a page's `onsubmit`
-  // adds the fields it wants and a `preventDefault` stops the navigation, the
-  // same contract clicks already had.
-  const Value event = MakeEvent("submit", true, true, true);
-  if (!event.IsObject()) {
-    return false;
-  }
-  return DispatchEventTo(form, event);
-}
-
-bool DomBindings::DispatchScroll(dom::Element* target) {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  // Not cancelable, because it is reported after the fact: by the time a page
-  // hears about a scroll the pixels have already moved, and a `preventDefault`
-  // that unscrolled them is a thing no engine has ever offered.
-  //
-  // On an element it bubbles to the document; on the viewport it is fired at
-  // the document and at the window, which is where the other half of pages
-  // listen for it. ADR 0018 §3: this runs at most once per frame however many
-  // notches arrived, which is what keeps twelve listeners from running twelve
-  // times for one wheel.
-  //
-  // Whether anything is *listening* is asked first, and that is not a
-  // micro-optimisation: the caller relays out when this returns true, so a page
-  // with no `scroll` handler would run a full layout on every wheel notch --
-  // which is precisely the cost ADR 0018 exists to avoid. `DispatchEventTo`
-  // cannot answer it, because what it reports is `preventDefault` and a
-  // non-cancelable event has none.
-  const auto listening = [this](dom::Node* from) {
-    const std::string slot = "#on:scroll";
-    for (dom::Node* walk = from; walk != nullptr; walk = walk->Parent()) {
-      const Value wrapper = WrapperFor(walk);
-      if (wrapper.IsObject() && (wrapper.object->GetOwn(slot) != nullptr ||
-                                 wrapper.object->GetOwn("onscroll") != nullptr)) {
-        return true;
-      }
-    }
-    js::Object* global = interpreter_->Global();
-    return global->GetOwn(slot) != nullptr || global->Get("onscroll") != nullptr;
-  };
-
-  dom::Node* from = target != nullptr ? static_cast<dom::Node*>(target)
-                                      : static_cast<dom::Node*>(document_);
-  if (from == nullptr || !listening(from)) {
-    return false;
-  }
-  const Value event = MakeEvent("scroll", true, false, true);
-  if (!event.IsObject()) {
-    return false;
-  }
-  DispatchEventTo(*from, event);
-  return true;
-}
-
-bool DomBindings::DispatchAtWindow(const char* type) {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  const Value window = Value::Obj(interpreter_->Global());
-  const std::string slot = std::string("#on:") + type;
-  const bool listening =
-      window.object->GetOwn(slot) != nullptr || window.object->Get(std::string("on") + type) != nullptr;
-  if (!listening) {
-    // Asked before the event is built, so a page that is listening for nothing
-    // costs nothing -- which is what keeps `load` from relaying out every
-    // document that ever finished loading.
-    return false;
-  }
-  const Value event = MakeEvent(type, false, false, true);
-  if (!event.IsObject()) {
-    return false;
-  }
-  event.object->Set("target", window);
-  RunListenersOn(window, event, slot);
-  interpreter_->DrainMicrotasks();
-  return true;
-}
-
-bool DomBindings::NotifyDomContentLoaded() {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  // The state changes before the event fires. A handler that reads
-  // `document.readyState` must not be told the parse is still running.
-  SetReadyState("interactive");
-  util::AddPerformanceCounter(util::PerfCounterId::EngineDomContentLoaded);
-  const Value event = MakeEvent("DOMContentLoaded", true, false, true);
-  if (!event.IsObject() || document_ == nullptr) {
-    return false;
-  }
-  // Bubbles, so a listener on `window` sees it -- which is where the other
-  // half of pages put it.
-  DispatchEventTo(*document_, event);
-  return true;
-}
-
-bool DomBindings::NotifyLoad() {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  SetReadyState("complete");
-  // At the window, not at the document: `load` does not bubble, and
-  // `window.onload` is where every page listens for it.
-  const bool heard = DispatchAtWindow("load");
-  if (heard) {
-    util::AddPerformanceCounter(util::PerfCounterId::EngineLoadEvents);
-  }
-  return heard;
+  return native;
 }
 
 void DomBindings::InstallWindowEvents() {
@@ -560,6 +392,10 @@ void DomBindings::InstallEventConstructors() {
   EventPrototype("Event", nullptr);
   EventPrototype("CustomEvent", "Event");
   EventPrototype("MouseEvent", "Event");
+  // `e instanceof KeyboardEvent` is how a handler bound to several event types
+  // tells a key from a click, and it is the check a page makes before reading
+  // `e.key` off something that might not have one.
+  EventPrototype("KeyboardEvent", "Event");
 }
 
 js::Value DomBindings::CreateLegacyEvent() {

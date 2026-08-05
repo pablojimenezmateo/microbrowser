@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <variant>
 
 #include "gfx/Geometry.h"
@@ -26,19 +27,6 @@ struct ResizeEvent {
 // full. Distinct from ResizeEvent: nothing about the geometry changed, so the
 // canvas need not be reallocated, but no damage tracking can be trusted.
 struct ExposeEvent {};
-
-struct PointerEvent {
-  enum class Kind : std::uint8_t { Move, Down, Up };
-
-  Kind kind = Kind::Move;
-  gfx::IntPoint position;
-  std::uint8_t button = 0;
-};
-
-struct WheelEvent {
-  int delta_x = 0;
-  int delta_y = 0;
-};
 
 // Keys that produce no character but mean something.
 //
@@ -79,6 +67,22 @@ struct Modifiers {
   friend bool operator==(const Modifiers&, const Modifiers&) = default;
 };
 
+struct PointerEvent {
+  enum class Kind : std::uint8_t { Move, Down, Up };
+
+  Kind kind = Kind::Move;
+  gfx::IntPoint position;
+  std::uint8_t button = 0;
+  // What was held. A ctrl+click and a click are different acts, and the page is
+  // entitled to know which one it got.
+  Modifiers modifiers;
+};
+
+struct WheelEvent {
+  int delta_x = 0;
+  int delta_y = 0;
+};
+
 struct KeyEvent {
   // A Unicode codepoint when the key produced one, else 0.
   char32_t codepoint = 0;
@@ -86,8 +90,24 @@ struct KeyEvent {
   // Enter has a codepoint on some platforms -- so a consumer checks the named
   // key first.
   Key key = Key::None;
+  // The *physical* key, named the way the DOM names one: "KeyA", "Escape",
+  // "ArrowLeft". Empty when this platform could not say which key it was.
+  //
+  // This is here rather than derived downstream because it is the one part of
+  // a key event that cannot be recovered from the character: 'a' is KeyA on a
+  // QWERTY keyboard and KeyQ on AZERTY, and only the window system knows which
+  // one the user is holding. ADR 0017's "send raw platform key codes and decode
+  // them in the engine" is rejected for the mirror-image reason -- the keyboard
+  // layout is platform state and belongs on this side of the seam. What a key
+  // *means* and what it *inserts* are layout questions this struct already
+  // answers with `key` and `codepoint`; what it *is* is this field.
+  std::string code;
   Modifiers modifiers;
   bool pressed = false;
+  // The key was held down and the platform's auto-repeat produced this. A page
+  // that acts on every keydown wants to know; a page that counts keystrokes has
+  // to be able to tell them apart.
+  bool repeat = false;
 };
 
 using InputEvent = std::variant<QuitEvent, ResizeEvent, ExposeEvent, PointerEvent, WheelEvent,

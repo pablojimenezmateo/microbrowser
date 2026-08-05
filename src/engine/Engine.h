@@ -111,7 +111,16 @@ class Engine {
   // here, because painting and a script's `getBoundingClientRect` both have to
   // subtract it and two copies of a scroll offset drift. See Page and ADR 0015.
   int ScrollY() const;
-  bool HandlePointer(const ipc::PointerMessage& pointer);
+  bool HandlePointer(const ipc::PointerInputMessage& pointer);
+  // Dispatches the key at whatever has focus and then, only if nothing
+  // cancelled it, runs its default action. The two halves are separate on
+  // purpose: ADR 0017 §2 makes the default action a step after dispatch, which
+  // is the only thing that makes `preventDefault` on a keydown mean anything.
+  bool HandleKey(const ipc::KeyInputMessage& key);
+  // What to do when a handler ran and nothing else happened: the document may
+  // have moved under the layout, so drop it and paint again -- and only then,
+  // because a key on a page with no handlers must not cost a relayout.
+  bool HandleScriptSideEffects(bool ran);
 
   // Acts on one thing that arrived.
   void OnCompletion(Loader::Completion completion);

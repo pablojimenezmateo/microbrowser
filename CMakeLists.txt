@@ -288,11 +288,13 @@ microbrowser_module(ipc
 microbrowser_module(engine
   SOURCES
     src/engine/Engine.cpp
+    src/engine/EngineInput.cpp
     src/engine/FormAlgorithms.cpp
     src/engine/GeometryQueries.cpp
     src/engine/ImageSelection.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
+    src/engine/PageEditing.cpp
     src/engine/PageScrolling.cpp
     src/engine/PageScript.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
@@ -325,6 +327,7 @@ microbrowser_module(bindings
     src/bindings/TreeMutation.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/EventBindings.cpp
+    src/bindings/EventDispatch.cpp
     src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp
   DEPS microbrowser_js microbrowser_dom microbrowser_html)

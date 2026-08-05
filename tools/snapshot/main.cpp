@@ -53,13 +53,37 @@ struct Options {
   // none -- 0,0 is a real point.
   int click_x = -1;
   int click_y = -1;
+  // Keys to deliver after the click, in order. Each is one press and release.
+  // `-type` expands to one entry per character with the character as its text;
+  // `-key` names a key and inserts nothing, which is how Escape and Enter
+  // arrive. This is the whole of what a check phrased as an interaction needs,
+  // and it is here because the browser needs a display and this does not.
+  std::vector<microbrowser::ipc::KeyInputMessage> keys;
 };
+
+// The DOM's `key` for a character, which for a printable character is the
+// character. Split from `text` for the reason ADR 0017 §1 splits them: a key
+// with no text still has a name, and Escape is the case that matters.
+microbrowser::ipc::KeyInputMessage TypedKey(std::string character) {
+  microbrowser::ipc::KeyInputMessage key;
+  key.key = character;
+  key.text = std::move(character);
+  return key;
+}
+
+microbrowser::ipc::KeyInputMessage NamedKey(std::string_view name) {
+  microbrowser::ipc::KeyInputMessage key;
+  key.key = std::string(name);
+  return key;
+}
 
 const char* kUsage =
     "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n"
-    "                            [-dpr ratio] [-click x,y] [-v]\n"
+    "                            [-dpr ratio] [-click x,y] [-type text] [-key name] [-v]\n"
     "  -dpr    device pixels per CSS pixel: which srcset candidate an <img> picks\n"
     "  -click  deliver a click before the snapshot, to follow a link or submit a form\n"
+    "  -type   type text into whatever the click focused; repeatable, in order\n"
+    "  -key    press one named key -- Escape, Enter, Tab, ArrowDown; repeatable\n"
     "  -v      print every display list command: what was painted, where, in what colour\n";
 
 // One line per command. The point of a dump rather than a pixel is that a rect
@@ -146,6 +170,19 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       if (!x || !y) return false;
       out.click_x = *x;
       out.click_y = *y;
+    } else if (argument == "-type") {
+      const std::string_view text = value();
+      if (text.empty()) return false;
+      // One key per byte. ASCII only, which is what the window path delivers
+      // too -- a multi-byte character would need a codepoint boundary walk and
+      // there is nothing yet on the other end that would read it differently.
+      for (const char c : text) {
+        out.keys.push_back(TypedKey(std::string(1, c)));
+      }
+    } else if (argument == "-key") {
+      const std::string_view name = value();
+      if (name.empty()) return false;
+      out.keys.push_back(NamedKey(name));
     } else if (argument == "-dpr") {
       const std::optional<float> parsed = microbrowser::util::ParseFloat(value());
       if (!parsed || !(*parsed > 0.0f) || *parsed > 8.0f) return false;
@@ -239,11 +276,26 @@ int main(int argc, char** argv) {
   if (options.click_x >= 0 && options.click_y >= 0) {
     // Down then up, the way a real click arrives, so the engine sees the same
     // sequence the window would deliver.
-    for (const auto kind : {microbrowser::ipc::PointerMessage::Kind::Down,
-                            microbrowser::ipc::PointerMessage::Kind::Up}) {
-      channel.Ui().Send(microbrowser::ipc::PointerMessage{
-          kind, microbrowser::gfx::IntPoint{options.click_x, options.click_y}, 1});
+    for (const auto kind : {microbrowser::ipc::PointerInputMessage::Kind::Down,
+                            microbrowser::ipc::PointerInputMessage::Kind::Up}) {
+      microbrowser::ipc::PointerInputMessage pointer;
+      pointer.kind = kind;
+      pointer.position = microbrowser::gfx::FloatPoint{static_cast<float>(options.click_x),
+                                                       static_cast<float>(options.click_y)};
+      pointer.buttons = kind == microbrowser::ipc::PointerInputMessage::Kind::Down ? 1 : 0;
+      channel.Ui().Send(pointer);
     }
+    engine.HandlePendingMessages();
+    RunLoadToCompletion(engine);
+  }
+  for (microbrowser::ipc::KeyInputMessage key : options.keys) {
+    // Down then up, the way a real key arrives. A handler that runs on keyup
+    // and a default action that runs on keydown are both real, and delivering
+    // only the press would test half of the path.
+    key.kind = microbrowser::ipc::KeyInputMessage::Kind::Down;
+    channel.Ui().Send(key);
+    key.kind = microbrowser::ipc::KeyInputMessage::Kind::Up;
+    channel.Ui().Send(key);
     engine.HandlePendingMessages();
     RunLoadToCompletion(engine);
   }

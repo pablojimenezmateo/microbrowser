@@ -106,45 +106,6 @@ const std::string* AnchorHref(const dom::Element* element) {
   return href != nullptr && !href->empty() ? href : nullptr;
 }
 
-bool IsUtf8Continuation(unsigned char byte) {
-  return (byte & 0xC0u) == 0x80u;
-}
-
-std::size_t ExpectedUtf8ContinuationCount(unsigned char lead) {
-  if ((lead & 0x80u) == 0u) {
-    return 0;
-  }
-  if ((lead & 0xE0u) == 0xC0u) {
-    return 1;
-  }
-  if ((lead & 0xF0u) == 0xE0u) {
-    return 2;
-  }
-  if ((lead & 0xF8u) == 0xF0u) {
-    return 3;
-  }
-  return 0;
-}
-
-std::size_t PreviousUtf8Boundary(std::string_view text) {
-  if (text.empty()) {
-    return 0;
-  }
-  const std::size_t last = text.size() - 1;
-  if (!IsUtf8Continuation(static_cast<unsigned char>(text[last]))) {
-    return last;
-  }
-  std::size_t lead = last;
-  while (lead > 0 && IsUtf8Continuation(static_cast<unsigned char>(text[lead]))) {
-    --lead;
-  }
-  const std::size_t continuation_count = last - lead;
-  if (!IsUtf8Continuation(static_cast<unsigned char>(text[lead])) &&
-      ExpectedUtf8ContinuationCount(static_cast<unsigned char>(text[lead])) == continuation_count) {
-    return lead;
-  }
-  return last;
-}
 
 bool IsValueResettableControl(const dom::Element& element) {
   return html::IsTextControl(element);
@@ -609,7 +570,8 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
   return SubmitForm(*form, submitter);
 }
 
-ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
+DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
+                                   const bindings::PointerInput& pointer) {
   if (boxes_ == nullptr) {
     return {};
   }
@@ -617,11 +579,12 @@ ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
   if (target == nullptr) {
     return {};
   }
-  ClickOutcome outcome;
+  DispatchOutcome outcome;
   outcome.ran = script_.HasListeners();
-  outcome.prevented = script_.DispatchClick(*const_cast<dom::Element*>(target));
+  outcome.prevented = script_.DispatchClick(*const_cast<dom::Element*>(target), pointer);
   return outcome;
 }
+
 
 std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
   const std::optional<std::uint32_t> from_script = script_.NextWakeDelay(now_ms);
@@ -748,46 +711,5 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   return true;
 }
 
-bool Page::InsertTextIntoFocusedTextControl(std::string_view text) {
-  if (focused_text_control_ == nullptr || text.empty() ||
-      !html::IsMutableTextControl(*focused_text_control_)) {
-    return false;
-  }
-  std::string value = ControlValue(*focused_text_control_);
-  const std::size_t limit = TextControlValueLimitBytes(*focused_text_control_);
-  if (value.size() >= limit) {
-    return false;
-  }
-  const std::size_t room = limit - value.size();
-  value.append(text.substr(0, room));
-  focused_text_control_->SetAttribute("value", std::move(value));
-  boxes_.reset();
-  return true;
-}
-
-bool Page::DeleteBackwardFromFocusedTextControl() {
-  if (focused_text_control_ == nullptr || !html::IsMutableTextControl(*focused_text_control_)) {
-    return false;
-  }
-  std::string value = ControlValue(*focused_text_control_);
-  if (value.empty()) {
-    return false;
-  }
-  value.erase(PreviousUtf8Boundary(value));
-  focused_text_control_->SetAttribute("value", std::move(value));
-  boxes_.reset();
-  return true;
-}
-
-std::optional<FormSubmission> Page::FocusedFormSubmission() {
-  if (focused_text_control_ == nullptr || document_ == nullptr) {
-    return std::nullopt;
-  }
-  const dom::Element* form = html::FormOwner(*focused_text_control_, *document_);
-  if (form == nullptr) {
-    return std::nullopt;
-  }
-  return SubmitForm(*form, nullptr);
-}
 
 }  // namespace microbrowser::engine

@@ -95,6 +95,13 @@ class SdlWindow {
   SDL_Window* window_ = nullptr;
   SDL_Renderer* renderer_ = nullptr;
   bool initialized_sdl_ = false;
+  // The physical key of the last keypress SDL is still describing. SDL splits
+  // one press into KEY_DOWN, which knows which key was struck, and TEXT_INPUT,
+  // which knows what it typed; a `code` and a character have to be in the same
+  // KeyEvent, so one of the two waits here for the other. It is a member rather
+  // than a static because the event queue belongs to this window and so does
+  // this.
+  std::string pending_key_code_;
 };
 
 }  // namespace microbrowser::platform

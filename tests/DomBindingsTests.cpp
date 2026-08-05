@@ -978,7 +978,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       }
     });
     Expect(inner != nullptr, "the inner element exists");
-    const bool prevented = bound.dom_bindings->DispatchClick(*inner);
+    const bool prevented = bound.dom_bindings->DispatchClick(*inner, {});
     Expect(!prevented, "nothing called preventDefault");
 
     // From the target up, which is what bubbling is -- and `this` is the node
@@ -1002,7 +1002,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
           inner = const_cast<dom::Element*>(&static_cast<const dom::Element&>(node));
         }
       });
-      const bool prevented = inner != nullptr && bound.dom_bindings->DispatchClick(*inner);
+      const bool prevented = inner != nullptr && bound.dom_bindings->DispatchClick(*inner, {});
       return std::string(prevented ? "prevented " : "allowed ") +
              js::ToString(bound.interpreter->Run("seen.join(',')").value);
     };
@@ -1036,7 +1036,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       }
     });
     Expect(target != nullptr, "the div exists");
-    bound.dom_bindings->DispatchClick(*target);
+    bound.dom_bindings->DispatchClick(*target, {});
     // Only the anonymous one is left. Removal is by identity, which is why an
     // inline arrow cannot be removed -- and is what every browser does.
     ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "10",

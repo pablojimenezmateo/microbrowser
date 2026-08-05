@@ -38,7 +38,12 @@ max_tu_lines: 800
 # and one whose damage is *known* rather than derived, because the display-list
 # diff answers "everything changed" for a scroll (every command moved) and
 # repainting the window for a wheel notch is the cost ADR 0018 exists to avoid.
-budget: Engine header_lines=132 public_methods=13 members=9
+# 145 lines for ADR 0017, and no new members. The lines are the key path and
+# the comment that is the point of it: dispatch first, default action second.
+# Inserting a character is what a keydown does *after* its handlers have run and
+# only if none of them cancelled -- which is the whole of what `preventDefault`
+# on a keydown means, and what the previous message set could not express.
+budget: Engine header_lines=145 public_methods=13 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.

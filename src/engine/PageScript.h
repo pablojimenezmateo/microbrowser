@@ -126,7 +126,12 @@ class PageScript {
 
   // Runs the click handlers registered on `target` and its ancestors. True
   // when one called `preventDefault`.
-  bool DispatchClick(dom::Element& target);
+  bool DispatchClick(dom::Element& target, const bindings::PointerInput& pointer);
+  // Fires `keydown` or `keyup` at `target`, or at the document when it is null.
+  // True when a handler called `preventDefault`, which is the caller's signal
+  // not to run the key's default action -- ADR 0017 §2 makes that action a step
+  // after dispatch rather than something dispatch performs.
+  bool DispatchKey(dom::Node* target, const bindings::KeyInput& key);
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
   bool DispatchSubmit(dom::Element& form);

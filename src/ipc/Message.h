@@ -31,7 +31,11 @@ namespace microbrowser::ipc {
 // hole for a compositor surface. Both are wire-format changes rather than
 // additions, so an old peer must be refused rather than left to misread a
 // length: the version check is the whole mechanism for that.
-inline constexpr std::uint32_t kProtocolVersion = 2;
+//
+// Bumped to 3 when the three input messages became the two ADR 0017 §1
+// describes. Tag 6 means something different now and tags 7 and 8 mean nothing,
+// which is precisely the case the version field exists for.
+inline constexpr std::uint32_t kProtocolVersion = 3;
 
 // --- UI -> Engine ------------------------------------------------------------
 
@@ -72,44 +76,93 @@ struct ScrollMessage {
   friend bool operator==(const ScrollMessage&, const ScrollMessage&) = default;
 };
 
-struct PointerMessage {
+// What was held down when the input happened.
+//
+// Named bools rather than a bitmask, and ADR 0017 §1 is explicit about why: it
+// crosses the seam from what will eventually be the untrusted process, and a
+// bitmask whose meaning is a convention is exactly the kind of field ADR 0004
+// says to treat as a claim rather than a fact. Four bools decode to four
+// booleans; an integer decodes to whatever the two ends currently agree it
+// means.
+struct InputModifiers {
+  bool control = false;
+  bool shift = false;
+  bool alt = false;
+  bool meta = false;
+
+  friend bool operator==(const InputModifiers&, const InputModifiers&) = default;
+};
+
+// A pointer, as an input event actually is. ADR 0017 §1.
+//
+// The kinds here are the ones something sends. `Enter`/`Leave` belong with
+// `:hover` and `Cancel` with touch, and each arrives with the thing that
+// produces it -- an enum value no sender ever writes is decode surface with no
+// behaviour behind it. A wheel is still `ScrollMessage`, which session 8 built
+// and which routes to a scrolling box rather than to an event target.
+struct PointerInputMessage {
   enum class Kind : std::uint8_t { Move, Down, Up };
+  enum class Type : std::uint8_t { Mouse, Pen, Touch };
 
   Kind kind = Kind::Move;
-  gfx::IntPoint position;
+  // CSS pixels, viewport-relative. CSS pixels because that is the coordinate
+  // system every answer the engine gives about this point is in -- a rect from
+  // `getBoundingClientRect`, a `clientX` on the event -- and converting once at
+  // the seam is what stops the device scale being applied twice or not at all.
+  gfx::FloatPoint position;
+  // A mouse is one pointer; touches are many. Carried now so that the day a
+  // touchscreen exists is not the day this message changes shape.
+  std::int32_t pointer_id = 1;
+  Type type = Type::Mouse;
+  // What is held, as a bitmask in the DOM's order (1 = primary, 2 = secondary,
+  // 4 = middle) -- this one *is* a bitmask because it is the value a page reads
+  // back as `event.buttons`.
+  std::uint16_t buttons = 0;
+  // What changed. 0 is the primary button, which is the DOM's numbering and
+  // not the platform's.
   std::uint8_t button = 0;
+  InputModifiers modifiers;
 
-  friend bool operator==(const PointerMessage&, const PointerMessage&) = default;
+  friend bool operator==(const PointerInputMessage&, const PointerInputMessage&) = default;
 };
 
-struct TextInputMessage {
-  // UTF-8 text produced by a key event. Editing commands grow separate
-  // messages; this one is only insertion text.
+// A key. ADR 0017 §1: three strings, not one.
+//
+// A game reads `code` because WASD is a shape on the keyboard; a shortcut reads
+// `key` because Ctrl+C is a letter; an editor reads `text` because a dead key
+// produces nothing until the next one. Collapsing them -- which is what the
+// message this replaces did -- makes two of the three unimplementable.
+struct KeyInputMessage {
+  enum class Kind : std::uint8_t { Down, Up };
+
+  Kind kind = Kind::Down;
+  // The physical key: "KeyA", "Escape". Layout-independent, and empty when the
+  // platform did not say which key it was.
+  std::string code;
+  // What it means: "a", "A", "Escape". Layout-dependent.
+  std::string key;
+  // What it inserts, possibly empty. Inserting it is a *default action* of the
+  // keydown, not something that happens on the way past.
   std::string text;
+  InputModifiers modifiers;
+  bool repeat = false;
 
-  friend bool operator==(const TextInputMessage&, const TextInputMessage&) = default;
+  friend bool operator==(const KeyInputMessage&, const KeyInputMessage&) = default;
 };
 
-struct InputCommandMessage {
-  enum class Command : std::uint8_t {
-    Backspace,
-    Delete,
-    Enter,
-  };
-
-  Command command = Command::Backspace;
-
-  friend bool operator==(const InputCommandMessage&, const InputCommandMessage&) = default;
-};
+// Bounds on the three strings above. A key names one key and inserts at most a
+// grapheme cluster; anything longer is a sender that is not a keyboard, and the
+// engine turns each of these into a JavaScript string a page can read.
+inline constexpr std::uint32_t kMaxKeyNameBytes = 32;
+inline constexpr std::uint32_t kMaxKeyTextBytes = 64;
 
 using UiToEngine = std::variant<NavigateMessage,
                                 ReloadMessage,
                                 StopLoadMessage,
                                 ResizeViewportMessage,
                                 ScrollMessage,
-                                PointerMessage,
-                                TextInputMessage,
-                                InputCommandMessage>;
+                                PointerInputMessage,
+                                KeyInputMessage>;
 
 // --- Engine -> UI ------------------------------------------------------------
 

@@ -52,6 +52,60 @@ Key NamedKey(SDL_Keycode code) {
   }
 }
 
+// SDL scancode to the DOM's name for the same physical key.
+//
+// A scancode is a position on the keyboard, which is exactly what `code` is, so
+// this is a rename rather than an interpretation. Deliberately not exhaustive:
+// every entry is a key something can plausibly be bound to, and a key that is
+// not here reports an empty code -- "this platform did not say" -- rather than
+// a guess. Guessing is how `code` stops meaning anything.
+std::string CodeName(SDL_Scancode scancode) {
+  if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z) {
+    return std::string("Key") + static_cast<char>('A' + (scancode - SDL_SCANCODE_A));
+  }
+  if (scancode >= SDL_SCANCODE_1 && scancode <= SDL_SCANCODE_9) {
+    return std::string("Digit") + static_cast<char>('1' + (scancode - SDL_SCANCODE_1));
+  }
+  switch (scancode) {
+    case SDL_SCANCODE_0: return "Digit0";
+    case SDL_SCANCODE_RETURN: return "Enter";
+    case SDL_SCANCODE_KP_ENTER: return "NumpadEnter";
+    case SDL_SCANCODE_ESCAPE: return "Escape";
+    case SDL_SCANCODE_BACKSPACE: return "Backspace";
+    case SDL_SCANCODE_DELETE: return "Delete";
+    case SDL_SCANCODE_TAB: return "Tab";
+    case SDL_SCANCODE_SPACE: return "Space";
+    case SDL_SCANCODE_LEFT: return "ArrowLeft";
+    case SDL_SCANCODE_RIGHT: return "ArrowRight";
+    case SDL_SCANCODE_UP: return "ArrowUp";
+    case SDL_SCANCODE_DOWN: return "ArrowDown";
+    case SDL_SCANCODE_HOME: return "Home";
+    case SDL_SCANCODE_END: return "End";
+    case SDL_SCANCODE_PAGEUP: return "PageUp";
+    case SDL_SCANCODE_PAGEDOWN: return "PageDown";
+    case SDL_SCANCODE_MINUS: return "Minus";
+    case SDL_SCANCODE_EQUALS: return "Equal";
+    case SDL_SCANCODE_LEFTBRACKET: return "BracketLeft";
+    case SDL_SCANCODE_RIGHTBRACKET: return "BracketRight";
+    case SDL_SCANCODE_BACKSLASH: return "Backslash";
+    case SDL_SCANCODE_SEMICOLON: return "Semicolon";
+    case SDL_SCANCODE_APOSTROPHE: return "Quote";
+    case SDL_SCANCODE_GRAVE: return "Backquote";
+    case SDL_SCANCODE_COMMA: return "Comma";
+    case SDL_SCANCODE_PERIOD: return "Period";
+    case SDL_SCANCODE_SLASH: return "Slash";
+    case SDL_SCANCODE_LSHIFT: return "ShiftLeft";
+    case SDL_SCANCODE_RSHIFT: return "ShiftRight";
+    case SDL_SCANCODE_LCTRL: return "ControlLeft";
+    case SDL_SCANCODE_RCTRL: return "ControlRight";
+    case SDL_SCANCODE_LALT: return "AltLeft";
+    case SDL_SCANCODE_RALT: return "AltRight";
+    case SDL_SCANCODE_LGUI: return "MetaLeft";
+    case SDL_SCANCODE_RGUI: return "MetaRight";
+    default: return {};
+  }
+}
+
 // SDL reports pointer positions in logical (window) coordinates as floats. The
 // canvas is in physical pixels, so scaling happens here, once, at the boundary
 // — not scattered across whoever consumes the event.
@@ -62,6 +116,22 @@ gfx::IntPoint ToPixelPoint(float logical_x, float logical_y, float scale) {
 
 std::uint8_t ToButton(Uint8 sdl_button) {
   return static_cast<std::uint8_t>(sdl_button);
+}
+
+Modifiers ToModifiers(SDL_Keymod mods) {
+  Modifiers modifiers;
+  modifiers.control = (mods & SDL_KMOD_CTRL) != 0;
+  modifiers.shift = (mods & SDL_KMOD_SHIFT) != 0;
+  modifiers.alt = (mods & SDL_KMOD_ALT) != 0;
+  modifiers.meta = (mods & SDL_KMOD_GUI) != 0;
+  return modifiers;
+}
+
+// What is held right now. A keyboard event carries its own modifier state; a
+// mouse event does not, so this is the only way to know whether a click was a
+// ctrl+click.
+Modifiers HeldModifiers() {
+  return ToModifiers(SDL_GetModState());
 }
 
 }  // namespace
@@ -157,7 +227,12 @@ void SdlWindow::SetTitle(std::string_view title) {
 
 namespace {
 
-std::optional<InputEvent> Translate(const SDL_Event& event) {
+// `pending_code` is the physical key of the KEY_DOWN that was swallowed because
+// SDL was about to report the character it produced. SDL sends KEY_DOWN and then
+// TEXT_INPUT for the same press, and only the first knows which key was struck
+// while only the second knows what it typed; carrying one field between them is
+// what lets one KeyEvent have both. See the TEXT_INPUT case.
+std::optional<InputEvent> Translate(const SDL_Event& event, std::string& pending_code) {
   switch (event.type) {
     case SDL_EVENT_QUIT:
       return QuitEvent{};
@@ -179,6 +254,7 @@ std::optional<InputEvent> Translate(const SDL_Event& event) {
       PointerEvent pointer;
       pointer.kind = PointerEvent::Kind::Move;
       pointer.position = ToPixelPoint(event.motion.x, event.motion.y, 1.0f);
+      pointer.modifiers = HeldModifiers();
       return pointer;
     }
 
@@ -189,6 +265,10 @@ std::optional<InputEvent> Translate(const SDL_Event& event) {
                                                                : PointerEvent::Kind::Up;
       pointer.position = ToPixelPoint(event.button.x, event.button.y, 1.0f);
       pointer.button = ToButton(event.button.button);
+      // Asked for rather than carried: a mouse event has no modifier field of
+      // its own, and a ctrl+click that arrives as a click is a different act
+      // reported as the wrong one.
+      pointer.modifiers = HeldModifiers();
       return pointer;
     }
 
@@ -214,29 +294,43 @@ std::optional<InputEvent> Translate(const SDL_Event& event) {
       // reports its first byte rather than a wrong codepoint.
       key.codepoint = static_cast<char32_t>(static_cast<unsigned char>(event.text.text[0]));
       key.pressed = true;
+      // The key that produced it, from the KEY_DOWN this event follows. Taken
+      // rather than copied: one press produces one character, and a stale code
+      // on the next one would name the wrong key.
+      //
+      // `repeat` is not carried across. Auto-repeat of a printable key is
+      // indistinguishable here from typing the same character quickly, and for
+      // the one thing that acts on it -- inserting the character -- they are
+      // the same act.
+      key.code = std::move(pending_code);
+      pending_code.clear();
       return key;
     }
 
     case SDL_EVENT_KEY_DOWN:
     case SDL_EVENT_KEY_UP: {
       const Key named = NamedKey(event.key.key);
-      const SDL_Keymod mods = event.key.mod;
-      Modifiers modifiers;
-      modifiers.control = (mods & SDL_KMOD_CTRL) != 0;
-      modifiers.shift = (mods & SDL_KMOD_SHIFT) != 0;
-      modifiers.alt = (mods & SDL_KMOD_ALT) != 0;
-      modifiers.meta = (mods & SDL_KMOD_GUI) != 0;
+      const Modifiers modifiers = ToModifiers(event.key.mod);
 
       // A printable key with no modifier arrives again as TEXT_INPUT, which is
       // the event that knows about layouts and dead keys. Reporting it here too
-      // would type every character twice.
-      if (named == Key::None && !modifiers.control && !modifiers.alt && !modifiers.meta) {
+      // would type every character twice. Its *physical* key is remembered for
+      // that event to pick up, because TEXT_INPUT does not carry one.
+      //
+      // Only the press. There is no TEXT_INPUT for a release, so suppressing
+      // that one too is how a `keyup` for an ordinary character came to not
+      // exist at all.
+      if (named == Key::None && !modifiers.control && !modifiers.alt && !modifiers.meta &&
+          event.type == SDL_EVENT_KEY_DOWN) {
+        pending_code = CodeName(event.key.scancode);
         return std::nullopt;
       }
       KeyEvent key;
       key.key = named;
+      key.code = CodeName(event.key.scancode);
       key.modifiers = modifiers;
       key.pressed = event.type == SDL_EVENT_KEY_DOWN;
+      key.repeat = event.key.repeat;
       // Carried for shortcuts, where the character is the thing bound: ctrl+L
       // is a codepoint plus a modifier, not a named key.
       if (named == Key::None && event.key.key < 0x80) {
@@ -257,7 +351,7 @@ bool SdlWindow::PollEvent(std::optional<InputEvent>& out) {
   if (!SDL_PollEvent(&event)) {
     return false;
   }
-  out = Translate(event);
+  out = Translate(event, pending_key_code_);
   return true;
 }
 
@@ -266,7 +360,7 @@ bool SdlWindow::WaitEvent(std::optional<InputEvent>& out) {
   if (!SDL_WaitEvent(&event)) {
     return false;
   }
-  out = Translate(event);
+  out = Translate(event, pending_key_code_);
   return true;
 }
 
@@ -275,7 +369,7 @@ bool SdlWindow::WaitEventTimeout(std::int32_t timeout_ms, std::optional<InputEve
   if (!SDL_WaitEventTimeout(&event, timeout_ms)) {
     return false;
   }
-  out = Translate(event);
+  out = Translate(event, pending_key_code_);
   return true;
 }
 

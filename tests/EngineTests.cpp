@@ -44,6 +44,31 @@ std::string DataUrl(std::string_view html) {
 }
 
 // Drives one navigation and returns everything the engine sent back.
+// The three input messages a test sends, built once here rather than at forty
+// call sites. The primary button is zero in the DOM's numbering, which is what
+// the engine checks, and a typed character is a `key` and a `text` while a
+// named key is only a `key` -- ADR 0017 §1's split, in the shape a test uses it.
+ipc::PointerInputMessage ClickAt(float x, float y) {
+  ipc::PointerInputMessage pointer;
+  pointer.kind = ipc::PointerInputMessage::Kind::Down;
+  pointer.position = gfx::FloatPoint{x, y};
+  pointer.buttons = 1;
+  return pointer;
+}
+
+ipc::KeyInputMessage TypedKey(const std::string& character) {
+  ipc::KeyInputMessage key;
+  key.key = character;
+  key.text = character;
+  return key;
+}
+
+ipc::KeyInputMessage NamedKey(const std::string& name) {
+  ipc::KeyInputMessage key;
+  key.key = name;
+  return key;
+}
+
 struct Session {
   TestFonts fonts;
   ipc::InProcessChannel channel;
@@ -60,6 +85,15 @@ struct Session {
     RunEngineToIdle(engine);
     while (auto reply = channel.Ui().TryReceive()) {
       sent.push_back(std::move(*reply));
+    }
+  }
+
+  // Types text one key at a time, the way a keyboard delivers it. One message
+  // per character rather than one for the string: inserting is a *default
+  // action* of a keydown now, so a page's handler sees each one and can stop it.
+  void Type(std::string_view text) {
+    for (const char c : text) {
+      Send(TypedKey(std::string(1, c)));
     }
   }
 
@@ -229,15 +263,15 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     page.Layout(800.0f);
 
     // Inside the link's text, which is where a reader would click it.
-    const engine::ClickOutcome outcome = page.DispatchClickAt(gfx::FloatPoint{20.0f, 8.0f});
+    const engine::DispatchOutcome outcome = page.DispatchClickAt(gfx::FloatPoint{20.0f, 8.0f}, {});
     Expect(outcome.ran, "the page had handlers");
     Expect(outcome.prevented, "and one of them prevented the default");
 
     // The two facts are separate: a handler that changes the document needs a
     // relayout whether or not it prevented anything, and conflating them left
     // a page whose handler ran and whose screen did not change.
-    const engine::ClickOutcome elsewhere =
-        page.DispatchClickAt(gfx::FloatPoint{700.0f, 400.0f});
+    const engine::DispatchOutcome elsewhere =
+        page.DispatchClickAt(gfx::FloatPoint{700.0f, 400.0f}, {});
     Expect(!elsewhere.prevented, "a click on nothing prevents nothing");
   });
 
@@ -1557,7 +1591,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
+    session.Send(ClickAt(5.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/next",
                    "the relative href was resolved against the document URL");
@@ -1646,7 +1680,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+    session.Send(ClickAt(45.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(),
                    "https://example.org/search?q=hello+world&go=Search",
@@ -1677,7 +1711,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+    session.Send(ClickAt(45.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?keep=1",
                    "POST form navigation commits the action URL without moving controls into it");
@@ -1715,7 +1749,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+    session.Send(ClickAt(45.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/plain",
                    "POST text/plain commits the action URL");
@@ -1748,9 +1782,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
-    session.Send(ipc::TextInputMessage{"hi"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
+    session.Send(ClickAt(5.0f, 5.0f));
+    session.Type("hi");
+    session.Send(ClickAt(45.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?q=hi",
                    "submitted GET forms use the current focused input value");
@@ -1775,9 +1809,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
-    session.Send(ipc::TextInputMessage{"a@b"});
-    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Enter});
+    session.Send(ClickAt(5.0f, 5.0f));
+    session.Type("a@b");
+    session.Send(NamedKey("Enter"));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/contact?email=a%40b",
                    "text-like input types use the focused text-editing path");
@@ -1802,11 +1836,11 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
-    session.Send(ipc::TextInputMessage{"abc"});
-    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Backspace});
-    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Delete});
-    session.Send(ipc::InputCommandMessage{ipc::InputCommandMessage::Command::Enter});
+    session.Send(ClickAt(5.0f, 5.0f));
+    session.Type("abc");
+    session.Send(NamedKey("Backspace"));
+    session.Send(NamedKey("Delete"));
+    session.Send(NamedKey("Enter"));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?q=ab",
                    "enter submits the edited focused form without a clicked submit button");
@@ -1835,9 +1869,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{25, 5}, 1});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{35, 5}, 1});
+    session.Send(ClickAt(5.0f, 5.0f));
+    session.Send(ClickAt(25.0f, 5.0f));
+    session.Send(ClickAt(35.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/filter?seen=on&mode=new",
                    "submitted GET forms use clicked checkable state");
@@ -1867,11 +1901,11 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{5, 5}, 1});
-    session.Send(ipc::TextInputMessage{"abc"});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{25, 5}, 1});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{45, 5}, 1});
-    session.Send(ipc::PointerMessage{ipc::PointerMessage::Kind::Down, gfx::IntPoint{65, 5}, 1});
+    session.Send(ClickAt(5.0f, 5.0f));
+    session.Type("abc");
+    session.Send(ClickAt(25.0f, 5.0f));
+    session.Send(ClickAt(45.0f, 5.0f));
+    session.Send(ClickAt(65.0f, 5.0f));
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/filter?q=&seen=on",
                    "submitted GET forms use reset defaults");

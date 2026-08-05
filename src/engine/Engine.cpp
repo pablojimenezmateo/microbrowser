@@ -1,5 +1,7 @@
 #include "engine/Engine.h"
 
+#include "engine/LinkResolution.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -80,18 +82,6 @@ std::int64_t NowMilliseconds() {
 constexpr std::string_view kBlankDocument =
     "<!DOCTYPE html><html><head><title>New Tab</title></head><body></body></html>";
 
-std::optional<std::string> ResolveLink(std::string_view href, std::string_view document_url) {
-  if (const std::optional<url::Url> absolute = url::Url::Parse(href)) {
-    return absolute->Serialize();
-  }
-  const std::optional<url::Url> base = url::Url::Parse(document_url);
-  if (!base.has_value()) {
-    return std::nullopt;
-  }
-  const std::optional<url::Url> resolved = url::Url::Parse(href, *base);
-  return resolved.has_value() ? std::optional<std::string>(resolved->Serialize()) : std::nullopt;
-}
-
 std::vector<std::byte> BodyBytes(std::string_view body) {
   std::vector<std::byte> out;
   out.reserve(body.size());
@@ -136,13 +126,10 @@ bool Engine::HandlePendingMessages() {
       options.bypass_cache = reload->bypass_cache;
       Navigate(page_.Url(), options);
       produced_output = true;
-    } else if (const auto* pointer = std::get_if<ipc::PointerMessage>(&*message)) {
+    } else if (const auto* pointer = std::get_if<ipc::PointerInputMessage>(&*message)) {
       produced_output = HandlePointer(*pointer) || produced_output;
-    } else if (const auto* text = std::get_if<ipc::TextInputMessage>(&*message)) {
-      if (page_.InsertTextIntoFocusedTextControl(text->text)) {
-        LayoutAndPaint();
-        produced_output = true;
-      }
+    } else if (const auto* key = std::get_if<ipc::KeyInputMessage>(&*message)) {
+      produced_output = HandleKey(*key) || produced_output;
     } else if (std::holds_alternative<ipc::StopLoadMessage>(*message)) {
       // Now a real thing to do: the queue drops every outstanding request and
       // their connections close with them. The page keeps whatever had already
@@ -152,25 +139,6 @@ bool Engine::HandlePendingMessages() {
         load_ = PendingLoad{};
         endpoint_.Send(ipc::LoadProgressMessage{1.0f});
         produced_output = true;
-      }
-    } else if (const auto* command = std::get_if<ipc::InputCommandMessage>(&*message)) {
-      using Command = ipc::InputCommandMessage::Command;
-      switch (command->command) {
-        case Command::Backspace:
-          if (page_.DeleteBackwardFromFocusedTextControl()) {
-            LayoutAndPaint();
-            produced_output = true;
-          }
-          break;
-        case Command::Delete:
-          // The current caret model is end-of-text only, so there is no
-          // forward character to delete yet.
-          break;
-        case Command::Enter:
-          if (const std::optional<FormSubmission> submission = page_.FocusedFormSubmission()) {
-            produced_output = Navigate(*submission) || produced_output;
-          }
-          break;
       }
     }
   }
@@ -464,65 +432,6 @@ void Engine::Paint() {
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
   LayoutAndPaint();
   endpoint_.Send(ipc::LoadProgressMessage{1.0f});
-}
-
-bool Engine::HandlePointer(const ipc::PointerMessage& pointer) {
-  if (pointer.kind != ipc::PointerMessage::Kind::Down || pointer.button != 1 ||
-      device_scale_ <= 0.0f) {
-    return false;
-  }
-  const gfx::FloatPoint document_point{
-      static_cast<float>(pointer.position.x) / device_scale_,
-      static_cast<float>(pointer.position.y) / device_scale_ + static_cast<float>(ScrollY())};
-  // The page's own handlers run first, and a `preventDefault` stops everything
-  // below. That ordering is the whole contract of the method: a script that
-  // intercepts a click on a link expects the link not to be followed, and
-  // deciding to navigate before asking would make `preventDefault` a lie.
-  const ClickOutcome click = page_.DispatchClickAt(document_point);
-  // Before the default action, and before `preventDefault` is consulted: a
-  // handler that submitted a form asked for a navigation of its own, and that
-  // is what happens whether or not it also stopped the click.
-  if (FollowScriptNavigation()) {
-    return true;
-  }
-  if (click.prevented) {
-    page_.InvalidateLayout();
-    LayoutAndPaint();
-    return true;
-  }
-  if (const std::optional<FormSubmission> submission =
-          page_.FormSubmissionRequestAt(document_point)) {
-    return Navigate(*submission);
-  }
-  if (page_.ResetFormAt(document_point)) {
-    LayoutAndPaint();
-    return true;
-  }
-  if (page_.ActivateCheckableInputAt(document_point)) {
-    LayoutAndPaint();
-    return true;
-  }
-  if (page_.FocusTextControlAt(document_point)) {
-    return false;
-  }
-  const std::optional<std::string> href = page_.LinkAt(document_point);
-  if (!href.has_value()) {
-    // Nothing to navigate to, but a handler may still have changed the
-    // document -- which is the case that used to run the handler and leave the
-    // screen alone.
-    if (click.ran) {
-      page_.InvalidateLayout();
-      LayoutAndPaint();
-      return true;
-    }
-    return false;
-  }
-  const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
-  if (!resolved.has_value()) {
-    return false;
-  }
-  NavigateFromCurrentDocument(*resolved, {});
-  return true;
 }
 
 void Engine::Navigate(const std::string& url) {

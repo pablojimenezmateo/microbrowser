@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -26,6 +27,45 @@ struct PendingSubmit {
   // The button that submitted, or null. It decides `formaction`, `formmethod`
   // and which submit control appears in the form data set.
   dom::Element* submitter = nullptr;
+};
+
+// One pointer act, as the thing that saw it describes it. The coordinates are
+// CSS pixels: `client` is measured from the viewport and `page` from the top of
+// the document, and they differ by the scroll offset -- which is why both are
+// here rather than one plus a subtraction a caller might forget.
+struct PointerInput {
+  float client_x = 0.0f;
+  float client_y = 0.0f;
+  float page_x = 0.0f;
+  float page_y = 0.0f;
+  // The DOM's numbering: 0 is the primary button, and `buttons` is the bitmask
+  // of what is still held.
+  std::uint8_t button = 0;
+  std::uint16_t buttons = 0;
+  bool control = false;
+  bool shift = false;
+  bool alt = false;
+  bool meta = false;
+};
+
+// One key press or release, as the thing that saw it describes it.
+//
+// Three strings rather than one, and ADR 0017 §1 is where the reasoning is: a
+// game reads `code` because WASD is a shape on the keyboard, a shortcut reads
+// `key` because Ctrl+C is a letter, and an editor reads `text` because a dead
+// key produces nothing until the next one. This struct is deliberately not
+// `ipc::KeyInputMessage`: this module cannot see `ipc`, and the engine
+// translating one into the other at the seam is what keeps it that way.
+struct KeyInput {
+  bool down = true;
+  std::string code;
+  std::string key;
+  std::string text;
+  bool control = false;
+  bool shift = false;
+  bool alt = false;
+  bool meta = false;
+  bool repeat = false;
 };
 
 // Gives a script a document to act on.
@@ -73,7 +113,7 @@ class DomBindings {
   // A C++ entry point rather than something script can reach, because the only
   // thing allowed to say a click happened is the thing that saw one. A page
   // that could dispatch its own trusted events could make a form submit itself.
-  bool DispatchClick(dom::Element& target);
+  bool DispatchClick(dom::Element& target, const PointerInput& pointer);
 
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
@@ -91,6 +131,13 @@ class DomBindings {
   // fetch its whole backlog. See ADR 0018 §3.
   bool DispatchScroll(dom::Element* target);
 
+  // Fires `keydown` or `keyup` at `target`, or at the document's body when it
+  // is null. True when a handler called `preventDefault`, which is the caller's
+  // signal not to run the key's default action -- inserting the character,
+  // submitting the form. The action is a step *after* dispatch and never during
+  // it: ADR 0017 §2.
+  bool DispatchKey(dom::Node* target, const KeyInput& key);
+
   // The submission a script asked for, taken. Empty when it asked for none.
   std::optional<PendingSubmit> TakePendingSubmit();
 
@@ -106,6 +153,10 @@ class DomBindings {
   bool NotifyLoad();
 
  private:
+  // Where an event is on its way through the propagation path. The numbers are
+  // the DOM's own, because a page reads them back as `event.eventPhase`.
+  enum class EventPhase { None = 0, Capturing = 1, AtTarget = 2, Bubbling = 3 };
+
   // The first element, in document order, that answers to `matches`.
   dom::Element* FindElement(const std::function<bool(const dom::Element&)>& matches) const;
   void ForEachElement(const std::function<void(dom::Element&)>& visit) const;
@@ -160,8 +211,12 @@ class DomBindings {
   // each ancestor. True when one called `preventDefault`.
   bool DispatchEventTo(dom::Node& target, const js::Value& event);
   // Runs the listeners in `slot` registered on one object -- a node's wrapper
-  // or the window. True when one stopped propagation.
-  bool RunListenersOn(const js::Value& holder, const js::Value& event, const std::string& slot);
+  // or the window -- for one phase. True when one stopped propagation.
+  bool RunListenersOn(const js::Value& holder, const js::Value& event, const std::string& slot,
+                      EventPhase phase);
+  // The `isTrusted` getter, one per answer for the whole process. A getter and
+  // not a field, because ADR 0017 §3 requires there to be no way to set it.
+  js::Value TrustedGetter(bool trusted);
   // Makes `window` an event target. It is the global object, so this is also
   // what gives `globalThis` the same methods.
   void InstallWindowEvents();

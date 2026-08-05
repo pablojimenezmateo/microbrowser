@@ -19,13 +19,13 @@
 
 namespace microbrowser::engine {
 
-// What a click did, which is two separate facts.
+// What dispatching an event did, which is two separate facts.
 //
 // A handler that changed the document needs a relayout whether or not it
 // prevented anything, and a handler that prevented the default may have
 // changed nothing at all. Reporting one bit conflated the two, and the visible
 // symptom was a page whose handler ran and whose screen did not change.
-struct ClickOutcome {
+struct DispatchOutcome {
   bool ran = false;
   bool prevented = false;
 };
@@ -196,7 +196,14 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // click run against the tree as it was when the click landed, which is one
   // hit test per click rather than one per question asked about it. The caller
   // relays out afterwards.
-  ClickOutcome DispatchClickAt(gfx::FloatPoint document_point);
+  DispatchOutcome DispatchClickAt(gfx::FloatPoint document_point,
+                               const bindings::PointerInput& pointer);
+
+  // Fires `keydown` or `keyup` at whatever has focus. `prevented` is the
+  // caller's signal not to run the key's default action; `ran` says a handler
+  // may have changed the document, which is a different question and the reason
+  // this is not one bool.
+  DispatchOutcome DispatchKeyToFocus(const bindings::KeyInput& key);
 
   // Drops everything derived from the document, so the next Layout rebuilds
   // it. What a script changed is not knowable from here, so nothing is patched.

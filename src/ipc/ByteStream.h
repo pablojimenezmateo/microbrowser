@@ -31,6 +31,11 @@ class ByteWriter {
  public:
   void WriteU8(std::uint8_t value) { bytes_.push_back(static_cast<std::byte>(value)); }
 
+  void WriteU16(std::uint16_t value) {
+    WriteU8(static_cast<std::uint8_t>(value & 0xFFu));
+    WriteU8(static_cast<std::uint8_t>((value >> 8) & 0xFFu));
+  }
+
   void WriteU32(std::uint32_t value) {
     for (int shift = 0; shift < 32; shift += 8) {
       WriteU8(static_cast<std::uint8_t>((value >> shift) & 0xFFu));
@@ -85,6 +90,12 @@ class ByteReader {
       return 0;
     }
     return static_cast<std::uint8_t>(bytes_[position_++]);
+  }
+
+  std::uint16_t ReadU16() {
+    const std::uint16_t low = ReadU8();
+    const std::uint16_t high = ReadU8();
+    return ok_ ? static_cast<std::uint16_t>(low | (high << 8)) : 0;
   }
 
   std::uint32_t ReadU32() {
