@@ -1100,3 +1100,96 @@ commands). Suite green; asan and ubsan green; `root_margin_fuzzer` 200,000 runs 
   reddits, because their own scripts still die early — `www.reddit.com` on the masked-error problem
   session 11's log describes. The observers are proven by `tests/ViewObserverTests.cpp` and by the
   lazy-image path that shares their frame step, not by a real page having used one.
+
+## Session 13 — `fetch` and CORS · 2026-08-05
+
+**Status:** done
+
+**Check:** the ledger's check for this session — "reddit's feed fills in past the three
+server-rendered posts. A menu opens." — is the roadmap's check for sessions **13 and 14
+together**, and its second half cannot pass here: a `fetch` response becomes nodes through
+`innerHTML`, which is session 14's fragment parsing. The ledger's entry has been narrowed to what
+session 13's own scope can prove, and this is what it printed.
+
+`MICROBROWSER_PERF_COUNTERS=1 microbrowser_snapshot https://www.reddit.com/` on the live site:
+
+```
+https://www.reddit.com/?solution=…&js_challenge=1&token=…: 328 commands, 103 runs, 4 fonts,
+  9 images, title "Reddit - The heart of the internet"
+[counters]  1  fetch.requests
+[counters]  1  fetch.delivered
+[counters] 15  net.requests_started
+```
+
+**That is the first request this browser has ever made because a page asked for one**, and it
+completed: reddit's own error-reporting code `POST`s to `/svc/shreddit/client-errors`, and the
+promise settled. `old.reddit.com` (1081 commands, 20 images) and `news.ycombinator.com` (705
+commands) render unchanged — neither makes a `fetch`, so neither could regress, which is worth
+saying because it is the reason those two are not evidence for anything here.
+
+The suites are: 1414 tests, 0 failed; ASan clean; UBSan clean; `cors_fuzzer` 2,381,490 runs with
+no crash and no assertion.
+
+**Landed:**
+
+- *CORS, enforced where the attacker is not, with the response discarded* — `src/net/Cors.h/.cpp`,
+  the check inside `FetchRequest::Complete`, the preflight in `RequestQueue`, `RequestQueue::Cancel`.
+- *fetch, over the machinery that was already there* — `bindings::NetworkSource`,
+  `FetchBindings.cpp` / `FetchTypes.cpp` / `FetchSupport.h`, `Engine`'s implementation in
+  `EngineFetch.cpp`, `Loader::Cancel`.
+- *A fuzz target for the CORS decision, and what it asserts is the decision.*
+- *Request, as the value a page passes around rather than a second request path.*
+
+**Found:**
+
+- **A successful preflight re-queued its request, and the re-queued request preflighted again.**
+  `CorsParams::preflighted` was set and never read where the decision is made, so any server that
+  grants permission *without* an `Access-Control-Max-Age` — which is most of them, since a grant
+  with no max-age is deliberately not cached — got one `OPTIONS` per turn of the loop, forever. It
+  is the kind of bug that passes a single-request test and takes a server down.
+- **The preflight's own response was being header-filtered on the way out.** `Complete` strips
+  every header a cross-origin `cors` response did not expose, and a preflight *is* a cross-origin
+  cors request — so the queue read `Access-Control-Allow-Methods` off a response whose only
+  surviving headers were `Content-Type` and `Content-Length`, and refused every method. Filtering
+  is for a response that leaves the module; a preflight's does not.
+- **`Interpreter::SettleAsyncResult` was private while `NewPromiseValue` was public**, which meant
+  the host could hand a page a promise and had no way to settle it. Nobody had noticed because
+  nothing had ever handed one out. The pair is what makes a host-owned promise usable at all.
+- **`src/js` declares its builtins in the global *scope*, not as properties of the global object.**
+  `interpreter.Global()->Get("JSON")` is null and `GlobalScope()->Lookup("JSON")` is not, which is
+  why `response.json()` first answered "JSON.parse is unavailable". Anything in `src/bindings`
+  reaching for a language global has to use the scope; the properties of `window` are only the
+  things this module installed.
+- **A page could force a preflight with a header that never went on the wire.** `Fetch` drops
+  `Origin`, `Cookie` and the rest on the way out, but the preflight decision reads the caller's
+  header list — so `fetch(url, {headers: {Origin: '…'}})` made an `OPTIONS` asking permission for a
+  header nobody would send. The owned-header list moved to `net::IsHeaderOwnedByFetch` and the
+  queue drops them at its front door, so the set a preflight asks about is the set the request
+  sends.
+- **libFuzzer appears to hang in this environment and does not.** It stalls in `llvm-symbolizer`
+  while printing `NEW_FUNC` lines — 9 runs in 90 seconds, no output. `-print_funcs=0` gives
+  1,045,526 runs in 21 seconds. Worth knowing before diagnosing a fuzz target that is fine.
+
+**Left:**
+
+- **`.formData()` is absent rather than stubbed.** ADR 0020 §1 lists it with `.text()`, `.json()`
+  and `.arrayBuffer()`, and it cannot be written honestly yet: there is no `FormData` class in
+  `src/bindings`, and a `.formData()` that answered with something else would be exactly the stub
+  ADR 0012 forbids. `FormData` is 81 occurrences in the survey and wants its own decision.
+- **`response.body` is not declared, on purpose**, so `if (response.body)` tells a page the truth
+  about streaming. Whoever adds `ReadableStream` adds it there.
+- **A `fetch` keeps `Engine::IsLoading()` true.** That is what makes `microbrowser_snapshot` wait
+  for one, and it is right for a tool that has to see the finished page — but a page with a
+  long-poll open would hold the snapshot until the 30-second stall deadline. If that shows up, the
+  fix is a separate "still loading" question for the tool rather than making a fetch invisible to
+  the loop.
+- **CORS is not applied to the browser's *own* subresources.** Every load this browser makes for
+  itself is `RequestMode::Browser`, which is no check at all — correct today, and the thing that
+  changes when SRI lands: `<script crossorigin="anonymous">` means a cors-mode fetch for a script,
+  and session 15 is where that mode has to start being set from markup.
+- **The redirect rule after a preflight is stricter than the specification's.** A preflighted
+  request that is redirected is a network error here; the specification allows a re-preflight of
+  the new URL. No target site needs it, and spending a granted permission on a URL the server did
+  not name is the thing worth being strict about.
+- **`PerformanceObserver` is what www.reddit.com's script now dies on**, past the challenge and
+  past the `fetch`. It is the next name on that page's list, not a CORS problem.
