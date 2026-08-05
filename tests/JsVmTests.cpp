@@ -797,6 +797,43 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = { n: 3, m(){ return (() => this.n)() } }; o.m()", "3");
   });
 
+  AddTest(tests, "JsVm/AThrowFromAGetterOrAProxyTrapIsNotSwallowed", [] {
+    // Found in session 22 by trying to make a storage `Proxy` report an opaque origin:
+    // the throw vanished and the page saw `undefined (setItem) is not a function`.
+    // `Interpreter::GetProperty` returns a `Value` and had nowhere to put an abrupt
+    // completion, so three lines read `got.IsAbrupt() ? Value::Undefined() : got.value`
+    // -- and a `get` accessor that threw read back as `undefined`.
+    //
+    // These run in both engines, which is the point: the tree-walker's member read and
+    // the machine's two property opcodes are separate code and each dropped it.
+    ExpectEval("const o = { get x(){ throw new TypeError('no') } };"
+               "try { o.x; 'no throw' } catch (e) { e.name }",
+               "TypeError");
+    ExpectEval("const o = { get x(){ throw new TypeError('no') } };"
+               "try { o['x']; 'no throw' } catch (e) { e.name }",
+               "TypeError");
+    // Through a Proxy, which is the shape reactive frameworks are built on.
+    ExpectEval("const p = new Proxy({}, { get(){ throw new RangeError('trap') } });"
+               "try { p.anything; 'no throw' } catch (e) { e.name }",
+               "RangeError");
+    // Inherited from a prototype, where the receiver and the owner differ.
+    ExpectEval("class A { get x(){ throw new EvalError('proto') } }"
+               "try { new A().x; 'no throw' } catch (e) { e.name }",
+               "EvalError");
+    // In a call position: `o.m()` reads `m` before it calls anything.
+    ExpectEval("const o = { get m(){ throw new TypeError('read') } };"
+               "try { o.m(); 'no throw' } catch (e) { e.name }",
+               "TypeError");
+    // And in a compound assignment, which reads before it writes.
+    ExpectEval("const o = { get x(){ throw new TypeError('rmw') }, set x(v){} };"
+               "try { o.x += 1; 'no throw' } catch (e) { e.name }",
+               "TypeError");
+    // A destructuring read is a property read too.
+    ExpectEval("const o = { get x(){ throw new TypeError('destructure') } };"
+               "try { const { x } = o; 'no throw' } catch (e) { e.name }",
+               "TypeError");
+  });
+
   // --- Both engines ---------------------------------------------------------
 
   AddTest(tests, "JsVm/BothEnginesAgree", [] {

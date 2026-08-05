@@ -514,7 +514,12 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       if (converted.IsAbrupt()) {
         return converted;
       }
-      return Result::Normal(GetProperty(base, property));
+      // The tree-walker's ordinary `a.b`. A getter or a `Proxy` trap can throw from
+      // inside the read, and dropping that throw is what made `get x() { throw e }`
+      // answer `undefined`.
+      Result raised;
+      const Value found = GetProperty(base, property, &raised);
+      return raised.IsAbrupt() ? raised : Result::Normal(found);
     }
 
     case NodeKind::Sequence: {

@@ -648,7 +648,20 @@ class Interpreter {
   // is what every property operation checks before doing its ordinary work.
   Object* ProxyTrap(const Value& base, const char* trap, Value& target) const;
 
-  Value GetProperty(const Value& base, const PropertyKey& key);
+  // The read a `.` or a `[]` does.
+  //
+  // `abrupt`, when given, is where a **throw from inside the read** goes: a `get`
+  // accessor and a `Proxy` get trap are both calls, and a call can throw. This
+  // returns a `Value` because 73 call sites want one, so the exception cannot be the
+  // return -- and before this parameter existed it was simply dropped, which turned
+  // `get x() { throw ... }` into a property that quietly reads `undefined`.
+  //
+  // Every caller that is *inside* an evaluation -- the tree-walker's member read, the
+  // machine's GetProperty opcodes, destructuring, iteration -- passes it and
+  // propagates. A builtin that reads a property of its own argument may pass null,
+  // and then a throwing getter is swallowed exactly as it was before; those are the
+  // sites left to convert, and they are listed in docs/js-conformance-roadmap.md.
+  Value GetProperty(const Value& base, const PropertyKey& key, Result* abrupt = nullptr);
 
  public:
   // `delete base[key]`, and the own keys an enumeration sees.

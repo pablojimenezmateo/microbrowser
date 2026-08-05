@@ -189,7 +189,11 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
           }
         }
         taken.push_back(key);
-        const Value item = GetProperty(value, key);
+        Result raised;
+        const Value item = GetProperty(value, key, &raised);
+        if (raised.IsAbrupt()) {
+          return raised;
+        }
         const Node* binding = property->Child(0);
         if (binding != nullptr) {
           const Result bound = BindPattern(*binding, item, scope, declare, is_const);
@@ -375,7 +379,11 @@ Result Interpreter::EvaluateAssignment(const Node& node, Environment& scope) {
 
     Value current;
     if (op != "=") {
-      current = GetProperty(base, property);
+      Result raised;
+      current = GetProperty(base, property, &raised);
+      if (raised.IsAbrupt()) {
+        return raised;
+      }
       if (is_logical) {
         // Short-circuiting assignment does not evaluate the right side, and
         // does not assign at all, when the test fails. Assigning the old value
@@ -544,7 +552,12 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     if (converted.IsAbrupt()) {
       return converted;
     }
-    callee = Result::Normal(GetProperty(lookup_base, property));
+    Result raised;
+    const Value found = GetProperty(lookup_base, property, &raised);
+    if (raised.IsAbrupt()) {
+      return raised;
+    }
+    callee = Result::Normal(found);
   } else {
     callee = Evaluate(*callee_node, scope);
   }

@@ -85,19 +85,17 @@ These are not gaps to be closed by accident. Each is a decision with a reason at
 6. **Live module bindings**, if a real page is ever found that needs them.
 7. **Wiring the module resolver to the loader** — an import is a fetch, and a fetch has to pass
    the privacy layer. Engine work rather than language work.
-8. **An exception thrown by a getter or a `Proxy` trap is swallowed.** Found in session 22, by
-   trying to make a storage `get` trap report an opaque origin: `Interpreter::GetProperty` returns
-   `Value` and has nowhere to put an abrupt completion, so three lines read
-   `got.IsAbrupt() ? Value::Undefined() : got.value` and a `get` accessor that throws reads back as
-   `undefined` instead. It affects **plain accessors as well as proxies**, which makes it the largest
-   remaining conformance gap here.
+8. **A getter or `Proxy` trap that throws from inside a *builtin's* property read is still
+   swallowed.** The evaluation paths are fixed — `Interpreter::GetProperty` takes an optional
+   `Result*` out-parameter now, and the tree-walker's member read, compound assignment and
+   destructuring, plus the machine's two property opcodes and its iteration reads, all propagate.
+   Seven assertions in `tests/JsVmTests.cpp` run in both engines.
 
-   It is written down rather than fixed because the fix is not local: `GetProperty` has 73 call
-   sites, and the two honest options are to return a `Result` from all of them or to latch an
-   in-flight exception on the interpreter — and the latch needs a GC root, since a `js::Value` in a
-   C++ field is invisible to the collector. Either is a session of its own. What a page sees today is
-   a read that silently answers `undefined`; the workaround used for storage was to make the absence
-   a fact at install time rather than an exception at read time, which is ADR 0012's rule anyway.
+   What is left is the ~60 call sites *inside builtins* — `Object.assign` reading a source property,
+   `JSON.stringify` reading `toJSON`, `Array.prototype.sort` reading a comparator — which pass null
+   and therefore still drop a throw. Each is a small conversion; there is no design question left,
+   only the work. Found in session 22 by trying to make a storage `Proxy` report an opaque origin,
+   where the throw vanished and the page saw `undefined (setItem) is not a function` instead.
 
 ## What a real site's script found next
 

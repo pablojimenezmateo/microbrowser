@@ -87,6 +87,10 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
     const CompiledFunction& code = *frame->code;
     Result pending;
     bool threw = false;
+    // Where a throw from inside a property read lands -- a `get` accessor or a `Proxy`
+    // trap is a call, and a call can throw. Declared once for the three opcodes that
+    // read a property; see Interpreter::GetProperty for why it is an out-parameter.
+    Result raised;
 
     switch (instruction.op) {
       case Op::Nop:
@@ -310,13 +314,13 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           threw = true;
           break;
         }
-        const Value value = GetProperty(vm_.stack[vm_.stack.size() - 2], key);
+        const Value value = GetProperty(vm_.stack[vm_.stack.size() - 2], key, &raised);
         vm_.stack.pop_back();
         vm_.stack.back() = value;
         break;
       }
       case Op::GetPropertyName: {
-        const Value value = GetProperty(vm_.stack.back(), code.keys[instruction.a]);
+        const Value value = GetProperty(vm_.stack.back(), code.keys[instruction.a], &raised);
         vm_.stack.back() = value;
         break;
       }
@@ -1103,8 +1107,9 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           threw = true;
           break;
         }
-        const bool done = ToBoolean(GetProperty(result, "done"));
-        const Value item = GetProperty(result, "value");
+        const bool done = ToBoolean(GetProperty(result, "done", &raised));
+        const Value item = GetProperty(result, "value", &raised);
+
         vm_.stack.pop_back();
         if (done) {
           vm_.iterations.back().done = true;
@@ -1277,6 +1282,14 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         break;
     }
 
+    // A throw from inside a property read, checked once here rather than at each of the
+    // three opcodes that can produce one. Whatever those opcodes pushed is discarded by
+    // the unwind, so there is nothing to undo -- and one check cannot disagree with
+    // itself about whether a raised exception was reported.
+    if (raised.IsAbrupt() && !threw) {
+      pending = raised;
+      threw = true;
+    }
     if (threw) {
       if (!UnwindToHandler(pending.value, entry_depth)) {
         return pending;

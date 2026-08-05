@@ -384,7 +384,15 @@ std::vector<std::string> Interpreter::OwnKeys(const Value& base, bool enumerable
   return enumerable_only ? base.object->EnumerableKeys() : base.object->Keys();
 }
 
-Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
+Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result* abrupt) {
+  // One place to record a throw from a getter or a trap, so the three call sites below
+  // cannot disagree about whether they reported it.
+  const auto answered = [abrupt](const Result& got) {
+    if (got.IsAbrupt() && abrupt != nullptr) {
+      *abrupt = got;
+    }
+    return got.IsAbrupt() ? Value::Undefined() : got.value;
+  };
   if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
     Value target;
     if (Object* trap = ProxyTrap(base, "get", target)) {
@@ -393,9 +401,9 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
       // reactive object notice a read of a computed property.
       const Result got = CallFunction(Value::Obj(trap), Value::Undefined(),
                                       {target, KeyValue(key), base});
-      return got.IsAbrupt() ? Value::Undefined() : got.value;
+      return answered(got);
     }
-    return target.IsUndefined() ? Value::Undefined() : GetProperty(target, key);
+    return target.IsUndefined() ? Value::Undefined() : GetProperty(target, key, abrupt);
   }
   // A symbol key names none of the built-in structure below -- there is no
   // symbol spelled "length" and no symbol that is an array index -- so those
@@ -463,8 +471,7 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
       return Value::Undefined();
     }
     if (property->getter != nullptr) {
-      const Result got = CallFunction(Value::Obj(property->getter), base, {});
-      return got.IsAbrupt() ? Value::Undefined() : got.value;
+      return answered(CallFunction(Value::Obj(property->getter), base, {}));
     }
     return property->IsAccessor() ? Value::Undefined() : property->value;
   }
@@ -508,8 +515,7 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key) {
     // The getter runs with `this` bound to the object it was read *from*, not
     // the one that owns it -- which is what makes an accessor inherited from a
     // class body see the instance.
-    const Result got = CallFunction(Value::Obj(property->getter), base, {});
-    return got.IsAbrupt() ? Value::Undefined() : got.value;
+    return answered(CallFunction(Value::Obj(property->getter), base, {}));
   }
   if (property->setter != nullptr) {
     return Value::Undefined();  // set-only: reading gives undefined

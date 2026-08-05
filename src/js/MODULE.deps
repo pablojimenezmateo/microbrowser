@@ -14,7 +14,15 @@ public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h Bytecode.h S
 
 extern:
 
-max_tu_lines: 1300
+# 1340 rather than 1300, and the reason is that Vm.cpp is **one function**:
+# `RunFrames`, the machine's dispatch loop, from line 47 to the end. The usual remedy
+# for a file over its cap -- find the module hiding in it -- does not apply to a switch
+# over an opcode set: the cases share the loop's `pending`, `threw` and operand stack,
+# so moving them to another translation unit means either passing that state through a
+# seam per opcode or building a second dispatch mechanism. Both are worse than a long
+# switch. Raised in session 22 by the property-read fix, which added thirteen lines to
+# it (an exception thrown by a getter or a Proxy trap used to be swallowed).
+max_tu_lines: 1340
 
 budget: Token  header_lines=40 public_methods=8  members=9
 # Grew by one member for identifiers written with `\uXXXX` escapes: the decoded
