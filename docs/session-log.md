@@ -1771,3 +1771,95 @@ visible in `gfx.web_fonts_registered`.
   CDN-fronted assets (cdnjs served `br` immediately), which is where the bytes are — and it means the
   three rendering sites' `net.bytes_received` is unchanged by this, which would look like the feature
   doing nothing if the measurement had not been taken against a host that actually serves it.
+
+### WOFF2, the transformed `glyf`, and `unicode-range` · 2026-08-06 (session 20 finished)
+
+Three commits after the brotli one: `a1963e4` the container plus the transformed
+`glyf`, `b7c46a9` `unicode-range`, `270aca7` the sfnt directory check.
+
+**The first cut of the container refused a transformed `glyf`, and the refusal was
+worthless.** The reasoning behind it was sound in isolation and is written in the
+diff it replaced: reconstructing `glyf` means rebuilding every outline from seven
+parallel substreams, and a half-reconstruction is mangled glyphs rather than a
+failure — a bug nobody can attribute to the font. What made it worthless is a
+measurement rather than an argument. `fonts.gstatic.com` transforms `glyf` on every
+face it serves, and so does every file the reference compressor produces, so the
+container accepted nothing anyone actually ships. **A refusal that is honest about
+one file and wrong about the whole web is still wrong.**
+
+What made the reconstruction safe to write was an **oracle rather than care**.
+fontTools implements both halves of WOFF2 independently, so its reconstruction of a
+real font is a reference answer: 807 glyphs of Inter's variable font and 518 of its
+latin subset (312 of them composite), compared outline by outline — coordinates,
+on-curve flags, contour ends, bounding boxes and hinting programs — with no
+mismatch. That is the only reason the 128 coordinate encodings could be written as
+the arithmetic that generates them (which is how the reference decoder writes them)
+rather than as 896 transcribed numbers where a typo is indistinguishable from a
+specification detail.
+
+fontTools needs `python-brotli`, which pip refuses to install here (PEP 668). A
+12-line `ctypes` shim over `libbrotlidec.so.1` and `libbrotlienc.so.1` — just
+`decompress`, `compress` and the three mode constants — was enough for its reader
+*and* its writer, which is also how the test fixture was generated. **An unavailable
+reference implementation is often one shim away from being available.**
+
+**Web fonts had never registered outside the tests, and session 19's check could not
+have seen it.** `FontProvider::RegisterWebFont` returns false by default so that a
+provider with no way to load bytes refuses honestly. `platform::SystemFontProvider`
+— the provider every real binary constructs — inherited that default and never
+overrode it. `tests/WebFontTests.cpp` builds a `gfx::FontCatalog` directly, which
+*does* override it, so every assertion passed while `@font-face` did nothing in the
+browser. It surfaced by rendering a page with a real gstatic face and watching a
+face that parsed perfectly, fetched successfully, and then simply was not there.
+**A test that constructs its own collaborator cannot see a missing override in the
+one the binary uses** — and the fix belongs where the real object is, not in the
+test.
+
+Diagnosing that took a wrong turn worth recording: `gfx.web_fonts_refused` was
+incrementing with none of the `gfx.woff2_*` counters moving, which reads as "the
+decoder refused it". Both refusal sites had to be found by grep before the absence
+of a `[probe]` line — added at the first of them — proved the code never reached it.
+A counter incremented in two places answers a different question than the one being
+asked.
+
+**Two `unicode-range` bugs came from a real stylesheet and neither was reachable
+from a unit test.** Google's
+`css2?family=Inter:wght@400;700&family=Roboto` is 23 `@font-face` blocks differing
+only in this descriptor. First run: 4 requests where an independent count said 3
+should match. The extra was Roboto's *symbols* subset, whose range list begins
+`U+0001-000C` — and the page's code points included the newlines inside the
+`<style>` element's own CSS text. Every page with a `@font-face` block was fetching
+an emoji font because of the whitespace in its stylesheet. Second: `wght@400;700`
+names the *same* file twice, because a variable font serves both weights, and the
+request key included the weight. 23 faces are now 2 requests and 3 registrations.
+
+The parse side is a lesson in where a fix belongs. Session 19 recorded only
+*whether* a face had a range, with a correct explanation: `U+0100-02BA` cannot be
+read back out of a reconstructed declaration string, because by then it has been
+through generic tokens and is an ident, a number and a dimension with the leading
+zeros and the hex reading gone. The conclusion drawn — keep a bool — was the wrong
+half of the fix. **The information was destroyed one layer lower**, so
+`Token::Kind::UnicodeRange` scans `<urange>` where the original text still exists,
+and every consumer above it gets both ends resolved, wildcards expanded.
+
+**The fuzzer's new invariant found two bugs, both table confusion rather than memory
+safety.** The invariant is narrow and had to be: *a reconstructed* `loca` describes
+the `glyf` that was built. It cannot apply to an untransformed font, whose `loca` is
+copied out of the file and is free to be nonsense — that is the font's bug, not the
+decoder's. Which case happened is a question `ReadPerformanceCounter` already
+answers, so the fuzzer asks the counter rather than growing a second directory
+parser. What it caught: a **duplicate tag** in the WOFF2 directory (two `glyf`
+entries make "which one" a question, and first-wins versus last-wins is the shape of
+half of this format's CVE history), and a transformed font with **no readable
+`head`** — where short-versus-long `loca` is declared, which this decoder decides
+itself because it re-encodes outlines slightly larger than the original and can be
+forced from short to long.
+
+Numbers. A 23,664-byte woff2 becomes 67,136 bytes of sfnt and draws
+`Hamburgefonstiv 123 & WOFF2 reconstructed` in Inter. youtube.com went from 0 web
+fonts registered to **11** — and still renders 16 display-list commands with no
+text, which is the useful part of that number: the font pipeline is not what blocks
+it. 6.3M woff2 fuzz runs and 2M sfnt runs, ASan and UBSan clean, 1576 tests.
+
+Still refused: the `hmtx` transform, which no measured font uses, and which would
+mean reading every glyph's bounding box back out of the `glyf` just rebuilt.
