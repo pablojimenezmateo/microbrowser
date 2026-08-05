@@ -547,3 +547,99 @@ its seven seeds: **2,355,500 runs in 301 seconds, no crash**, corpus grown to 4,
   fix was to return a `bool` and an out-parameter from the two functions that get inlined into
   every feature comparison. Worth knowing before spending an hour on a diagnostic that names an
   offsetof into an optional's storage.
+
+## Session 7 — geometry · 2026-08-05
+
+**Status:** done
+
+**Check:** the ledger asks that a page mutating a style and immediately reading a rect gets the
+post-mutation rect, with `MICROBROWSER_PERF_COUNTERS=1` showing the forced layout. The page is a
+100px red box, a script that widens it to 250px and reads the rectangle back with no frame in
+between, and a second blue box whose width is set to whatever the rectangle said:
+
+```
+$ URL="data:text/html,$(python3 -c "import urllib.parse;print(urllib.parse.quote(open('/tmp/geom.html').read(),safe=''))")"
+$ MICROBROWSER_PERF_COUNTERS=1 ./build/microbrowser/microbrowser_snapshot "$URL" -o /tmp/geom.ppm -v
+[counters]                  1  layout.forced_by_script
+[counters]                  2  layout.runs
+  [  0] FillRect   0,0 1280x900 #FFFFFFFF
+  [  1] FillPath   0.0,0.0 250.0x20.0 #FFCC0000
+  [  2] FillPath   0.0,20.0 250.0x20.0 #FF0000CC
+```
+
+The blue probe is 250 wide, which it can only be if the read after the write returned 250. One
+forced layout, not two: the read *before* the write cost nothing, because the layout was clean.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each. old.reddit.com and Hacker News
+render as session 6 left them — checked by looking at the images, not by counting commands.
+
+**Landed:**
+
+- *A tree records that it changed, at the five places it can*
+- *Inserting before nothing is appending, and it need not read the whole list first*
+- *A page may ask its own layout where a box is, and is answered in values*
+
+**Left:**
+
+- **`scrollTop` and the rest of ADR 0018 are session 8, and this session moved the one piece of
+  them it had to.** The viewport's scroll offset now lives on `Page` rather than on `Engine`,
+  because `getBoundingClientRect` is viewport-relative and painting subtracts the same number:
+  two copies of one offset is the pair that drifts. There is still no per-box scroll offset, no
+  `scrollWidth`/`scrollHeight`, and `bindings::BoxGeometry` deliberately has no `scroll_offset`
+  field — an always-zero one would be a stub in ADR 0012's sense.
+- **`offsetTop`/`offsetLeft` are absent**, because they are defined against `offsetParent` and
+  `offsetParent` is a walk this box tree does not support yet. A missing name is the honest
+  version; the four metrics that *are* here (`offsetWidth`/`offsetHeight`,
+  `clientWidth`/`clientHeight`) need no parent.
+- **The `inset` properties answer from the cascade, not from layout.** `getComputedStyle(el).top`
+  reports `auto` or the length as written rather than the used offset, because the used value is
+  a distance from a containing block that `layout::BoxGeometry` does not record. It is in the
+  code and in the commit message; it is the one place `getComputedStyle` is not the resolved
+  value.
+- **`BoxFor` is a tree walk per query.** One `getBoundingClientRect` is O(boxes). A page that
+  measures a thousand elements in a loop walks the tree a thousand times. The fix is a map from
+  element to box built during layout, and it is deliberately not here: ADR 0015 says build the
+  honest slow version and instrument it, and `layout.forced_by_script` is not the counter that
+  would show this one. Add `layout.box_lookups` when it matters.
+- **`IntersectionObserver`/`ResizeObserver` are now tractable** — both are this `QueryBox` driven
+  by the frame deadline rather than by script — and they are session 12.
+
+**Found:**
+
+- **`dom::Node::InsertBefore` made every parse quadratic in its widest sibling list.** A null
+  reference child is never found, so `std::find_if` scanned every existing child before falling
+  through to the append it was always going to do — and the tree builder inserts *every* element
+  in a document through that path with a null reference. 15,000 siblings under one parent took
+  980ms, 30,000 took 3.8s, and 60,000 took **15 seconds**; all three are now 30–106ms. Nothing
+  about the input is exotic: a flat list of `<div>` does it and so does a list of `<br>`. It is a
+  denial of service with a 400KB payload and the multiplier is a number the document chooses.
+  Found by measuring whether the *mutation version's* root walk was affordable — the walk turned
+  out to cost 1.4ms in 99 and the thing it was being measured against cost 15 seconds.
+- **ADR 0015's central sketch does not compile.** It says "the interface is a header the engine
+  publishes and `src/bindings` already depends on the engine seam". `src/bindings/MODULE.deps`
+  allows `util js dom html` — not `engine`, not `layout`, not `gfx`. The ADR spends two
+  paragraphs on exactly why widening that line is refused and then assumes a dependency that
+  would need it. The interface is declared in `src/bindings` and implemented by `src/engine`
+  instead, which is the same decision with the arrow the other way, and `BoxGeometry` is four
+  floats rather than a `gfx::FloatRect` for the same reason. Worth knowing before reading the
+  ADR as a specification.
+- **`element.style` writes bypass `DomBindings::SetElementAttribute`.** `StyleBindings.cpp`'s
+  `set` trap calls `dom::Element::SetAttribute` directly, so a style written from script fires no
+  custom-element `attributeChangedCallback` and records no `MutationObserver` entry for `style`.
+  This session did not make that worse and does not fix it — the geometry seam sees the write
+  because the mark is in `dom`, which is the argument for putting it there — but a page observing
+  `attributeFilter: ['style']` is currently told nothing.
+- **`getPropertyValue`'s receiver is the `Proxy`, not the element.** A method handed out from a
+  `Proxy`'s `get` trap is called with the proxy as `self`, and `NodeOf` reads an *own* property,
+  which a proxy does not have. The element travels on the function object beside the bindings
+  pointer instead. The same trap is waiting for anything else that hands a method out of
+  `MakeStyle` or `MakeComputedStyle`.
+- **The synthetic test font has glyphs for `A`, `B`, `C`, `D` and the space, and nothing else.**
+  A test that measures the word "hello" measures zero and passes anything that asserts a width is
+  small. Two of this session's tests were written wrong that way and one of them looked like a
+  layout bug for ten minutes.
+- **The check for this session cannot be run through `console.log`.** `microbrowser_snapshot`
+  prints scripts that threw and nothing a page logged, and it does not accept `file://`. Writing
+  the measured number back into a second element's width, and reading it off the display list
+  with `-v`, is the way to make a script's result observable from the command line — worth
+  remembering for every later session whose check is about a number rather than a picture.

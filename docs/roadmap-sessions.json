@@ -88,8 +88,9 @@
       "anchor": "### Session 7 — geometry",
       "scope": "The GeometrySource seam on src/engine; getBoundingClientRect, offsetWidth/Height, clientWidth/Height, getComputedStyle split into used-value and computed-value sets; a layout-clean flag, synchronous layout on a dirty query, and the layout.forced_by_script counter. src/bindings may not see src/layout — the answer comes through the engine as values, never pointers.",
       "check": "A page that mutates a style and immediately reads a rect gets the post-mutation rect, and MICROBROWSER_PERF_COUNTERS=1 shows the forced layout.",
-      "status": "not_started",
-      "gate": "Gate A — reddit.com loads past its challenge and paints a recognisable, styled, photographed page."
+      "status": "done",
+      "gate": "Gate A — reddit.com loads past its challenge and paints a recognisable, styled, photographed page.",
+      "notes": "Check run and passed: a page that widens a div and immediately reads its rect gets 250, written back into a second element's width and read off the display list with -v; layout.forced_by_script = 1. The GeometrySource interface is declared in src/bindings and implemented by src/engine, NOT published by the engine as ADR 0015 says -- bindings' allow: line is `util js dom html`, so the ADR's own sketch would have needed the widening it spends two paragraphs refusing. Layout-clean is a dom::Document mutation version marked at the five mutation primitives in src/dom, compared against the version the box tree was built from. Deviations, all deliberate and all in the session log: offsetTop/offsetLeft absent (need offsetParent), the inset properties answered from the cascade rather than as used values, no scroll_offset field on BoxGeometry (session 8 owns it), and BoxFor is a tree walk per query. Separately: this session found and fixed a pre-existing O(n^2) in dom::Node::InsertBefore that made a 60,000-sibling document take 15 seconds to parse."
     },
     {
       "id": 8,
