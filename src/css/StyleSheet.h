@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "css/MediaQuery.h"
 #include "css/Token.h"
 #include "dom/Node.h"
 
@@ -168,7 +169,18 @@ struct StyleSheet {
 // Parses a stylesheet. There is no failure: CSS error recovery is normative,
 // and a sheet with a syntax error is one whose bad declarations are dropped and
 // whose good ones still apply.
-StyleSheet ParseStyleSheet(std::string_view input);
+// `context` is what an `@media` prelude is evaluated against, and evaluating it
+// here rather than keeping it on the rule is the crude part of this: a sheet
+// parsed at one viewport holds the rules that matched then, so a resize has to
+// re-parse. `engine::Page` does (see Page::SetViewport). Keeping the condition on
+// the rule and asking it during the cascade is the right end state.
+//
+// A default-constructed context is a zero-sized viewport, which matches
+// `max-width` and not `min-width`. That is the answer this function gave for
+// *every* parenthesised prelude before the evaluator was wired in, so a caller
+// with no viewport -- the user-agent sheet, a test about selectors -- keeps the
+// behaviour it had.
+StyleSheet ParseStyleSheet(std::string_view input, const MediaContext& context = {});
 
 // Parses the contents of a `style=""` attribute, which is a declaration list
 // with no selector.

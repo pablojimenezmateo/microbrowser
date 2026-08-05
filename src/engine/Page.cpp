@@ -283,10 +283,22 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
 }
 
 void Page::SetViewport(const css::MediaContext& viewport) {
+  const bool media_changed = viewport.viewport_width != viewport_.viewport_width ||
+                             viewport.viewport_height != viewport_.viewport_height ||
+                             viewport.device_pixel_ratio != viewport_.device_pixel_ratio;
   viewport_ = viewport;
   // So that a layout forced by a geometry query before the engine's first
   // Layout still runs at the width the document will be shown at.
   layout_.width = viewport.viewport_width;
+  if (media_changed && !resources_.author_sheet_slots.empty()) {
+    // `@media` is evaluated when a sheet is parsed, so a viewport that moved
+    // means the sheets have to be parsed again -- a rule that did not match at
+    // 500 pixels does at 1280, and the sheet as stored has already dropped it.
+    // Gated on the size actually changing, because the engine sets the viewport
+    // on every resize message and re-parsing a page's stylesheets per pixel of
+    // a drag is not a thing to do. See ParseStyleSheet.
+    RebuildAuthorStyleSheets();
+  }
 }
 
 void Page::ExtractTitle() {

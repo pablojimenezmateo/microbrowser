@@ -191,7 +191,9 @@ void Page::RebuildAuthorStyleSheets() {
   resolver_ = css::StyleResolver{};
   for (const std::optional<std::string>& css : resources_.author_sheet_slots) {
     if (css.has_value()) {
-      resolver_.AddStyleSheet(css::ParseStyleSheet(*css), css::Origin::Author);
+      // With the viewport, so `@media (min-width: …)` is answered rather than
+      // dropped. This is why SetViewport re-parses: the answer is baked in here.
+      resolver_.AddStyleSheet(css::ParseStyleSheet(*css, viewport_), css::Origin::Author);
     }
   }
   // A background image is named by the cascade, so the set of images a document

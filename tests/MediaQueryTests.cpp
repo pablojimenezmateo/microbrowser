@@ -3,6 +3,7 @@
 
 #include "TestSupport.h"
 #include "css/MediaQuery.h"
+#include "css/StyleSheet.h"
 
 namespace microbrowser::tests {
 
@@ -143,6 +144,77 @@ void RegisterMediaQueryTests(std::vector<TestCase>& tests) {
            "a percentage has no containing block here");
     Expect(!ResolveAbsoluteLength("20px 30px", context).has_value(), "two lengths are not one");
     Expect(!ResolveAbsoluteLength("", context).has_value(), "nothing is not a length");
+  });
+
+  // --- @media, which used to drop every parenthesised prelude ----------------
+
+  AddTest(tests, "MediaQuery/AtMediaKeepsTheRulesItsPreludeMatches", [] {
+    // The bug this pair is here for: `MediaListItemMatches` accepted a single
+    // Ident, so `@media (min-width: 600px)` dropped its whole block -- on every
+    // page this browser has ever rendered. ADR 0014 counts `@media` at 791
+    // occurrences and calls it supported; it was not.
+    const std::string_view css =
+        "p { color: black }"
+        "@media (min-width: 600px) { p { color: red } }"
+        "@media screen and (max-width: 599px) { p { color: blue } }"
+        "@media print { p { color: green } }"
+        "@media not all and (min-width: 600px) { p { color: purple } }"
+        "@media (min-width: 600px), (orientation: portrait) { p { font-size: 20px } }";
+
+    css::MediaContext wide;
+    wide.viewport_width = 1280.0f;
+    wide.viewport_height = 800.0f;
+    const css::StyleSheet at_1280 = css::ParseStyleSheet(css, wide);
+
+    css::MediaContext narrow;
+    narrow.viewport_width = 500.0f;
+    narrow.viewport_height = 800.0f;
+    const css::StyleSheet at_500 = css::ParseStyleSheet(css, narrow);
+
+    // At 1280: the base rule, `min-width: 600px`, `not all and (min-width…)`
+    // being false, and the comma list matching on its first item.
+    ExpectEqInt(static_cast<long long>(at_1280.rules.size()), 3,
+                "base, min-width, and the comma list");
+    // At 500: the base rule, the `max-width: 599px` one, and `not all and
+    // (min-width: 600px)` -- which is true precisely because the condition is
+    // false. The comma list matches through `(orientation: portrait)`, since 500
+    // by 800 is portrait, so it is there too.
+    ExpectEqInt(static_cast<long long>(at_500.rules.size()), 4,
+                "base, max-width, the negation, and the comma list through orientation");
+    Expect(at_1280.rules.size() != at_500.rules.size(),
+           "the two viewports disagree, which is the whole point");
+  });
+
+  AddTest(tests, "MediaQuery/AnUnreadablePreludeDropsItsBlockRatherThanKeepingIt", [] {
+    css::MediaContext wide;
+    wide.viewport_width = 1280.0f;
+    // A feature this evaluator does not implement, and nonsense. Both are false
+    // rather than a guess, which is what the specification says and is the safe
+    // direction: a rule kept on a condition nobody evaluated is a rule applied
+    // for no reason.
+    const css::StyleSheet sheet = css::ParseStyleSheet(
+        "@media (min-color-index: 2) { p { color: red } }"
+        "@media ((((( { p { color: blue } }",
+        wide);
+    ExpectEqInt(static_cast<long long>(sheet.rules.size()), 0, "neither applies");
+    // An *empty* prelude is the opposite case and is not a mistake: "an empty
+    // media query list evaluates to true", which is also what makes
+    // `sizes="100vw"` a valid entry with no condition in front of it.
+    const css::StyleSheet empty =
+        css::ParseStyleSheet("@media { p { color: green } }", wide);
+    ExpectEqInt(static_cast<long long>(empty.rules.size()), 1, "@media {} applies");
+  });
+
+  AddTest(tests, "MediaQuery/ADefaultContextAnswersWhatTheOldCodeAnswered", [] {
+    // A caller with no viewport -- the user-agent sheet, a test about selectors
+    // -- gets a zero-sized one, which matches `max-width` and not `min-width`.
+    // Every parenthesised prelude was dropped before the evaluator was wired in,
+    // so this is deliberately *not* a behaviour change for those callers.
+    const css::StyleSheet sheet =
+        css::ParseStyleSheet("@media (min-width: 1px) { p { color: red } }"
+                             "@media screen { a { color: blue } }");
+    ExpectEqInt(static_cast<long long>(sheet.rules.size()), 1,
+                "the bare media type still applies and the width query does not");
   });
 }
 

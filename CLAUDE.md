@@ -122,11 +122,11 @@ The list below is what was queued before that survey. It is still right about th
 Ordered by value, not by milestone number. `docs/adr/0007-compatibility-targets.md` is the
 reasoning; this is the queue.
 
-0. **Wire `@media` to the evaluator that now exists.** Ledger session 49, and it is here at the
-   top because it is four lines of wiring over a bug that has been dropping rules on every page:
-   `MediaListItemMatches` accepts one Ident token, so `@media (min-width: 600px) { … }` has never
-   applied. ADR 0014 counts it at 791 occurrences and calls it supported. `css::MediaQueryListMatches`
-   landed with `srcset` in session 6 and answers exactly this grammar.
+0. **`@media` is wired (session 49).** old.reddit.com, wikipedia and Hacker News now render
+   *differently* at 1280 and at 500 CSS pixels, which none of them did before, and none regresses
+   at 1280. What is left of it is the design rather than the feature: the prelude is evaluated at
+   parse time, so a resize re-parses the author sheets. Keeping the condition on the rule and asking
+   during the cascade is the end state.
 
 1. **`min()`, `max()` and `clamp()`.** Custom properties, `var()`, `calc()`, `@supports` and
    `aspect-ratio` are all **done** (session 4). `calc()` holds one relative term plus an

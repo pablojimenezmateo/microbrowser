@@ -1,5 +1,7 @@
 #include "css/StyleSheet.h"
 
+#include "css/MediaQuery.h"
+
 #include <optional>
 #include <utility>
 
@@ -340,31 +342,29 @@ bool SupportsPreludeMatches(const std::vector<Token>& tokens, std::size_t from, 
   return at == to && result;
 }
 
-bool MediaListItemMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
-  while (from < to && tokens[from].kind == Token::Kind::Whitespace) {
-    ++from;
-  }
-  while (to > from && tokens[to - 1].kind == Token::Kind::Whitespace) {
-    --to;
-  }
-  if (from + 1 != to || tokens[from].kind != Token::Kind::Ident) {
-    return false;
-  }
-  const std::string media = Lowered(tokens[from].value);
-  return media == "all" || media == "screen";
-}
-
-bool MediaPreludeMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
-  std::size_t item_start = from;
-  for (std::size_t at = from; at <= to; ++at) {
-    if (at == to || tokens[at].kind == Token::Kind::Comma) {
-      if (MediaListItemMatches(tokens, item_start, at)) {
-        return true;
-      }
-      item_start = at + 1;
-    }
-  }
-  return false;
+// Whether an `@media` prelude matches, through the one evaluator.
+//
+// This used to accept a single Ident and nothing else, so `@media (min-width:
+// 600px)` dropped its whole block -- on every page ever rendered by this
+// browser. `css::MediaQueryListMatches` landed with `srcset` in session 6 and
+// answers exactly this grammar, including `and`/`or`/`not` and the comma-
+// separated list; the only thing missing was the call. ADR 0014 counts `@media`
+// at 791 occurrences and calls it supported.
+//
+// Evaluated at *parse* time rather than kept on the rule, which is the crude
+// part and is written down rather than hidden: a sheet parsed at one viewport
+// holds the rules that matched then, so a resize has to re-parse. `Page`
+// re-parses when the viewport changes (see Page::SetViewport), which makes the
+// behaviour correct at the cost of doing the work again. Keeping the condition
+// on the rule and asking it during the cascade is the right end state and is a
+// bigger change than the bug deserved.
+bool MediaPreludeMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                         const MediaContext& context) {
+  // Through `Reconstruct`, which already turns a token run back into text for a
+  // declaration's value and handles every token a media prelude can contain. A
+  // second serializer for the same job is a second set of answers about what
+  // `(min-width:600px)` says.
+  return MediaQueryListMatches(Reconstruct(tokens, from, to), context);
 }
 
 std::size_t FindBlockEnd(const std::vector<Token>& tokens, std::size_t open, std::size_t end) {
@@ -385,6 +385,7 @@ std::size_t FindBlockEnd(const std::vector<Token>& tokens, std::size_t open, std
 }
 
 void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                   const MediaContext& context,
                    StyleSheet& sheet) {
   std::size_t at = from;
   while (at < to && tokens[at].kind != Token::Kind::EndOfFile) {
@@ -421,12 +422,13 @@ void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size
       }
 
       const bool conditional_holds =
-          at_rule == "media" ? MediaPreludeMatches(tokens, prelude_start, block_start - 1)
+          at_rule == "media"
+              ? MediaPreludeMatches(tokens, prelude_start, block_start - 1, context)
           : at_rule == "supports"
               ? SupportsPreludeMatches(tokens, prelude_start, block_start - 1)
               : false;
       if (conditional_holds) {
-        ParseRuleList(tokens, block_start, block_end, sheet);
+        ParseRuleList(tokens, block_start, block_end, context, sheet);
       } else {
         ++sheet.skipped;
       }
@@ -469,11 +471,11 @@ std::vector<Declaration> ParseDeclarationList(std::string_view input) {
   return ParseDeclarations(tokens, 0, tokens.size());
 }
 
-StyleSheet ParseStyleSheet(std::string_view input) {
+StyleSheet ParseStyleSheet(std::string_view input, const MediaContext& context) {
   StyleSheet sheet;
   const std::vector<Token> tokens = Tokenize(input);
   AddPerformanceCounter(PerfCounterId::CssSheetsParsed);
-  ParseRuleList(tokens, 0, tokens.size(), sheet);
+  ParseRuleList(tokens, 0, tokens.size(), context, sheet);
   return sheet;
 }
 
