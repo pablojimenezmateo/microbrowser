@@ -459,4 +459,94 @@ void DomBindings::InstallResponse() {
   }
 }
 
+// --- Request ----------------------------------------------------------------
+
+void DomBindings::InstallRequest() {
+  EnsureInterfaces();
+  if (!interfaces_.IsObject()) {
+    return;
+  }
+  const Value prototype = interpreter_->NewObjectValue();
+  if (!prototype.IsObject()) {
+    return;
+  }
+  interfaces_.object->Set("Request", prototype);
+
+  // Deliberately thin. A `Request` here is the *arguments* to a fetch as a
+  // value a page can pass around and clone -- which is what a router or an
+  // interceptor uses one for -- and not a second request path. `fetch` reads
+  // `url`, `method` and `headers` off whatever it is handed, so a page's own
+  // object with those three properties works exactly as well, and there is no
+  // branch anywhere that asks whether the thing it was given is really one of
+  // these. Anything more would be a second place that decides what a request
+  // is.
+  const Value constructor =
+      interpreter_->NewNativeValue("Request", [this, prototype](NativeCall& call) {
+        const Value made = call.interpreter.NewObjectValue();
+        if (!made.IsObject()) {
+          return Value::Undefined();
+        }
+        made.object->SetPrototype(prototype.object);
+        const Value input = Argument(call.arguments, 0);
+        std::string url;
+        std::string method = "GET";
+        std::vector<ScriptHeader> headers;
+        if (input.IsObject() && input.object->GetOwn("url") != nullptr) {
+          url = js::ToString(*input.object->Get("url"));
+          if (const Value* existing = input.object->Get("method")) {
+            method = js::ToString(*existing);
+          }
+          if (const Value* existing = input.object->Get("headers")) {
+            for (const Value& pair : ReadPairs(*existing, kHeaderPairsSlot)) {
+              headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
+            }
+          }
+        } else {
+          url = js::ToString(input);
+        }
+        const Value init = Argument(call.arguments, 1);
+        if (init.IsObject()) {
+          if (const Value* given = init.object->Get("method")) {
+            method = js::ToString(*given);
+          }
+          if (const Value* given = init.object->Get("body")) {
+            if (!given->IsUndefined() && !given->IsNull()) {
+              made.object->Set("body", Value::String(js::ToString(*given)));
+            }
+          }
+          for (const char* name : {"mode", "credentials"}) {
+            if (const Value* given = init.object->Get(name)) {
+              made.object->Set(name, Value::String(js::ToString(*given)));
+            }
+          }
+          if (const Value* given = init.object->Get("headers")) {
+            if (given->IsObject() && given->object->GetOwn(kHeaderPairsSlot) != nullptr) {
+              headers.clear();
+              for (const Value& pair : ReadPairs(*given, kHeaderPairsSlot)) {
+                headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
+              }
+            } else if (given->IsObject()) {
+              headers.clear();
+              for (const std::string& key : given->object->EnumerableKeys()) {
+                const Value* value = given->object->Get(key);
+                headers.push_back(ScriptHeader{
+                    LowerCase(key), value == nullptr ? std::string() : js::ToString(*value)});
+              }
+            }
+          }
+        }
+        made.object->Set("url", Value::String(std::move(url)));
+        made.object->Set("method", Value::String(std::move(method)));
+        made.object->Set("headers", MakeHeaders(headers));
+        return made;
+      });
+  if (constructor.IsObject()) {
+    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set("prototype", prototype);
+    prototype.object->SetHidden("constructor", constructor);
+    interpreter_->Global()->Set("Request", constructor);
+    interpreter_->GlobalScope()->Declare("Request", constructor, false);
+  }
+}
+
 }  // namespace microbrowser::bindings

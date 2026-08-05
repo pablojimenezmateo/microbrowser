@@ -179,6 +179,7 @@ void DomBindings::InstallFetch() {
   }
   InstallHeaders();
   InstallResponse();
+  InstallRequest();
   InstallAbortController();
 
   const Value fetch = interpreter_->NewNativeValue("fetch", [this](NativeCall& call) {

@@ -300,6 +300,21 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
            "and an ordinary header is untouched");
   });
 
+  AddTest(tests, "Fetch/ARequestObjectIsWhatFetchReads", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "ok"));
+    session.Run(
+        "const req = new Request('/api', {method: 'PUT', headers: {'X-A': '1'}});"
+        "console.log(req.method + ' ' + req.url + ' ' + req.headers.get('x-a'));"
+        "fetch(req).then(r => r.text()).then(t => console.log(t));");
+    ExpectEqString(session.Console(), "PUT /api 1|ok",
+                   "a Request is the arguments to a fetch as a value a page can pass around, "
+                   "and `fetch` reads the same three properties off anything: " +
+                       session.Errors());
+    Expect(session.factory.log.requests.at(1).rfind("PUT /api ", 0) == 0,
+           "and the request that went out is the one the object described");
+  });
+
   AddTest(tests, "Fetch/HeadersAreACollection", [] {
     Session session;
     session.Run(
