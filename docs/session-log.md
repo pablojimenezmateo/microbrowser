@@ -827,3 +827,104 @@ crash.
   in one message, so `SdlWindow` carries the scancode from the first to the second — its fourth
   member. This is the only part of the session that cannot be tested here, because it needs a
   display.
+
+## Session 10 — input, events and focus (2 of 2) · 2026-08-05
+
+**Status:** done
+
+**Check:** amended, and the amendment is a finding — see **Found** (1). The original is "Escape
+closes a menu on a real page, and a page cannot type into the omnibox." The second clause stands.
+The first is not reachable, and not because of anything in this session. What was run:
+
+```
+$ microbrowser_snapshot https://news.ycombinator.com/ -h 1400 \
+    -click 650,1250 -key Escape -type rust -key Enter
+https://hn.algolia.com/?q=rust: 2 commands, 1 runs, 1 fonts, 0 images,
+  title "Hacker News Search powered by Algolia" -> /dev/null
+  focus: none
+
+$ microbrowser_snapshot https://news.ycombinator.com/ -key Tab
+  focus: a[href=https://news.ycombinator.com] keyboard
+$ ... -key Tab -key Tab
+  focus: a[href=news] keyboard
+$ ... -key Tab -key Tab -key Tab
+  focus: a[href=newest] keyboard
+```
+
+The first is the whole chain on a real page: a click moved focus to Hacker News's search field,
+Escape was delivered to the page without disturbing it or being taken by the chrome, typing reached
+the focused control, and Enter submitted the form it owns. The second walks the page's own tab
+order in document order, keyboard-visible. `Focus/EscapeReachesThePageAndClosesItsMenu` is the menu
+half, against the real dispatch algorithm. `Chrome/NothingTypedIntoTheOmniboxReachesThePage` and
+`Chrome/TheWayOutOfAPageIsNotThePageToTake` are the security half.
+
+`tools/run-checks.sh tests`, `asan`, `ubsan`: 24/24 shards each.
+
+**Landed:**
+
+- Focus as **one element on one document** — `dom::Document::FocusState`, with the
+  `:focus-visible` bit beside it because they are two facts about the same thing. `activeElement`,
+  `focus()`, `blur()`, Tab and Shift+Tab in the specification's order, and the four focus events.
+- `app::KeyRouting` — chrome or page, decided before the key becomes an `ipc::KeyInputMessage` and
+  therefore before it could cross into a sandboxed renderer.
+- The arrow and page keys moved out of the chrome and into `Engine::ScrollByKey`, as a keydown's
+  default action.
+- `Engine::FocusDescription`, printed by `microbrowser_snapshot` as a `focus:` line.
+
+**Found:**
+
+- **A second copy of focus had been quietly wrong the whole time.** `Page::focused_text_control_`
+  could only ever hold a text field, so `input.focus()` from a script and the element a click
+  focused were two different facts and the key went to whichever the last *click* had set. A page
+  that focused a field and expected to be typed into was broken by construction, and no test could
+  have seen it because there was no `focus()` to call. The member is gone and Page has one fewer;
+  this is the same shape as session 8's scroll offset and session 7's layout-clean flag — **the bug
+  is not in the algorithm, it is in there being two places to keep the answer.**
+- **Session 9's check command no longer works, and that is the correct outcome.**
+  `-click 1120,103` on old.reddit focused the search box only because the old hit test looked for a
+  form control *under* the point and ignored whatever was painted over it. A click now focuses the
+  nearest focusable ancestor of the **topmost** element, which is what a click means — and on
+  old.reddit the topmost thing over the search field is the `.side` sidebar box at `975,66
+  300x191.6`, which covers the field at `975,73 300x21.6` entirely. Clicking a story title still
+  navigates, so links are unaffected; it is the search box alone. **The root cause is layout, not
+  focus:** `#header-bottom-right` is `position: absolute; bottom: 0` inside a 66px `#header` and
+  lands at y=73 — seven pixels *below* its containing block's bottom edge. It was seven pixels
+  below before this session too (header 85, field 92), so it is pre-existing and independent.
+- **A replaced element was inline-level whatever its `display` said**, so `img { display: block }`
+  did nothing — and an absolutely positioned one stayed in the flow and was laid out *twice*, once
+  by the flow it had never left and once as an absolute. Found sideways, from two `display: block`
+  buttons in a focus test that were laid out side by side so a click meant for the second hit
+  nothing. Fixed in its own commit; on old.reddit it takes 19px of false height out of the header
+  (`#sr-header-area` is absolutely positioned) and puts the interstitial's close button at the
+  right edge where `right: 0` puts it instead of mid-box at x=744. **Two comments asserted the rule
+  that the code did not implement** — `Box::IsInlineLevel` and `css::ComputedStyle::IsInlineLevel`,
+  the second of which names the exact clause of CSS 2.1 §9.7 it then fails to apply.
+- **The interaction checks had no way to see an interaction.** Three sessions in a row now have
+  checks phrased as clicks and keys, and until this one the only observable was the display list —
+  which says what was *painted*, not where the next keystroke will go. A click that focused the
+  wrong element renders identically to one that worked. `microbrowser_snapshot` now prints
+  `focus: <tag>[#id|name|href] keyboard|pointer` whenever something was driven at the page, and
+  every reddit probe above became a one-line read instead of a debugger session. Sessions 11 and 12
+  are interaction checks too.
+- **A closed menu is a container with `hidden` on it and its items still inside.** Asking only the
+  element let Tab walk into a menu the page had closed — and focus is the input router, so that is
+  a keystroke delivered to something the user cannot see. Focusability now asks the ancestors.
+  `display: none` is the same bug through a property `src/html` may not name; that one needs ADR
+  0016's element state bits, which is session 11.
+
+**Not done, deliberately:**
+
+- `:focus-visible` is the **state** and not the selector. Matching it needs the invalidation index
+  of ADR 0016 — session 11 — and a state with no selector is honest where a selector that never
+  matches would not be.
+- No sequential-focus-navigation starting point: Tab after a click on nothing starts from the top
+  of the document rather than from where the click was.
+- Tab **wraps** inside the document rather than handing focus to the browser chrome. The engine has
+  no chrome to hand it to, and ADR 0017 §4 keeps that decision in `src/app`.
+- Hiding the focused element's container does not blur it. *Removing* it does —
+  `Node::ReleaseFocusWithin`, beside `NoteMutation` and there for the same reason: missing a call
+  is the failure mode, and the document's focus is a raw `Element*`.
+- The known imprecision in `RouteKey`, written down at the bottom of `KeyRouting.h`: the
+  destination is decided per event, so a key pressed while the omnibox had focus and released after
+  it lost it delivers its release to the page. Enter is the case. Closing it means state in the
+  routing rule, for a keyup with no keydown on a document being navigated away from.
