@@ -3,38 +3,13 @@
 #include <algorithm>
 #include <utility>
 
+#include "util/Base64.h"
 #include "util/PercentEncoding.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::engine {
 
 namespace {
-
-std::string Base64Decode(std::string_view text, bool& ok) {
-  constexpr std::string_view kAlphabet =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  std::string out;
-  std::uint32_t accumulator = 0;
-  int bits = 0;
-  for (const char c : text) {
-    if (c == '=' || c == '\n' || c == '\r' || c == ' ' || c == '\t') {
-      continue;
-    }
-    const std::size_t value = kAlphabet.find(c);
-    if (value == std::string_view::npos) {
-      ok = false;
-      return {};
-    }
-    accumulator = (accumulator << 6) | static_cast<std::uint32_t>(value);
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      out.push_back(static_cast<char>((accumulator >> bits) & 0xFF));
-    }
-  }
-  ok = true;
-  return out;
-}
 
 std::string BodyAsString(const std::vector<std::byte>& body) {
   return std::string(reinterpret_cast<const char*>(body.data()), body.size());
@@ -81,9 +56,12 @@ DataUrl DecodeDataUrl(std::string_view url) {
 
   result.content_type = metadata.empty() ? "text/plain;charset=US-ASCII" : std::string(metadata);
   if (base64) {
-    bool ok = false;
-    result.body = Base64Decode(payload, ok);
-    result.ok = ok;
+    // The one decoder, in util, for the reason the percent decoder below is
+    // there: Subresource Integrity and CSP's hash-sources decode base64 too,
+    // from modules that cannot see this one.
+    std::optional<std::string> decoded = util::Base64Decode(payload);
+    result.ok = decoded.has_value();
+    result.body = decoded.value_or(std::string{});
     return result;
   }
   // The one decoder, in util. The copy that used to live here was

@@ -23,7 +23,13 @@ allow:
 # percent escapes, and bindings may see only util, js and dom. Three separate
 # copies of the decoder existed before this line did. Two decoders that
 # disagree about what a URL means is a security bug, not a compatibility one.
-public: Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
+# Base64.h and Sha2.h are here for the same reason and the strongest case yet:
+# `src/csp` may see only util and url, `src/engine` verifies Subresource
+# Integrity, and `src/engine` already decoded base64 for `data:` URLs. A digest
+# in `net` -- where the TLS stack's already is -- would be one that two of those
+# three callers cannot reach, and reaching it would mean widening a policy
+# module's allow: line to a module that can open sockets. See Sha2.h.
+public: Base64.h Sha2.h Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
 
 extern:
 

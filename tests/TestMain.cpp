@@ -25,6 +25,7 @@ void RegisterStyleInvalidationTests(std::vector<TestCase>& tests);
 void RegisterViewObserverTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionPolicyTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionTests(std::vector<TestCase>& tests);
+void RegisterDigestTests(std::vector<TestCase>& tests);
 void RegisterDisplayListTests(std::vector<TestCase>& tests);
 void RegisterEnvTests(std::vector<TestCase>& tests);
 void RegisterCorsTests(std::vector<TestCase>& tests);
@@ -161,6 +162,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterMediaQueryTests(tests);
   microbrowser::tests::RegisterDirtyRegionPolicyTests(tests);
   microbrowser::tests::RegisterDirtyRegionTests(tests);
+  microbrowser::tests::RegisterDigestTests(tests);
   microbrowser::tests::RegisterDisplayListTests(tests);
   microbrowser::tests::RegisterEnvTests(tests);
   microbrowser::tests::RegisterCorsTests(tests);

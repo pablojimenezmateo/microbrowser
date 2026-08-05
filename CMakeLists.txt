@@ -165,12 +165,14 @@ endfunction()
 
 microbrowser_module(util
   SOURCES
+    src/util/Base64.cpp
     src/util/Env.cpp
     src/util/Inflate.cpp
     src/util/Parse.cpp
     src/util/PercentEncoding.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
+    src/util/Sha2.cpp
     src/util/StartupTrace.cpp
     src/util/TraceChannel.cpp
     src/util/UrlEncoded.cpp)
@@ -437,6 +439,7 @@ add_executable(microbrowser_tests
   tests/GeometryQueryTests.cpp
   tests/ImageSelectionTests.cpp
   tests/MediaQueryTests.cpp
+  tests/DigestTests.cpp
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
