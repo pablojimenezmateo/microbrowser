@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "gfx/DisplayList.h"
 #include "gfx/TextRenderer.h"
@@ -107,7 +108,15 @@ class Page : private layout::ImageProvider {
   // so the index fills a slot rather than appending at load completion time.
   void AddStyleSheet(std::size_t pending_index, std::string_view css);
 
+  // The environment an image is selected for: the viewport in CSS pixels and
+  // the device pixel ratio. Set by the engine, which is the half of the seam
+  // that knows what screen this is; the page only knows what the document asked
+  // for. Nothing is re-fetched when it changes -- see CollectImages.
+  void SetViewport(const css::MediaContext& viewport);
+
   // Image URLs the document referenced, in document order, exactly as written.
+  // One per <img>, already chosen from its `srcset` and any `<picture>` around
+  // it, plus every background image the cascade names.
   const std::vector<std::string>& PendingImages() const { return resources_.pending_images; }
 
   // The size the document asks for `src` to be drawn at, or a zero extent for
@@ -194,11 +203,17 @@ class Page : private layout::ImageProvider {
     std::vector<std::optional<std::string>> author_sheet_slots;
     std::vector<std::string> pending_images;
     std::map<std::string, std::shared_ptr<const gfx::Image>, std::less<>> images;
+    // Which candidate each <img> resolved to. Recorded rather than recomputed
+    // because selection depends on the viewport and the fetch does not: an
+    // element whose chosen URL changed after its image was fetched would
+    // otherwise render as nothing at all.
+    std::map<const dom::Element*, std::string> selected_image_urls;
   };
 
   // layout::ImageProvider. Private inheritance: layout asks the page for an
   // image, and nobody else has business calling this.
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
+  std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element) const override;
 
   // One route from "this form is being submitted" to a submission: fire the
   // `submit` event, and build the data set only if nothing prevented it. A
@@ -226,6 +241,7 @@ class Page : private layout::ImageProvider {
   DocumentResources resources_;
   std::map<const dom::Element*, std::pair<std::string, bool>> control_defaults_;
   dom::Element* focused_text_control_ = nullptr;
+  css::MediaContext viewport_;
   float content_height_ = 0.0f;
 };
 

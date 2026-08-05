@@ -623,6 +623,13 @@ void Engine::SetViewport(const gfx::IntSize& size, float device_scale) {
   }
   viewport_size_ = size;
   device_scale_ = device_scale;
+  // The page selects images against this, so it is told before anything is
+  // laid out or fetched. The scale is guarded here rather than at every use:
+  // it arrives over IPC from the UI process, and a zero would divide the
+  // viewport into infinity.
+  const float scale = device_scale_ > 0.0f ? device_scale_ : 1.0f;
+  page_.SetViewport(css::MediaContext{static_cast<float>(size.width) / scale,
+                                      static_cast<float>(size.height) / scale, scale});
   // A resize changes the containing block, so it relays out. This is the one
   // input that does.
   LayoutAndPaint();

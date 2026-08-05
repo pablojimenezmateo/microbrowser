@@ -6,6 +6,7 @@
 #include "css/StyleSheet.h"
 #include "gfx/SvgDecoder.h"
 #include "engine/FormAlgorithms.h"
+#include "engine/ImageSelection.h"
 #include "html/FormControl.h"
 #include "html/TreeBuilder.h"
 #include "util/Parse.h"
@@ -360,6 +361,7 @@ void Page::RebuildAuthorStyleSheets() {
 
 void Page::CollectImages() {
   resources_.pending_images.clear();
+  resources_.selected_image_urls.clear();
   if (document_ == nullptr) {
     return;
   }
@@ -374,10 +376,18 @@ void Page::CollectImages() {
     }
     resources_.pending_images.push_back(src);
   };
+  // Which candidate an <img> wants is a question about the viewport as well as
+  // about the element, so the answer is recorded here and read again at layout
+  // rather than computed twice. A viewport that changes afterwards does not
+  // re-select: the bytes for the new candidate were never fetched, so the only
+  // thing re-selecting would achieve is an empty box where an image was.
   for (const dom::Element* image : document_->ElementsByTagName("img")) {
-    if (const std::string* src = image->GetAttribute("src")) {
-      want(*src);
+    std::string selected = SelectImageSource(*image, viewport_);
+    if (selected.empty()) {
+      continue;
     }
+    want(selected);
+    resources_.selected_image_urls[image] = std::move(selected);
   }
   // Background images are named by the *cascade*, not by an attribute, so
   // finding them means resolving style -- which happens again at layout. The
@@ -400,8 +410,11 @@ gfx::IntSize Page::RequestedImageSize(std::string_view src) const {
   // smallest of them is blurry everywhere else; rasterizing at the largest
   // only ever scales down, which the painter resamples cleanly.
   for (const dom::Element* image : document_->ElementsByTagName("img")) {
-    const std::string* source = image->GetAttribute("src");
-    if (source == nullptr || *source != src) {
+    // The selected candidate rather than the `src` attribute: an <img> whose
+    // srcset chose a different URL is still the element that says how big the
+    // thing at that URL should be drawn.
+    const auto selected = resources_.selected_image_urls.find(image);
+    if (selected == resources_.selected_image_urls.end() || selected->second != src) {
       continue;
     }
     for (const char* attribute : {"width", "height"}) {
@@ -432,6 +445,21 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
 std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {
   const auto found = resources_.images.find(src);
   return found == resources_.images.end() ? nullptr : found->second;
+}
+
+std::shared_ptr<const gfx::Image> Page::ImageForElement(const dom::Element& element) const {
+  const auto selected = resources_.selected_image_urls.find(&element);
+  if (selected == resources_.selected_image_urls.end()) {
+    // An <img> a script created after the images were collected. Nothing was
+    // fetched for it, so there is nothing to draw -- which is what the box
+    // already looked like, rather than a new kind of failure.
+    return nullptr;
+  }
+  return ImageFor(selected->second);
+}
+
+void Page::SetViewport(const css::MediaContext& viewport) {
+  viewport_ = viewport;
 }
 
 void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {

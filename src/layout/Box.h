@@ -249,6 +249,20 @@ class ImageProvider {
   // nothing in it -- which is why they are one return value.
   virtual std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const = 0;
 
+  // The pixels for an element that is an image, which is not the same question
+  // as the one above: `srcset` and `<picture>` mean the URL an <img> loads is
+  // chosen from the markup and the viewport together, and layout may not make
+  // that choice -- it would need a media query evaluator and a device pixel
+  // ratio, neither of which is layout's. So the element is passed and the
+  // provider answers.
+  //
+  // The default is the URL the element wrote, which is what every caller had
+  // before selection existed and is right for a provider that does not select.
+  virtual std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element) const {
+    const std::string* src = element.GetAttribute("src");
+    return src == nullptr ? nullptr : ImageFor(*src);
+  }
+
  protected:
   ImageProvider() = default;
 };

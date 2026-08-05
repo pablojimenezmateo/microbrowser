@@ -288,6 +288,7 @@ microbrowser_module(engine
   SOURCES
     src/engine/Engine.cpp
     src/engine/FormAlgorithms.cpp
+    src/engine/ImageSelection.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
     src/engine/PageScript.cpp
@@ -414,6 +415,7 @@ add_executable(microbrowser_tests
   tests/BlitterTests.cpp
   tests/CanvasTests.cpp
   tests/CssTests.cpp
+  tests/ImageSelectionTests.cpp
   tests/MediaQueryTests.cpp
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp
@@ -513,6 +515,8 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
+  microbrowser_fuzzer(image_selection_fuzzer fuzz/ImageSelectionFuzzer.cpp
+    microbrowser_engine microbrowser_css microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
   microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
   microbrowser_fuzzer(js_parser_fuzzer fuzz/JsParserFuzzer.cpp microbrowser_js)

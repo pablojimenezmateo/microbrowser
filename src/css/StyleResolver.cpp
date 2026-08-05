@@ -410,7 +410,7 @@ tbody { display: table-row-group }
 tfoot { display: table-footer-group }
 tr { display: table-row }
 td, th { display: table-cell }
-head, style, script, title, meta, link { display: none }
+head, style, script, title, meta, link, source { display: none }
 body { margin: 8px }
 p { margin: 1em 0 }
 h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0 }

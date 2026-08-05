@@ -8,7 +8,7 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # exactly one path from script to the tree. See docs/adr/0008-dom-bindings.md.
 allow: util gfx ipc url privacy net dom html css layout js bindings
 
-public: Engine.h Loader.h Page.h PendingLoad.h
+public: Engine.h ImageSelection.h Loader.h Page.h PendingLoad.h
 
 extern:
 
@@ -72,7 +72,13 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # submission now goes through -- a click, the Enter key and a script -- so that
 # `preventDefault` on a `submit` event means the same thing to all three. No
 # new members: a pending submission is the binding layer's until it is taken.
-budget: Page   header_lines=185 public_methods=38 members=12
+# Member 13 is the viewport an image is selected for -- the CSS-pixel size and
+# the device pixel ratio, as a css::MediaContext. It is a member rather than a
+# parameter because two things ask the question at different times: collection,
+# which decides what to fetch, and layout, which decides what to draw. Threading
+# it through both is how the two end up answering with different viewports and
+# an <img> draws nothing, because the URL layout asked for was never fetched.
+budget: Page   header_lines=200 public_methods=39 members=13
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #

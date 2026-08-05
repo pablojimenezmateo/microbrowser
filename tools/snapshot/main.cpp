@@ -30,6 +30,7 @@
 #include "gfx/TextRenderer.h"
 #include "ipc/InProcessTransport.h"
 #include "platform/SystemFonts.h"
+#include "util/Parse.h"
 #include "util/PerformanceTrace.h"
 #include "util/StartupTrace.h"
 #include "util/PerformanceCounters.h"
@@ -43,6 +44,10 @@ struct Options {
   int width = 1280;
   int height = 900;
   int scroll_y = 0;
+  // Device pixels per CSS pixel. It decides which `srcset` candidate an <img>
+  // loads, and it is a flag rather than a property of the machine because the
+  // machine this runs on has no display at all.
+  float device_scale = 1.0f;
   bool dump = false;
   // A click to deliver before the snapshot, in viewport pixels. Negative means
   // none -- 0,0 is a real point.
@@ -52,7 +57,8 @@ struct Options {
 
 const char* kUsage =
     "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n"
-    "                            [-click x,y] [-v]\n"
+    "                            [-dpr ratio] [-click x,y] [-v]\n"
+    "  -dpr    device pixels per CSS pixel: which srcset candidate an <img> picks\n"
     "  -click  deliver a click before the snapshot, to follow a link or submit a form\n"
     "  -v      print every display list command: what was painted, where, in what colour\n";
 
@@ -140,6 +146,10 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       if (!x || !y) return false;
       out.click_x = *x;
       out.click_y = *y;
+    } else if (argument == "-dpr") {
+      const std::optional<float> parsed = microbrowser::util::ParseFloat(value());
+      if (!parsed || !(*parsed > 0.0f) || *parsed > 8.0f) return false;
+      out.device_scale = *parsed;
     } else if (argument == "-v") {
       out.dump = true;
     } else if (argument == "-y") {
@@ -222,7 +232,7 @@ int main(int argc, char** argv) {
   microbrowser::engine::Engine engine{channel.Engine(), fonts};
 
   channel.Ui().Send(microbrowser::ipc::ResizeViewportMessage{
-      microbrowser::gfx::IntSize{options.width, options.height}, 1.0f});
+      microbrowser::gfx::IntSize{options.width, options.height}, options.device_scale});
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{options.url});
   engine.HandlePendingMessages();
   RunLoadToCompletion(engine);

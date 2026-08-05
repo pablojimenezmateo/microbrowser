@@ -313,9 +313,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     box->SetOrigin(&element);
     attach_background(*box);
     if (element.TagName() == "img" && images_ != nullptr) {
-      if (const std::string* src = element.GetAttribute("src"); src != nullptr) {
-        box->SetImage(images_->ImageFor(*src));
-      }
+      box->SetImage(images_->ImageForElement(element));
     } else if (element.TagName() == "input" || element.TagName() == "button" ||
                element.TagName() == "textarea" || element.TagName() == "select") {
       box->SetText(FormControlText(element));
