@@ -21,13 +21,14 @@ using js::Value;
 
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
                          std::string url, GeometrySource* geometry, NetworkSource* network,
-                         HistorySource* history)
+                         HistorySource* history, StorageSource* storage)
     : interpreter_(&interpreter),
       document_(&document),
       url_(std::move(url)),
       geometry_(geometry),
       network_(network),
-      history_(history) {}
+      history_(history),
+      storage_(storage) {}
 
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
   if (selector.empty()) {

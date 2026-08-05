@@ -189,6 +189,10 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // first script of a document without one, and `history` is declared or not
   // declared at construction.
   void SetHistorySource(bindings::HistorySource* history);
+  // ADR 0021. Handed over for the life of the engine like the other two: a store that
+  // arrived later would leave the first script of the first document without one, and
+  // that first script is exactly where Plex looks for `sessionStorage`.
+  void SetStorageSource(bindings::StorageSource* storage);
   // Hands one answer to the script that asked for it. False when nothing was
   // waiting -- an aborted request, or a second delivery -- which the caller
   // drops rather than repainting for.

@@ -279,6 +279,10 @@ namespace microbrowser::util {
   X(CspViolations, "csp.violations")                                             \
   X(CspInlineBlocked, "csp.inline_blocked")                                      \
   X(SriChecks, "sri.checks")                                                     \
+  X(StorageLookups, "storage.lookups")                                            \
+  X(StorageWrites, "storage.writes")                                              \
+  X(StorageQuotaRefusals, "storage.quota_refusals")                               \
+  X(StoragePartitionsCreated, "storage.partitions_created")                       \
   X(SriMismatches, "sri.mismatches")                                            \
   X(SriUnparseable, "sri.unparseable")                                           \
   X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \

@@ -68,6 +68,9 @@ class PageScript {
   void SetNetworkSource(bindings::NetworkSource* network) { network_ = network; }
   // The same, for `window.history`.
   void SetHistorySource(bindings::HistorySource* history) { history_ = history; }
+  // And for `sessionStorage`/`localStorage`. Null leaves both names undeclared, which
+  // is ADR 0012's rule and ADR 0021 §6's answer for a document with no keyed storage.
+  void SetStorageSource(bindings::StorageSource* storage) { storage_ = storage; }
   // Fires `popstate`, or `hashchange`, at the window. False before this page has
   // an interpreter, which is a traversal on a document that never ran a script.
   // Moves the address the binding layer answers with. Nothing before this page
@@ -344,6 +347,7 @@ class PageScript {
   bindings::GeometrySource* geometry_ = nullptr;
   bindings::NetworkSource* network_ = nullptr;
   bindings::HistorySource* history_ = nullptr;
+  bindings::StorageSource* storage_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

@@ -103,6 +103,10 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   page_.SetNetworkSource(this);
   // And its history questions, for the same reason and with the same lifetime.
   page_.SetHistorySource(this);
+  // And its storage. The lifetime argument is the same and the case is the sharpest of
+  // the three: Plex's very first inline script, before any bundle loads, reads
+  // `sessionStorage`.
+  page_.SetStorageSource(this);
 }
 
 bool Engine::HandlePendingMessages() {

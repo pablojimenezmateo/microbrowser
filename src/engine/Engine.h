@@ -8,6 +8,7 @@
 
 #include "bindings/History.h"
 #include "bindings/Network.h"
+#include "bindings/Storage.h"
 #include "engine/Loader.h"
 #include "engine/Page.h"
 #include "engine/PendingLoad.h"
@@ -16,6 +17,7 @@
 #include "gfx/Geometry.h"
 #include "ipc/Message.h"
 #include "ipc/Transport.h"
+#include "storage/PartitionedStorage.h"
 #include "util/WaitDescriptor.h"
 
 namespace microbrowser::engine {
@@ -43,7 +45,9 @@ namespace microbrowser::engine {
 // where "the browser" lives. Document, navigation history, network, and script
 // each get their own type; Engine stays the thing that routes messages to them.
 // Its budget in src/engine/MODULE.deps is the tripwire.
-class Engine : private bindings::NetworkSource, private bindings::HistorySource {
+class Engine : private bindings::NetworkSource,
+               private bindings::HistorySource,
+               private bindings::StorageSource {
  public:
   // Fonts arrive from the caller because which fonts exist is a property of
   // the machine, and the engine is the half of the seam that does not know
@@ -246,6 +250,32 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
   // Tells the chrome what its two buttons should look like, and nothing else.
   void SendHistoryState();
 
+  // bindings::StorageSource. ADR 0021, in EngineStorage.cpp, and private for the
+  // reason the other two are.
+  //
+  // **This is where the partition key is derived, and it is the only place.**
+  // `src/bindings` may not see `url` or `storage`, so a binding cannot name a
+  // partition even by accident: it picks Session or Local and this side decides whose
+  // data that is, from the document's own URL. ADR 0021 §1 requires the key on every
+  // store; giving the caller no way to spell one is how that is enforced against a
+  // caller rather than merely checked.
+  bool Available(bindings::StorageSource::Kind kind) override;
+  std::size_t Length(bindings::StorageSource::Kind kind) override;
+  std::optional<std::string> KeyAt(bindings::StorageSource::Kind kind,
+                                   std::size_t index) override;
+  std::optional<std::string> GetItem(bindings::StorageSource::Kind kind,
+                                     std::string_view key) override;
+  WriteResult SetItem(bindings::StorageSource::Kind kind, std::string_view key,
+                      std::string_view value) override;
+  bool RemoveItem(bindings::StorageSource::Kind kind, std::string_view key) override;
+  bool Clear(bindings::StorageSource::Kind kind) override;
+
+  // The area this document's script reads and writes. Null when the document has no
+  // URL a partition key can be built from -- `about:blank`, a document built by a
+  // test -- and then every storage operation above answers as if the store were empty
+  // rather than crashing. An opaque origin genuinely has no keyed storage.
+  storage::StorageArea* AreaFor(bindings::StorageSource::Kind kind);
+
   // bindings::NetworkSource. Private inheritance for the reason Page's
   // GeometrySource is private: the binding layer holds a reference to the
   // interface and nothing else has business calling these.
@@ -296,6 +326,18 @@ class Engine : private bindings::NetworkSource, private bindings::HistorySource 
 
   ipc::EngineEndpoint& endpoint_;
   Loader loader_;
+  // ADR 0021 §2's two lifetimes, as two objects rather than one flag: a session store
+  // dies with the tab and a local store with the browser session, and today this
+  // object is both -- so what makes them different is *only* that a navigation within
+  // the tab keeps session storage and, when tabs exist, a second tab will get its own.
+  // Writing them as two fields now is what makes that a one-line change rather than an
+  // audit of every write.
+  //
+  // Neither reaches a disk. ADR 0021 §2 makes persistence a per-site user act that
+  // lands together with encryption at rest, and a sign-in token in a plaintext file is
+  // the worst outcome available here.
+  storage::PartitionedStorage session_storage_;
+  storage::PartitionedStorage local_storage_;
   Page page_;
   // The frame most recently sent, kept so the next one can be diffed against
   // it. This is what the display list being a comparable value buys: damage is

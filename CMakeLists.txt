@@ -281,6 +281,12 @@ microbrowser_module(net
   DEPS microbrowser_util microbrowser_url microbrowser_privacy
   EXTERN OpenSSL::SSL OpenSSL::Crypto)
 
+microbrowser_module(storage
+  SOURCES
+    src/storage/PartitionedStorage.cpp
+    src/storage/StorageArea.cpp
+  DEPS microbrowser_util microbrowser_url)
+
 microbrowser_module(gfx
   SOURCES
     src/gfx/AffineTransform.cpp
@@ -337,6 +343,7 @@ microbrowser_module(engine
     src/engine/SessionHistory.cpp
     src/engine/Loader.cpp
     src/engine/ModuleLoader.cpp
+    src/engine/EngineStorage.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
     src/engine/PageModules.cpp
@@ -347,7 +354,7 @@ microbrowser_module(engine
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
        microbrowser_privacy microbrowser_net microbrowser_csp microbrowser_dom
        microbrowser_html microbrowser_css microbrowser_layout microbrowser_js
-       microbrowser_bindings)
+       microbrowser_bindings microbrowser_storage)
 
 microbrowser_module(platform
   SOURCES
@@ -375,6 +382,7 @@ microbrowser_module(bindings
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
     src/bindings/ShadowBindings.cpp
+    src/bindings/StorageBindings.cpp
     src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp
     src/bindings/TreeMutation.cpp
@@ -509,6 +517,8 @@ add_executable(microbrowser_tests
   tests/IntegrityTests.cpp
   tests/ShadowDomTests.cpp
   tests/StructuredCloneTests.cpp
+  tests/StorageScriptTests.cpp
+  tests/StorageTests.cpp
   tests/WebFontTests.cpp
   tests/Woff2Tests.cpp
   tests/XhrTests.cpp

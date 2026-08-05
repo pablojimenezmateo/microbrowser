@@ -1,0 +1,12 @@
+purpose: Client-side storage, partitioned. Memory by default; nothing reaches a disk.
+
+# The stores need `url::PartitionKey` and nothing else. No net: a store that could
+# open a socket is a store that could tell a site what another site wrote.
+allow: util url
+
+public: StorageArea.h PartitionedStorage.h
+
+max_tu_lines: 500
+
+budget: StorageArea         header_lines=95 public_methods=12 members=3
+budget: PartitionedStorage  header_lines=70 public_methods=8  members=2

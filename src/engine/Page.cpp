@@ -512,6 +512,10 @@ void Page::SetHistorySource(bindings::HistorySource* history) {
   script_.SetHistorySource(history);
 }
 
+void Page::SetStorageSource(bindings::StorageSource* storage) {
+  script_.SetStorageSource(storage);
+}
+
 void Page::UpdateUrl(std::string url) {
   url_ = std::move(url);
   policy_.UpdateDocumentUrl(url_);

@@ -579,7 +579,12 @@ std::vector<Violation> CheckFetchRequiresAVerdict(const SourceSet& files,
 std::vector<Violation> CheckStorageLookupsArePartitioned(const SourceSet& files,
                                                          const ModuleManifests&) {
   std::vector<Violation> violations;
-  static constexpr std::string_view kPartitionedTypes[] = {"CookieJar", "HttpCache"};
+  // ADR 0021 §1: each per-site store extends this list **on the commit it lands**,
+  // which is what makes "every storage-like lookup takes a PartitionKey" an invariant
+  // rather than a habit. `PartitionedStorage` is the store behind `sessionStorage` and
+  // `localStorage`; IndexedDB and the Cache API join it here when they land.
+  static constexpr std::string_view kPartitionedTypes[] = {"CookieJar", "HttpCache",
+                                                           "PartitionedStorage"};
 
   for (const SourceFile& file : files) {
     if (!file.IsHeader()) {
@@ -596,7 +601,8 @@ std::vector<Violation> CheckStorageLookupsArePartitioned(const SourceSet& files,
       // Every public method that looks like a lookup or a store must name a
       // PartitionKey in its parameter list.
       static constexpr std::string_view kLookupNames[] = {"Lookup", "Store", "CookiesFor",
-                                                          "HeaderFor", "StoreFromHeader"};
+                                                          "HeaderFor", "StoreFromHeader",
+                                                          "Has"};
       for (const std::string_view name : kLookupNames) {
         for (const std::size_t at : architecture::FindCallSites(masked, name)) {
           if (architecture::LineAtOffset(file.text, at) < info.start_line) {

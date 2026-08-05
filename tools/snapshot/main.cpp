@@ -407,6 +407,12 @@ int main(int argc, char** argv) {
   // Always, not behind -v. A script that threw is the most likely reason a
   // page rendered less than it should have, and a debugging tool that makes
   // you pass a flag to learn that is one you find out about too late.
+  // What the page said, not only what it threw. A page's own `console.log` is how it
+  // reports on itself, and half the questions asked of this tool -- did storage answer,
+  // did the fetch land -- are answered by a line the page already prints.
+  for (const std::string& line : engine.ConsoleOutput()) {
+    std::fprintf(stderr, "  console: %s\n", line.c_str());
+  }
   for (const std::string& error : engine.ScriptErrors()) {
     std::fprintf(stderr, "  script error: %s\n", error.c_str());
   }

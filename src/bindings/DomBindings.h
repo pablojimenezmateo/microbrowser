@@ -10,6 +10,7 @@
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
 #include "bindings/Network.h"
+#include "bindings/Storage.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 
@@ -101,9 +102,15 @@ class DomBindings {
   // layer has no loader behind it. Null is an *absence* for the reason a null
   // `geometry` is: `fetch` is then not declared at all, rather than declared
   // and always rejecting. See ADR 0012 and Network.h.
+  // `storage` is where `sessionStorage` and `localStorage` are answered, or null when
+  // there is no store behind them -- and then **neither name is declared**, for the
+  // reason a null `network` leaves `fetch` undeclared. A page that feature-detects
+  // `window.localStorage` and finds a store that throws on every write is worse off
+  // than one that finds nothing: ADR 0012, and ADR 0021 §6 says the same about
+  // `navigator.storage.persist()`.
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
-              HistorySource* history = nullptr);
+              HistorySource* history = nullptr, StorageSource* storage = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -399,6 +406,12 @@ class DomBindings {
   // element, so a property name nobody enumerated in advance still resolves.
   js::Value MakeComputedStyle(dom::Element& element);
 
+  // --- storage, in StorageBindings.cpp --------------------------------------
+  // `sessionStorage` and `localStorage`, installed only when there is a
+  // StorageSource. One function for both: they differ by a `Kind` and by nothing
+  // else that this module can see, which is exactly what ADR 0021's seam is for.
+  void InstallStorage();
+
   // --- fetch, in FetchBindings.cpp and FetchTypes.cpp -----------------------
   // Installed only when there is a NetworkSource, for the reason the geometry
   // bindings are installed only when there is a GeometrySource: a `fetch` that
@@ -539,6 +552,7 @@ class DomBindings {
   // Borrowed and null when there is no history behind this layer, in which case
   // `history` is not declared at all. Same rule as the two above.
   HistorySource* history_ = nullptr;
+  StorageSource* storage_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings
