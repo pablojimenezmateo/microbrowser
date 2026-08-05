@@ -1951,3 +1951,65 @@ clicks.
 `performance.timing.responseStart`, `canvas.getContext`, and a `prototype` read in
 its webcomponents polyfill. None of them is `transform`. That is what the check for
 this session was measuring against and it belongs to Gate C, not here.
+
+### Storage, partitioned · 2026-08-06 (session 22)
+
+One commit, `f4dd125`. A new `src/storage` module, `bindings::StorageSource` declared
+in `src/bindings`, and the engine implementing it.
+
+**The seam is the whole design and it is worth stating as a rule.** `src/bindings` may
+see `util`, `js`, `dom` and `html` — not `url`, not `storage`. So a binding chooses
+`Session` or `Local` and *nothing else*: the partition key comes from the document's
+own URL on the engine side, in one function. ADR 0021 §1 requires the key on every
+store, and the way to require that of a caller is not to check it — it is to give the
+caller no way to spell one. `PartitionedStorage` joined the architecture lint's
+partitioned types on this commit, which is what makes the rule survive the next store.
+
+**The bug worth remembering is the one that changed the design.** An opaque origin — a
+`data:` URL, `about:blank` — has no site and therefore no partition, and the first
+version answered that with a per-operation `SecurityError` from the `Proxy` traps, which
+is what Chrome and Firefox do. It did not work, and the reason is an engine bug this
+found by accident: **`Interpreter::GetProperty` returns `Value` and has nowhere to put
+an abrupt completion**, so three lines read `got.IsAbrupt() ? Value::Undefined() :
+got.value` and an exception thrown by a `get` accessor or a `Proxy` trap is silently
+swallowed. The page saw `TypeError: undefined (setItem) is not a function` instead of
+the `SecurityError` that had been thrown one frame earlier.
+
+That affects plain accessors as well as proxies, which makes it the largest remaining
+JavaScript conformance gap here, and it is not a local fix: `GetProperty` has 73 call
+sites, and the choices are to return a `Result` from all of them or to latch an
+in-flight exception on the interpreter — which needs a GC root, because a `js::Value` in
+a C++ field is invisible to the collector. It is item 8 in
+`docs/js-conformance-roadmap.md` now, with that cost written down.
+
+The storage answer went the other way and is better for it: **neither name is declared
+for an opaque origin**, decided once at install time. That is ADR 0012's rule, and it is
+the answer that survives feature detection — `if (window.localStorage)` takes the
+fallback path, where an empty store that accepts writes and forgets them is a page that
+believes it saved.
+
+Three things live in `StorageArea` rather than at a caller, each for a reason a caller
+would get wrong. Insertion order, because `key(n)` and `length` are API and a hash map
+cannot answer `key(0)` at all. The quota, because storage is memory and unbounded
+storage from a page is a denial of service against the process — a security bound with
+an opt-out is not one. And atomicity: a write that would exceed the quota changes
+nothing, because a page that catches `QuotaExceededError` and retries must not find a
+half-written value.
+
+The binding is a `Proxy`, for the reason `element.style` is one. `localStorage.theme` is
+more common in the wild than `getItem('theme')` and a page mixes the two freely, so both
+have to be one store; `Object.keys` returns the stored keys and not `length` or the
+methods; a missing key is `undefined` as a property and `null` from `getItem`, which is
+the specification's asymmetry and not an oversight.
+
+Two small things worth keeping. `Value::Bool`, not `Value::Boolean` — and a native
+function must **return** `call.Throw(...)`: calling it and then returning a value has
+thrown nothing, which is how the quota test failed the first time. And
+`microbrowser_snapshot` prints the page's own `console.log` lines now, because half the
+questions asked of that tool are answered by a line the page already prints — including
+this session's.
+
+**Plex's first inline script finds `sessionStorage`.** `storage.lookups 2`,
+`storage.writes 1`, `storage.partitions_created 2`, where before it found nothing. Its
+main bundle now fails later, on `TypeError:  is not a function` with an empty callee
+name — the next thing to chase on that site.
