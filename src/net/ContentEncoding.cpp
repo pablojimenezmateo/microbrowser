@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "util/Brotli.h"
 #include "util/Inflate.h"
 #include "util/PerformanceCounters.h"
 #include "util/SaturatingMath.h"
@@ -120,6 +121,16 @@ DecodeStatus DecodeContentEncoding(HttpResponse& response, DecodeLimits limits) 
         return DecodeStatus::TooLarge;
       }
       ok = util::GzipInflate(body, allowed, decoded);
+    } else if (*coding == "br") {
+      // Brotli, which is what the web actually serves: it is the default coding
+      // for almost every static asset behind a CDN, and a browser that did not
+      // advertise it received the *uncompressed* form of every one of them.
+      //
+      // No declared-size refusal is possible here, unlike gzip's ISIZE: a brotli
+      // stream carries no output length, so the ceiling is enforced during the
+      // decode and a bomb reads as `Malformed` rather than `TooLarge`. See
+      // util::BrotliInflate.
+      ok = util::BrotliInflate(body, allowed, decoded);
     } else if (*coding == "deflate") {
       // RFC 9110 says `deflate` is the zlib wrapper. A meaningful share of
       // servers send a raw DEFLATE stream under that name instead, and every

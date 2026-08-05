@@ -78,6 +78,24 @@ find_package(SDL3 CONFIG QUIET)
 # Text: FreeType supplies glyph outlines, HarfBuzz supplies shaping. Both are
 # sanctioned in docs/adr/0001-third-party-dependencies.md and both are visible
 # only to src/gfx, which is what its MODULE.deps `extern:` line enforces.
+# Brotli, decode only. ADR 0024 sanctions it and ADR 0001's rule is that a
+# dependency earns its place: this one is `Content-Encoding: br` -- what the web
+# actually serves -- and the inner half of WOFF2 -- what every web font actually
+# ships as. `libbrotlienc` is deliberately not linked: a browser has no reason to
+# compress.
+set(MICROBROWSER_BROTLI_TARGET "")
+if(PkgConfig_FOUND)
+  pkg_check_modules(BROTLIDEC QUIET IMPORTED_TARGET libbrotlidec)
+  if(TARGET PkgConfig::BROTLIDEC)
+    set(MICROBROWSER_BROTLI_TARGET PkgConfig::BROTLIDEC)
+  endif()
+endif()
+if(MICROBROWSER_BROTLI_TARGET STREQUAL "")
+  message(FATAL_ERROR
+    "Brotli's decoder was not found. Install it and rerun CMake.\n"
+    "Expected a pkg-config entry named 'libbrotlidec' (Debian/Ubuntu: libbrotli-dev).")
+endif()
+
 find_package(Freetype REQUIRED)
 find_package(OpenSSL REQUIRED)
 set(MICROBROWSER_HARFBUZZ_TARGET "")
@@ -166,6 +184,7 @@ endfunction()
 microbrowser_module(util
   SOURCES
     src/util/Base64.cpp
+    src/util/Brotli.cpp
     src/util/Env.cpp
     src/util/Inflate.cpp
     src/util/Parse.cpp
@@ -175,7 +194,8 @@ microbrowser_module(util
     src/util/Sha2.cpp
     src/util/StartupTrace.cpp
     src/util/TraceChannel.cpp
-    src/util/UrlEncoded.cpp)
+    src/util/UrlEncoded.cpp
+  EXTERN ${MICROBROWSER_BROTLI_TARGET})
 
 microbrowser_module(url
   SOURCES
@@ -563,6 +583,7 @@ if(MICROBROWSER_FUZZ)
   endfunction()
 
   microbrowser_fuzzer(inflate_fuzzer fuzz/InflateFuzzer.cpp microbrowser_util)
+  microbrowser_fuzzer(brotli_fuzzer fuzz/BrotliFuzzer.cpp microbrowser_util)
   microbrowser_fuzzer(png_fuzzer fuzz/PngFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(jpeg_fuzzer fuzz/JpegFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(isobmff_fuzzer fuzz/IsoBmffFuzzer.cpp microbrowser_media)

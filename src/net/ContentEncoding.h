@@ -72,6 +72,9 @@ DecodeStatus DecodeContentEncoding(HttpResponse& response, DecodeLimits limits =
 // What `Accept-Encoding` says, and therefore exactly the set the function above
 // accepts. One constant so the two cannot drift: advertising a coding we cannot
 // decode turns every response using it into a failed load.
-inline constexpr const char* kAcceptedContentEncodings = "gzip, deflate";
+// Brotli first, because a server offered the choice should take it: it is the
+// coding almost every CDN has already prepared, so asking for gzip in front of it
+// is asking for the second-best artefact the server has on disk.
+inline constexpr const char* kAcceptedContentEncodings = "br, gzip, deflate";
 
 }  // namespace microbrowser::net

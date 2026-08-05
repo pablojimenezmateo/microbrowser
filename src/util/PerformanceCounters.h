@@ -252,6 +252,12 @@ namespace microbrowser::util {
   /* family of its stack, which is what a stack is for.                        */ \
   X(GfxWebFontsRegistered, "gfx.web_fonts_registered")                            \
   X(GfxWebFontsRefused, "gfx.web_fonts_refused")                                 \
+  /* Brotli. `refusals` counts a stream that was malformed, truncated, or would */ \
+  /* have expanded past the ceiling -- and unlike gzip there is no declared     */ \
+  /* output size to refuse from, so the ceiling is the only defence there is.   */ \
+  X(UtilBrotliStreams, "util.brotli_streams")                                     \
+  X(UtilBrotliBytesProduced, "util.brotli_bytes_produced")                        \
+  X(UtilBrotliRefusals, "util.brotli_refusals")                                   \
   X(JsCompileBailoutNode, "js.compile_bailout_node")                              \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \

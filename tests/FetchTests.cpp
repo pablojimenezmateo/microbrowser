@@ -402,7 +402,10 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
            "locale exposure stays fixed");
     Expect(request.find("Accept-Language: fr-FR\r\n") == std::string::npos,
            "and the caller cannot replace it");
-    Expect(request.find("Accept-Encoding: gzip, deflate\r\n") != std::string::npos,
+    // **Changed with ADR 0024's brotli (ledger session 20).** It read
+    // `gzip, deflate` before; brotli is implemented now and is asked for first,
+    // because it is the coding almost every CDN has already prepared.
+    Expect(request.find("Accept-Encoding: br, gzip, deflate\r\n") != std::string::npos,
            "content coding stays explicit, and names exactly what can be decoded");
     ExpectEqInt(static_cast<long long>(CountOccurrences(request, "Accept-Encoding:")), 1,
                 "the caller's own Accept-Encoding does not join it");

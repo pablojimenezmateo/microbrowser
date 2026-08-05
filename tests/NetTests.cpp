@@ -569,9 +569,15 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "ContentEncoding/ACodingWeNeverAskedForFailsTheResponse", [] {
-    net::HttpResponse brotli = Coded("br", kGzipHello, sizeof(kGzipHello));
-    Expect(net::DecodeContentEncoding(brotli) == net::DecodeStatus::UnsupportedCoding,
-           "brotli is not in Accept-Encoding, so a body under it cannot be handed to a parser");
+    // **This assertion changed with ADR 0024's brotli (ledger session 20).** It
+    // used to be `br` here, standing for "a coding we do not implement"; brotli is
+    // implemented now, so the example is one that still is not. `compress` is the
+    // right one: it is a real HTTP coding, it is LZW, and no browser has decoded
+    // it in twenty years -- so a server sending it is a server that would send it
+    // to nobody.
+    net::HttpResponse unknown = Coded("compress", kGzipHello, sizeof(kGzipHello));
+    Expect(net::DecodeContentEncoding(unknown) == net::DecodeStatus::UnsupportedCoding,
+           "a coding not in Accept-Encoding cannot be handed to a parser");
 
     net::HttpResponse many = Coded("gzip, gzip, gzip, gzip, gzip", kGzipHello, sizeof(kGzipHello));
     Expect(net::DecodeContentEncoding(many) == net::DecodeStatus::UnsupportedCoding,
@@ -601,8 +607,34 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     const std::string advertised = net::kAcceptedContentEncodings;
     Expect(advertised.find("gzip") != std::string::npos, "gzip is advertised");
     Expect(advertised.find("deflate") != std::string::npos, "and deflate");
-    Expect(advertised.find("br") == std::string::npos,
-           "and brotli is not, because ADR 0010 leaves it to an ADR of its own");
+    // **Changed with ADR 0024's brotli.** It used to assert that `br` was *absent*,
+    // "because ADR 0010 leaves it to an ADR of its own" -- and 0024 is that ADR.
+    // Brotli is first in the list on purpose: it is the coding almost every CDN has
+    // already prepared, so asking for gzip ahead of it is asking for the
+    // second-best artefact the server has on disk.
+    Expect(advertised.find("br") == 0, "and brotli is first");
+    Expect(advertised.find("compress") == std::string::npos,
+           "and a coding nothing decodes is not advertised");
+  });
+
+  AddTest(tests, "ContentEncoding/ABrotliBodyIsDecoded", [] {
+    // `br` over "hello", produced by brotli's own encoder:
+    //   python3 -c "import brotli,sys; sys.stdout.buffer.write(brotli.compress(b'hello'))"
+    static constexpr std::uint8_t kBrotliHello[] = {0x0b, 0x02, 0x80, 0x68, 0x65,
+                                                   0x6c, 0x6c, 0x6f, 0x03};
+    net::HttpResponse response = Coded("br", kBrotliHello, sizeof(kBrotliHello));
+    Expect(net::DecodeContentEncoding(response) == net::DecodeStatus::Decoded,
+           "a brotli body decodes");
+    ExpectEqString(std::string(reinterpret_cast<const char*>(response.body.data()),
+                               response.body.size()),
+                   "hello", "to what the server compressed");
+    // And the bound applies, with no declared size to refuse from -- which is the
+    // difference between brotli and gzip that util::BrotliInflate exists to state.
+    net::HttpResponse bounded = Coded("br", kBrotliHello, sizeof(kBrotliHello));
+    net::DecodeLimits limits;
+    limits.max_output = 2;
+    Expect(net::DecodeContentEncoding(bounded, limits) != net::DecodeStatus::Decoded,
+           "and a body over the ceiling fails rather than truncating");
   });
 }
 

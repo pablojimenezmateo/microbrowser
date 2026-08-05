@@ -29,9 +29,14 @@ allow:
 # in `net` -- where the TLS stack's already is -- would be one that two of those
 # three callers cannot reach, and reaching it would mean widening a policy
 # module's allow: line to a module that can open sockets. See Sha2.h.
-public: Base64.h Sha2.h Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
+public: Base64.h Brotli.h Sha2.h Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
 
-extern:
+# Brotli's decoder, and nothing else from it. ADR 0024 sanctions the dependency
+# and ADR 0001's rule is that one earns its place: this is `Content-Encoding: br`
+# -- what the web actually serves -- and the inner half of WOFF2 -- what every web
+# font actually ships as. Exactly one file names it, Brotli.cpp, and `libbrotlienc`
+# is deliberately not linked because a browser has no reason to compress.
+extern: brotli
 
 max_tu_lines: 800
 
