@@ -71,7 +71,21 @@ max_tu_lines: 700
 # an interface *this* module declares -- not by adding `layout` or `engine` to
 # the allow: line above, which is the one-line change that would delete the
 # reason this module exists.
-budget: DomBindings header_lines=240 public_methods=12 members=10
+# 250 lines and one more public method for the scroll model: DispatchScroll,
+# which is a C++ entry point for the reason DispatchClick is -- the browser is
+# the only thing that knows a scroll happened, and a page that could forge one
+# could make a lazy-loading feed fetch its whole backlog. The private
+# InstallScroll is the other line. No new members: a scroll offset is a number
+# on a box, and this module is not allowed to see a box.
+budget: DomBindings header_lines=250 public_methods=13 members=10
+# The layout questions a page may ask, as an interface this module declares and
+# `src/engine` implements. A budget so that growth in it is a decision: every
+# entry here is a new thing script can learn about the document's geometry, and
+# ADR 0015's rule is that each one answers in values that outlive nothing.
+# Five: the destructor, two questions, and the two commands ADR 0018 §1 adds --
+# moving a scroll offset, and moving every scrolling ancestor until a box is in
+# view.
+budget: GeometrySource header_lines=60 public_methods=5 members=0
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

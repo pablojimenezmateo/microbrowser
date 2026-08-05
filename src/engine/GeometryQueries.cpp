@@ -55,6 +55,39 @@ const layout::Box* BoxFor(const layout::Box& box, const dom::Element& element) {
   return nullptr;
 }
 
+// The same search, on a tree the caller may write to. Scrolling a box is the
+// one geometry operation that is a command rather than a question, and it is
+// the only reason a non-const box is reached from here.
+layout::Box* MutableBoxFor(layout::Box& box, const dom::Element& element) {
+  if (box.Origin() == &element) {
+    return &box;
+  }
+  for (const std::unique_ptr<layout::Box>& child : box.Children()) {
+    if (layout::Box* found = MutableBoxFor(*child, element)) {
+      return found;
+    }
+  }
+  return nullptr;
+}
+
+// The path from the root box to `element`'s box, root first. `scrollIntoView`
+// needs the ancestors and not just the target, because every scrolling one of
+// them has to move.
+bool BoxChainTo(layout::Box& box, const dom::Element& element,
+                std::vector<layout::Box*>& out) {
+  out.push_back(&box);
+  if (box.Origin() == &element) {
+    return true;
+  }
+  for (const std::unique_ptr<layout::Box>& child : box.Children()) {
+    if (BoxChainTo(*child, element, out)) {
+      return true;
+    }
+  }
+  out.pop_back();
+  return false;
+}
+
 // Every rectangle a box actually occupies, unioned.
 //
 // An `Inline` box has no geometry of its own -- line layout walks *through* it
@@ -162,6 +195,7 @@ const char* PositionText(css::Position position) {
     case css::Position::Relative: return "relative";
     case css::Position::Absolute: return "absolute";
     case css::Position::Fixed: return "fixed";
+    case css::Position::Sticky: return "sticky";
   }
   return "static";
 }
@@ -400,7 +434,111 @@ std::optional<bindings::BoxGeometry> Page::QueryBox(const dom::Node& node) {
   answer.border_box = ToRect(box->Geometry().BorderBox(), scroll_y);
   answer.padding_box = ToRect(box->Geometry().PaddingBox(), scroll_y);
   answer.content_box = ToRect(box->Geometry().content, scroll_y);
+  if (IsViewportScroller(element)) {
+    // `document.documentElement.scrollTop` is the *document's* offset, not the
+    // root element's own -- which is the one thing about the scroll API every
+    // page relies on and no markup expresses. `document.body.scrollTop` reads
+    // the same number in the quirks-mode half of that rule; only the standards
+    // half is implemented, because that is the one a page written this decade
+    // takes.
+    answer.scroll_x = 0.0f;
+    answer.scroll_y = scroll_y;
+    answer.scroll_width = box->Geometry().PaddingBox().width;
+    answer.scroll_height = std::max(content_height_, viewport_.viewport_height);
+  } else {
+    answer.scroll_x = box->ScrollOffset().x;
+    answer.scroll_y = box->ScrollOffset().y;
+    answer.scroll_width = box->ScrollableOverflow().width;
+    answer.scroll_height = box->ScrollableOverflow().height;
+  }
   return answer;
+}
+
+bool Page::IsViewportScroller(const dom::Element& element) const {
+  return document_ != nullptr && document_->DocumentElement() == &element;
+}
+
+void Page::SetScrollOffset(const dom::Node& node, float x, float y) {
+  if (!node.IsElement()) {
+    return;
+  }
+  EnsureLayoutClean();
+  if (boxes_ == nullptr) {
+    return;
+  }
+  const auto& element = static_cast<const dom::Element&>(node);
+  if (IsViewportScroller(element)) {
+    // Clamped against the document, exactly as a wheel is. `scrollTop = 1e9` is
+    // how a page scrolls to the bottom, so an out-of-range value is ordinary.
+    const float limit = std::max(0.0f, content_height_ - viewport_.viewport_height);
+    SetScrollOffsetY(std::clamp(y, 0.0f, limit));
+    return;
+  }
+  layout::Box* box = MutableBoxFor(*boxes_, element);
+  if (box == nullptr || !box->IsScrollContainer()) {
+    return;
+  }
+  const gfx::FloatPoint limit = layout::MaxScrollOffset(*box);
+  const gfx::FloatPoint wanted{std::clamp(x, 0.0f, limit.x), std::clamp(y, 0.0f, limit.y)};
+  if (wanted == box->ScrollOffset()) {
+    return;
+  }
+  box->SetScrollOffset(wanted);
+  scroll_.offsets[&element] = wanted;
+  NoteScrolled(&element);
+}
+
+void Page::ScrollIntoView(const dom::Node& node) {
+  if (!node.IsElement()) {
+    return;
+  }
+  EnsureLayoutClean();
+  if (boxes_ == nullptr) {
+    return;
+  }
+  const auto& element = static_cast<const dom::Element&>(node);
+  // Every scrolling ancestor, not just the nearest: an item in a menu inside a
+  // scrolled page needs both moved, and an implementation that moved one is the
+  // one that looks right in a demo and fails on a real page. The chain is built
+  // from the root down, and walked from the target outwards.
+  std::vector<layout::Box*> chain;
+  if (!BoxChainTo(*boxes_, element, chain) || chain.empty()) {
+    return;
+  }
+  const gfx::FloatRect target = chain.back()->Geometry().BorderBox();
+  // Accumulated as the walk goes outward, because moving an outer scroller
+  // changes where the target sits inside it.
+  float shift_x = 0.0f;
+  float shift_y = 0.0f;
+  for (std::size_t i = chain.size() - 1; i-- > 0;) {
+    layout::Box* box = chain[i];
+    if (!box->IsScrollContainer()) {
+      continue;
+    }
+    const gfx::FloatRect port = box->Geometry().PaddingBox();
+    const gfx::FloatPoint limit = layout::MaxScrollOffset(*box);
+    const gfx::FloatPoint was = box->ScrollOffset();
+    // The block-start edge, which is what `scrollIntoView()` with no argument
+    // means. Clamped into the range the box can reach, so an element already
+    // visible near the bottom is not yanked to the top of a box that cannot
+    // scroll that far.
+    const gfx::FloatPoint wanted{
+        std::clamp(target.x + shift_x - port.x, 0.0f, limit.x),
+        std::clamp(target.y + shift_y - port.y, 0.0f, limit.y)};
+    if (wanted != was) {
+      box->SetScrollOffset(wanted);
+      if (box->Origin() != nullptr) {
+        scroll_.offsets[box->Origin()] = wanted;
+        NoteScrolled(box->Origin());
+      }
+    }
+    shift_x += was.x - wanted.x;
+    shift_y += was.y - wanted.y;
+  }
+  // And the document itself, which is the outermost scroller and the one with
+  // no box of its own.
+  const float limit = std::max(0.0f, content_height_ - viewport_.viewport_height);
+  SetScrollOffsetY(std::clamp(target.y + shift_y, 0.0f, limit));
 }
 
 std::optional<std::string> Page::QueryUsedValue(const dom::Element& element,

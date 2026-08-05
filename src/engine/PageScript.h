@@ -130,6 +130,11 @@ class PageScript {
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
   bool DispatchSubmit(dom::Element& form);
+  // Fires `scroll` at `target`, or at the document when it is null. True when
+  // something was listening. Not cancelable and dispatched after the fact: a
+  // scroll has already happened by the time a page hears about it, which is why
+  // there is no `preventDefault` to report. See ADR 0018 §3.
+  bool DispatchScroll(dom::Element* target);
   // The submission this page's script asked for through `submit()` or
   // `requestSubmit()` and has not had yet. Taken after the script turn ends
   // rather than performed during it: a navigation tears down the interpreter,

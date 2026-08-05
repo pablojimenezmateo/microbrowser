@@ -80,6 +80,24 @@ bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
          point.y < rect.Bottom();
 }
 
+// Where a point lands inside `box`'s children, or nothing when it lands
+// outside them entirely.
+//
+// A scroll container does two things to a point, and they are the same fact
+// stated twice: it displaces its content, so what is under the pointer is that
+// much further down; and it clips, so a point outside its padding box hits
+// nothing inside it however far the geometry extends. Hit testing has to walk
+// the paint rather than the flow, and this is the whole of the difference.
+std::optional<gfx::FloatPoint> PointInside(const layout::Box& box, gfx::FloatPoint point) {
+  if (!box.IsScrollContainer()) {
+    return point;
+  }
+  if (!Contains(box.Geometry().PaddingBox(), point)) {
+    return std::nullopt;
+  }
+  return gfx::FloatPoint{point.x + box.ScrollOffset().x, point.y + box.ScrollOffset().y};
+}
+
 const std::string* AnchorHref(const dom::Element* element) {
   if (element == nullptr || element->TagName() != "a") {
     return nullptr;
@@ -165,9 +183,11 @@ using ElementPredicate = bool (*)(const dom::Element&);
 // what the cast crosses, and why it lives here rather than at four call sites.
 dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
                                  ElementPredicate predicate) {
-  for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (dom::Element* hit = HitTestFormControl(*box.Children()[i], point, predicate)) {
-      return hit;
+  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
+    for (std::size_t i = box.Children().size(); i-- > 0;) {
+      if (dom::Element* hit = HitTestFormControl(*box.Children()[i], *inside, predicate)) {
+        return hit;
+      }
     }
   }
   const dom::Element* element = box.Origin();
@@ -198,9 +218,11 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
   if (box.Origin() != nullptr) {
     enclosing = box.Origin();
   }
-  for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (const dom::Element* hit = HitTestElement(*box.Children()[i], point, enclosing)) {
-      return hit;
+  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
+    for (std::size_t i = box.Children().size(); i-- > 0;) {
+      if (const dom::Element* hit = HitTestElement(*box.Children()[i], *inside, enclosing)) {
+        return hit;
+      }
     }
   }
   if (box.GetKind() == layout::Box::Kind::Text) {
@@ -223,9 +245,11 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
     active_href = href;
   }
 
-  for (std::size_t i = box.Children().size(); i-- > 0;) {
-    if (std::optional<std::string> hit = HitTestLink(*box.Children()[i], point, active_href)) {
-      return hit;
+  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
+    for (std::size_t i = box.Children().size(); i-- > 0;) {
+      if (std::optional<std::string> hit = HitTestLink(*box.Children()[i], *inside, active_href)) {
+        return hit;
+      }
     }
   }
 
@@ -292,8 +316,12 @@ void Page::Load(std::string_view html, std::string url) {
   document_ = html::ParseDocument(html);
   boxes_.reset();
   // A new document starts at the top, and the scroll offset goes with the
-  // layout state rather than surviving it.
+  // layout state rather than surviving it. So does every per-element offset:
+  // the keys are pointers into the document that just went, and keeping them
+  // would be a use-after-free waiting for the next page to allocate an element
+  // at the same address.
   layout_ = LayoutState{};
+  scroll_ = ScrollState{};
   focused_text_control_ = nullptr;
   content_height_ = 0.0f;
   resources_ = DocumentResources{};
@@ -518,6 +546,11 @@ float Page::Layout(float width) {
   // makes caching it a change to this function alone.
   boxes_ = engine.BuildBoxTree(*document_);
   content_height_ = engine.Layout(*boxes_, width);
+  // The scroll offsets go back on, clamped against the overflow this layout
+  // just measured. Layout consults them and does not own them -- ADR 0018 §1 --
+  // which is what makes a scrolled menu still scrolled after a script changes a
+  // class on the page around it.
+  layout::UpdateScrollState(*boxes_, scroll_.offsets);
   return content_height_;
 }
 
@@ -526,7 +559,8 @@ void Page::Paint(gfx::DisplayList& out) const {
   if (boxes_ == nullptr) {
     return;
   }
-  layout::BuildDisplayList(*boxes_, out, gfx::FloatPoint{0.0f, -layout_.scroll_y});
+  layout::BuildDisplayList(*boxes_, out, gfx::FloatPoint{0.0f, -layout_.scroll_y},
+                           gfx::FloatSize{viewport_.viewport_width, viewport_.viewport_height});
   AddPerformanceCounter(PerfCounterId::DisplayListBuilds);
 }
 
@@ -590,11 +624,23 @@ ClickOutcome Page::DispatchClickAt(gfx::FloatPoint document_point) {
 }
 
 std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
-  return script_.NextWakeDelay(now_ms);
+  const std::optional<std::uint32_t> from_script = script_.NextWakeDelay(now_ms);
+  if (scroll_.pending_events.empty()) {
+    return from_script;
+  }
+  // A `scroll` event is owed. Zero rather than a frame interval, because the
+  // wheel that caused it already woke the loop and the event is delivered on
+  // the way through this turn -- and because a delay would let a second notch
+  // arrive first, which is what the throttling is *for* rather than something
+  // to schedule around. The queue empties in RunDueWork and the loop goes back
+  // to blocking; a settled page never reaches this line.
+  return 0;
 }
 
 bool Page::RunDueWork(std::int64_t now_ms) {
-  if (!script_.RunDueWork(now_ms)) {
+  bool ran = DispatchPendingScrollEvents();
+  ran = script_.RunDueWork(now_ms) || ran;
+  if (!ran) {
     return false;
   }
   InvalidateLayout();

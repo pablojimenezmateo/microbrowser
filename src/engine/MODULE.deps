@@ -32,7 +32,13 @@ max_tu_lines: 800
 # interpreter on the stack is the use-after-free ADR 0026 §3 is written to
 # prevent. No new members -- the pending submission lives in the binding layer,
 # which is where the script that asked for it is.
-budget: Engine header_lines=120 public_methods=13 members=9
+# 132 lines for the scroll model, and no new members: routing a wheel is a
+# question the page answers, and where the viewport sits is state the page
+# already owned. The lines are the two paint entry points -- an ordinary frame,
+# and one whose damage is *known* rather than derived, because the display-list
+# diff answers "everything changed" for a scroll (every command moved) and
+# repainting the window for a wheel notch is the cost ADR 0018 exists to avoid.
+budget: Engine header_lines=132 public_methods=13 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -86,7 +92,21 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # The scroll offset moved here from Engine for the reason it is on this list at
 # all: painting subtracts it and a script's getBoundingClientRect subtracts it,
 # and two copies of one offset is the pair that drifts.
-budget: Page   header_lines=250 public_methods=43 members=14
+# The fifteenth member is the scroll state, and it is one member rather than
+# two for the reason the fourteenth is one rather than three: where each
+# scrolling element sits and who owes a `scroll` event at the next frame are two
+# facts about the same thing. The offsets are keyed by element because the box
+# tree is rebuilt on every layout and the offsets must survive it -- ADR 0018 §1
+# calls that "state layout consults and does not own". The pending list is empty
+# on a settled page, which is what keeps the loop asleep.
+# The lines are the scroll seam: routing a wheel with the ancestor chaining of
+# §4, the rectangles that do not move with a scroll and therefore break a blit,
+# the two GeometrySource commands (`scrollTop =` and `scrollIntoView`), and the
+# frame-throttled event. The implementations are in PageScrolling.cpp rather
+# than Page.cpp, which is what the translation-unit cap asked for and is the
+# right answer: everything else in that file turns a document into boxes, and
+# this decides which part of the result is on screen.
+budget: Page   header_lines=310 public_methods=46 members=15
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #

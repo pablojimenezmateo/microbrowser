@@ -34,6 +34,21 @@ struct BoxGeometry {
   GeometryRect border_box;
   GeometryRect padding_box;
   GeometryRect content_box;
+
+  // Where this box's content is displaced to, and how big that content is --
+  // `scrollTop`/`scrollLeft` and `scrollWidth`/`scrollHeight`. Four numbers
+  // rather than a fifth rectangle because they are not one: an offset is a
+  // point and an overflow size is a size, and a rectangle made of the two would
+  // invite reading a position out of a pair that has none.
+  //
+  // ADR 0018 §1. `scrollTop` is measured at 254 occurrences across the survey,
+  // which is more than `getBoundingClientRect`, and a browser that answered
+  // zero for all of them would run no virtualised list and restore no feed
+  // position.
+  float scroll_x = 0.0f;
+  float scroll_y = 0.0f;
+  float scroll_width = 0.0f;
+  float scroll_height = 0.0f;
 };
 
 // Where a geometry question is answered.
@@ -71,6 +86,23 @@ class GeometrySource {
   // specification says an unsupported property reads back.
   virtual std::optional<std::string> QueryUsedValue(const dom::Element& element,
                                                     std::string_view property) = 0;
+
+  // Scrolls `node`'s box to (`x`, `y`), clamped by the implementation to what
+  // that box can actually reach. `scrollTop = 1e9` is how a page scrolls a chat
+  // log to the bottom, so a value out of range is ordinary rather than hostile
+  // -- and clamping here rather than at the caller is what makes the two ways
+  // to write it agree.
+  //
+  // A command rather than a question, and the only one on this interface. It
+  // returns nothing because there is nothing useful to say: the value that took
+  // effect is read back with QueryBox, through the same clamp.
+  virtual void SetScrollOffset(const dom::Node& node, float x, float y) = 0;
+
+  // Scrolls every scrolling ancestor of `node` -- not just the nearest one --
+  // until `node` is inside each of their scrollports. `scrollIntoView` on an
+  // item in a menu inside a scrolled page has to move both, and an
+  // implementation that moved one is the one that looks right in a demo.
+  virtual void ScrollIntoView(const dom::Node& node) = 0;
 };
 
 }  // namespace microbrowser::bindings

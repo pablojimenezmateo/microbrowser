@@ -37,6 +37,49 @@ double Rounded(float value) {
   return static_cast<double>(std::lround(value));
 }
 
+// `scrollTo` and `scrollBy` differ by one bit: whether the numbers are a
+// destination or a displacement. Both exist on an element and on the window,
+// which is why the table is here rather than inside one of them.
+struct Method {
+  const char* name;
+  bool relative;
+};
+
+// Where a `scrollTo`/`scrollBy` call wants to end up.
+struct ScrollTarget {
+  float x = 0.0f;
+  float y = 0.0f;
+};
+
+// The two argument forms of `scrollTo` and `scrollBy`, which every page writes
+// one or the other of: two numbers, or one options object with `left` and `top`
+// on it. An axis the caller did not name keeps its current value rather than
+// going to zero -- `scrollTo({top: 0})` must not also scroll sideways.
+ScrollTarget ScrollTargetFrom(js::NativeCall& call, const BoxGeometry& current, bool relative) {
+  const auto number = [](const js::Value& value, float fallback) {
+    if (value.IsUndefined()) {
+      return fallback;
+    }
+    const double converted = js::ToNumber(value);
+    return std::isfinite(converted) ? static_cast<float>(converted) : 0.0f;
+  };
+  const js::Value first = Argument(call.arguments, 0);
+  const float base_x = relative ? current.scroll_x : 0.0f;
+  const float base_y = relative ? current.scroll_y : 0.0f;
+  if (first.IsObject()) {
+    const js::Value* left = first.object->Get("left");
+    const js::Value* top = first.object->Get("top");
+    return ScrollTarget{
+        base_x + number(left == nullptr ? js::Value::Undefined() : *left,
+                        relative ? 0.0f : current.scroll_x - base_x),
+        base_y + number(top == nullptr ? js::Value::Undefined() : *top,
+                        relative ? 0.0f : current.scroll_y - base_y)};
+  }
+  return ScrollTarget{base_x + number(first, relative ? 0.0f : current.scroll_x - base_x),
+                      base_y + number(Argument(call.arguments, 1),
+                                      relative ? 0.0f : current.scroll_y - base_y)};
+}
+
 }  // namespace
 
 void DomBindings::InstallGeometry(const js::Value& element_interface) {
@@ -126,6 +169,218 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
     // No setter. These are read-only in the specification, and a page that
     // assigns one is writing into a value the layout decides.
     element_interface.object->DefineAccessor(metric.name, getter.object, nullptr);
+  }
+
+  InstallScroll(element_interface);
+}
+
+void DomBindings::InstallScroll(const js::Value& element_interface) {
+  // `scrollTop` at 254 measured occurrences is the most-used member of this
+  // whole family -- more than `getBoundingClientRect` -- because it is how a
+  // feed restores its position, how a virtualised list decides which rows
+  // exist, and how a chat log stays at the bottom. ADR 0018 §1.
+  //
+  // The four are one shape: read a box's scroll state, pick a number out of it.
+  // The two offsets take a setter and the two sizes do not, which is exactly
+  // what the specification says and is the difference between a page that can
+  // scroll itself and one that silently cannot.
+  struct Metric {
+    const char* name;
+    bool vertical;
+    bool writable;
+  };
+  static constexpr Metric kMetrics[] = {
+      {"scrollTop", true, true},
+      {"scrollLeft", false, true},
+      {"scrollHeight", true, false},
+      {"scrollWidth", false, false},
+  };
+  for (const Metric& metric : kMetrics) {
+    const bool vertical = metric.vertical;
+    const bool writable = metric.writable;
+    const Value getter =
+        interpreter_->NewNativeValue(metric.name, [vertical, writable](NativeCall& call) {
+          DomBindings* owner = OwnerOf(call);
+          dom::Node* self = NodeOf(call.self);
+          if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
+            return Value::Number(0.0);
+          }
+          const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self);
+          if (!found.has_value()) {
+            return Value::Number(0.0);
+          }
+          if (writable) {
+            return Value::Number(static_cast<double>(vertical ? found->scroll_y
+                                                              : found->scroll_x));
+          }
+          // The sizes are integers and the offsets are not: an offset is a
+          // fractional position a page may have written, and rounding it on the
+          // way out would make `el.scrollTop = el.scrollTop` move the box.
+          return Value::Number(
+              Rounded(vertical ? found->scroll_height : found->scroll_width));
+        });
+    if (!getter.IsObject()) {
+      continue;
+    }
+    getter.object->Set(kOwnerSlot, PointerValue(this));
+    js::Object* setter = nullptr;
+    if (writable) {
+      const Value assign =
+          interpreter_->NewNativeValue(metric.name, [vertical](NativeCall& call) -> Value {
+            DomBindings* owner = OwnerOf(call);
+            dom::Node* self = NodeOf(call.self);
+            if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
+              return Value::Undefined();
+            }
+            // The other axis is read back rather than assumed zero: writing
+            // `scrollTop` must not reset `scrollLeft`, and there is no way to
+            // set one axis without naming both.
+            const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self);
+            if (!found.has_value()) {
+              return Value::Undefined();
+            }
+            const double wanted = js::ToNumber(Argument(call.arguments, 0));
+            // A NaN is zero, which is what the specification's conversion says
+            // and what stops `el.scrollTop = undefined` from moving a box to a
+            // position no arithmetic can recover from.
+            const float value =
+                std::isfinite(wanted) ? static_cast<float>(wanted) : 0.0f;
+            owner->geometry_->SetScrollOffset(*self, vertical ? found->scroll_x : value,
+                                              vertical ? value : found->scroll_y);
+            return Value::Undefined();
+          });
+      if (assign.IsObject()) {
+        assign.object->Set(kOwnerSlot, PointerValue(this));
+        setter = assign.object;
+      }
+    }
+    element_interface.object->DefineAccessor(metric.name, getter.object, setter);
+  }
+
+  // `scrollTo`, `scrollBy` and `scrollIntoView`. The first two are the same
+  // write with the arithmetic done for the caller; the third is the one worth
+  // implementing carefully, because it has to move *every* scrolling ancestor.
+  static constexpr Method kMethods[] = {{"scrollTo", false}, {"scrollBy", true}};
+  for (const Method& method : kMethods) {
+    const bool relative = method.relative;
+    const Value fn =
+        interpreter_->NewNativeValue(method.name, [relative](NativeCall& call) -> Value {
+          DomBindings* owner = OwnerOf(call);
+          dom::Node* self = NodeOf(call.self);
+          if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
+            return Value::Undefined();
+          }
+          const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self);
+          if (!found.has_value()) {
+            return Value::Undefined();
+          }
+          const ScrollTarget wanted = ScrollTargetFrom(call, *found, relative);
+          owner->geometry_->SetScrollOffset(*self, wanted.x, wanted.y);
+          return Value::Undefined();
+        });
+    if (fn.IsObject()) {
+      fn.object->Set(kOwnerSlot, PointerValue(this));
+      element_interface.object->Set(method.name, fn);
+    }
+  }
+
+  const Value into_view =
+      interpreter_->NewNativeValue("scrollIntoView", [](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner != nullptr && self != nullptr && owner->geometry_ != nullptr) {
+          // The argument -- `true`, `false`, or an options object naming a
+          // block alignment -- is deliberately ignored rather than half
+          // honoured: every value of it scrolls the element into the
+          // scrollport, and the difference is where in the scrollport it lands.
+          // Doing the start alignment for all of them is an approximation a
+          // page recovers from; not scrolling at all is not.
+          owner->geometry_->ScrollIntoView(*self);
+        }
+        return Value::Undefined();
+      });
+  if (into_view.IsObject()) {
+    into_view.object->Set(kOwnerSlot, PointerValue(this));
+    element_interface.object->Set("scrollIntoView", into_view);
+  }
+
+  InstallWindowScroll();
+}
+
+// `window.scrollX`/`scrollY` and `window.scrollTo`/`scrollBy`, all four of
+// which are the document element's scroll state under another name. Installed
+// beside the element ones so the two cannot drift: a page that reads
+// `window.scrollY` and one that reads `document.documentElement.scrollTop` are
+// asking the same question, and two implementations of it is how they come to
+// disagree by a pixel.
+void DomBindings::InstallWindowScroll() {
+  if (interpreter_ == nullptr || document_ == nullptr) {
+    return;
+  }
+  dom::Element* root = document_->DocumentElement();
+  if (root == nullptr) {
+    return;
+  }
+  js::Object* global = interpreter_->Global();
+
+  // `scrollX`/`scrollY` and the two older names for them, which plenty of
+  // shipped script still reads.
+  struct Reading {
+    const char* name;
+    bool vertical;
+  };
+  static constexpr Reading kReadings[] = {{"scrollX", false},
+                                          {"scrollY", true},
+                                          {"pageXOffset", false},
+                                          {"pageYOffset", true}};
+  for (const Reading& reading : kReadings) {
+    const bool vertical = reading.vertical;
+    const Value getter =
+        interpreter_->NewNativeValue(reading.name, [vertical](NativeCall& call) {
+          DomBindings* owner = OwnerOf(call);
+          dom::Element* element = owner == nullptr || owner->document_ == nullptr
+                                      ? nullptr
+                                      : owner->document_->DocumentElement();
+          if (owner == nullptr || element == nullptr || owner->geometry_ == nullptr) {
+            return Value::Number(0.0);
+          }
+          const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*element);
+          if (!found.has_value()) {
+            return Value::Number(0.0);
+          }
+          return Value::Number(static_cast<double>(vertical ? found->scroll_y : found->scroll_x));
+        });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      global->DefineAccessor(reading.name, getter.object, nullptr);
+    }
+  }
+
+  static constexpr Method kWindowMethods[] = {{"scrollTo", false}, {"scrollBy", true}};
+  for (const Method& method : kWindowMethods) {
+    const bool relative = method.relative;
+    const Value fn =
+        interpreter_->NewNativeValue(method.name, [relative](NativeCall& call) -> Value {
+          DomBindings* owner = OwnerOf(call);
+          dom::Element* element = owner == nullptr || owner->document_ == nullptr
+                                      ? nullptr
+                                      : owner->document_->DocumentElement();
+          if (owner == nullptr || element == nullptr || owner->geometry_ == nullptr) {
+            return Value::Undefined();
+          }
+          const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*element);
+          if (!found.has_value()) {
+            return Value::Undefined();
+          }
+          const ScrollTarget wanted = ScrollTargetFrom(call, *found, relative);
+          owner->geometry_->SetScrollOffset(*element, wanted.x, wanted.y);
+          return Value::Undefined();
+        });
+    if (fn.IsObject()) {
+      fn.object->Set(kOwnerSlot, PointerValue(this));
+      global->Set(method.name, fn);
+      interpreter_->GlobalScope()->Declare(method.name, fn, false);
+    }
   }
 }
 

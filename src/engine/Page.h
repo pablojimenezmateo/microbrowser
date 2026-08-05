@@ -72,8 +72,31 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // kind of pair that drifts. The scroll *model* -- a per-box offset, wheel
   // routing, `scrollTop` -- is ADR 0018 and session 8; this is only the
   // viewport's, moved to where both readers are.
-  void SetScrollOffsetY(float y) { layout_.scroll_y = y; }
+  void SetScrollOffsetY(float y);
   float ScrollOffsetY() const { return layout_.scroll_y; }
+
+  // Routes a wheel to the deepest scrolling box under `document_point` that can
+  // still move in that direction, and moves it. ADR 0018 §4: when nothing
+  // inside the page can take the delta, the answer is `viewport`, and the
+  // caller -- which is the half that knows how tall the window is -- moves the
+  // document instead. That chaining rule is one line of specification and the
+  // difference between a menu that traps a wheel forever and one that hands it
+  // on at its end.
+  struct ScrollOutcome {
+    // A box inside the page moved, and this is what it covers in viewport
+    // coordinates. Empty when nothing moved.
+    gfx::IntRect damage;
+    bool moved = false;
+    bool viewport = false;
+  };
+  ScrollOutcome ScrollAt(gfx::FloatPoint document_point, gfx::FloatPoint delta);
+
+  // Every box that does not move with the document scroll -- `fixed` and
+  // `sticky` -- in viewport coordinates. Appended rather than returned so the
+  // caller can accumulate the rectangles from before and after a scroll, which
+  // is what a blit has to repaint: ADR 0018 §2 names both as the two things
+  // that break the blit, and both are known in advance rather than discovered.
+  void AppendScrollInvariantRects(std::vector<gfx::IntRect>& out) const;
 
   // Anything the page's script wrote with `console.log`, in order. Collected
   // rather than printed: a page must not be able to write to the terminal the
@@ -233,6 +256,23 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   std::optional<bindings::BoxGeometry> QueryBox(const dom::Node& node) override;
   std::optional<std::string> QueryUsedValue(const dom::Element& element,
                                             std::string_view property) override;
+  void SetScrollOffset(const dom::Node& node, float x, float y) override;
+  void ScrollIntoView(const dom::Node& node) override;
+  // Records that `element` -- or the viewport, when null -- moved, so that one
+  // `scroll` event fires at the next frame rather than one per wheel notch.
+  // ADR 0018 §3: a page with twelve `scroll` listeners must not run them twelve
+  // times for one notch, and the throttling belongs here rather than at each
+  // caller because there are four callers and they must agree.
+  void NoteScrolled(const dom::Element* element);
+  // Whether `element` is the one whose scroll offset *is* the viewport's.
+  // `document.documentElement.scrollTop` is the document's offset in every
+  // standards-mode browser, and no markup expresses that -- so it is a rule
+  // here rather than a property of a box.
+  bool IsViewportScroller(const dom::Element& element) const;
+  // Fires one `scroll` event per target that moved since the last frame. True
+  // when anything was listening, which is the caller's signal that the document
+  // may have changed.
+  bool DispatchPendingScrollEvents();
   // Runs layout if anything has changed the document since the last one, and
   // counts it as forced. The one place a geometry question can cost a page
   // arbitrary work, which is why it is also the one place that counts it.
@@ -293,6 +333,22 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
     float scroll_y = 0.0f;
   };
   LayoutState layout_;
+  // Everything about scrolling that is not the viewport's own offset: where
+  // each scrolling element sits, and who owes a `scroll` event at the next
+  // frame. One member and not two, for the reason LayoutState is one: they are
+  // two facts about the same thing, and loose on Page they would say nothing
+  // about belonging together.
+  struct ScrollState {
+    // Survives a relayout, which is the whole reason it is not on the box: the
+    // box tree is rebuilt from scratch every time and a menu that was scrolled
+    // down would jump back to the top on the next class change.
+    layout::ScrollOffsets offsets;
+    // Who moved since the last frame. Null stands for the viewport, which has
+    // no element of its own -- and the list is deliberately small: it is empty
+    // on a settled page, which is what keeps the loop asleep.
+    std::vector<const dom::Element*> pending_events;
+  };
+  ScrollState scroll_;
   float content_height_ = 0.0f;
 };
 

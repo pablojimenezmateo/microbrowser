@@ -255,6 +255,10 @@ bool PageScript::DispatchClick(dom::Element& target) {
   return bindings_ != nullptr && bindings_->DispatchClick(target);
 }
 
+bool PageScript::DispatchScroll(dom::Element* target) {
+  return bindings_ != nullptr && bindings_->DispatchScroll(target);
+}
+
 const std::vector<std::string>& PageScript::ConsoleOutput() const {
   static const std::vector<std::string> kNone;
   return interpreter_ == nullptr ? kNone : interpreter_->ConsoleOutput();

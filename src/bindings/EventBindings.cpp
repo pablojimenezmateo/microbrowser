@@ -440,6 +440,52 @@ bool DomBindings::DispatchSubmit(dom::Element& form) {
   return DispatchEventTo(form, event);
 }
 
+bool DomBindings::DispatchScroll(dom::Element* target) {
+  if (interpreter_ == nullptr) {
+    return false;
+  }
+  // Not cancelable, because it is reported after the fact: by the time a page
+  // hears about a scroll the pixels have already moved, and a `preventDefault`
+  // that unscrolled them is a thing no engine has ever offered.
+  //
+  // On an element it bubbles to the document; on the viewport it is fired at
+  // the document and at the window, which is where the other half of pages
+  // listen for it. ADR 0018 §3: this runs at most once per frame however many
+  // notches arrived, which is what keeps twelve listeners from running twelve
+  // times for one wheel.
+  //
+  // Whether anything is *listening* is asked first, and that is not a
+  // micro-optimisation: the caller relays out when this returns true, so a page
+  // with no `scroll` handler would run a full layout on every wheel notch --
+  // which is precisely the cost ADR 0018 exists to avoid. `DispatchEventTo`
+  // cannot answer it, because what it reports is `preventDefault` and a
+  // non-cancelable event has none.
+  const auto listening = [this](dom::Node* from) {
+    const std::string slot = "#on:scroll";
+    for (dom::Node* walk = from; walk != nullptr; walk = walk->Parent()) {
+      const Value wrapper = WrapperFor(walk);
+      if (wrapper.IsObject() && (wrapper.object->GetOwn(slot) != nullptr ||
+                                 wrapper.object->GetOwn("onscroll") != nullptr)) {
+        return true;
+      }
+    }
+    js::Object* global = interpreter_->Global();
+    return global->GetOwn(slot) != nullptr || global->Get("onscroll") != nullptr;
+  };
+
+  dom::Node* from = target != nullptr ? static_cast<dom::Node*>(target)
+                                      : static_cast<dom::Node*>(document_);
+  if (from == nullptr || !listening(from)) {
+    return false;
+  }
+  const Value event = MakeEvent("scroll", true, false, true);
+  if (!event.IsObject()) {
+    return false;
+  }
+  DispatchEventTo(*from, event);
+  return true;
+}
+
 bool DomBindings::DispatchAtWindow(const char* type) {
   if (interpreter_ == nullptr) {
     return false;

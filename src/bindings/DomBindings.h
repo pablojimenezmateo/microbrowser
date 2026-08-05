@@ -84,6 +84,13 @@ class DomBindings {
   // algorithm -- `requestSubmit()` -- which runs this on its way through.
   bool DispatchSubmit(dom::Element& form);
 
+  // Fires `scroll` at `target`, or at the document and the window when it is
+  // null. True when something was listening. A C++ entry point for the reason
+  // the two above are: the browser is the only thing that knows a scroll
+  // happened, and a page that could forge one could make a lazy-loading feed
+  // fetch its whole backlog. See ADR 0018 §3.
+  bool DispatchScroll(dom::Element* target);
+
   // The submission a script asked for, taken. Empty when it asked for none.
   std::optional<PendingSubmit> TakePendingSubmit();
 
@@ -118,6 +125,12 @@ class DomBindings {
   // supports. Shared by querySelector, querySelectorAll, matches and closest,
   // which would otherwise be four chances to disagree about what `.a` means.
   static bool Matches(const dom::Element& element, const std::string& selector);
+  // `scrollTop`/`scrollLeft`, `scrollWidth`/`scrollHeight`, and the three
+  // methods that write them. Split out of InstallGeometry because the two
+  // halves answer different questions: one measures a box and the other moves
+  // one, and only the second can change what is on screen.
+  void InstallScroll(const js::Value& element_interface);
+  void InstallWindowScroll();
   void InstallWindow();
   // `URLSearchParams`, in UrlSearchParams.cpp. A collection with no node in it,
   // built on the one urlencoded implementation in `util` -- which is what
