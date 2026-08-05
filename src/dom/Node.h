@@ -9,6 +9,7 @@
 namespace microbrowser::dom {
 
 class Document;
+class DocumentFragment;
 class Element;
 
 // A DOM node.
@@ -213,10 +214,25 @@ inline constexpr ElementState kStoredElementStates =
 
 class Element : public Node {
  public:
-  explicit Element(std::string tag_name)
-      : Node(Kind::Element), tag_name_(std::move(tag_name)) {}
+  explicit Element(std::string tag_name);
+  ~Element() override;
 
   const std::string& TagName() const { return tag_name_; }
+
+  // The template contents of a `<template>`, and null on every other element.
+  //
+  // A template's children are deliberately *not* its children. The parser puts
+  // everything inside one into this separate fragment, so that nothing which
+  // walks the tree -- the cascade, layout, the script collector,
+  // `querySelectorAll`, the image loader -- can reach it. That is the whole
+  // point of the element: a `<template>` whose contents were ordinary children
+  // would render its own markup and fetch its own images, which is exactly what
+  // this parser did before it had one.
+  //
+  // Owned by the element rather than by a parent, because a fragment has no
+  // parent -- and so a node inside template contents has no owner document,
+  // which is why mutating one costs the live document nothing.
+  DocumentFragment* Content() const { return content_.get(); }
   const std::vector<Attribute>& Attributes() const { return attributes_; }
 
   const std::string* GetAttribute(std::string_view name) const;
@@ -240,6 +256,10 @@ class Element : public Node {
   std::string tag_name_;
   std::vector<Attribute> attributes_;
   ElementState state_ = ElementState::None;
+  // Allocated only for `<template>`. A pointer on every element rather than a
+  // subclass, because the parser and the bindings both create elements by tag
+  // name and neither has anywhere to put a second type.
+  std::unique_ptr<DocumentFragment> content_;
 };
 
 class Text : public Node {

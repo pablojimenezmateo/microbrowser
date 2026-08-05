@@ -42,7 +42,13 @@ budget: Node     header_lines=140 public_methods=22 members=3
 # decided it belongs here rather than in the matcher, and the enum's comment in
 # Node.h says which states are stored, which are derived, and why focus is
 # deliberately not one of them.
-budget: Element      header_lines=60 public_methods=15 members=3
+# The fourth member is a `<template>`'s contents, and it is null on every other
+# element. It is here rather than in a subclass because both things that make
+# elements -- the tree builder and `createElement` -- create them by tag name
+# and have nowhere to put a second type. Before it, a template's markup was its
+# children: the cascade styled it, layout laid it out and the loader fetched its
+# images, which is the opposite of what the element means.
+budget: Element      header_lines=80 public_methods=17 members=4
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
 budget: DocumentType header_lines=25 public_methods=6  members=1

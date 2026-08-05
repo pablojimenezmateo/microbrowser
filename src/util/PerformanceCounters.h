@@ -123,6 +123,14 @@ namespace microbrowser::util {
   /* --- html ---------------------------------------------------------------- */ \
   X(HtmlTokens, "html.tokens")                                                   \
   X(HtmlDocumentsParsed, "html.documents_parsed")                                \
+  /* A fragment parse is the tree builder reached from *script*, with markup    */ \
+  /* and a context element a page chose. Counted apart from a document parse    */ \
+  /* because they are different risks and different costs: a feed that fills    */ \
+  /* itself in runs hundreds of these on a page that parsed one document, and   */ \
+  /* the bytes are what says whether `innerHTML` is where a page's time goes.   */ \
+  X(HtmlFragmentsParsed, "html.fragments_parsed")                                \
+  X(HtmlFragmentBytes, "html.fragment_bytes")                                    \
+  X(HtmlFragmentNodes, "html.fragment_nodes")                                    \
   X(HtmlUnsupportedInsertionMode, "html.unsupported_insertion_mode")             \
   X(DomNodesCreated, "dom.nodes_created")                                        \
   /* --- css ----------------------------------------------------------------- */ \

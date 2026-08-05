@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 
+#include "html/TreeBuilderInternal.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
@@ -12,12 +13,6 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
-
-bool IsWhitespaceOnly(std::string_view text) {
-  return std::all_of(text.begin(), text.end(), [](char c) {
-    return c == '\t' || c == '\n' || c == '\f' || c == '\r' || c == ' ';
-  });
-}
 
 // Elements that close an open `<p>` when they start. The list is in the spec
 // and is not derivable from anything — block-level-ness is not a property the
@@ -30,36 +25,29 @@ constexpr std::array<std::string_view, 25> kClosesParagraph = {
 
 // Tags whose presence means the token belongs to an insertion mode this builder
 // does not implement. Counted rather than mishandled.
-constexpr std::array<std::string_view, 2> kUnsupportedTags = {"template", "frameset"};
+constexpr std::array<std::string_view, 1> kUnsupportedTags = {"frameset"};
 
 // Elements the spec ends implicitly when a parent closes: `<li>` does not need
 // `</li>`, and neither do table cells or definition list items.
 constexpr std::array<std::string_view, 8> kImpliedEndTags = {
     "dd", "dt", "li", "optgroup", "option", "p", "rp", "rt"};
 
+// The wider list the spec calls "thoroughly", which also ends the table
+// elements. Only `</template>` generates these, and only because a template may
+// legally be closed with a row still open inside it.
+constexpr std::array<std::string_view, 15> kThoroughEndTags = {
+    "caption", "colgroup", "dd",  "dt",    "li",    "optgroup", "option", "p",
+    "rp",      "rt",       "tbody", "td",  "tfoot", "th",       "thead"};
+
 // §13.2.4.2. The elements that stop a scope walk. The foreign-content roots
 // belong here too and are absent because foreign content is.
-constexpr std::array<std::string_view, 8> kScopeStoppers = {
-    "applet", "caption", "html", "marquee", "object", "table", "td", "th"};
+constexpr std::array<std::string_view, 9> kScopeStoppers = {
+    "applet", "caption", "html", "marquee", "object", "table", "td", "template", "th"};
 
-// Everything a table start tag may open, which is also the set that an
-// unexpected one of them closes its way out to.
-constexpr std::array<std::string_view, 9> kTableStructureTags = {
-    "caption", "col", "colgroup", "tbody", "td", "tfoot", "th", "thead", "tr"};
-
-constexpr std::array<std::string_view, 8> kSelectTableTags = {
-    "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th"};
-
-bool Contains(const auto& list, std::string_view value) {
-  return std::find(list.begin(), list.end(), value) != list.end();
-}
-
-// True for the elements whose children must be table structure, and into which
-// text and stray elements are therefore never inserted directly.
-bool IsFosterParent(std::string_view tag_name) {
-  return tag_name == "table" || tag_name == "tbody" || tag_name == "tfoot" ||
-         tag_name == "thead" || tag_name == "tr";
-}
+// The head's own element set, which "in head" and "in template" both delegate
+// to. Void ones: they never become the current node.
+constexpr std::array<std::string_view, 5> kHeadVoidTags = {"base", "basefont", "bgsound", "link",
+                                                           "meta"};
 
 // §13.2.6.1, "the appropriate place for inserting a node": normally the current
 // node, but inside a table with foster parenting on, immediately before the
@@ -69,6 +57,18 @@ struct InsertionPoint {
   const dom::Node* before = nullptr;
 };
 
+// A template's contents rather than the template, for any element that has
+// them. §13.2.6.1 step 2.1: everything the parser inserts into a `<template>`
+// goes into the separate fragment, which is what keeps the markup inside one
+// out of the document it appeared in.
+dom::Node& InsertionTarget(dom::Node& node) {
+  if (!node.IsElement()) {
+    return node;
+  }
+  dom::DocumentFragment* content = static_cast<dom::Element&>(node).Content();
+  return content == nullptr ? node : static_cast<dom::Node&>(*content);
+}
+
 // §13.2.6.1, "the appropriate place for inserting a node". A free function
 // rather than a member because its return type is local to this file, and the
 // header should not have to name it.
@@ -77,10 +77,16 @@ InsertionPoint AppropriatePlace(const std::vector<dom::Element*>& stack, bool fo
   dom::Node* current =
       stack.empty() ? static_cast<dom::Node*>(&document) : static_cast<dom::Node*>(stack.back());
   if (!foster_parenting || stack.empty() || !IsFosterParent(stack.back()->TagName())) {
-    return {current, nullptr};
+    return {&InsertionTarget(*current), nullptr};
   }
   for (std::size_t i = stack.size(); i-- > 0;) {
     dom::Element* table = stack[i];
+    // A template above the last table takes the node instead: content inside a
+    // template is never fostered out of it, because the template's contents are
+    // not in any document to be fostered into.
+    if (table->Content() != nullptr) {
+      return {&InsertionTarget(*table), nullptr};
+    }
     if (table->TagName() != "table") {
       continue;
     }
@@ -89,9 +95,9 @@ InsertionPoint AppropriatePlace(const std::vector<dom::Element*>& stack, bool fo
     }
     // A table that is not in the tree cannot be inserted before. The spec's
     // fallback is the element below it on the stack.
-    return {i > 0 ? static_cast<dom::Node*>(stack[i - 1]) : current, nullptr};
+    return {i > 0 ? &InsertionTarget(*stack[i - 1]) : &InsertionTarget(*current), nullptr};
   }
-  return {static_cast<dom::Node*>(stack.front()), nullptr};
+  return {&InsertionTarget(*stack.front()), nullptr};
 }
 
 // The node that will precede an insertion at this point, or null. Text runs
@@ -158,8 +164,14 @@ bool TreeBuilder::HasInScope(std::string_view tag_name, Scope scope) const {
   return false;
 }
 
+void TreeBuilder::PopCurrent() {
+  if (open_elements_.size() > stack_floor_) {
+    open_elements_.pop_back();
+  }
+}
+
 void TreeBuilder::PopUntil(std::string_view tag_name) {
-  while (!open_elements_.empty()) {
+  while (open_elements_.size() > stack_floor_) {
     const bool matched = open_elements_.back()->TagName() == tag_name;
     open_elements_.pop_back();
     if (matched) {
@@ -169,19 +181,21 @@ void TreeBuilder::PopUntil(std::string_view tag_name) {
 }
 
 void TreeBuilder::ClearStackToContext(std::initializer_list<std::string_view> context) {
-  while (!open_elements_.empty()) {
+  while (open_elements_.size() > stack_floor_) {
     const std::string& name = open_elements_.back()->TagName();
-    if (name == "html" || Contains(context, name)) {
+    if (name == "html" || name == "template" || Contains(context, name)) {
       return;
     }
     open_elements_.pop_back();
   }
 }
 
-void TreeBuilder::GenerateImpliedEndTags(std::string_view except) {
-  while (!open_elements_.empty()) {
+void TreeBuilder::GenerateImpliedEndTags(std::string_view except, bool thoroughly) {
+  while (open_elements_.size() > stack_floor_) {
     const std::string& name = open_elements_.back()->TagName();
-    if (name == except || !Contains(kImpliedEndTags, name)) {
+    const bool implied =
+        thoroughly ? Contains(kThoroughEndTags, name) : Contains(kImpliedEndTags, name);
+    if (name == except || !implied) {
       return;
     }
     open_elements_.pop_back();
@@ -375,553 +389,25 @@ void TreeBuilder::ProcessInBody(const Token& token) {
   }
 }
 
-// §13.2.6.4.9 "in table".
-//
-// The table modes exist because a table's children are constrained in a way no
-// other element's are: text and stray elements cannot live between a `<table>`
-// and its `<tr>`, so the parser moves them out (foster parenting) rather than
-// building a tree no layout engine could interpret. Every clause below is the
-// spec's; the one that is absent is template.
-void TreeBuilder::ProcessInTable(const Token& token) {
-  switch (token.kind) {
-    case Token::Kind::Character:
-      if (!open_elements_.empty() && IsFosterParent(open_elements_.back()->TagName())) {
-        pending_table_text_.clear();
-        original_mode_ = mode_;
-        mode_ = InsertionMode::InTableText;
-        Process(token);
-        return;
-      }
-      break;  // text somewhere a table cannot hold it: the anything-else clause
-
-    case Token::Kind::Comment:
-      InsertComment(token.data, nullptr);
-      return;
-
-    case Token::Kind::Doctype:
-      ++errors_;
-      return;
-
-    case Token::Kind::StartTag: {
-      if (token.data == "caption") {
-        ClearStackToContext({"table"});
-        InsertElement(token);
-        mode_ = InsertionMode::InCaption;
-        return;
-      }
-      if (token.data == "colgroup") {
-        ClearStackToContext({"table"});
-        InsertElement(token);
-        mode_ = InsertionMode::InColumnGroup;
-        return;
-      }
-      if (token.data == "col") {
-        ClearStackToContext({"table"});
-        InsertImplied("colgroup");
-        mode_ = InsertionMode::InColumnGroup;
-        Process(token);
-        return;
-      }
-      if (token.data == "tbody" || token.data == "tfoot" || token.data == "thead") {
-        ClearStackToContext({"table"});
-        InsertElement(token);
-        mode_ = InsertionMode::InTableBody;
-        return;
-      }
-      if (token.data == "td" || token.data == "th" || token.data == "tr") {
-        // A row that skipped its section gets one. Pages write this constantly.
-        ClearStackToContext({"table"});
-        InsertImplied("tbody");
-        mode_ = InsertionMode::InTableBody;
-        Process(token);
-        return;
-      }
-      if (token.data == "table") {
-        // A table inside a table's own structure closes the outer one, which is
-        // not what the markup says and is what every browser does.
-        ++errors_;
-        if (!HasInScope("table", Scope::Table)) {
-          return;
-        }
-        PopUntil("table");
-        ResetInsertionMode();
-        Process(token);
-        return;
-      }
-      if (token.data == "style") {
-        SwitchToRawText(token, TokenizerState::RawText);
-        return;
-      }
-      if (token.data == "script") {
-        SwitchToRawText(token, TokenizerState::ScriptData);
-        return;
-      }
-      if (token.data == "input" && token.AttributeValue("type") != nullptr &&
-          util::EqualsAsciiCaseInsensitive(*token.AttributeValue("type"), "hidden")) {
-        // The one element allowed to sit in a table without being fostered: it
-        // renders nothing, so it cannot disturb the table's boxes.
-        ++errors_;
-        InsertElement(token);
-        return;
-      }
-      break;
-    }
-
-    case Token::Kind::EndTag: {
-      if (token.data == "table") {
-        if (!HasInScope("table", Scope::Table)) {
-          ++errors_;
-          return;
-        }
-        PopUntil("table");
-        ResetInsertionMode();
-        return;
-      }
-      if (token.data == "body" || token.data == "html" ||
-          Contains(kTableStructureTags, token.data)) {
-        ++errors_;
-        return;
-      }
-      break;
-    }
-
-    case Token::Kind::EndOfFile:
-      ProcessInBody(token);
-      return;
-  }
-
-  // Anything else. Foster parenting is the whole point: the token is processed
-  // by the ordinary body rules, but whatever it inserts lands before the table
-  // instead of inside it.
-  ++errors_;
-  foster_parenting_ = true;
-  ProcessInBody(token);
-  foster_parenting_ = false;
-}
-
-// §13.2.6.4.10 "in table text". Character tokens are held because where they go
-// depends on whether the whole run is whitespace, and that is not known until
-// the run ends.
-void TreeBuilder::ProcessInTableText(const Token& token) {
-  if (token.kind == Token::Kind::Character) {
-    pending_table_text_ += token.data;
-    return;
-  }
-  const std::string pending = std::move(pending_table_text_);
-  pending_table_text_.clear();
-  mode_ = original_mode_;
-  if (!pending.empty()) {
-    if (IsWhitespaceOnly(pending)) {
-      InsertText(pending);
-    } else {
-      // Non-whitespace in a table is the anything-else clause of "in table",
-      // one character token's worth at a time — here, the whole run at once,
-      // which produces the same tree.
-      ++errors_;
-      foster_parenting_ = true;
-      InsertText(pending);
-      foster_parenting_ = false;
-      frameset_ok_ = false;
-    }
-  }
-  Process(token);
-}
-
-// §13.2.6.4.11 "in caption".
-void TreeBuilder::ProcessInCaption(const Token& token) {
-  const bool closes_caption =
-      (token.kind == Token::Kind::StartTag && Contains(kTableStructureTags, token.data)) ||
-      (token.kind == Token::Kind::EndTag && token.data == "table");
-  if (closes_caption || (token.kind == Token::Kind::EndTag && token.data == "caption")) {
-    if (!HasInScope("caption", Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    GenerateImpliedEndTags();
-    if (CurrentNode().IsElement() &&
-        static_cast<dom::Element&>(CurrentNode()).TagName() != "caption") {
-      ++errors_;
-    }
-    PopUntil("caption");
-    mode_ = InsertionMode::InTable;
-    if (closes_caption) {
-      Process(token);  // the token that forced the close still has to be handled
-    }
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "body" || token.data == "col" || token.data == "colgroup" ||
-       token.data == "html" || token.data == "tbody" || token.data == "td" ||
-       token.data == "tfoot" || token.data == "th" || token.data == "thead" ||
-       token.data == "tr")) {
-    ++errors_;
-    return;
-  }
-  ProcessInBody(token);
-}
-
-// §13.2.6.4.12 "in column group".
-void TreeBuilder::ProcessInColumnGroup(const Token& token) {
-  switch (token.kind) {
-    case Token::Kind::Character:
-      if (IsWhitespaceOnly(token.data)) {
-        InsertText(token.data);
-        return;
-      }
-      break;
-
-    case Token::Kind::Comment:
-      InsertComment(token.data, nullptr);
-      return;
-
-    case Token::Kind::Doctype:
-      ++errors_;
-      return;
-
-    case Token::Kind::StartTag:
-      if (token.data == "html") {
-        ProcessInBody(token);
-        return;
-      }
-      if (token.data == "col") {
-        InsertElement(token);  // void: never becomes the current node
-        return;
-      }
-      break;
-
-    case Token::Kind::EndTag:
-      if (token.data == "colgroup") {
-        if (open_elements_.empty() || open_elements_.back()->TagName() != "colgroup") {
-          ++errors_;
-          return;
-        }
-        open_elements_.pop_back();
-        mode_ = InsertionMode::InTable;
-        return;
-      }
-      if (token.data == "col") {
-        ++errors_;
-        return;
-      }
-      break;
-
-    case Token::Kind::EndOfFile:
-      ProcessInBody(token);
-      return;
-  }
-
-  if (open_elements_.empty() || open_elements_.back()->TagName() != "colgroup") {
-    ++errors_;
-    return;
-  }
-  open_elements_.pop_back();
-  mode_ = InsertionMode::InTable;
-  Process(token);
-}
-
-// §13.2.6.4.13 "in table body".
-void TreeBuilder::ProcessInTableBody(const Token& token) {
-  if (token.kind == Token::Kind::StartTag) {
-    if (token.data == "tr") {
-      ClearStackToContext({"tbody", "tfoot", "thead"});
-      InsertElement(token);
-      mode_ = InsertionMode::InRow;
-      return;
-    }
-    if (token.data == "th" || token.data == "td") {
-      ++errors_;  // a cell that skipped its row gets one
-      ClearStackToContext({"tbody", "tfoot", "thead"});
-      InsertImplied("tr");
-      mode_ = InsertionMode::InRow;
-      Process(token);
-      return;
-    }
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "tbody" || token.data == "tfoot" || token.data == "thead")) {
-    if (!HasInScope(token.data, Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    ClearStackToContext({"tbody", "tfoot", "thead"});
-    open_elements_.pop_back();
-    mode_ = InsertionMode::InTable;
-    return;
-  }
-
-  const bool leaves_section =
-      (token.kind == Token::Kind::StartTag &&
-       (token.data == "caption" || token.data == "col" || token.data == "colgroup" ||
-        token.data == "tbody" || token.data == "tfoot" || token.data == "thead")) ||
-      (token.kind == Token::Kind::EndTag && token.data == "table");
-  if (leaves_section) {
-    if (!HasInScope("tbody", Scope::Table) && !HasInScope("thead", Scope::Table) &&
-        !HasInScope("tfoot", Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    ClearStackToContext({"tbody", "tfoot", "thead"});
-    open_elements_.pop_back();
-    mode_ = InsertionMode::InTable;
-    Process(token);
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "body" || token.data == "caption" || token.data == "col" ||
-       token.data == "colgroup" || token.data == "html" || token.data == "td" ||
-       token.data == "th" || token.data == "tr")) {
-    ++errors_;
-    return;
-  }
-  ProcessInTable(token);
-}
-
-// §13.2.6.4.14 "in row".
-void TreeBuilder::ProcessInRow(const Token& token) {
-  if (token.kind == Token::Kind::StartTag && (token.data == "th" || token.data == "td")) {
-    ClearStackToContext({"tr"});
-    InsertElement(token);
-    mode_ = InsertionMode::InCell;
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag && token.data == "tr") {
-    if (!HasInScope("tr", Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    ClearStackToContext({"tr"});
-    open_elements_.pop_back();
-    mode_ = InsertionMode::InTableBody;
-    return;
-  }
-
-  const bool leaves_row =
-      (token.kind == Token::Kind::StartTag &&
-       (token.data == "caption" || token.data == "col" || token.data == "colgroup" ||
-        token.data == "tbody" || token.data == "tfoot" || token.data == "thead" ||
-        token.data == "tr")) ||
-      (token.kind == Token::Kind::EndTag && token.data == "table");
-  if (leaves_row) {
-    if (!HasInScope("tr", Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    ClearStackToContext({"tr"});
-    open_elements_.pop_back();
-    mode_ = InsertionMode::InTableBody;
-    Process(token);
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "tbody" || token.data == "tfoot" || token.data == "thead")) {
-    if (!HasInScope(token.data, Scope::Table) || !HasInScope("tr", Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    ClearStackToContext({"tr"});
-    open_elements_.pop_back();
-    mode_ = InsertionMode::InTableBody;
-    Process(token);
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "body" || token.data == "caption" || token.data == "col" ||
-       token.data == "colgroup" || token.data == "html" || token.data == "td" ||
-       token.data == "th")) {
-    ++errors_;
-    return;
-  }
-  ProcessInTable(token);
-}
-
-void TreeBuilder::CloseCell() {
-  const std::string_view name = HasInScope("td", Scope::Table) ? "td" : "th";
-  GenerateImpliedEndTags();
-  if (CurrentNode().IsElement() && static_cast<dom::Element&>(CurrentNode()).TagName() != name) {
-    ++errors_;
-  }
-  PopUntil(name);
-  mode_ = InsertionMode::InRow;
-}
-
-// §13.2.6.4.15 "in cell". A cell is the one place inside a table where ordinary
-// content is ordinary again, so most tokens go straight to the body rules.
-void TreeBuilder::ProcessInCell(const Token& token) {
-  if (token.kind == Token::Kind::EndTag && (token.data == "td" || token.data == "th")) {
-    if (!HasInScope(token.data, Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    GenerateImpliedEndTags();
-    if (CurrentNode().IsElement() &&
-        static_cast<dom::Element&>(CurrentNode()).TagName() != token.data) {
-      ++errors_;
-    }
-    PopUntil(token.data);
-    mode_ = InsertionMode::InRow;
-    return;
-  }
-  if (token.kind == Token::Kind::StartTag && Contains(kTableStructureTags, token.data)) {
-    // A new cell or row ends this one: `<td>a<td>b` is two cells, not nesting.
-    if (!HasInScope("td", Scope::Table) && !HasInScope("th", Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    CloseCell();
-    Process(token);
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "table" || token.data == "tbody" || token.data == "tfoot" ||
-       token.data == "thead" || token.data == "tr")) {
-    if (!HasInScope(token.data, Scope::Table)) {
-      ++errors_;
-      return;
-    }
-    CloseCell();
-    Process(token);
-    return;
-  }
-  if (token.kind == Token::Kind::EndTag &&
-      (token.data == "body" || token.data == "caption" || token.data == "col" ||
-       token.data == "colgroup" || token.data == "html")) {
-    ++errors_;
-    return;
-  }
-  ProcessInBody(token);
-}
-
-// §13.2.6.4.16 "in select".
-void TreeBuilder::ProcessInSelect(const Token& token) {
-  const auto current_is = [this](std::string_view tag_name) {
-    return CurrentNode().IsElement() &&
-           static_cast<dom::Element&>(CurrentNode()).TagName() == tag_name;
-  };
-  const auto pop_current_if = [&](std::string_view tag_name) {
-    if (current_is(tag_name)) {
-      open_elements_.pop_back();
-      return true;
-    }
-    return false;
-  };
-
-  switch (token.kind) {
-    case Token::Kind::Character:
-      InsertText(token.data);
-      return;
-
-    case Token::Kind::Comment:
-      InsertComment(token.data, nullptr);
-      return;
-
-    case Token::Kind::Doctype:
-      ++errors_;
-      return;
-
-    case Token::Kind::StartTag:
-      if (token.data == "html") {
-        ProcessInBody(token);
-        return;
-      }
-      if (token.data == "option") {
-        pop_current_if("option");
-        InsertElement(token);
-        return;
-      }
-      if (token.data == "optgroup") {
-        pop_current_if("option");
-        pop_current_if("optgroup");
-        InsertElement(token);
-        return;
-      }
-      if (token.data == "hr") {
-        pop_current_if("option");
-        pop_current_if("optgroup");
-        InsertElement(token);
-        return;
-      }
-      if (token.data == "select") {
-        ++errors_;
-        if (!HasInScope("select", Scope::Select)) {
-          return;
-        }
-        PopUntil("select");
-        ResetInsertionMode();
-        return;
-      }
-      if (token.data == "input" || token.data == "textarea") {
-        ++errors_;
-        if (!HasInScope("select", Scope::Select)) {
-          return;
-        }
-        PopUntil("select");
-        ResetInsertionMode();
-        Process(token);
-        return;
-      }
-      if (token.data == "script") {
-        SwitchToRawText(token, TokenizerState::ScriptData);
-        return;
-      }
-      break;
-
-    case Token::Kind::EndTag:
-      if (token.data == "option") {
-        if (!pop_current_if("option")) {
-          ++errors_;
-        }
-        return;
-      }
-      if (token.data == "optgroup") {
-        pop_current_if("option");
-        if (!pop_current_if("optgroup")) {
-          ++errors_;
-        }
-        return;
-      }
-      if (token.data == "select") {
-        if (!HasInScope("select", Scope::Select)) {
-          ++errors_;
-          return;
-        }
-        PopUntil("select");
-        ResetInsertionMode();
-        return;
-      }
-      break;
-
-    case Token::Kind::EndOfFile:
-      ProcessInBody(token);
-      return;
-  }
-
-  ++errors_;
-}
-
-// §13.2.6.4.17 "in select in table".
-void TreeBuilder::ProcessInSelectInTable(const Token& token) {
-  const bool table_start = token.kind == Token::Kind::StartTag &&
-                           Contains(kSelectTableTags, token.data);
-  const bool table_end = token.kind == Token::Kind::EndTag && Contains(kSelectTableTags, token.data);
-  if (table_start || table_end) {
-    ++errors_;
-    if (table_start || HasInScope(token.data, Scope::Table)) {
-      PopUntil("select");
-      ResetInsertionMode();
-      Process(token);
-    }
-    return;
-  }
-  ProcessInSelect(token);
-}
-
 // §13.2.6.4.9, "reset the insertion mode appropriately". After a table closes,
 // the mode follows from what is still open — the parser cannot simply restore
 // what it was, because the token that closed the table may have closed more.
 void TreeBuilder::ResetInsertionMode() {
   for (std::size_t i = open_elements_.size(); i-- > 0;) {
-    const std::string& name = open_elements_[i]->TagName();
     const bool last = i == 0;
+    // The fragment case, §13.2.6.4.9 step 3: the bottom of a fragment parser's
+    // stack is the html element it invented, and the node the algorithm asks
+    // about there is the *context* element the nodes are going into. That one
+    // substitution is the entire reason `<td>` parsed into a `tr` context
+    // becomes a cell and parsed into a `div` context becomes bare text.
+    const std::string& name =
+        last && !context_tag_name_.empty() ? context_tag_name_ : open_elements_[i]->TagName();
+    if (name == "template") {
+      // A template restores the mode it was opened in, which is what the stack
+      // of template insertion modes is for.
+      mode_ = template_modes_.empty() ? InsertionMode::InBody : template_modes_.back();
+      return;
+    }
     if (!last && (name == "td" || name == "th")) {
       mode_ = InsertionMode::InCell;
       return;
@@ -960,7 +446,15 @@ void TreeBuilder::ResetInsertionMode() {
       mode_ = InsertionMode::InSelect;
       return;
     }
-    if (name == "head" || name == "body") {
+    // §13.2.6.4.9 step 12 is "head, and last is false". The last-is-false half
+    // matters: a fragment whose context is `head` parses its markup as body
+    // content, which is what every other engine does with
+    // `document.head.innerHTML = '<title>x</title>'`.
+    if (name == "head" && !last) {
+      mode_ = InsertionMode::InHead;
+      return;
+    }
+    if (name == "body") {
       mode_ = InsertionMode::InBody;
       return;
     }
@@ -972,7 +466,140 @@ void TreeBuilder::ResetInsertionMode() {
   mode_ = InsertionMode::InBody;
 }
 
+bool TreeBuilder::ProcessHeadElement(const Token& token) {
+  if (token.kind != Token::Kind::StartTag) {
+    return false;
+  }
+  if (token.data == "title") {
+    SwitchToRawText(token, TokenizerState::RcData);
+    return true;
+  }
+  if (token.data == "style" || token.data == "noscript" || token.data == "noframes") {
+    SwitchToRawText(token, TokenizerState::RawText);
+    return true;
+  }
+  if (token.data == "script") {
+    SwitchToRawText(token, TokenizerState::ScriptData);
+    return true;
+  }
+  if (Contains(kHeadVoidTags, token.data)) {
+    InsertElement(token);
+    return true;
+  }
+  return false;
+}
+
+bool TreeBuilder::HasOpenTemplate() const {
+  return std::any_of(open_elements_.begin(), open_elements_.end(),
+                     [](const dom::Element* element) { return element->TagName() == "template"; });
+}
+
+bool TreeBuilder::ProcessTemplateToken(const Token& token) {
+  if (token.data != "template" ||
+      (token.kind != Token::Kind::StartTag && token.kind != Token::Kind::EndTag)) {
+    return false;
+  }
+  switch (mode_) {
+    // The three modes before the html element exists have to build it first, so
+    // a `<template>` there falls through their anything-else clauses and comes
+    // back here once the head is open. Text and "in table text" are not modes a
+    // tag token reaches at all: one is raw text, the other buffers characters.
+    case InsertionMode::Initial:
+    case InsertionMode::BeforeHtml:
+    case InsertionMode::BeforeHead:
+    case InsertionMode::Text:
+    case InsertionMode::InTableText:
+      return false;
+    default:
+      break;
+  }
+
+  if (token.kind == Token::Kind::StartTag) {
+    InsertElement(token);
+    frameset_ok_ = false;
+    template_modes_.push_back(InsertionMode::InTemplate);
+    mode_ = InsertionMode::InTemplate;
+    return true;
+  }
+  if (!HasOpenTemplate()) {
+    // `</template>` with none open. Popping anyway would close whatever else is
+    // on the stack, which is the whole class of bug the scope checks exist for.
+    ++errors_;
+    return true;
+  }
+  GenerateImpliedEndTags({}, true);
+  if (!open_elements_.empty() && open_elements_.back()->TagName() != "template") {
+    ++errors_;
+  }
+  PopUntil("template");
+  if (!template_modes_.empty()) {
+    template_modes_.pop_back();
+  }
+  ResetInsertionMode();
+  return true;
+}
+
+// §13.2.6.4.4 "in template". A template's contents are parsed as if they were
+// somewhere else entirely: the mode is chosen by the *first* tag inside it, so
+// `<template><tr>` builds a row and `<template><div>` builds body content, and
+// each choice replaces the entry on the stack of template insertion modes.
+void TreeBuilder::ProcessInTemplate(const Token& token) {
+  switch (token.kind) {
+    case Token::Kind::Character:
+    case Token::Kind::Comment:
+    case Token::Kind::Doctype:
+      ProcessInBody(token);
+      return;
+
+    case Token::Kind::EndOfFile:
+      if (!HasOpenTemplate()) {
+        return;  // nothing left open: the parse is over
+      }
+      ++errors_;
+      PopUntil("template");
+      if (!template_modes_.empty()) {
+        template_modes_.pop_back();
+      }
+      ResetInsertionMode();
+      Process(token);
+      return;
+
+    case Token::Kind::StartTag: {
+      if (ProcessHeadElement(token)) {
+        return;
+      }
+      InsertionMode next = InsertionMode::InBody;
+      if (token.data == "caption" || token.data == "colgroup" || token.data == "tbody" ||
+          token.data == "tfoot" || token.data == "thead") {
+        next = InsertionMode::InTable;
+      } else if (token.data == "col") {
+        next = InsertionMode::InColumnGroup;
+      } else if (token.data == "tr") {
+        next = InsertionMode::InTableBody;
+      } else if (token.data == "td" || token.data == "th") {
+        next = InsertionMode::InRow;
+      }
+      if (!template_modes_.empty()) {
+        template_modes_.back() = next;
+      }
+      mode_ = next;
+      Process(token);
+      return;
+    }
+
+    case Token::Kind::EndTag:
+      // Every end tag but `</template>`, which never reaches here. There is no
+      // recovery to do: the contents are not in a document, so there is nothing
+      // an unbalanced end tag could close its way out into.
+      ++errors_;
+      return;
+  }
+}
+
 void TreeBuilder::Process(const Token& token) {
+  if (ProcessTemplateToken(token)) {
+    return;
+  }
   switch (mode_) {
     case InsertionMode::Initial: {
       if (token.kind == Token::Kind::Doctype) {
@@ -1050,27 +677,12 @@ void TreeBuilder::Process(const Token& token) {
         InsertComment(token.data, nullptr);
         return;
       }
-      if (token.kind == Token::Kind::StartTag) {
-        if (token.data == "title") {
-          SwitchToRawText(token, TokenizerState::RcData);
-          return;
-        }
-        if (token.data == "style" || token.data == "noscript") {
-          SwitchToRawText(token, TokenizerState::RawText);
-          return;
-        }
-        if (token.data == "script") {
-          SwitchToRawText(token, TokenizerState::ScriptData);
-          return;
-        }
-        if (token.data == "base" || token.data == "link" || token.data == "meta") {
-          InsertElement(token);
-          return;
-        }
-        if (token.data == "head") {
-          ++errors_;
-          return;
-        }
+      if (ProcessHeadElement(token)) {
+        return;
+      }
+      if (token.kind == Token::Kind::StartTag && token.data == "head") {
+        ++errors_;
+        return;
       }
       if (token.kind == Token::Kind::EndTag && token.data == "head") {
         PopUntil("head");
@@ -1148,6 +760,10 @@ void TreeBuilder::Process(const Token& token) {
       ProcessInSelectInTable(token);
       return;
 
+    case InsertionMode::InTemplate:
+      ProcessInTemplate(token);
+      return;
+
     case InsertionMode::Text: {
       if (token.kind == Token::Kind::Character) {
         InsertText(token.data);
@@ -1156,9 +772,7 @@ void TreeBuilder::Process(const Token& token) {
       // Any end tag returns to where we came from. The tokenizer already
       // guaranteed it is the matching one, because RCDATA and RAWTEXT only
       // recognize their own.
-      if (!open_elements_.empty()) {
-        open_elements_.pop_back();
-      }
+      PopCurrent();
       mode_ = original_mode_;
       if (token.kind == Token::Kind::EndOfFile) {
         Process(token);
@@ -1216,9 +830,89 @@ std::unique_ptr<dom::Document> TreeBuilder::Build() {
   return std::move(document_);
 }
 
+// §13.2.6 step 3: which tokenizer state the context element puts the parser in.
+// Without it, `titleElement.innerHTML = 'a<b>c'` would build a `<b>` element
+// where every other engine produces the text `a<b>c`.
+namespace {
+TokenizerState FragmentTokenizerState(std::string_view context) {
+  if (context == "title" || context == "textarea") {
+    return TokenizerState::RcData;
+  }
+  if (context == "style" || context == "xmp" || context == "iframe" || context == "noembed" ||
+      context == "noframes" || context == "noscript") {
+    return TokenizerState::RawText;
+  }
+  if (context == "script") {
+    return TokenizerState::ScriptData;
+  }
+  if (context == "plaintext") {
+    return TokenizerState::PlainText;
+  }
+  return TokenizerState::Data;
+}
+}  // namespace
+
+std::unique_ptr<dom::DocumentFragment> TreeBuilder::BuildFragment() {
+  // A throwaway document, because the algorithm needs a root to hang the parse
+  // off and the caller must not be handed one. Nothing here ever reaches the
+  // document the fragment is destined for -- which is the point: a fragment
+  // that could touch the live tree while parsing would be a page's markup
+  // mutating the page mid-parse.
+  document_ = std::make_unique<dom::Document>();
+  document_->SetQuirksMode(quirks_);
+  AddPerformanceCounter(PerfCounterId::HtmlFragmentsParsed);
+  AddPerformanceCounter(PerfCounterId::HtmlFragmentBytes, tokenizer_.InputSize());
+
+  tokenizer_.SwitchTo(FragmentTokenizerState(context_tag_name_));
+  // So that `</title>` inside a title context is recognized as its end tag
+  // rather than as text. §13.2.6 step 4's tokenizer half.
+  tokenizer_.SetLastStartTag(context_tag_name_);
+
+  dom::Element& root = InsertImplied("html");
+  // From here the root is unpoppable. Every node the parse produces is one of
+  // its descendants, and an empty stack would insert into the throwaway
+  // Document instead -- where the caller would never see it. Attacker-chosen
+  // markup with an attacker-chosen context is exactly the input that finds the
+  // end tag which unbalances the stack.
+  stack_floor_ = open_elements_.size();
+  if (context_tag_name_ == "template") {
+    template_modes_.push_back(InsertionMode::InTemplate);
+  }
+  ResetInsertionMode();
+
+  while (const auto token = tokenizer_.Next()) {
+    Process(*token);
+    if (token->kind == Token::Kind::EndOfFile) {
+      break;
+    }
+  }
+  open_elements_.clear();
+
+  auto fragment = std::make_unique<dom::DocumentFragment>();
+  while (dom::Node* first = root.FirstChild()) {
+    std::unique_ptr<dom::Node> moved = root.Detach(first);
+    if (moved == nullptr) {
+      break;
+    }
+    fragment->Append(std::move(moved));
+  }
+  std::size_t nodes = 0;
+  fragment->ForEachDescendant([&nodes](const dom::Node&) { ++nodes; });
+  AddPerformanceCounter(PerfCounterId::HtmlFragmentNodes, nodes);
+  document_.reset();
+  return fragment;
+}
+
 std::unique_ptr<dom::Document> ParseDocument(std::string_view input) {
   TreeBuilder builder(input);
   return builder.Build();
+}
+
+std::unique_ptr<dom::DocumentFragment> ParseFragment(std::string_view input,
+                                                     std::string_view context_tag_name,
+                                                     bool quirks) {
+  TreeBuilder builder(input, context_tag_name, quirks);
+  return builder.BuildFragment();
 }
 
 }  // namespace microbrowser::html

@@ -14,10 +14,31 @@ max_tu_lines: 1400
 # diff. 80 leaves room for the remaining script-data and foreign-content states.
 budget: TokenizerState header_lines=80 public_methods=0  members=0
 budget: Token          header_lines=45 public_methods=6  members=10
-budget: Tokenizer      header_lines=60 public_methods=12 members=18
+budget: Tokenizer      header_lines=65 public_methods=13 members=18
 # Raised for the table insertion modes. The two new members are the spec's own
 # state — the buffered character run that "in table text" cannot place until it
 # knows whether the run is only whitespace, and the foster-parenting flag — and
 # the header lines are one declaration per insertion mode. Both grow with the
 # spec's shape rather than with this class taking on more responsibility.
-budget: TreeBuilder    header_lines=62 public_methods=8  members=12
+#
+# Raised again for the fragment parsing algorithm (§13.2.6) and "in template"
+# (§13.2.6.4.4). The four new members are the spec's own state and each one is
+# load-bearing:
+#
+#   * `template_modes_` is the stack of template insertion modes. One saved mode
+#     would not survive a template inside a template.
+#   * `context_tag_name_` is the element a fragment is going into, which decides
+#     both the starting insertion mode and the tokenizer state. It doubles as
+#     the flag for "is this a fragment parse", because a separate bool would be
+#     a second answer to one question.
+#   * `stack_floor_` is how many elements no error recovery may pop. It is a
+#     security property rather than a tidiness one: a fragment parse whose stack
+#     emptied would insert into a throwaway document, and the caller would get
+#     nothing back for markup a page chose.
+#   * `quirks_` is the destination document's mode, which a fragment cannot read
+#     off a doctype it does not have.
+#
+# The tenth and eleventh public methods are the fragment constructor and
+# BuildFragment. Header lines are one declaration per new algorithm plus the
+# comments that say which spec section each is.
+budget: TreeBuilder    header_lines=125 public_methods=11 members=16

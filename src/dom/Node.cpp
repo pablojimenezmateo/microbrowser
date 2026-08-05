@@ -248,6 +248,19 @@ bool Element::SetState(ElementState state, bool on) {
   return true;
 }
 
+Element::Element(std::string tag_name)
+    : Node(Kind::Element), tag_name_(std::move(tag_name)) {
+  // Every `<template>` has its contents fragment from the moment it exists,
+  // including one script made with `createElement`: a template whose `content`
+  // appeared only when the parser filled it would be a different object
+  // depending on where the element came from.
+  if (tag_name_ == "template") {
+    content_ = std::make_unique<DocumentFragment>();
+  }
+}
+
+Element::~Element() = default;
+
 std::string Element::Serialize() const {
   std::string out;
   out.push_back('<');
@@ -263,7 +276,10 @@ std::string Element::Serialize() const {
   if (IsVoidElement(tag_name_)) {
     return out;
   }
-  out += SerializeChildren();
+  // A template serializes its *contents*, which is where its markup went. The
+  // spec says the same thing, and it is what makes a round trip through
+  // `innerHTML` preserve a template rather than empty it.
+  out += content_ != nullptr ? content_->SerializeChildren() : SerializeChildren();
   out += "</";
   out += tag_name_;
   out.push_back('>');

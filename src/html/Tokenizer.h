@@ -108,6 +108,10 @@ class Tokenizer {
   void SetLastStartTag(std::string name) { last_start_tag_ = std::move(name); }
 
   std::size_t ErrorCount() const { return errors_; }
+  // How many bytes it was given. The fragment counters report it, because "a
+  // page spent its time in innerHTML" and "a page spent its time parsing a
+  // megabyte through innerHTML" call for different fixes.
+  std::size_t InputSize() const { return input_.size(); }
 
  private:
   int Peek(std::size_t ahead = 0) const;

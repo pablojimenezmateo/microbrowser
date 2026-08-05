@@ -27,6 +27,17 @@ void ExpectTree(std::string_view input, std::string_view expected) {
                  std::string("wrong tree for: ") + std::string(input));
 }
 
+// The fragment parsed into `context`, serialized. The context element is the
+// whole point of the algorithm, so every fragment assertion names one.
+void ExpectFragment(std::string_view context, std::string_view input,
+                    std::string_view expected) {
+  const std::unique_ptr<dom::DocumentFragment> fragment =
+      html::ParseFragment(input, context);
+  ExpectEqString(fragment->SerializeChildren(), expected,
+                 std::string("wrong fragment for <") + std::string(context) + ">: " +
+                     std::string(input));
+}
+
 }  // namespace
 
 void RegisterTreeBuilderTests(std::vector<TestCase>& tests) {
@@ -168,9 +179,11 @@ void RegisterTreeBuilderTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "TreeBuilder/ReportsWhenItNeededAnUnimplementedInsertionMode", [] {
-    // `<template>` has no insertion mode here. That is recorded rather than
+    // `<frameset>` has no insertion mode here. That is recorded rather than
     // silently producing a tree different from every other browser's.
-    TreeBuilder builder("<template><p>x</p></template>");
+    // `<template>` used to be on this list and no longer is -- see
+    // TreeBuilder/TemplateContentsAreNotChildren.
+    TreeBuilder builder("<frameset><frame></frameset>");
     const std::unique_ptr<Document> document = builder.Build();
     Expect(document != nullptr, "a document is still produced");
     Expect(builder.UnsupportedModeCount() > 0,
@@ -312,6 +325,121 @@ void RegisterTreeBuilderTests(std::vector<TestCase>& tests) {
                 "two paragraphs");
     ExpectEqString(document->ElementsByTagName("p").at(1)->TextContent(), "b",
                    "in tree order");
+  });
+
+  // --- The fragment parsing algorithm, §13.2.6 --------------------------------
+
+  AddTest(tests, "TreeBuilder/FragmentHasNoImpliedHtmlHeadOrBody", [] {
+    // The difference a caller notices first: a document parse invents html,
+    // head and body, and a fragment parse must invent none of them or every
+    // `innerHTML` assignment would nest the page inside another page.
+    ExpectFragment("div", "<p>hi</p>", "<p>hi</p>");
+    ExpectFragment("div", "", "");
+    ExpectFragment("div", "text", "text");
+  });
+
+  AddTest(tests, "TreeBuilder/FragmentTakesItsRulesFromTheContextElement", [] {
+    // The whole reason the algorithm takes a context element. The same six
+    // bytes are a table cell in one place and bare text in another, and a
+    // parser that ignored the context would silently disagree with every other
+    // browser on both.
+    ExpectFragment("tr", "<td>c</td>", "<td>c</td>");
+    ExpectFragment("div", "<td>c</td>", "c");
+    // A row inside a table context still gets the tbody nobody writes...
+    ExpectFragment("table", "<tr><td>c", "<tbody><tr><td>c</td></tr></tbody>");
+    // ...and inside a tbody context it does not, because there is one already.
+    ExpectFragment("tbody", "<tr><td>c", "<tr><td>c</td></tr>");
+    ExpectFragment("select", "<option>a<option>b",
+                   "<option>a</option><option>b</option>");
+  });
+
+  AddTest(tests, "TreeBuilder/FragmentContextChoosesTheTokenizerState", [] {
+    // §13.2.6 step 3. In a title or a textarea the markup is text, and an
+    // engine that built a `<b>` element here would differ from every other one
+    // on `titleElement.innerHTML = 'a<b>c'`.
+    ExpectFragment("title", "a<b>c", "a&lt;b&gt;c");
+    ExpectFragment("textarea", "a<b>c", "a&lt;b&gt;c");
+    ExpectFragment("style", "p{color:red}", "p{color:red}");
+    ExpectFragment("div", "a<b>c", "a<b>c</b>");
+  });
+
+  AddTest(tests, "TreeBuilder/FragmentSurvivesEndTagsThatDoNotMatch", [] {
+    // Markup and context are both chosen by a page, and the pair a page will
+    // find is the one whose end tags unbalance the stack. The root of a
+    // fragment parse is unpoppable for exactly this reason: pop it and every
+    // later node lands in a throwaway document the caller never sees.
+    ExpectFragment("div", "</div></div></body></html>x", "x");
+    ExpectFragment("td", "</td></tr></table>x", "x");
+    ExpectFragment("html", "</html></head></body>x", "<head></head><body>x</body>");
+    ExpectFragment("select", "</select></option>x", "x");
+  });
+
+  // --- `<template>`, §13.2.6.4.4 ----------------------------------------------
+
+  AddTest(tests, "TreeBuilder/TemplateContentsAreNotChildren", [] {
+    const std::unique_ptr<Document> document =
+        ParseDocument("<body><template><p>inside</p></template></body>");
+    const Element* element = document->FirstElementByTagName("template");
+    Expect(element != nullptr, "the template is in the tree");
+    ExpectEqInt(static_cast<long long>(element->Children().size()), 0,
+                "and it has no children -- its markup is not document content");
+    Expect(element->Content() != nullptr, "it has a contents fragment");
+    ExpectEqString(element->Content()->SerializeChildren(), "<p>inside</p>",
+                   "which is where the markup went");
+    // The consequence that matters: nothing that walks the document can reach
+    // it, so a template full of markup is not styled, laid out, or fetched.
+    Expect(document->FirstElementByTagName("p") == nullptr,
+           "and a walk of the document does not find it");
+    // It still serializes back to what it was, which is what makes a round trip
+    // through innerHTML preserve a template rather than empty it.
+    ExpectEqString(element->Serialize(), "<template><p>inside</p></template>",
+                   "and serializing it produces its contents");
+  });
+
+  AddTest(tests, "TreeBuilder/TemplateContentsUseTheModeTheirFirstTagAsksFor", [] {
+    // A template's contents are parsed as though they were somewhere else: a
+    // `<tr>` inside one builds a row even though there is no table anywhere.
+    // Without "in template", the row would be dropped as table structure
+    // outside a table -- which is what a page that templates its rows would see.
+    const std::unique_ptr<Document> document =
+        ParseDocument("<template><tr><td>cell</td></tr></template>");
+    const Element* element = document->FirstElementByTagName("template");
+    Expect(element != nullptr && element->Content() != nullptr, "the template exists");
+    ExpectEqString(element->Content()->SerializeChildren(), "<tr><td>cell</td></tr>",
+                   "and its row survived without a table around it");
+  });
+
+  AddTest(tests, "TreeBuilder/TemplateInsideATableDoesNotFosterItsContents", [] {
+    // Foster parenting moves stray content out of a table. A template's
+    // contents are not in the table -- they are not in any document -- so
+    // there is nothing to move them out of.
+    const std::unique_ptr<Document> document =
+        ParseDocument("<table><template><div>x</div></template><tr><td>c</table>");
+    const Element* element = document->FirstElementByTagName("template");
+    Expect(element != nullptr && element->Content() != nullptr, "the template exists");
+    ExpectEqString(element->Content()->SerializeChildren(), "<div>x</div>",
+                   "its div stayed inside it rather than being fostered before the table");
+    Expect(document->FirstElementByTagName("td") != nullptr, "and the real row still built");
+  });
+
+  AddTest(tests, "TreeBuilder/NestedTemplatesRestoreTheModeEachWasOpenedIn", [] {
+    // Why the stack of template insertion modes is a stack. With one saved
+    // mode, closing the inner template would restore the outer one's and the
+    // content after it would land in the wrong place.
+    const std::unique_ptr<Document> document = ParseDocument(
+        "<template><tr><template><div>in</div></template><td>cell</td></tr></template>");
+    const Element* outer = document->FirstElementByTagName("template");
+    Expect(outer != nullptr && outer->Content() != nullptr, "the outer template exists");
+    ExpectEqString(outer->Content()->SerializeChildren(),
+                   "<tr><template><div>in</div></template><td>cell</td></tr>",
+                   "the cell after the inner template is still in the row");
+  });
+
+  AddTest(tests, "TreeBuilder/FragmentOfATemplateParsesAsTemplateContents", [] {
+    // `template.innerHTML = '<td>x'` -- the context is the template, so the
+    // contents are parsed with the template's own rules rather than the body's.
+    ExpectFragment("template", "<td>x</td>", "<td>x</td>");
+    ExpectFragment("template", "<div>x</div>", "<div>x</div>");
   });
 
   AddTest(tests, "TreeBuilder/NodesKnowTheirAncestors", [] {

@@ -215,6 +215,7 @@ microbrowser_module(html
     src/html/FormControl.cpp
     src/html/Tokenizer.cpp
     src/html/TreeBuilder.cpp
+    src/html/TreeBuilderTable.cpp
   DEPS microbrowser_util microbrowser_url microbrowser_dom)
 
 microbrowser_module(layout
@@ -539,6 +540,8 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(cors_fuzzer fuzz/CorsFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
+  microbrowser_fuzzer(html_fragment_fuzzer fuzz/HtmlFragmentFuzzer.cpp
+    microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
   microbrowser_fuzzer(image_selection_fuzzer fuzz/ImageSelectionFuzzer.cpp
     microbrowser_engine microbrowser_css microbrowser_html microbrowser_dom)
