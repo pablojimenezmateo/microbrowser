@@ -1,6 +1,7 @@
 #include "gfx/Canvas.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "util/PerformanceCounters.h"
 
@@ -92,6 +93,46 @@ void Canvas::FillRect(const IntRect& rect, Color color) {
     std::uint32_t* row = Row(y) + target.Left();
     for (int i = 0; i < target.width; ++i) {
       row[i] = BlendSrcOver(row[i], color);
+    }
+  }
+}
+
+void Canvas::ScrollRegion(const IntRect& region, int dx, int dy) {
+  const IntRect target = region.Intersected(Bounds());
+  if (target.IsEmpty() || (dx == 0 && dy == 0)) {
+    return;
+  }
+  // Nothing overlaps: every pixel that would be copied comes from outside the
+  // region, and the caller repaints the whole of it.
+  if (dx <= -target.width || dx >= target.width || dy <= -target.height ||
+      dy >= target.height) {
+    return;
+  }
+
+  // The rows are copied in the direction that keeps source ahead of
+  // destination: downwards means walking from the bottom up, or a row would be
+  // overwritten before it was read. `memmove` handles the same problem within a
+  // row, which is why the horizontal case needs no such care.
+  const int overlap_height = target.height - (dy < 0 ? -dy : dy);
+  const int overlap_width = target.width - (dx < 0 ? -dx : dx);
+  const auto copy_row = [this, &target, dx, overlap_width](int source_y, int destination_y) {
+    const std::uint32_t* source = Row(source_y);
+    std::uint32_t* destination = Row(destination_y);
+    if (source == nullptr || destination == nullptr) {
+      return;
+    }
+    const int source_x = target.Left() + (dx < 0 ? -dx : 0);
+    const int destination_x = target.Left() + (dx > 0 ? dx : 0);
+    std::memmove(destination + destination_x, source + source_x,
+                 static_cast<std::size_t>(overlap_width) * sizeof(std::uint32_t));
+  };
+  if (dy > 0) {
+    for (int i = overlap_height; i-- > 0;) {
+      copy_row(target.Top() + i, target.Top() + i + dy);
+    }
+  } else {
+    for (int i = 0; i < overlap_height; ++i) {
+      copy_row(target.Top() + i - dy, target.Top() + i);
     }
   }
 }

@@ -63,6 +63,11 @@ struct ResizeViewportMessage {
 struct ScrollMessage {
   int delta_x = 0;
   int delta_y = 0;
+  // Where the pointer was, in page coordinates. A wheel is routed to the
+  // deepest scrolling box under it that can still move and chains outward when
+  // it cannot -- ADR 0018 §4 -- so a delta with no position is a wheel that can
+  // only ever scroll the document.
+  gfx::IntPoint position;
 
   friend bool operator==(const ScrollMessage&, const ScrollMessage&) = default;
 };
@@ -113,6 +118,18 @@ struct PaintFrameMessage {
   // Device pixels the engine believes changed. Empty means "the whole
   // viewport", which is what a fresh navigation reports.
   std::vector<gfx::IntRect> damage;
+
+  // How far this frame is the previous frame, moved. Nonzero only when the
+  // document scrolled and nothing else did, and it is the receiver's licence to
+  // **blit** rather than repaint: copy the overlap within its own surface, then
+  // paint the damage above. ADR 0018 §2 -- a scroll is a paint, and the paint it
+  // is proportional to the newly exposed strip rather than to the window.
+  //
+  // Advisory, never trusted. The receiver clamps it to its own surface and
+  // falls back to a full repaint for anything it cannot honour, because after
+  // the process split this number arrives from a renderer and a blit driven by
+  // an unchecked offset is a read out of somebody else's memory.
+  gfx::IntPoint scroll_delta;
 
   friend bool operator==(const PaintFrameMessage&, const PaintFrameMessage&) = default;
 };

@@ -68,6 +68,23 @@ class Canvas {
   // Source-over fill of `rect` intersected with the current clip.
   void FillRect(const IntRect& rect, Color color);
 
+  // Moves the pixels inside `region` by (`dx`, `dy`), within the region itself.
+  // What slides out is dropped and what slides in is left untouched -- the
+  // caller repaints it, because only the caller knows what belongs there.
+  //
+  // This is the scroll blit of ADR 0018 §2, and it is what makes a scroll cost
+  // the newly exposed strip rather than the window. It ignores the clip stack
+  // for the reason `Clear` does: it is a frame-level move of what is already
+  // drawn, not a drawing operation, and clipping it would leave the two halves
+  // of one surface a scroll out of step.
+  //
+  // A delta at least as large as the region moves nothing, because there would
+  // be no overlap to copy. Every read and write is bounded by the intersection
+  // of the region with the surface: the delta arrives from the engine, which
+  // after the process split is a renderer, and a blit driven by an unchecked
+  // offset reads somebody else's memory.
+  void ScrollRegion(const IntRect& region, int dx, int dy);
+
  private:
   int width_ = 0;
   int height_ = 0;

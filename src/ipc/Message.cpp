@@ -91,6 +91,8 @@ std::vector<std::byte> Serialize(const UiToEngine& message) {
     writer.WriteU8(static_cast<std::uint8_t>(UiTag::Scroll));
     writer.WriteI32(scroll->delta_x);
     writer.WriteI32(scroll->delta_y);
+    writer.WriteI32(scroll->position.x);
+    writer.WriteI32(scroll->position.y);
   } else if (const auto* pointer = std::get_if<PointerMessage>(&message)) {
     writer.WriteU8(static_cast<std::uint8_t>(UiTag::Pointer));
     writer.WriteU8(static_cast<std::uint8_t>(pointer->kind));
@@ -120,6 +122,8 @@ std::vector<std::byte> Serialize(const EngineToUi& message) {
     for (const gfx::IntRect& rect : paint->damage) {
       WriteRect(writer, rect);
     }
+    writer.WriteI32(paint->scroll_delta.x);
+    writer.WriteI32(paint->scroll_delta.y);
   } else if (const auto* title = std::get_if<TitleChangedMessage>(&message)) {
     writer.WriteU8(static_cast<std::uint8_t>(EngineTag::TitleChanged));
     writer.WriteString(title->title);
@@ -191,6 +195,8 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
       ScrollMessage value;
       value.delta_x = reader.ReadI32();
       value.delta_y = reader.ReadI32();
+      value.position.x = reader.ReadI32();
+      value.position.y = reader.ReadI32();
       message = value;
       break;
     }
@@ -273,6 +279,8 @@ std::optional<EngineToUi> DeserializeEngineToUi(std::span<const std::byte> bytes
         }
         value.damage.push_back(rect);
       }
+      value.scroll_delta.x = reader.ReadI32();
+      value.scroll_delta.y = reader.ReadI32();
       message = std::move(value);
       break;
     }

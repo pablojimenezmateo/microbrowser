@@ -248,7 +248,8 @@ int main(int argc, char** argv) {
     RunLoadToCompletion(engine);
   }
   if (options.scroll_y > 0) {
-    channel.Ui().Send(microbrowser::ipc::ScrollMessage{0, options.scroll_y});
+    channel.Ui().Send(
+        microbrowser::ipc::ScrollMessage{0, options.scroll_y, microbrowser::gfx::IntPoint{}});
     engine.HandlePendingMessages();
   }
 
@@ -260,6 +261,28 @@ int main(int argc, char** argv) {
   bool painted = false;
   while (std::optional<microbrowser::ipc::EngineToUi> message = channel.Ui().TryReceive()) {
     if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message)) {
+      // MICROBROWSER_TRACE_REDRAW=1 means the same thing here as it does in the
+      // browser -- what changed, and how much of the window that is -- except
+      // that the browser can only be asked from a machine with a display and
+      // this cannot. A scroll's damage is the whole point of ADR 0018, and a
+      // check for it that needs a window is one nobody runs.
+      if (microbrowser::util::PerformanceTrace::FlagEnabled("MICROBROWSER_TRACE_REDRAW")) {
+        long long covered = 0;
+        for (const microbrowser::gfx::IntRect& rect : paint->damage) {
+          covered += static_cast<long long>(rect.width) * rect.height;
+        }
+        const long long surface =
+            static_cast<long long>(options.width) * options.height;
+        std::fprintf(stderr,
+                     "[redraw] %-7s rects=%zu coverage=%5.1f%% surface=%dx%d "
+                     "scroll=%d,%d commands=%zu\n",
+                     paint->damage.empty() ? "full" : "partial", paint->damage.size(),
+                     surface > 0 ? static_cast<double>(covered) * 100.0 /
+                                       static_cast<double>(surface)
+                                 : 0.0,
+                     options.width, options.height, paint->scroll_delta.x,
+                     paint->scroll_delta.y, paint->display_list.Size());
+      }
       display_list = std::move(paint->display_list);
       painted = true;
     } else if (auto* changed = std::get_if<microbrowser::ipc::TitleChangedMessage>(&*message)) {

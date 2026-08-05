@@ -94,12 +94,25 @@ class Application {
   ui::BrowserChrome chrome_;
   gfx::DisplayList chrome_list_;
 
+  // Where the pointer last was, in window coordinates. SDL reports a wheel
+  // without one, and a wheel with no position can only ever scroll the
+  // document: routing it to the box under the pointer -- ADR 0018 §4 -- needs
+  // to know where that is.
+  gfx::IntPoint pointer_;
+
   bool running_ = true;
   bool repaint_pending_ = false;
   // Set when damage cannot be trusted: first frame, resize, expose. Distinct
   // from "the whole viewport is dirty" so the presenter can also skip its
   // partial-upload bookkeeping.
   bool full_repaint_pending_ = true;
+  // Set when this frame's canvas was scrolled in place rather than repainted.
+  // The *painting* is then only the exposed band, which is the win; the texture
+  // upload is still whole, because the pixels moved everywhere in it and there
+  // is no way to tell a streaming texture that its contents slid. Two flags and
+  // not one: conflating them would either repaint the window or upload a
+  // texture that disagrees with the canvas by one scroll.
+  bool scroll_blitted_ = false;
 };
 
 }  // namespace microbrowser::app

@@ -247,12 +247,18 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
   }
 
   if (const auto* wheel = std::get_if<platform::WheelEvent>(&event)) {
-    channel_.Ui().Send(ipc::ScrollMessage{wheel->delta_x * kPixelsPerWheelNotch,
-                                          -wheel->delta_y * kPixelsPerWheelNotch});
+    // In page coordinates, like a pointer event: the engine routes the wheel to
+    // whatever box is under it, and a position measured from the window would
+    // be off by the toolbar.
+    const gfx::IntPoint origin = PageOrigin();
+    channel_.Ui().Send(ipc::ScrollMessage{
+        wheel->delta_x * kPixelsPerWheelNotch, -wheel->delta_y * kPixelsPerWheelNotch,
+        gfx::IntPoint{pointer_.x - origin.x, pointer_.y - origin.y}});
     return;
   }
 
   if (const auto* pointer = std::get_if<platform::PointerEvent>(&event)) {
+    pointer_ = pointer->position;
     const ui::BrowserChrome::Response response = chrome_.HandlePointer(*pointer);
     ApplyChromeResponse(response);
     if (response.handled) {
@@ -298,6 +304,19 @@ void Application::ConsumeEngineMessages() {
         // Translated into window coordinates: the engine reports damage in the
         // page's space, which starts below the toolbar.
         const gfx::IntPoint origin = PageOrigin();
+        // The blit, before the damage is painted over it. The engine says this
+        // frame is the previous one moved; copying the overlap within the
+        // canvas is what makes a scroll cost the exposed strip rather than the
+        // window (ADR 0018 §2). The delta is advisory and bounded inside
+        // ScrollRegion, because after the process split it arrives from a
+        // renderer -- and a blit driven by an unchecked offset is a read into
+        // somebody else's memory.
+        if (paint->scroll_delta != gfx::IntPoint{} && !full_repaint_pending_) {
+          canvas_.ScrollRegion(chrome_.PageBounds(gfx::IntSize{canvas_.Width(),
+                                                               canvas_.Height()}),
+                               paint->scroll_delta.x, paint->scroll_delta.y);
+          scroll_blitted_ = true;
+        }
         for (const gfx::IntRect& rect : paint->damage) {
           dirty_.Add(rect.Translated(origin.x, origin.y));
         }
@@ -358,7 +377,12 @@ void Application::PaintAndPresent() {
                  display_list_.Size());
   }
 
-  if (!presenter_.Present(window_.Renderer(), canvas_, dirty_, full)) {
+  // A blitted frame painted only its exposed band, and the texture still has to
+  // learn about every pixel that slid: a streaming texture cannot be told its
+  // contents moved. So the *paint* is partial and the *upload* is whole, which
+  // is the split worth having -- rasterizing paths, glyphs and images is the
+  // expensive half and a full-surface upload is a memcpy.
+  if (!presenter_.Present(window_.Renderer(), canvas_, dirty_, full || scroll_blitted_)) {
     // The presenter dropped its texture. Do not clear the pending flags: the
     // next iteration must try again with a full repaint rather than leaving a
     // stale or empty window on screen.
@@ -369,6 +393,7 @@ void Application::PaintAndPresent() {
   dirty_.Clear();
   repaint_pending_ = false;
   full_repaint_pending_ = false;
+  scroll_blitted_ = false;
 }
 
 // Where the caret and selection edges fall, measured with the same font the
@@ -436,7 +461,7 @@ void Application::ApplyChromeResponse(const ui::BrowserChrome::Response& respons
       channel_.Ui().Send(ipc::ReloadMessage{response.intent->bypass_cache});
       break;
     case ui::BrowserChrome::Intent::Kind::ScrollPage:
-      channel_.Ui().Send(ipc::ScrollMessage{0, response.intent->scroll_delta});
+      channel_.Ui().Send(ipc::ScrollMessage{0, response.intent->scroll_delta, gfx::IntPoint{}});
       break;
   }
 }

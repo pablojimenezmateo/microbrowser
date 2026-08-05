@@ -45,7 +45,7 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     RoundTrip(ipc::UiToEngine{ipc::StopLoadMessage{}}, ipc::DeserializeUiToEngine, "StopLoad");
     RoundTrip(ipc::UiToEngine{ipc::ResizeViewportMessage{gfx::IntSize{1280, 800}, 2.0f}},
               ipc::DeserializeUiToEngine, "ResizeViewport");
-    RoundTrip(ipc::UiToEngine{ipc::ScrollMessage{-3, 42}}, ipc::DeserializeUiToEngine, "Scroll");
+    RoundTrip(ipc::UiToEngine{ipc::ScrollMessage{-3, 42, gfx::IntPoint{7, 9}}}, ipc::DeserializeUiToEngine, "Scroll");
     RoundTrip(ipc::UiToEngine{ipc::PointerMessage{ipc::PointerMessage::Kind::Down,
                                                   gfx::IntPoint{5, 7}, 1}},
               ipc::DeserializeUiToEngine, "Pointer");
@@ -223,6 +223,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteU8(italic);
       writer.WriteString("run");
       writer.WriteU32(0);  // damage rect count
+      writer.WriteI32(0);  // scroll delta x
+      writer.WriteI32(0);  // scroll delta y
       return writer.Take();
     };
     const auto text_frame = [&family_frame](float size, int weight, std::uint8_t italic,
@@ -353,6 +355,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteU32(1);  // one command
       fill_body(writer);
       writer.WriteU32(0);  // damage rect count, which closes the message
+      writer.WriteI32(0);  // scroll delta x
+      writer.WriteI32(0);  // scroll delta y
       return writer.Bytes();
     };
 
@@ -452,6 +456,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     writer.WriteF32(std::numeric_limits<float>::quiet_NaN());
     writer.WriteF32(1.0f);
     writer.WriteU32(0);  // damage rect count
+    writer.WriteI32(0);  // scroll delta x
+    writer.WriteI32(0);  // scroll delta y
 
     const auto decoded = ipc::DeserializeEngineToUi(writer.Bytes());
     Expect(decoded.has_value(), "the frame is well-formed, so it decodes");
@@ -480,6 +486,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteI32(height);
       writer.WriteU32(0xFF000000);
       writer.WriteU32(0);  // damage count
+      writer.WriteI32(0);  // scroll delta x
+      writer.WriteI32(0);  // scroll delta y
       return writer.Bytes();
     };
 
@@ -576,6 +584,8 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     writer.WriteI32(8);
     writer.WriteU32(0xFFFFFFFFu);  // an index no table could hold
     writer.WriteU32(0);            // damage rect count
+    writer.WriteI32(0);  // scroll delta x
+    writer.WriteI32(0);  // scroll delta y
 
     const auto decoded = ipc::DeserializeEngineToUi(writer.Bytes());
     Expect(decoded.has_value(),

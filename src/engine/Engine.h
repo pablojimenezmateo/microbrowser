@@ -103,7 +103,10 @@ class Engine {
   // navigation started, which also means `load_` is now a different load.
   bool FollowScriptNavigation();
   void SetViewport(const gfx::IntSize& size, float device_scale);
-  void ScrollBy(int delta_x, int delta_y);
+  void ScrollBy(const ipc::ScrollMessage& scroll);
+  // The band a document scroll of `delta` newly exposes, plus the boxes that
+  // did not move with it. See ADR 0018 §2.
+  std::vector<gfx::IntRect> ScrollDamage(gfx::IntPoint delta) const;
   // Where the viewport sits over the document. Kept on the Page rather than
   // here, because painting and a script's `getBoundingClientRect` both have to
   // subtract it and two copies of a scroll offset drift. See Page and ADR 0015.
@@ -135,6 +138,13 @@ class Engine {
   // the truth (everything changed) is the correct placeholder, and is why the
   // damage field is not simply omitted.
   void PaintAndSend();
+  // The same, for the two frames whose damage is known rather than derived. A
+  // `scroll_delta` says this frame is the previous one moved, which the UI may
+  // blit; `only` is the single rectangle a box that scrolled inside the page
+  // changed. Both exist because the display-list diff answers "everything" for
+  // a scroll -- every command in the list moved -- and repainting the window
+  // for a wheel notch is the cost ADR 0018 is written to avoid.
+  void PaintAndSend(gfx::IntPoint scroll_delta, const gfx::IntRect* only);
 
   // Renders `message` as the page, for a load that failed. A blank window is
   // indistinguishable from a hung browser.
