@@ -13,6 +13,7 @@
 #include "bindings/Timers.h"
 #include "dom/Node.h"
 #include "engine/DocumentPolicy.h"
+#include "engine/Subresource.h"
 #include "js/Interpreter.h"
 
 namespace microbrowser::engine {
@@ -97,7 +98,7 @@ class PageScript {
   // them, because what a URL turns into is the loader's problem -- and because
   // a fetch needs a privacy verdict, which this layer has no business
   // producing.
-  const std::vector<std::string>& PendingUrls() const { return pending_urls_; }
+  const std::vector<SubresourceRequest>& PendingUrls() const { return pending_urls_; }
   // Whether `PendingUrls()[index]` is one the page said it would not wait for.
   // The engine asks so it knows which outstanding scripts hold the first paint
   // and which do not.
@@ -243,7 +244,7 @@ class PageScript {
   std::unique_ptr<js::Interpreter> interpreter_;
   std::unique_ptr<bindings::DomBindings> bindings_;
   std::vector<Slot> slots_;
-  std::vector<std::string> pending_urls_;
+  std::vector<SubresourceRequest> pending_urls_;
   std::vector<std::size_t> pending_slots_;
   bool ran_ = false;
   bindings::TimerQueue timers_;

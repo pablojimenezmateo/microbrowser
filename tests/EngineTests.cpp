@@ -225,9 +225,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "</body></html>",
         "https://example.org/");
 
-    const std::vector<std::string>& pending = page.PendingScripts();
+    const std::vector<engine::SubresourceRequest>& pending = page.PendingScripts();
     ExpectEqInt(static_cast<long long>(pending.size()), 1, "one external script");
-    ExpectEqString(pending[0], "b.js", "named as it was written");
+    ExpectEqString(pending[0].url, "b.js", "named as it was written");
 
     page.AddScript(0, "globalThis.log += 'b'; console.log('external ran');");
     page.RunScripts(0);
@@ -1180,12 +1180,12 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "</head><body>x</body>",
         "https://example.org/");
 
-    const std::vector<std::string>& sheets = page.PendingStyleSheets();
+    const std::vector<engine::SubresourceRequest>& sheets = page.PendingStyleSheets();
     ExpectEqInt(static_cast<long long>(sheets.size()), 2,
                 "rel is a token set: an alternate sheet is not applied, a preload is not a "
                 "sheet, and a link with no href points nowhere");
-    ExpectEqString(sheets.at(0), "a.css", "in document order");
-    ExpectEqString(sheets.at(1), "b.css", "and rel matches case-insensitively");
+    ExpectEqString(sheets.at(0).url, "a.css", "in document order");
+    ExpectEqString(sheets.at(1).url, "b.css", "and rel matches case-insensitively");
   });
 
   AddTest(tests, "Page/StyleSheetsCascadeInDocumentOrderAcrossLinksAndStyleElements", [] {

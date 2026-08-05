@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "csp/ContentSecurityPolicy.h"
+#include "csp/SubresourceIntegrity.h"
 #include "url/Origin.h"
 #include "url/Url.h"
 
@@ -94,5 +95,21 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
   meta.AddFromMeta(text);
   (void)meta.Governs(csp::Directive::Script);
   (void)meta.AllowsInline(csp::Directive::Script, "", text);
+
+  // The same bytes as an `integrity` attribute, which is the other thing in this
+  // module that parses a page's declaration of what it will accept. Its property
+  // is the one a wrong answer would be a security bug for: **a metadata string
+  // that names a usable hash must never report NoMetadata**, because NoMetadata
+  // is the answer that lets the resource through.
+  const csp::IntegrityResult result = csp::CheckIntegrity(text, "console.log(1)");
+  if (csp::HasIntegrityMetadata(text) != (result != csp::IntegrityResult::NoMetadata)) {
+    __builtin_trap();
+  }
+  // And the check is a function of the bytes: the same metadata against
+  // different bytes may not both match, unless there was no metadata at all.
+  if (result == csp::IntegrityResult::Match &&
+      csp::CheckIntegrity(text, "console.log(2)") == csp::IntegrityResult::Match) {
+    __builtin_trap();
+  }
   return 0;
 }

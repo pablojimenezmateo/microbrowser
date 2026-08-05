@@ -163,6 +163,17 @@ class Engine : private bindings::NetworkSource {
   // Acts on one thing that arrived.
   void OnCompletion(Loader::Completion completion);
   void OnDocument(Loader::Result result);
+  // How one subresource is fetched, or nothing when it must not be fetched at
+  // all -- which is `integrity` on a cross-origin resource with no
+  // `crossorigin`. See ADR 0020 §4.
+  std::optional<net::FetchOptions> OptionsForSubresource(
+      const SubresourceRequest& request) const;
+  // Whether the bytes that arrived are the ones the document named. Static
+  // because it is a question about the pair (element, bytes) and nothing else,
+  // and shared by the stylesheet and the script paths so that "refuse to apply"
+  // and "refuse to execute" cannot come to mean two different things.
+  static bool IntegrityHolds(const std::vector<SubresourceRequest>& requests,
+                             std::size_t index, std::string_view body);
   // Starts every subresource the parsed document referenced, all at once.
   // Concurrency is bounded per partition key inside the request queue, which is
   // where that bound belongs -- see ADR 0005 for why it is per key.

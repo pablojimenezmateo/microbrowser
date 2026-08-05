@@ -71,6 +71,22 @@ std::string_view NonceOf(const dom::Element& element) {
   return nonce == nullptr ? std::string_view{} : std::string_view(*nonce);
 }
 
+// The `integrity` and `crossorigin` of one element, as one value. Here rather
+// than at each of its two callers so that a `<script>` and a `<link>` cannot
+// come to read the pair differently -- which is the whole risk in ADR 0020 §4's
+// rule that the two are read together.
+SubresourceRequest RequestFor(const dom::Element& element, std::string url) {
+  SubresourceRequest request;
+  request.url = std::move(url);
+  if (const std::string* integrity = element.GetAttribute("integrity")) {
+    request.integrity = *integrity;
+  }
+  if (const std::string* cross_origin = element.GetAttribute("crossorigin")) {
+    request.cross_origin = *cross_origin;
+  }
+  return request;
+}
+
 bool IsLinkedStyleSheet(const dom::Element& link) {
   if (link.TagName() != "link") {
     return false;
@@ -164,7 +180,7 @@ void Page::CollectStyleSheets() {
     if (!policy_.AllowsUrl(csp::Directive::Style, *href, NonceOf(element))) {
       return;
     }
-    resources_.pending_sheets.push_back(*href);
+    resources_.pending_sheets.push_back(RequestFor(element, *href));
     resources_.pending_sheet_slots.push_back(resources_.author_sheet_slots.size());
     resources_.author_sheet_slots.push_back(std::nullopt);
   });

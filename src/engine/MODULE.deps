@@ -12,7 +12,7 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # each of the four resource paths deciding for itself. See ADR 0020 §3.
 allow: util gfx ipc url privacy csp net dom html css layout js bindings
 
-public: DocumentPolicy.h Engine.h ImageSelection.h Loader.h Page.h PendingLoad.h
+public: DocumentPolicy.h Engine.h ImageSelection.h Loader.h Page.h PendingLoad.h Subresource.h
 
 extern:
 
@@ -87,7 +87,11 @@ max_tu_lines: 800
 # new methods are the `bindings::NetworkSource` implementation, which lives in
 # EngineFetch.cpp rather than here for the reason the input path lives in
 # EngineInput.cpp.
-budget: Engine header_lines=225 public_methods=15 members=10
+# 240 lines for ADR 0020 §3-4 and no new members. The three private methods are
+# the subresource policy -- how one is fetched, and whether the bytes that
+# arrived are the ones the document named -- and they live in
+# EngineSubresources.cpp for the reason the fetch path lives in EngineFetch.cpp.
+budget: Engine header_lines=240 public_methods=15 members=10
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.

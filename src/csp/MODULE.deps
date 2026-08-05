@@ -3,7 +3,7 @@
 # Format is documented in guidelines/architecture.md. Every field is enforced by
 # tests/ArchitectureInvariantsTests.cpp.
 
-purpose: The page's own policy on what it may load and run. Content-Security-Policy, parsed and answered.
+purpose: The page's own policy on what it may load and run: Content-Security-Policy and Subresource Integrity.
 
 # `url` for the thing a policy is about and `util` for the digest a
 # hash-source needs. Deliberately not `net`: this module decides, it does not
@@ -18,7 +18,7 @@ purpose: The page's own policy on what it may load and run. Content-Security-Pol
 # question the caller answers.
 allow: util url
 
-public: ContentSecurityPolicy.h
+public: ContentSecurityPolicy.h SubresourceIntegrity.h
 
 extern:
 

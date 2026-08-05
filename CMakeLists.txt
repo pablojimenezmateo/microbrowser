@@ -196,6 +196,7 @@ microbrowser_module(privacy
 microbrowser_module(csp
   SOURCES
     src/csp/ContentSecurityPolicy.cpp
+    src/csp/SubresourceIntegrity.cpp
   DEPS microbrowser_util microbrowser_url)
 
 microbrowser_module(dom
@@ -302,6 +303,7 @@ microbrowser_module(engine
     src/engine/EngineInput.cpp
     src/engine/EngineFetch.cpp
     src/engine/EngineImages.cpp
+    src/engine/EngineSubresources.cpp
     src/engine/FormAlgorithms.cpp
     src/engine/GeometryQueries.cpp
     src/engine/ImageSelection.cpp
@@ -467,6 +469,7 @@ add_executable(microbrowser_tests
   tests/GlyphCacheTests.cpp
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
+  tests/IntegrityTests.cpp
   tests/IpcMessageTests.cpp
   tests/IsoBmffTests.cpp
   tests/JpegDecoderTests.cpp

@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "csp/SubresourceIntegrity.h"
 #include "gfx/DisplayListDiff.h"
 #include "gfx/JpegDecoder.h"
 #include "gfx/PngDecoder.h"
@@ -255,6 +256,15 @@ void Engine::OnCompletion(Loader::Completion completion) {
   switch (resource.kind) {
     case ResourceKind::StyleSheet:
       --load_.sheets_outstanding;
+      if (completion.result.ok &&
+          !IntegrityHolds(page_.PendingStyleSheets(), resource.index, completion.result.body)) {
+        // A sheet whose bytes are not the ones the page named is not applied.
+        // Counted as a failure rather than as an absence: from the page's point
+        // of view a CDN that served something else and a CDN that served
+        // nothing are the same, and that is the whole point of asking.
+        AddPerformanceCounter(PerfCounterId::EngineStyleSheetsFailed);
+        break;
+      }
       if (completion.result.ok) {
         page_.AddStyleSheet(resource.index, completion.result.body);
         AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
@@ -270,6 +280,13 @@ void Engine::OnCompletion(Loader::Completion completion) {
       // the whole of what the attribute means.
       const bool is_async = page_.PendingScriptIsAsync(resource.index);
       --(is_async ? load_.async_scripts_outstanding : load_.scripts_outstanding);
+      if (completion.result.ok &&
+          !IntegrityHolds(page_.PendingScripts(), resource.index, completion.result.body)) {
+        // Refused to execute. The slot stays empty and the scripts after it
+        // still run, which is what a failed script load already did.
+        AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+        break;
+      }
       if (completion.result.ok) {
         page_.AddScript(resource.index, std::move(completion.result.body));
         AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
@@ -340,37 +357,6 @@ void Engine::OnDocument(Loader::Result result) {
   if (load_.base.has_value()) {
     StartSubresources();
   }
-}
-
-void Engine::StartSubresources() {
-  net::FetchOptions options;
-  options.bypass_cache = load_.bypass_cache;
-  const url::Url& document = *load_.base;
-
-  // All at once. The order they are *started* in is document order and stays
-  // deterministic; the order they arrive in is the network's business and this
-  // engine must not have an opinion about it, which is what the slot-filling
-  // below is for.
-  const std::vector<std::string>& sheets = page_.PendingStyleSheets();
-  for (std::size_t i = 0; i < sheets.size(); ++i) {
-    const Loader::RequestId id = loader_.StartSubresource(
-        sheets[i], document, privacy::ResourceType::Stylesheet, NowSeconds(), options);
-    load_.resources[id] = PendingResource{ResourceKind::StyleSheet, i, {}};
-    ++load_.sheets_outstanding;
-  }
-
-  const std::vector<std::string>& scripts = page_.PendingScripts();
-  for (std::size_t i = 0; i < scripts.size(); ++i) {
-    const Loader::RequestId id = loader_.StartSubresource(
-        scripts[i], document, privacy::ResourceType::Script, NowSeconds(), options);
-    load_.resources[id] = PendingResource{ResourceKind::Script, i, {}};
-    ++(page_.PendingScriptIsAsync(i) ? load_.async_scripts_outstanding
-                                     : load_.scripts_outstanding);
-  }
-
-  StartImageRequests();
-
-  load_.total_resources = load_.resources.size();
 }
 
 void Engine::AdvanceLoad() {

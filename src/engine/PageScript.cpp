@@ -56,7 +56,7 @@ std::string PageScript::SourceName(std::size_t slot) const {
   // of them, "the fourth script" is not something anyone can act on.
   for (std::size_t i = 0; i < pending_slots_.size(); ++i) {
     if (pending_slots_[i] == slot) {
-      return pending_urls_[i];
+      return pending_urls_[i].url;
     }
   }
   return "inline script #" + std::to_string(slot);
@@ -123,7 +123,15 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
     // A slot now, filled later. Its position is what keeps document order
     // across the two kinds, and an external script that never arrives leaves
     // an empty slot rather than moving everything after it.
-    pending_urls_.push_back(*src);
+    SubresourceRequest request;
+    request.url = *src;
+    if (const std::string* integrity = element.GetAttribute("integrity")) {
+      request.integrity = *integrity;
+    }
+    if (const std::string* cross_origin = element.GetAttribute("crossorigin")) {
+      request.cross_origin = *cross_origin;
+    }
+    pending_urls_.push_back(std::move(request));
     pending_slots_.push_back(slots_.size());
     slots_.push_back(std::move(slot));
   });

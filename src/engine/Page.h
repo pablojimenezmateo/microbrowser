@@ -133,12 +133,14 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // Stylesheet URLs the document referenced, in document order, exactly as
   // written. Resolving them against the document is the loader's job, because
   // it is the loader that knows what a base URL is for.
-  const std::vector<std::string>& PendingStyleSheets() const { return resources_.pending_sheets; }
+  const std::vector<SubresourceRequest>& PendingStyleSheets() const {
+    return resources_.pending_sheets;
+  }
 
   // The external scripts this document referenced, in document order. Fetched
   // by the caller for the same reason a stylesheet is: a fetch needs a privacy
   // verdict, and producing one is the loader's job.
-  const std::vector<std::string>& PendingScripts() const { return script_.PendingUrls(); }
+  const std::vector<SubresourceRequest>& PendingScripts() const { return script_.PendingUrls(); }
   // Whether `PendingScripts()[index]` is one the page said it would not wait
   // for. The caller asks so it knows which outstanding scripts hold the first
   // paint and which do not -- see PageScript::Timing and ADR 0011.
@@ -361,7 +363,7 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
 
  private:
   struct DocumentResources {
-    std::vector<std::string> pending_sheets;
+    std::vector<SubresourceRequest> pending_sheets;
     std::vector<std::size_t> pending_sheet_slots;
     std::vector<std::optional<std::string>> author_sheet_slots;
     std::vector<std::string> pending_images;
