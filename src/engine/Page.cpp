@@ -47,6 +47,41 @@ bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
 // much further down; and it clips, so a point outside its padding box hits
 // nothing inside it however far the geometry extends. Hit testing has to walk
 // the paint rather than the flow, and this is the whole of the difference.
+// The point a transformed box actually sees.
+//
+// ADR 0014 §4's other half: a transform moves what is *painted* and nothing else, so
+// the box's geometry stays where layout put it and every hit test has to un-map the
+// pointer instead. Without this, a rotated menu is clicked by pointing at where it
+// would have been -- which is invisible, and looks like the click handler is broken
+// rather than the hit test.
+//
+// Nothing when the matrix has no inverse: the box has been collapsed to a line and
+// has no interior to hit. This is the same answer the painter gives for the same
+// reason.
+std::optional<gfx::FloatPoint> UntransformedPoint(const layout::Box& box,
+                                                  gfx::FloatPoint point) {
+  const css::ComputedStyle& style = box.Style();
+  if (style.transform.IsNone() || box.Origin() == nullptr) {
+    return point;
+  }
+  const gfx::FloatRect border_box = box.Geometry().BorderBox();
+  // Document coordinates on both sides, which is why the origin has no paint offset
+  // added to it here and does in the display-list builder: the two callers work in
+  // different spaces and the matrix is built for whichever one is asking.
+  const gfx::FloatPoint origin{
+      border_box.x + style.transform_origin_x.Used(border_box.width, style.font_size),
+      border_box.y + style.transform_origin_y.Used(border_box.height, style.font_size)};
+  const std::optional<gfx::AffineTransform> inverse =
+      style.transform
+          .ToMatrix(gfx::FloatSize{border_box.width, border_box.height}, origin,
+                    style.font_size)
+          .Inverted();
+  if (!inverse.has_value()) {
+    return std::nullopt;
+  }
+  return inverse->MapPoint(point);
+}
+
 std::optional<gfx::FloatPoint> PointInside(const layout::Box& box, gfx::FloatPoint point) {
   if (!box.IsScrollContainer()) {
     return point;
@@ -103,6 +138,11 @@ using ElementPredicate = bool (*)(const dom::Element&);
 // what the cast crosses, and why it lives here rather than at four call sites.
 dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
                                  ElementPredicate predicate) {
+  const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
+  if (!local.has_value()) {
+    return nullptr;
+  }
+  point = *local;
   if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
     for (std::size_t i = box.Children().size(); i-- > 0;) {
       if (dom::Element* hit = HitTestFormControl(*box.Children()[i], *inside, predicate)) {
@@ -135,6 +175,11 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
 // uses to carry an href.
 const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point,
                                    const dom::Element* enclosing) {
+  const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
+  if (!local.has_value()) {
+    return nullptr;
+  }
+  point = *local;
   if (box.Origin() != nullptr) {
     enclosing = box.Origin();
   }
@@ -161,6 +206,11 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
 
 std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
                                        const std::string* active_href) {
+  const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
+  if (!local.has_value()) {
+    return std::nullopt;
+  }
+  point = *local;
   if (const std::string* href = AnchorHref(box.Origin())) {
     active_href = href;
   }

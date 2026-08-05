@@ -448,6 +448,48 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "text outside the anchor is not a link");
   });
 
+  AddTest(tests, "Page/HitTestsThroughATransform", [] {
+    // ADR 0014 §4's other half. A transform moves what is *painted* and nothing
+    // else, so the box stays where layout put it and the hit test has to un-map the
+    // pointer. Without that, a rotated menu is clicked by pointing at where it would
+    // have been -- which is invisible, and reads as a broken click handler rather
+    // than a broken hit test.
+    //
+    // The link is 120x40 at the origin, rotated a quarter turn about its centre
+    // (60,20), so on screen it is 40 wide and 120 tall about the same point.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>a{display:block;width:120px;height:40px;transform:rotate(90deg)}</style>"
+        "<body style='margin:0'><a href='/next'>ABC</a></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+
+    Expect(page.LinkAt(gfx::FloatPoint{55.0f, 70.0f}).has_value(),
+           "a point inside the rotated rectangle hits the link");
+    Expect(!page.LinkAt(gfx::FloatPoint{110.0f, 20.0f}).has_value(),
+           "and a point inside the *unrotated* one no longer does");
+  });
+
+  AddTest(tests, "Page/ADegenerateTransformCannotBeClicked", [] {
+    // `scale(0)` has collapsed the box to a point: it paints nothing, so it must not
+    // be clickable either. The painter refuses the same case for the same reason, and
+    // a hit test that answered here would be an invisible element eating clicks.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>a{display:block;width:120px;height:40px;transform:scale(0)}</style>"
+        "<body style='margin:0'><a href='/next'>ABC</a></body>",
+        "https://example.org/start");
+    page.Layout(400.0f);
+    for (float x = 0.0f; x < 130.0f; x += 10.0f) {
+      for (float y = 0.0f; y < 50.0f; y += 10.0f) {
+        Expect(!page.LinkAt(gfx::FloatPoint{x, y}).has_value(),
+               "nothing anywhere in or around the collapsed box is a link");
+      }
+    }
+  });
+
   AddTest(tests, "Page/BuildsGetFormSubmissionTargets", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
