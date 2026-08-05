@@ -222,7 +222,8 @@
       "anchor": "### Sessions 19\u201320 \u2014 web fonts",
       "scope": "@font-face, src with format() and fallbacks, the weight/style/stretch descriptors, unicode-range, font-display with block capped and swap honoured, against plain TrueType/OpenType. Font-face matching alongside the system database.",
       "check": "youtube renders in Roboto. A unicode-range page fetches only the subsets its text needs.",
-      "status": "not_started"
+      "status": "in_progress",
+      "notes": "Started 2026-08-05. **What landed: the parse.** `@font-face` is a `css::FontFace` on the stylesheet rather than a counted skip -- family, ordered `src` with `format()` hints, font-weight (a variable font's range taken as its first value), font-style, font-display. `local(...)` is skipped rather than answered, because answering it from the system database would let a page ask which fonts are installed (ADR 0029). `unicode-range` is a *bool* and not text: a declaration value arrives reconstructed from tokens and `U+0000-00FF` comes back as `U00FF`, so the text would be a lie -- whoever honours the descriptor parses it from the token run. **What is left:** collecting the faces from the author sheets, fetching the first source this browser can decode, and registering it with `gfx::FontCatalog::Register(family, weight, italic, bytes)` -- which already exists and takes exactly what a face has. The pieces to decide: `font-display` (block capped, swap honoured) is a *paint* decision, so it belongs where the first paint is gated; and only plain TrueType/OpenType can be decoded today, so a `format(\"woff2\")` source must be skipped rather than fetched until session 20 brings brotli and the WOFF2 container."
     },
     {
       "id": 20,
