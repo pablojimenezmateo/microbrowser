@@ -9,6 +9,7 @@
 #include "bindings/AnimationFrames.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Geometry.h"
+#include "bindings/History.h"
 #include "bindings/Network.h"
 #include "bindings/Timers.h"
 #include "dom/Node.h"
@@ -62,6 +63,16 @@ class PageScript {
   // arrived later would leave the first script of a document without one, and
   // `fetch` is declared or not declared at construction.
   void SetNetworkSource(bindings::NetworkSource* network) { network_ = network; }
+  // The same, for `window.history`.
+  void SetHistorySource(bindings::HistorySource* history) { history_ = history; }
+  // Fires `popstate`, or `hashchange`, at the window. False before this page has
+  // an interpreter, which is a traversal on a document that never ran a script.
+  // Moves the address the binding layer answers with. Nothing before this page
+  // has an interpreter, which is a `pushState` on a document with no script --
+  // impossible, since `pushState` comes from script.
+  void SetDocumentUrl(const std::string& url);
+  bool NotifyPopState();
+  bool NotifyHashChange(const std::string& old_url, const std::string& new_url);
 
   // Settles the promise `fetch` handed out for `id`. False when nothing was
   // waiting -- the request was aborted, or this is a second delivery -- and
@@ -255,6 +266,7 @@ class PageScript {
   std::vector<std::string> errors_;
   bindings::GeometrySource* geometry_ = nullptr;
   bindings::NetworkSource* network_ = nullptr;
+  bindings::HistorySource* history_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

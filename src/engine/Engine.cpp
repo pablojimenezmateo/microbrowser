@@ -101,6 +101,8 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // life of the engine, and a source that arrived later would leave the first
   // script of the first document without a `fetch`.
   page_.SetNetworkSource(this);
+  // And its history questions, for the same reason and with the same lifetime.
+  page_.SetHistorySource(this);
 }
 
 bool Engine::HandlePendingMessages() {
@@ -125,6 +127,8 @@ bool Engine::HandlePendingMessages() {
       produced_output = HandlePointer(*pointer) || produced_output;
     } else if (const auto* key = std::get_if<ipc::KeyInputMessage>(&*message)) {
       produced_output = HandleKey(*key) || produced_output;
+    } else if (const auto* traverse = std::get_if<ipc::TraverseHistoryMessage>(&*message)) {
+      produced_output = Traverse(traverse->delta) || produced_output;
     } else if (std::holds_alternative<ipc::StopLoadMessage>(*message)) {
       // Now a real thing to do: the queue drops every outstanding request and
       // their connections close with them. The page keeps whatever had already
@@ -345,8 +349,27 @@ void Engine::OnDocument(Loader::Result result) {
 
   page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url,
              std::move(policies));
+  if (traversing_) {
+    // A traversal's entry is already in the list, at its own index. Its URL is
+    // rewritten rather than pushed, because a redirect can land somewhere else
+    // and the entry has to say where the document actually is.
+    traversing_ = false;
+    history_.SetCurrentUrl(page_.Url());
+    ++document_id_;
+    if (HistoryEntry* entry = history_.MutableCurrent()) {
+      // A fresh document, so the entry it belongs to is a fresh one too: coming
+      // back to it must be a load rather than a `popstate` on a document that no
+      // longer exists.
+      entry->document = document_id_;
+      entry->state = js::SerializedValue{};
+    }
+  } else {
+    history_.PushDocument(page_.Url(), ++document_id_);
+  }
   endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
+  history_.SetCurrentTitle(page_.Title());
   endpoint_.Send(ipc::TitleChangedMessage{page_.Title()});
+  SendHistoryState();
 
   // A data: or about: document has no base to resolve against, so a relative
   // href in one has nowhere to point. The page's own base is what this reads,
@@ -474,6 +497,11 @@ void Engine::NavigateFromCurrentDocument(const std::string& url,
 }
 
 bool Engine::FollowScriptNavigation() {
+  // A traversal first, because `history.back()` is the one a router calls and
+  // both are taken at the same boundary for the same reason.
+  if (FollowPendingTraversal()) {
+    return true;
+  }
   const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission();
   if (!submission.has_value()) {
     return false;

@@ -125,20 +125,7 @@ void DomBindings::InstallWindow() {
   // all a page reads back here is the parts it was given.
   const Value location = interpreter_->NewObjectValue();
   if (location.IsObject()) {
-    const Address address = SplitAddress(url_);
-    location.object->Set("href", Value::String(url_));
-    location.object->Set("protocol", Value::String(address.protocol));
-    location.object->Set("host", Value::String(address.host));
-    location.object->Set("hostname", Value::String(address.hostname));
-    location.object->Set("port", Value::String(address.port));
-    location.object->Set("pathname", Value::String(address.pathname));
-    // `search` and `hash` were the two missing ones, and their absence is not
-    // cosmetic: a page reading `new URLSearchParams(location.search)` off an
-    // `undefined` gets an empty parameter set and carries on, which is how
-    // reddit's challenge form submits without the fields it was meant to add.
-    location.object->Set("search", Value::String(address.search));
-    location.object->Set("hash", Value::String(address.hash));
-    location.object->Set("origin", Value::String(address.origin));
+    WriteLocationFields(location);
     // `toString`, because a page concatenates `location` with a string as
     // often as it reads `href`.
     const Value to_string = interpreter_->NewNativeValue("toString", [](NativeCall& call) {
@@ -159,8 +146,6 @@ void DomBindings::InstallWindow() {
     if (js::Value* document = interpreter_->GlobalScope()->Lookup("document")) {
       if (document->IsObject()) {
         document->object->Set("location", location);
-        // And `document.URL`, which is the same string by another name.
-        document->object->Set("URL", Value::String(url_));
       }
     }
   }
@@ -185,6 +170,48 @@ void DomBindings::InstallWindow() {
     navigator.object->Set("userAgent", Value::String(std::string(util::kUserAgent)));
     global->Set("navigator", navigator);
     interpreter_->GlobalScope()->Declare("navigator", navigator, false);
+  }
+}
+
+void DomBindings::WriteLocationFields(const js::Value& location) {
+  if (!location.IsObject()) {
+    return;
+  }
+  const Address address = SplitAddress(url_);
+  location.object->Set("href", Value::String(url_));
+  location.object->Set("protocol", Value::String(address.protocol));
+  location.object->Set("host", Value::String(address.host));
+  location.object->Set("hostname", Value::String(address.hostname));
+  location.object->Set("port", Value::String(address.port));
+  location.object->Set("pathname", Value::String(address.pathname));
+  // `search` and `hash` were the two missing ones, and their absence is not
+  // cosmetic: a page reading `new URLSearchParams(location.search)` off an
+  // `undefined` gets an empty parameter set and carries on, which is how
+  // reddit's challenge form submits without the fields it was meant to add.
+  location.object->Set("search", Value::String(address.search));
+  location.object->Set("hash", Value::String(address.hash));
+  location.object->Set("origin", Value::String(address.origin));
+  if (js::Value* document = interpreter_->GlobalScope()->Lookup("document")) {
+    if (document->IsObject()) {
+      // `document.URL`, which is the same string by another name.
+      document->object->Set("URL", Value::String(url_));
+    }
+  }
+}
+
+void DomBindings::SetDocumentUrl(std::string url) {
+  url_ = std::move(url);
+  if (interpreter_ == nullptr) {
+    return;
+  }
+  // The *existing* location object, rewritten in place. A page holds a reference
+  // to it -- `document.location === window.location` is something pages check --
+  // so a same-document navigation that replaced the object would make every such
+  // reference stale. ADR 0026 §2: the address a page reads has to be the address
+  // the URL bar shows, and there is one of each.
+  const Value* location = interpreter_->GlobalScope()->Lookup("location");
+  if (location != nullptr) {
+    WriteLocationFields(*location);
   }
 }
 

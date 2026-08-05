@@ -29,6 +29,7 @@ enum class UiTag : std::uint8_t {
   // ever read.
   PointerInput = 6,
   KeyInput = 7,
+  TraverseHistory = 8,
 };
 
 enum class EngineTag : std::uint8_t {
@@ -36,6 +37,7 @@ enum class EngineTag : std::uint8_t {
   TitleChanged = 2,
   LoadProgress = 3,
   NavigationCommitted = 4,
+  HistoryState = 5,
 };
 
 // A viewport edge, and the physical-pixels-per-CSS-pixel scale. Both are far
@@ -126,6 +128,9 @@ std::vector<std::byte> Serialize(const UiToEngine& message) {
     writer.WriteU16(pointer->buttons);
     writer.WriteU8(pointer->button);
     WriteModifiers(writer, pointer->modifiers);
+  } else if (const auto* traverse = std::get_if<TraverseHistoryMessage>(&message)) {
+    writer.WriteU8(static_cast<std::uint8_t>(UiTag::TraverseHistory));
+    writer.WriteI32(traverse->delta);
   } else {
     const auto& key = std::get<KeyInputMessage>(message);
     writer.WriteU8(static_cast<std::uint8_t>(UiTag::KeyInput));
@@ -159,10 +164,14 @@ std::vector<std::byte> Serialize(const EngineToUi& message) {
   } else if (const auto* progress = std::get_if<LoadProgressMessage>(&message)) {
     writer.WriteU8(static_cast<std::uint8_t>(EngineTag::LoadProgress));
     writer.WriteF32(progress->fraction);
-  } else {
-    const auto& committed = std::get<NavigationCommittedMessage>(message);
+  } else if (const auto* committed = std::get_if<NavigationCommittedMessage>(&message)) {
     writer.WriteU8(static_cast<std::uint8_t>(EngineTag::NavigationCommitted));
-    writer.WriteString(committed.url);
+    writer.WriteString(committed->url);
+  } else {
+    const auto& history = std::get<HistoryStateMessage>(message);
+    writer.WriteU8(static_cast<std::uint8_t>(EngineTag::HistoryState));
+    writer.WriteU8(history.can_go_back ? 1u : 0u);
+    writer.WriteU8(history.can_go_forward ? 1u : 0u);
   }
 
   return FinishFrame(writer);
@@ -290,6 +299,18 @@ std::optional<UiToEngine> DeserializeUiToEngine(std::span<const std::byte> bytes
       message = std::move(value);
       break;
     }
+    case UiTag::TraverseHistory: {
+      TraverseHistoryMessage value;
+      value.delta = reader.ReadI32();
+      if (!reader.Ok()) {
+        return std::nullopt;
+      }
+      // A delta a sender can make arbitrarily large is one the history clamps
+      // to nothing anyway, so there is no bound to add here: SessionHistory::Go
+      // refuses a target outside the list rather than clamping to its end.
+      message = value;
+      break;
+    }
     default:
       return std::nullopt;
   }
@@ -356,6 +377,16 @@ std::optional<EngineToUi> DeserializeEngineToUi(std::span<const std::byte> bytes
       NavigationCommittedMessage value;
       value.url = reader.ReadString();
       message = std::move(value);
+      break;
+    }
+    case EngineTag::HistoryState: {
+      HistoryStateMessage value;
+      value.can_go_back = reader.ReadU8() != 0;
+      value.can_go_forward = reader.ReadU8() != 0;
+      if (!reader.Ok()) {
+        return std::nullopt;
+      }
+      message = value;
       break;
     }
     default:

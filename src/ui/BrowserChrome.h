@@ -4,7 +4,7 @@
 #include <string>
 
 #include "platform/InputEvent.h"
-#include "ui/NavigationHistory.h"
+
 #include "ui/Toolbar.h"
 
 namespace microbrowser::ui {
@@ -23,11 +23,18 @@ class BrowserChrome {
     // Two, and scrolling is deliberately not a third. The arrow and page keys
     // scroll from the engine now, as a keydown's default action -- the chrome
     // doing it meant a page never saw the key. See Engine::ScrollByKey.
-    enum class Kind : std::uint8_t { Navigate, Reload };
+    // Three now. A traversal is not a Navigate with a URL, because the chrome
+    // no longer knows one: ADR 0026 §1 moved session history into the engine,
+    // where the documents are, and the chrome knows only that a button was
+    // pressed. That is what makes a same-document traversal possible at all --
+    // only the engine can tell a `pushState` entry from a loaded one.
+    enum class Kind : std::uint8_t { Navigate, Reload, TraverseHistory };
 
     Kind kind = Kind::Navigate;
     std::string url;
     bool bypass_cache = false;
+    // Negative is back. Meaningful only for TraverseHistory.
+    int delta = 0;
   };
 
   // The event was consumed by the chrome and must not reach the page.
@@ -55,21 +62,26 @@ class BrowserChrome {
 
   Toolbar& GetToolbar() { return toolbar_; }
   const Toolbar& GetToolbar() const { return toolbar_; }
-  NavigationHistory& History() { return history_; }
-  const NavigationHistory& History() const { return history_; }
+  // What the two buttons should look like, as the engine last reported it. The
+  // chrome holds no entries: ADR 0026 §1's narrowing is that it knows two bools
+  // and the URL of the document being displayed.
+  void OnHistoryState(bool can_go_back, bool can_go_forward);
 
   // The window title: the page's, falling back to its URL.
   std::string WindowTitle() const;
 
  private:
   Response Navigate(std::string url);
-  void SyncToolbarState();
+
 
   Toolbar toolbar_;
-  NavigationHistory history_;
+  // The URL of the document on screen and its title, for the omnibox and the
+  // window title. The whole of what the chrome remembers about navigation now.
+  std::string url_;
+  std::string title_;
   // Set while a history move is in flight, so the commit it produces does not
   // push a new entry and strand the forward button.
-  bool navigating_through_history_ = false;
+
 };
 
 // Turns what a person typed into something to navigate to.

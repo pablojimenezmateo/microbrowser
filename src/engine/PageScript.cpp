@@ -156,7 +156,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   }
   interpreter_ = std::make_unique<js::Interpreter>();
   bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url,
-                                                     geometry_, network_);
+                                                     geometry_, network_, history_);
   bindings_->Install();
   timers_.Install(*interpreter_, now_ms);
   frames_.Install(*interpreter_, now_ms);
@@ -242,6 +242,20 @@ bool PageScript::DeliverFetchResponse(std::uint64_t id,
   // waiting -- and building one here to deliver into would be a second way to
   // create a page's global scope.
   return bindings_ != nullptr && bindings_->DeliverFetchResponse(id, response);
+}
+
+void PageScript::SetDocumentUrl(const std::string& url) {
+  if (bindings_ != nullptr) {
+    bindings_->SetDocumentUrl(url);
+  }
+}
+
+bool PageScript::NotifyPopState() {
+  return bindings_ != nullptr && bindings_->DispatchPopState();
+}
+
+bool PageScript::NotifyHashChange(const std::string& old_url, const std::string& new_url) {
+  return bindings_ != nullptr && bindings_->DispatchHashChange(old_url, new_url);
 }
 
 bool PageScript::RunReadyAsync() {

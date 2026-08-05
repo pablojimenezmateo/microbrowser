@@ -42,6 +42,25 @@ class DocumentPolicy {
   // result does not parse. True when it moved.
   bool SetBase(std::string_view href);
 
+  // Moves the document's address, for a same-document navigation -- a
+  // `pushState` or a traversal within one document. The base moves with it
+  // *unless* a `<base href>` claimed it, which wins: an element in the document
+  // outranks the address, and a `pushState` that silently retargeted every
+  // relative URL on a page with a `<base>` would be a bug nobody could see from
+  // the markup.
+  //
+  // The origin is deliberately not recomputed: a same-document navigation is
+  // same-origin by construction -- that is the check that let it happen -- and
+  // recomputing it here would be a second answer to a question already decided.
+  void UpdateDocumentUrl(std::string_view url);
+
+  // Whether `url` is same-origin with this document. The one origin comparison
+  // `pushState` makes, and it is here rather than in `src/bindings` because that
+  // module may not see `url` -- which is what keeps there being one of these.
+  // ADR 0026 §2.
+  bool IsSameOrigin(const url::Url& url) const { return self_.IsSameOrigin(url::Origin::FromUrl(url)); }
+  const url::Origin& Origin() const { return self_; }
+
   // What a relative URL in this document resolves against: `<base href>` when
   // there is one and the document's own address otherwise. Nothing when the
   // address itself does not parse, which is a `data:` or `about:` document.
@@ -73,6 +92,9 @@ class DocumentPolicy {
   csp::PolicyList policies_;
   url::Origin self_;
   std::optional<url::Url> base_;
+  // Whether `base_` came from a `<base href>` rather than from the address. An
+  // element outranks the address, so a same-document navigation must not move it.
+  bool base_from_element_ = false;
   // Mutable so that answering a question can record having refused one. The
   // alternative is every caller remembering to log, at eight call sites, which
   // is how a browser ends up enforcing silently.

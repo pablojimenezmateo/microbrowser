@@ -368,7 +368,12 @@ bool DomBindings::DispatchScroll(dom::Element* target) {
 }
 
 bool DomBindings::DispatchAtWindow(const char* type) {
-  if (interpreter_ == nullptr) {
+  const Value event = MakeEvent(type, false, false, true);
+  return event.IsObject() && DispatchAtWindowWith(type, event);
+}
+
+bool DomBindings::DispatchAtWindowWith(const char* type, const js::Value& event) {
+  if (interpreter_ == nullptr || !event.IsObject()) {
     return false;
   }
   const Value window = Value::Obj(interpreter_->Global());
@@ -376,13 +381,11 @@ bool DomBindings::DispatchAtWindow(const char* type) {
   const bool listening =
       window.object->GetOwn(slot) != nullptr || window.object->Get(std::string("on") + type) != nullptr;
   if (!listening) {
-    // Asked before the event is built, so a page that is listening for nothing
-    // costs nothing -- which is what keeps `load` from relaying out every
-    // document that ever finished loading.
-    return false;
-  }
-  const Value event = MakeEvent(type, false, false, true);
-  if (!event.IsObject()) {
+    // Asked before the listeners run rather than before the event is built,
+    // because a caller that put fields on the event -- `popstate`'s `state`, a
+    // `hashchange`'s two URLs -- has already built it. A page listening for
+    // nothing still costs nothing, which is what keeps `load` from relaying out
+    // every document that ever finished loading.
     return false;
   }
   event.object->Set("target", window);

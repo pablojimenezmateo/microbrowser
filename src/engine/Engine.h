@@ -6,10 +6,12 @@
 #include <string>
 #include <vector>
 
+#include "bindings/History.h"
 #include "bindings/Network.h"
 #include "engine/Loader.h"
 #include "engine/Page.h"
 #include "engine/PendingLoad.h"
+#include "engine/SessionHistory.h"
 #include "gfx/DisplayList.h"
 #include "gfx/Geometry.h"
 #include "ipc/Message.h"
@@ -41,7 +43,7 @@ namespace microbrowser::engine {
 // where "the browser" lives. Document, navigation history, network, and script
 // each get their own type; Engine stays the thing that routes messages to them.
 // Its budget in src/engine/MODULE.deps is the tripwire.
-class Engine : private bindings::NetworkSource {
+class Engine : private bindings::NetworkSource, private bindings::HistorySource {
  public:
   // Fonts arrive from the caller because which fonts exist is a property of
   // the machine, and the engine is the half of the seam that does not know
@@ -191,6 +193,34 @@ class Engine : private bindings::NetworkSource {
   // changed and a frame should go out.
   bool OnLateImage(Loader::Completion completion);
 
+  // bindings::HistorySource. ADR 0026 §1-2, implemented in EngineHistory.cpp.
+  // Private for the reason NetworkSource is, and the interesting one is
+  // PushHistoryState: `src/bindings` may not see `url`, so the same-origin check
+  // -- the only thing between a page and a perfect address-bar spoof -- is on
+  // this side of the seam, and the binding turns the refusal into a
+  // `SecurityError`.
+  std::size_t HistoryLength() const override;
+  const js::SerializedValue& HistoryState() const override;
+  std::uint64_t HistoryStateGeneration() const override;
+  UrlOutcome PushHistoryState(const js::SerializedValue& state, std::string_view url,
+                              bool replace) override;
+  void RequestHistoryTraversal(int delta) override;
+
+  // Moves by `delta`: a load when the target entry belongs to another document,
+  // and a paint plus `popstate` when it belongs to this one. True when anything
+  // moved.
+  bool Traverse(int delta);
+  // The traversal a script asked for, taken at the turn boundary. True when one
+  // happened, which is the caller's signal that everything below it belongs to a
+  // document that may be gone.
+  bool FollowPendingTraversal();
+  // A navigation that differs from the current URL only in its fragment: a new
+  // entry, the fragment applied, `hashchange`, and no request. True when `url`
+  // was one, which is the caller's signal not to load it.
+  bool NavigateToFragment(const std::string& url);
+  // Tells the chrome what its two buttons should look like, and nothing else.
+  void SendHistoryState();
+
   // bindings::NetworkSource. Private inheritance for the reason Page's
   // GeometrySource is private: the binding layer holds a reference to the
   // interface and nothing else has business calling these.
@@ -272,6 +302,23 @@ class Engine : private bindings::NetworkSource {
   // when the answer arrives. Same two rules as `late_images_`: a navigation
   // clears it, and something in it keeps the loop turning.
   std::set<Loader::RequestId> script_fetches_;
+  // Back and forward, for this tab. ADR 0026 §1: it is here rather than in
+  // `src/ui` because a `pushState` entry is a URL *plus a state object owned by a
+  // document*, and the chrome cannot see a document.
+  SessionHistory history_;
+  // Which document is current. Incremented per committed load, and compared
+  // rather than a URL: two loads of the same URL are two documents, and two
+  // `pushState` entries on one document are not.
+  std::uint64_t document_id_ = 0;
+  // A traversal a script asked for and has not had yet. Taken at the turn
+  // boundary for the reason a form submission is: a traversal can replace the
+  // document, and doing that with the interpreter on the stack is a
+  // use-after-free.
+  int pending_traversal_ = 0;
+  // Whether the load in flight is a traversal rather than a new navigation. A
+  // traversal's entry is already in the list at its own index, so committing one
+  // must not push.
+  bool traversing_ = false;
 };
 
 }  // namespace microbrowser::engine

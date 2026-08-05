@@ -169,6 +169,11 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // absence rather than a stub: `fetch` is then not declared at all. See
   // bindings/Network.h and ADR 0012.
   void SetNetworkSource(bindings::NetworkSource* network);
+  // The same, for `window.history`. Borrowed and set before any script runs, for
+  // the reason the network source is: a source that arrived later would leave the
+  // first script of a document without one, and `history` is declared or not
+  // declared at construction.
+  void SetHistorySource(bindings::HistorySource* history);
   // Hands one answer to the script that asked for it. False when nothing was
   // waiting -- an aborted request, or a second delivery -- which the caller
   // drops rather than repainting for.
@@ -251,6 +256,20 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // Fires `load` and moves `readyState` to "complete". True when something was
   // listening and the document may therefore have changed.
   bool NotifyLoad() { return script_.NotifyLoad(); }
+
+  // Moves this document's address without replacing the document: a
+  // `pushState`, a `replaceState`, or a traversal between two entries that
+  // belong to it. `:target` is recomputed, because it comes from the fragment
+  // and one copy of it is what stops the address bar and the cascade from
+  // disagreeing -- and the base URL moves with it, unless a `<base href>` claimed
+  // it, which wins.
+  void UpdateUrl(std::string url);
+  // Fires `popstate` at the window. True when something was listening.
+  bool NotifyPopState() { return script_.NotifyPopState(); }
+  // Fires `hashchange`. True when something was listening.
+  bool NotifyHashChange(const std::string& old_url, const std::string& new_url) {
+    return script_.NotifyHashChange(old_url, new_url);
+  }
 
   // Runs the page's click handlers for whatever is at `document_point`, from
   // that element up to the root. Returns true when a handler called

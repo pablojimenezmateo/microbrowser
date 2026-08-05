@@ -156,13 +156,28 @@ struct KeyInputMessage {
 inline constexpr std::uint32_t kMaxKeyNameBytes = 32;
 inline constexpr std::uint32_t kMaxKeyTextBytes = 64;
 
+// Back, forward, or `history.go(n)` from the chrome.
+//
+// ADR 0026 §1 moved session history into the engine, so the chrome no longer
+// knows a URL to navigate to -- it knows only that the user pressed a button.
+// That is a strict narrowing of what `src/ui` knows, and it is what makes a
+// same-document traversal possible at all: only the engine can tell a `pushState`
+// entry from a loaded one.
+struct TraverseHistoryMessage {
+  // Negative is back. Zero traverses nothing.
+  std::int32_t delta = 0;
+
+  friend bool operator==(const TraverseHistoryMessage&, const TraverseHistoryMessage&) = default;
+};
+
 using UiToEngine = std::variant<NavigateMessage,
                                 ReloadMessage,
                                 StopLoadMessage,
                                 ResizeViewportMessage,
                                 ScrollMessage,
                                 PointerInputMessage,
-                                KeyInputMessage>;
+                                KeyInputMessage,
+                                TraverseHistoryMessage>;
 
 // --- Engine -> UI ------------------------------------------------------------
 
@@ -210,10 +225,23 @@ struct NavigationCommittedMessage {
                          const NavigationCommittedMessage&) = default;
 };
 
+// What the back and forward buttons should look like.
+//
+// Everything the chrome needs to draw them and nothing else: not the entries,
+// not the state objects, not which document an entry belongs to. ADR 0026 §1's
+// narrowing, expressed as two bools.
+struct HistoryStateMessage {
+  bool can_go_back = false;
+  bool can_go_forward = false;
+
+  friend bool operator==(const HistoryStateMessage&, const HistoryStateMessage&) = default;
+};
+
 using EngineToUi = std::variant<PaintFrameMessage,
                                 TitleChangedMessage,
                                 LoadProgressMessage,
-                                NavigationCommittedMessage>;
+                                NavigationCommittedMessage,
+                                HistoryStateMessage>;
 
 // --- Wire format -------------------------------------------------------------
 //

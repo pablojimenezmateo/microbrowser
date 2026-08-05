@@ -303,10 +303,12 @@ microbrowser_module(engine
     src/engine/EngineInput.cpp
     src/engine/EngineFetch.cpp
     src/engine/EngineImages.cpp
+    src/engine/EngineHistory.cpp
     src/engine/EngineSubresources.cpp
     src/engine/FormAlgorithms.cpp
     src/engine/GeometryQueries.cpp
     src/engine/ImageSelection.cpp
+    src/engine/SessionHistory.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
@@ -340,6 +342,7 @@ microbrowser_module(bindings
     src/bindings/FetchBindings.cpp
     src/bindings/FetchTypes.cpp
     src/bindings/GeometryBindings.cpp
+    src/bindings/HistoryBindings.cpp
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
     src/bindings/StyleBindings.cpp
@@ -403,7 +406,6 @@ microbrowser_module(js
 microbrowser_module(ui
   SOURCES
     src/ui/BrowserChrome.cpp
-    src/ui/NavigationHistory.cpp
     src/ui/TextField.cpp
     src/ui/Toolbar.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_platform)
@@ -470,6 +472,7 @@ add_executable(microbrowser_tests
   tests/GeometryTests.cpp
   tests/GlyphCacheTests.cpp
   tests/IdleWaitStrategyTests.cpp
+  tests/HistoryTests.cpp
   tests/InflateTests.cpp
   tests/IntegrityTests.cpp
   tests/StructuredCloneTests.cpp

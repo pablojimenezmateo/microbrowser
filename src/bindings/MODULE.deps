@@ -22,7 +22,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # of bug ADR 0012 calls worse than an absence.
 allow: util js dom html
 
-public: AnimationFrames.h DomBindings.h Geometry.h Network.h Timers.h ViewObservers.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h Network.h Timers.h ViewObservers.h
 
 extern:
 
@@ -131,7 +131,25 @@ max_tu_lines: 700
 # an abort and a delivery -- and the reason they are declarations here rather
 # than statics in that file is that four of them fire events, which only this
 # class may do.
-budget: DomBindings header_lines=410 public_methods=18 members=11
+# 440 lines, 20 methods and a twelfth member for ADR 0026 §2. The member is the
+# HistorySource, borrowed and null when there is nothing to traverse -- in which
+# case `history` is not declared at all, the same absence `fetch` gets. The two
+# public methods are DispatchPopState and DispatchHashChange, C++ entry points
+# for the reason DispatchScroll is: the browser is the only thing that knows a
+# traversal happened, and a page that could forge one could make a router believe
+# the user pressed Back.
+# 450, and the extra lines are SetDocumentUrl: a same-document navigation moves
+# the address this layer answers with, and the `location` object is rewritten in
+# place rather than replaced because a page holds a reference to it --
+# `document.location === window.location` is something pages check.
+budget: DomBindings header_lines=450 public_methods=21 members=12
+# Where `history` goes: the questions a page may ask about session history, as an
+# interface this module declares and `src/engine` implements. Five methods, and
+# the shape of PushHistoryState is the point -- it takes the URL as the page
+# wrote it and answers with a decision, because this module may not see `url` and
+# the same-origin check ADR 0026 §2 calls load-bearing has to happen where URLs
+# are understood.
+budget: HistorySource header_lines=45 public_methods=6 members=0
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and

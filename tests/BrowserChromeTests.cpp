@@ -15,7 +15,6 @@ using platform::KeyEvent;
 using platform::Modifiers;
 using platform::PointerEvent;
 using ui::BrowserChrome;
-using ui::NavigationHistory;
 using ui::TextField;
 using ui::Toolbar;
 
@@ -186,47 +185,23 @@ void RegisterBrowserChromeTests(std::vector<TestCase>& tests) {
     ExpectEqString(field.Text(), "", "and clears the line, as in a terminal");
   });
 
-  // --- History --------------------------------------------------------------
+  // --- History ----------------------------------------------------------------
+  //
+  // The list itself moved to `src/engine` (ADR 0026 §1): a `pushState` entry is a
+  // URL *plus a state object owned by a document*, and the chrome cannot see a
+  // document. `engine::SessionHistory` is tested in tests/HistoryTests.cpp. What
+  // is left here is the whole of what the chrome does with history now, which is
+  // two bools and a delta.
 
-  AddTest(tests, "History/BackAndForwardWalkTheList", [] {
-    NavigationHistory history;
-    Expect(!history.CanGoBack() && !history.CanGoForward(), "an empty history goes nowhere");
-
-    history.Push("a", "A");
-    Expect(!history.CanGoBack(), "one entry is not something to go back from");
-    history.Push("b", "B");
-    history.Push("c", "C");
-
-    Expect(history.CanGoBack() && !history.CanGoForward(), "at the end of the list");
-    ExpectEqString(history.GoBack()->url, "b", "back one");
-    ExpectEqString(history.GoBack()->url, "a", "and one more");
-    Expect(!history.CanGoBack() && history.CanGoForward(), "now at the start");
-    ExpectEqString(history.GoForward()->url, "b", "and forward again");
-  });
-
-  AddTest(tests, "History/NavigatingAfterGoingBackTruncatesTheForwardEntries", [] {
-    // The branch you left is not reachable, and pretending otherwise is worse
-    // than losing it.
-    NavigationHistory history;
-    history.Push("a", "A");
-    history.Push("b", "B");
-    history.Push("c", "C");
-    history.GoBack();
-    history.Push("d", "D");
-
-    Expect(!history.CanGoForward(), "forward stops working after taking a different path");
-    ExpectEqInt(static_cast<long long>(history.Entries().size()), 3, "a, b, d");
-    ExpectEqString(history.Current()->url, "d", "and d is where we are");
-  });
-
-  AddTest(tests, "History/ALateTitleUpdatesTheEntryRatherThanAddingOne", [] {
-    // A <title> arriving after the navigation must not become a second entry,
-    // or the back button needs pressing twice.
-    NavigationHistory history;
-    history.Push("https://example.org/", "https://example.org/");
-    history.SetCurrentTitle("Example Domain");
-    ExpectEqInt(static_cast<long long>(history.Entries().size()), 1, "still one entry");
-    ExpectEqString(history.Current()->title, "Example Domain", "with the real title");
+  AddTest(tests, "Chrome/TheHistoryButtonsAreWhatTheEngineSaidTheyAre", [] {
+    BrowserChrome chrome = MakeChrome();
+    Expect(!chrome.GetToolbar().CanGoBack(), "nothing to go back to yet");
+    chrome.OnHistoryState(true, false);
+    Expect(chrome.GetToolbar().CanGoBack() && !chrome.GetToolbar().CanGoForward(),
+           "and the engine is the only thing that decides");
+    chrome.OnHistoryState(false, true);
+    Expect(!chrome.GetToolbar().CanGoBack() && chrome.GetToolbar().CanGoForward(),
+           "in both directions");
   });
 
   // --- What the omnibox does with what was typed ----------------------------
@@ -399,23 +374,22 @@ void RegisterBrowserChromeTests(std::vector<TestCase>& tests) {
     BrowserChrome chrome = MakeChrome();
     chrome.OnNavigationCommitted("https://a.test/");
     chrome.OnNavigationCommitted("https://b.test/");
+    chrome.OnHistoryState(true, false);
 
     const Toolbar& toolbar = chrome.GetToolbar();
     Expect(toolbar.CanGoBack(), "there is somewhere to go back to");
 
-    // Click the back button, then commit what the engine loads as a result.
+    // Clicking back asks for a *traversal*, not a navigation to a URL. The chrome
+    // does not know where back is any more, and that is what lets the engine
+    // answer a `pushState` entry with a paint instead of a load.
     const gfx::IntRect back_button{4, 4, 28, 28};
     const BrowserChrome::Response response =
         chrome.HandlePointer(ClickAt(back_button.x + 5, back_button.y + 5));
-    Expect(response.intent.has_value(), "the click navigates");
-    ExpectEqString(response.intent->url, "https://a.test/", "to the previous entry");
-
-    chrome.OnNavigationCommitted("https://a.test/");
-    Expect(chrome.GetToolbar().CanGoForward(),
-           "and forward still works: a history move must not push a new entry and strand "
-           "everything in front of it");
-    ExpectEqInt(static_cast<long long>(chrome.History().Entries().size()), 2,
-                "the history did not grow");
+    Expect(response.intent.has_value(), "the click asks for something");
+    Expect(response.intent->kind == BrowserChrome::Intent::Kind::TraverseHistory,
+           "and it is a traversal rather than a navigation");
+    ExpectEqInt(response.intent->delta, -1, "one entry back");
+    Expect(response.intent->url.empty(), "with no URL, because the chrome has none");
   });
 
   AddTest(tests, "Chrome/ClickingTheOmniboxFocusesItAndClickingThePageLeaves", [] {

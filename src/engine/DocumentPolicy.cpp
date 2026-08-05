@@ -43,6 +43,7 @@ constexpr std::size_t kMaxViolationUrlLength = 256;
 void DocumentPolicy::Reset(csp::PolicyList policies, std::string_view document_url) {
   policies_ = std::move(policies);
   base_ = url::Url::Parse(document_url);
+  base_from_element_ = false;
   self_ = base_.has_value() ? url::Origin::FromUrl(*base_) : url::Origin{};
   violations_.clear();
 }
@@ -63,7 +64,17 @@ bool DocumentPolicy::SetBase(std::string_view href) {
     return false;
   }
   base_ = std::move(resolved);
+  base_from_element_ = true;
   return true;
+}
+
+void DocumentPolicy::UpdateDocumentUrl(std::string_view url) {
+  if (base_from_element_) {
+    return;
+  }
+  if (std::optional<url::Url> parsed = url::Url::Parse(url)) {
+    base_ = std::move(parsed);
+  }
 }
 
 bool DocumentPolicy::AllowsUrl(csp::Directive directive, std::string_view written_url,

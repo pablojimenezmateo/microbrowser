@@ -244,6 +244,10 @@ void DomBindings::EnsureInterfaces() {
   // it is the place that rule matters most: a page that finds `fetch` and gets
   // a rejection has no fallback path left. InstallFetch answers that itself.
   InstallFetch();
+  // Absent for the same reason when there is nothing to traverse: a page that
+  // finds `history.pushState` and gets nothing has already taken the branch that
+  // assumes it works. InstallHistory answers that itself.
+  InstallHistory();
   InstallWindowEvents();
 }
 

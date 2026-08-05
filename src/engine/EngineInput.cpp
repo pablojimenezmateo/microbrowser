@@ -150,6 +150,13 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   if (!resolved.has_value()) {
     return ApplyStyleChange(effect);
   }
+  // An in-page anchor is a same-document navigation: a history entry, the
+  // fragment applied, `hashchange`, and no request at all. Every documentation
+  // site's table of contents depends on it, and before ADR 0026 §2 this was a
+  // full reload of the page you were already on.
+  if (NavigateToFragment(*resolved)) {
+    return true;
+  }
   NavigateFromCurrentDocument(*resolved, {});
   return true;
 }

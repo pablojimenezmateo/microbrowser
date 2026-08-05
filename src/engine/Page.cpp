@@ -434,6 +434,26 @@ void Page::SetNetworkSource(bindings::NetworkSource* network) {
   script_.SetNetworkSource(network);
 }
 
+void Page::SetHistorySource(bindings::HistorySource* history) {
+  script_.SetHistorySource(history);
+}
+
+void Page::UpdateUrl(std::string url) {
+  url_ = std::move(url);
+  policy_.UpdateDocumentUrl(url_);
+  // What a page reads back. One address, and it is the one the URL bar shows --
+  // ADR 0026 §2's sentence, and the reason this is not two separate updates.
+  script_.SetDocumentUrl(url_);
+  // From the address rather than from the markup, and recomputed here so that
+  // `#section` in a `pushState` URL styles the same element it would have styled
+  // had the page been loaded at it. ADR 0016 §2: one copy.
+  RefreshTargetState();
+  // The cascade may now match differently, so whatever was derived from it is
+  // stale. Not a full reload: the document is the same document, which is the
+  // entire difference between this and Load.
+  InvalidateLayout();
+}
+
 bool Page::DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response) {
   return script_.DeliverFetchResponse(id, response);
 }

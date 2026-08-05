@@ -122,9 +122,12 @@ gfx::IntRect BrowserChrome::PageBounds(const gfx::IntSize& window) const {
                       std::max(0, window.height - Toolbar::kHeight)};
 }
 
-void BrowserChrome::SyncToolbarState() {
-  toolbar_.SetCanGoBack(history_.CanGoBack());
-  toolbar_.SetCanGoForward(history_.CanGoForward());
+void BrowserChrome::OnHistoryState(bool can_go_back, bool can_go_forward) {
+  // Two bools, from the engine, and nothing else. The chrome used to decide this
+  // from a list it owned; ADR 0026 §1 moved the list to where the documents are,
+  // and this is all that came back.
+  toolbar_.SetCanGoBack(can_go_back);
+  toolbar_.SetCanGoForward(can_go_forward);
 }
 
 BrowserChrome::Response BrowserChrome::Navigate(std::string url) {
@@ -139,32 +142,25 @@ BrowserChrome::Response BrowserChrome::Navigate(std::string url) {
 }
 
 void BrowserChrome::OnNavigationCommitted(std::string url) {
-  if (navigating_through_history_) {
-    // A back or forward already moved the cursor. Pushing here would append the
-    // destination as a new entry and strand everything in front of it.
-    navigating_through_history_ = false;
-  } else {
-    history_.Push(url, url);
-  }
   // The committed URL, not the typed one: a redirect changes where you ended
   // up, and an omnibox that kept showing the aim is lying about the origin the
-  // page is running as.
+  // page is running as. This message now also arrives for a same-document
+  // navigation -- a `pushState`, a traversal, an in-page anchor -- and it means
+  // the same thing every time: *this* is the URL of the document on screen.
+  url_ = std::move(url);
+  title_.clear();
   if (!toolbar_.IsOmniboxFocused()) {
-    toolbar_.Omnibox().SetText(std::move(url));
+    toolbar_.Omnibox().SetText(url_);
   }
-  SyncToolbarState();
 }
 
-void BrowserChrome::OnTitleChanged(std::string title) {
-  history_.SetCurrentTitle(std::move(title));
-}
+void BrowserChrome::OnTitleChanged(std::string title) { title_ = std::move(title); }
 
 std::string BrowserChrome::WindowTitle() const {
-  const NavigationHistory::Entry* entry = history_.Current();
-  if (entry == nullptr) {
+  if (url_.empty()) {
     return "microbrowser";
   }
-  return entry->title.empty() ? entry->url : entry->title;
+  return title_.empty() ? url_ : title_;
 }
 
 BrowserChrome::Response BrowserChrome::HandleKey(const platform::KeyEvent& event) {
@@ -200,9 +196,7 @@ BrowserChrome::Response BrowserChrome::HandleKey(const platform::KeyEvent& event
       // Back to what is actually loaded, which is the entry the history says
       // is current -- not the last thing typed.
       toolbar_.SetOmniboxFocused(false);
-      if (const NavigationHistory::Entry* entry = history_.Current()) {
-        toolbar_.Omnibox().SetText(entry->url);
-      }
+      toolbar_.Omnibox().SetText(url_);
       response.handled = true;
       response.needs_repaint = true;
       return response;
@@ -244,22 +238,13 @@ BrowserChrome::Response BrowserChrome::HandlePointer(const platform::PointerEven
   response.needs_repaint = true;
   switch (part) {
     case Toolbar::Part::Back:
-      if (const NavigationHistory::Entry* entry = history_.GoBack()) {
-        navigating_through_history_ = true;
-        Response moved = Navigate(entry->url);
-        SyncToolbarState();
-        moved.needs_repaint = true;
-        return moved;
-      }
+      // A delta, not a URL. The chrome does not know where back is any more, and
+      // that is the point: only the engine can tell a `pushState` entry from a
+      // loaded one, and the difference is a paint against a load.
+      response.intent = Intent{Intent::Kind::TraverseHistory, {}, false, -1};
       return response;
     case Toolbar::Part::Forward:
-      if (const NavigationHistory::Entry* entry = history_.GoForward()) {
-        navigating_through_history_ = true;
-        Response moved = Navigate(entry->url);
-        SyncToolbarState();
-        moved.needs_repaint = true;
-        return moved;
-      }
+      response.intent = Intent{Intent::Kind::TraverseHistory, {}, false, 1};
       return response;
     case Toolbar::Part::Reload:
       response.intent = Intent{Intent::Kind::Reload, {}, false};

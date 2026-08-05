@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "bindings/Geometry.h"
+#include "bindings/History.h"
 #include "bindings/Network.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
@@ -101,7 +102,8 @@ class DomBindings {
   // `geometry` is: `fetch` is then not declared at all, rather than declared
   // and always rejecting. See ADR 0012 and Network.h.
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
-              GeometrySource* geometry = nullptr, NetworkSource* network = nullptr);
+              GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
+              HistorySource* history = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -195,6 +197,23 @@ class DomBindings {
   // Network.h and FetchBindings.cpp.
   bool DeliverFetchResponse(std::uint64_t id, const ScriptResponse& response);
 
+  // Fires `popstate` at the window, carrying whatever state the entry now
+  // current holds. A C++ entry point for the reason DispatchScroll is: the
+  // browser is the only thing that knows a traversal happened, and a page that
+  // could forge one could make a router believe the user pressed Back.
+  //
+  // Never on the initial load -- ADR 0026 §2 -- which is the caller's rule
+  // because only the caller knows whether a document is new.
+  // Moves the address this layer answers with, for a same-document navigation.
+  // The `location` object is rewritten in place rather than replaced, because a
+  // page holds a reference to it.
+  void SetDocumentUrl(std::string url);
+
+  bool DispatchPopState();
+  // Fires `hashchange`, for a navigation that changed only the fragment: the one
+  // case that has always been able to move the URL without a load.
+  bool DispatchHashChange(const std::string& old_url, const std::string& new_url);
+
  private:
   // Where an event is on its way through the propagation path. The numbers are
   // the DOM's own, because a page reads them back as `event.eventPhase`.
@@ -242,6 +261,10 @@ class DomBindings {
   // that are about the document rather than about a node. True when something
   // was listening.
   bool DispatchAtWindow(const char* type);
+  // The same for an event the caller has already built and put fields on --
+  // `popstate` carries a state and `hashchange` carries two URLs, and neither
+  // can be added after the listeners have run.
+  bool DispatchAtWindowWith(const char* type, const js::Value& event);
   void SetReadyState(const char* state);
   js::Value MakeClassList(dom::Element& element);
   js::Value MakeStyle(dom::Element& element);
@@ -263,6 +286,10 @@ class DomBindings {
   // Makes `window` an event target. It is the global object, so this is also
   // what gives `globalThis` the same methods.
   void InstallWindowEvents();
+  // Fills in `location`'s parts from `url_`, and `document.URL` with it. Shared
+  // by the install and by a same-document navigation, so the two cannot come to
+  // disagree about which parts a page can read.
+  void WriteLocationFields(const js::Value& location);
   // --- Focus, in FocusBindings.cpp ------------------------------------------
   // `focus()` and `blur()` on HTMLElement, and `document.activeElement`.
   void InstallFocus(const js::Value& target);
@@ -383,6 +410,17 @@ class DomBindings {
   // three.
   void AbortSignalled(const js::Value& signal, const js::Value& reason);
 
+  // --- history, in HistoryBindings.cpp --------------------------------------
+  // `window.history`. Installed only when there is a HistorySource, for the
+  // reason `fetch` is: a page that finds `pushState` and gets nothing has
+  // already taken the branch that assumes it works.
+  void InstallHistory();
+  // The memoized `history.state`. Deserializing on every read would make
+  // `history.state === history.state` false, so the object is cached against a
+  // generation counter the engine bumps.
+  js::Value HistoryStateValue();
+  void InvalidateHistoryState();
+
   // --- XMLHttpRequest, in XhrBindings.cpp -----------------------------------
   // A shim over the same machinery `fetch` uses -- ADR 0020 §1 is explicit that
   // the older shape is expressed in terms of the newer one, so that a page
@@ -483,6 +521,9 @@ class DomBindings {
   // The same, for a page's own requests, and null when there is no loader
   // behind this binding layer -- in which case `fetch` is not declared.
   NetworkSource* network_ = nullptr;
+  // Borrowed and null when there is no history behind this layer, in which case
+  // `history` is not declared at all. Same rule as the two above.
+  HistorySource* history_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings

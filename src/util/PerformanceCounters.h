@@ -206,6 +206,14 @@ namespace microbrowser::util {
   X(XhrDelivered, "xhr.delivered")                                               \
   X(XhrFailed, "xhr.failed")                                                     \
   X(XhrAborted, "xhr.aborted")                                                   \
+  /* Session history. `origin_refusals` is the one to watch: it counts a page  */ \
+  /* trying to move the URL bar to an origin that is not its own, which is the */ \
+  /* shape every address-bar spoof is built from. ADR 0026 §2.                 */ \
+  X(HistoryPushStates, "history.push_states")                                    \
+  X(HistoryReplaceStates, "history.replace_states")                              \
+  X(HistoryTraversals, "history.traversals")                                     \
+  X(HistorySameDocumentTraversals, "history.same_document_traversals")            \
+  X(HistoryOriginRefusals, "history.origin_refusals")                            \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \
   /* §3 -- so these counters are the only signal that a page's policy is doing */ \

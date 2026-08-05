@@ -389,6 +389,12 @@ void Application::ConsumeEngineMessages() {
     } else if (const auto* committed =
                    std::get_if<ipc::NavigationCommittedMessage>(&*message)) {
       chrome_.OnNavigationCommitted(committed->url);
+      window_.SetTitle(chrome_.WindowTitle());
+      InvalidateChrome();
+    } else if (const auto* history = std::get_if<ipc::HistoryStateMessage>(&*message)) {
+      // Two bools, which is all the chrome knows about history since ADR 0026 §1
+      // moved the list into the engine.
+      chrome_.OnHistoryState(history->can_go_back, history->can_go_forward);
       InvalidateChrome();
     }
     // LoadProgress has no surface to display it: a progress bar needs a load
@@ -520,6 +526,9 @@ void Application::ApplyChromeResponse(const ui::BrowserChrome::Response& respons
       break;
     case ui::BrowserChrome::Intent::Kind::Reload:
       channel_.Ui().Send(ipc::ReloadMessage{response.intent->bypass_cache});
+      break;
+    case ui::BrowserChrome::Intent::Kind::TraverseHistory:
+      channel_.Ui().Send(ipc::TraverseHistoryMessage{response.intent->delta});
       break;
   }
 }
