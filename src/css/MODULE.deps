@@ -2,7 +2,7 @@ purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error rec
 
 allow: util dom gfx
 
-public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h StyleResolver.h
+public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h StyleResolver.h MediaQuery.h
 
 extern:
 

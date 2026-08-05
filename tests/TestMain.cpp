@@ -38,6 +38,7 @@ void RegisterJsVmTests(std::vector<TestCase>& tests);
 void RegisterFontCatalogTests(std::vector<TestCase>& tests);
 void RegisterFontTests(std::vector<TestCase>& tests);
 void RegisterGeometryTests(std::vector<TestCase>& tests);
+void RegisterMediaQueryTests(std::vector<TestCase>& tests);
 void RegisterGlyphCacheTests(std::vector<TestCase>& tests);
 void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests);
 void RegisterInflateTests(std::vector<TestCase>& tests);
@@ -144,6 +145,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterBlitterTests(tests);
   microbrowser::tests::RegisterCanvasTests(tests);
   microbrowser::tests::RegisterCssTests(tests);
+  microbrowser::tests::RegisterMediaQueryTests(tests);
   microbrowser::tests::RegisterDirtyRegionPolicyTests(tests);
   microbrowser::tests::RegisterDirtyRegionTests(tests);
   microbrowser::tests::RegisterDisplayListTests(tests);

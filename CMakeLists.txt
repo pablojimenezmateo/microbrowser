@@ -201,6 +201,7 @@ microbrowser_module(css
     src/css/BoxDeclarations.cpp
     src/css/Calc.cpp
     src/css/Declarations.cpp
+    src/css/MediaQuery.cpp
     src/css/SelectorMatch.cpp
     src/css/SelectorParse.cpp
     src/css/StyleResolver.cpp
@@ -413,6 +414,7 @@ add_executable(microbrowser_tests
   tests/BlitterTests.cpp
   tests/CanvasTests.cpp
   tests/CssTests.cpp
+  tests/MediaQueryTests.cpp
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
