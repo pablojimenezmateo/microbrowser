@@ -252,6 +252,7 @@ namespace microbrowser::util {
   /* family of its stack, which is what a stack is for.                        */ \
   X(GfxWebFontsRegistered, "gfx.web_fonts_registered")                            \
   X(GfxWebFontsRefused, "gfx.web_fonts_refused")                                 \
+  X(GfxWebFontsOutOfRange, "gfx.web_fonts_out_of_range")                          \
   /* Brotli. `refusals` counts a stream that was malformed, truncated, or would */ \
   /* have expanded past the ceiling -- and unlike gzip there is no declared     */ \
   /* output size to refuse from, so the ceiling is the only defence there is.   */ \

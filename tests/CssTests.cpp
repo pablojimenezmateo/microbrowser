@@ -539,10 +539,13 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqInt(face.weight, 700, "bold, as a number");
     Expect(face.italic, "and italic");
     ExpectEqString(face.display, "swap", "font-display, lowercased");
-    // The *fact* of a range and not the range: the declaration value arrives
-    // reconstructed from tokens and `U+0000-00FF` comes back as `U00FF`, so
-    // keeping the text would be keeping a lie the next reader would trust.
-    Expect(face.has_unicode_range, "the face declared a range");
+    // **The range itself now, where this used to assert only that one existed.**
+    // The reason it could not before was in the tokenizer: `U+0000-00FF` scanned as
+    // an ident, a number and a dimension, and neither the leading zeros nor the hex
+    // reading survived. `Token::Kind::UnicodeRange` scans it where the text still is.
+    ExpectEqInt(static_cast<long long>(face.unicode_ranges.size()), 1, "one range");
+    ExpectEqInt(static_cast<long long>(face.unicode_ranges.at(0).first), 0x0000, "from");
+    ExpectEqInt(static_cast<long long>(face.unicode_ranges.at(0).last), 0x00FF, "to");
     // The order is the author's fallback chain: the first decodable one wins, and
     // the format hint is what lets an undecodable entry be skipped *without*
     // fetching it.
@@ -550,6 +553,40 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqString(face.sources.at(0).url, "inter.woff2", "in order");
     ExpectEqString(face.sources.at(0).format, "woff2", "with its format");
     ExpectEqString(face.sources.at(1).url, "inter.woff", "then the fallback");
+  });
+
+  AddTest(tests, "Css/UnicodeRangeIsScannedInEveryFormItIsWrittenIn", [] {
+    // Google Fonts serves eight `@font-face` blocks per family, distinguished only
+    // by this descriptor, so every spelling below is one a real stylesheet uses.
+    const StyleSheet sheet = ParseStyleSheet(
+        "@font-face { font-family: A; src: url(a.ttf);"
+        " unicode-range: U+0-7F, U+4??, u+0100-024F, U+2C60-2C7F }");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 1, "one face");
+    const std::vector<css::UnicodeRange>& ranges = sheet.font_faces.at(0).unicode_ranges;
+    ExpectEqInt(static_cast<long long>(ranges.size()), 4, "four ranges");
+    ExpectEqInt(static_cast<long long>(ranges.at(0).first), 0x0, "a short single run");
+    ExpectEqInt(static_cast<long long>(ranges.at(0).last), 0x7F, "reads as itself");
+    // The wildcard form is a range in disguise, expanded in the tokenizer so that
+    // nothing downstream has to know what `?` means.
+    ExpectEqInt(static_cast<long long>(ranges.at(1).first), 0x400, "U+4?? starts at 400");
+    ExpectEqInt(static_cast<long long>(ranges.at(1).last), 0x4FF, "and ends at 4FF");
+    ExpectEqInt(static_cast<long long>(ranges.at(2).first), 0x100, "lowercase u+ too");
+    ExpectEqInt(static_cast<long long>(ranges.at(2).last), 0x24F, "with both ends");
+    ExpectEqInt(static_cast<long long>(ranges.at(3).last), 0x2C7F, "and the last entry");
+  });
+
+  AddTest(tests, "Css/AUnicodeRangeIsNotAnIdentifierAndViceVersa", [] {
+    // `u` is a legal identifier and this must not eat one. The value below has no
+    // range in it at all, and a face with no range covers everything -- so reading
+    // one here would silently *narrow* a face that claimed the whole alphabet.
+    const StyleSheet sheet = ParseStyleSheet(
+        "@font-face { font-family: A; src: url(a.ttf); unicode-range: u }");
+    ExpectEqInt(static_cast<long long>(sheet.font_faces.size()), 1, "the face is kept");
+    Expect(sheet.font_faces.at(0).unicode_ranges.empty(), "with no range read out of it");
+    // And a declaration elsewhere that begins with `u` still parses as a value.
+    const StyleSheet other = ParseStyleSheet("p { font-family: u }");
+    ExpectEqInt(static_cast<long long>(other.rules.size()), 1, "an ordinary rule");
+    ExpectEqString(other.rules.at(0).declarations.at(0).value, "u", "keeps its value");
   });
 
   AddTest(tests, "Css/AFontFaceWithNoFamilyOrNoSourceIsSkipped", [] {

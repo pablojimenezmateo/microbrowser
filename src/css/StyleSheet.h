@@ -194,6 +194,14 @@ struct FontFaceSource {
   friend bool operator==(const FontFaceSource&, const FontFaceSource&) = default;
 };
 
+// One `unicode-range` entry, inclusive at both ends.
+struct UnicodeRange {
+  std::uint32_t first = 0;
+  std::uint32_t last = 0;
+
+  friend bool operator==(const UnicodeRange&, const UnicodeRange&) = default;
+};
+
 struct FontFace {
   std::string family;
   std::vector<FontFaceSource> sources;
@@ -206,18 +214,35 @@ struct FontFace {
   // Kept as text because what it changes is *when the browser paints*, which is
   // the engine's decision rather than the parser's.
   std::string display;
-  // Whether the face declared a `unicode-range` at all, and *not* the range
-  // itself.
+  // The `unicode-range` descriptor, expanded: inclusive code point ranges, with
+  // the wildcard form (`U+4??`) already turned into the range it means. Empty
+  // means the face claims the whole alphabet, which is what an absent descriptor
+  // means.
   //
-  // A bool rather than the text, because the text this layer could give is a
-  // lie: the declaration value arrives reconstructed from tokens, and the `U+`
-  // syntax does not survive that -- `U+0000-00FF` comes back as `U00FF`. Keeping
-  // a mangled range would be worse than keeping nothing, since the next reader
-  // would trust it. The flag is here because it is the one thing a caller can act
-  // on honestly: a face with a range covers *some* of the alphabet, so it must
-  // not be treated as a complete substitute for the family. Whoever honours the
-  // descriptor parses it from the token run, which is ADR 0024's subsetting work.
-  bool has_unicode_range = false;
+  // This used to be a bool, and the reason is worth keeping: the descriptor's
+  // value cannot be read back out of a reconstructed declaration string --
+  // `U+0100-02BA` becomes `U 100 -2BA` once it has been through generic tokens --
+  // so the parser recorded only that a range existed. The fix was in the
+  // tokenizer, not here: `Token::Kind::UnicodeRange` scans the syntax where the
+  // original text still exists.
+  std::vector<UnicodeRange> unicode_ranges;
+
+  // Whether this face covers any of the code points a page actually uses. Empty
+  // ranges cover everything; an empty *page* is covered by nothing, which is
+  // deliberate -- a face is fetched because text needs it.
+  bool CoversAnyOf(const std::vector<std::uint32_t>& code_points) const {
+    if (unicode_ranges.empty()) {
+      return true;
+    }
+    for (const std::uint32_t code_point : code_points) {
+      for (const UnicodeRange& range : unicode_ranges) {
+        if (code_point >= range.first && code_point <= range.last) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
   friend bool operator==(const FontFace&, const FontFace&) = default;
 };

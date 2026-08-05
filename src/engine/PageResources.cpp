@@ -14,6 +14,8 @@
 #include "engine/Page.h"
 
 #include <algorithm>
+#include <functional>
+#include <set>
 #include <utility>
 
 #include "css/StyleSheet.h"
@@ -336,21 +338,95 @@ bool CanDecodeFontFormat(std::string_view format) {
          format == "woff2";
 }
 
+// Every code point the document's text uses, deduplicated.
+//
+// This is what makes `unicode-range` worth honouring: Google Fonts serves eight to
+// ten `@font-face` blocks per family that differ *only* in this descriptor, and a
+// page of English text needs one of them. Fetching all ten is ten TLS-warm requests
+// and roughly 200KB for 20KB of useful glyphs.
+//
+// The bound matters more than the exactness. Past `kMaxDistinct` distinct code
+// points this returns nothing and the caller treats every face as needed: a page
+// with a thousand distinct characters is a page that plausibly needs every subset,
+// and an unbounded set here would be a per-character allocation driven by document
+// content.
+std::vector<std::uint32_t> TextCodePoints(const dom::Node& root) {
+  constexpr std::size_t kMaxDistinct = 1024;
+  std::set<std::uint32_t> seen;
+  bool overflowed = false;
+  const std::function<void(const dom::Node&)> walk = [&](const dom::Node& node) {
+    if (overflowed) {
+      return;
+    }
+    // A `<style>` element's contents are CSS and a `<script>`'s are code -- text in
+    // the tree that is never drawn. Counting it is not a rounding error: Google's
+    // *symbols* subset covers `U+0001-000C`, so the newlines inside a stylesheet
+    // matched it and every page with a `@font-face` block fetched an emoji font.
+    if (node.IsElement()) {
+      const std::string& tag = static_cast<const dom::Element&>(node).TagName();
+      if (tag == "style" || tag == "script" || tag == "title" || tag == "template") {
+        return;
+      }
+    }
+    if (node.IsText()) {
+      const std::string& data = static_cast<const dom::Text&>(node).Data();
+      std::size_t at = 0;
+      std::uint32_t code = 0;
+      while (util::DecodeUtf8(data, at, code)) {
+        // A C0 control is never drawn -- a newline is a line break and a tab is
+        // white space -- so it must not be what makes a subset look needed. Space
+        // itself is kept: it is a glyph with an advance, and it is in the subset
+        // every page needs anyway.
+        if (code < 0x20u) {
+          continue;
+        }
+        seen.insert(code);
+        if (seen.size() > kMaxDistinct) {
+          overflowed = true;
+          return;
+        }
+      }
+    }
+    for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+      walk(*child);
+    }
+  };
+  walk(root);
+  if (overflowed) {
+    return {};
+  }
+  return std::vector<std::uint32_t>(seen.begin(), seen.end());
+}
+
 }  // namespace
 
 std::vector<Page::PendingFontFace> Page::TakeUnrequestedFontFaces() {
   std::vector<PendingFontFace> wanted;
+  // Once for the whole list rather than once per face: a page with ten subsets of
+  // one family would otherwise walk its own text ten times.
+  const std::vector<std::uint32_t> code_points =
+      document_ != nullptr ? TextCodePoints(*document_) : std::vector<std::uint32_t>();
   for (const css::FontFace& face : resources_.font_faces) {
+    // A face that covers none of the text on the page is not fetched at all. It is
+    // still *remembered* as unfetched, so text arriving later -- a script writing
+    // Cyrillic into the page -- gets its subset on the next collection.
+    if (!code_points.empty() && !face.CoversAnyOf(code_points)) {
+      AddPerformanceCounter(PerfCounterId::GfxWebFontsOutOfRange);
+      continue;
+    }
     for (const css::FontFaceSource& source : face.sources) {
       if (!CanDecodeFontFormat(source.format)) {
         continue;
       }
       // The author's order is a fallback chain, so the first decodable source wins
-      // and the rest are not fetched. Keyed by URL and family together: two
-      // families can legitimately name one file at two weights.
-      const std::string key = face.family + "|" + std::to_string(face.weight) + "|" +
-                              (face.italic ? "i" : "n") + "|" + source.url;
-      if (resources_.requested_fonts.insert(key).second) {
+      // and the rest are not fetched.
+      //
+      // Keyed by **URL alone**, which is a deliberate change from keying it with the
+      // family and weight too: Google serves a variable font by naming the *same*
+      // file from a `font-weight: 400` block and a `font-weight: 700` one, and the
+      // old key fetched 23KB twice for it. One fetch, and `AddWebFont` registers the
+      // bytes under every face that named the file.
+      if (resources_.requested_fonts.insert(source.url).second) {
         wanted.push_back(PendingFontFace{source.url, face.family, face.weight, face.italic});
       }
       break;
@@ -360,11 +436,50 @@ std::vector<Page::PendingFontFace> Page::TakeUnrequestedFontFaces() {
 }
 
 bool Page::AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes) {
-  if (!text_.Fonts().RegisterWebFont(face.family, face.weight, face.italic, std::move(bytes))) {
+  // Every face that named this file, not just the one whose fetch it was: a variable
+  // font is one file serving several weights, and the fetch was deduplicated by URL.
+  // The descriptors are what a `font-family` stack matches against, so a file
+  // registered under one weight answers for one weight.
+  std::vector<PendingFontFace> registrations;
+  for (const css::FontFace& declared : resources_.font_faces) {
+    for (const css::FontFaceSource& source : declared.sources) {
+      if (source.url != face.url) {
+        continue;
+      }
+      const PendingFontFace entry{face.url, declared.family, declared.weight, declared.italic};
+      const bool already = std::any_of(
+          registrations.begin(), registrations.end(), [&entry](const PendingFontFace& seen) {
+            return seen.family == entry.family && seen.weight == entry.weight &&
+                   seen.italic == entry.italic;
+          });
+      if (!already) {
+        registrations.push_back(entry);
+      }
+      break;
+    }
+  }
+  if (registrations.empty()) {
+    registrations.push_back(face);
+  }
+  bool registered = false;
+  for (const PendingFontFace& entry : registrations) {
+    // A copy per registration, because the provider takes ownership -- FreeType
+    // keeps the buffer for the lifetime of the face it built from it.
+    std::vector<std::byte> copy = entry.family == registrations.back().family &&
+                                          entry.weight == registrations.back().weight &&
+                                          entry.italic == registrations.back().italic
+                                      ? std::move(bytes)
+                                      : bytes;
+    registered = text_.Fonts().RegisterWebFont(entry.family, entry.weight, entry.italic,
+                                               std::move(copy)) ||
+                 registered;
+  }
+  if (!registered) {
     AddPerformanceCounter(PerfCounterId::GfxWebFontsRefused);
     return false;
   }
-  AddPerformanceCounter(PerfCounterId::GfxWebFontsRegistered);
+  AddPerformanceCounter(PerfCounterId::GfxWebFontsRegistered,
+                        static_cast<std::uint64_t>(registrations.size()));
   // Text measured before the face arrived was measured in a different font, so
   // every line box on the page is wrong. This is what `font-display: swap` looks
   // like from the inside, and it is the whole reason a face arriving late is not

@@ -24,6 +24,13 @@ bool IsHexDigit(char c) {
   return IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
+int HexValue(char c) {
+  if (IsDigit(c)) {
+    return c - '0';
+  }
+  return (c >= 'a' ? c - 'a' : c - 'A') + 10;
+}
+
 bool IsLetter(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
@@ -78,6 +85,7 @@ class Scanner {
   std::string ConsumeName();
   Token ConsumeNumeric();
   Token ConsumeIdentLike();
+  bool ConsumeUnicodeRange(Token& token);
   Token ConsumeString(char quote);
   Token ConsumeUrl();
   void ConsumeComment();
@@ -270,6 +278,69 @@ Token Scanner::ConsumeUrl() {
   return token;
 }
 
+// `u+`, and what follows it. CSS Values 4's <urange>: one to six hex digits, or
+// hex digits followed by `?` wildcards, optionally a `-` and a second run of hex
+// digits. The wildcard form is a range in disguise -- `U+4??` is U+400 to U+4FF --
+// and expanding it here means nothing downstream has to know about `?`.
+//
+// Returns false and consumes nothing when what follows is not a range, because
+// `u` is also a perfectly good identifier and `u + 1` is a perfectly good
+// declaration value.
+bool Scanner::ConsumeUnicodeRange(Token& token) {
+  const std::size_t start = position_;
+  ++position_;  // the u/U
+  ++position_;  // the +
+  std::string digits;
+  std::size_t wildcards = 0;
+  while (digits.size() + wildcards < 6) {
+    const char c = At();
+    if (IsHexDigit(c) && wildcards == 0) {
+      digits.push_back(c);
+    } else if (c == '?') {
+      ++wildcards;
+    } else {
+      break;
+    }
+    ++position_;
+  }
+  if (digits.empty() && wildcards == 0) {
+    position_ = start;
+    return false;
+  }
+  const auto hex = [](const std::string& text, char fill, std::size_t pad) {
+    std::string padded = text;
+    padded.append(pad, fill);
+    std::uint32_t value = 0;
+    for (const char c : padded) {
+      value = (value << 4) | static_cast<std::uint32_t>(HexValue(c));
+    }
+    return value;
+  };
+  token.kind = Token::Kind::UnicodeRange;
+  token.range_start = hex(digits, '0', wildcards);
+  token.range_end = hex(digits, 'F', wildcards);
+  if (wildcards > 0) {
+    return true;  // a wildcard form takes no second endpoint
+  }
+  if (At() != '-' || !IsHexDigit(At(1))) {
+    return true;  // a single code point: the range is itself
+  }
+  ++position_;
+  std::string second;
+  while (second.size() < 6 && IsHexDigit(At())) {
+    second.push_back(At());
+    ++position_;
+  }
+  token.range_end = hex(second, '0', 0);
+  // A range whose end is below its start is dropped rather than swapped: the
+  // author wrote something they did not mean, and swapping it would silently
+  // fetch a subset the page never asked for.
+  if (token.range_end < token.range_start) {
+    token.range_end = token.range_start;
+  }
+  return true;
+}
+
 Token Scanner::ConsumeIdentLike() {
   const std::string name = ConsumeName();
   // `url(` is a token of its own, but `url("x")` is a function whose argument
@@ -441,6 +512,13 @@ std::vector<Token> Scanner::Run() {
       continue;
     }
     if (IsNameStart(c)) {
+      if ((c == 'u' || c == 'U') && At(1) == '+') {
+        Token range;
+        if (ConsumeUnicodeRange(range)) {
+          tokens.push_back(range);
+          continue;
+        }
+      }
       tokens.push_back(ConsumeIdentLike());
       continue;
     }

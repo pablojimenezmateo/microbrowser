@@ -1,5 +1,7 @@
 #include "css/StyleSheet.h"
 
+#include <cstdio>
+
 #include "css/MediaQuery.h"
 #include "util/Parse.h"
 
@@ -84,6 +86,15 @@ std::string Reconstruct(const std::vector<Token>& tokens, std::size_t from, std:
         } else if (token.kind == Token::Kind::Dimension) {
           out += token.value;
         }
+        break;
+      }
+      case Token::Kind::UnicodeRange: {
+        // Written back out in the canonical form rather than the author's: the
+        // wildcard and single-code-point spellings are already expanded, and
+        // re-tokenizing this text gives the same two ends.
+        char buffer[32] = {};
+        std::snprintf(buffer, sizeof(buffer), "U+%X-%X", token.range_start, token.range_end);
+        out += buffer;
         break;
       }
       case Token::Kind::Delim:
@@ -425,6 +436,20 @@ std::vector<FontFaceSource> ParseFontFaceSources(std::string_view value) {
   return sources;
 }
 
+// The `unicode-range` descriptor. The tokenizer has already done the hard part --
+// every range arrives as one token with both ends resolved -- so this is a filter
+// over the value's tokens. A value with something else in it keeps the ranges it
+// did name: a face that lists eight subsets and one typo covers the eight.
+std::vector<UnicodeRange> ParseUnicodeRanges(std::string_view value) {
+  std::vector<UnicodeRange> ranges;
+  for (const Token& token : Tokenize(value)) {
+    if (token.kind == Token::Kind::UnicodeRange) {
+      ranges.push_back(UnicodeRange{token.range_start, token.range_end});
+    }
+  }
+  return ranges;
+}
+
 void ParseFontFace(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
                    StyleSheet& sheet) {
   FontFace face;
@@ -456,8 +481,7 @@ void ParseFontFace(const std::vector<Token>& tokens, std::size_t from, std::size
     } else if (name == "font-display") {
       face.display = Lowered(declaration.value);
     } else if (name == "unicode-range") {
-      // Recorded as a fact, not as a value: see FontFace::has_unicode_range.
-      face.has_unicode_range = !declaration.value.empty();
+      face.unicode_ranges = ParseUnicodeRanges(declaration.value);
     }
   }
   // A face with no family or no source names nothing and fetches nothing. Counted

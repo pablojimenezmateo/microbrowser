@@ -23,6 +23,7 @@ struct Token {
     BadString,
     Url,
     BadUrl,
+    UnicodeRange,  // U+0-7F, U+4??, U+0100-024F
     Delim,
     Number,
     Percentage,
@@ -54,6 +55,14 @@ struct Token {
   // and `2n 3` is not — and reading the difference back out of the number is
   // impossible once the sign is gone.
   bool has_sign = false;
+  // A unicode-range's two ends, inclusive. Scanned in the tokenizer rather than
+  // assembled by the consumer because the generic tokens *destroy* the value:
+  // `U+0100-02BA` scans as Ident("U"), Number(+100), Dimension(-2, "BA"), and
+  // neither the leading zeros nor the hex reading survive that. CSS Syntax 3 asks
+  // the consumer to work from each token's original text, which is the same
+  // information by a longer route -- this is the short one.
+  std::uint32_t range_start = 0;
+  std::uint32_t range_end = 0;
   // Hash tokens carry whether they could be an id selector. `#1x` is a valid
   // hash and not a valid id, and the difference decides whether a selector
   // parses.
