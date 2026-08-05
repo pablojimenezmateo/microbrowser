@@ -28,6 +28,7 @@
 
 #include "TestSupport.h"
 #include "gfx/FontCatalog.h"
+#include "gfx/SfntContainer.h"
 #include "gfx/Woff2.h"
 
 namespace microbrowser::tests {
@@ -284,6 +285,61 @@ void RegisterWoff2Tests(std::vector<TestCase>& tests) {
     transformed.push_back(0x08);         // transformed length
     Expect(!gfx::DecodeWoff2(AsBytes(transformed.data(), transformed.size())).has_value(),
            "a transformed hmtx is refused");
+  });
+
+  AddTest(tests, "Sfnt/AReassembledFontPassesItsOwnContainerCheck", [] {
+    // The two halves meeting: what the WOFF2 decoder produces is what the container
+    // check is asked about, and a disagreement between them would mean a font this
+    // browser built and then refused.
+    const std::optional<gfx::Woff2Font> font =
+        gfx::DecodeWoff2(AsBytes(kWoff2Transformed, sizeof(kWoff2Transformed)));
+    Expect(font.has_value(), "the fixture decodes");
+    Expect(gfx::SfntContainerIsSane(font->sfnt), "and its directory describes itself");
+  });
+
+  AddTest(tests, "Sfnt/ADirectoryThatPointsOutsideTheFileIsRefused", [] {
+    // Twelve bytes of header, one entry, and a table that claims to start after the
+    // end of the file. FreeType bounds-checks its own reads, and this is still worth
+    // refusing here: the file is a lie about its own shape, and the cheapest place to
+    // find that out is before a large C library starts walking it.
+    std::vector<std::uint8_t> font = {0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x10,
+                                      0x00, 0x00, 0x00, 0x10};
+    const std::uint8_t entry[] = {'c', 'm', 'a', 'p', 0, 0, 0, 0, 0, 0, 0x10, 0x00, 0, 0, 0, 4};
+    font.insert(font.end(), entry, entry + sizeof(entry));
+    Expect(!gfx::SfntContainerIsSane(AsBytes(font.data(), font.size())),
+           "a table beyond the end is refused");
+  });
+
+  AddTest(tests, "Sfnt/TwoTablesClaimingTheSameBytesAreRefused", [] {
+    // The check a naive validator misses, and the interesting one: both entries are
+    // inside the file and neither overflows. Two tables over one range is how one
+    // array gets read as two -- a `loca` that is also a `glyf` -- and every offset
+    // read out of the second one indexes something the font never described.
+    std::vector<std::uint8_t> font = {0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x20,
+                                      0x00, 0x01, 0x00, 0x00};
+    const std::uint8_t first[] = {'l', 'o', 'c', 'a', 0, 0, 0, 0, 0, 0, 0, 44, 0, 0, 0, 8};
+    const std::uint8_t second[] = {'g', 'l', 'y', 'f', 0, 0, 0, 0, 0, 0, 0, 46, 0, 0, 0, 6};
+    font.insert(font.end(), first, first + sizeof(first));
+    font.insert(font.end(), second, second + sizeof(second));
+    font.resize(52, 0);
+    Expect(!gfx::SfntContainerIsSane(AsBytes(font.data(), font.size())),
+           "overlapping tables are refused");
+    // The same file with the second table moved clear of the first is accepted, so
+    // the refusal above is about the overlap and not about anything else.
+    font[12 + 16 + 11] = 52;
+    font.resize(58, 0);
+    Expect(gfx::SfntContainerIsSane(AsBytes(font.data(), font.size())),
+           "and the same two tables side by side are not");
+  });
+
+  AddTest(tests, "Sfnt/AFontCollectionIsRefusedRatherThanSilentlyGivingFaceZero", [] {
+    // `ttcf` holds several faces and names none of them. FreeType would take face 0,
+    // which makes "which face did the page get" a decision the page's own server
+    // made -- so a downloaded collection is refused instead.
+    const std::uint8_t collection[] = {'t', 't', 'c', 'f', 0x00, 0x01, 0x00, 0x00,
+                                       0x00, 0x00, 0x00, 0x02, 0, 0, 0, 0};
+    Expect(!gfx::SfntContainerIsSane(AsBytes(collection, sizeof(collection))),
+           "a collection is refused");
   });
 
   AddTest(tests, "Woff2/EveryByteOfTheTransformedFixtureFlippedIsRefusedOrAFont", [] {

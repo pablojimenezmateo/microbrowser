@@ -262,6 +262,8 @@ namespace microbrowser::util {
   /* WOFF2. `transformed_refusals` is the honest limit rather than a failure: a  */ \
   /* transformed `glyf` needs every outline rebuilt from parallel substreams,    */ \
   /* and a half-reconstruction is mangled glyphs rather than a refusal.          */ \
+  X(GfxSfntRefusals, "gfx.sfnt_refusals")                                         \
+  X(GfxSfntOverlapRefusals, "gfx.sfnt_overlap_refusals")                          \
   X(GfxWoff2Decoded, "gfx.woff2_decoded")                                         \
   X(GfxWoff2GlyfReconstructed, "gfx.woff2_glyf_reconstructed")                     \
   X(GfxWoff2Refusals, "gfx.woff2_refusals")                                       \

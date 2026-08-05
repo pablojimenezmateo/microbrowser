@@ -1,5 +1,6 @@
 #include "gfx/FontCatalog.h"
 
+#include "gfx/SfntContainer.h"
 #include "gfx/Woff2.h"
 
 #include <algorithm>
@@ -197,6 +198,13 @@ Font* FontCatalog::FontFor(const FontRequest& request) {
 
 bool FontCatalog::RegisterWebFont(std::string family, int weight, bool italic,
                                   std::vector<std::byte> bytes) {
+  // A downloaded font is the one attacker-controlled input this browser hands to a
+  // large C library, so its container is checked here rather than trusted to
+  // FreeType's own reads -- ADR 0024 §3. The other half of that section holds by
+  // construction: nothing in this browser asks for `Hinting::Normal`, so the
+  // TrueType bytecode interpreter -- the most exploited part of FreeType -- never
+  // runs. If hinting is ever turned on for system fonts, a face that arrived over
+  // the network must be exempted here.
   if (IsWoff2(bytes)) {
     // Unwrapped here rather than at the caller, because "which container did this
     // face arrive in" is a question about bytes and this is the class that already
@@ -207,7 +215,17 @@ bool FontCatalog::RegisterWebFont(std::string family, int weight, bool italic,
     if (!unwrapped.has_value()) {
       return false;
     }
+    // The reassembled sfnt is checked too. It is this decoder's own output, so a
+    // failure here is a bug in it rather than a hostile file -- which is exactly why
+    // it is worth checking: the alternative to finding it here is FreeType finding
+    // it, or not.
+    if (!SfntContainerIsSane(unwrapped->sfnt)) {
+      return false;
+    }
     return Register(std::move(family), weight, italic, unwrapped->sfnt);
+  }
+  if (!SfntContainerIsSane(bytes)) {
+    return false;
   }
   return Register(std::move(family), weight, italic, std::move(bytes));
 }

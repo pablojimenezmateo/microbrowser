@@ -307,7 +307,8 @@ microbrowser_module(gfx
     src/gfx/SvgDecoder.cpp
     src/gfx/SvgPath.cpp
     src/gfx/TextShaper.cpp
-    src/gfx/Woff2.cpp
+    src/gfx/SfntContainer.cpp
+  src/gfx/Woff2.cpp
   src/gfx/Woff2Glyf.cpp
   DEPS microbrowser_util
   EXTERN Freetype::Freetype ${MICROBROWSER_HARFBUZZ_TARGET})
@@ -592,6 +593,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(isobmff_fuzzer fuzz/IsoBmffFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(woff2_fuzzer fuzz/Woff2Fuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(sfnt_fuzzer fuzz/SfntFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
