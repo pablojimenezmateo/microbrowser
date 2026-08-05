@@ -157,6 +157,38 @@ class Box {
   // colour; the clip around them was 0x0.
   bool ClipsOverflow() const { return kind_ != Kind::Inline && style_.ClipsOverflow(); }
 
+  // A box that clips its overflow is a **scroll container**: what it cut off is
+  // still there, and an offset decides which part of it shows. Every value but
+  // `visible` makes one, including `hidden` -- which a user cannot scroll but a
+  // script can, and which is how a carousel is built.
+  bool IsScrollContainer() const { return ClipsOverflow(); }
+
+  // ...and a *user* may only scroll the two that say so. `overflow: hidden` on
+  // a wrapper is a page saying "this does not scroll", and a wheel that moved
+  // it anyway would scroll things no other browser scrolls.
+  bool AllowsUserScroll() const {
+    return IsScrollContainer() && (style_.overflow_x == css::Overflow::Scroll ||
+                                   style_.overflow_x == css::Overflow::Auto ||
+                                   style_.overflow_y == css::Overflow::Scroll ||
+                                   style_.overflow_y == css::Overflow::Auto);
+  }
+
+  // Where this box's content is displaced to, and how big that content is.
+  //
+  // **Not derived from style, which is what makes it a different kind of thing
+  // from everything else on this class.** Layout computes the overflow size and
+  // clamps the offset into it; the offset itself is state a wheel or a script
+  // wrote, and it survives a relayout because the engine keeps it per element
+  // and puts it back. See ADR 0018 §1: a scroll is a paint, not a layout, and
+  // the offset is the one input to paint that layout does not own.
+  gfx::FloatPoint ScrollOffset() const { return scroll_offset_; }
+  void SetScrollOffset(gfx::FloatPoint offset) { scroll_offset_ = offset; }
+  // The scrollable overflow size: what `scrollWidth`/`scrollHeight` report, and
+  // never smaller than the padding box, because a box that fits its content
+  // still reports its own size rather than zero.
+  gfx::FloatSize ScrollableOverflow() const { return scrollable_overflow_; }
+  void SetScrollableOverflow(gfx::FloatSize size) { scrollable_overflow_ = size; }
+
   // Participates in the block layout pass: stacked, or placed as a float.
   bool IsOutOfLineFlow() const { return IsBlockLevel() || IsFloating(); }
 
@@ -231,6 +263,8 @@ class Box {
   std::vector<TextFragment> fragments_;
   std::shared_ptr<const gfx::Image> image_;
   std::shared_ptr<const gfx::Image> background_image_;
+  gfx::FloatPoint scroll_offset_;
+  gfx::FloatSize scrollable_overflow_;
   // Mutable: measuring a box does not change it, and the measurement is a pure
   // function of a tree that layout treats as const while it reads it.
   mutable IntrinsicWidths intrinsic_;

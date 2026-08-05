@@ -225,6 +225,7 @@ microbrowser_module(layout
     src/layout/InlineLayout.cpp
     src/layout/LayoutDisplayList.cpp
     src/layout/LayoutEngine.cpp
+    src/layout/ScrollLayout.cpp
     src/layout/TableLayout.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_html microbrowser_css microbrowser_gfx)
 
@@ -292,6 +293,7 @@ microbrowser_module(engine
     src/engine/ImageSelection.cpp
     src/engine/Loader.cpp
     src/engine/Page.cpp
+    src/engine/PageScrolling.cpp
     src/engine/PageScript.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
        microbrowser_privacy microbrowser_net microbrowser_dom microbrowser_html
@@ -447,6 +449,7 @@ add_executable(microbrowser_tests
   tests/DomBindingsTests.cpp
   tests/FlexLayoutTests.cpp
   tests/LayoutTests.cpp
+  tests/ScrollTests.cpp
   tests/NetTests.cpp
   tests/PaintPipelineTests.cpp
   tests/PainterTests.cpp

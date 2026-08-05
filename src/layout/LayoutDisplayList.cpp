@@ -165,13 +165,98 @@ void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx:
   out.PopClip();
 }
 
+// Where a box's descendants are measured against when they are pinned rather
+// than laid out: the nearest scrollport, and the containing block a sticky box
+// may not escape. Both in painted coordinates, which is the coordinate system
+// everything in this file is already in by the time it is used.
+struct PaintFrame {
+  gfx::FloatRect scrollport;
+  gfx::FloatRect containing_block;
+};
+
+// How far a `position: sticky` box is displaced, per axis.
+//
+// It is `relative` until the edge it names would leave the scrollport, then it
+// stays at that edge, and it never leaves its containing block -- which is why
+// a sticky section header is pushed off the top by the next section rather than
+// piling up. Two clamps and no state; ADR 0018 §2 is exactly this arithmetic,
+// and the reason it could not be written before is that `scrollport` had no
+// value to take.
+float StickyShift(float low_inset, bool has_low, float high_inset, bool has_high, float box_low,
+                  float box_high, float port_low, float port_high, float block_low,
+                  float block_high) {
+  float shift = 0.0f;
+  if (has_low) {
+    shift = std::max(shift, port_low + low_inset - box_low);
+  }
+  if (has_high && port_high > port_low) {
+    shift = std::min(shift, port_high - high_inset - box_high);
+  }
+  // Inside the containing block, both ways. A box that started inside it and
+  // was pushed out is the one visible symptom of getting this wrong.
+  //
+  // Skipped when the containing block is degenerate -- an inline parent, or a
+  // caller that did not say how big its viewport is. Clamping against an empty
+  // rectangle would drag every sticky box on the page to its origin, which is a
+  // far worse answer than not sticking.
+  if (block_high > block_low) {
+    shift = std::min(shift, block_high - box_high);
+    shift = std::max(shift, block_low - box_low);
+  }
+  return shift;
+}
+
+gfx::FloatPoint StickyOffset(const Box& box, const gfx::FloatRect& border_box,
+                             const PaintFrame& frame) {
+  const css::ComputedStyle& style = box.Style();
+  const css::Edges& inset = style.inset;
+  const float font_size = style.font_size;
+  const auto used = [font_size](const css::Length& length, float extent) {
+    return length.Used(extent, font_size);
+  };
+  const gfx::FloatRect& port = frame.scrollport;
+  const gfx::FloatRect& block = frame.containing_block;
+  return gfx::FloatPoint{
+      StickyShift(used(inset.left, port.width), !inset.left.IsAuto(),
+                  used(inset.right, port.width), !inset.right.IsAuto(), border_box.x,
+                  border_box.Right(), port.x, port.Right(), block.x, block.Right()),
+      StickyShift(used(inset.top, port.height), !inset.top.IsAuto(),
+                  used(inset.bottom, port.height), !inset.bottom.IsAuto(), border_box.y,
+                  border_box.Bottom(), port.y, port.Bottom(), block.y, block.Bottom()),
+  };
+}
+
 }  // namespace
 
-void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset) {
+void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint document_offset,
+                      gfx::FloatSize viewport) {
+  // The document's own scrollport, in painted coordinates. Its origin is (0,0)
+  // by construction: `offset` is the negated scroll position, so the top-left
+  // of the window is exactly where the scrolled document's viewport edge lands.
+  const PaintFrame root_frame{gfx::FloatRect{0.0f, 0.0f, viewport.width, viewport.height},
+                              gfx::FloatRect{0.0f, 0.0f, viewport.width, viewport.height}};
+
   // Backgrounds and borders paint before content, which is what makes a child
   // draw on top of its parent's background rather than under it.
-  const auto paint = [&out, offset](const Box& box, auto& self) -> void {
+  const auto paint = [&out](const Box& box, gfx::FloatPoint offset, const PaintFrame& frame,
+                            auto& self) -> void {
     const css::ComputedStyle& style = box.Style();
+    // A fixed box is positioned against the viewport, so it drops every scroll
+    // translation above it -- which is what makes it stay put while the page
+    // moves under it, and what lets the presenter blit a scroll and then repaint
+    // only the strip these boxes cover.
+    if (style.position == css::Position::Fixed) {
+      offset = gfx::FloatPoint{};
+    }
+    if (style.position == css::Position::Sticky && box.GetKind() != Box::Kind::Text) {
+      const gfx::FloatRect unpinned = box.Geometry().BorderBox();
+      const gfx::FloatPoint shift = StickyOffset(
+          box,
+          gfx::FloatRect{unpinned.x + offset.x, unpinned.y + offset.y, unpinned.width,
+                         unpinned.height},
+          frame);
+      offset = gfx::FloatPoint{offset.x + shift.x, offset.y + shift.y};
+    }
     // A text box has no background and no border by construction, but the
     // painter says so too: this is the kind of invariant that is cheap to
     // assert here and expensive to rediscover from a screenshot.
@@ -242,29 +327,64 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint of
     // pushed after this box's own background and border so that neither is
     // clipped by it.
     //
-    // Scrolling is the other half of overflow and is not here: a scroller
-    // clips what is outside it *and* offers the rest back, and only the
-    // clipping half is paint's. Until there is a scroll offset per box, a
-    // `scroll` box shows its first screenful, which is what it shows before
-    // anyone scrolls it anyway.
+    // Scrolling is the other half of overflow, and it is here now: the clip
+    // stays where the box is, and the *children* are translated by the negated
+    // offset. That is the whole of what a scroll costs in paint, and it is why
+    // ADR 0018 calls a scroll a paint rather than a layout -- nothing above
+    // this line changed.
     const bool clips = box.ClipsOverflow();
+    PaintFrame child_frame = frame;
+    gfx::FloatPoint child_offset = offset;
+    const gfx::FloatRect padding_box{box.Geometry().PaddingBox().x + offset.x,
+                                     box.Geometry().PaddingBox().y + offset.y,
+                                     box.Geometry().PaddingBox().width,
+                                     box.Geometry().PaddingBox().height};
     if (clips) {
-      const gfx::FloatRect padding = box.Geometry().PaddingBox();
       out.PushClip(gfx::IntRect{
-          static_cast<int>(std::floor(padding.x + offset.x)),
-          static_cast<int>(std::floor(padding.y + offset.y)),
-          static_cast<int>(std::ceil(padding.width)),
-          static_cast<int>(std::ceil(padding.height)),
+          static_cast<int>(std::floor(padding_box.x)),
+          static_cast<int>(std::floor(padding_box.y)),
+          static_cast<int>(std::ceil(padding_box.width)),
+          static_cast<int>(std::ceil(padding_box.height)),
       });
+      child_offset.x -= box.ScrollOffset().x;
+      child_offset.y -= box.ScrollOffset().y;
+      child_frame.scrollport = padding_box;
     }
-    for (const std::unique_ptr<Box>& child : box.Children()) {
-      self(*child, self);
+    // The containing block a sticky child may not escape is this box's content
+    // box, in the coordinate system its children paint in.
+    const gfx::FloatRect content_box = box.Geometry().content;
+    child_frame.containing_block =
+        gfx::FloatRect{content_box.x + child_offset.x, content_box.y + child_offset.y,
+                       content_box.width, content_box.height};
+    // Two passes, and the second holds exactly the two positions that are a
+    // function of the scroll: `sticky` and `fixed`. Both exist to sit *over*
+    // the content they do not move with, and tree order put them in the display
+    // list first, so every later sibling drew on top of them -- a sticky header
+    // that sticks underneath the article renders as though the feature were
+    // absent.
+    //
+    // Deliberately not every positioned box, which is what CSS 2.1 Appendix E
+    // actually says. Hoisting `relative` and `absolute` too was tried and it
+    // broke old.reddit.com: its header bar's background is a positioned box in
+    // one subtree and the subreddit list is in another, and ordering *between*
+    // subtrees is what a stacking context decides rather than what tree order
+    // can. That is session 21. These two are the cases that are wrong without
+    // any of it.
+    for (int pass = 0; pass < 2; ++pass) {
+      for (const std::unique_ptr<Box>& child : box.Children()) {
+        const css::Position position = child->Style().position;
+        const bool over = position == css::Position::Sticky || position == css::Position::Fixed;
+        if (over != (pass == 1)) {
+          continue;
+        }
+        self(*child, child_offset, child_frame, self);
+      }
     }
     if (clips) {
       out.PopClip();
     }
   };
-  paint(root, paint);
+  paint(root, document_offset, root_frame, paint);
   AddPerformanceCounter(PerfCounterId::LayoutDisplayListsBuilt);
 }
 

@@ -30,7 +30,19 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # css::ComputedStyle because `overflow` does not apply to a non-replaced inline
 # box and only the box knows whether it is one. Asking the style instead
 # deleted every story title on old.reddit.com.
-budget: Box             header_lines=175 public_methods=41 members=10
+# Raised for the scroll model, and ADR 0018 predicted this budget firing by
+# name: "src/layout gains per-box state that is not derived from style. That is
+# a genuine change to what a box is." Two members -- where this box's content is
+# displaced to, and how big that content is -- and they are the first two on
+# this class that layout does not compute from the cascade. The offset is
+# written by a wheel or a script and *consulted* by layout, which is why the
+# durable copy lives on the engine keyed by element: the box tree is rebuilt
+# every layout and a scrolled menu must not jump back to the top.
+# Five methods: the two pairs above, plus IsScrollContainer and AllowsUserScroll
+# -- the distinction between "a script may scroll this" (every clipping box,
+# including `overflow: hidden`) and "a wheel may" (only `scroll` and `auto`),
+# which is a rule three passes ask about and would otherwise re-derive.
+budget: Box             header_lines=210 public_methods=46 members=12
 # The kinds are documented rather than listed, because each one exists to make
 # a distinction some pass would otherwise have to rediscover from style. The
 # budget is here so that growth in the vocabulary is a decision.

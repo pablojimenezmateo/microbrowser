@@ -84,12 +84,7 @@ bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
     } else if (value == "fixed") {
       style.position = Position::Fixed;
     } else if (value == "sticky") {
-      // Sticky is relative until it would scroll out of view, and there is no
-      // scroll position here to compare against. Relative is what it looks
-      // like before it sticks, which is the right half to be wrong about.
-      // Reported as supported, because it is: the approximation is in what it
-      // does, not in whether the declaration parsed.
-      style.position = Position::Relative;
+      style.position = Position::Sticky;
     } else {
       return false;
     }

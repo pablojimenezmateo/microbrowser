@@ -72,7 +72,12 @@ enum class Clear : std::uint8_t { None, Left, Right, Both };
 // stay in the flow and take up space, `Absolute` and `Fixed` do not. Which is
 // why the question layout asks is `IsOutOfFlow`, and the enum is only ever
 // read to answer it and to pick a containing block.
-enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed };
+// `Sticky` is in the flow like `Relative` and moves like neither: its offset is
+// a function of the scroll position of its nearest scrolling ancestor, so it is
+// resolved at paint time rather than at layout time. Until session 8 there was
+// no scroll offset to resolve it against and it was cascaded as `Relative`,
+// which looked right until the page moved.
+enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed, Sticky };
 
 // What happens to content that does not fit its box.
 //

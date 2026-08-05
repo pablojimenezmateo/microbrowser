@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -134,6 +135,38 @@ class LayoutEngine {
   const ImageProvider* images_;
 };
 
+// Where a scroll offset lives between two layouts.
+//
+// Keyed by element rather than by box, because the box tree is thrown away and
+// rebuilt on every relayout and the offset must not be: a page that scrolls a
+// menu and then changes a class on it would jump back to the top. Layout writes
+// the stored offset into the box it belongs to and clamps it against the
+// overflow it just measured, which is ADR 0018's "state layout consults and
+// does not own".
+using ScrollOffsets = std::map<const dom::Element*, gfx::FloatPoint>;
+
+// Measures the scrollable overflow of every scroll container in `root`, applies
+// the stored offsets, and clamps each one into the range its box can actually
+// scroll.
+//
+// Run after layout and before paint. Entries in `offsets` whose element no
+// longer generates a scroll container are dropped, which is what keeps the map
+// bounded by the document rather than by the history of the document.
+void UpdateScrollState(Box& root, ScrollOffsets& offsets);
+
+// The largest offset `box` can be scrolled to: its scrollable overflow less
+// what it already shows. Zero on both axes for a box whose content fits.
+gfx::FloatPoint MaxScrollOffset(const Box& box);
+
+// The nearest scroll container at or above `point` in the tree that can still
+// move by `delta` on either axis, or null when nothing can.
+//
+// The chaining rule of ADR 0018 §4, and the difference between a browser that
+// feels right and one that does not: a wheel inside a menu scrolls the menu
+// until it reaches its end and then scrolls the page behind it.
+const Box* ScrollTargetAt(const Box& root, gfx::FloatPoint document_point,
+                          gfx::FloatPoint delta);
+
 // Turns a laid-out box tree into a display list.
 //
 // Separate from layout for the reason the display list exists at all: paint
@@ -144,6 +177,16 @@ class LayoutEngine {
 // page. Baked into the geometry rather than expressed as a transform command:
 // the display list has no transform, and adding one would make every damage
 // rect depend on replaying it.
-void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset = {});
+//
+// `viewport` is the size of the scrollport the *document* scrolls in, and it is
+// here for the two positions that are a function of the scroll rather than of
+// the flow: a `fixed` box drops the offset entirely, and a `sticky` one is
+// pinned inside its containing block against the nearest scrollport's edge.
+// Both are resolved here rather than in layout because both change when nothing
+// about the geometry does -- which is what "a scroll is a paint" means. A zero
+// viewport leaves `bottom`/`right` sticky insets unresolved, which is the
+// honest answer for a caller that has not said how big its window is.
+void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint offset = {},
+                      gfx::FloatSize viewport = {});
 
 }  // namespace microbrowser::layout
