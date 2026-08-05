@@ -383,6 +383,31 @@ class DomBindings {
   // three.
   void AbortSignalled(const js::Value& signal, const js::Value& reason);
 
+  // --- XMLHttpRequest, in XhrBindings.cpp -----------------------------------
+  // A shim over the same machinery `fetch` uses -- ADR 0020 §1 is explicit that
+  // the older shape is expressed in terms of the newer one, so that a page
+  // using either passes the same verdict, the same CORS check and the same
+  // `connect-src`. Installed only when there is a NetworkSource, like `fetch`.
+  void InstallXhr();
+  // Moves `readyState` and fires `readystatechange`. One function because the
+  // pair is the whole of what a readyState change *is*, and a caller that moved
+  // the number without firing the event would be invisible to every page
+  // written before `onload` existed.
+  void AdvanceXhrState(const js::Value& xhr, double state);
+  void FireXhrEvent(const js::Value& xhr, const char* type);
+  // A network failure: DONE, status 0, `error` then `loadend`, and deliberately
+  // no reason -- the same rule `fetch` follows, because an error that told a
+  // page whether a cross-origin resource existed would be the read CORS exists
+  // to prevent.
+  void FailXhr(const js::Value& xhr);
+  // `abort()`: cancels it at the network and fires the events, and fires
+  // nothing at all when the request was never in flight -- which would
+  // otherwise run a page's cleanup handler twice.
+  void AbortXhr(const js::Value& xhr);
+  // One response, into an XHR rather than into a promise. Reached from
+  // DeliverFetchResponse, which is the one delivery both kinds share.
+  void DeliverToXhr(const js::Value& xhr, const ScriptResponse& response);
+
   // --- HTML from script, in HtmlParsing.cpp ---------------------------------
   // `innerHTML`, `outerHTML` and `insertAdjacentHTML`: a page's string of
   // markup becoming nodes, through the fragment parsing algorithm with a

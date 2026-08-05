@@ -353,6 +353,7 @@ microbrowser_module(bindings
     src/bindings/FocusBindings.cpp
     src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp
+    src/bindings/XhrBindings.cpp
   DEPS microbrowser_js microbrowser_dom microbrowser_html)
 
 microbrowser_module(js
@@ -470,6 +471,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IntegrityTests.cpp
+  tests/XhrTests.cpp
   tests/IpcMessageTests.cpp
   tests/IsoBmffTests.cpp
   tests/JpegDecoderTests.cpp

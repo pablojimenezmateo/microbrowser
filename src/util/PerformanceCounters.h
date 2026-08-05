@@ -198,6 +198,14 @@ namespace microbrowser::util {
   X(FetchDelivered, "fetch.delivered")                                           \
   X(FetchFailed, "fetch.failed")                                                 \
   X(FetchAborted, "fetch.aborted")                                               \
+  /* The same four for `XMLHttpRequest`, counted apart from `fetch` even though */ \
+  /* both go out through one path. Which API a page reaches for says what era   */ \
+  /* its code is from, and on a page that hangs it is the first thing worth     */ \
+  /* knowing -- an XHR nobody delivered has no rejected promise to notice.      */ \
+  X(XhrRequests, "xhr.requests")                                                 \
+  X(XhrDelivered, "xhr.delivered")                                               \
+  X(XhrFailed, "xhr.failed")                                                     \
+  X(XhrAborted, "xhr.aborted")                                                   \
   /* The page's own policy, and the resource integrity it asked for. Both are  */ \
   /* enforced silently by design -- nothing is reported to a server, ADR 0020  */ \
   /* §3 -- so these counters are the only signal that a page's policy is doing */ \

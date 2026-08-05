@@ -54,6 +54,7 @@ void RegisterGlyphCacheTests(std::vector<TestCase>& tests);
 void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests);
 void RegisterInflateTests(std::vector<TestCase>& tests);
 void RegisterIntegrityTests(std::vector<TestCase>& tests);
+void RegisterXhrTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
 void RegisterIsoBmffTests(std::vector<TestCase>& tests);
 void RegisterJpegDecoderTests(std::vector<TestCase>& tests);
@@ -192,6 +193,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterIdleWaitStrategyTests(tests);
   microbrowser::tests::RegisterInflateTests(tests);
   microbrowser::tests::RegisterIntegrityTests(tests);
+  microbrowser::tests::RegisterXhrTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);
   microbrowser::tests::RegisterIsoBmffTests(tests);
   microbrowser::tests::RegisterJpegDecoderTests(tests);

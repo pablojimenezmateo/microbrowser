@@ -181,6 +181,9 @@ void DomBindings::InstallFetch() {
   InstallResponse();
   InstallRequest();
   InstallAbortController();
+  // Over the same machinery, and installed here rather than beside it in
+  // `Install` so that "there is a network behind this layer" is asked once.
+  InstallXhr();
 
   const Value fetch = interpreter_->NewNativeValue("fetch", [this](NativeCall& call) {
     const Value promise = call.interpreter.NewPromiseValue();
@@ -327,6 +330,7 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
     return false;
   }
   Value promise;
+  Value xhr;
   std::vector<Value> kept;
   for (std::size_t i = 0; i < pending->object->ElementCount(); ++i) {
     const Value entry = pending->object->GetElement(i);
@@ -335,17 +339,27 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
       kept.push_back(entry);
       continue;
     }
-    const Value* found = entry.object->GetOwn(kFetchPromiseSlot);
-    if (found != nullptr) {
+    // A promise for a `fetch`, an XHR object for an `XMLHttpRequest`. One table
+    // and one delivery, which is ADR 0020 §1's rule that there is one request
+    // path -- the two shapes differ only in what is settled at the end of it.
+    if (const Value* found = entry.object->GetOwn(kFetchPromiseSlot)) {
       promise = *found;
     }
+    if (const Value* found = entry.object->GetOwn(kXhrSlot)) {
+      xhr = *found;
+    }
   }
-  if (!promise.IsObject()) {
+  if (!promise.IsObject() && !xhr.IsObject()) {
     // An answer for a request nobody is waiting for: aborted, or delivered
     // twice. Dropping it is the right answer and the only safe one.
     return false;
   }
   pending->object->SetElements(kept, std::vector<bool>(kept.size(), true));
+
+  if (xhr.IsObject()) {
+    DeliverToXhr(xhr, response);
+    return true;
+  }
 
   if (!response.ok) {
     // One message for every network failure, and deliberately not the reason.

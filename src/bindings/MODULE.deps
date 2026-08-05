@@ -123,7 +123,15 @@ max_tu_lines: 700
 # at all rather than four separate implementations is that the *context
 # element* is the whole algorithm -- four call sites deciding it independently
 # is four chances to build a tree that differs from every other browser.
-budget: DomBindings header_lines=385 public_methods=18 members=11
+# 410 lines for `XMLHttpRequest` (ADR 0020 §1). No new members and no new public
+# methods, which is the whole claim: an XHR is a `ScriptRequest` like any other,
+# sits in the same pending table as a `fetch`, and arrives through the same
+# `DeliverFetchResponse`. The lines are six private declarations in
+# XhrBindings.cpp's block -- install, the readyState step, an event, a failure,
+# an abort and a delivery -- and the reason they are declarations here rather
+# than statics in that file is that four of them fire events, which only this
+# class may do.
+budget: DomBindings header_lines=410 public_methods=18 members=11
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and

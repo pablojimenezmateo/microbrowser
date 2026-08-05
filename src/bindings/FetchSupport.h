@@ -36,6 +36,14 @@ inline constexpr const char* kPendingFetchSlot = "#fetches";
 inline constexpr const char* kFetchPromiseSlot = "#promise";
 inline constexpr const char* kFetchSignalSlot = "#signal";
 inline constexpr const char* kFetchIdSlot = "#id";
+// An `XMLHttpRequest` in flight sits in the *same* table, with the XHR object
+// where the promise would be. One table rather than two, so that a navigation
+// clearing the requests clears both kinds and `DeliverFetchResponse` is the one
+// place that decides which shape an answer has. Also the marker that says an
+// object is an XHR at all, which is what makes
+// `XMLHttpRequest.prototype.send.call(7)` a TypeError rather than a jump
+// through a bad pointer.
+inline constexpr const char* kXhrSlot = "#xhr";
 // AbortSignal's state. `aborted` is what a page reads; the reason is what a
 // rejected fetch rejects with.
 inline constexpr const char* kAbortedSlot = "#aborted";
