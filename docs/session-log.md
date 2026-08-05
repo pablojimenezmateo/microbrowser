@@ -1454,9 +1454,9 @@ and 4); `scrollRestoration`, absent rather than a settable string that changes n
   failure mode `docs/roadmap-to-any-page.md` calls "the measurement was measuring the wrong
   thing".**
 
-## Session 50 — PerformanceObserver and the module loader · 2026-08-05 (half done)
+## Session 50 — PerformanceObserver and the module loader · 2026-08-05
 
-**Status:** in_progress — `PerformanceObserver` landed; the module loader has not.
+**Status:** done
 
 **Check:** the session's first clause, run at `5c8370e`:
 
@@ -1476,12 +1476,17 @@ MICROBROWSER_PERF_COUNTERS=1 microbrowser_snapshot https://www.reddit.com/ -o ou
 
 - *performance and PerformanceObserver, and the compiler bug they made visible*
 
-**Left:** the module loader — the other half of this session and the last thing between here and
-Gate B. reddit's module now runs to completion, but its
-`import("https://www.redditstatic.com/shreddit/…")` calls resolve to nothing, so the feed still does
-not fill in. `Interpreter::SetModuleResolver` is synchronous; the decision to make is a pre-pass
-that fetches the whole graph before evaluating, against a resolver that can answer later. The
-`data:` scheme has to work in it, because reddit's entry point is a module with a `data:` URL.
+**Then the module loader landed too**, and www.reddit.com went from `143 commands, 3 runs, 1 fonts,
+0 images` to **`210 commands, 48 runs, 3 fonts, 1 images`** — the search box, the user menu and the
+sidebar card ("Join the most real place on the internet", with its User Agreement and Privacy Policy
+links) all render where the page was blank. Looked at as an image, not inferred from counters.
+
+**Left: Gate B, and it is not the module loader.** reddit's feed still does not fill in, and
+`js.dynamic_imports` is **zero** — its own `import()` calls never execute, because the paths that
+reach them are behind `window.Sentry?.…` and `requestIdleCallback`. The feed lives in two
+`<template for="s_…">` elements that the page's own `<suspense-replace>` custom element is supposed
+to hoist; session 14 established that those hold 729 and 1668 nodes and that rendering them directly
+was a parser bug. That custom element is where a next session should look.
 
 **Found:**
 
@@ -1561,3 +1566,32 @@ of which exists yet.
 - **The prelude reaches the evaluator through `Reconstruct`**, the serializer a declaration's value
   already uses. A second token-to-text function is a second set of answers about what
   `(min-width:600px)` says.
+
+### Session 50, second half — the module loader · 2026-08-05
+
+**Landed:** *The module loader, split the way the two kinds of import actually differ*
+
+**Found:**
+
+- **The split *is* the design, and neither half works as the other.** A static graph can be closed
+  before evaluation, which is what lets `SetModuleResolver` stay synchronous — parse each module for
+  what it names, fetch that, repeat, and only then evaluate. A dynamic `import()` cannot: a page
+  reaches one whenever it reaches one, so the promise goes back pending and is settled on a later
+  turn. ADR 0011 asked which of the two to build; the answer is both, because they are not the same
+  question.
+- **A bare specifier must resolve to *nothing*.** `import "react"` resolved to
+  `https://page.example/react` at first, because a relative-URL resolve against the document accepts
+  anything. There is no import map here, so that was a request to a URL the page never named — and
+  the rule is that a specifier is a full URL or starts with `/`, `./` or `../`.
+- **The graph is populated before the interpreter exists.** A module script's source arrives through
+  `AddFetched`, which happens while the load is still running; the resolver is installed later, at
+  `EnsureInterpreter`. So the install must *not* clear the graph — the first version did, and threw
+  away exactly the sources it was about to be asked for — and the document URL has to be set at
+  parse time, or asking a module what it imports has no base to resolve against.
+- **A `data:` referrer is not a base.** `new URL("./x", "data:…")` means nothing, so a relative
+  import inside a `data:` module resolves against the document, which is what a browser does with
+  one. reddit's entry point is a `data:` module, so this is not a corner.
+- **A pending import's promise has to be rooted where the collector can see it.** The host holds a
+  raw `Object*` while the fetch is in flight, and a raw pointer is *worse* than invisible to a
+  collector: it survives the sweep that freed its target. It lives in a JavaScript array on the
+  global for the same reason the fetch table does.
