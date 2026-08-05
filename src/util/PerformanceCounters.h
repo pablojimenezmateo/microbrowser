@@ -111,6 +111,15 @@ namespace microbrowser::util {
   X(NetConnectionsReused, "net.connections_reused")                              \
   X(NetConnectionsPooled, "net.connections_pooled")                              \
   X(NetConnectionsClosedIdle, "net.connections_closed_idle")                     \
+  /* --- CORS (ADR 0020 §2). A response refused here was discarded inside net  */ \
+  /* rather than delivered and hidden, so `blocked` is a count of              */ \
+  /* cross-origin reads that did not happen. Preflights are counted apart      */ \
+  /* from the requests they authorise: a page whose every request costs an     */ \
+  /* OPTIONS is a page making twice as many round trips as it looks like.      */ \
+  X(NetCorsBlocked, "net.cors_blocked")                                          \
+  X(NetCorsOpaque, "net.cors_opaque")                                            \
+  X(NetCorsPreflights, "net.cors_preflights")                                    \
+  X(NetCorsPreflightsCached, "net.cors_preflights_cached")                       \
   /* --- html ---------------------------------------------------------------- */ \
   X(HtmlTokens, "html.tokens")                                                   \
   X(HtmlDocumentsParsed, "html.documents_parsed")                                \

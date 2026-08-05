@@ -46,6 +46,24 @@ class HttpHeaders {
 bool IsValidHeaderName(std::string_view name);
 bool IsValidHeaderValue(std::string_view value);
 
+// The request headers no caller may set, whatever it passes in.
+//
+// `Fetch` builds every one of these itself, from the URL, the verdict and the
+// CORS parameters, and drops any a caller included. `Origin` and the two
+// `Access-Control-Request-*` fields are the reason this is a named predicate
+// rather than a list inside `Fetch.cpp`: they are the request half of CORS, so
+// a page that could write them could name an origin it does not have or claim
+// a preflight it never made -- and `RequestQueue` has to know which headers
+// will never be sent *before* it decides whether a preflight is needed, or a
+// page could force an `OPTIONS` with a header that then vanishes.
+//
+// One list, two callers, and the second is why it moved here.
+bool IsHeaderOwnedByFetch(std::string_view name);
+
+// Removes every one of those from `headers`. Returns true when anything went,
+// which is a caller trying to send something it may not rather than an error.
+bool DropHeadersOwnedByFetch(HttpHeaders& headers);
+
 struct HttpResponse {
   int status = 0;
   // The minor version, so 0 for HTTP/1.0 and 1 for HTTP/1.1. Kept because

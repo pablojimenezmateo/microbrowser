@@ -8,6 +8,7 @@
 
 #include "net/ConnectionPool.h"
 #include "net/CookieJar.h"
+#include "net/Cors.h"
 #include "net/Fetch.h"
 #include "net/HttpCache.h"
 #include "net/Transport.h"
@@ -104,6 +105,17 @@ class RequestQueue {
   // the code rather than a rule.
   void CancelAll();
 
+  // Drops one request, wherever it is: waiting for a slot, on the wire, or
+  // finished but not yet collected. No completion is produced, which is what
+  // makes an aborted `fetch` unable to run its own `then` afterwards.
+  //
+  // `AbortController` is why this exists (ADR 0020 §1) and it is not a
+  // convenience: a request that cannot be cancelled is one that outlives the
+  // thing that made it, and this browser's answer to that has so far been
+  // `CancelAll` at a navigation -- which is the right hammer for a page going
+  // away and no help at all to a page cancelling its own search-as-you-type.
+  bool Cancel(Id id);
+
   std::size_t InFlight() const { return active_.size() + queued_.size(); }
   bool IsIdle() const { return active_.empty() && queued_.empty() && completions_.empty(); }
 
@@ -118,7 +130,24 @@ class RequestQueue {
   // expires; not for handing one out.
   const ConnectionPool& Connections() const { return pool_; }
 
+  // What a preflight has bought and has not yet been spent. Exposed so a test
+  // can assert an `OPTIONS` happened once rather than twice; not for handing a
+  // grant out.
+  const PreflightCache& Preflights() const { return preflights_; }
+
  private:
+  // Everything needed to start one request, before it has one. A request that
+  // needs a CORS preflight is two exchanges under one id, so this exists as a
+  // value that can be *held* while the first one runs -- which the three
+  // parallel fields it replaces could not be.
+  struct Pending {
+    privacy::Verdict verdict;
+    FetchOptions options;
+    // Wall-clock seconds, which is what cookie expiry, cache expiry and
+    // `Access-Control-Max-Age` are all measured in.
+    std::int64_t now = 0;
+  };
+
   struct Active {
     Id id = 0;
     std::unique_ptr<FetchRequest> request;
@@ -127,13 +156,16 @@ class RequestQueue {
     // teaching PartitionKey to hash.
     std::string partition;
     std::int64_t last_progress_ms = 0;
+    // Set only when `request` is the `OPTIONS` of a CORS preflight: the real
+    // request, waiting for permission, which starts under the same id once the
+    // preflight is allowed. One id space for both is what keeps a caller from
+    // having to know that its request cost two round trips.
+    std::unique_ptr<Pending> deferred;
   };
 
   struct Queued {
     Id id = 0;
-    privacy::Verdict verdict;
-    FetchOptions options;
-    std::int64_t now = 0;
+    Pending pending;
     std::string partition;
   };
 
@@ -142,6 +174,18 @@ class RequestQueue {
   // cache completes the instant it starts and frees its slot at once.
   bool PromoteQueued(std::int64_t now_ms);
   std::size_t ActiveInPartition(std::string_view partition) const;
+  void Enqueue(Id id, Pending pending);
+  // Whether this request has to ask permission first, and marks it preflighted
+  // when the cache already holds that permission. Both answers in one function
+  // because they are one decision made against one cache lookup.
+  bool NeedsPreflightExchange(Pending& pending) const;
+  // The `OPTIONS` that asks. Never carries credentials, never follows a
+  // redirect, and never reaches the caller: its response is consumed here.
+  static Pending PreflightFor(const Pending& real);
+  // Acts on a finished preflight: stores what it granted and re-queues the real
+  // request, or turns it into a failed completion. True when the real request
+  // was queued, which is the caller's signal that this id is not finished.
+  bool OnPreflightComplete(Id id, Pending deferred, const FetchResult& result);
 
   const privacy::PrivacyPolicy& policy_;
   ConnectionPool pool_;
@@ -150,6 +194,10 @@ class RequestQueue {
   std::vector<Active> active_;
   std::vector<Queued> queued_;
   std::vector<Completion> completions_;
+  // Keyed by the ADR 0005 partition key, for the reason the connection pool is:
+  // "did this preflight already happen" is a question the next site must not be
+  // able to ask about this one. See Cors.h.
+  PreflightCache preflights_;
   Id next_id_ = 1;
 };
 

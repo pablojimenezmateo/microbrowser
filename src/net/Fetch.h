@@ -9,6 +9,7 @@
 
 #include "net/ConnectionPool.h"
 #include "net/CookieJar.h"
+#include "net/Cors.h"
 #include "net/HttpCache.h"
 #include "net/HttpMessage.h"
 #include "net/Transport.h"
@@ -31,6 +32,16 @@ struct FetchOptions {
   // rather than serving an existing fresh entry. A successful response may
   // still replace the cache entry.
   bool bypass_cache = false;
+  // Who is asking and what they may read back. Defaults to `Browser`, which is
+  // no CORS check at all -- every request this browser makes for itself is one
+  // of those, and a document load is not a `no-cors` fetch that happens to be
+  // readable. `fetch` fills this in; see Cors.h.
+  //
+  // On the options rather than beside them because a redirect rewrites the
+  // options and has to rewrite this with them: a hop to a third party is how a
+  // same-origin request becomes a cross-origin one, and the origin is tainted
+  // at the hop.
+  CorsParams cors;
 };
 
 struct FetchResult {
@@ -44,6 +55,12 @@ struct FetchResult {
   url::Url final_url;
   int redirects = 0;
   bool from_cache = false;
+  // A `no-cors` response to a cross-origin request. The status is 0, the
+  // headers are gone and the body is empty -- not hidden behind this flag but
+  // *discarded*, inside `net`, before this result existed. The flag says why
+  // the response is empty; there is nothing behind it to read through, which is
+  // what ADR 0020 §2 means by opaque being a real thing rather than a marking.
+  bool opaque = false;
 };
 
 // One request, in flight.

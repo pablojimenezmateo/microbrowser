@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "util/Parse.h"
+#include "util/StringUtil.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::net {
@@ -58,6 +59,33 @@ std::string_view TrimOptionalWhitespace(std::string_view text) {
 
 bool IsValidHeaderName(std::string_view name) {
   return !name.empty() && std::all_of(name.begin(), name.end(), IsTchar);
+}
+
+bool IsHeaderOwnedByFetch(std::string_view name) {
+  const auto is = [name](std::string_view expected) {
+    return util::EqualsAsciiCaseInsensitive(name, expected);
+  };
+  return is("origin") || is("access-control-request-method") ||
+         is("access-control-request-headers") || is("content-length") ||
+         is("transfer-encoding") || is("host") || is("connection") || is("proxy-connection") ||
+         is("accept-language") || is("accept-encoding") || is("cookie") || is("referer") ||
+         is("user-agent") || is("te") || is("trailer") || is("upgrade");
+}
+
+bool DropHeadersOwnedByFetch(HttpHeaders& headers) {
+  HttpHeaders kept;
+  bool dropped = false;
+  for (const HttpHeaders::Field& field : headers.Fields()) {
+    if (IsHeaderOwnedByFetch(field.name)) {
+      dropped = true;
+      continue;
+    }
+    kept.Add(field.name, field.value);
+  }
+  if (dropped) {
+    headers = std::move(kept);
+  }
+  return dropped;
 }
 
 bool IsValidHeaderValue(std::string_view value) {

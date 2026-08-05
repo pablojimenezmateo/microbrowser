@@ -241,6 +241,7 @@ microbrowser_module(net
     src/net/ConnectionPool.cpp
     src/net/ContentEncoding.cpp
     src/net/CookieJar.cpp
+    src/net/Cors.cpp
     src/net/Fetch.cpp
     src/net/HttpCache.cpp
     src/net/HttpMessage.cpp
@@ -434,6 +435,7 @@ add_executable(microbrowser_tests
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
+  tests/CorsTests.cpp
   tests/FetchTests.cpp
   tests/BrowserChromeTests.cpp
   tests/DisplayListDiffTests.cpp

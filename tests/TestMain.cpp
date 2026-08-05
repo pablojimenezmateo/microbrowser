@@ -27,6 +27,7 @@ void RegisterDirtyRegionPolicyTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionTests(std::vector<TestCase>& tests);
 void RegisterDisplayListTests(std::vector<TestCase>& tests);
 void RegisterEnvTests(std::vector<TestCase>& tests);
+void RegisterCorsTests(std::vector<TestCase>& tests);
 void RegisterFetchTests(std::vector<TestCase>& tests);
 void RegisterBrowserChromeTests(std::vector<TestCase>& tests);
 void RegisterDisplayListDiffTests(std::vector<TestCase>& tests);
@@ -161,6 +162,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterDirtyRegionTests(tests);
   microbrowser::tests::RegisterDisplayListTests(tests);
   microbrowser::tests::RegisterEnvTests(tests);
+  microbrowser::tests::RegisterCorsTests(tests);
   microbrowser::tests::RegisterFetchTests(tests);
   microbrowser::tests::RegisterBrowserChromeTests(tests);
   microbrowser::tests::RegisterDisplayListDiffTests(tests);

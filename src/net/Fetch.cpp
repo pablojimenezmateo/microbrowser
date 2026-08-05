@@ -23,15 +23,6 @@ bool IsRequestFramingHeader(std::string_view name) {
   return HeaderNameIs(name, "content-length") || HeaderNameIs(name, "transfer-encoding");
 }
 
-bool IsFetchOwnedHeader(std::string_view name) {
-  return IsRequestFramingHeader(name) || HeaderNameIs(name, "host") ||
-         HeaderNameIs(name, "connection") || HeaderNameIs(name, "proxy-connection") ||
-         HeaderNameIs(name, "accept-language") || HeaderNameIs(name, "accept-encoding") ||
-         HeaderNameIs(name, "cookie") || HeaderNameIs(name, "referer") ||
-         HeaderNameIs(name, "user-agent") || HeaderNameIs(name, "te") ||
-         HeaderNameIs(name, "trailer") || HeaderNameIs(name, "upgrade");
-}
-
 bool IsBodyHeader(std::string_view name) {
   return IsRequestFramingHeader(name) || HeaderNameIs(name, "content-type");
 }
@@ -61,6 +52,39 @@ std::string RequestTarget(const url::Url& url) {
   return target;
 }
 
+// Whether this request sends the user's cookies.
+//
+// The `Browser` answer is unconditional and is what every load before ADR 0020
+// did: which cookies travel is already decided inside the jar, by the partition
+// key and by same-site. The three fetch modes narrow that, and `SameOrigin` --
+// the default -- is the one that matters: a page's `fetch` to a third party
+// carries nothing unless it asked for `credentials: "include"` *and* the server
+// agreed, which is checked on the way back.
+bool SendsCredentials(const CorsParams& cors, const url::Url& url) {
+  switch (cors.credentials) {
+    case CredentialsMode::Omit:
+      return false;
+    case CredentialsMode::Include:
+      return true;
+    case CredentialsMode::SameOrigin:
+      break;
+  }
+  return cors.mode == RequestMode::Browser || IsSameOrigin(cors.origin, url);
+}
+
+// Whether an `Origin` header goes out.
+//
+// Every non-`Browser` request that is not a plain read gets one, and every
+// `cors` request gets one whatever its method: that header is what a server
+// answers `Access-Control-Allow-Origin` against, so omitting it would make
+// every cross-origin fetch fail for a reason the page could not see.
+bool SendsOrigin(const CorsParams& cors, std::string_view method) {
+  if (cors.mode == RequestMode::Browser) {
+    return false;
+  }
+  return cors.mode == RequestMode::Cors || (method != "GET" && method != "HEAD");
+}
+
 // Builds the header set actually sent.
 //
 // Assembled here rather than taken from the caller so that no header can be
@@ -86,11 +110,25 @@ HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
   // No `Connection` header at all. HTTP/1.1 is persistent by default, so
   // `keep-alive` would be a byte on every request saying what the version
   // already says, and one more bit for a fingerprinter to measure. The header
-  // stays in IsFetchOwnedHeader so a caller still cannot set it: whether a
+  // stays in IsHeaderOwnedByFetch so a caller still cannot set it: whether a
   // connection is kept is a decision the pool makes, not one a page influences.
 
+  if (SendsOrigin(options.cors, options.method)) {
+    // The serialization, which is "null" for an opaque origin and for one a
+    // cross-origin redirect tainted. Both must send the same thing: a request
+    // that revealed its real origin after being bounced through a third party
+    // would let that third party read a response meant for the first.
+    headers.Add("Origin", options.cors.origin.Serialize());
+  }
+  if (!options.cors.preflight_method.empty()) {
+    headers.Add("Access-Control-Request-Method", options.cors.preflight_method);
+    if (!options.cors.preflight_headers.empty()) {
+      headers.Add("Access-Control-Request-Headers", options.cors.preflight_headers);
+    }
+  }
+
   for (const HttpHeaders::Field& field : options.headers.Fields()) {
-    if (IsFetchOwnedHeader(field.name)) {
+    if (IsHeaderOwnedByFetch(field.name)) {
       continue;
     }
     headers.Add(field.name, field.value);
@@ -163,8 +201,43 @@ void FetchRequest::Complete(HttpResponse response, const url::Url& url) {
     connection_->Close();
     connection_.reset();
   }
+
+  // **The CORS decision, at the last point inside `net` and before a result
+  // exists.** Every way a response can arrive -- the wire, the cache, a
+  // redirect chain that ended here -- comes through this function, which is why
+  // the check is here rather than at each of them. A refusal calls `Fail`,
+  // which throws the response away: the caller gets an error and no bytes, not
+  // bytes it is trusted not to look at. See ADR 0020 §2 and Cors.h.
+  //
+  // A preflight is the exception, and only because its response never leaves
+  // this module: `RequestQueue` reads `Access-Control-Allow-Methods` off it and
+  // throws it away. Filtering those headers out here -- which is what the
+  // `cors` branch below would do -- would leave the queue with a response that
+  // granted nothing.
+  const bool is_preflight = !remaining_.cors.preflight_method.empty();
+  const CorsResult decision =
+      is_preflight ? CorsResult{true, {}} : CheckResponse(remaining_.cors, url, response);
+  if (!decision.allowed) {
+    Fail(decision.error);
+    return;
+  }
+  const bool opaque = !is_preflight &&
+      remaining_.cors.mode == RequestMode::NoCors && !IsSameOrigin(remaining_.cors.origin, url);
+  if (opaque) {
+    // Not a flag over readable bytes: the bytes are gone. Status 0, no headers,
+    // no body -- which is what `Response.type === "opaque"` means, and the only
+    // form of it that survives somebody forgetting to check a flag.
+    response = HttpResponse{};
+    response.status = 0;
+    AddPerformanceCounter(PerfCounterId::NetCorsOpaque);
+  } else if (!is_preflight && remaining_.cors.mode == RequestMode::Cors &&
+             !IsSameOrigin(remaining_.cors.origin, url)) {
+    FilterExposedHeaders(response);
+  }
+
   result_ = FetchResult{};
   result_.ok = true;
+  result_.opaque = opaque;
   result_.response = std::move(response);
   result_.final_url = url;
   result_.redirects = redirects_;
@@ -180,8 +253,11 @@ bool FetchRequest::BeginExchange() {
   }
 
   const bool same_site = verdict_.Partition().IsFirstParty();
-  const std::string cookie_header = cookies_.HeaderFor(
-      verdict_.Partition(), url, same_site, remaining_.is_top_level_navigation, now_);
+  const std::string cookie_header =
+      SendsCredentials(remaining_.cors, url)
+          ? cookies_.HeaderFor(verdict_.Partition(), url, same_site,
+                               remaining_.is_top_level_navigation, now_)
+          : std::string();
   may_use_cache_ = MayUseHttpCache(remaining_, cookie_header, verdict_.Referrer());
   if (may_use_cache_ && !remaining_.bypass_cache) {
     if (const HttpCache::Entry* cached = cache_.Lookup(verdict_.Partition(), url, now_)) {
@@ -321,10 +397,39 @@ void FetchRequest::FinishResponse(std::int64_t now_ms) {
   }
   AddPerformanceCounter(PerfCounterId::NetRedirects);
 
+  // A redirect is a response too, and a cross-origin one has to have said so
+  // before it is allowed to send this request somewhere else. Without this the
+  // check at the end of the chain would be the only one, and a server could
+  // bounce a cross-origin request through itself to a URL that *does* permit
+  // the origin -- reading the first response by the URL it chose to send us to.
+  const CorsResult hop = CheckResponse(remaining_.cors, url, response);
+  if (!hop.allowed) {
+    Fail(hop.error);
+    return;
+  }
+  if (remaining_.cors.preflighted) {
+    // The permission a preflight bought names one URL. Spending it on another
+    // is what the specification forbids, and following the redirect after a
+    // fresh preflight is work with no target site asking for it.
+    Fail("redirect after a CORS preflight");
+    return;
+  }
+
   const auto location = url::Url::Parse(*response.headers.Get("location"), url);
   if (!location.has_value()) {
     Fail("malformed redirect target");
     return;
+  }
+  if (remaining_.cors.mode != RequestMode::Browser &&
+      !IsSameOrigin(remaining_.cors.origin, *location)) {
+    if (remaining_.cors.mode == RequestMode::SameOrigin) {
+      Fail("same-origin request redirected to a different origin");
+      return;
+    }
+    // The origin is *tainted* from here on: every later hop sends `Origin:
+    // null` and is checked against it. A request that kept its real origin
+    // across a third party's redirect would let that third party spend it.
+    remaining_.cors.origin = url::Origin();
   }
 
   // The redirect goes back through the policy. A server that could redirect

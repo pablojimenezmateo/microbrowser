@@ -4,7 +4,7 @@ purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
 # have passed privacy first, which net enforces by taking a privacy::Verdict.
 allow: util url privacy
 
-public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h
+public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h
 
 # ADR 0001 sanctions OpenSSL for the TLS record layer only -- we own HTTP
 # entirely. Exactly one file names it, SocketTransport.cpp, and this line is
@@ -47,4 +47,20 @@ budget: ConnectionPool header_lines=65 public_methods=12 members=2
 # waiting on a slot, finished) and a counter. The three lists are the shape of
 # the problem: a bound per partition means a request can exist without a
 # connection, and a completion can exist after the request that made it is gone.
-budget: RequestQueue   header_lines=110 public_methods=16 members=8
+#
+# Raised to 155 lines, 17 methods and 9 members by ADR 0020 §2. The ninth
+# member is the preflight cache and it is here rather than beside the HTTP
+# cache for the reason the connection pool is here: it is keyed by the ADR 0005
+# partition key, and this is the only class that holds both a request and the
+# key it is being made under. The method is `Cancel`, which `AbortController`
+# needs and which `CancelAll` -- the right hammer for a page going away -- is
+# no help at all for. The lines are the two structs a preflight made necessary:
+# a request that has to ask permission first is *two* exchanges under one id,
+# so what used to be three parallel fields on `Queued` is now a `Pending` value
+# that can be held while the `OPTIONS` runs.
+budget: RequestQueue   header_lines=155 public_methods=17 members=9
+# What a preflight bought, remembered so the next request does not buy it
+# again. One member -- the entries -- and the bound on how many there may be is
+# a constant beside it rather than a policy knob: every key in this table comes
+# from a page.
+budget: PreflightCache header_lines=35 public_methods=6 members=1
