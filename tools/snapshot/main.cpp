@@ -53,6 +53,12 @@ struct Options {
   // none -- 0,0 is a real point.
   int click_x = -1;
   int click_y = -1;
+  // A pointer *move*, delivered before the click. Separate from the click
+  // because they are different questions: a click asks what an element does and
+  // a move asks what the cascade does about `:hover`, and a page can get the
+  // second wrong while getting the first right. Negative means none.
+  int hover_x = -1;
+  int hover_y = -1;
   // Keys to deliver after the click, in order. Each is one press and release.
   // `-type` expands to one entry per character with the character as its text;
   // `-key` names a key and inserts nothing, which is how Escape and Enter
@@ -79,8 +85,10 @@ microbrowser::ipc::KeyInputMessage NamedKey(std::string_view name) {
 
 const char* kUsage =
     "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n"
-    "                            [-dpr ratio] [-click x,y] [-type text] [-key name] [-v]\n"
+    "                            [-dpr ratio] [-hover x,y] [-click x,y] [-type text]\n"
+    "                            [-key name] [-v]\n"
     "  -dpr    device pixels per CSS pixel: which srcset candidate an <img> picks\n"
+    "  -hover  move the pointer there first: what `:hover` and `:active` do to the page\n"
     "  -click  deliver a click before the snapshot, to follow a link or submit a form\n"
     "  -type   type text into whatever the click focused; repeatable, in order\n"
     "  -key    press one named key -- Escape, Enter, Tab, ArrowDown; repeatable\n"
@@ -161,15 +169,17 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       const std::optional<int> parsed = ParseInt(value());
       if (!parsed) return false;
       out.height = *parsed;
-    } else if (argument == "-click") {
+    } else if (argument == "-hover" || argument == "-click") {
       const std::string_view text = value();
       const std::size_t comma = text.find(',');
       if (comma == std::string_view::npos) return false;
       const std::optional<int> x = ParseInt(text.substr(0, comma));
       const std::optional<int> y = ParseInt(text.substr(comma + 1));
       if (!x || !y) return false;
-      out.click_x = *x;
-      out.click_y = *y;
+      int& into_x = argument == "-hover" ? out.hover_x : out.click_x;
+      int& into_y = argument == "-hover" ? out.hover_y : out.click_y;
+      into_x = *x;
+      into_y = *y;
     } else if (argument == "-type") {
       const std::string_view text = value();
       if (text.empty()) return false;
@@ -273,6 +283,15 @@ int main(int argc, char** argv) {
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{options.url});
   engine.HandlePendingMessages();
   RunLoadToCompletion(engine);
+  if (options.hover_x >= 0 && options.hover_y >= 0) {
+    microbrowser::ipc::PointerInputMessage pointer;
+    pointer.kind = microbrowser::ipc::PointerInputMessage::Kind::Move;
+    pointer.position = microbrowser::gfx::FloatPoint{static_cast<float>(options.hover_x),
+                                                     static_cast<float>(options.hover_y)};
+    channel.Ui().Send(pointer);
+    engine.HandlePendingMessages();
+    RunLoadToCompletion(engine);
+  }
   if (options.click_x >= 0 && options.click_y >= 0) {
     // Down then up, the way a real click arrives, so the engine sees the same
     // sequence the window would deliver.

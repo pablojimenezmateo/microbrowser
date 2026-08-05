@@ -40,7 +40,20 @@ struct TestFonts {
 };
 
 std::string DataUrl(std::string_view html) {
-  return std::string("data:text/html,") + std::string(html);
+  std::string url = "data:text/html,";
+  for (const char c : html) {
+    // `#` starts the *fragment*, which is not part of the URL's body -- so a
+    // document that mentions one has to escape it, exactly as an author writing
+    // the URL by hand would. Before the fragment was honoured this helper got
+    // away with passing it through, and a page whose script said
+    // `querySelector('#one')` silently lost everything from the quote onwards.
+    if (c == '#') {
+      url += "%23";
+    } else {
+      url.push_back(c);
+    }
+  }
+  return url;
 }
 
 // Drives one navigation and returns everything the engine sent back.
@@ -343,6 +356,17 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(decoded.ok, "it decoded");
     ExpectEqString(decoded.body, "100% and %zz",
                    "a lone percent is a byte; eating it would change the document");
+  });
+
+  AddTest(tests, "Loader/TheFragmentIsNotPartOfTheBody", [] {
+    // Found by rendering `:target` on a data: URL: the fragment was decoded as
+    // payload, so the document ended with the text "#one" drawn after it. The
+    // fragment names something *in* the document; it is never document content.
+    const engine::DataUrl decoded = engine::DecodeDataUrl("data:text/html,%3Cp%3Ehi%3C/p%3E#one");
+    Expect(decoded.ok, "it decoded");
+    ExpectEqString(decoded.body, "<p>hi</p>", "the fragment is not body");
+    ExpectEqString(engine::DecodeDataUrl("data:text/html;base64,PGI+eDwvYj4=#x").body, "<b>x</b>",
+                   "and the same for base64, where a '#' was never valid input anyway");
   });
 
   AddTest(tests, "Loader/DefaultsTheContentTypeWhenTheUrlOmitsIt", [] {

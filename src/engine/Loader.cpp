@@ -51,6 +51,15 @@ DataUrl DecodeDataUrl(std::string_view url) {
     return result;
   }
   url.remove_prefix(kPrefix.size());
+  // The fragment is not part of the URL's body. It belongs to the *document*
+  // this URL identifies -- which is what `:target` reads -- so leaving it on
+  // made `data:text/html,<h1 id=x>t</h1>#x` a document with the text "#x"
+  // rendered at the end of it. A literal `#` in a payload has to be written
+  // `%23`, and it is not valid base64 either, so the first one is always the
+  // fragment separator.
+  if (const std::size_t hash = url.find('#'); hash != std::string_view::npos) {
+    url = url.substr(0, hash);
+  }
 
   const std::size_t comma = url.find(',');
   if (comma == std::string_view::npos) {
