@@ -108,6 +108,23 @@ class Node {
   std::string SerializeChildren() const;
   virtual std::string Serialize() const;
 
+ protected:
+  // Records that this node changed, on the document that owns it.
+  //
+  // Here rather than at the call sites above it because *missing one* is the
+  // failure mode: anything derived from the tree -- the box tree first, the
+  // style invalidation index next -- goes stale silently, and script reads a
+  // rectangle that describes the page as it was. Every mutation in this module
+  // is one of five primitives, and every mutation anywhere else goes through
+  // one of them, so marking them is the only marking that cannot be forgotten.
+  //
+  // Finding the document is a walk to the root rather than a stored pointer.
+  // A pointer would be faster and is what a mature DOM keeps; it also has to be
+  // maintained across every insertion and removal of every *subtree*, which is
+  // a second invariant to get wrong for a walk whose depth is bounded by
+  // ADR 0009's parse depth. Revisit with a measurement, not a guess.
+  void NoteMutation();
+
  private:
   Kind kind_;
   Node* parent_ = nullptr;
@@ -146,7 +163,10 @@ class Text : public Node {
   explicit Text(std::string data) : Node(Kind::Text), data_(std::move(data)) {}
 
   const std::string& Data() const { return data_; }
-  void Append(std::string_view more) { data_ += more; }
+  void Append(std::string_view more) {
+    data_ += more;
+    NoteMutation();
+  }
 
   std::string Serialize() const override;
 
@@ -201,12 +221,29 @@ class Document : public Node {
   Element* Body() const;
   Element* Head() const;
 
+  // How many times anything in this tree has changed.
+  //
+  // A version rather than a dirty bit, because the readers are not one: layout
+  // caches a box tree against it, and the style invalidation index of ADR 0016
+  // will cache against it too. A bit that each of them cleared would mean the
+  // first reader to look hid the change from the second.
+  //
+  // It answers exactly one question -- "is what I derived from this tree still
+  // describing it?" -- and it deliberately says nothing about *what* changed.
+  // Anything finer belongs to the invalidation index rather than here.
+  std::uint64_t MutationVersion() const { return mutation_version_; }
+  // Named apart from Node::NoteMutation, which is the walk that reaches this.
+  // Two members of one hierarchy with the same name and different jobs is how
+  // a call ends up meaning the other one.
+  void NoteTreeMutation() { ++mutation_version_; }
+
   // First element with this tag name, in tree order.
   Element* FirstElementByTagName(std::string_view tag_name) const;
   std::vector<Element*> ElementsByTagName(std::string_view tag_name) const;
 
  private:
   bool quirks_ = false;
+  std::uint64_t mutation_version_ = 0;
 };
 
 // Whether an element cannot have children — `br`, `img`, `meta` and the rest.

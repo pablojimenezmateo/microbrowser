@@ -23,9 +23,18 @@ max_tu_lines: 800
 # for the same reason those do: the kind is a switch a caller would
 # otherwise write out, and insertion has to ask this question on every
 # append -- a fragment inserts its children rather than itself.
-budget: Node     header_lines=95 public_methods=21 members=3
+# Grew for NoteMutation and its comment -- protected, so the public surface did
+# not move. It is here rather than at the callers above dom because *missing a
+# call* is the failure mode: anything derived from the tree goes stale silently
+# and a page reads a rectangle describing the page as it was.
+budget: Node     header_lines=115 public_methods=21 members=3
 budget: Element      header_lines=35 public_methods=12 members=2
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
 budget: DocumentType header_lines=25 public_methods=6  members=1
-budget: Document     header_lines=40 public_methods=12 members=1
+# The second member is the mutation version: how many times anything in this
+# tree has changed. A document-level counter rather than a per-node bit, because
+# its readers are caches of the whole tree -- the box tree today, ADR 0016's
+# invalidation index next -- and a bit each of them cleared would hide a change
+# from the next one to look.
+budget: Document     header_lines=60 public_methods=14 members=2

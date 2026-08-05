@@ -57,10 +57,25 @@ bool IsVoidElement(std::string_view tag_name) {
   return std::find(kVoidElements.begin(), kVoidElements.end(), tag_name) != kVoidElements.end();
 }
 
+void Node::NoteMutation() {
+  Node* node = this;
+  while (node->parent_ != nullptr) {
+    node = node->parent_;
+  }
+  // A node script built and has not inserted yet has no document, and nothing
+  // derived from the tree describes it. That is the common case during a parse,
+  // where attributes are set before the element is inserted, and it is why this
+  // is cheap there.
+  if (node->kind_ == Kind::Document) {
+    static_cast<Document*>(node)->NoteTreeMutation();
+  }
+}
+
 Node& Node::Append(std::unique_ptr<Node> child) {
   child->parent_ = this;
   children_.push_back(std::move(child));
   AddPerformanceCounter(PerfCounterId::DomNodesCreated);
+  NoteMutation();
   return *children_.back();
 }
 
@@ -73,7 +88,9 @@ Node& Node::InsertBefore(std::unique_ptr<Node> child, const Node* reference) {
   }
   child->parent_ = this;
   AddPerformanceCounter(PerfCounterId::DomNodesCreated);
-  return **children_.insert(found, std::move(child));
+  Node& inserted = **children_.insert(found, std::move(child));
+  NoteMutation();
+  return inserted;
 }
 
 bool Node::Remove(Node* child) {
@@ -84,6 +101,7 @@ bool Node::Remove(Node* child) {
     return false;
   }
   children_.erase(found);
+  NoteMutation();
   return true;
 }
 
@@ -100,6 +118,7 @@ std::unique_ptr<Node> Node::Detach(Node* child) {
   // parent it is no longer a child of is the shape every "it disappeared but
   // is still in the list" bug takes.
   owned->parent_ = nullptr;
+  NoteMutation();
   return owned;
 }
 
@@ -147,10 +166,12 @@ void Element::SetAttribute(std::string name, std::string value) {
   for (Attribute& attribute : attributes_) {
     if (attribute.name == name) {
       attribute.value = std::move(value);
+      NoteMutation();
       return;
     }
   }
   attributes_.push_back(Attribute{std::move(name), std::move(value)});
+  NoteMutation();
 }
 
 bool Element::RemoveAttribute(std::string_view name) {
@@ -162,6 +183,7 @@ bool Element::RemoveAttribute(std::string_view name) {
     return false;
   }
   attributes_.erase(found);
+  NoteMutation();
   return true;
 }
 
