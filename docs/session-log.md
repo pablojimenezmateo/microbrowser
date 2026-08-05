@@ -1513,3 +1513,51 @@ that fetches the whole graph before evaluating, against a resolver that can answ
   how the bug above was minimised: `MICROBROWSER_PERF_COUNTERS=1 jsshell file.js` and a
   delta-debugging script over the top-level statements took it from 19KB to
   `function f({a: c = ""}) { return c }`.
+
+## Session 49 — @media · 2026-08-05
+
+**Status:** done
+
+**Check:** three sites, at two widths, at `2e3e736`:
+
+```
+width  site                                        commands / images
+1280   https://old.reddit.com/                     1045 / 20
+ 500   https://old.reddit.com/                     1079 / 20
+1280   https://en.wikipedia.org/wiki/Web_browser   2827 / 9
+ 500   https://en.wikipedia.org/wiki/Web_browser   2921 / 8
+1280   https://news.ycombinator.com/               705 / 2
+ 500   https://news.ycombinator.com/               714 / 2
+```
+
+Every one of them **differs between the two widths**, which none of them did before, and none
+regresses at 1280. Plus 13 assertions in `tests/MediaQueryTests.cpp`.
+
+**Landed:**
+
+- *@media, wired to the evaluator that has existed since session 6*
+
+**Left:** the design rather than the feature. The prelude is evaluated when the sheet is *parsed*, so
+`Page::SetViewport` re-parses the author sheets when the viewport actually changes. Keeping the
+condition on the rule and asking it during the cascade is the end state; it also makes
+`window.matchMedia` and a `@media` that changes under a resize without a re-parse possible, neither
+of which exists yet.
+
+**Found:**
+
+- **The whole bug was a missing call.** `css::MediaQueryListMatches` has answered this exact grammar
+  — `and`/`or`/`not`, the comma list, width/height/orientation/resolution — since `srcset` landed in
+  session 6. `MediaListItemMatches` next door accepted a single Ident. Two functions for one
+  question, one of them a placeholder, and nothing pointed from one to the other. ADR 0014 called
+  `@media` supported at 791 occurrences on the strength of the placeholder.
+- **The default context had to be the *old* answer, not a sensible one.** A zero-sized viewport
+  matches `max-width` and not `min-width`, which is precisely what every parenthesised prelude got
+  before — so the user-agent sheet and every test that parses a sheet without a viewport keep the
+  behaviour they had. A "sensible" default of 1280 would have quietly changed the meaning of every
+  such sheet.
+- **`@media { … }` with an empty prelude applies.** An empty media query list evaluates to true,
+  which is the same rule that makes `sizes="100vw"` a valid entry with no condition in front of it.
+  A test asserted the opposite first, and the implementation was right.
+- **The prelude reaches the evaluator through `Reconstruct`**, the serializer a declaration's value
+  already uses. A second token-to-text function is a second set of answers about what
+  `(min-width:600px)` says.
