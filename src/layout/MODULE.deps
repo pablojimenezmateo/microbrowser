@@ -45,7 +45,11 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # 210 -> 216 and 46 -> 47 for IsBlockLevelReplaced: a replaced element takes
 # its level from its own `display` like everything else, and three predicates
 # here now agree on that instead of the two that answered "always inline".
-budget: Box             header_lines=216 public_methods=47 members=12
+# 225 and 48 for SetStyle: a box whose cascade is re-resolved without its
+# geometry being rebuilt. Correct only behind ADR 0016's invalidation index,
+# which is what establishes that nothing that changed can move it -- the comment
+# on the method says so, because the method alone cannot.
+budget: Box             header_lines=225 public_methods=48 members=12
 # The kinds are documented rather than listed, because each one exists to make
 # a distinction some pass would otherwise have to rediscover from style. The
 # budget is here so that growth in the vocabulary is a decision.

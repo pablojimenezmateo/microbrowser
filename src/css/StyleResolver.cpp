@@ -213,9 +213,61 @@ StyleResolver::StyleResolver() {
   AddStyleSheet(ParseStyleSheet(UserAgentStyleSheet()), Origin::UserAgent);
 }
 
+bool PropertyAffectsLayout(std::string_view property) {
+  // Everything not on this list affects layout, including everything this
+  // engine does not implement. See the header: the wrong default here is a box
+  // that moved and a screen that did not.
+  //
+  // `outline` is on it because an outline is drawn outside the border box and
+  // takes no space -- which is the whole difference between it and a border,
+  // and the reason `:focus { outline: ... }` is the one focus rule that costs
+  // nothing to apply.
+  static constexpr std::string_view kPaintOnly[] = {
+      "background",       "background-attachment", "background-clip",
+      "background-color", "background-image",      "background-origin",
+      "background-position", "background-repeat",  "background-size",
+      "border-bottom-color", "border-color",       "border-left-color",
+      "border-right-color",  "border-top-color",   "box-shadow",
+      "color",            "cursor",                "outline",
+      "outline-color",    "outline-offset",        "outline-style",
+      "outline-width",    "text-decoration",       "text-decoration-color",
+      "text-decoration-line", "text-decoration-style", "text-shadow",
+      "visibility",
+  };
+  return std::find(std::begin(kPaintOnly), std::end(kPaintOnly), property) ==
+         std::end(kPaintOnly);
+}
+
+void StyleInvalidation::AddRule(const Selector& selector,
+                                const std::vector<Declaration>& declarations) {
+  const dom::ElementState states = selector.DynamicStates();
+  if (!Any(states)) {
+    return;
+  }
+  AddPerformanceCounter(PerfCounterId::CssDynamicRulesIndexed);
+  depends_ |= states;
+  for (const Declaration& declaration : declarations) {
+    if (PropertyAffectsLayout(declaration.property)) {
+      layout_ |= states;
+      return;
+    }
+  }
+}
+
+StyleChangeEffect StyleInvalidation::EffectOf(dom::ElementState changed) const {
+  if (Any(changed & layout_)) {
+    return StyleChangeEffect::Layout;
+  }
+  if (Any(changed & depends_)) {
+    return StyleChangeEffect::Paint;
+  }
+  return StyleChangeEffect::None;
+}
+
 void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin) {
   for (const StyleRule& rule : sheet.rules) {
     for (const Selector& selector : rule.selectors) {
+      invalidation_.AddRule(selector, rule.declarations);
       Entry entry;
       entry.selector = selector;
       entry.declarations = rule.declarations;

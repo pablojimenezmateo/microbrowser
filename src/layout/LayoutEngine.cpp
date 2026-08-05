@@ -223,6 +223,19 @@ gfx::FontRequest FontRequestFor(const css::ComputedStyle& style) {
   return request;
 }
 
+css::ComputedStyle TextStyleFrom(const css::ComputedStyle& parent) {
+  css::ComputedStyle text_style;
+  text_style.color = parent.color;
+  text_style.font_size = parent.font_size;
+  text_style.font_weight = parent.font_weight;
+  text_style.font_style = parent.font_style;
+  text_style.font_family = parent.font_family;
+  text_style.line_height = parent.line_height;
+  text_style.text_align = parent.text_align;
+  text_style.white_space = parent.white_space;
+  return text_style;
+}
+
 Box& Box::Append(std::unique_ptr<Box> child) {
   children_.push_back(std::move(child));
   AddPerformanceCounter(PerfCounterId::LayoutBoxesCreated);
@@ -256,21 +269,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     if (text.empty()) {
       return nullptr;
     }
-    // A text box carries only the *inherited* properties of its parent. Copying
-    // the whole computed style gives every text run its parent's background,
-    // border, margin and width, and the painter then draws all of them a second
-    // time inside the box that already has them.
-    css::ComputedStyle text_style;
-    text_style.color = parent_style.color;
-    text_style.font_size = parent_style.font_size;
-    text_style.font_weight = parent_style.font_weight;
-    text_style.font_style = parent_style.font_style;
-    text_style.font_family = parent_style.font_family;
-    text_style.line_height = parent_style.line_height;
-    text_style.text_align = parent_style.text_align;
-    text_style.white_space = parent_style.white_space;
-
-    auto box = std::make_unique<Box>(Box::Kind::Text, std::move(text_style));
+    auto box = std::make_unique<Box>(Box::Kind::Text, TextStyleFrom(parent_style));
     box->SetText(std::move(text));
     produced_inline = true;
     return box;

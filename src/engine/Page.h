@@ -209,6 +209,36 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // it. What a script changed is not knowable from here, so nothing is patched.
   void InvalidateLayout();
 
+  // --- dynamic state, ADR 0016 §2-3 -----------------------------------------
+
+  // Whether any rule in this page's cascade depends on `state` at all. The
+  // caller asks *first*, and this is the whole of the ADR's headline property:
+  // a pointer crossing a page with no `:hover` rules must not cost a hit test,
+  // let alone a cascade. It is a question about the stylesheets rather than
+  // about the document, so it is answerable before anything is looked up.
+  bool StyleDependsOn(dom::ElementState state) const;
+
+  // Moves `:hover` to the element under `document_point` and its ancestors, and
+  // `:active` to the same chain while a button is held. Returns every state
+  // that actually changed on any element -- empty when the pointer moved within
+  // the same chain, which is most pointer moves.
+  dom::ElementState UpdateHoverChain(gfx::FloatPoint document_point, bool active);
+  // Drops the hover and active chain, for a pointer that left the window.
+  dom::ElementState ClearHoverChain();
+
+  // What re-resolving the cascade would cost, given that `changed` changed.
+  css::StyleChangeEffect StateChangeEffect(dom::ElementState changed) const;
+
+  // Re-resolves the cascade over the box tree that is already laid out, and
+  // leaves every geometry alone.
+  //
+  // Correct only when the caller has established through StateChangeEffect that
+  // every rule keyed on what changed affects paint alone -- which is why the
+  // two are next to each other. It is the second of ADR 0016 §3's two
+  // properties: a `:hover` that changes a colour is a repaint of one damage
+  // rectangle, not a relayout of the document.
+  void RestyleWithoutLayout();
+
   // Moves focus to whatever a click at `document_point` landed on: the nearest
   // focusable ancestor of the element under it, or nothing when there is none
   // -- which blurs whatever had focus, the way a click on the background does
@@ -331,6 +361,30 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // rather than once per routine.
   dom::Element* MutableFocusedTextControl() const;
   void ExtractTitle();
+  // Recomputes the dynamic states that are facts about the document rather than
+  // about the pointer: `:checked`, `:disabled`, `:required`,
+  // `:placeholder-shown`. Run before every cascade, because they are defined in
+  // `src/html`'s vocabulary and `src/css` may not see that module -- so the bit
+  // is how the answer crosses. Recomputing rather than maintaining means there
+  // is nothing to forget at each of the dozen places that can change one.
+  void RefreshDocumentStates();
+  // Sets `:target` from the URL's fragment. A document property, like focus,
+  // and set where the URL arrives so that it cannot disagree with the address.
+  void RefreshTargetState();
+  // Puts `state` on exactly the elements in `on` and takes it off every other
+  // element in the document. Returns the states that actually changed, which is
+  // empty for the pointer move that stayed inside the same chain -- and that is
+  // most pointer moves.
+  //
+  // A set rather than a deepest element, because the two states written this
+  // way have different shapes: `:hover` is on an element and every ancestor of
+  // it, and `:target` is on one element and none of its ancestors.
+  dom::ElementState SetStateOn(const std::vector<const dom::Element*>& on,
+                               dom::ElementState state);
+  // The innermost element whose box contains `document_point`, or null. The
+  // same question a click asks, answered in one place so that what a click
+  // focuses and what a pointer hovers cannot be two different elements.
+  const dom::Element* ElementAt(gfx::FloatPoint document_point) const;
   // Collects <style> elements and stylesheet links in document order.
   void CollectStyleSheets();
   void RebuildAuthorStyleSheets();

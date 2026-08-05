@@ -28,11 +28,60 @@ constexpr int kPixelsPerPage = 320;
 
 }  // namespace
 
+css::StyleChangeEffect Engine::UpdatePointerState(const ipc::PointerInputMessage& pointer) {
+  // What the pointer's *position* means to the cascade, which is a different
+  // question from what a click does and is asked on every event including the
+  // moves nothing else cares about.
+  //
+  // The order matters: Page asks the invalidation index before it hit-tests, so
+  // on a page whose stylesheet never mentions `:hover` this call reaches an
+  // early return and costs a bitmask test. That is ADR 0016 §3's headline
+  // property, and it is the one that decays silently -- a browser that restyles
+  // on every mouse move is indistinguishable from one that does not until
+  // somebody measures the idle cost of moving a mouse across a window.
+  const gfx::FloatPoint document_point{pointer.position.x,
+                                       pointer.position.y + static_cast<float>(ScrollY())};
+  const bool held = pointer.kind != ipc::PointerInputMessage::Kind::Up && (pointer.buttons & 1) != 0;
+  const dom::ElementState changed = page_.UpdateHoverChain(document_point, held);
+  if (!Any(changed)) {
+    return css::StyleChangeEffect::None;
+  }
+  return page_.StateChangeEffect(changed);
+}
+
+bool Engine::ApplyStyleChange(css::StyleChangeEffect effect) {
+  switch (effect) {
+    case css::StyleChangeEffect::None:
+      return false;
+    case css::StyleChangeEffect::Paint:
+      // The cascade is re-resolved over the box tree that is already laid out.
+      // Every rule keyed on what changed affects paint alone -- that is what
+      // the index said -- so the geometry is still correct and the damage comes
+      // out of the display-list diff as the rectangles that actually changed.
+      page_.RestyleWithoutLayout();
+      PaintAndSend();
+      return true;
+    case css::StyleChangeEffect::Layout:
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+      return true;
+  }
+  return false;
+}
+
 bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
+  // Hover and active first, and for every kind of pointer event: a button going
+  // down is also a pointer being somewhere, and a page that styles `:active`
+  // expects the state to be right before the click is routed against it.
+  //
+  // Applied afterwards rather than here, because a click that ends in a layout
+  // and a paint has already done everything a restyle would ask for -- and
+  // painting twice for one click is a frame the user sees flicker.
+  const css::StyleChangeEffect effect = UpdatePointerState(pointer);
   // The primary button, going down. `button` is the DOM's numbering, where the
   // primary button is zero.
   if (pointer.kind != ipc::PointerInputMessage::Kind::Down || pointer.button != 0) {
-    return false;
+    return ApplyStyleChange(effect);
   }
   // Already in CSS pixels: the host divided the device scale out at the seam,
   // because that is the coordinate system every answer given back about this
@@ -95,11 +144,11 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
       LayoutAndPaint();
       return true;
     }
-    return false;
+    return ApplyStyleChange(effect);
   }
   const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
   if (!resolved.has_value()) {
-    return false;
+    return ApplyStyleChange(effect);
   }
   NavigateFromCurrentDocument(*resolved, {});
   return true;

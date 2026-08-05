@@ -121,6 +121,30 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  /* --- dynamic state and invalidation (ADR 0016) --------------------------- */ \
+  /* How many rules in the cascade depend on a state a pointer or a keystroke  */ \
+  /* can change. Zero is the common case and is what makes a mouse move free;  */ \
+  /* the number against css.rules_parsed is what the index is actually worth   */ \
+  /* on a given page.                                                          */ \
+  X(CssDynamicRulesIndexed, "css.dynamic_rules_indexed")                         \
+  /* A dynamic state bit that actually flipped on an element. Counted apart    */ \
+  /* from the moves that flipped nothing, because a pointer crossing a page    */ \
+  /* generates far more of the second than of the first.                       */ \
+  X(StyleStateChanges, "style.state_changes")                                    \
+  /* A state change the index answered `None` for: nothing was recomputed and  */ \
+  /* nothing was drawn. This is the counter that says the headline property of */ \
+  /* ADR 0016 is still holding -- if it stops moving on a page with no `:hover`*/ \
+  /* rules, something has started restyling on every mouse move.               */ \
+  X(StyleInvalidationSkips, "style.invalidation_skips")                          \
+  /* The hit test a pointer move pays for, which happens only when some rule   */ \
+  /* depends on `:hover` at all. It walks the box tree, so it is the one part  */ \
+  /* of this path that grows with the page.                                    */ \
+  X(StyleHoverHitTests, "style.hover_hit_tests")                                 \
+  /* A cascade re-resolved over the *existing* box tree, because every rule    */ \
+  /* keyed on what changed only affects paint. The pair to watch is this       */ \
+  /* against layout.runs: a `:hover { color }` rule that starts moving         */ \
+  /* layout.runs means the property table has lost an entry.                   */ \
+  X(StyleRestylesWithoutLayout, "style.restyles_without_layout")                 \
   X(EngineStyleSheetsLoaded, "engine.stylesheets_loaded")                          \
   X(EngineStyleSheetsFailed, "engine.stylesheets_failed")                          \
   X(EngineScriptsLoaded, "engine.scripts_loaded")                                  \

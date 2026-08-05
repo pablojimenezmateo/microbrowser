@@ -297,6 +297,7 @@ microbrowser_module(engine
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
     src/engine/PageScrolling.cpp
+    src/engine/PageStyle.cpp
     src/engine/PageScript.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
        microbrowser_privacy microbrowser_net microbrowser_dom microbrowser_html
@@ -465,6 +466,7 @@ add_executable(microbrowser_tests
   tests/RasterizerTests.cpp
   tests/StrokerTests.cpp
   tests/SvgTests.cpp
+  tests/StyleInvalidationTests.cpp
   tests/StyleResolverTests.cpp
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp

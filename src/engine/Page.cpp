@@ -290,6 +290,10 @@ void Page::Load(std::string_view html, std::string url) {
 
   CollectStyleSheets();
   CollectImages();
+  // `:target` comes from the address rather than from the markup, so it is set
+  // where the address arrives. ADR 0016 §2 -- one copy, and it cannot disagree
+  // with what the URL bar says.
+  RefreshTargetState();
   if (document_ != nullptr) {
     // Found now, run later: an external script has to arrive before anything
     // after it in the document may run, and what a URL turns into is the
@@ -500,6 +504,12 @@ float Page::Layout(float width) {
   // document, and reading it afterwards would fold any future mutation made
   // *during* layout into the version this claims to describe.
   layout_.document_version = document_->MutationVersion();
+  // The dynamic states that are facts about the document rather than about the
+  // pointer, refreshed before the cascade reads them. Here rather than at the
+  // dozen places that can change one, for the reason Node::NoteMutation is
+  // where it is: missing a call is the failure mode, and a stale `:disabled`
+  // bit is a rule that silently stops applying. See ADR 0016 §2.
+  RefreshDocumentStates();
   const layout::LayoutEngine engine(resolver_, measurer_, this);
   // The box tree is rebuilt per layout for now. It depends only on the document
   // and the cascade, neither of which changes here, so this is the obvious
@@ -575,7 +585,7 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
   if (boxes_ == nullptr) {
     return {};
   }
-  const dom::Element* target = HitTestElement(*boxes_, document_point, nullptr);
+  const dom::Element* target = ElementAt(document_point);
   if (target == nullptr) {
     return {};
   }
@@ -610,6 +620,13 @@ bool Page::RunDueWork(std::int64_t now_ms) {
   return true;
 }
 
+const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
+  if (boxes_ == nullptr) {
+    return nullptr;
+  }
+  return HitTestElement(*boxes_, document_point, nullptr);
+}
+
 void Page::InvalidateLayout() {
   boxes_.reset();
   CollectImages();
@@ -628,7 +645,7 @@ bool Page::FocusFromClickAt(gfx::FloatPoint document_point) {
   // Here rather than in PageEditing.cpp with the rest of the focus model
   // because this is the one part of it that is a *hit test*, and the hit-test
   // walk is in this file with the four others that use it.
-  const dom::Element* target = HitTestElement(*boxes_, document_point, nullptr);
+  const dom::Element* target = ElementAt(document_point);
   while (target != nullptr && !html::IsFocusable(*target)) {
     const dom::Node* parent = target->Parent();
     target = parent != nullptr && parent->IsElement() ? static_cast<const dom::Element*>(parent)

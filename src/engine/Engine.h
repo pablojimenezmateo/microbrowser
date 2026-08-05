@@ -124,6 +124,16 @@ class Engine {
   // subtract it and two copies of a scroll offset drift. See Page and ADR 0015.
   int ScrollY() const;
   bool HandlePointer(const ipc::PointerInputMessage& pointer);
+  // Moves `:hover` and `:active` to whatever the pointer is over, and reports
+  // what re-resolving the cascade would now cost. ADR 0016 §3 -- the answer is
+  // `None` for every pointer event on a page whose rules do not mention either
+  // state, and reaching that answer costs a bitmask test rather than a hit
+  // test. Separate from applying it because a click that ends in a layout has
+  // already done everything the restyle would have.
+  css::StyleChangeEffect UpdatePointerState(const ipc::PointerInputMessage& pointer);
+  // Does whatever that answer asks for: nothing, a repaint over the box tree
+  // that is already laid out, or a full relayout. True when a frame went out.
+  bool ApplyStyleChange(css::StyleChangeEffect effect);
   // Dispatches the key at whatever has focus and then, only if nothing
   // cancelled it, runs its default action. The two halves are separate on
   // purpose: ADR 0017 §2 makes the default action a step after dispatch, which

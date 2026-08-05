@@ -39,6 +39,18 @@ struct BoxGeometry {
 // back to a duplicated four-line function.
 gfx::FontRequest FontRequestFor(const css::ComputedStyle& style);
 
+// The style a text box carries: only the *inherited* properties of the element
+// around it.
+//
+// One implementation, for the reason FontRequestFor is one. Copying the whole
+// computed style gives every text run its parent's background, border, margin
+// and width, and the painter then draws all of them a second time inside the
+// box that already has them -- so a second copy of this list that forgot a
+// property would be a box painted twice with two different opinions about where
+// its edges are. Two callers: building a text box, and re-resolving the cascade
+// over a box tree that is already laid out (ADR 0016 §3).
+css::ComputedStyle TextStyleFrom(const css::ComputedStyle& parent);
+
 // One piece of a text box, on one line.
 //
 // A text box that wraps occupies several rectangles, and the box cannot hold
@@ -107,6 +119,13 @@ class Box {
 
   Kind GetKind() const { return kind_; }
   const css::ComputedStyle& Style() const { return style_; }
+  // Replaces the style without rebuilding the box. The one caller is the
+  // paint-only restyle of ADR 0016 §3, which re-resolves the cascade over a box
+  // tree whose geometry is still correct -- and it is correct only because the
+  // invalidation index has already established that every rule keyed on what
+  // changed affects paint alone. Calling it with a style that changes a length
+  // leaves the box's geometry describing the old one.
+  void SetStyle(css::ComputedStyle style) { style_ = std::move(style); }
   BoxGeometry& Geometry() { return geometry_; }
   const BoxGeometry& Geometry() const { return geometry_; }
 
