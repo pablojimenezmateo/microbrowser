@@ -1,0 +1,41 @@
+# Module contract for src/csp.
+#
+# Format is documented in guidelines/architecture.md. Every field is enforced by
+# tests/ArchitectureInvariantsTests.cpp.
+
+purpose: The page's own policy on what it may load and run. Content-Security-Policy, parsed and answered.
+
+# `url` for the thing a policy is about and `util` for the digest a
+# hash-source needs. Deliberately not `net`: this module decides, it does not
+# fetch, and a policy engine that could see the network stack would be one
+# allow: line from being able to act on its own decision. It is the mirror of
+# `privacy`, which sits at the same seam and answers the *user's* policy --
+# ADR 0020 §3, "two policies, one chokepoint, and a request needs both".
+#
+# Deliberately not `dom` or `html` either. A nonce is a string an element
+# carries and this module takes it as a string; the moment it could read an
+# attribute itself, "which element did this policy check" would stop being a
+# question the caller answers.
+allow: util url
+
+public: ContentSecurityPolicy.h
+
+extern:
+
+max_tu_lines: 800
+
+# One source expression, parsed. Eight fields because a host-source has eight
+# independent parts and a policy that dropped any of them would be looser than
+# the page asked for; they are here rather than in the .cpp because a vector
+# of them is a member of Policy and needs a complete type.
+budget: Source     header_lines=30 public_methods=0 members=8
+# One policy, from one header or one <meta>. One member: the source lists, a
+# fixed array indexed by directive rather than a map, because the set of
+# directives this browser enforces is closed and a map would invite a lookup
+# that silently misses -- and a lookup that misses is one that allows.
+budget: Policy     header_lines=40 public_methods=6 members=1
+# Every policy in force on one document. One member, and the rule that makes it
+# a list rather than a policy: *all* of them must allow, so two headers cannot
+# be merged into one and a page cannot loosen its own policy by sending a
+# second, weaker one.
+budget: PolicyList header_lines=30 public_methods=8 members=1

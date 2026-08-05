@@ -16,6 +16,7 @@
 #include "gfx/Rasterizer.h"
 #include "gfx/SvgPath.h"
 #include "util/Parse.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::gfx {
 
@@ -24,8 +25,6 @@ namespace {
 bool IsXmlSpace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 }
-
-char ToLower(char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; }
 
 std::string_view Trim(std::string_view text) {
   while (!text.empty() && IsXmlSpace(text.front())) {
@@ -328,11 +327,7 @@ std::optional<std::string_view> Property(const std::vector<Attribute>& attribute
 
 std::optional<Color> ParsePaint(std::string_view text) {
   const std::string_view trimmed = Trim(text);
-  std::string lowered;
-  lowered.reserve(trimmed.size());
-  for (const char c : trimmed) {
-    lowered.push_back(ToLower(c));
-  }
+  const std::string lowered = util::AsciiLowerCase(trimmed);
   if (lowered == "none" || lowered == "transparent") {
     return std::nullopt;
   }

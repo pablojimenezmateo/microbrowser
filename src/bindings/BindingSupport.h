@@ -9,6 +9,7 @@
 #include "dom/Node.h"
 #include "js/Heap.h"
 #include "js/Value.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::js {
 class Interpreter;
@@ -87,14 +88,8 @@ inline DomBindings* OwnerOf(const js::NativeCall& call) {
 // to answer with the same object shape. Defined in GeometryBindings.cpp.
 js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect);
 
-inline std::string LowerCase(std::string_view text) {
-  std::string out(text);
-  for (char& c : out) {
-    if (c >= 'A' && c <= 'Z') {
-      c = static_cast<char>(c - 'A' + 'a');
-    }
-  }
-  return out;
-}
+// The one ASCII lower-caser, in util. This name stays because it is used at
+// forty call sites in this module and `util::` on each of them buys nothing.
+inline std::string LowerCase(std::string_view text) { return util::AsciiLowerCase(text); }
 
 }  // namespace microbrowser::bindings

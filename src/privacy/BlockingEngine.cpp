@@ -4,6 +4,7 @@
 
 #include "url/PublicSuffixList.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::privacy {
 
@@ -34,15 +35,6 @@ bool IsAlphanumeric(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
 }
 
-char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-}
-
-std::string Lowered(std::string_view text) {
-  std::string out(text);
-  std::transform(out.begin(), out.end(), out.begin(), ToLower);
-  return out;
-}
 
 std::string NormalizeDomainOption(std::string_view entry) {
   std::string out;
@@ -54,7 +46,7 @@ std::string NormalizeDomainOption(std::string_view entry) {
   if (!entry.empty() && entry.front() == '.') {
     entry.remove_prefix(1);
   }
-  out += Lowered(url::HostWithoutTrailingRootDot(entry));
+  out += util::AsciiLowerCase(url::HostWithoutTrailingRootDot(entry));
   return out;
 }
 
@@ -385,7 +377,7 @@ void BlockingEngine::AddRule(std::string_view line) {
     rule.resource_types &= static_cast<std::uint16_t>(~excluded_types);
   }
 
-  const std::string pattern_text = Lowered(line);
+  const std::string pattern_text = util::AsciiLowerCase(line);
   rule.pattern_offset = static_cast<std::uint32_t>(arena_.size());
   rule.pattern_length = static_cast<std::uint32_t>(pattern_text.size());
   arena_ += pattern_text;
@@ -409,7 +401,7 @@ void BlockingEngine::AddRule(std::string_view line) {
   }
   const std::string_view token = MostSelectiveToken(pattern);
   if (!token.empty()) {
-    std::string lowered = Lowered(token);
+    std::string lowered = util::AsciiLowerCase(token);
     target.by_token[lowered].push_back(index);
   } else {
     target.unindexed.push_back(index);
@@ -513,7 +505,7 @@ void BlockingEngine::Collect(const Index& index, std::string_view url, std::stri
   Tokenize(url, tokens);
   std::string lowered;
   for (const std::string_view token : tokens) {
-    lowered = Lowered(token);
+    lowered = util::AsciiLowerCase(token);
     const auto found = index.by_token.find(lowered);
     if (found != index.by_token.end()) {
       out.insert(out.end(), found->second.begin(), found->second.end());
@@ -528,7 +520,7 @@ MatchResult BlockingEngine::Match(const Request& request) const {
   MatchResult result;
   AddPerformanceCounter(PerfCounterId::PrivacyRequestsMatched);
 
-  const std::string url = Lowered(request.url.Serialize(true));
+  const std::string url = util::AsciiLowerCase(request.url.Serialize(true));
   const std::string_view host = request.url.HostSerialized();
 
   std::vector<std::uint32_t> candidates;

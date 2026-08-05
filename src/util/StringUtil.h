@@ -64,6 +64,37 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b
   return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
 }
 
+[[nodiscard]] constexpr bool StartsWithAsciiCaseInsensitive(std::string_view text,
+                                                            std::string_view prefix) {
+  return text.size() >= prefix.size() &&
+         detail::EqualsAsciiCaseInsensitive(text.substr(0, prefix.size()), prefix);
+}
+
+// The one ASCII lower-caser. Five modules had written their own -- `gfx` twice,
+// `privacy` twice, `bindings` once -- which is five chances to disagree about
+// what happens to a byte above 0x7F, and every one of those callers is folding
+// something a page supplied. Deliberately ASCII-only for the reason
+// EqualsAsciiCaseInsensitive is: a protocol token, a tag name and a CSS keyword
+// are all defined as ASCII case-insensitive, and Unicode case folding is a
+// different operation that gets a different function when something needs it.
+[[nodiscard]] inline std::string AsciiLowerCase(std::string_view text) {
+  std::string out(text);
+  for (char& c : out) {
+    c = detail::AsciiToLower(c);
+  }
+  return out;
+}
+
+[[nodiscard]] constexpr bool IsAsciiDigit(char c) { return c >= '0' && c <= '9'; }
+
+[[nodiscard]] constexpr bool IsAsciiAlpha(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+[[nodiscard]] constexpr bool IsAsciiAlphanumeric(char c) {
+  return IsAsciiDigit(c) || IsAsciiAlpha(c);
+}
+
 [[nodiscard]] constexpr bool EndsWith(std::string_view text, std::string_view suffix) {
   return text.size() >= suffix.size() && text.substr(text.size() - suffix.size()) == suffix;
 }

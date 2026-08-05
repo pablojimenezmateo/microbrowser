@@ -193,6 +193,11 @@ microbrowser_module(privacy
     src/privacy/Verdict.cpp
   DEPS microbrowser_util microbrowser_url)
 
+microbrowser_module(csp
+  SOURCES
+    src/csp/ContentSecurityPolicy.cpp
+  DEPS microbrowser_util microbrowser_url)
+
 microbrowser_module(dom
   SOURCES
     src/dom/Node.cpp
@@ -307,8 +312,9 @@ microbrowser_module(engine
     src/engine/PageStyle.cpp
     src/engine/PageScript.cpp
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
-       microbrowser_privacy microbrowser_net microbrowser_dom microbrowser_html
-       microbrowser_css microbrowser_layout microbrowser_js microbrowser_bindings)
+       microbrowser_privacy microbrowser_net microbrowser_csp microbrowser_dom
+       microbrowser_html microbrowser_css microbrowser_layout microbrowser_js
+       microbrowser_bindings)
 
 microbrowser_module(platform
   SOURCES
@@ -445,6 +451,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/CorsTests.cpp
+  tests/CspTests.cpp
   tests/FetchTests.cpp
   tests/FetchApiTests.cpp
   tests/BrowserChromeTests.cpp
@@ -497,6 +504,7 @@ add_executable(microbrowser_tests
 target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url
                                                 microbrowser_privacy
                                                 microbrowser_net
+                                                microbrowser_csp
                                                 microbrowser_html
                                                 microbrowser_dom
                                                 microbrowser_css
@@ -542,6 +550,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(content_encoding_fuzzer fuzz/ContentEncodingFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cors_fuzzer fuzz/CorsFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(csp_fuzzer fuzz/CspFuzzer.cpp microbrowser_csp)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(html_fragment_fuzzer fuzz/HtmlFragmentFuzzer.cpp

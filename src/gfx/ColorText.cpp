@@ -10,20 +10,12 @@
 #include <vector>
 
 #include "util/Parse.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::gfx {
 
 namespace {
 
-char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-}
-
-std::string Lowered(std::string_view text) {
-  std::string out(text);
-  std::transform(out.begin(), out.end(), out.begin(), ToLower);
-  return out;
-}
 
 bool IsSpace(char c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
@@ -122,7 +114,7 @@ std::optional<std::uint8_t> ParseAlphaChannel(std::string_view text) {
 }  // namespace
 
 std::optional<Color> ParseColorText(std::string_view text) {
-  const std::string lowered = Lowered(Trim(text));
+  const std::string lowered = util::AsciiLowerCase(Trim(text));
   if (lowered.empty()) {
     return std::nullopt;
   }

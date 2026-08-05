@@ -6,6 +6,7 @@
 #include "util/PercentEncoding.h"
 #include "url/PublicSuffixList.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::privacy {
 
@@ -48,19 +49,10 @@ bool ParameterNameMatches(std::string_view name, std::string_view parameter) {
   return util::PercentDecode(name) == parameter;
 }
 
-char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-}
-
-std::string Lowered(std::string_view text) {
-  std::string out(text);
-  std::transform(out.begin(), out.end(), out.begin(), ToLower);
-  return out;
-}
 
 std::string CanonicalPolicyHost(std::string_view host) {
   const auto parsed = url::Host::Parse(host, true);
-  const std::string serialized = parsed.has_value() ? parsed->Serialized() : Lowered(host);
+  const std::string serialized = parsed.has_value() ? parsed->Serialized() : util::AsciiLowerCase(host);
   return std::string(url::HostWithoutTrailingRootDot(serialized));
 }
 
