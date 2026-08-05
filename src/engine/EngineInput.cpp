@@ -1,5 +1,6 @@
 #include "engine/Engine.h"
 
+#include <cmath>
 #include <optional>
 #include <string>
 
@@ -16,6 +17,16 @@
 // rather than two to keep in step.
 
 namespace microbrowser::engine {
+
+namespace {
+
+// How far the arrow and page keys scroll, in CSS pixels. The same numbers the
+// browser chrome used before this moved, so what a key does has not changed --
+// only who decides whether it happens.
+constexpr int kPixelsPerArrowKey = 40;
+constexpr int kPixelsPerPage = 320;
+
+}  // namespace
 
 bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   // The primary button, going down. `button` is the DOM's numbering, where the
@@ -40,6 +51,11 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   input.shift = pointer.modifiers.shift;
   input.alt = pointer.modifiers.alt;
   input.meta = pointer.modifiers.meta;
+  // Focus moves first, before the click is dispatched. That is the order the
+  // specification runs them in -- focus is the *pointer-down* default action --
+  // and it is what makes a `click` handler that reads `document.activeElement`
+  // see the element that was clicked rather than the one that had focus before.
+  const bool focus_moved = page_.FocusFromClickAt(document_point);
   // The page's own handlers run first, and a `preventDefault` stops everything
   // below. That ordering is the whole contract of the method: a script that
   // intercepts a click on a link expects the link not to be followed, and
@@ -68,15 +84,13 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
     LayoutAndPaint();
     return true;
   }
-  if (page_.FocusTextControlAt(document_point)) {
-    return false;
-  }
   const std::optional<std::string> href = page_.LinkAt(document_point);
   if (!href.has_value()) {
     // Nothing to navigate to, but a handler may still have changed the
     // document -- which is the case that used to run the handler and leave the
-    // screen alone.
-    if (click.ran) {
+    // screen alone. A focus move counts: it fired four events, any of which
+    // could have rewritten the tree.
+    if (click.ran || focus_moved) {
       page_.InvalidateLayout();
       LayoutAndPaint();
       return true;
@@ -134,10 +148,88 @@ bool Engine::HandleKey(const ipc::KeyInputMessage& key) {
       return Navigate(*submission);
     }
   }
+  if (input.key == "Tab" && page_.MoveFocusByTab(input.shift)) {
+    // A default action, which is what makes `preventDefault` on a Tab work --
+    // and a page that manages its own roving focus does exactly that.
+    page_.InvalidateLayout();
+    LayoutAndPaint();
+    return true;
+  }
+  if (ScrollByKey(input)) {
+    return true;
+  }
   // "Delete" has no default action yet: the caret model is end-of-text only, so
   // there is no forward character to remove. Named here rather than left out,
   // because the absence is a caret limitation and not a decision about the key.
   return HandleScriptSideEffects(dispatched.ran);
+}
+
+bool Engine::ScrollByKey(const bindings::KeyInput& key) {
+  // The arrow and page keys, as a *default action of a keydown* rather than as
+  // something the browser chrome did before the page ever saw the key.
+  //
+  // It used to be the chrome's: `ui::BrowserChrome` turned Down and PageDown
+  // into a scroll intent and reported the key handled, so a page with an
+  // ArrowDown handler never saw one and `preventDefault` on it meant nothing.
+  // ADR 0017 §2 is explicit that a scroll is a default action and that
+  // cancelling it is what `preventDefault` on the key is for -- and ADR 0017 §4
+  // leaves `src/app` deciding *whose* key it is, which is not the same question
+  // as what the key does.
+  int css_delta = 0;
+  if (key.key == "ArrowDown") {
+    css_delta = kPixelsPerArrowKey;
+  } else if (key.key == "ArrowUp") {
+    css_delta = -kPixelsPerArrowKey;
+  } else if (key.key == "PageDown") {
+    css_delta = kPixelsPerPage;
+  } else if (key.key == "PageUp") {
+    css_delta = -kPixelsPerPage;
+  } else {
+    return false;
+  }
+  // Multiplied back up because ScrollMessage is in device pixels and ScrollBy
+  // divides the scale out again. Stated here rather than passed through in CSS
+  // pixels so that there is one place a scroll delta changes units, which is
+  // the seam itself.
+  const double scale = device_scale_ > 0.0f ? static_cast<double>(device_scale_) : 1.0;
+  const int device_delta = static_cast<int>(std::lround(static_cast<double>(css_delta) * scale));
+  // At the top-left of the viewport, which routes it to the document unless
+  // something scrollable is under that corner -- the same position the chrome
+  // sent, so what a page key scrolls has not changed.
+  ScrollBy(ipc::ScrollMessage{0, device_delta, gfx::IntPoint{}});
+  return true;
+}
+
+std::string Engine::FocusDescription() const {
+  const dom::Element* focused = page_.FocusedElement();
+  if (focused == nullptr) {
+    return "none";
+  }
+  std::string text{focused->TagName()};
+  // Whichever of the two the page gave it. `id` first because that is what a
+  // check names an element by; `name` because a form control often has only
+  // that, and a search field with neither is the case worth telling apart from
+  // no focus at all.
+  if (const std::string* id = focused->GetAttribute("id"); id != nullptr && !id->empty()) {
+    text += "#";
+    text += *id;
+  } else if (const std::string* name = focused->GetAttribute("name");
+             name != nullptr && !name->empty()) {
+    text += "[name=";
+    text += *name;
+    text += "]";
+  } else if (const std::string* href = focused->GetAttribute("href");
+             href != nullptr && !href->empty()) {
+    // A link, which on a real page is most of what Tab stops on and which
+    // usually has neither an id nor a name. Without this, walking a page's tab
+    // order printed `a` at every step and said nothing about whether focus had
+    // moved at all.
+    text += "[href=";
+    text += *href;
+    text += "]";
+  }
+  text += page_.FocusIsVisible() ? " keyboard" : " pointer";
+  return text;
 }
 
 bool Engine::HandleScriptSideEffects(bool ran) {

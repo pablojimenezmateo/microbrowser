@@ -2,7 +2,7 @@ purpose: Host process. Owns the window, the canvas, the transport, and the loop.
 
 allow: util gfx ipc engine platform ui
 
-public: AppStartupOptions.h Application.h IdleWaitStrategy.h EventDrainBudget.h DirtyRegionPolicy.h
+public: AppStartupOptions.h Application.h IdleWaitStrategy.h EventDrainBudget.h DirtyRegionPolicy.h KeyRouting.h
 
 # Empty, and this is the check that keeps the app loop honest: every way the
 # process sleeps goes through platform::SdlWindow, so the loop policy can be

@@ -8,6 +8,7 @@
 #include "app/DirtyRegionPolicy.h"
 #include "app/EventDrainBudget.h"
 #include "app/IdleWaitStrategy.h"
+#include "app/KeyRouting.h"
 #include "util/PerformanceCounters.h"
 #include "util/WaitDescriptor.h"
 #include "util/PerformanceTrace.h"
@@ -329,18 +330,25 @@ void Application::HandleInputEvent(const platform::InputEvent& event) {
   }
 
   if (const auto* key = std::get_if<platform::KeyEvent>(&event)) {
-    // The chrome first, always. A page that could see ctrl+L before the browser
-    // did could stop the user leaving it.
-    const ui::BrowserChrome::Response response = chrome_.HandleKey(*key);
-    ApplyChromeResponse(response);
-    if (!response.handled) {
-      // One message for every key the chrome did not take, whatever it was.
-      // Deciding here which keys are "text" and which are "commands" is what
-      // the message set this replaces did, and it is why a page could never
-      // learn that Escape was pressed: the decision belongs to the page's own
-      // handlers, and the engine's default action runs after them.
-      channel_.Ui().Send(KeyMessageFor(*key));
+    // Chrome or page, decided before the key becomes a message and never both.
+    // ADR 0017 §4 puts this decision in `src/app`, and KeyRouting.h says why:
+    // a page that could see a key aimed at the omnibox learns what is being
+    // typed into the address bar, and one that could type into it controls
+    // what the address bar says while showing its own content.
+    //
+    // "Not handled by the chrome" is not the same rule and used to be the one
+    // in force here: it forwarded every key the chrome had no use for, so a
+    // page saw most of what was typed into the omnibox.
+    if (RouteKey(*key, chrome_.GetToolbar().IsOmniboxFocused()) == KeyDestination::Chrome) {
+      ApplyChromeResponse(chrome_.HandleKey(*key));
+      return;
     }
+    // One message for every key that belongs to the page, whatever it is.
+    // Deciding here which keys are "text" and which are "commands" is what the
+    // message set this replaces did, and it is why a page could never learn
+    // that Escape was pressed: the decision belongs to the page's own handlers,
+    // and the engine's default action runs after them.
+    channel_.Ui().Send(KeyMessageFor(*key));
     return;
   }
 }
@@ -512,9 +520,6 @@ void Application::ApplyChromeResponse(const ui::BrowserChrome::Response& respons
       break;
     case ui::BrowserChrome::Intent::Kind::Reload:
       channel_.Ui().Send(ipc::ReloadMessage{response.intent->bypass_cache});
-      break;
-    case ui::BrowserChrome::Intent::Kind::ScrollPage:
-      channel_.Ui().Send(ipc::ScrollMessage{0, response.intent->scroll_delta, gfx::IntPoint{}});
       break;
   }
 }

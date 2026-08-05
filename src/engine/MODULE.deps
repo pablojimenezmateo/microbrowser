@@ -49,7 +49,17 @@ max_tu_lines: 800
 # a key reached a handler *and* that its default action did not run, which are
 # the two halves ADR 0017 §2 separates and the pair that would otherwise only be
 # observable as a form submission.
-budget: Engine header_lines=145 public_methods=14 members=9
+# 155 lines for ScrollByKey, and the comment on it is the point: the arrow and
+# page keys were the *chrome's*, which meant a page never saw an ArrowDown and
+# `preventDefault` on one meant nothing. A scroll is a default action of a
+# keydown (ADR 0017 §2), so it belongs after dispatch and here. No new members.
+# The fifteenth public method is FocusDescription, and it is a *diagnostic*:
+# what has focus, as one line, for the same reason ScriptErrors and
+# ConsoleOutput are forwarded here. Every check from ADR 0017 on is phrased as
+# an interaction, and a click that focused the wrong thing renders identically
+# to one that worked -- so "where did that click send focus" had no answer
+# outside a debugger. 165 lines for it and ScrollByKey.
+budget: Engine header_lines=165 public_methods=15 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -67,9 +77,9 @@ budget: Loader header_lines=105 public_methods=14 members=6
 # inline <style> elements.
 # Member 10 is the original form-control state, keyed by element, so reset controls can
 # restore DOM-mutated values without smuggling internal attributes into the DOM.
-# Member 11 is the currently focused text-control element, a non-owning pointer
-# into the document so form editing state lives on the DOM value rather than in
-# a second parallel store. Page collects the URLs and the Loader fetches them,
+# Member 11 *was* the currently focused text-control element, and it is gone:
+# focus is a document property and there is one copy of it, on dom::Document.
+# See the note above this class's budget line. Page collects the URLs and the Loader fetches them,
 # because resolving a relative href against a base URL is the loader's job and
 # parsing is this one's.
 # Grew by one for the page's script. One member and not two: an interpreter
@@ -117,7 +127,14 @@ budget: PendingLoad header_lines=70 public_methods=6 members=16
 # than Page.cpp, which is what the translation-unit cap asked for and is the
 # right answer: everything else in that file turns a document into boxes, and
 # this decides which part of the result is on screen.
-budget: Page   header_lines=310 public_methods=46 members=15
+# 340 lines and two more methods for the focus model, and one *fewer* member:
+# `focused_text_control_` is gone. It was a second copy of focus that only ever
+# held a text field, so `input.focus()` from a script and the element a click
+# focused were two different facts and a page that focused a field and expected
+# to be typed into was broken by construction. The one copy is on
+# `dom::Document` (ADR 0017 §4). The methods are the click that focuses and the
+# Tab that moves it; the lines are those plus the comment above.
+budget: Page   header_lines=340 public_methods=48 members=14
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -157,4 +174,7 @@ budget: Page   header_lines=310 public_methods=46 members=15
 # questions through. Borrowed from the Page that owns this, and null in a
 # binding layer with no layout behind it -- which is an absence rather than a
 # stub: getBoundingClientRect is then not declared at all. See ADR 0012.
-budget: PageScript header_lines=200 public_methods=22 members=10
+# The twenty-third method is MoveFocus, forwarded to the binding layer for the
+# reason DispatchKey is: moving focus fires four events, and the binding layer
+# is the only module allowed to run a page's handlers.
+budget: PageScript header_lines=210 public_methods=23 members=10

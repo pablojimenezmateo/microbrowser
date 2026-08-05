@@ -27,7 +27,11 @@ max_tu_lines: 800
 # not move. It is here rather than at the callers above dom because *missing a
 # call* is the failure mode: anything derived from the tree goes stale silently
 # and a page reads a rectangle describing the page as it was.
-budget: Node     header_lines=115 public_methods=21 members=3
+# Grew for ReleaseFocusWithin and its comment -- protected, beside NoteMutation
+# and there for the same reason: the document's focus is a raw Element* and
+# *missing a call* is the failure mode. Script removing the focused element
+# would otherwise leave the next key routed at a node no longer in the tree.
+budget: Node     header_lines=130 public_methods=21 members=3
 budget: Element      header_lines=35 public_methods=12 members=2
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
@@ -37,4 +41,11 @@ budget: DocumentType header_lines=25 public_methods=6  members=1
 # its readers are caches of the whole tree -- the box tree today, ADR 0016's
 # invalidation index next -- and a bit each of them cleared would hide a change
 # from the next one to look.
-budget: Document     header_lines=60 public_methods=14 members=2
+# The third member is the focus: which element has it, and whether the keyboard
+# put it there. On the document because that is what focus *is* (ADR 0017 §4),
+# and because the two things that read it -- the engine, which routes every key
+# to it, and the binding layer, which reports it as `document.activeElement` --
+# are in different modules. A copy in either would be the pair that disagrees
+# about where the next keystroke goes. One member and not two, for the reason
+# Page::LayoutState is one: they are two facts about the same thing.
+budget: Document     header_lines=90 public_methods=16 members=3

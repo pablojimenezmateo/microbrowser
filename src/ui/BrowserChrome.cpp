@@ -7,9 +7,6 @@ namespace microbrowser::ui {
 
 namespace {
 
-constexpr int kPixelsPerArrowKey = 40;
-constexpr int kPixelsPerPage = 320;
-
 // Schemes worth recognizing before the port heuristic below gets a say.
 // `data:1234` is a data URL; `localhost:8080` is a host and a port, and the
 // two are indistinguishable by shape alone.
@@ -137,7 +134,7 @@ BrowserChrome::Response BrowserChrome::Navigate(std::string url) {
   }
   response.handled = true;
   response.needs_repaint = true;
-  response.intent = Intent{Intent::Kind::Navigate, std::move(url), 0};
+  response.intent = Intent{Intent::Kind::Navigate, std::move(url), false};
   return response;
 }
 
@@ -190,7 +187,7 @@ BrowserChrome::Response BrowserChrome::HandleKey(const platform::KeyEvent& event
   if (event.modifiers.control && (event.codepoint == U'r' || event.codepoint == U'R')) {
     response.handled = true;
     response.needs_repaint = true;
-    response.intent = Intent{Intent::Kind::Reload, {}, 0, event.modifiers.shift};
+    response.intent = Intent{Intent::Kind::Reload, {}, event.modifiers.shift};
     return response;
   }
 
@@ -218,29 +215,11 @@ BrowserChrome::Response BrowserChrome::HandleKey(const platform::KeyEvent& event
     return response;
   }
 
-  // Not typing: the keys that scroll. Returned as an intent because the chrome
-  // does not know how tall the page is; the engine clamps.
-  int delta = 0;
-  switch (event.key) {
-    case platform::Key::Down:
-      delta = kPixelsPerArrowKey;
-      break;
-    case platform::Key::Up:
-      delta = -kPixelsPerArrowKey;
-      break;
-    case platform::Key::PageDown:
-      delta = kPixelsPerPage;
-      break;
-    case platform::Key::PageUp:
-      delta = -kPixelsPerPage;
-      break;
-    default:
-      break;
-  }
-  if (delta != 0) {
-    response.handled = true;
-    response.intent = Intent{Intent::Kind::ScrollPage, {}, delta};
-  }
+  // Nothing else. The arrow and page keys used to scroll from here, which meant
+  // a page never saw an ArrowDown and `preventDefault` on one meant nothing --
+  // so scrolling moved to where the other keyboard default actions live, after
+  // the page's handlers have had the key. See Engine::ScrollByKey, ADR 0017 §2,
+  // and app/KeyRouting.h for the rule that decides whose key this was.
   return response;
 }
 
@@ -283,7 +262,7 @@ BrowserChrome::Response BrowserChrome::HandlePointer(const platform::PointerEven
       }
       return response;
     case Toolbar::Part::Reload:
-      response.intent = Intent{Intent::Kind::Reload, {}, 0};
+      response.intent = Intent{Intent::Kind::Reload, {}, false};
       return response;
     case Toolbar::Part::Omnibox:
       toolbar_.SetOmniboxFocused(true);

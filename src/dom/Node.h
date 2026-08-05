@@ -125,6 +125,19 @@ class Node {
   // ADR 0009's parse depth. Revisit with a measurement, not a guess.
   void NoteMutation();
 
+  // Clears the document's focus if it is on `removed` or inside it.
+  //
+  // Called before a subtree leaves the tree, and here rather than at the
+  // callers for the same reason NoteMutation is: *missing one* is the failure
+  // mode. The document's focus is a raw `Element*`, and script removing the
+  // element it is on would otherwise leave the next key routed at a node the
+  // tree no longer contains -- which is a use-after-free the moment the binding
+  // layer stops holding removed nodes alive.
+  //
+  // It walks *up* from the focused element rather than down over the subtree,
+  // so removing a thousand nodes costs the depth of one rather than a thousand.
+  void ReleaseFocusWithin(const Node& removed);
+
  private:
   Kind kind_;
   Node* parent_ = nullptr;
@@ -237,6 +250,29 @@ class Document : public Node {
   // a call ends up meaning the other one.
   void NoteTreeMutation() { ++mutation_version_; }
 
+  // Which element has focus, and whether it got it from the keyboard.
+  //
+  // One member rather than two, for the reason Page's LayoutState is one: they
+  // are two facts about the same thing, and a `visible` bool loose on the
+  // document would say nothing about which focus it describes.
+  //
+  // Focus is a *document* property (ADR 0017 §4) and this is the only copy of
+  // it. The engine decides what may hold it and moves it; the binding layer
+  // reports it as `document.activeElement` and moves it for `focus()`. A second
+  // copy on either side is the pair that disagrees about where a key goes.
+  //
+  // `visible` is the `:focus-visible` heuristic: set when the keyboard moved
+  // focus, cleared when a pointer did. A focus ring on every click is the
+  // reason authors write `outline: none`, which is worse for the user than
+  // either behaviour.
+  struct FocusState {
+    Element* element = nullptr;
+    bool visible = false;
+  };
+  const FocusState& Focus() const { return focus_; }
+  // Null clears it, which is what `blur()` and a click on nothing focusable do.
+  void SetFocus(Element* element, bool visible) { focus_ = FocusState{element, visible}; }
+
   // First element with this tag name, in tree order.
   Element* FirstElementByTagName(std::string_view tag_name) const;
   std::vector<Element*> ElementsByTagName(std::string_view tag_name) const;
@@ -244,6 +280,7 @@ class Document : public Node {
  private:
   bool quirks_ = false;
   std::uint64_t mutation_version_ = 0;
+  FocusState focus_;
 };
 
 // Whether an element cannot have children — `br`, `img`, `meta` and the rest.

@@ -71,6 +71,27 @@ void Node::NoteMutation() {
   }
 }
 
+void Node::ReleaseFocusWithin(const Node& removed) {
+  Node* node = this;
+  while (node->parent_ != nullptr) {
+    node = node->parent_;
+  }
+  if (node->kind_ != Kind::Document) {
+    return;
+  }
+  auto* document = static_cast<Document*>(node);
+  const Element* focused = document->Focus().element;
+  if (focused == nullptr) {
+    return;
+  }
+  for (const Node* at = focused; at != nullptr; at = at->parent_) {
+    if (at == &removed) {
+      document->SetFocus(nullptr, false);
+      return;
+    }
+  }
+}
+
 Node& Node::Append(std::unique_ptr<Node> child) {
   child->parent_ = this;
   children_.push_back(std::move(child));
@@ -112,6 +133,7 @@ bool Node::Remove(Node* child) {
   if (found == children_.end()) {
     return false;
   }
+  ReleaseFocusWithin(**found);
   children_.erase(found);
   NoteMutation();
   return true;
@@ -124,6 +146,7 @@ std::unique_ptr<Node> Node::Detach(Node* child) {
   if (found == children_.end()) {
     return nullptr;
   }
+  ReleaseFocusWithin(**found);
   std::unique_ptr<Node> owned = std::move(*found);
   children_.erase(found);
   // The parent link goes with the ownership. A node that still claimed a

@@ -85,7 +85,16 @@ max_tu_lines: 700
 # it. No new members: an input event is a value that arrives, runs handlers and
 # is gone, and anything this layer kept about one would be state the next event
 # could disagree with.
-budget: DomBindings header_lines=270 public_methods=14 members=10
+# 300 lines and two more public methods for the focus model. The methods are
+# MoveFocus and FocusedElement, and they are public for the reason DispatchKey
+# is: the engine is the thing that saw the click, and focus is what routes every
+# key. There is exactly one focus-change algorithm and both sides call it --
+# `element.focus()` from script and a click or Tab from the engine -- because two
+# of them is how `document.activeElement` ends up disagreeing with where the next
+# keystroke goes. No new members: the state is on `dom::Document`, which is what
+# focus *is* (ADR 0017 §4), and a copy here would be that same disagreement in
+# one module.
+budget: DomBindings header_lines=300 public_methods=16 members=10
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and

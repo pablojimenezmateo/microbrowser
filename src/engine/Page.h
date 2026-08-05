@@ -209,8 +209,29 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // it. What a script changed is not knowable from here, so nothing is patched.
   void InvalidateLayout();
 
-  // Focuses an editable text control at `document_point`.
-  bool FocusTextControlAt(gfx::FloatPoint document_point);
+  // Moves focus to whatever a click at `document_point` landed on: the nearest
+  // focusable ancestor of the element under it, or nothing when there is none
+  // -- which blurs whatever had focus, the way a click on the background does
+  // in every browser. True when focus moved, which is the caller's signal that
+  // handlers ran and the screen may need repainting.
+  bool FocusFromClickAt(gfx::FloatPoint document_point);
+
+  // Moves focus to the next or previous tab-reachable element in the order
+  // ADR 0017 §4 names: positive `tabindex` first in increasing order, then
+  // everything else in tree order. True when it moved. This is Tab's default
+  // action, so it runs after dispatch and only if nothing cancelled it.
+  bool MoveFocusByTab(bool backwards);
+
+  // The element with focus, or null. Every key goes here, and hit testing is
+  // consulted only for pointer events -- ADR 0017 §4, and the split that makes
+  // a text field work without a second mechanism.
+  dom::Element* FocusedElement() const;
+
+  // Whether the current focus came from the keyboard: the `:focus-visible`
+  // heuristic every browser converged on. Set by Tab, cleared by a click or by
+  // `element.focus()`. The state, and not the selector -- matching
+  // `:focus-visible` needs ADR 0016's element state bits, which is session 11.
+  bool FocusIsVisible() const;
 
   // Activates a checkbox or radio input at `document_point`. Returns true when
   // the document value changed and layout/paint should run.
@@ -300,6 +321,15 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // means the same thing to all three.
   std::optional<FormSubmission> SubmitForm(const dom::Element& form,
                                            const dom::Element* submitter);
+  // Moves focus and fires the four events, or -- on a page with no script --
+  // writes the document's focus directly. One private helper so that the three
+  // callers (a click, Tab, and losing the document) cannot disagree about
+  // which of the two paths a page without an interpreter takes.
+  bool MoveFocus(dom::Element* target, bool visible);
+  // The focused element when a key can type into it, and null otherwise. Every
+  // editing routine starts here, so "is this thing editable" is answered once
+  // rather than once per routine.
+  dom::Element* MutableFocusedTextControl() const;
   void ExtractTitle();
   // Collects <style> elements and stylesheet links in document order.
   void CollectStyleSheets();
@@ -319,7 +349,6 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   std::string title_;
   DocumentResources resources_;
   std::map<const dom::Element*, std::pair<std::string, bool>> control_defaults_;
-  dom::Element* focused_text_control_ = nullptr;
   css::MediaContext viewport_;
   // What the last layout was for, so a query that forces one can repeat it.
   // One member rather than three: the width it ran at, the document version it

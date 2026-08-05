@@ -374,6 +374,13 @@ int main(int argc, char** argv) {
   for (const std::string& error : engine.ScriptErrors()) {
     std::fprintf(stderr, "  script error: %s\n", error.c_str());
   }
+  // Only when something was driven at the page, and then always -- for the
+  // reason above. Every check from ADR 0017 on is phrased as an interaction,
+  // and where a click sent focus decides where every key after it goes. A
+  // click that focused the wrong thing renders identically to one that worked.
+  if (!options.keys.empty() || (options.click_x >= 0 && options.click_y >= 0)) {
+    std::fprintf(stderr, "  focus: %s\n", engine.FocusDescription().c_str());
+  }
   if (options.dump) {
     DumpDisplayList(display_list);
   }

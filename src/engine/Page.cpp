@@ -7,6 +7,7 @@
 #include "gfx/SvgDecoder.h"
 #include "engine/FormAlgorithms.h"
 #include "engine/ImageSelection.h"
+#include "html/Focus.h"
 #include "html/FormControl.h"
 #include "html/TreeBuilder.h"
 #include "util/Parse.h"
@@ -283,7 +284,6 @@ void Page::Load(std::string_view html, std::string url) {
   // at the same address.
   layout_ = LayoutState{};
   scroll_ = ScrollState{};
-  focused_text_control_ = nullptr;
   content_height_ = 0.0f;
   resources_ = DocumentResources{};
   control_defaults_.clear();
@@ -615,18 +615,32 @@ void Page::InvalidateLayout() {
   CollectImages();
 }
 
-bool Page::FocusTextControlAt(gfx::FloatPoint document_point) {
-  focused_text_control_ = nullptr;
-  if (boxes_ == nullptr) {
+bool Page::FocusFromClickAt(gfx::FloatPoint document_point) {
+  if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  focused_text_control_ =
-      HitTestFormControl(*boxes_, document_point, html::IsEditableTextControl);
-  return focused_text_control_ != nullptr;
+  // The nearest focusable ancestor of what was hit, which is what makes a click
+  // on the text inside a `<button>` focus the button rather than nothing. Null
+  // when there is none, and that is not a failure: a click on the background
+  // blurs whatever had focus, which is the only way to leave a field with the
+  // mouse.
+  //
+  // Here rather than in PageEditing.cpp with the rest of the focus model
+  // because this is the one part of it that is a *hit test*, and the hit-test
+  // walk is in this file with the four others that use it.
+  const dom::Element* target = HitTestElement(*boxes_, document_point, nullptr);
+  while (target != nullptr && !html::IsFocusable(*target)) {
+    const dom::Node* parent = target->Parent();
+    target = parent != nullptr && parent->IsElement() ? static_cast<const dom::Element*>(parent)
+                                                      : nullptr;
+  }
+  // Not keyboard-driven, so no focus ring: a ring on every click is the reason
+  // authors write `outline: none`, which is worse for the user than either
+  // behaviour. ADR 0017 §4.
+  return MoveFocus(const_cast<dom::Element*>(target), false);
 }
 
 bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
-  focused_text_control_ = nullptr;
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
@@ -662,7 +676,6 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
 }
 
 bool Page::ResetFormAt(gfx::FloatPoint document_point) {
-  focused_text_control_ = nullptr;
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }

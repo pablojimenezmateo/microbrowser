@@ -3,10 +3,13 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "app/KeyRouting.h"
 #include "ui/BrowserChrome.h"
 
 namespace microbrowser::tests {
 
+using app::KeyDestination;
+using app::RouteKey;
 using platform::Key;
 using platform::KeyEvent;
 using platform::Modifiers;
@@ -313,18 +316,69 @@ void RegisterBrowserChromeTests(std::vector<TestCase>& tests) {
                    "where you ended up, not where you aimed");
   });
 
-  AddTest(tests, "Chrome/ArrowKeysScrollThePageWhenTheOmniboxIsNotFocused", [] {
+  // CHANGED IN THIS SESSION, deliberately. This test used to assert that the
+  // chrome turned Down into a ScrollPage intent. It no longer does, and the
+  // reason is ADR 0017 §2: scrolling is a *default action* of a keydown, so it
+  // has to happen after the page's handlers have seen the key and only if none
+  // of them cancelled it. The chrome taking the key meant a page never saw an
+  // ArrowDown at all and `preventDefault` on one meant nothing. Scrolling now
+  // happens in Engine::ScrollByKey, which is where the other keyboard default
+  // actions are, and `Intent::Kind::ScrollPage` is gone with it.
+  AddTest(tests, "Chrome/ArrowKeysBelongToThePageAndNotToTheChrome", [] {
     BrowserChrome chrome = MakeChrome();
     const BrowserChrome::Response down = chrome.HandleKey(Named(Key::Down));
-    Expect(down.intent.has_value() &&
-               down.intent->kind == BrowserChrome::Intent::Kind::ScrollPage,
-           "Down scrolls");
-    Expect(down.intent->scroll_delta > 0, "downward");
+    Expect(!down.handled && !down.intent.has_value(),
+           "the chrome does not take an arrow key -- the page's handlers get it first");
+    Expect(RouteKey(Named(Key::Down), chrome.GetToolbar().IsOmniboxFocused()) ==
+               app::KeyDestination::Page,
+           "and the routing rule sends it there");
 
     chrome.HandleKey(Chord(U'l', Control()));
-    const BrowserChrome::Response typing = chrome.HandleKey(Named(Key::Down));
-    Expect(!typing.intent.has_value(),
+    Expect(RouteKey(Named(Key::Down), chrome.GetToolbar().IsOmniboxFocused()) ==
+               app::KeyDestination::Chrome,
            "but not while the omnibox has focus -- arrows belong to the field then");
+  });
+
+  // The chrome-or-page decision, which ADR 0017 §4 puts in `src/app` and calls
+  // a security boundary. Two things it has to make impossible: a page learning
+  // what is typed into the address bar, and a page typing into it.
+  AddTest(tests, "Chrome/NothingTypedIntoTheOmniboxReachesThePage", [] {
+    BrowserChrome chrome = MakeChrome();
+    chrome.HandleKey(Chord(U'l', Control()));
+    Expect(chrome.GetToolbar().IsOmniboxFocused(), "ctrl+L focused the omnibox");
+
+    // Every key, not only the ones the chrome uses. "Whatever the chrome did
+    // not handle" was the old rule and it is not a filter -- it is a channel:
+    // a page listening for keydown would have learned the timing and the
+    // identity of most of a typed URL.
+    const KeyEvent probes[] = {Typed(U'a'),        Typed(U'.'),          Named(Key::Tab),
+                               Named(Key::Up),     Named(Key::PageDown), Named(Key::Home),
+                               Named(Key::Delete), Chord(U'a', Control())};
+    for (const KeyEvent& probe : probes) {
+      Expect(RouteKey(probe, chrome.GetToolbar().IsOmniboxFocused()) ==
+                 app::KeyDestination::Chrome,
+             "a key aimed at the omnibox never becomes a page message");
+    }
+  });
+
+  AddTest(tests, "Chrome/TheWayOutOfAPageIsNotThePageToTake", [] {
+    // ctrl+L and ctrl+R are reserved whatever has focus. A page that could
+    // swallow either could stop the user leaving it.
+    BrowserChrome chrome = MakeChrome();
+    Expect(RouteKey(Chord(U'l', Control()), false) == app::KeyDestination::Chrome,
+           "ctrl+L is the browser's");
+    Expect(RouteKey(Chord(U'r', Control()), false) == app::KeyDestination::Chrome,
+           "ctrl+R is the browser's");
+    Expect(RouteKey(Chord(U'R', ControlShift()), false) == app::KeyDestination::Chrome,
+           "and so is ctrl+shift+R");
+    // And the list is deliberately short: everything else is the page's, which
+    // is what makes a keyboard-driven page work at all.
+    Expect(RouteKey(Named(Key::Escape), false) == app::KeyDestination::Page,
+           "Escape is the page's");
+    Expect(RouteKey(Chord(U'a', Control()), false) == app::KeyDestination::Page,
+           "and so is ctrl+A, which a page may bind");
+    Expect(RouteKey(Typed(U'j'), false) == app::KeyDestination::Page,
+           "and so is an ordinary character");
   });
 
   AddTest(tests, "Chrome/ControlShiftRRequestsACacheBypassingReload", [] {

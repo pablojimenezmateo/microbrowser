@@ -2,7 +2,7 @@ purpose: HTML tokenizing, tree construction, and element semantics.
 
 allow: util url dom
 
-public: FormControl.h Token.h Tokenizer.h TreeBuilder.h
+public: Focus.h FormControl.h Token.h Tokenizer.h TreeBuilder.h
 
 extern:
 

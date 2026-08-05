@@ -132,6 +132,16 @@ class PageScript {
   // not to run the key's default action -- ADR 0017 §2 makes that action a step
   // after dispatch rather than something dispatch performs.
   bool DispatchKey(dom::Node* target, const bindings::KeyInput& key);
+  // Moves focus to `target`, or clears it when null, firing `blur`/`focusout`
+  // and `focus`/`focusin`. True when it moved, which is the caller's signal
+  // that handlers ran and the document may have changed.
+  //
+  // Through the binding layer even though the state lives on the document,
+  // because the events are half the algorithm and the binding layer is the only
+  // module allowed to run a page's handlers. A page with no script still moves
+  // focus -- see Page::MoveFocus, which writes the document directly when there
+  // is no interpreter to run handlers in.
+  bool MoveFocus(dom::Element* target, bool visible);
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
   bool DispatchSubmit(dom::Element& form);

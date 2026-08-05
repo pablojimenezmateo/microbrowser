@@ -211,6 +211,7 @@ microbrowser_module(css
 
 microbrowser_module(html
   SOURCES
+    src/html/Focus.cpp
     src/html/FormControl.cpp
     src/html/Tokenizer.cpp
     src/html/TreeBuilder.cpp
@@ -328,6 +329,7 @@ microbrowser_module(bindings
     src/bindings/UrlSearchParams.cpp
     src/bindings/EventBindings.cpp
     src/bindings/EventDispatch.cpp
+    src/bindings/FocusBindings.cpp
     src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp
   DEPS microbrowser_js microbrowser_dom microbrowser_html)
@@ -434,6 +436,7 @@ add_executable(microbrowser_tests
   tests/DisplayListDiffTests.cpp
   tests/EngineTests.cpp
   tests/FloatTests.cpp
+  tests/FocusTests.cpp
   tests/FontCatalogTests.cpp
   tests/FontTests.cpp
   tests/GeometryTests.cpp

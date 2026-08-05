@@ -259,6 +259,10 @@ bool PageScript::DispatchKey(dom::Node* target, const bindings::KeyInput& key) {
   return bindings_ != nullptr && bindings_->DispatchKey(target, key);
 }
 
+bool PageScript::MoveFocus(dom::Element* target, bool visible) {
+  return bindings_ != nullptr && bindings_->MoveFocus(target, visible);
+}
+
 bool PageScript::DispatchScroll(dom::Element* target) {
   return bindings_ != nullptr && bindings_->DispatchScroll(target);
 }

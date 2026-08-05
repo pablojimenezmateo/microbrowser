@@ -554,7 +554,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}),
            "the external text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("hello"), "typing changed the external input");
     const std::optional<std::string> target = FocusedSubmissionTarget(page);
@@ -575,7 +575,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}),
            "the external text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("ed"), "typing changed the external input");
     page.Layout(400.0f);
@@ -656,7 +656,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(!page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}),
+    Expect(!page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}),
            "a text control inside a disabled fieldset cannot be focused");
     Expect(!page.InsertTextIntoFocusedTextControl("x"),
            "typing cannot mutate a disabled fieldset descendant");
@@ -723,7 +723,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     Expect(!SubmissionTarget(page, gfx::FloatPoint{45.0f, 5.0f}).has_value(),
            "a button with type=button does not submit");
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("ed"), "typing changed the input value");
     page.Layout(400.0f);
     Expect(page.ResetFormAt(gfx::FloatPoint{85.0f, 5.0f}), "button type=reset resets its form");
@@ -944,7 +944,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("abc"), "typing changed the input value");
     page.Layout(400.0f);
     Expect(page.ActivateCheckableInputAt(gfx::FloatPoint{25.0f, 5.0f}),
@@ -971,7 +971,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("abc"), "typing changed the input value");
     page.Layout(400.0f);
     Expect(!page.ResetFormAt(gfx::FloatPoint{25.0f, 5.0f}),
@@ -996,7 +996,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("c"), "typing changed the input value");
     page.Layout(400.0f);
     Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "clicking reset restores defaults");
@@ -1018,7 +1018,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("hi"), "typing changed the input value");
     page.Layout(400.0f);
     const std::optional<std::string> target =
@@ -1038,7 +1038,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the textarea was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the textarea was focused");
     Expect(page.InsertTextIntoFocusedTextControl("&"), "typing changed the textarea value");
     const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused textarea can submit its owning form");
@@ -1058,7 +1058,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the textarea was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the textarea was focused");
     Expect(page.InsertTextIntoFocusedTextControl("!"), "typing changed the textarea value");
     page.Layout(400.0f);
     Expect(page.ResetFormAt(gfx::FloatPoint{45.0f, 5.0f}), "reset restored the textarea");
@@ -1079,7 +1079,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the email input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("a@b"), "typing changed the input value");
     const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused input can submit its owning form");
@@ -1096,7 +1096,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("abcd"), "typing changed the input value");
     const std::optional<std::string> target = FocusedSubmissionTarget(page);
     Expect(target.has_value(), "the focused input can submit its owning form");
@@ -1113,7 +1113,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the readonly input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the readonly input was focused");
     Expect(!page.InsertTextIntoFocusedTextControl("x"), "typing does not mutate readonly input");
     Expect(!page.DeleteBackwardFromFocusedTextControl(), "backspace does not mutate readonly input");
     const std::optional<std::string> target = FocusedSubmissionTarget(page);
@@ -1131,7 +1131,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/start");
     page.Layout(400.0f);
 
-    Expect(page.FocusTextControlAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{5.0f, 5.0f}), "the text input was focused");
     Expect(page.InsertTextIntoFocusedTextControl("caf\xC3\xA9"), "typing changed the input value");
     Expect(page.DeleteBackwardFromFocusedTextControl(), "backspace changed the focused input value");
     const std::optional<std::string> target = FocusedSubmissionTarget(page);

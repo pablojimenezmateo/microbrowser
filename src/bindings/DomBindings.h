@@ -138,6 +138,22 @@ class DomBindings {
   // it: ADR 0017 §2.
   bool DispatchKey(dom::Node* target, const KeyInput& key);
 
+  // Moves focus to `target`, or clears it when null, and fires the four events
+  // that go with the move. True when it actually moved, which is the caller's
+  // signal that handlers ran and the document may have changed.
+  //
+  // The one focus-change algorithm, reached from both sides: `element.focus()`
+  // calls it, and so do the engine's click and Tab. Two ways to change focus is
+  // how `document.activeElement` ends up disagreeing with where the next
+  // keystroke goes. See ADR 0017 §4 and FocusBindings.cpp.
+  //
+  // `visible` is the `:focus-visible` heuristic -- true when the keyboard moved
+  // focus, false when a pointer or a script did.
+  bool MoveFocus(dom::Element* target, bool visible);
+  // The document's focused element, or null. Public because the engine routes
+  // every key to it and hit-tests only for pointer events (ADR 0017 §4).
+  dom::Element* FocusedElement() const;
+
   // The submission a script asked for, taken. Empty when it asked for none.
   std::optional<PendingSubmit> TakePendingSubmit();
 
@@ -220,6 +236,17 @@ class DomBindings {
   // Makes `window` an event target. It is the global object, so this is also
   // what gives `globalThis` the same methods.
   void InstallWindowEvents();
+  // --- Focus, in FocusBindings.cpp ------------------------------------------
+  // `focus()` and `blur()` on HTMLElement, and `document.activeElement`.
+  void InstallFocus(const js::Value& target);
+  void InstallActiveElement(const js::Value& document);
+  // One of the four focus events. `related` is the other end of the move, which
+  // a delegating handler reads to know whether focus came from inside it.
+  void DispatchFocusEvent(dom::Element& target, const char* type, bool bubbles,
+                          dom::Element* related);
+  // `document.body`, which is what `activeElement` reports when nothing is
+  // focused -- the answer every engine gives and every page tests against.
+  dom::Element* BodyElement() const;
   // `Event`, `CustomEvent` and `MouseEvent`.
   void InstallEventConstructors();
   // One event interface and its constructor, built on first use. `parent` is

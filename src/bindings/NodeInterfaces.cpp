@@ -150,6 +150,10 @@ void DomBindings::EnsureInterfaces() {
   InstallElementIdentity(element);
   InstallGeometry(element);
   const Value html_element = MakeInterface("HTMLElement", element);
+  // On HTMLElement rather than Element, which is where the specification puts
+  // them: focus is an HTML concept, and an SVG element in this tree is an
+  // Element with no HTML semantics at all.
+  InstallFocus(html_element);
   // Every per-tag interface, up front rather than when its tag is first seen.
   // Lazily was tempting and wrong: `x instanceof HTMLAnchorElement` has to
   // answer *false* on a page with no anchor in it, and a name that does not

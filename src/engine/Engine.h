@@ -84,6 +84,14 @@ class Engine {
   // that threw, from outside, without both.
   const std::vector<std::string>& ConsoleOutput() const { return page_.ConsoleOutput(); }
 
+  // What has focus, as one line: its tag, its `id` or `name`, and whether the
+  // keyboard put it there. Forwarded rather than exposing the Page, for the
+  // reason ScriptErrors is -- and here at all because every check from ADR
+  // 0017 onwards is phrased as an interaction, and "where did that click send
+  // focus" was otherwise a question only a debugger could answer. A wrong
+  // answer to it looks exactly like a working browser until a key is pressed.
+  std::string FocusDescription() const;
+
   const std::string& Title() const { return page_.Title(); }
   const std::string& Url() const { return page_.Url(); }
   gfx::IntSize ViewportSize() const { return viewport_size_; }
@@ -121,6 +129,11 @@ class Engine {
   // purpose: ADR 0017 §2 makes the default action a step after dispatch, which
   // is the only thing that makes `preventDefault` on a keydown mean anything.
   bool HandleKey(const ipc::KeyInputMessage& key);
+  // The arrow and page keys, as a keydown's default action. True when the key
+  // was one of them. It is here rather than in the browser chrome because a
+  // default action is something the page gets to cancel, and the chrome
+  // handling the key meant a page never saw it at all -- ADR 0017 §2.
+  bool ScrollByKey(const bindings::KeyInput& key);
   // What to do when a handler ran and nothing else happened: the document may
   // have moved under the layout, so drop it and paint again -- and only then,
   // because a key on a page with no handlers must not cost a relayout.

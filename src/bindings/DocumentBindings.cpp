@@ -182,6 +182,7 @@ void DomBindings::Install() {
   };
   element_accessor("body", "body");
   element_accessor("documentElement", "html");
+  InstallActiveElement(document);
 
   // `document.head`, `document.title` and the two element accessors, as
   // accessors so they follow the tree rather than freezing what it looked like

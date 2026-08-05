@@ -20,11 +20,13 @@ class BrowserChrome {
  public:
   // What the host should do as a result of an event. Absent means nothing.
   struct Intent {
-    enum class Kind : std::uint8_t { Navigate, Reload, ScrollPage };
+    // Two, and scrolling is deliberately not a third. The arrow and page keys
+    // scroll from the engine now, as a keydown's default action -- the chrome
+    // doing it meant a page never saw the key. See Engine::ScrollByKey.
+    enum class Kind : std::uint8_t { Navigate, Reload };
 
     Kind kind = Kind::Navigate;
     std::string url;
-    int scroll_delta = 0;
     bool bypass_cache = false;
   };
 
