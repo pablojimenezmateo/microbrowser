@@ -2,7 +2,7 @@ purpose: Software rasterization. Pixels in memory; nothing about windows or the 
 
 allow: util
 
-public: Geometry.h AffineTransform.h Color.h ColorText.h Blitter.h Font.h FontCatalog.h TextRenderer.h Canvas.h DirtyRegion.h DisplayList.h DisplayListDiff.h Path.h PathFlattener.h GlyphCache.h Image.h JpegDecoder.h PngDecoder.h SvgDecoder.h SvgPath.h Rasterizer.h Stroker.h Surface.h TextShaper.h Painter.h
+public: Geometry.h AffineTransform.h Color.h ColorText.h Blitter.h Font.h FontCatalog.h TextRenderer.h Canvas.h DirtyRegion.h DisplayList.h DisplayListDiff.h Path.h PathFlattener.h GlyphCache.h Image.h JpegDecoder.h PngDecoder.h SvgDecoder.h SvgPath.h Rasterizer.h Stroker.h Surface.h TextShaper.h Painter.h Woff2.h
 
 # JpegPixels.h is deliberately absent from that list: it is the seam between the
 # JPEG decoder's parser half and its arithmetic half, and nothing outside this
@@ -19,6 +19,11 @@ extern: freetype harfbuzz
 
 max_tu_lines: 800
 
+# The WOFF2 reader, private to this module. Large for a reader because its two
+# non-trivial reads -- WOFF2's base-128 lengths and its byte ranges -- carry the
+# reasoning for their refusals where the refusal is, and both halves of the
+# decoder read through this one copy rather than two.
+budget: Reader       header_lines=90 public_methods=13 members=3
 budget: Color        header_lines=35 public_methods=14 members=1
 budget: FloatRect    header_lines=40 public_methods=8  members=4
 # Inflated() computes in 64 bits and clamps, with the reasoning next to it:

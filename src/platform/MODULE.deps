@@ -30,4 +30,7 @@ budget: AppDirectories header_lines=50 public_methods=6  members=3
 # index is the reason this is not just a gfx::FontCatalog: it holds paths, not
 # faces, so a desktop's worth of fonts costs a list of strings rather than
 # hundreds of megabytes.
-budget: SystemFontProvider header_lines=60 public_methods=12 members=3
+# 75 lines and a thirteenth method for ADR 0024's RegisterWebFont: the provider
+# every real binary uses had inherited the base class's honest refusal, so a page's
+# `@font-face` registered in the tests and nowhere else.
+budget: SystemFontProvider header_lines=75 public_methods=13 members=3

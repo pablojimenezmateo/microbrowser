@@ -42,6 +42,18 @@ class SystemFontProvider : public gfx::FontProvider {
 
   gfx::Font* FontFor(const gfx::FontRequest& request) override;
 
+  // A page's own `@font-face`, into the same catalog the system fonts land in.
+  //
+  // Forwarded rather than inherited-by-default, and the bug it fixes is worth the
+  // sentence: `FontProvider::RegisterWebFont` returns false so that a provider with
+  // no way to load bytes refuses honestly, and this class is the provider every
+  // real binary uses. Without this override, `@font-face` worked in the tests --
+  // which build a `FontCatalog` directly -- and in nothing else.
+  bool RegisterWebFont(std::string family, int weight, bool italic,
+                       std::vector<std::byte> bytes) override {
+    return catalog_.RegisterWebFont(std::move(family), weight, italic, std::move(bytes));
+  }
+
   std::size_t IndexedFaces() const { return index_.size(); }
   std::size_t LoadedFaces() const { return catalog_.FaceCount(); }
 

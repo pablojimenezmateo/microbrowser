@@ -73,10 +73,12 @@ class FontCatalog : public FontProvider {
   // A document's own face, which for a catalog is an ordinary registration: the
   // family, weight and slant come from the `@font-face` descriptors rather than
   // from the file, because the descriptors are what a `font-family` stack names.
+  // A document's face, which may arrive as a WOFF2 -- and almost always does,
+  // because that is what the web ships. Unwrapped back into the sfnt a rasterizer
+  // reads before registration, so nothing downstream has to know which container
+  // it came in. ADR 0024.
   bool RegisterWebFont(std::string family, int weight, bool italic,
-                       std::vector<std::byte> bytes) override {
-    return Register(std::move(family), weight, italic, std::move(bytes));
-  }
+                       std::vector<std::byte> bytes) override;
 
   // Registers a face under the family, weight and slant it reports about
   // itself. This is the form a font database wants: a filename says "Bold"

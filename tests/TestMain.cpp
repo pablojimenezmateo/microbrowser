@@ -60,6 +60,7 @@ void RegisterIntegrityTests(std::vector<TestCase>& tests);
 void RegisterShadowDomTests(std::vector<TestCase>& tests);
 void RegisterStructuredCloneTests(std::vector<TestCase>& tests);
 void RegisterWebFontTests(std::vector<TestCase>& tests);
+void RegisterWoff2Tests(std::vector<TestCase>& tests);
 void RegisterXhrTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
 void RegisterIsoBmffTests(std::vector<TestCase>& tests);
@@ -205,6 +206,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterShadowDomTests(tests);
   microbrowser::tests::RegisterStructuredCloneTests(tests);
   microbrowser::tests::RegisterWebFontTests(tests);
+  microbrowser::tests::RegisterWoff2Tests(tests);
   microbrowser::tests::RegisterXhrTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);
   microbrowser::tests::RegisterIsoBmffTests(tests);

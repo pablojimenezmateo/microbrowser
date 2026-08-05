@@ -324,12 +324,16 @@ namespace {
 // it. An empty hint is accepted: a bare `url(x.ttf)` is the common spelling and
 // refusing it would skip most faces on the web.
 //
-// `woff2` is the one that matters and the one that is refused: it is brotli inside
-// a container, and neither exists here until ADR 0024's session 20. Fetching one
-// to fail on it is a request that buys nothing.
+// `woff2` is accepted since ADR 0024's container landed -- it is what the web
+// actually ships, so refusing it refused nearly every face on nearly every page.
+// A WOFF2 whose `glyf` is transformed is still refused, but *after* the fetch and
+// by the decoder, because that is a fact about the file rather than about its
+// declared format. `woff` -- the older zlib container -- is still refused before
+// the network, because nothing here unwraps it.
 bool CanDecodeFontFormat(std::string_view format) {
   return format.empty() || format == "truetype" || format == "opentype" ||
-         format == "truetype-variations" || format == "opentype-variations";
+         format == "truetype-variations" || format == "opentype-variations" ||
+         format == "woff2";
 }
 
 }  // namespace

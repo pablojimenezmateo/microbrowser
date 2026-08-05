@@ -1,9 +1,10 @@
 // `@font-face`, fetched and registered.
 //
-// ADR 0024. The parse is asserted in CssTests; this is the half that touches the
-// network and the font database, and the assertions worth reading are about what
-// is *not* fetched: a `format("woff2")` source, because brotli does not exist here
-// yet, and a second copy of a face that has already been asked for.
+// ADR 0024. The parse is asserted in CssTests, the container in Woff2Tests; this is
+// the half that touches the network and the font database, and the assertions worth
+// reading are about what is *not* fetched: a source in a format nothing here can
+// unwrap, everything after the first source that can be, and a second copy of a face
+// that has already been asked for.
 
 #include <string>
 #include <string_view>
@@ -94,21 +95,27 @@ void RegisterWebFontTests(std::vector<TestCase>& tests) {
            "and the family a page names now resolves");
   });
 
-  AddTest(tests, "WebFont/AWoff2SourceIsNotFetchedAtAll", [] {
-    // The one that matters: WOFF2 is brotli inside a container and neither exists
-    // here until ADR 0024's session 20. Fetching one to fail on it is a request
-    // that buys nothing, so the format hint is used to skip it *before* the
-    // network -- which is the only reason authors write the hint.
+  AddTest(tests, "WebFont/AWoff2SourceIsFetchedAndTheChainStopsThere", [] {
+    // **This assertion inverted when the WOFF2 container landed.** It used to be
+    // "the woff2 was never requested", which was right while nothing could unwrap
+    // one -- fetching a file to fail on it is a request that buys nothing. WOFF2 is
+    // what the web actually ships, so it is now the *first* decodable source and
+    // the rest of the author's chain is not fetched.
+    //
+    // What a WOFF2 contains -- a transformed `glyf`, an `hmtx` this browser will
+    // not reconstruct -- is decided after the fetch, by the decoder. It is a fact
+    // about the file rather than about its declared format, and the format hint
+    // cannot say it.
     Session session;
     session.Load(
         "<html><head><style>"
         "@font-face { font-family: Custom;"
         " src: url(/custom.woff2) format(\"woff2\"), url(/custom.ttf) format(\"truetype\") }"
         "</style></head><body><p>text</p></body></html>");
-    ExpectEqInt(static_cast<long long>(session.RequestsFor("/custom.woff2")), 0,
-                "the woff2 was never requested");
-    ExpectEqInt(static_cast<long long>(session.RequestsFor("/custom.ttf")), 1,
-                "and the next source in the author's chain was");
+    ExpectEqInt(static_cast<long long>(session.RequestsFor("/custom.woff2")), 1,
+                "the woff2 is requested");
+    ExpectEqInt(static_cast<long long>(session.RequestsFor("/custom.ttf")), 0,
+                "and the chain stops at the first decodable entry");
   });
 
   AddTest(tests, "WebFont/OnlyTheFirstDecodableSourceIsFetched", [] {
@@ -157,12 +164,15 @@ void RegisterWebFontTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "WebFont/AFaceWithNoDecodableSourceIsNotFetched", [] {
+    // `woff` -- the older zlib container -- is the example now that `woff2` is
+    // decodable. Nothing here unwraps it, so it is refused before the network for
+    // the reason woff2 used to be.
     Session session;
     session.Load(
         "<html><head><style>"
-        "@font-face { font-family: Custom; src: url(/only.woff2) format(\"woff2\") }"
+        "@font-face { font-family: Custom; src: url(/only.woff) format(\"woff\") }"
         "</style></head><body><p>text</p></body></html>");
-    ExpectEqInt(static_cast<long long>(session.RequestsFor("/only.woff2")), 0,
+    ExpectEqInt(static_cast<long long>(session.RequestsFor("/only.woff")), 0,
                 "nothing to fetch, so nothing is fetched");
     // And the page still renders: it falls through to the next family in the
     // stack, which is what a font stack is for.

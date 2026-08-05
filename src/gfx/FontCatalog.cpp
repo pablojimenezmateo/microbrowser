@@ -1,5 +1,7 @@
 #include "gfx/FontCatalog.h"
 
+#include "gfx/Woff2.h"
+
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -191,6 +193,23 @@ Font* FontCatalog::FontFor(const FontRequest& request) {
   FontFace& mutable_face = const_cast<Face*>(face)->face;
   const auto inserted = sized_.emplace(key, Font(mutable_face, request.size));
   return &inserted.first->second;
+}
+
+bool FontCatalog::RegisterWebFont(std::string family, int weight, bool italic,
+                                  std::vector<std::byte> bytes) {
+  if (IsWoff2(bytes)) {
+    // Unwrapped here rather than at the caller, because "which container did this
+    // face arrive in" is a question about bytes and this is the class that already
+    // takes bytes. A WOFF2 this decoder refuses -- a transformed `glyf`, today --
+    // is a face that does not register, and the page renders in the next family of
+    // its stack.
+    const std::optional<Woff2Font> unwrapped = DecodeWoff2(bytes);
+    if (!unwrapped.has_value()) {
+      return false;
+    }
+    return Register(std::move(family), weight, italic, unwrapped->sfnt);
+  }
+  return Register(std::move(family), weight, italic, std::move(bytes));
 }
 
 }  // namespace microbrowser::gfx
