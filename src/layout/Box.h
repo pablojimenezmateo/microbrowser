@@ -120,7 +120,17 @@ class Box {
   const std::string& Text() const { return text_; }
   void SetText(std::string text) { text_ = std::move(text); }
 
-  bool IsBlockLevel() const { return kind_ == Kind::Block || kind_ == Kind::AnonymousBlock; }
+  // A replaced element takes its level from its own `display`, like everything
+  // else: `img { display: block }` is how a picture gets a line of its own and
+  // how `margin: 0 auto` centres one. Answering "inline" unconditionally kept
+  // it beside its siblings, and kept an absolutely positioned one in a flow it
+  // had left -- so it was laid out twice, once here and once as an absolute.
+  bool IsBlockLevelReplaced() const {
+    return kind_ == Kind::Replaced && !style_.IsInlineLevel() && !style_.IsFloating();
+  }
+  bool IsBlockLevel() const {
+    return kind_ == Kind::Block || kind_ == Kind::AnonymousBlock || IsBlockLevelReplaced();
+  }
 
   // Taken out of the normal flow. Asked of the box rather than of its style at
   // each call site, because a float is out of flow whatever kind it is -- a
@@ -132,8 +142,9 @@ class Box {
   // Placed on a line as one unbreakable rectangle: text and replaced content
   // that is still in flow.
   bool IsInlineLevel() const {
-    return !IsFloating() && (kind_ == Kind::Text || kind_ == Kind::Replaced ||
-                             kind_ == Kind::LineBreak || kind_ == Kind::InlineBlock);
+    return !IsFloating() && !IsBlockLevelReplaced() &&
+           (kind_ == Kind::Text || kind_ == Kind::Replaced || kind_ == Kind::LineBreak ||
+            kind_ == Kind::InlineBlock);
   }
 
   // Sized and laid out inside like a block, placed outside like a replaced

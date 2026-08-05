@@ -340,11 +340,14 @@ struct ComputedStyle {
 
   bool IsInlineLevel() const {
     // A float is block-level whatever it was declared as: `float: left` on a
-    // span makes it a block, per CSS 2.1 s9.7. Answering that here rather than
-    // at each call site is what keeps the rule from being applied in three
-    // places and forgotten in a fourth.
-    return !IsFloating() && (display == Display::Inline || display == Display::InlineBlock ||
-                             display == Display::InlineFlex);
+    // span makes it a block, per CSS 2.1 s9.7. So is an absolutely positioned
+    // box, by the same rule and the same sentence -- both are out of flow, and
+    // "on a line" is not a thing an out-of-flow box can be. Answering that here
+    // rather than at each call site is what keeps the rule from being applied
+    // in three places and forgotten in a fourth.
+    return !IsFloating() && !IsAbsolutelyPositioned() &&
+           (display == Display::Inline || display == Display::InlineBlock ||
+            display == Display::InlineFlex);
   }
   // Laid out inside like a block, placed outside like a replaced element.
   //

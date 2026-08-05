@@ -371,6 +371,56 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "text before it");
   });
 
+  AddTest(tests, "Layout/ADisplayBlockReplacedElementGetsALineOfItsOwn", [] {
+    // A replaced box used to answer "inline-level" whatever its `display` said,
+    // so `img { display: block }` -- the rule that puts a picture on its own
+    // line, and one of the most written rules on the web -- did nothing at all.
+    // Found through a form control: two `display: block` buttons were laid out
+    // side by side, so a click meant for the second one hit nothing.
+    const LaidOut result =
+        Run("<body style='margin:0'><img id=a src='x' width='60' height='40'>"
+            "<img id=b src='x' width='60' height='40'></body>",
+            "body { margin: 0 } img { margin: 0; display: block }", 400.0f);
+    const Box* first = FindBox(*result.root, "img");
+    Expect(first != nullptr, "the first image has a box");
+    Expect(first->IsBlockLevel(), "and it is block-level, because its display says so");
+    Expect(first->Geometry().content.width == 60.0f,
+           "a block-level replaced box is as wide as its content, not as wide as its container");
+    Expect(first->Geometry().content.height == 40.0f,
+           "and as tall as its content, which nothing else could tell it -- a replaced box has "
+           "no child boxes to get a height from");
+    Expect(result.height >= 80.0f, "so two of them stack rather than sharing a line");
+  });
+
+  AddTest(tests, "Layout/AutoMarginsCentreABlockReplacedElement", [] {
+    // `display: block; margin: 0 auto` is how an image is centred, and it only
+    // works once the box is block-level: an inline one is placed by the line.
+    const LaidOut result =
+        Run("<body style='margin:0'><img src='x' width='100' height='20'></body>",
+            "body { margin: 0 } img { display: block; margin: 0 auto }", 400.0f);
+    const Box* image = FindBox(*result.root, "img");
+    Expect(image != nullptr, "the image has a box");
+    Expect(image->Geometry().content.x == 150.0f,
+           "the leftover 300px is split either side rather than left on the right");
+  });
+
+  AddTest(tests, "Layout/AnAbsolutelyPositionedReplacedElementLeavesTheFlow", [] {
+    // Worse than ignored before: the box stayed inline-level, so the flow put
+    // it on a line *and* LayoutAbsoluteDescendants placed it again. The second
+    // placement won, which is why this was invisible -- the box was in the
+    // right place, and the line it should never have been on was still tall.
+    const LaidOut result =
+        Run("<body style='margin:0'><img src='x' width='50' height='90'>text</body>",
+            "body { margin: 0 } img { margin: 0; position: absolute; left: 10px; top: 5px }",
+            400.0f);
+    const Box* image = FindBox(*result.root, "img");
+    Expect(image != nullptr, "the image has a box");
+    Expect(image->Geometry().content.x == 10.0f && image->Geometry().content.y == 5.0f,
+           "placed against its containing block");
+    Expect(result.height < 90.0f,
+           "and taking no space from the line it left, which a box laid out twice would have");
+  });
+
   AddTest(tests, "Layout/InputControlsGenerateVisibleInlineBoxes", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input size='10'><span>after</span></body>",

@@ -319,7 +319,11 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       box->SetText(FormControlText(element));
     }
     box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};
-    produced_inline = true;
+    // Not unconditionally inline: the box answers with its own display, so
+    // `img { display: block }` puts the picture on a line of its own and a
+    // floated or absolutely positioned one leaves the flow. See
+    // Box::IsBlockLevelReplaced.
+    produced_inline = box->IsInlineLevel();
     return box;
   }
 
@@ -480,13 +484,18 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
     const float margin_right = style.margin.right.Resolve(style.font_size);
     const float margin_top = style.margin.top.Resolve(style.font_size);
     const float margin_bottom = style.margin.bottom.Resolve(style.font_size);
-    const gfx::FloatRect content = child.Geometry().content;
-    const gfx::FloatRect placed = floats.Place(
-        style.css_float, content.width + margin_left + margin_right,
-        content.height + margin_top + margin_bottom, cursor_y, content_left,
-        content_left + content_width);
-    child.Geometry().content = gfx::FloatRect{placed.x + margin_left, placed.y + margin_top,
-                                              content.width, content.height};
+    // Recomputed rather than read back out of the geometry, for the reason
+    // LayoutBlock recomputes it: this runs a second time on the same box when
+    // a float is probed and then placed, and the geometry by then holds the
+    // first run's used size rather than the intrinsic one.
+    const float width = ReplacedWidth(child);
+    const float height = ReplacedHeight(child);
+    const gfx::FloatRect placed =
+        floats.Place(style.css_float, width + margin_left + margin_right,
+                     height + margin_top + margin_bottom, cursor_y, content_left,
+                     content_left + content_width);
+    child.Geometry().content =
+        gfx::FloatRect{placed.x + margin_left, placed.y + margin_top, width, height};
     return;
   }
 
@@ -527,7 +536,20 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // LayoutTableChildren so it is measured once rather than once per question
   // asked about it.
   std::optional<TableColumnWidths> table_columns;
-  if (!style.width.IsAuto()) {
+  if (box.GetKind() == Box::Kind::Replaced) {
+    // CSS 2.1 s10.3.4: a block-level replaced box is as wide as its *content*,
+    // not as wide as its containing block -- a `display: block` image does not
+    // stretch. ReplacedWidth has already folded in a declared width and the
+    // presentational attribute; a percentage is the one case it cannot answer,
+    // because only the container knows what it is a percentage of.
+    //
+    // Recomputed rather than read back out of the geometry the box tree put
+    // there, because LayoutBlock runs twice on the same box in more than one
+    // path (a float probes, then places) and the second run would read the
+    // first run's *used* width as though it were the intrinsic one.
+    content_width = style.width.IsPercent() ? style.width.Used(available_width, style.font_size)
+                                            : ReplacedWidth(box);
+  } else if (!style.width.IsAuto()) {
     // A percentage width resolves against the containing block, which is the
     // one place a percentage *can* be resolved — this is why the cascade
     // carried it instead of guessing.
@@ -674,6 +696,12 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     // what the property is for -- and why it is checked only in the `auto`
     // branch, since a stated height is still the stated height.
     content_height = content_width / style.aspect_ratio;
+  } else if (box.GetKind() == Box::Kind::Replaced) {
+    // A replaced box has no child boxes to give it a height, so an automatic
+    // one comes from the content: the image's own size, or the row arithmetic
+    // a form control is measured by. Without this a `display: block` image was
+    // laid out at its intrinsic width and zero pixels tall.
+    content_height = ReplacedHeight(box);
   }
   if (forced != nullptr && forced->content_height.has_value()) {
     content_height = *forced->content_height;  // same reasoning as the width above

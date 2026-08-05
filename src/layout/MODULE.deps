@@ -42,7 +42,10 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # -- the distinction between "a script may scroll this" (every clipping box,
 # including `overflow: hidden`) and "a wheel may" (only `scroll` and `auto`),
 # which is a rule three passes ask about and would otherwise re-derive.
-budget: Box             header_lines=210 public_methods=46 members=12
+# 210 -> 216 and 46 -> 47 for IsBlockLevelReplaced: a replaced element takes
+# its level from its own `display` like everything else, and three predicates
+# here now agree on that instead of the two that answered "always inline".
+budget: Box             header_lines=216 public_methods=47 members=12
 # The kinds are documented rather than listed, because each one exists to make
 # a distinction some pass would otherwise have to rediscover from style. The
 # budget is here so that growth in the vocabulary is a decision.
