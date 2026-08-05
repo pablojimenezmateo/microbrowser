@@ -1640,3 +1640,50 @@ DOM (`<template shadowrootmode>`) is also still absent, and ADR 0019 §1 groups 
   tree walk — the cascade, the script collector, `querySelectorAll`, the image loader — and being
   unreachable that way is the entire point. The one link back is `DocumentFragment::Host()`, which is
   what dispatch crosses and what tells a slot which children it may be filled from.
+
+## Session 18 — Shadow DOM, the scoped cascade · 2026-08-05
+
+**Status:** done
+
+**Check:** 21 assertions in `tests/ShadowDomTests.cpp`; 1547 tests, 0 failed; asan and ubsan clean.
+Hacker News, old.reddit.com, www.reddit.com and wikipedia unchanged (705/2, 1050/20, 210/1, 2827/9).
+
+The shared 17/18 check — youtube's home page — is **still not met**: www.youtube.com renders 16
+display-list commands and 0 text runs. It is no longer the cascade. Its shell is two custom elements
+that build the page from script, which is the same shape as reddit's `<suspense-replace>`.
+
+**Landed:**
+
+- *The scoped cascade, and the three ways a shadow tree was invisible*
+
+**Left from ADR 0019:** `adoptedStyleSheets` and constructable stylesheets (§4), `::part` (§6), and
+declarative shadow DOM (`<template shadowrootmode>` — §1 groups it with session 17).
+
+**Found — and this is the whole entry, because the feature was four lines and the bugs were not:**
+
+- **A `<style>` inside a shadow root was never collected.** `CollectStyleSheets` walks the document,
+  and a shadow root is deliberately unreachable from it — which is the point of it. So a component
+  that styled itself rendered unstyled, and no test anywhere would have caught it, because nothing
+  could put a `<style>` in a shadow root before this session. Collected at layout now, which is the
+  one point that runs after a batch of mutations and before the cascade reads anything, and compared
+  by *text* so an unchanged component costs one walk rather than a re-parse.
+- **A mutation inside a shadow tree never reached the document's mutation version.**
+  `Node::OwnerDocument` walks parents; a shadow root has none. So `root.innerHTML = …` bumped
+  nothing, `EnsureLayoutClean` saw a clean layout, and **a component could rewrite itself with no
+  effect on the screen**. It crosses through `DocumentFragment::Host()` now — the same one link event
+  retargeting uses, which is the argument for having exactly one.
+- **`getComputedStyle` skipped `EnsureLayoutClean` for a computed value.** That was correct while only
+  a node move could change the cascade. It stopped being correct the moment a `<style>` could live in
+  a shadow root: the cascade can now change without a node moving.
+- **`root.innerHTML = …` did nothing**, because `innerHTML` was installed on Element and a shadow
+  root is a `DocumentFragment`. It is how every component fills one. Its fragment-parsing *context
+  element* is the **host**, which is ADR 0020 §6's rule reaching a place ADR 0019 created.
+- **Inheritance and matching had to disagree, deliberately.** `StyleWithoutBox` walked parents, so a
+  node in a shadow tree inherited from nothing and `getComputedStyle` inside a component answered
+  with the initial values. It walks the *flat* chain now — which is ADR 0019 §3's sentence made true:
+  the cascade is scoped and inheritance is not.
+- **`:host` and `::slotted()` are the only two selectors that leave their tree, and they go opposite
+  ways.** Neither belongs in `Selector::Matches`, which is a pure function of (element, selector);
+  "which root did this rule come from" is neither. `StyleResolver::ScopeAdmits` answers both, and the
+  bare `:host` needed its own selector *kind* rather than a pseudo-class name the matcher
+  special-cases — otherwise the purity rule would have been broken to make it work.
