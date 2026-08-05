@@ -330,6 +330,14 @@ float Page::Layout(float width) {
   // document, and reading it afterwards would fold any future mutation made
   // *during* layout into the version this claims to describe.
   layout_.document_version = document_->MutationVersion();
+  // A shadow root's `<style>` is unreachable from the document walk that collects
+  // the rest, so it is collected here -- at the one point that runs after every
+  // batch of mutations and before the cascade reads anything. The comparison is
+  // over the text, so an unchanged component costs one walk rather than a
+  // re-parse. ADR 0019 §3.
+  if (CollectShadowStyleSheets()) {
+    RebuildAuthorStyleSheets();
+  }
   // The dynamic states that are facts about the document rather than about the
   // pointer, refreshed before the cascade reads them. Here rather than at the
   // dozen places that can change one, for the reason Node::NoteMutation is

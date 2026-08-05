@@ -59,8 +59,24 @@ bool IsVoidElement(std::string_view tag_name) {
 
 Document* Node::OwnerDocument() const {
   const Node* node = this;
-  while (node->parent_ != nullptr) {
-    node = node->parent_;
+  while (true) {
+    if (node->parent_ != nullptr) {
+      node = node->parent_;
+      continue;
+    }
+    // A shadow root has no parent -- deliberately, ADR 0019 §2 -- but a node
+    // inside one still belongs to the document its host is in, and mutating one
+    // still invalidates what the document derived from the tree. Crossing here is
+    // what makes `root.innerHTML = …` bump the mutation version and therefore
+    // relayout; without it a component could rewrite itself and the screen would
+    // never change.
+    if (node->kind_ == Kind::DocumentFragment) {
+      if (const Element* host = static_cast<const DocumentFragment*>(node)->Host()) {
+        node = host;
+        continue;
+      }
+    }
+    break;
   }
   // A node script built and has not inserted yet has no document, and nothing
   // derived from the tree describes it. That is the common case during a parse,

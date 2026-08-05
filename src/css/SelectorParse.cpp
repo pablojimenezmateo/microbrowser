@@ -352,6 +352,31 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
         // `::before` is a pseudo-*element*, which needs box generation rather
         // than matching. Unsupported means the rule is dropped.
         if (i + 1 < to && tokens[i + 1].kind == Token::Kind::Colon) {
+          // `::slotted(sel)` is the one pseudo-element this engine matches, and
+          // it is here rather than with the others because it is not box
+          // generation at all: it selects a real element -- a node the light DOM
+          // assigned into this scope. Every other `::` needs a box that does not
+          // exist, so the rule is still dropped.
+          if (i + 2 < to && tokens[i + 2].kind == Token::Kind::Function &&
+              Lowered(tokens[i + 2].value) == "slotted") {
+            const std::size_t close = FindFunctionEnd(tokens, i + 2, to);
+            if (close >= to || depth >= kMaxSelectorNestingDepth) {
+              failed = true;
+              break;
+            }
+            SelectorPart part;
+            part.kind = SelectorPart::Kind::Slotted;
+            part.name = "slotted";
+            part.arguments = ParseSelectors(tokens, i + 3, close, depth + 1);
+            if (part.arguments.empty()) {
+              failed = true;
+              break;
+            }
+            compound.parts.push_back(std::move(part));
+            saw_part = true;
+            i = close;
+            break;
+          }
           failed = true;
           break;
         }
@@ -386,6 +411,20 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
               failed = true;
               break;
             }
+          } else if (function == "host") {
+            // `:host(sel)`. The argument is matched against the *host*, so it is
+            // an ordinary nested selector list -- the only unusual thing is which
+            // element it is asked about, and that is the resolver's business.
+            if (depth >= kMaxSelectorNestingDepth) {
+              failed = true;
+              break;
+            }
+            part.kind = SelectorPart::Kind::Host;
+            part.arguments = ParseSelectors(tokens, i + 2, close, depth + 1);
+            if (part.arguments.empty()) {
+              failed = true;
+              break;
+            }
           } else {
             // `:has()`, `:lang()`, and every other functional pseudo-class this
             // engine does not implement. Dropped rather than guessed at: ADR
@@ -405,8 +444,13 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
           break;
         }
         SelectorPart part;
-        part.kind = SelectorPart::Kind::PseudoClass;
         part.name = Lowered(tokens[++i].value);
+        // Bare `:host`, which is the common spelling -- `:host(sel)` is the
+        // qualified one and is parsed above. Its own kind rather than a
+        // pseudo-class name the matcher special-cases, because *which root the
+        // rule came from* is not a question the matcher may ask. ADR 0019 §3.
+        part.kind = part.name == "host" ? SelectorPart::Kind::Host
+                                        : SelectorPart::Kind::PseudoClass;
         compound.parts.push_back(part);
         saw_part = true;
         break;

@@ -410,6 +410,11 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
  private:
   struct DocumentResources {
     std::vector<SubresourceRequest> pending_sheets;
+    // The `<style>` text inside each shadow root, with the root it belongs to.
+    // Kept as the pair rather than added straight to the resolver because
+    // RebuildAuthorStyleSheets throws the resolver away and rebuilds it, and a
+    // component's styles have to come back with it. ADR 0019 §3.
+    std::vector<std::pair<const dom::Node*, std::string>> shadow_sheets;
     std::vector<std::size_t> pending_sheet_slots;
     std::vector<std::optional<std::string>> author_sheet_slots;
     std::vector<std::string> pending_images;
@@ -519,6 +524,15 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // and its `<base href>`, in that order, because a `<base>` is subject to the
   // `base-uri` a `<meta>` may have just declared.
   void ApplyDocumentHeadPolicy();
+  // Collects every `<style>` inside every shadow root, as scoped sheets.
+  //
+  // Separate from CollectStyleSheets because a shadow root is deliberately
+  // unreachable from the document -- that is the point of it -- so the document
+  // walk cannot find these. Returns true when the set *changed*, which is what
+  // decides whether the cascade has to be rebuilt: a page that mutates a
+  // component's contents forty times a second must not re-parse its stylesheet
+  // forty times a second.
+  bool CollectShadowStyleSheets();
 
   gfx::TextRenderer text_;
   layout::FontTextMeasurer measurer_;

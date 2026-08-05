@@ -92,7 +92,15 @@ class StyleResolver {
  public:
   StyleResolver();
 
-  void AddStyleSheet(const StyleSheet& sheet, Origin origin);
+  // `scope` is the shadow root the sheet belongs to, or null for the document's
+  // own sheets. ADR 0019 §3: a tree has an owner, and a rule from a shadow root
+  // matches only inside that root -- which is what makes a component's styles
+  // *its own* rather than a global change.
+  //
+  // A `const dom::Node*` rather than a richer type on purpose: what the cascade
+  // needs from a scope is identity, and identity is a pointer.
+  void AddStyleSheet(const StyleSheet& sheet, Origin origin,
+                     const dom::Node* scope = nullptr);
 
   // What the rules in this cascade depend on. ADR 0016 §3 -- the caller asks
   // this *before* deciding whether a state change is worth recomputing
@@ -120,11 +128,17 @@ class StyleResolver {
 
   std::size_t RuleCount() const { return rules_.size(); }
 
+ public:
+  // The shadow root `node` is in, or null for the document tree.
+  static const dom::Node* ScopeOf(const dom::Node& node);
+
  private:
   struct Entry {
     Selector selector;
     std::vector<Declaration> declarations;
     Origin origin = Origin::Author;
+    // Null for a document sheet. See AddStyleSheet.
+    const dom::Node* scope = nullptr;
     Specificity specificity;
     // Position in the sheet, which is the last tiebreak. Two rules that are
     // equal in every other respect are decided by which came later.
@@ -149,6 +163,13 @@ class StyleResolver {
       Walk(*child, style, visit);
     }
   }
+
+  // Whether `entry` may apply to `element`, scope included. Static because it is
+  // a question about the pair and nothing else -- and separate from
+  // `Selector::Matches` because *that* is a pure function of (element, selector)
+  // and a scope is neither. ADR 0016's rule, kept.
+  static bool ScopeAdmits(const Entry& entry, const dom::Element& element,
+                          const dom::Node* element_scope);
 
   std::vector<Entry> rules_;
   StyleInvalidation invalidation_;

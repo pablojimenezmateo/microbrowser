@@ -264,7 +264,8 @@ StyleChangeEffect StyleInvalidation::EffectOf(dom::ElementState changed) const {
   return StyleChangeEffect::None;
 }
 
-void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin) {
+void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin,
+                                  const dom::Node* scope) {
   for (const StyleRule& rule : sheet.rules) {
     for (const Selector& selector : rule.selectors) {
       invalidation_.AddRule(selector, rule.declarations);
@@ -272,11 +273,88 @@ void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin) {
       entry.selector = selector;
       entry.declarations = rule.declarations;
       entry.origin = origin;
+      entry.scope = scope;
       entry.specificity = selector.ComputeSpecificity();
       entry.order = next_order_++;
       rules_.push_back(std::move(entry));
     }
   }
+}
+
+const dom::Node* StyleResolver::ScopeOf(const dom::Node& node) {
+  // The root of the tree `node` is in, when that root is a shadow root. A
+  // document-tree element answers null, which is the scope a document sheet
+  // carries -- so the common comparison is `nullptr == nullptr` and costs
+  // nothing.
+  const dom::Element* host = dom::ShadowHostOf(node);
+  return host == nullptr ? nullptr : host->ShadowRoot();
+}
+
+bool StyleResolver::ScopeAdmits(const Entry& entry, const dom::Element& element,
+                                const dom::Node* element_scope) {
+  // `:host` and `::slotted()` reach *out* of the scope they were written in, and
+  // they are the only two things that do. Handled before the ordinary scope
+  // comparison, because for both of them the element is deliberately in a
+  // different tree from the rule.
+  const CompoundSelector* subject = entry.selector.Subject();
+  if (subject != nullptr) {
+    for (const SelectorPart& part : subject->parts) {
+      if (part.kind == SelectorPart::Kind::Host) {
+        // A `:host` rule in a document sheet matches nothing: there is no scope
+        // for it to be the host of.
+        if (entry.scope == nullptr || entry.scope->GetKind() != dom::Node::Kind::DocumentFragment) {
+          return false;
+        }
+        const dom::Element* host =
+            static_cast<const dom::DocumentFragment*>(entry.scope)->Host();
+        if (host != &element) {
+          return false;
+        }
+        // `:host(sel)` asks whether `sel` matches the host itself, which is the
+        // one case where the argument is evaluated against the subject rather
+        // than against something inside it.
+        for (const Selector& argument : part.arguments) {
+          if (argument.Matches(element)) {
+            return true;
+          }
+        }
+        return part.arguments.empty();
+      }
+      if (part.kind == SelectorPart::Kind::Slotted) {
+        // A node assigned into this scope: a child of the host, matched by the
+        // argument. Deliberately *not* any descendant -- assignment is one level,
+        // which is what makes it answerable without a walk.
+        if (entry.scope == nullptr || element.Parent() == nullptr) {
+          return false;
+        }
+        if (ScopeOf(element) != nullptr) {
+          return false;  // already inside a shadow tree, so nothing slotted it
+        }
+        const dom::Element* host =
+            entry.scope->GetKind() == dom::Node::Kind::DocumentFragment
+                ? static_cast<const dom::DocumentFragment*>(entry.scope)->Host()
+                : nullptr;
+        if (host == nullptr || element.Parent() != host) {
+          return false;
+        }
+        for (const Selector& argument : part.arguments) {
+          if (argument.Matches(element)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+  }
+  // The ordinary case: a rule applies inside the tree it was written in and
+  // nowhere else. A document rule does not reach into a shadow tree, and a
+  // component's rule does not leak out of one -- which is the whole of what
+  // "scoped" means and the reason a component can use `.title` without asking
+  // what else on the page does.
+  if (entry.scope != element_scope) {
+    return false;
+  }
+  return entry.selector.Matches(element);
 }
 
 ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
@@ -317,9 +395,14 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
     std::size_t order;
   };
 
+  // Which tree this element is in: the shadow root that contains it, or null for
+  // the document. Computed once rather than per rule, because it is the same
+  // answer for every entry and a walk to the root per rule is a walk per rule.
+  const dom::Node* element_scope = ScopeOf(element);
+
   std::vector<Candidate> ordered;
   for (const Entry& entry : rules_) {
-    if (!entry.selector.Matches(element)) {
+    if (!ScopeAdmits(entry, element, element_scope)) {
       continue;
     }
     for (const Declaration& declaration : entry.declarations) {

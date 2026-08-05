@@ -22,7 +22,9 @@ budget: Token            header_lines=55 public_methods=2  members=6
 # The ADR predicted this budget would fire and said why it should: a selector
 # list inside a selector list is a new kind of thing to store, and it is what
 # turns matching from a loop into a recursion.
-budget: SelectorPart     header_lines=50 public_methods=2  members=6
+# Two more kinds for ADR 0019: `:host`/`:host(sel)` and `::slotted(sel)`, which
+# are the only two selectors that reach out of the tree they were written in.
+budget: SelectorPart header_lines=60 public_methods=2 members=8
 budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
@@ -65,7 +67,13 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # It is on the resolver because it is a property of *the cascade* rather than of
 # any one sheet -- the question a change asks is "could anything have changed",
 # and one index per sheet would mean asking it once per sheet.
-budget: StyleResolver header_lines=75 public_methods=16 members=3
+# 95 lines, 18 methods and three members for ADR 0019's scoped cascade. The two
+# new methods are static and that is the claim: `ScopeOf` and `ScopeAdmits` are
+# questions about a pair, kept *out* of `Selector::Matches` because that is a pure
+# function of (element, selector) -- ADR 0016's rule -- and a scope is neither an
+# element nor a selector. An Entry carries the shadow root it came from; null is
+# the document, so the common comparison costs a pointer compare.
+budget: StyleResolver header_lines=95 public_methods=18 members=3
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not

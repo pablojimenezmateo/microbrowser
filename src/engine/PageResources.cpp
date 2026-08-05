@@ -144,6 +144,37 @@ void Page::ApplyDocumentHeadPolicy() {
   }
 }
 
+bool Page::CollectShadowStyleSheets() {
+  std::vector<std::pair<const dom::Node*, std::string>> found;
+  if (document_ != nullptr) {
+    document_->ForEachDescendant([&found](const dom::Node& node) {
+      if (!node.IsElement()) {
+        return;
+      }
+      const dom::DocumentFragment* root = static_cast<const dom::Element&>(node).ShadowRoot();
+      if (root == nullptr) {
+        return;
+      }
+      // Only this root's own `<style>` elements. A nested shadow root inside it
+      // has its own scope, and it is reached when the walk gets to its host.
+      root->ForEachDescendant([&found, root](const dom::Node& inner) {
+        if (inner.IsElement() && static_cast<const dom::Element&>(inner).TagName() == "style") {
+          found.emplace_back(root, DirectText(static_cast<const dom::Element&>(inner)));
+        }
+      });
+    });
+  }
+  if (found == resources_.shadow_sheets) {
+    // Unchanged, so nothing is re-parsed. This is what makes calling it after
+    // every mutation affordable: the comparison is over the *text*, so a
+    // component whose contents change without its stylesheet changing costs one
+    // walk rather than a re-parse.
+    return false;
+  }
+  resources_.shadow_sheets = std::move(found);
+  return true;
+}
+
 void Page::CollectStyleSheets() {
   resources_.pending_sheets.clear();
   resources_.pending_sheet_slots.clear();
@@ -184,6 +215,7 @@ void Page::CollectStyleSheets() {
     resources_.pending_sheet_slots.push_back(resources_.author_sheet_slots.size());
     resources_.author_sheet_slots.push_back(std::nullopt);
   });
+  CollectShadowStyleSheets();
   RebuildAuthorStyleSheets();
 }
 
@@ -195,6 +227,13 @@ void Page::RebuildAuthorStyleSheets() {
       // dropped. This is why SetViewport re-parses: the answer is baked in here.
       resolver_.AddStyleSheet(css::ParseStyleSheet(*css, viewport_), css::Origin::Author);
     }
+  }
+  // And each shadow root's own sheets, *scoped* to it: a rule inside a component
+  // applies within that component and nowhere else, which is the whole of what
+  // ADR 0019 §3 asks for. Added after the document's, so document order still
+  // decides between two rules of equal specificity in the same tree.
+  for (const auto& [scope, css] : resources_.shadow_sheets) {
+    resolver_.AddStyleSheet(css::ParseStyleSheet(css, viewport_), css::Origin::Author, scope);
   }
   // A background image is named by the cascade, so the set of images a document
   // wants is not known until its stylesheets have arrived. Re-collected here

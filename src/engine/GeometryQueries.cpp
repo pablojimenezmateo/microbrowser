@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 
+#include "dom/FlatTree.h"
 #include "engine/Page.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
@@ -559,9 +560,15 @@ std::optional<std::string> Page::QueryUsedValue(const dom::Element& element,
   for (char& c : name) {
     c = c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
   }
+  // Unconditionally, not only for a used value. A computed value has to reflect
+  // what the document says *now* -- and since ADR 0019 the cascade itself can
+  // change without a node moving, because a `<style>` inside a shadow root is
+  // collected at layout and is unreachable from the document walk that finds the
+  // rest. A `color` read that skipped this answered from a cascade that had never
+  // seen the component's own stylesheet.
+  EnsureLayoutClean();
   const Used used = UsedKindOf(name);
   if (used != Used::None) {
-    EnsureLayoutClean();
     if (boxes_ != nullptr) {
       if (const layout::Box* box = BoxFor(*boxes_, element)) {
         return UsedValueOf(*box, used);
@@ -588,11 +595,20 @@ css::ComputedStyle Page::StyleWithoutBox(const dom::Element& element) const {
   // The ancestors, root first, so inheritance runs the one direction it can:
   // StyleFor takes the parent's already-computed style, and walking up per
   // property instead would resolve the cascade once per ancestor per read.
+  // The *flat* ancestor chain: through the host when a shadow boundary is
+  // reached, because inheritance crosses one even though matching does not
+  // (ADR 0019 §3). Without this a node in a shadow tree inherits from nothing,
+  // and `getComputedStyle` inside a component answers with the initial values.
   std::vector<const dom::Element*> chain;
-  for (const dom::Node* at = &element; at != nullptr; at = at->Parent()) {
+  for (const dom::Node* at = &element; at != nullptr;) {
     if (at->IsElement()) {
       chain.push_back(static_cast<const dom::Element*>(at));
     }
+    if (at->Parent() != nullptr) {
+      at = at->Parent();
+      continue;
+    }
+    at = dom::ShadowHostOf(*at);
   }
   css::ComputedStyle style = css::StyleResolver::InitialStyle();
   for (std::size_t i = chain.size(); i-- > 0;) {

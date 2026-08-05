@@ -97,6 +97,18 @@ Specificity Selector::ComputeSpecificity() const {
           // A functional pseudo-class still counts as a pseudo-class.
           ++result.classes;
           break;
+        case SelectorPart::Kind::Host:
+          // `:host` is a pseudo-class, and `:host(sel)` adds its argument's
+          // specificity on top -- which is what makes `:host(.wide) p` beat
+          // `:host p` inside one shadow sheet.
+          ++result.classes;
+          AddSpecificity(result, MostSpecific(part.arguments));
+          break;
+        case SelectorPart::Kind::Slotted:
+          // A pseudo-*element*, so it counts as a type rather than as a class.
+          ++result.types;
+          AddSpecificity(result, MostSpecific(part.arguments));
+          break;
         case SelectorPart::Kind::Is:
         case SelectorPart::Kind::Not:
           AddSpecificity(result, MostSpecific(part.arguments));
@@ -329,6 +341,15 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
         }
         break;
       }
+      case SelectorPart::Kind::Host:
+      case SelectorPart::Kind::Slotted:
+        // Never reached in a correct call. `:host` and `::slotted()` are about
+        // which *root* a rule came from, and this function is a pure question
+        // about (element, selector) -- ADR 0016's rule, and why the two are
+        // answered in StyleResolver where the scope is known. Reaching here means
+        // the resolver did not strip the part, so it matches nothing rather than
+        // everything.
+        return false;
       case SelectorPart::Kind::Id: {
         const std::string* id = element.GetAttribute("id");
         if (id == nullptr || *id != part.name) {

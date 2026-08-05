@@ -267,6 +267,123 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
                        "console.log(s.assignedNodes().length);"),
                    "0", "nothing is assigned");
   });
+
+  // --- the scoped cascade, ADR 0019 §3 ---------------------------------------
+
+  AddTest(tests, "ShadowDom/AComponentsStyleAppliesInsideItAndNowhereElse", [] {
+    // The blocker session 17 left behind: a `<style>` inside a shadow root is
+    // unreachable from the document walk, so a component that styled itself
+    // rendered unstyled. And the other half -- a component's rule must not leak
+    // out, which is what lets it use `.title` without asking what else on the
+    // page does.
+    ExpectEqString(
+        Run("<div id=h></div><p class=title>outside</p>",
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<style>.title { color: rgb(1, 2, 3) }</style>"
+            "<p class=\"title\">inside</p>';"
+            "const inner = r.querySelector('p');"
+            "const outer = document.querySelector('.title');"
+            "console.log('in ' + getComputedStyle(inner).color);"
+            "console.log('out ' + (getComputedStyle(outer).color === 'rgb(1, 2, 3)'));"),
+        "in rgb(1, 2, 3)|out false",
+        "the component's rule applies to its own node and not to the page's");
+  });
+
+  AddTest(tests, "ShadowDom/ADocumentRuleDoesNotReachIntoAShadowTree", [] {
+    // The direction that surprises people, and the one that makes a component
+    // safe to drop onto an unknown page.
+    ExpectEqString(
+        Run("<style>span { color: rgb(9, 9, 9) }</style><div id=h></div>",
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<span>inside</span>';"
+            "console.log(getComputedStyle(r.querySelector('span')).color === 'rgb(9, 9, 9)');"),
+        "false", "a document rule stops at the boundary");
+  });
+
+  AddTest(tests, "ShadowDom/HostMatchesTheElementTheTreeHangsOff", [] {
+    ExpectEqString(
+        Run("<div id=h class=wide></div>",
+            "const h = document.getElementById('h');"
+            "const r = h.attachShadow({mode: 'open'});"
+            "r.innerHTML = '<style>:host { color: rgb(4, 5, 6) }</style>';"
+            "console.log(getComputedStyle(h).color);"),
+        "rgb(4, 5, 6)", ":host styles the host from inside the tree");
+    // `:host(sel)` asks about the host itself, which is the one case where a
+    // functional pseudo-class's argument is matched against the subject.
+    ExpectEqString(
+        Run("<div id=h class=wide></div>",
+            "const h = document.getElementById('h');"
+            "const r = h.attachShadow({mode: 'open'});"
+            "r.innerHTML = '<style>:host(.wide) { color: rgb(7, 7, 7) }"
+            ":host(.narrow) { color: rgb(8, 8, 8) }</style>';"
+            "console.log(getComputedStyle(h).color);"),
+        "rgb(7, 7, 7)", "and only when its argument matches");
+  });
+
+  AddTest(tests, "ShadowDom/AHostRuleInADocumentSheetMatchesNothing", [] {
+    // There is no scope for it to be the host of, so it selects nothing rather
+    // than everything -- which is the failure direction that matters.
+    ExpectEqString(Run("<style>:host { color: rgb(3, 3, 3) }</style><div id=h></div>",
+                       "console.log(getComputedStyle(document.getElementById('h')).color ==="
+                       " 'rgb(3, 3, 3)');"),
+                   "false", ":host outside a shadow sheet is inert");
+  });
+
+  AddTest(tests, "ShadowDom/SlottedStylesTheLightNodeThatRendersInside", [] {
+    // `::slotted()` is the other selector that crosses the boundary, and it goes
+    // the opposite way from `:host`: the rule is inside the tree and the element
+    // it styles is outside it.
+    ExpectEqString(
+        Run("<div id=h><span class=given>light</span><p>other</p></div>",
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<style>::slotted(span) { color: rgb(2, 4, 6) }</style><slot></slot>';"
+            "console.log(getComputedStyle(document.querySelector('span')).color);"
+            "console.log(getComputedStyle(document.querySelector('p')).color ==="
+            " 'rgb(2, 4, 6)');"),
+        "rgb(2, 4, 6)|false", "the assigned span, and not the assigned p");
+  });
+
+  AddTest(tests, "ShadowDom/SlottedDoesNotReachADescendantOfAnAssignedNode", [] {
+    // Assignment is one level, which is what makes it answerable without a walk
+    // -- and `::slotted()` selects the assigned node itself, not inside it.
+    ExpectEqString(
+        Run("<div id=h><span><em>deep</em></span></div>",
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<style>::slotted(em) { color: rgb(5, 5, 5) }</style><slot></slot>';"
+            "console.log(getComputedStyle(document.querySelector('em')).color ==="
+            " 'rgb(5, 5, 5)');"),
+        "false", "a descendant of an assigned node is not slotted");
+  });
+
+  AddTest(tests, "ShadowDom/InheritanceCrossesTheBoundaryEvenThoughMatchingDoesNot", [] {
+    // ADR 0019 §3's sentence, and the two halves have to be true at once: the
+    // *cascade* is scoped and *inheritance* is not, because inheritance follows
+    // the flattened tree.
+    ExpectEqString(
+        Run("<div id=h style=\"color: rgb(1, 1, 1)\"></div>",
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<span>inside</span>';"
+            "console.log(getComputedStyle(r.querySelector('span')).color);"),
+        "rgb(1, 1, 1)", "a node in the shadow tree inherits from its host");
+  });
+
+  AddTest(tests, "ShadowDom/AStyleAddedToAShadowRootLaterStillApplies", [] {
+    // The collection runs at layout rather than only at load, because a shadow
+    // root is attached by script and its stylesheet arrives after the document
+    // walk that would have found one.
+    ExpectEqString(
+        Run("<div id=h></div>",
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<p>first</p>';"
+            "const p = r.querySelector('p');"
+            "console.log('before ' + (getComputedStyle(p).color === 'rgb(6, 6, 6)'));"
+            "const style = document.createElement('style');"
+            "style.textContent = 'p { color: rgb(6, 6, 6) }';"
+            "r.appendChild(style);"
+            "console.log('after ' + getComputedStyle(p).color);"),
+        "before false|after rgb(6, 6, 6)",
+        "a sheet appended to a live shadow root takes effect");
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -154,16 +154,34 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
       [](NativeCall& call) {
         DomBindings* owner = OwnerOf(call);
         dom::Node* self = NodeOf(call.self);
-        if (owner == nullptr || self == nullptr || !self->IsElement()) {
+        if (owner == nullptr || self == nullptr) {
           return Value::Undefined();
         }
-        auto& element = static_cast<dom::Element&>(*self);
-        dom::Node& host = HtmlHost(element);
+        // A shadow root is a DocumentFragment, and `root.innerHTML = …` is how
+        // every component fills one. Its fragment-parsing *context element* is
+        // the **host**, which is what makes `<td>` inside a `<tr>`-hosted root a
+        // cell rather than bare text -- ADR 0019 §1 with ADR 0020 §6's rule that
+        // the context is the whole algorithm.
+        dom::Node* target = self;
+        std::string context = "div";
+        if (self->IsElement()) {
+          auto& element = static_cast<dom::Element&>(*self);
+          target = &HtmlHost(element);
+          context = element.TagName();
+        } else if (self->GetKind() == dom::Node::Kind::DocumentFragment) {
+          const dom::Element* shadow_host =
+              static_cast<dom::DocumentFragment*>(self)->Host();
+          if (shadow_host != nullptr) {
+            context = shadow_host->TagName();
+          }
+        } else {
+          return Value::Undefined();
+        }
         // Read before anything is torn down: `ToString` can call a page's own
         // `toString`, and that runs script which may move this element.
         const std::string markup = js::ToString(Argument(call.arguments, 0));
-        owner->ClearChildren(host);
-        owner->InsertParsedHtml(element.TagName(), host, nullptr, markup);
+        owner->ClearChildren(*target);
+        owner->InsertParsedHtml(context, *target, nullptr, markup);
         return Value::Undefined();
       });
 

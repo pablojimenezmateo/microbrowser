@@ -218,7 +218,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # belongs to is Engine's. `UpdateUrl` is the one worth naming -- it moves the
 # address, recomputes `:target` from the new fragment and moves the base with it,
 # which is the whole of what a `pushState` does to a document.
-budget: Page   header_lines=530 public_methods=67 members=15
+budget: Page   header_lines=555 public_methods=67 members=15
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -311,3 +311,9 @@ budget: HistoryEntry   header_lines=30 public_methods=0 members=5
 # evaluation because the resolver cannot block, and a dynamic `import()` is a
 # promise settled on a later turn.
 budget: ModuleLoader header_lines=70 public_methods=14 members=2
+# What one document needs fetching and what came back. A struct with no invariant,
+# budgeted so that growth in "what a document's resources are" stays a decision.
+# The shadow sheets are here rather than in the resolver because
+# RebuildAuthorStyleSheets throws the resolver away, and a component's styles have
+# to come back with it.
+budget: DocumentResources header_lines=35 public_methods=0 members=9

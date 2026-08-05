@@ -50,6 +50,16 @@ struct SelectorPart {
     Where,       // :where(a, b)
     Not,         // :not(a, b)
     Nth,         // :nth-child(An+B), and its three siblings
+    // `:host` and `:host(sel)`, which only mean anything in a sheet that belongs
+    // to a shadow root: they match the root's *host*, which is an element in a
+    // different tree. Matched by the resolver rather than by the matcher, because
+    // the matcher is a pure function of (element, selector) and "which root did
+    // this rule come from" is neither. ADR 0019 §3.
+    Host,
+    // `::slotted(sel)`, which matches a node assigned into this scope's slots --
+    // again an element from the light DOM, reached from a sheet inside the shadow
+    // tree. A pseudo-element in the grammar and a scope question in practice.
+    Slotted,
   };
 
   enum class AttributeMatch : std::uint8_t {
@@ -128,6 +138,14 @@ struct Selector {
 
   Specificity ComputeSpecificity() const;
   bool Matches(const dom::Element& element) const;
+
+  // The compound that describes the element a rule *styles* -- the last one, since
+  // a selector reads left to right and ends at its subject. Null for an empty
+  // selector. The scoped cascade asks for it because `:host` and `::slotted()`
+  // are only meaningful on the subject: `p :host` selects nothing anywhere.
+  const CompoundSelector* Subject() const {
+    return compounds.empty() ? nullptr : &compounds.back();
+  }
 
   // Every dynamic state whose value this selector's match depends on, ORed
   // together -- including the ones inside `:is()`, `:where()` and `:not()`, and

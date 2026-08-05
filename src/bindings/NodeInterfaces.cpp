@@ -195,7 +195,12 @@ void DomBindings::EnsureInterfaces() {
   MakeInterface("Comment", character_data);
   // A fragment is a ParentNode: script queries the subtree it is building
   // before it inserts it, which is most of the reason to build it detached.
-  InstallParentQueries(MakeInterface("DocumentFragment", node));
+  const Value fragment = MakeInterface("DocumentFragment", node);
+  InstallParentQueries(fragment);
+  // `innerHTML` on a fragment, because a shadow root *is* one and
+  // `root.innerHTML = …` is how every component fills one. The context element
+  // for the parse is the host -- see HtmlParsing.cpp.
+  InstallHtmlParsing(fragment);
   // A Document is a ParentNode too: `document.querySelector` and
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));
