@@ -1446,8 +1446,8 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     // A short document does not scroll at all, so neither of these produces a
     // frame. A scroll that ran off the end would paint blank space.
-    session.Send(ipc::ScrollMessage{0, 10000});
-    session.Send(ipc::ScrollMessage{0, -10000});
+    session.Send(ipc::ScrollMessage{0, 10000, gfx::IntPoint{}});
+    session.Send(ipc::ScrollMessage{0, -10000, gfx::IntPoint{}});
     ExpectEqInt(static_cast<long long>(session.sent.size() - before), 0,
                 "scrolling a document that fits repaints nothing");
   });
@@ -1460,8 +1460,49 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(session.LastFrame() != nullptr, "the document painted");
 
     const std::size_t before = session.sent.size();
-    session.Send(ipc::ScrollMessage{0, 20});
+    session.Send(ipc::ScrollMessage{0, 20, gfx::IntPoint{}});
     Expect(session.sent.size() > before, "a tall document scrolls, and scrolling repaints");
+  });
+
+  AddTest(tests, "Engine/AScrollDamagesTheExposedBandRatherThanTheWindow", [] {
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{
+        DataUrl("<body style='margin:0'><div style='height:3000px'>A</div></body>")});
+    Expect(session.LastFrame() != nullptr, "the document painted");
+
+    session.Send(ipc::ScrollMessage{0, 50, gfx::IntPoint{}});
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr, "the scroll produced a frame");
+    // ADR 0018 §2, and the whole point of the session: the display-list diff
+    // would answer "everything changed" here, because every command in the list
+    // moved by 50 pixels. What actually came into view is a 400x50 strip, and
+    // the delta is the UI's licence to blit the rest rather than repaint it.
+    ExpectEqInt(static_cast<long long>(frame->damage.size()), 1, "one damaged rect");
+    ExpectEqInt(frame->damage[0].height, 50, "and it is the band the scroll exposed");
+    ExpectEqInt(frame->damage[0].y, 250, "at the bottom, because the page moved up");
+    ExpectEqInt(frame->scroll_delta.y, -50, "with the delta the previous frame's pixels moved by");
+  });
+
+  AddTest(tests, "Engine/AWheelOverAScrollingBoxMovesTheBoxAndNotThePage", [] {
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<body style='margin:0'>"
+        "<div style='height:100px;overflow:auto'><div style='height:900px'>A</div></div>"
+        "<div style='height:3000px'>B</div></body>")});
+    Expect(session.LastFrame() != nullptr, "the document painted");
+
+    // Over the inner scroller, which can still move: it takes the wheel, and
+    // the damage is its own rectangle rather than a band of the window. The
+    // frame carries no scroll delta, because the *document* did not move and a
+    // blit would slide the whole page.
+    session.Send(ipc::ScrollMessage{0, 30, gfx::IntPoint{10, 10}});
+    const ipc::PaintFrameMessage* frame = session.LastFrame();
+    Expect(frame != nullptr, "the wheel produced a frame");
+    ExpectEqInt(static_cast<long long>(frame->damage.size()), 1, "one damaged rect");
+    ExpectEqInt(frame->damage[0].height, 100, "the scroller's own box, not the window");
+    ExpectEqInt(frame->scroll_delta.y, 0, "and no document blit");
   });
 
   AddTest(tests, "Engine/NavigatingToAboutBlankIsAPageRatherThanAFailure", [] {
