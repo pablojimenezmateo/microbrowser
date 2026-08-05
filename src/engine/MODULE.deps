@@ -43,7 +43,13 @@ max_tu_lines: 800
 # Inserting a character is what a keydown does *after* its handlers have run and
 # only if none of them cancelled -- which is the whole of what `preventDefault`
 # on a keydown means, and what the previous message set could not express.
-budget: Engine header_lines=145 public_methods=13 members=9
+# The fourteenth method is ConsoleOutput, beside ScriptErrors and forwarded for
+# the same reason: from outside, a page that ran and said something and a page
+# that threw are the same page without both. It is what lets a test assert that
+# a key reached a handler *and* that its default action did not run, which are
+# the two halves ADR 0017 §2 separates and the pair that would otherwise only be
+# observable as a form submission.
+budget: Engine header_lines=145 public_methods=14 members=9
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.

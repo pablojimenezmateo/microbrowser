@@ -79,6 +79,10 @@ class Engine {
   // a document rendered the way it did. Forwarded rather than exposing the
   // Page, which would put the whole engine on the wrong side of the seam.
   const std::vector<std::string>& ScriptErrors() const { return page_.ScriptErrors(); }
+  // The other half of the same question, and forwarded for the same reason. A
+  // page that ran correctly and said something is not distinguishable from one
+  // that threw, from outside, without both.
+  const std::vector<std::string>& ConsoleOutput() const { return page_.ConsoleOutput(); }
 
   const std::string& Title() const { return page_.Title(); }
   const std::string& Url() const { return page_.Url(); }

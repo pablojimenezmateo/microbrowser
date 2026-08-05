@@ -1020,6 +1020,181 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
         "allowed a", "stopPropagation stops the bubble, not the default");
   });
 
+  // --- The dispatch algorithm, rule by rule --------------------------------
+  //
+  // ADR 0017's consequence list names these as the tests that decay: each rule
+  // is small, each is silently wrong until something asserts it, and a page
+  // that depends on one fails in a way that looks like a bug somewhere else.
+
+  // The element with the given id, which every dispatch test needs.
+  const auto element_by_id = [](Bound& bound, const char* wanted) -> dom::Element* {
+    dom::Element* found = nullptr;
+    bound.document->ForEachDescendant([&](const dom::Node& node) {
+      const std::string* id = node.IsElement()
+                                  ? static_cast<const dom::Element&>(node).GetAttribute("id")
+                                  : nullptr;
+      if (id != nullptr && *id == wanted) {
+        found = const_cast<dom::Element*>(&static_cast<const dom::Element&>(node));
+      }
+    });
+    return found;
+  };
+
+  AddTest(tests, "DomBindings/DispatchRunsCaptureThenTargetThenBubble", [element_by_id] {
+    Bound bound = Bind("<div id=outer><span id=inner>x</span></div>");
+    bound.interpreter->Run(
+        "globalThis.seen = [];"
+        "const mark = n => e => seen.push(n + ':' + e.eventPhase);"
+        "window.addEventListener('click', mark('win-cap'), true);"
+        "window.addEventListener('click', mark('win-bub'));"
+        "document.getElementById('outer').addEventListener('click', mark('out-cap'), true);"
+        "document.getElementById('outer').addEventListener('click', mark('out-bub'));"
+        "document.getElementById('inner').addEventListener('click', mark('in-cap'), true);"
+        "document.getElementById('inner').addEventListener('click', mark('in-bub'));");
+    dom::Element* inner = element_by_id(bound, "inner");
+    Expect(inner != nullptr, "the inner element exists");
+    bound.dom_bindings->DispatchClick(*inner, {});
+
+    // Down from the window, both kinds at the target in registration order, then
+    // up again. The phase numbers are the DOM's: 1 capturing, 2 at target, 3
+    // bubbling -- and at the target it is 2 for both listeners, which is what a
+    // handler comparing against Event.AT_TARGET is relying on.
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen.join(' ')").value),
+                   "win-cap:1 out-cap:1 in-cap:2 in-bub:2 out-bub:3 win-bub:3",
+                   "capture down, both at the target, bubble up");
+  });
+
+  AddTest(tests, "DomBindings/CaptureIsPartOfAListenersIdentity", [element_by_id] {
+    Bound bound = Bind("<div id=d>x</div>");
+    bound.interpreter->Run(
+        "globalThis.seen = '';"
+        "globalThis.f = () => { seen += 'f' };"
+        "const d = document.getElementById('d');"
+        "d.addEventListener('click', f, true);"
+        "d.addEventListener('click', f);"
+        // Removing the bubbling one must not take the capturing one with it.
+        "d.removeEventListener('click', f);");
+    dom::Element* target = element_by_id(bound, "d");
+    Expect(target != nullptr, "the div exists");
+    bound.dom_bindings->DispatchClick(*target, {});
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "f",
+                   "the capturing registration survived removal of the bubbling one");
+  });
+
+  AddTest(tests, "DomBindings/StopImmediatePropagationStopsTheCurrentNodeToo", [element_by_id] {
+    Bound bound = Bind("<div id=outer><span id=inner>x</span></div>");
+    bound.interpreter->Run(
+        "globalThis.seen = '';"
+        "const inner = document.getElementById('inner');"
+        "inner.addEventListener('click', e => { seen += 'a'; e.stopPropagation(); });"
+        "inner.addEventListener('click', () => { seen += 'b'; });"
+        "document.getElementById('outer').addEventListener('click', () => { seen += 'c'; });");
+    dom::Element* inner = element_by_id(bound, "inner");
+    bound.dom_bindings->DispatchClick(*inner, {});
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "ab",
+                   "stopPropagation lets the rest of this node's listeners run");
+
+    Bound immediate = Bind("<div id=outer><span id=inner>x</span></div>");
+    immediate.interpreter->Run(
+        "globalThis.seen = '';"
+        "const inner = document.getElementById('inner');"
+        "inner.addEventListener('click', e => { seen += 'a'; e.stopImmediatePropagation(); });"
+        "inner.addEventListener('click', () => { seen += 'b'; });"
+        "document.getElementById('outer').addEventListener('click', () => { seen += 'c'; });");
+    dom::Element* target = element_by_id(immediate, "inner");
+    immediate.dom_bindings->DispatchClick(*target, {});
+    ExpectEqString(js::ToString(immediate.interpreter->Run("seen").value), "a",
+                   "stopImmediatePropagation does not");
+  });
+
+  AddTest(tests, "DomBindings/APassiveListenerCannotPreventTheDefault", [element_by_id] {
+    // The whole content of `{passive: true}`: the page promised not to cancel,
+    // so the browser is entitled to have already started, and honouring the
+    // call afterwards would make the promise meaningless.
+    Bound bound = Bind("<div id=d>x</div>");
+    bound.interpreter->Run(
+        "const d = document.getElementById('d');"
+        "d.addEventListener('click', e => e.preventDefault(), {passive: true});");
+    dom::Element* target = element_by_id(bound, "d");
+    Expect(!bound.dom_bindings->DispatchClick(*target, {}),
+           "a passive listener's preventDefault did nothing");
+
+    Bound active = Bind("<div id=d>x</div>");
+    active.interpreter->Run(
+        "const d = document.getElementById('d');"
+        "d.addEventListener('click', e => e.preventDefault());");
+    dom::Element* live = element_by_id(active, "d");
+    Expect(active.dom_bindings->DispatchClick(*live, {}),
+           "and the same listener without the flag still cancels");
+  });
+
+  AddTest(tests, "DomBindings/AListenerAddedDuringDispatchDoesNotRunForThisEvent",
+          [element_by_id] {
+    // The set that runs on a node is the set that existed when the event
+    // reached it. Without the copy this is an infinite loop written by
+    // accident, which is the bug it is here to keep out.
+    Bound bound = Bind("<div id=d>x</div>");
+    bound.interpreter->Run(
+        "globalThis.n = 0;"
+        "const d = document.getElementById('d');"
+        "d.addEventListener('click', () => { n++; d.addEventListener('click', () => { n += 10 }); });");
+    dom::Element* target = element_by_id(bound, "d");
+    bound.dom_bindings->DispatchClick(*target, {});
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "1",
+                   "only the listener that was registered ran");
+    bound.dom_bindings->DispatchClick(*target, {});
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "12",
+                   "and the one it added runs on the next event");
+  });
+
+  AddTest(tests, "DomBindings/IsTrustedSaysWhoMadeTheEventAndCannotBeSet", [element_by_id] {
+    // ADR 0017 §3. The gates that will eventually read this -- opening a window,
+    // entering fullscreen, reading the clipboard -- read it as a statement about
+    // the user, so a page being able to write it is a security bug rather than a
+    // fidelity one.
+    Bound bound = Bind("<div id=d>x</div>");
+    bound.interpreter->Run(
+        "globalThis.seen = '';"
+        "const d = document.getElementById('d');"
+        "d.addEventListener('click', e => {"
+        "  e.isTrusted = true;"
+        "  seen += e.isTrusted;"
+        "});");
+    dom::Element* target = element_by_id(bound, "d");
+    bound.dom_bindings->DispatchClick(*target, {});
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "true",
+                   "the browser's own click is trusted");
+
+    ExpectScript("<div id=d>x</div>",
+                 "const e = new Event('click');"
+                 "e.isTrusted = true;"
+                 "'' + e.isTrusted",
+                 "false");
+  });
+
+  AddTest(tests, "DomBindings/AKeyReachesTheFocusedElementWithItsThreeStrings", [element_by_id] {
+    Bound bound = Bind("<div id=outer><input id=field></div>");
+    bound.interpreter->Run(
+        "globalThis.seen = [];"
+        "document.getElementById('outer').addEventListener('keydown', e => {"
+        "  seen.push(e.type + ' ' + e.key + ' ' + e.code + ' ' + e.keyCode + ' ' +"
+        "            e.ctrlKey + ' ' + (e instanceof KeyboardEvent));"
+        "});");
+    dom::Element* field = element_by_id(bound, "field");
+    Expect(field != nullptr, "the field exists");
+
+    bindings::KeyInput key;
+    key.code = "Escape";
+    key.key = "Escape";
+    key.control = true;
+    Expect(!bound.dom_bindings->DispatchKey(field, key), "nothing cancelled it");
+    // The whole point of the message set change: `Escape` was unreachable
+    // before, because a key crossed the seam as the text it produced and Escape
+    // produces none.
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen.join('|')").value),
+                   "keydown Escape Escape 27 true true", "the key bubbled with its identity");
+  });
+
   AddTest(tests, "DomBindings/ListenersAreRemovedByIdentity", [] {
     Bound bound = Bind("<div id=d>x</div>");
     bound.interpreter->Run(

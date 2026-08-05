@@ -48,6 +48,17 @@ std::string DataUrl(std::string_view html) {
 // call sites. The primary button is zero in the DOM's numbering, which is what
 // the engine checks, and a typed character is a `key` and a `text` while a
 // named key is only a `key` -- ADR 0017 §1's split, in the shape a test uses it.
+// Console lines as one string, so a test states the whole sequence rather than
+// indexing into a vector line by line.
+std::string Joined(const std::vector<std::string>& lines) {
+  std::string out;
+  for (const std::string& line : lines) {
+    out += out.empty() ? "" : "|";
+    out += line;
+  }
+  return out;
+}
+
 ipc::PointerInputMessage ClickAt(float x, float y) {
   ipc::PointerInputMessage pointer;
   pointer.kind = ipc::PointerInputMessage::Kind::Down;
@@ -1818,6 +1829,68 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(session.LastTitle(), "Contact", "and the result document committed");
     Expect(factory.log.requests.at(1).find("GET /contact?email=a%40b ") != std::string::npos,
            "the second request contains the edited email value");
+  });
+
+  AddTest(tests, "Engine/PreventDefaultOnAKeydownStopsTheCharacterBeingInserted", [] {
+    // The default action is a step after dispatch, and this is the test that
+    // says so. Before ADR 0017 the character was inserted on the way past and
+    // there was no keydown at all, so a page filtering its own input -- a
+    // numbers-only field, a shortcut bar -- could not.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'><form action='/search'>"
+                   "<input id=q name='q' size='4'>"
+                   "</form>"
+                   "<script>"
+                   "document.getElementById('q').addEventListener('keydown', e => {"
+                   "  console.log('key ' + e.key);"
+                   "  if (e.key === 'x') { e.preventDefault(); }"
+                   "});"
+                   "</script></body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    session.Send(ClickAt(5.0f, 5.0f));
+    session.Type("axb");
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "key a|key x|key b",
+                   "every key reached the page's handler");
+    // The cancelled one is missing from the value and present in the log, which
+    // is the whole distinction: dispatch happened, the default action did not.
+    session.Send(NamedKey("Enter"));
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?q=ab",
+                   "and only the key it cancelled failed to be inserted");
+  });
+
+  AddTest(tests, "Engine/AKeyThatInsertsNothingStillReachesThePage", [] {
+    // Escape, which the message set this replaces could not deliver at all: a
+    // key crossed the seam as the text it produced, and Escape produces none.
+    // "Escape closes a menu" is session 9's check and this is its unit.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body><div id=menu>open</div>"
+                   "<script>"
+                   "document.addEventListener('keydown', e => console.log('+' + e.key));"
+                   "document.addEventListener('keyup', e => console.log('-' + e.key));"
+                   "</script></body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    ipc::KeyInputMessage escape = NamedKey("Escape");
+    session.Send(escape);
+    escape.kind = ipc::KeyInputMessage::Kind::Up;
+    session.Send(escape);
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "+Escape|-Escape",
+                   "the press and the release both arrived, named");
   });
 
   AddTest(tests, "Engine/InputCommandsEditAndSubmitFocusedForm", [] {
