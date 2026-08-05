@@ -1453,3 +1453,63 @@ and 4); `scrollRestoration`, absent rather than a settable string that changes n
   `longtask`. **A roadmap that never names the thing four of its sessions are blocked on is the
   failure mode `docs/roadmap-to-any-page.md` calls "the measurement was measuring the wrong
   thing".**
+
+## Session 50 — PerformanceObserver and the module loader · 2026-08-05 (half done)
+
+**Status:** in_progress — `PerformanceObserver` landed; the module loader has not.
+
+**Check:** the session's first clause, run at `5c8370e`:
+
+```
+MICROBROWSER_PERF_COUNTERS=1 microbrowser_snapshot https://www.reddit.com/ -o out.ppm
+  [counters] 3  engine.scripts_loaded
+  [counters] 7  performance.entries
+  [counters] 3  performance.observer_callbacks
+  https://www.reddit.com/?…: 143 commands, 3 runs, 1 fonts, 0 images,
+    title "Reddit - The heart of the internet"
+```
+
+**No `script error:` line at all**, where four previous sessions each got one.
+`js.compile_bailouts` is zero. Hacker News, old.reddit.com and wikipedia render unchanged.
+
+**Landed:**
+
+- *performance and PerformanceObserver, and the compiler bug they made visible*
+
+**Left:** the module loader — the other half of this session and the last thing between here and
+Gate B. reddit's module now runs to completion, but its
+`import("https://www.redditstatic.com/shreddit/…")` calls resolve to nothing, so the feed still does
+not fill in. `Interpreter::SetModuleResolver` is synchronous; the decision to make is a pre-pass
+that fetches the whole graph before evaluating, against a resolver that can answer later. The
+`data:` scheme has to work in it, because reddit's entry point is a module with a `data:` URL.
+
+**Found:**
+
+- **A compile bailout was invisible, and that invisibility was the bug's hiding place.** `Compile`
+  returning null is not a fault — the tree-walker takes the program — but the tree-walker *refuses
+  an async function at the call*, so a program that bailed out fails later, somewhere else, with an
+  error naming neither the bound it hit nor the file it was in. Four sessions read that TypeError as
+  "the tree-walker ran this" and stopped. Six `js.compile_bailout_*` counters now name the reason,
+  and **two of the five reasons are defects rather than bounds** — which is the distinction that
+  turned a day's guessing into two minutes.
+- **The bug: `ReservePattern` and `BindTarget` disagreed about what a destructuring default looks
+  like.** A pattern is read with the *expression* grammar, so the default in `{a: c = 1}` and
+  `[c = 1]` arrives as a plain `Assignment`; only the shorthand `{c = 1}` and an arrow's parameter
+  list get rewritten to `AssignmentPattern`. `BindTarget` knew, and had the comment saying so.
+  `ReservePattern` did not, so the name behind the default was never reserved, `DeclareSlot` found no
+  slot, and the compile of the **entire program** was abandoned. Minified code writes
+  `({renderBlockingStatus: c = ""}) => …` constantly, so this fired on any real bundle.
+- **`supportedEntryTypes` is a page's only honest way to ask what a browser measures**, and reddit
+  reads it: it observes `longtask` only when the list contains it. That is why `longtask` is absent
+  here rather than present-and-silent — the list is the mechanism ADR 0012's rule works through.
+- **Entries produced before the first script runs would all have been lost.** Every subresource of a
+  document completes *before* its first script — that is what render-blocking means — so a
+  `resource` entry has no heap to live in when it happens, and the entries a page observes with
+  `buffered: true` are exactly those. They are held as plain C++ data and flushed at install.
+- **The `navigation` entry arrives after the last paint of the load**, so the frame that would have
+  delivered it has already happened. `AdvanceLoad` delivers once more after the load ends; without
+  that, a page observing `navigation` on a settled page hears nothing ever.
+- **`jsshell` could not tell you which engine ran your file.** It dumps the counters now, which is
+  how the bug above was minimised: `MICROBROWSER_PERF_COUNTERS=1 jsshell file.js` and a
+  delta-debugging script over the top-level statements took it from 19KB to
+  `function f({a: c = ""}) { return c }`.
