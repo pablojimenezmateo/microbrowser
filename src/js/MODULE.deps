@@ -5,7 +5,12 @@ purpose: JavaScript. Lexing, parsing, and execution. Knows nothing about the DOM
 # same-origin check will live. Bindings arrive in M9 as a separate seam.
 allow: util
 
-public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h Bytecode.h
+# StructuredClone.h is public because the *host* needs it, not because anything
+# in this module does: ADR 0026 §1 stores `history.state` as bytes rather than as
+# a live value, because a history entry outlives the document that created it.
+# ADR 0021's storage and ADR 0022's workers want the same function for the same
+# reason.
+public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h Bytecode.h StructuredClone.h
 
 extern:
 

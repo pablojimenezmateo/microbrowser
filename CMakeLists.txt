@@ -378,6 +378,7 @@ microbrowser_module(js
     src/js/StatementsIteration.cpp
     src/js/Builtins.cpp
     src/js/StringBuiltins.cpp
+    src/js/StructuredClone.cpp
     src/js/FunctionBuiltins.cpp
     src/js/TemplateParts.cpp
     src/js/Classes.cpp
@@ -471,6 +472,7 @@ add_executable(microbrowser_tests
   tests/IdleWaitStrategyTests.cpp
   tests/InflateTests.cpp
   tests/IntegrityTests.cpp
+  tests/StructuredCloneTests.cpp
   tests/XhrTests.cpp
   tests/IpcMessageTests.cpp
   tests/IsoBmffTests.cpp
