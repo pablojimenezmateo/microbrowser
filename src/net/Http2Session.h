@@ -162,7 +162,6 @@ class Http2Session {
     bool has_declared_length = false;
     bool headers_done = false;
     bool complete = false;
-    bool half_closed_local = false;
     // Set with `error` when the server said this request was never processed.
     bool refused = false;
     const char* error = nullptr;

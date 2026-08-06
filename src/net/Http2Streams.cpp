@@ -202,7 +202,6 @@ std::optional<Http2Session::StreamId> Http2Session::StartRequest(const Request& 
   stream.id = id;
   stream.send_window = peer_.initial_window_size;
   stream.body.assign(request.body.begin(), request.body.end());
-  stream.half_closed_local = !has_body;
   streams_.push_back(std::move(stream));
   AddPerformanceCounter(PerfCounterId::NetHttp2Streams);
   return id;
@@ -507,7 +506,6 @@ bool Http2Session::PumpBodies() {
       stream.body_sent += take;
       stream.send_window -= allowed;
       send_window_ -= allowed;
-      stream.half_closed_local = last;
       moved = true;
     }
   }
