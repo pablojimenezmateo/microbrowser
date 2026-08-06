@@ -3336,3 +3336,101 @@ The general lesson is the one both tools share. **Every session that ended in "i
 I do not know why" ended there because the browser could not be asked.** An error that says where,
 and a page that can be questioned, are not conveniences on top of the work -- between them they
 turned a session's worth of guessing into twelve fixes and a named next step.
+
+## 2026-08-06 — Performance: the four things that were seconds, and the one that was the white screen
+
+Started from a user report: youtube.com shows a white screen and the window manager repeatedly
+offers to kill the process. Both halves turned out to be true and neither was where the previous
+session was looking.
+
+### The method, again, and it is the whole story
+
+Every one of the five fixes below was found by **splitting a scope that covered two unrelated jobs**
+and re-reading the summary. None was found by reading code. The first split — `engine::Page::Layout`
+into `BuildBoxTree` and `LayoutBoxes` — took one run and immediately said 29,097ms against 22ms,
+which is not "layout is slow", it is "the cascade is the entire program".
+
+The corollary is worth keeping: **the profiler was unavailable and it did not matter.** `perf` is
+blocked in this sandbox and `ptrace` with it, so there was no sampling and no attach. Scopes and
+counters found everything, because they answer "how many times, and in which half" — which is the
+question — where a sampler answers "where was the program counter".
+
+### What it cost, per page
+
+| page | before | after |
+|---|---|---|
+| news.ycombinator.com | 9.68s | **1.47s** |
+| old.reddit.com | 34.41s | **5.06s** |
+| en.wikipedia.org/wiki/CSS | 258.97s | **6.36s** |
+| www.youtube.com | 82.4s | **13.65s** |
+
+### The five
+
+1. **The cascade asked every rule about every element.** `StyleResolver::StyleFor` walked all of
+   `rules_` per element: 18,360 rules against 686 elements, seventeen times. Rules are now filed
+   under the most selective part of their subject compound — id, else a class, else the tag — with a
+   universal bucket for everything that names none of those. 29.1s → 1.9s.
+
+2. **A punctuator was lexed by walking all 57 of them,** longest-first, so `.` `(` `)` `,` `=` `;`
+   sat at positions 34–57. Minified script is 1.28M punctuators out of 2.05M tokens. Indexed by
+   first byte, grouping stable so maximal munch is untouched. Parse 2.61s → 1.59s.
+
+3. **A font stack was resolved once per text run.** This was 227 of wikipedia's 259 seconds and it
+   is the one worth remembering, because `font.lookup_hits` read 985,000 and looked *healthy* — it
+   was counting the sized-`Font` cache, which was working, while the three full passes above it
+   (every font file on the machine, every loaded face, then the catalog's match) went unmeasured.
+   Each comparison built a `std::string`, normalizing a family name that had been normalized at
+   registration. **A counter on the cheap half of an operation is worse than no counter**: it reads
+   as evidence that the operation is fine.
+
+4. **Custom properties inherited by copying.** Every element copied its parent's whole set; a page
+   that declares its palette on `:root` copies fifty string pairs into each of 19,000 elements, per
+   cascade pass, twice per rebuild, three rebuilds. Copy-on-write. 30.4s → 6.4s. The old comment
+   argued for a vector over a map *because* the copy on inherit is the most frequent operation —
+   right observation, wrong conclusion.
+
+5. **The white screen: a custom element's prototype went on after its constructor ran.** A derived
+   class's `this` comes from its base, and in a real engine it already carries
+   `new.target.prototype` when `super()` returns — so the next line may call the class's own
+   methods. Ours applied it afterwards, so `super()` handed back a bare HTMLElement. Polymer's base
+   constructor begins `this._initializeProperties()`. Twenty-nine of youtube's thirty-two upgrades
+   threw on that line, no component ever rendered, and the page was blank.
+
+### Why (5) survived a whole previous session
+
+Because nothing reported it. The early return on a throwing constructor carried a comment saying
+"the throw is reported the way any uncaught one is" and **nothing reported it** — `ConstructValue`
+hands the error back and the function returned. `Interpreter::ReportUncaught` had existed for
+exactly this since `EventDispatch.cpp` lost whole scripts the same way. One line, and the invisible
+failure became `TypeError: undefined (_initializeProperties) is not a function`, ×29, which is the
+entire diagnosis.
+
+Four more call sites had the identical `(void)CallFunction(...)` — element reactions,
+`attributeChangedCallback`, MutationObserver, the view observers — and all four now report. And
+`ReportUncaught` carries the *stack*, which `PageScript::RunTiming` had and nothing reached from a
+binding did: the errors hardest to place were being reported with the least.
+
+The previous session's note guessed the cause correctly in shape (an element not an instance of its
+own class) and wrongly in mechanism (`_finalizeClass` staging). Verifying with `-eval` before
+changing anything, as that note instructed, is what caught the difference: the element's prototype
+chain was `[p, Element, …]` and the class's was `[p, p, Element, …]`, i.e. the element had been
+given the *superclass's* prototype — which no story about staged class construction explains, and
+which "the prototype is applied too late" explains exactly.
+
+### Where youtube is now
+
+The bundle runs, upgrades succeed (throws 30 → 1), 59 elements upgrade where 32 did before. It still
+does not render: the remaining throw is its dependency-injection container reporting no provider for
+a key, at `EhE (@1323410)` —
+
+    if(!V.providers.has(J)){if(P)return;throw Error("nd`"+J);}
+
+which is a question about that page rather than an engine fault, and now a readable one. Two
+`instanceof` checks in `Wpt.prototype.resolve` decide whether a missing provider throws or returns
+undefined, so that is the first thing to check.
+
+### Tech debt
+
+`docs/tech-debt.md` is new and has seven entries, each with its measurement. TD-0007 is the honest
+statement of what is *not* fixed: the loop still runs a page's script to completion in one turn, so
+youtube is a single 9.7-second uninterruptible call. Six times faster, same shape.
