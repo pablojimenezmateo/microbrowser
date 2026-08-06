@@ -279,6 +279,9 @@ namespace microbrowser::util {
   X(CspViolations, "csp.violations")                                             \
   X(CspInlineBlocked, "csp.inline_blocked")                                      \
   X(SriChecks, "sri.checks")                                                     \
+  X(EncodingReplacements, "encoding.replacements")                                 \
+  X(EncodingFromPrescan, "encoding.from_prescan")                                 \
+  X(EncodingFellBackToWindows1252, "encoding.fell_back_to_windows1252")            \
   X(MatroskaFilesParsed, "matroska.files_parsed")                                 \
   X(MatroskaRefusals, "matroska.refusals")                                        \
   X(HlsPlaylistsParsed, "hls.playlists_parsed")                                    \

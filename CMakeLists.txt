@@ -244,6 +244,7 @@ microbrowser_module(html
   SOURCES
     src/html/Focus.cpp
     src/html/FormControl.cpp
+    src/html/Encoding.cpp
     src/html/Tokenizer.cpp
     src/html/TreeBuilder.cpp
     src/html/TreeBuilderTable.cpp
@@ -544,6 +545,7 @@ add_executable(microbrowser_tests
   tests/AudioRingTests.cpp
   tests/HlsPlaylistTests.cpp
   tests/MatroskaTests.cpp
+  tests/EncodingTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
@@ -639,6 +641,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(eventstream_fuzzer fuzz/EventStreamFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(hls_fuzzer fuzz/HlsFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(matroska_fuzzer fuzz/MatroskaFuzzer.cpp microbrowser_media)
+  microbrowser_fuzzer(encoding_fuzzer fuzz/EncodingFuzzer.cpp microbrowser_html)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
