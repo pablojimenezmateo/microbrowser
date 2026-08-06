@@ -2013,3 +2013,58 @@ this session's.
 `storage.writes 1`, `storage.partitions_created 2`, where before it found nothing. Its
 main bundle now fails later, on `TypeError:  is not a function` with an empty callee
 name — the next thing to chase on that site.
+
+### WebSocket, the first two parts · 2026-08-06 (session 23, unfinished)
+
+`fd743cf` the wire format, `5fd73bd` the connection. The engine table, the `WebSocket`
+binding and `EventSource` are not built; the ledger entry says so and says in what
+order.
+
+**SHA-1 exists in this tree now, and the header is mostly an argument against using
+it.** RFC 6455's `Sec-WebSocket-Accept` is SHA-1 of the client key plus a fixed GUID,
+which is a *protocol handshake check* rather than a security claim: it proves the peer
+speaks WebSocket, and `wss://` is what proves anything about trust. So the rule written
+in `util/Sha1.h` is that a second caller is a bug, because what a second caller almost
+certainly wants is collision resistance and this does not have it.
+
+Three rules in the codec are refusals, and none of them is refused merely because the
+RFC says so:
+
+- **A masked server frame.** Masking is not confidentiality — it defeats proxy cache
+  poisoning — but the *direction* is load-bearing: accepting a masked server frame means
+  accepting a frame a proxy could have rewritten.
+- **A redundant length form.** A server that writes 5 in the two-byte form is legal by
+  the letter of §5.2 and is refused here for the reason WOFF2's base-128 refuses leading
+  zeros: a second spelling of a length is a second way for two implementations to
+  disagree about what a frame is. The encoder writes the shortest form and a test asserts
+  the two agree — otherwise this browser produces frames it would itself refuse.
+- **A control frame that is fragmented or over 125 bytes**, and a `close` with one
+  payload byte, which would hand a caller half a status code.
+
+The decode result's `Failed` versus `Incomplete` is the bound doing its work rather than
+an enum with three cases: they mean opposite things to a connection — close versus wait
+— so a declared nine exabytes has to be `Failed`. Answering "incomplete" would be an
+instruction to buffer it.
+
+**The connection's first bug: it returned as soon as the peer closed.** That lost the
+handshake and every frame already sitting in the buffer, and a server is allowed to send
+the response and hang up in the same packet — many do. The close is remembered and acted
+on after framing now. This is the same shape as the WOFF2 session's lesson about doing
+the work before believing the failure.
+
+**The tests needed a transport that stays open, and that is a finding.** The shared
+`ScriptedTransport` hangs up the moment its canned response has been read, which is a
+real server behaviour and exactly the wrong one here: with it, the socket is Closed by
+the end of the first `Advance` and nothing about `send`, `close`, a second message or the
+idle wait can be observed. `OpenTransport` answers `Blocked` when it has nothing to give,
+which is the state an idle WebSocket spends its life in. What its tests then assert is
+the shape that matters for ADR 0020 §5: an open socket with nothing outstanding produces
+no work and queues nothing, a frame split across two turns is reassembled rather than
+dropped or re-read, and a close we start is a closing handshake rather than a hang-up.
+
+One deliberate non-random choice, written where the code is: the masking key is a
+counter. RFC 6455 wants unpredictability so that an attacker controlling the payload
+cannot make the wire bytes look like an HTTP request to an intermediary; `wss://` means
+there is no intermediary that can see them, and a weak PRNG is no better than a counter
+against that attack while being harder to reason about. A plaintext `ws://` path must not
+ship without a real mask.
