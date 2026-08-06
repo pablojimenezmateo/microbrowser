@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h IsoBmff.h AudioRing.h
+public: BoxReader.h IsoBmff.h AudioRing.h PlaybackClock.h
 
 extern:
 
@@ -31,6 +31,7 @@ max_tu_lines: 800
 # holds samples and knows nothing about what produced them, which keeps this module's
 # "never a codec" line true.
 budget: AudioRing       header_lines=105 public_methods=10 members=5
+budget: PlaybackClock   header_lines=60  public_methods=8  members=4
 budget: BoxReader       header_lines=95 public_methods=20 members=3
 budget: BoxHeader       header_lines=40 public_methods=6  members=4
 # What a demux produced. It grows one member per thing a player needs to know

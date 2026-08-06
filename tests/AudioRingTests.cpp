@@ -13,6 +13,7 @@
 
 #include "TestSupport.h"
 #include "media/AudioRing.h"
+#include "media/PlaybackClock.h"
 
 namespace microbrowser::tests {
 
@@ -70,6 +71,47 @@ void RegisterAudioRingTests(std::vector<TestCase>& tests) {
       Expect(out.at(0) == static_cast<float>(round) && out.at(1) == static_cast<float>(-round),
              "left and right stay together across every wrap");
     }
+  });
+
+  AddTest(tests, "PlaybackClock/ReportsWhatWasHeardRatherThanWhatWasWritten", [] {
+    // The device holds a buffer, so the written position is ahead of the audible one.
+    // Reporting the written position runs video ahead of the sound by exactly that much,
+    // and that is the arithmetic a naive clock omits.
+    media::PlaybackClock clock(48000);
+    clock.FramesConsumed(48000);
+    Expect(clock.CurrentTimeSeconds() == 1.0, "a second of frames is a second");
+    clock.SetBufferedFrames(24000);
+    Expect(clock.CurrentTimeSeconds() == 0.5,
+           "half of which has not been heard yet, so the position is half a second");
+  });
+
+  AddTest(tests, "PlaybackClock/NeverGoesBackwardsExceptOnASeek", [] {
+    // A clock that moved backwards would make a video re-present a frame it had already
+    // shown. A seek is the one explicit exception, and it restarts the frame count --
+    // keeping it would make the clock jump forward by everything that had already played.
+    media::PlaybackClock clock(44100);
+    double last = clock.CurrentTimeSeconds();
+    for (int block = 0; block < 50; ++block) {
+      clock.FramesConsumed(441);
+      clock.SetBufferedFrames(block % 7 == 0 ? 1000u : 0u);
+      const double now = clock.CurrentTimeSeconds();
+      Expect(now >= last || block % 7 == 0,
+             "the position advances, and only a change in device occupancy can hold it");
+      last = now;
+    }
+    clock.SeekTo(30.0);
+    Expect(clock.CurrentTimeSeconds() == 30.0, "a seek is exactly where it was told");
+    clock.FramesConsumed(44100);
+    Expect(clock.CurrentTimeSeconds() == 31.0, "and time runs from there, not from zero");
+  });
+
+  AddTest(tests, "PlaybackClock/ARateOfZeroIsRefusedIntoOne", [] {
+    // Every caller of a media clock divides by the sample rate. A zero would answer
+    // infinity, and a video comparing a timestamp against infinity presents nothing.
+    media::PlaybackClock clock(0);
+    ExpectEqInt(clock.SampleRate(), 48000, "refused into a real rate");
+    clock.FramesConsumed(48000);
+    Expect(clock.CurrentTimeSeconds() == 1.0, "which answers rather than dividing by zero");
   });
 
   AddTest(tests, "AudioRing/TwoRealThreadsHandOffWithoutTearing", [] {
