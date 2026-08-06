@@ -292,6 +292,10 @@ class Text : public Node {
   explicit Text(std::string data) : Node(Kind::Text), data_(std::move(data)) {}
 
   const std::string& Data() const { return data_; }
+  void SetData(std::string data) {
+    data_ = std::move(data);
+    NoteMutation();
+  }
   void Append(std::string_view more) {
     data_ += more;
     NoteMutation();
@@ -307,6 +311,10 @@ class Comment : public Node {
  public:
   explicit Comment(std::string data) : Node(Kind::Comment), data_(std::move(data)) {}
   const std::string& Data() const { return data_; }
+  void SetData(std::string data) {
+    data_ = std::move(data);
+    NoteMutation();
+  }
   std::string Serialize() const override;
 
  private:

@@ -518,4 +518,81 @@ js::Value DomBindings::AppendTextTo(dom::Node& parent, const std::string& text) 
   return WrapperFor(raw);
 }
 
+namespace {
+
+std::string CharacterDataOf(const dom::Node* node) {
+  if (node == nullptr) {
+    return {};
+  }
+  if (node->IsText()) {
+    return static_cast<const dom::Text*>(node)->Data();
+  }
+  if (node->GetKind() == dom::Node::Kind::Comment) {
+    return static_cast<const dom::Comment*>(node)->Data();
+  }
+  return {};
+}
+
+bool SetCharacterData(dom::Node* node, std::string data) {
+  if (node == nullptr) {
+    return false;
+  }
+  if (node->IsText()) {
+    static_cast<dom::Text*>(node)->SetData(std::move(data));
+    return true;
+  }
+  if (node->GetKind() == dom::Node::Kind::Comment) {
+    static_cast<dom::Comment*>(node)->SetData(std::move(data));
+    return true;
+  }
+  return false;
+}
+
+}  // namespace
+
+void DomBindings::InstallCharacterData(const js::Value& target) {
+  const auto accessor = [this, &target](const char* name, js::NativeFunction get,
+                                      js::NativeFunction set) {
+    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
+    const Value setter = interpreter_->NewNativeValue(name, std::move(set));
+    if (getter.IsObject() && setter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      setter.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->DefineAccessor(name, getter.object, setter.object);
+    }
+  };
+
+  // Polymer's text bindings set `textNode.data` after stamping. Without a
+  // setter the binding token stays literal in the tree -- which is why
+  // youtube.com painted `[[errorMessage]]` rather than the string.
+  accessor(
+      "data",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        return self == nullptr ? Value::Undefined() : Value::String(CharacterDataOf(self));
+      },
+      [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner == nullptr || self == nullptr) {
+          return Value::Undefined();
+        }
+        if (!SetCharacterData(self, js::ToString(Argument(call.arguments, 0)))) {
+          return call.Throw("TypeError", "data can only be set on a text or comment node");
+        }
+        return Value::Undefined();
+      });
+
+  accessor(
+      "length",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        return self == nullptr ? Value::Undefined()
+                               : Value::Number(static_cast<double>(CharacterDataOf(self).size()));
+      },
+      [](NativeCall& call) {
+        return call.Throw("TypeError", "length is read-only");
+      });
+}
+
 }  // namespace microbrowser::bindings

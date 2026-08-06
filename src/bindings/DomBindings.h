@@ -398,6 +398,8 @@ class DomBindings {
   // `initEvent` that gives it one.
   js::Value CreateLegacyEvent();
   void InstallMutationMethods(const js::Value& wrapper);
+  // `data`, `length` and the shared behaviour Text and Comment inherit.
+  void InstallCharacterData(const js::Value& target);
   // The interfaces, installed once each onto a prototype rather than once per
   // node onto every wrapper. See NodeInterfaces.cpp and ADR 0012.
   void InstallNodeInterface(const js::Value& target);

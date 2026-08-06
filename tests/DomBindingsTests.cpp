@@ -320,6 +320,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.createComment('x') instanceof CharacterData", "true");
     ExpectScript(kPage, "document.createTextNode('x') instanceof Text", "true");
     ExpectScript(kPage, "document.createTextNode('x') instanceof Comment", "false");
+    // Polymer text bindings set `textNode.data` after stamping.
+    ExpectScript(kPage,
+                 "const t = document.createTextNode('[[label]]');"
+                 "t.data = 'bound'; t.data + '|' + t.length + '|' + t.nodeValue",
+                 "bound|5|bound");
+    ExpectScript(kPage,
+                 "const c = document.createComment('[[x]]'); c.data = 'ok'; c.nodeValue",
+                 "ok");
   });
 
   // Custom elements, natively. The mechanism worth knowing is that a derived

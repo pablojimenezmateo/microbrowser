@@ -301,6 +301,16 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
+  const auto rw_accessor = [this, &target](const char* name, js::NativeFunction get,
+                                         js::NativeFunction set) {
+    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
+    const Value setter = interpreter_->NewNativeValue(name, std::move(set));
+    if (getter.IsObject() && setter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      setter.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->DefineAccessor(name, getter.object, setter.object);
+    }
+  };
 
   // --- Every node ----------------------------------------------------------
 
@@ -394,6 +404,40 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
     }
     return Value::Number(0);
   });
+
+  // `nodeValue` on Node: the data of a text or comment node, null elsewhere.
+  // Polymer and legacy code paths still reach bindings through it.
+  rw_accessor(
+      "nodeValue",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr) {
+          return Value::Undefined();
+        }
+        if (self->IsText()) {
+          return Value::String(static_cast<dom::Text*>(self)->Data());
+        }
+        if (self->GetKind() == dom::Node::Kind::Comment) {
+          return Value::String(static_cast<dom::Comment*>(self)->Data());
+        }
+        return Value::Null();
+      },
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr) {
+          return Value::Undefined();
+        }
+        const std::string value = js::ToString(Argument(call.arguments, 0));
+        if (self->IsText()) {
+          static_cast<dom::Text*>(self)->SetData(value);
+          return Value::Undefined();
+        }
+        if (self->GetKind() == dom::Node::Kind::Comment) {
+          static_cast<dom::Comment*>(self)->SetData(value);
+          return Value::Undefined();
+        }
+        return Value::Undefined();
+      });
 
   // The root of this node's tree. Without it ShadyDOM decides native shadow
   // DOM is incomplete (`attachShadow && getRootNode`) and takes over -- and

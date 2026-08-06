@@ -404,6 +404,29 @@ hang with flat memory shows `layout.passes` climbing while `layout.pass_boxes`
 stays high and `layout.block_passes` / `layout.boxes_created` diverge (TD-0001
 ratio on a pathological tree).
 
+**Update** (2026-08-07, session 53). The infinite hang is **not reproduced** on
+`dd76d5c`: kevlar finishes (~18s script), load completes in **~100–150s** wall
+(Debug), **78–81** display-list commands, **309** custom-element upgrades, **0**
+constructor throws. Layout is still expensive but bounded:
+
+| counter | value |
+|---|---|
+| `layout.passes` | **114** |
+| `layout.pass_boxes` / `layout.passes` | ~32k boxes per pass |
+| `layout.forced_by_script` | 17 |
+| `engine.paints_produced` | 94 |
+
+Each late layout pass costs **~0.9–1.5s** (fonts arriving one-by-one still
+invalidate the box tree; batching within one `Advance` turn is landed but fonts
+spread across ~60s of wall clock). **The white page is no longer a layout hang**
+— it is Polymer: `ytd-browse.__data` carries a `feedNudgeRenderer` ("Your
+YouTube history is off") but **no feed elements are stamped** (`0`
+`ytd-rich-item-renderer`, no `feed-nudge` in the tree). The painted text is
+literal `[[errorMessage]]` / `[[label]]` — property effects never bound child
+templates. `CharacterData.data` / `nodeValue` setters landed (spec gap) but did
+not move this needle; next step is why templatize/dom-bind does not run after
+`__data` is set.
+
 ---
 
 ## TD-0014 — Plex's main bundle dies at source offset 370
@@ -465,8 +488,12 @@ wikimedia), or a **sandbox/network burst** has not been isolated — it was not 
 **End state.** Counters that pair `gfx.web_fonts_registered` with `gfx.font_load_failures` and
 `net.connections` at failure time, then either fix the exhaustion path or document a host limit.
 Rendering text in Roboto is necessary for a readable youtube.com but is not sufficient for thumbnails
-(Polymer binding attributes at `[[computedBadges]]` were fixed in session 56; **0 images** and partial
-stamp remain — see snapshot: 78 display-list commands, 2 `ytd-thumbnail`, 6 fonts, ~4 min wall).
+(Polymer templatize — session 53: **6 fonts load ok**, **0 images**, browse `__data` has feed JSON
+but DOM never gets feed/nudge elements; see TD-0013 update).
+
+**Update** (2026-08-07). Session 53: Roboto and YouTube Sans subsets **complete** (timeline shows
+200s on gstatic); snapshot reports **6 fonts, all ok**. One unrelated script error:
+`google.com/js/th/…` uses `eval` (refused by design). Font load no longer blocks the white page.
 
 ---
 

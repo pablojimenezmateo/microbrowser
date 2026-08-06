@@ -303,6 +303,7 @@ void DomBindings::EnsureInterfaces() {
   // Text and Comment share a base, and it is not decoration: a polyfill that
   // patches `data` or `length` patches CharacterData once rather than both.
   const Value character_data = MakeInterface("CharacterData", node);
+  InstallCharacterData(character_data);
   const Value text_interface = MakeInterface("Text", character_data);
   MakeInterface("Comment", character_data);
   // Two interfaces nothing here will ever be an instance of, and they are not

@@ -196,6 +196,7 @@ bool Engine::Advance() {
   }
   std::vector<Loader::Completion> completions = loader_.TakeCompletions();
   bool moved = false;
+  bool font_changed = false;
   for (Loader::Completion& completion : completions) {
     if (late_images_.find(completion.id) != late_images_.end()) {
       moved = OnLateImage(std::move(completion)) || moved;
@@ -210,7 +211,7 @@ bool Engine::Advance() {
     if (font_fetches_.find(completion.id) != font_fetches_.end()) {
       if (OnFontFetch(std::move(completion))) {
         moved = true;
-        LayoutAndPaint();
+        font_changed = true;
       }
       continue;
     }
@@ -237,6 +238,9 @@ bool Engine::Advance() {
       // completion. Anything still in the batch belongs to a load that is gone.
       return true;
     }
+  }
+  if (font_changed) {
+    LayoutAndPaint();
   }
   moved = moved || !completions.empty();
   // The module graph, after the completions and before the load is carried
