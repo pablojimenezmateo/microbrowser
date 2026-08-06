@@ -492,8 +492,12 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     const std::string* value = static_cast<dom::Element*>(self)->GetAttribute(
         LowerCase(js::ToString(Argument(call.arguments, 0))));
     // Null rather than undefined for an absent attribute, which is what
-    // `el.getAttribute('x') === null` tests for.
-    return value == nullptr ? Value::Null() : Value::String(*value);
+    // `el.getAttribute('x') === null` tests for. Unresolved template binding
+    // tokens are absent too — they are not literal attribute data.
+    if (value == nullptr || IsUnresolvedTemplateBindingValue(*value)) {
+      return Value::Null();
+    }
+    return Value::String(*value);
   });
   method("hasAttribute", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);

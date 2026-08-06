@@ -122,4 +122,39 @@ std::string NodeNameOf(const dom::Node& node);
 // trees. `cloneNode` and `importNode` must describe the same tree.
 std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep);
 
+// Polymer/Lit leave unresolved template bindings in attribute values when a
+// subtree is stamped or parsed before bindings run: `[[computedBadges]]`,
+// `[prop]`, `{{prop}}`. Polymer's `_deserializeValue` JSON.parses Array/Object
+// property types from `element.attributes`; feeding it a binding token warns
+// and leaves the property null, which blocks the badge subtree from stamping.
+inline bool IsUnresolvedTemplateBindingValue(std::string_view value) {
+  if (value.size() < 2) {
+    return false;
+  }
+  // `[[two-way]]` — Polymer 2 property binding.
+  if (value.size() >= 4 && value[0] == '[' && value[1] == '[' && value[value.size() - 2] == ']' &&
+      value[value.size() - 1] == ']') {
+    return true;
+  }
+  // `{{two-way}}` — Polymer 1 / mustache binding.
+  if (value.size() >= 4 && value[0] == '{' && value[1] == '{' && value[value.size() - 2] == '}' &&
+      value[value.size() - 1] == '}') {
+    return true;
+  }
+  // `[one-way]` — but not a JSON array literal like `[1,2]` or `["a"]`.
+  if (value[0] == '[' && value.back() == ']' && value.size() >= 3 && value[1] != '[') {
+    const std::string_view inner = value.substr(1, value.size() - 2);
+    if (!inner.empty() && inner.find_first_of(",\"'{[") == std::string_view::npos) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// What script reads for an attribute value. Binding tokens are absent rather
+// than literal, so property deserialization does not JSON.parse them.
+inline std::string ScriptAttributeValue(std::string_view stored) {
+  return IsUnresolvedTemplateBindingValue(stored) ? std::string() : std::string(stored);
+}
+
 }  // namespace microbrowser::bindings

@@ -39,6 +39,9 @@ std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep) {
       const auto& element = static_cast<const dom::Element&>(node);
       auto made = std::make_unique<dom::Element>(element.TagName());
       for (const dom::Attribute& attribute : element.Attributes()) {
+        if (IsUnresolvedTemplateBindingValue(attribute.value)) {
+          continue;
+        }
         made->SetAttribute(attribute.name, attribute.value);
       }
       copy = std::move(made);

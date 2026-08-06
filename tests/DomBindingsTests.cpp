@@ -459,6 +459,58 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "TypeError");
   });
 
+  AddTest(tests, "DomBindings/UnresolvedTemplateBindingAttributesAreAbsent", [] {
+    // Polymer stamps attributes like `[[computedBadges]]` and `[prop]`. They are
+    // binding syntax, not literal data — Polymer's `_deserializeValue` JSON.parses
+    // Array/Object types from `element.attributes`, and a literal token warns and
+    // leaves the property null, which blocked youtube's badge subtree from stamping.
+    ExpectScript(kPage,
+                 "const el = document.createElement('div');"
+                 "el.setAttribute('badges', '[[computedBadges]]');"
+                 "el.getAttribute('badges')",
+                 "null");
+    ExpectScript(kPage,
+                 "const el = document.createElement('div');"
+                 "el.setAttribute('prop', '[hostProp]');"
+                 "el.getAttribute('prop')",
+                 "null");
+    ExpectScript(kPage,
+                 "const el = document.createElement('div');"
+                 "el.setAttribute('items', '[1,2,3]');"
+                 "el.getAttribute('items')",
+                 "[1,2,3]");
+    ExpectScript(kPage,
+                 "const t = document.createElement('template');"
+                 "t.innerHTML = '<span badges=\"[[computedBadges]]\"></span>';"
+                 "const stamp = document.importNode(t.content, true);"
+                 "stamp.querySelector('span').getAttribute('badges')",
+                 "null");
+    // Polymer's constructor reads `this.attributes` and JSON.parses Array types.
+    ExpectScript("<html><body><bind-host badges='[[computedBadges]]'></bind-host></body></html>",
+                 "class Host extends HTMLElement {"
+                 "  constructor(){ super();"
+                 "    for (const attr of this.attributes) {"
+                 "      try { this.parsed = JSON.parse(attr.value); }"
+                 "      catch (e) { this.parsed = 'bad'; }"
+                 "    }"
+                 "  }"
+                 "}"
+                 "customElements.define('bind-host', Host);"
+                 "document.querySelector('bind-host').parsed",
+                 "undefined");
+    // Observed attributes present at upgrade get attributeChangedCallback with a
+    // null old value, which Polymer uses to apply bindings deferred from literals.
+    ExpectScript("<html><body><x-t v='1'></x-t></body></html>",
+                 "var log = [];"
+                 "class T extends HTMLElement {"
+                 "  static get observedAttributes(){ return ['v'] }"
+                 "  attributeChangedCallback(n, o, v){ log.push(n + ':' + o + '->' + v) }"
+                 "}"
+                 "customElements.define('x-t', T);"
+                 "log.join('|')",
+                 "v:null->1");
+  });
+
   // MutationObserver. The shape is the specification's and it is not the
   // obvious one: mutations accumulate and are delivered *once*, as a
   // microtask, after whatever ran finishes. A page that appends a thousand

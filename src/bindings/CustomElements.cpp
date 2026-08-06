@@ -95,6 +95,17 @@ void DomBindings::UpgradeElement(dom::Element& element) {
   }
   wrapper.object->Set(kUpgradedSlot, Value::Bool(true));
 
+  // Unresolved `[[prop]]` / `[prop]` / `{{prop}}` tokens in attributes are not
+  // data — they are template binding syntax. Polymer's constructor reads
+  // `this.attributes` and JSON.parses Array/Object types; a literal
+  // `[[computedBadges]]` warns and leaves the property null, which is what
+  // stopped youtube's badge subtree from stamping.
+  for (const dom::Attribute& attribute : element.Attributes()) {
+    if (IsUnresolvedTemplateBindingValue(attribute.value)) {
+      element.RemoveAttribute(attribute.name);
+    }
+  }
+
   // The class's prototype goes on *before* the constructor runs, and that
   // ordering is the whole of whether a component works.
   //
@@ -144,6 +155,24 @@ void DomBindings::UpgradeElement(dom::Element& element) {
     // EventDispatch.cpp lost whole scripts to the same omission.
     interpreter_->ReportUncaught(constructed.value, "custom element constructor");
     return;
+  }
+  // Observed attributes present before upgrade: the specification queues one
+  // attributeChangedCallback per attribute after construction, with a null old
+  // value. Polymer's property effects may depend on this to apply bindings that
+  // were not deserialized from literal attribute text.
+  if (definition->object != nullptr) {
+    const Value* observed = definition->object->GetOwn("observed");
+    if (observed != nullptr && observed->IsObject()) {
+      for (const dom::Attribute& attribute : element.Attributes()) {
+        bool watched = false;
+        for (std::size_t i = 0; i < observed->object->ElementCount(); ++i) {
+          watched = watched || js::ToString(observed->object->GetElement(i)) == attribute.name;
+        }
+        if (watched) {
+          RunAttributeReaction(element, attribute.name, Value::Null(), Value::String(attribute.value));
+        }
+      }
+    }
   }
   // Already in the document at upgrade time means connected now.
   for (const dom::Node* at = &element; at != nullptr; at = at->Parent()) {

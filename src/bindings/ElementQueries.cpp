@@ -345,8 +345,9 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
                               const dom::Attribute& attribute) {
       const Value entry = interpreter.NewObjectValue();
       if (entry.IsObject()) {
+        const std::string value = ScriptAttributeValue(attribute.value);
         entry.object->Set("name", Value::String(attribute.name));
-        entry.object->Set("value", Value::String(attribute.value));
+        entry.object->Set("value", Value::String(value));
         // Attr's historical aliases. Cheap, and stops a page that probes
         // `nodeName` after getNamedItem from seeing undefined.
         entry.object->Set("nodeName", Value::String(attribute.name));
