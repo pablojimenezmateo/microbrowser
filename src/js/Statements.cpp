@@ -299,8 +299,24 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       return Result::Normal(result);
     }
 
-    case NodeKind::FunctionExpression:
-      return Result::Normal(NewFunction(node, scope, false));
+    case NodeKind::FunctionExpression: {
+      if ((static_cast<std::uint8_t>(node.number) & kFunctionNamedExpression) == 0) {
+        return Result::Normal(NewFunction(node, scope, false));
+      }
+      // A named function expression sees its own name and nothing else does.
+      // One scope between the function and where it was written, holding one
+      // immutable binding -- the same shape the machine emits in
+      // Compiler::FunctionValue, and written here too because a page's code
+      // must not depend on which engine took it.
+      Environment* self_scope = heap_.AllocateEnvironment(&scope);
+      if (self_scope == nullptr) {
+        return Throw("RangeError", "out of memory");
+      }
+      const ScopeGuard guard(*this, self_scope);
+      const Value function = NewFunction(node, *self_scope, false);
+      self_scope->Declare(node.string, function, true, /*silent_const=*/true);
+      return Result::Normal(function);
+    }
 
     case NodeKind::ArrowFunction: {
       Value function = NewFunction(node, scope, true);

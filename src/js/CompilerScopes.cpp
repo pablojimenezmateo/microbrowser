@@ -226,12 +226,13 @@ void Compiler::EmitStore(std::string_view name) {
   Emit(Op::StoreName, Name(name), 0);
 }
 
-void Compiler::EmitDeclare(std::string_view name, bool is_const) {
+void Compiler::EmitDeclare(std::string_view name, bool is_const, bool silent_const) {
   if (!scopes_.empty()) {
     const CompiledScope& scope = scopes_.back();
     const auto found = scope.slots.find(std::string(name));
     if (found != scope.slots.end()) {
-      function_.declarations.push_back(SlotDeclaration{found->second, Name(name), is_const});
+      function_.declarations.push_back(
+          SlotDeclaration{found->second, Name(name), is_const, silent_const});
       Emit(Op::DeclareSlot,
            static_cast<std::uint32_t>(function_.declarations.size() - 1), -1);
       return;

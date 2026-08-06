@@ -243,11 +243,42 @@ std::uint32_t Compiler::CompileNested(const Node& node, bool arrow) {
 }
 
 void Compiler::FunctionValue(const Node& node, bool arrow) {
+  // A named function expression can see its own name, and nothing else can.
+  //
+  // One scope holding one immutable binding, between the function and where it
+  // was written -- which is what makes `var f = function me(n){ return me(n-1)
+  // }` recurse after `f` is reassigned, and what makes the name invisible
+  // outside. It is a scope rather than a slot on the frame because the
+  // *closure* has to capture it: the function is the only thing that can see
+  // the binding, so the binding has to outlive the expression exactly as long
+  // as the function does.
+  //
+  // youtube.com is where this showed. `var kY$ = function HS(X){ ...
+  // hD.gamma = HS; return hD }(1)` is d3's interpolator, and without the
+  // binding the whole kevlar bundle died on `ReferenceError: HS is not
+  // defined` -- in a file where every other `HS` is a local, which is why it
+  // read as a scoping bug with no location. Both engines were missing it, so
+  // the tree-walker differential could not see it either.
+  const bool self_named =
+      !arrow && (static_cast<std::uint8_t>(node.number) & kFunctionNamedExpression) != 0;
+  if (self_named) {
+    OpenScope();
+    Reserve(node.string);
+    EnterScope();
+  }
   const std::uint32_t index = CompileNested(node, arrow);
   if (state_.failed) {
+    if (self_named) {
+      LeaveScope();
+    }
     return;
   }
   Emit(arrow ? Op::ClosureArrow : Op::Closure, index, 1);
+  if (self_named) {
+    Emit(Op::Dup, 0, 1);
+    EmitDeclare(node.string, true, true);
+    LeaveScope();
+  }
 }
 
 void Compiler::ClassMethods(const Node& node) {

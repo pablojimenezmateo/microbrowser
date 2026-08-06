@@ -141,6 +141,16 @@ enum FunctionFlags : std::uint8_t {
   kFunctionPlain = 0,
   kFunctionAsync = 1 << 0,
   kFunctionGenerator = 1 << 1,
+  // The name in `string` was *written* between `function` and the parameter
+  // list, rather than arrived at some other way.
+  //
+  // Three things put a name on a FunctionExpression and only one of them binds
+  // it inside the body: `function me(){}` can call itself, `var f =
+  // function(){}` is named `f` by named evaluation and does not bind it, and a
+  // method's function carries the method's name and does not bind it either
+  // (`{ foo(){ return foo } }` is a ReferenceError, which is the whole reason
+  // this is a bit and not `!string.empty()`).
+  kFunctionNamedExpression = 1 << 2,
 };
 
 // What a Member access is, in `number`.

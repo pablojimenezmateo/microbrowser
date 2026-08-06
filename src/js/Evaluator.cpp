@@ -46,14 +46,18 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
         scope.Declare(target.string, value, is_const);
         return Result::Normal(value);
       }
-      if (!scope.Assign(target.string, value)) {
-        if (scope.Lookup(target.string) != nullptr) {
+      switch (scope.Assign(target.string, value)) {
+        case Environment::AssignResult::Stored:
+        case Environment::AssignResult::Ignored:
+          break;
+        case Environment::AssignResult::Constant:
           return Throw("TypeError", "assignment to constant variable '" + target.string + "'");
-        }
-        // An assignment to an undeclared name creates a global. Sloppy mode,
-        // and the web depends on it. On the global *object*, so that
-        // `globalThis.x` and `x` name the same thing.
-        global_->Set(target.string, value);
+        case Environment::AssignResult::Unbound:
+          // An assignment to an undeclared name creates a global. Sloppy mode,
+          // and the web depends on it. On the global *object*, so that
+          // `globalThis.x` and `x` name the same thing.
+          global_->Set(target.string, value);
+          break;
       }
       return Result::Normal(value);
 

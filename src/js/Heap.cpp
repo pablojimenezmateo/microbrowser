@@ -458,32 +458,34 @@ Value* Environment::Lookup(std::string_view name) {
 
 bool Environment::HasOwn(std::string_view name) const { return index_.count(name) != 0; }
 
-bool Environment::Declare(std::string name, Value value, bool is_const) {
+bool Environment::Declare(std::string name, Value value, bool is_const, bool silent_const) {
   const auto found = index_.find(name);
   if (found != index_.end()) {
-    slots_[found->second] = Binding{std::move(value), is_const, true};
+    slots_[found->second] = Binding{std::move(value), is_const, true, silent_const};
     return true;
   }
-  slots_.push_back(Binding{std::move(value), is_const, true});
+  slots_.push_back(Binding{std::move(value), is_const, true, silent_const});
   index_.emplace(std::move(name), static_cast<std::uint32_t>(slots_.size() - 1));
   return true;
 }
 
-bool Environment::Assign(std::string_view name, const Value& value) {
+Environment::AssignResult Environment::Assign(std::string_view name, const Value& value) {
   Environment* current = this;
   while (current != nullptr) {
     const auto found = current->index_.find(name);
     if (found != current->index_.end()) {
       Binding& binding = current->slots_[found->second];
       if (binding.is_const) {
-        return false;
+        // A named function expression's own name is immutable and silent; a
+        // `const` is immutable and loud. See Binding::silent_const.
+        return binding.silent_const ? AssignResult::Ignored : AssignResult::Constant;
       }
       binding.value = value;
-      return true;
+      return AssignResult::Stored;
     }
     current = current->parent_;
   }
-  return false;
+  return AssignResult::Unbound;
 }
 
 void Environment::Reserve(std::uint32_t count) {
@@ -503,11 +505,12 @@ bool Environment::SlotIsConst(std::uint32_t index) const {
   return index < slots_.size() && slots_[index].is_const;
 }
 
-void Environment::DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const) {
+void Environment::DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const,
+                              bool silent_const) {
   if (index >= slots_.size()) {
     slots_.resize(index + 1);
   }
-  slots_[index] = Binding{std::move(value), is_const, true};
+  slots_[index] = Binding{std::move(value), is_const, true, silent_const};
   // Registered only now. A name lookup from outside compiled code must not find
   // a binding whose `let` has not run yet -- it has to keep walking out to
   // whatever `a` meant before this block, which is what it would have found.

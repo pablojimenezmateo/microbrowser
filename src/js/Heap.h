@@ -533,6 +533,19 @@ struct Binding {
   // own `let` is a ReferenceError, and reserving the slot up front must not
   // quietly turn that into undefined.
   bool live = false;
+  // Whether writing to this const is ignored rather than a TypeError.
+  //
+  // One binding in the language is immutable *and* silent: the name a named
+  // function expression sees itself by. The spec makes it with
+  // CreateImmutableBinding(name, false) -- the `false` is "not strict", and a
+  // set to a non-strict immutable binding is dropped. `const` uses the same
+  // record with the flag the other way, which is why this is a field here
+  // rather than a second kind of scope.
+  //
+  // It matters because the alternative is loud: old code that does
+  // `var f = function f(){ ...; f = null }` would take a TypeError and lose
+  // the rest of the script, which is the failure this whole area was fixed for.
+  bool silent_const = false;
 };
 
 // One scope.
@@ -564,9 +577,13 @@ class Environment {
   // ReferenceError rather than undefined -- the distinction the language draws
   // between "declared and unset" and "never declared".
   Value* Lookup(std::string_view name);
-  bool Declare(std::string name, Value value, bool is_const);
-  // False when the binding is const, which the caller turns into a TypeError.
-  bool Assign(std::string_view name, const Value& value);
+  bool Declare(std::string name, Value value, bool is_const, bool silent_const = false);
+  // What happened to a write, which is four answers rather than two: the caller
+  // has to tell "no such binding" from "const" to know whether to make a global
+  // or to throw, and `Ignored` is the third thing a write can do -- see
+  // Binding::silent_const.
+  enum class AssignResult : std::uint8_t { Stored, Ignored, Constant, Unbound };
+  AssignResult Assign(std::string_view name, const Value& value);
   bool HasOwn(std::string_view name) const;
 
   // --- The resolved path ---------------------------------------------------
@@ -591,7 +608,8 @@ class Environment {
   }
   // Fills a reserved slot and registers its name, so a name lookup from
   // outside compiled code finds it from this point on and not before.
-  void DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const);
+  void DeclareSlot(std::uint32_t index, std::string name, Value value, bool is_const,
+                   bool silent_const = false);
   // Copies every binding out of `other`, slots and names alike.
   //
   // One caller: the per-iteration environment a `for (let i = ...)` makes at

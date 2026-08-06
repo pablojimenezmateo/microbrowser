@@ -195,16 +195,20 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::StoreName: {
         const std::string& name = code.names[instruction.a];
         Environment* scope = CurrentScope();
-        if (!scope->Assign(name, vm_.stack.back())) {
-          if (scope->Lookup(name) != nullptr) {
+        switch (scope->Assign(name, vm_.stack.back())) {
+          case Environment::AssignResult::Stored:
+          case Environment::AssignResult::Ignored:
+            break;
+          case Environment::AssignResult::Constant:
             pending = Throw("TypeError", "assignment to constant variable '" + name + "'");
             threw = true;
             break;
-          }
-          // An assignment to an undeclared name creates a global. Sloppy mode,
-          // and the web depends on it. On the global *object*, so that
-          // `globalThis.x` and `x` name the same thing.
-          global_->Set(name, vm_.stack.back());
+          case Environment::AssignResult::Unbound:
+            // An assignment to an undeclared name creates a global. Sloppy mode,
+            // and the web depends on it. On the global *object*, so that
+            // `globalThis.x` and `x` name the same thing.
+            global_->Set(name, vm_.stack.back());
+            break;
         }
         break;
       }
@@ -253,6 +257,11 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           break;
         }
         if (binding->is_const) {
+          if (binding->silent_const) {
+            // A named function expression writing to its own name. Dropped
+            // rather than thrown -- see Binding::silent_const.
+            break;
+          }
           pending = Throw("TypeError", "assignment to constant variable '" +
                                            code.names[SlotName(instruction.a)] + "'");
           threw = true;
@@ -269,11 +278,13 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           // else's binding, and this is the only place that writes by index.
           const std::size_t at = frame->locals_base + declaration.slot;
           if (at < vm_.locals.size()) {
-            vm_.locals[at] = Binding{vm_.stack.back(), declaration.is_const, true};
+            vm_.locals[at] =
+                Binding{vm_.stack.back(), declaration.is_const, true, declaration.silent_const};
           }
         } else {
           CurrentScope()->DeclareSlot(declaration.slot, code.names[declaration.name],
-                                      vm_.stack.back(), declaration.is_const);
+                                      vm_.stack.back(), declaration.is_const,
+                                      declaration.silent_const);
         }
         vm_.stack.pop_back();
         break;

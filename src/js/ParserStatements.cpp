@@ -62,6 +62,10 @@ NodePtr ParserImpl::ParseFunction(bool declaration) {
   }
   if (current_.type == TokenType::Identifier) {
     node->string = std::string(current_.lexeme);
+    if (!declaration) {
+      node->number = static_cast<double>(static_cast<std::uint8_t>(node->number) |
+                                         kFunctionNamedExpression);
+    }
     Advance();
   } else if (declaration) {
     Error("a function declaration needs a name");
