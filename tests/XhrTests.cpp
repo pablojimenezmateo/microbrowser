@@ -94,6 +94,38 @@ std::string Json(std::string_view body) {
 }  // namespace
 
 void RegisterXhrTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Xhr/EveryConstructorPublishesThePrototypeItsInstancesUse", [] {
+    // **A class-wide assertion, not two instance ones.** `XMLHttpRequest` and
+    // `Worker` each built a prototype, installed it on every instance, and
+    // never put it on the constructor -- so `instanceof` was false and
+    // `X.prototype` was undefined, while everything else about them worked.
+    // youtube's bundle reads `XMLHttpRequest.prototype.fetch` to choose
+    // between two transports and took a TypeError on `undefined.fetch`.
+    //
+    // Listing the constructors rather than testing one is the point: the two
+    // that were wrong were the two that did not go through `MakeInterface`, so
+    // the next hand-rolled one will be wrong the same way and this is what
+    // says so.
+    Session session;
+    session.Run(
+        "const named = ['XMLHttpRequest', 'Worker', 'Range', 'MessagePort', 'Event',"
+        "               'Node', 'Element', 'HTMLElement', 'Document', 'EventTarget'];"
+        "const broken = named.filter(name => {"
+        "  const c = globalThis[name];"
+        "  return typeof c !== 'function' || typeof c.prototype !== 'object' ||"
+        "         c.prototype === null || c.prototype.constructor !== c;"
+        "});"
+        "console.log('broken: ' + broken.join(','));"
+        // And the property that omission actually costs, both ways round.
+        "console.log('xhr instanceof: ' + (new XMLHttpRequest() instanceof XMLHttpRequest));"
+        "console.log('patchable: ' + (function () {"
+        "  XMLHttpRequest.prototype.probe = 7; return new XMLHttpRequest().probe;"
+        "})());");
+    ExpectEqString(session.Console(),
+                   "broken: |xhr instanceof: true|patchable: 7",
+                   "every constructor's prototype is reachable from it");
+  });
+
   AddTest(tests, "Xhr/DeliversAResponseThroughReadyStateAndLoad", [] {
     Session session;
     session.Serve(Json("{\"a\":1}"));

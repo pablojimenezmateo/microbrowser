@@ -357,6 +357,14 @@ void DomBindings::InstallXhr() {
       });
   if (constructor.IsObject()) {
     constructor.object->Set(kOwnerSlot, PointerValue(this));
+    // **The prototype has to be reachable from the constructor**, not only
+    // installed on each instance. `XMLHttpRequest.prototype` is how a page
+    // patches every request it will ever make -- and how it feature-detects:
+    // youtube's bundle reads `XMLHttpRequest.prototype.fetch` to decide which
+    // of two transports to use, and took a TypeError on `undefined.fetch`.
+    // `instanceof` needs the same property.
+    constructor.object->Set("prototype", prototype);
+    prototype.object->Set("constructor", constructor);
     add_constants(constructor);
     interpreter_->Global()->Set("XMLHttpRequest", constructor);
     interpreter_->GlobalScope()->Declare("XMLHttpRequest", constructor, false);

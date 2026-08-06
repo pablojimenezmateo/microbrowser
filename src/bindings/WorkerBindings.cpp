@@ -152,6 +152,12 @@ void DomBindings::InstallWorker() {
       });
   if (constructor.IsObject()) {
     constructor.object->Set(kOwnerSlot, PointerValue(this));
+    // Reachable from the constructor as well as installed on each instance:
+    // `worker instanceof Worker` and `Worker.prototype.postMessage` are both
+    // things a page writes, and both read this property. See the note in
+    // XhrBindings.cpp, where the same omission cost youtube a transport.
+    constructor.object->Set("prototype", prototype);
+    prototype.object->Set("constructor", constructor);
     interpreter_->Global()->Set("Worker", constructor);
     interpreter_->GlobalScope()->Declare("Worker", constructor, false);
   }
