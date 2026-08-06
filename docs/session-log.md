@@ -3521,3 +3521,70 @@ most of the machinery -- is the better route, but `LayoutEngine` takes the `Imag
 input, so an image *arriving* changes the tree; every path that changes an input has to be audited
 for invalidation before it can be trusted, and getting it wrong renders a stale page, which is
 priority 1 rather than priority 4.
+
+---
+
+## 2026-08-06 — HTTP/2, and the discovery that the protocol was not the fix
+
+ADR 0010 §3 had been the last unfinished part of transport since the connection-reuse work landed.
+It is done: HPACK, framing, multiplexing, flow control, the stream lifecycle, ALPN, and the pool
+change underneath all of it (ADR 0032). Four things are worth writing down that a diff does not say.
+
+**The fix for TD-0008 was not HTTP/2. It was the coalescing, and I only found that out by
+measuring.** TD-0008 was `upload.wikimedia.org` answering 429 to a burst of six parallel HTTP/1.1
+connections, which is why `en.wikipedia.org/wiki/CSS` rendered between 4 and 17 of its 19 images at
+random. The obvious reading — "HTTP/2 multiplexes, so the burst goes away" — is wrong, and it is
+wrong for a reason that is only visible once the pool is in front of you: **ALPN settles the
+protocol during the handshake, which is after a socket is open.** Six concurrent images would have
+opened six sockets, each independently discovered that the server speaks `h2`, and the page would
+have finished with six sessions carrying one stream each. Same burst, same 429, new protocol. What
+fixes it is that the pool serialises the first connect to an origin whose protocol it does not know.
+
+Measured, Release build, five consecutive runs of the same page:
+
+| | images drawn (of 19) | `engine.images_failed` | connections | TLS handshakes |
+|---|---|---|---|---|
+| HTTP/1.1 | 4, 4, 7, 4, 10 | 15 | 13 | 13 |
+| HTTP/2 | 19, 19, 19, 19, 19 | 0 | 3 | 3 |
+
+The HTTP/1.1 row was taken **on the same machine the same afternoon**, by commenting out one line —
+the `SSL_CTX_set_alpn_protos` call — and rebuilding. That is worth remembering as a technique: a
+one-line switch that turns a whole feature off is a same-conditions baseline, and it is far better
+than a number from a different day in a different build.
+
+**A page can get slower by rendering correctly, and this one did.** Wikipedia's paint went from
+1.62–1.84s to 2.13–2.79s. `wait::Network` is unchanged (252ms against 240ms). The difference is that
+the browser now downloads 74KB more and decodes fifteen more images: the HTTP/1.1 run was quick
+because fifteen of its requests were refused in a few milliseconds each. Reporting the paint number
+without that sentence beside it would have been true and misleading.
+
+**The bug that got all the way to real servers was a dangling `string_view`, and the interesting
+part is why the suite did not see it.** `Http2Session::Request` held views; `FetchRequest` filled
+one with `request.authority = AuthorityFor(url)`, binding to a temporary that dies at the semicolon.
+Every request carried whatever the stack slot held next. news.ycombinator.com answered 400;
+example.com, google.com and wikipedia all reset the stream. Meanwhile 29 tests were green and ASan
+was clean, because the scripted test server recorded `:path` and nothing else — the one
+pseudo-header that was garbage was the one nothing read.
+
+Two lessons, and the second is the durable one. **A pseudo-header nobody asserts on is a
+pseudo-header nobody is sending correctly**; the test server records `:authority` now and the test
+checks it. And a struct whose fields are *built* by the caller should own its strings — a view field
+invites exactly the line that was written, and four small allocations against a network round trip
+buys the class of bug being impossible rather than merely absent.
+
+**Two tests earned their keep by being checked against their own absence.** The coalescing test
+(`Http2Fetch/SixConcurrentRequestsShareOneConnection`) passed at first *for the wrong reason*: the
+scripted transport completed its handshake instantly, so each request finished before the next one
+asked the pool for a connection, and six requests shared one session whether or not anything
+coalesced. It needed a **held handshake** — `Advance()` returning `Blocked` the way a real socket
+does for as many loop turns as the round trips take — before the question "how many sockets?" had an
+interesting answer. With that, commenting out the coalescing makes it report six. Do this: a
+concurrency test that passes either way is worse than no test, because it reads as coverage.
+
+**What is left here, and it is not more protocol.** `kMaxConnectionsPerPartition` is six, and the
+name is now wrong twice: it bounds *requests* rather than connections, and six was the number the
+web assumed because six was how many sockets a polite HTTP/1.1 client opened. old.reddit.com defers
+91 times for 53 fetches, over six sessions that would each have taken all of them. That is TD-0010.
+Raising it is not a one-line change — a hundred concurrent streams is a hundred response bodies
+accumulating, bounded individually at 64MB and not at all in aggregate — which is why it is written
+down with its measurement instead of done.

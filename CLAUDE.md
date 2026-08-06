@@ -66,7 +66,7 @@ What exists:
 | `src/url` | WHATWG URL parser, Origin, Site, PartitionKey, public-suffix list |
 | `src/privacy` | Blocking engine, HTTPS-only, referrer trimming, tracking-parameter removal, Verdict |
 | `src/csp` | **The page's own policy on what it may load and run**, at the seam `privacy` occupies and answering the other half of the same question (ADR 0020 §3-4). Content-Security-Policy: `default-src`, `script-src`, `style-src`, `img-src`, `connect-src`, `form-action`, `base-uri`; `'self'`, `'none'`, `'unsafe-inline'`, nonces, sha256/384/512 hash-sources, scheme- and host-sources with wildcard subdomain, port and path. Two policies are two policies and **both** must allow. Plus **Subresource Integrity**, because it is the same kind of thing. `allow: util url` and deliberately not `net`: a policy engine that could see the network stack would be one line from acting on its own decision. **Nothing is reported** — a violation report is an outbound request the user did not cause — so `report-uri`/`report-to` are unknown directives and `Report-Only` has no entry point at all. `frame-src` is absent because there are no nested browsing contexts and a directive that decides nothing reads as enforcement. |
-| `src/net` | HTTP/1.1, cookies, cache, non-blocking sockets, TLS. **CORS (ADR 0020 §2): the check on the response, inside this module, with the response discarded rather than marked** — an opaque response is an empty one, a cross-origin `cors` response keeps only the headers the server exposed, and the preflight `OPTIONS` plus its grant cache are keyed by the partition key. `Fetch` takes a `privacy::Verdict` and has no overload without one, and **starts** a request rather than returning a response. `RequestQueue` runs them concurrently, bounded **per partition key**, and drops them all on a navigation. `Content-Encoding: gzip`/`deflate`, undone under a **double bound** — ceiling and expansion ratio, failing rather than truncating. **`ConnectionPool` keeps connections between requests, keyed by the partition key rather than by host**, with an idle timeout that goes through `next_deadline_ms`; `Fetch` takes the pool for the same reason it takes a Verdict. |
+| `src/net` | HTTP/1.1 **and HTTP/2**, cookies, cache, non-blocking sockets, TLS. **CORS (ADR 0020 §2): the check on the response, inside this module, with the response discarded rather than marked** — an opaque response is an empty one, a cross-origin `cors` response keeps only the headers the server exposed, and the preflight `OPTIONS` plus its grant cache are keyed by the partition key. `Fetch` takes a `privacy::Verdict` and has no overload without one, and **starts** a request rather than returning a response. `RequestQueue` runs them concurrently, bounded **per partition key**, and drops them all on a navigation. `Content-Encoding: gzip`/`deflate`, undone under a **double bound** — ceiling and expansion ratio, failing rather than truncating. **`ConnectionPool` keeps connections between requests, keyed by the partition key rather than by host**, with an idle timeout that goes through `next_deadline_ms`; `Fetch` takes the pool for the same reason it takes a Verdict. **HTTP/2 (ADR 0032)**: ALPN offers `h2`, `Http2Session` carries many requests on one socket, and the pool owns the sessions and hands out `shared_ptr`s -- so a connection is no longer something a request *owns*. The part that actually mattered is the **coalescing**: ALPN answers only after a socket is open, so without one-connect-at-a-time-per-unknown-origin six images would open six sockets and negotiate `h2` six times, which is the burst wearing a new protocol. No server push (a response to a request the user never made), no `PRIORITY` (there is nothing to schedule against), trailers decoded-then-discarded (HPACK is stateful; a skipped block desynchronises the connection forever). `FetchRequest::ChooseProtocol` is the **only** place the two protocols diverge. |
 | `src/media` | Containers only, never codecs (ADR 0013). Fragmented-MP4 demux: `ftyp`, the `moov` track hierarchy, `moof` sample tables, into tracks and **byte ranges rather than bytes**. Bounds-checked, sticky-failing reader; fuzzed. May name `util` and nothing else, so a demuxer that started decoding would not compile. |
 | `src/dom` | Node, Element, Text, Document, a `<template>`'s **contents** — allocated only for that tag, and deliberately not its children, so nothing that walks the document reaches them — a **mutation version** the five mutation primitives mark — what makes "is what I derived from this tree still describing it?" a question a box tree or an invalidation index can ask — and the **dynamic state bits** a selector matches on (`:hover`, `:active`, `:target`, `:checked`, `:disabled`, `:required`, `:placeholder-shown`), written only by the engine. Focus is **not** one of them: it is one element on one document, and `Element::SetState` refuses to write it. |
 | `src/html` | Spec-literal tokenizer and tree construction, including the table insertion modes and **the fragment parsing algorithm** (§13.2.6): `ParseFragment(markup, context)`, where the context element is the whole of it — `<td>x</td>` is a cell in a `tr` and bare text in a `div`, and it picks the tokenizer state too. A fragment parse's root is **unpoppable** (`stack_floor_`), because both inputs are a page's and the pair a page finds is the one whose end tags unbalance the stack. **`<template>`** is a real insertion mode now, and its contents are a `DocumentFragment` on the element rather than its children. Form-control predicates and form ownership. |
@@ -153,10 +153,11 @@ four separate bugs within minutes of existing, three of which are fixed:
   waited for was `s.gif`, a spacer. Images no longer hold the frame (they still hold `load`, and
   ones arriving after it are decoded in a *batch*), and a background image named by a stylesheet is
   now requested when the sheet lands rather than at the next paint -- worth 375ms on Hacker News.
-- **Not fixed, and not ours: `upload.wikimedia.org` answers 429 to a burst of six parallel
-  HTTP/1.1 connections**, which is why wikipedia renders between 4 and 17 of its images at random.
-  Reproduced with `curl` outside this browser and cleared of the `User-Agent`. See **TD-0008** --
-  it is the first *rendering correctness* cost measured for the missing HTTP/2.
+- **`upload.wikimedia.org` answers 429 to a burst of six parallel HTTP/1.1 connections**, which is
+  why wikipedia rendered between 4 and 17 of its images at random. Reproduced with `curl` outside
+  this browser and cleared of the `User-Agent`. **Fixed on 2026-08-06 by HTTP/2 (ADR 0032):
+  19 of 19 images, five runs out of five.** TD-0008 keeps the measurement, because it was the first
+  *rendering correctness* cost anybody measured for a missing transport.
 
 **Two benchmark files landed and are the durable half of this.** `bench/CodecBenchmarks.cpp` and
 `bench/CssBenchmarks.cpp` are the first benchmarks for anything outside `gfx` and `js`, and both
@@ -351,16 +352,29 @@ reasoning; this is the queue.
    appears when it is finished rather than as it arrives. The ADR is explicit that the last of
    those is enabled by this work rather than performed by it.
 
-4. **Transport — ADR 0010 §1–2 is done; §3, HTTP/2, is not.** `Accept-Encoding` says
+4. **Transport — ADR 0010 is done, all three sections.** `Accept-Encoding` says
    `gzip, deflate` and `Connection: close` is gone. On old.reddit.com that is **697KB on the wire
    where 2.35MB would have been** (3.37x) and **20 connections and 20 TLS handshakes for 40
    fetches**, from 40 and 40. Every decompression is bounded twice — an absolute ceiling and an
    expansion ratio against what arrived — and a gzip bomb is refused from its declared ISIZE
    before a byte is produced. The pool is keyed by the **ADR 0005 partition key**, which is the
    whole privacy content of it: two top-level sites loading the same CDN host get two connections.
-   What is left is ALPN and HTTP/2, which is mostly a *parser* problem — framing, multiplexing,
-   flow control, and HPACK, whose CVE history is state confusion between the two ends rather than
-   buffer overruns.
+
+   **§3 landed 2026-08-06 — ADR 0032.** ALPN, framing, multiplexing, flow control and HPACK.
+   Hacker News is now **1 connection and 1 TLS handshake for 6 fetches**; old.reddit.com is
+   **6 and 6 for 53**, from 20 and 20 for 40. The rendering win is wikipedia: 19 images of 19,
+   every run, against 4 to 10 with 15 failures on HTTP/1.1 (TD-0008, closed).
+
+   **Two things a next session should know before touching it.** First, the fix for TD-0008 was
+   *not* HTTP/2 — it was the coalescing, because ALPN answers after the socket is open and six
+   requests would otherwise have opened six sockets and negotiated `h2` on each. A protocol
+   upgrade that left the pool alone would have changed nothing. Second, **`kMaxConnectionsPerPartition`
+   is now the wrong number**: it bounds requests rather than connections, and six was the HTTP/1.1
+   figure. old.reddit defers 91 times for 53 fetches over sessions that would each have taken all
+   of them. That is **TD-0010** and it is the obvious next thing here.
+
+   What is left of transport after that is HTTP/3, which is QUIC, which is a dependency question
+   for ADR 0001 before it is a parser problem.
 
 5. **`transform`, and with it stacking contexts.** 1391 uses. `AffineTransform` and path
    transforms already exist in `src/gfx`; what is missing is the property, the computed value and
@@ -594,6 +608,7 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0029` — canvas, WebGL, permissions, and the fingerprinting surface
 - `docs/adr/0030` — incremental parsing, and showing a page before it is finished
 - `docs/adr/0031` — the codec decision: which decoders, from where, and in what process
+- `docs/adr/0032` — HTTP/2: sessions, connection coalescing, and what a *shared* connection changes
 - `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
 - `docs/roadmap-sessions.json` — the same sessions as state: what is done, what the check is
 - `docs/tech-debt.md` — shapes that are wrong by design, each with the measurement that says

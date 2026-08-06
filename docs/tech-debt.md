@@ -206,41 +206,40 @@ anything is attempted: "a script yields" is a change to the execution model, not
 
 ---
 
-## TD-0008 — No HTTP/2, so a burst of six connections gets rate-limited and the page loses images
+## TD-0008 — No HTTP/2, so a burst of six connections gets rate-limited — **fixed 2026-08-06**
 
-`en.wikipedia.org/wiki/CSS` renders **between 4 and 17 of its 19 images, at
-random, from run to run**. The cause is not in this browser's loop, its decoders
-or its layout: `upload.wikimedia.org` answers **HTTP 429** to a burst of six
-parallel HTTP/1.1 connections, and this browser opens six because
-`kMaxConnectionsPerPartition` is six and it has no other way to fetch six images
-at once.
+Kept rather than moved to Closed, because the *measurement* is the part worth
+keeping: this was the first **rendering correctness** cost anybody had measured
+for a missing transport, as opposed to a latency cost, and it is the argument
+ADR 0010 §3 did not have when it was written.
 
-**Measured**, with the load timeline added in `55f7b40`, five consecutive runs of
-the same page:
+`en.wikipedia.org/wiki/CSS` rendered **between 4 and 17 of its 19 images, at
+random, from run to run**. The cause was not in this browser's loop, its
+decoders or its layout: `upload.wikimedia.org` answers **HTTP 429** to a burst
+of six parallel HTTP/1.1 connections, and this browser opened six because
+`kMaxConnectionsPerPartition` is six and it had no other way to fetch six images
+at once. Reproduced outside the browser with `curl` and cleared of the
+`User-Agent`, which was the first suspicion.
 
-| run | images drawn | `engine.images_failed` |
-|---|---|---|
-| 1 | 14 | 2 |
-| 2 | **4** | 15 |
-| 3 | 14 | 5 |
-| 4 | **4** | 15 |
-| 5 | 14 | 5 |
+**Fixed by ADR 0032.** Five consecutive runs of the same page, Release build,
+same machine, the same afternoon:
 
-`net.fetches` is 24 every time: the requests are made, and the responses are
-429s. Reproduced outside this browser -- six parallel `curl --http1.1` requests
-to that host return `200 200 200 429 200 429` -- so it is the concurrency and
-not the `User-Agent`, which was the first suspicion and was tested and cleared.
+| | images drawn (of 19) | `engine.images_failed` | connections | TLS handshakes |
+|---|---|---|---|---|
+| HTTP/1.1 | 4, 4, 7, 4, 10 | 15 | 13 | 13 |
+| HTTP/2 | 19, 19, 19, 19, 19 | 0 | 3 | 3 |
 
-A real browser never sees this, because it speaks HTTP/2 to that host: one
-connection, multiplexed, no burst to rate-limit. This is the first *rendering
-correctness* cost anybody has measured for the missing transport, as opposed to
-a latency cost, and it is the argument ADR 0010 §3 did not have.
+**The fix is not HTTP/2, and that is the lesson.** ALPN settles the protocol
+during the handshake, which is *after* a socket is open — so six concurrent
+images would have opened six sockets, each discovered independently that the
+server speaks HTTP/2, and finished with six sessions carrying one stream each.
+The same burst, the same 429. What fixes it is the *coalescing*: at most one
+connect per origin while nobody yet knows what it speaks. A protocol upgrade
+that did not change the pool would have changed nothing here.
 
-**End state.** ALPN and HTTP/2 -- ADR 0010 §3, mostly a parser problem: framing,
-multiplexing, flow control and HPACK. Lowering the concurrency bound is the
-tempting cheap fix and is the wrong one: it slows every page that is not being
-rate-limited to work around one that is, and the number that would work is a
-guess about somebody else's edge.
+`Http2Fetch/SixConcurrentRequestsShareOneConnection` is the regression test, and
+it reports six sockets when the coalescing is commented out — checked, because a
+concurrency test that passes either way is worse than none.
 
 ---
 
@@ -265,6 +264,45 @@ window rather than a partial page.
 | en.wikipedia.org/wiki/CSS | 229ms | 744ms | **515ms** |
 
 **End state.** ADR 0030, which this now has numbers for.
+
+---
+
+## TD-0010 — Six concurrent requests per partition, on a connection built for a hundred
+
+`kMaxConnectionsPerPartition` is six, and the name is now wrong twice over: it
+bounds *requests*, not connections, and six was the number the web assumed for a
+decade of HTTP/1.1 because six was how many sockets a polite client opened. Over
+one multiplexed HTTP/2 connection the equivalent number is what the server's
+`SETTINGS_MAX_CONCURRENT_STREAMS` says, which is typically a hundred.
+
+So this browser now opens one connection where it used to open six, and then
+uses it six requests at a time.
+
+**Measured**, old.reddit.com, Release build:
+
+```
+net.fetches             53
+net.requests_started    53
+net.requests_deferred   91     <- turns on which something was held back by the bound
+net.h2_sessions          6
+net.h2_streams          55
+```
+
+Ninety-one deferrals for fifty-three requests, against six sessions that between
+them would have taken every one of the fifty-three at once.
+
+**End state.** The bound has to become two bounds, because it is answering two
+questions that used to have one answer: how many *sockets* may a partition open
+(still about six, and still per partition for the ADR 0005 reason — a global
+limit is a cross-site interaction the starved site can time), and how many
+*requests* may be in flight (the sum over that partition's sessions of what each
+peer permits, and six for anything still on HTTP/1.1).
+
+The reason it is written down rather than fixed is that raising it is only safe
+once a request's memory cost is bounded — a hundred concurrent streams is a
+hundred response bodies accumulating, each bounded individually by
+`HttpLimits::max_body` at 64MB and not at all in aggregate. That is a second
+decision and it wants its own measurement.
 
 ---
 
