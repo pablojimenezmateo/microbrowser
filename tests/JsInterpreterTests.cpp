@@ -1958,6 +1958,21 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
            "and left the rest of the work queued rather than dropping it");
   });
 
+  AddTest(tests, "JsInterpreter/AThenHandlerThatAllocatesStillSettlesItsDerivedPromise", [] {
+    // The drain pops a job before running it. CallCompiled does not raise
+    // call_depth_, so a safepoint inside the handler can collect anything that
+    // is only a C++ local -- and `derived` never lands on the VM stack. Without
+    // ValueRoot on the popped job this segfaults; youtube.com did, from rAF.
+    ExpectEqString(
+        Log("Promise.resolve(1).then(v => {"
+            "  const a = [];"
+            "  for (let i = 0; i < 8000; i++) a.push({i});"
+            "  return v + 1;"
+            "}).then(v => console.log(v))")
+            .at(0),
+        "2", "the derived promise survives a collection inside its own handler");
+  });
+
   // --- Array.prototype -------------------------------------------------------
 
   AddTest(tests, "JsInterpreter/ArraysSearchAndTest", [] {

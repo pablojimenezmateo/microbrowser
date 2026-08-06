@@ -289,10 +289,23 @@ void Interpreter::DrainMicrotasks() {
     const Microtask task = microtasks_.front();
     microtasks_.erase(microtasks_.begin());
 
+    // Rooted across the job. CallCompiled deliberately does not raise
+    // call_depth_ (the machine's stacks are data and GatherVmRoots sees them),
+    // so a safepoint inside a then-handler can collect anything that is only a
+    // C++ local. The job was rooted while queued; once popped it is not -- and
+    // `derived` is never pushed onto the VM stack, so without this a handler
+    // that allocated past the threshold freed the promise ResolvePromise then
+    // wrote. youtube.com hit it from requestAnimationFrame → DrainMicrotasks.
+    // See ValueRoot.
+    const ValueRoot root_callee(*this, task.callee);
+    const ValueRoot root_argument(*this, task.argument);
+    const ValueRoot root_derived(*this, task.derived);
+
     if (task.suspension != 0) {
       // A call waiting on an `await`. Put back and run here rather than through
-      // a handler, so that nothing of this loop's is in a C++ local while the
-      // resumed body runs -- which is what lets a collection happen inside it.
+      // a handler. `argument` stays rooted above for the same reason a then
+      // handler's derived does: ResumeSuspended may collect before the value
+      // is on the machine's stacks.
       const Result resumed = ResumeSuspended(task.suspension, task.argument, task.rejected);
       if (resumed.IsAbrupt()) {
         console_.push_back("Uncaught (in async function) " + ToString(resumed.value));
@@ -315,6 +328,9 @@ void Interpreter::DrainMicrotasks() {
       // `p.then(f)` with a rejection, or `p.catch(f)` with a value: the
       // outcome passes through untouched to the derived promise. This is what
       // makes a rejection travel down a chain until something catches it.
+      // ResolvePromise may still run a thenable's `then` through CallCompiled,
+      // which is why `derived` stays rooted above rather than only for the
+      // handler path.
       if (task.rejected) {
         SettlePromise(*this, task.derived, State::Rejected, task.argument);
       } else {
@@ -323,6 +339,9 @@ void Interpreter::DrainMicrotasks() {
       continue;
     }
     const Result handled = CallFunction(task.callee, Value::Undefined(), {task.argument});
+    // Same hole as the job fields: the handler's completion is a C++ local
+    // while ResolvePromise may allocate (and collect) adopting a thenable.
+    const ValueRoot root_handled(*this, handled.value);
     if (handled.IsAbrupt()) {
       SettlePromise(*this, task.derived, State::Rejected, handled.value);
       continue;
