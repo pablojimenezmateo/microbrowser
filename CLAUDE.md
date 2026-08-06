@@ -149,13 +149,25 @@ So the app registered its elements and has its data, and then **built no compone
 a Polymer element attaches one when it renders its template, so it never rendered. Its box is
 1280x0, which is the consequence rather than the cause.
 
-That is the next question, and it is one question rather than three: **what stops Polymer's first
-render?** The candidates are a flush it schedules on something this browser does not deliver, the
-`webcomponents-all-noPatch` shim's own path into `attachShadow`, or a reaction that never fires.
-`-eval` can distinguish them -- ask what `ytd-app.__shady_native_*` looks like, whether
-`attachShadow` was ever called, what the element's own `_template` is. The display list is worth
-reading beside it: `-v` shows a 56px masthead, a 72px sidebar and a 1208px content column, all
-white on white with **no text command anywhere**, which is the same finding from the other side.
+A third probe narrowed it to one line. The primitives are all fine -- `attachShadow` returns a
+`ShadowRoot`, `template.content` parses, `Polymer` is a function, and the registered class has its
+`properties` and `observers` finalized -- but:
+
+    e = document.createElement("ytd-masthead")
+    e.constructor.name                  -> "p"     (so an upgrade ran and applied *a* prototype)
+    e instanceof customElements.get(n)  -> false   (but not *that* constructor's)
+
+Those two cannot both be true unless the prototype `UpgradeElement` applied is not
+`constructor.prototype` by the time `instanceof` looks. Polymer's `_finalizeClass` builds a class in
+stages, and `src/bindings/CustomElements.cpp:112` reads `constructor.prototype` exactly once, after
+construction. **Verify before changing anything** -- `-eval` can compare
+`customElements.get(n).prototype` against `Object.getPrototypeOf(document.createElement(n))`
+directly. An element that is not an instance of its own class is enough to stop every Polymer render
+that follows.
+
+The display list is worth reading beside it: `-v` shows a 56px masthead, a 72px sidebar and a 1208px
+content column, all white on white with **no text command anywhere**, which is the same finding from
+the other side.
 
 **Read `docs/roadmap-to-any-page.md` first.** It sequences ADRs 0015–0030 into sessions with a
 runnable check on each, and it supersedes the ordering of this list wherever the two disagree. The

@@ -3310,6 +3310,28 @@ elements where a rendered page has hundreds, and `ytd-app` with no shadow root -
 attaches one when it renders its template, so it never rendered. The zero height is the consequence.
 So the next session's question is one question and not three: what stops Polymer's first render.
 
+A third probe narrowed it once more, and this is the sharpest starting point:
+
+    typeof document.body.attachShadow               -> function
+    template.innerHTML = "<b>x</b>"; content count  -> 1
+    div.attachShadow({mode:"open"})                 -> ShadowRoot
+    own names on customElements.get("ytd-app")      -> is, properties, observers, __properties,
+                                                       __observedAttributes, _finalizeClass, ...
+    typeof Polymer                                  -> function
+    e = createElement("ytd-masthead");
+      e.constructor.name / e instanceof its class   -> "p" / **false**
+
+**The primitives are all fine** -- `attachShadow` works, a `ShadowRoot` comes back, `template.content`
+parses, and the registered class is a real Polymer class with its `properties` and `observers`
+finalized. What is wrong is narrower and stranger: an element created for a *defined* name gets a
+constructor called `p` -- so an upgrade did happen and did apply some class's prototype -- and is
+still not an `instanceof` the constructor `customElements.get` hands back. Those two cannot both be
+true unless the prototype applied is not `constructor.prototype` at the moment `instanceof` looks.
+Polymer's `_finalizeClass` builds the class in stages, so the suspect is *when* `UpgradeElement`
+reads `constructor.prototype` relative to that -- see CustomElements.cpp:112, which reads it once,
+after construction. Verify with `-eval` before changing anything: compare
+`customElements.get(n).prototype` against `Object.getPrototypeOf(document.createElement(n))`.
+
 The general lesson is the one both tools share. **Every session that ended in "it renders wrong and
 I do not know why" ended there because the browser could not be asked.** An error that says where,
 and a page that can be questioned, are not conveniences on top of the work -- between them they
