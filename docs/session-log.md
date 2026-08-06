@@ -2738,3 +2738,72 @@ nothing to attach to: a page's caret is end-of-value only, which `src/engine/Pag
 said at the top since the editing code was written. There is no caret *position*, so there is no
 direction boundary to put two of them at. Recorded in the ledger against the caret model, which is
 not on this roadmap at all.
+
+## Session 28 — MSE, and five bugs in the one place a wrong answer is invisible
+
+`92ad317`, `1fcd802`, `37aa536`. `MediaSource`, `SourceBuffer`, `TimeRanges`, the object URL
+registry, and the coded frame processing algorithm underneath them.
+
+**The through-line: MSE is the API where a wrong answer looks like nothing at all.** A player reads
+`buffered` every few hundred milliseconds and decides from it what to fetch next. A range set that
+claims what it does not have makes the player skip a fetch and stall forever; one that omits what it
+does have makes it re-fetch the same bytes forever. Neither is a crash, neither throws, and both
+present as "the video does not play". Five bugs landed in that shape and each was found by a different
+instrument.
+
+**A floating-point test found that seven frames of 40 ticks do not add up to 280 ticks.** Dividing
+`decode_time` and `duration` separately and adding is the obvious way to write it, and it lands a few
+ulps off — so the eighth frame did not abut the seventh and `buffered` reported a **gap of 2e-17
+seconds**, which a player would spend a request trying to fill. The division now happens once, on
+`(decode_time + duration)`, which is exact in integers; and a one-microsecond join tolerance covers
+what a `timestampOffset` added to both sides can still shift. Both halves are needed and the header
+says which does what. The tolerance is not a fudge factor — it is the unit the times are actually
+known to.
+
+**The fuzzer found unbounded memory reached through the *eviction* API.** `remove` of a
+sub-microsecond span split a range, so `for (i) sb.remove(i*1e-9, i*1e-9+1e-12)` fragments one range
+into one entry per call, with the page choosing both the count and the widths. It surfaced as an
+invariant violation — two ranges 1e-301 apart — in the first minute of 47 million runs. A coded frame
+is milliseconds long, so a span shorter than a microsecond contains no frame and removing it now
+removes nothing.
+
+**A page found that `<video>`'s `src` was not a reflected attribute.** `video.src = url` set a plain
+JavaScript property on the wrapper and the element never saw it, so nothing reached the attach and
+`sourceopen` never fired. The hook was correct; nothing was arriving at it.
+
+**And the one that cost the most: an exception in an event listener vanished completely.**
+`EventDispatch` discarded the result of the call, so a `ReferenceError` inside a `sourceopen` handler
+produced no console line, no script error, no anything — the only symptom was a page whose output
+stopped mid-way. I spent a long time looking at MSE for a bug that was in the event loop. The
+specification says such an exception is *reported* and dispatch continues with the next listener;
+continuing was right and staying quiet was not. **The lesson generalises past this session**: a
+diagnostic channel that silently drops one class of failure is worse than no channel, because its
+silence reads as "nothing went wrong there".
+
+**`URL` became a real constructor, and that is not scope creep.** `createObjectURL` has to hang off
+something, and a `URL` that answered `typeof 'function'` while throwing from `new URL(href)` is
+exactly the stub ADR 0012 forbids: a page that finds it has already taken the branch that assumes it
+works. The parse goes through one new virtual on `NetworkSource` to the single parser in `src/url`;
+only the *splitting* of the canonical result happens in the binding layer, reusing what `location`
+already does. A second URL parser there would be the "two parsers disagreeing about where the host
+ends" that `url/Url.h` names as the vulnerability.
+
+Decisions worth knowing before extending this. The quota is checked *before* the bytes are copied,
+because checking after means the allocation has already happened; it is per **source** rather than per
+buffer, or a page with audio and video holds twice the limit. `QuotaExceededError` is not an error to
+avoid — it is the signal a player is waiting for and how it is told to evict — so it is thrown with
+that name and the `error` event fires. A `remove` frees *bytes* and not only time, or the quota is
+unrecoverable and a player told to evict evicts, retries, and is refused forever. Frames outside the
+append window are dropped rather than clamped, because a player can fetch a missing frame and cannot
+detect a moved one. And an id resolves to **nothing** once the thing it named is gone:
+`MediaElements::Buffer` looks the source up first and checks the buffer is still on it, which is what
+turns "the page kept a SourceBuffer too long" into an `InvalidStateError` rather than a
+use-after-free.
+
+**The session's check had to be restated and the restatement is the honest part.** The ledger said
+"Plex direct-plays a video", which needs a decoder — session 27, blocked on four libraries that need
+installing. That is nothing to do with MSE, which is a *buffer* API: the bytes are held, described,
+and never looked inside. So the check is now what is actually verifiable end to end, and the gap is
+named. `tests/Mp4Fixtures.h` was extracted the moment a second test file needed the fMP4 builder,
+because a fixture copied twice is two fixtures that drift — and tests over a drifted fixture agree
+with each other and with nothing else.

@@ -321,8 +321,9 @@
       "adr": "0028 §5",
       "anchor": "### Session 28 — MSE",
       "scope": "MediaSource, SourceBuffer, appendBuffer with the real coded-frame-processing algorithm, buffered that tells the truth because adaptive bitrate reads it, endOfStream, a quota, and the object URL registry.",
-      "check": "Plex direct-plays a video from a user's own server.",
-      "status": "not_started"
+      "check": "A page that does `new MediaSource()`, `URL.createObjectURL`, `video.src = url`, `addSourceBuffer`, two `appendBuffer`s of a real fMP4 and a `remove` reports buffered [0.000,0.400) then [0.000,0.800) then [0.400,0.800), fires sourceopen and three updateends, and moves the element to readyState 3. **Not** \"Plex direct-plays a video\": that needs a decoder, which is session 27 and is blocked on four libraries that need installing -- so the original check could not be run for a reason that has nothing to do with MSE. Restated to what is verifiable, with the gap named rather than glossed.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 1fcd802, output in the commit message. THREE bugs the page found and no test would have: <video>'s `src` was not a reflected attribute, so `video.src = url` never reached the element; an exception in an event listener was DISCARDED, so a ReferenceError in a sourceopen handler produced no console line and no script error at all; and appending while `ended` was refused where the specification reopens the source. Two more found by the fuzzer and by a floating-point test: seven frames of 40 ticks do not add up to 280 ticks divided once (a 2e-17 gap in `buffered` is a gap a player spends a request on), and `remove` of a sub-microsecond span fragmented one range per call -- unbounded memory through the eviction API. `URL` became a real constructor because `createObjectURL` had to hang off something and a non-constructible `URL` is the stub ADR 0012 forbids; it resolves through one new virtual on NetworkSource to the one parser in src/url. Session 29's HLS playlist half already landed in session 26."
     },
     {
       "id": 29,
