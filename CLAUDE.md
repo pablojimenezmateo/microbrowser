@@ -613,6 +613,9 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0030` — incremental parsing, and showing a page before it is finished
 - `docs/adr/0031` — the codec decision: which decoders, from where, and in what process
 - `docs/adr/0032` — HTTP/2: sessions, connection coalescing, and what a *shared* connection changes
+- `docs/adr/0033` — privacy first, correct, and very fast: Ladybird's shape, LibreWolf's defaults, from scratch
+- `docs/adr/0034` — the JavaScript heap is a bounded, collectable resource
+- `docs/adr/0035` — request concurrency is not connection concurrency
 - `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
 - `docs/roadmap-sessions.json` — the same sessions as state: what is done, what the check is
 - `docs/tech-debt.md` — shapes that are wrong by design, each with the measurement that says

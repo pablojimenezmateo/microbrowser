@@ -379,7 +379,7 @@ the moment the feed fills in.
 target and a hard process ceiling), with `js.heap_live_peak` read against it in
 the same way `js.compiled_instructions` is read against the instruction ratio.
 A page that sits at 90% of the limit should be visible in the counter dump
-before it throws.
+before it throws. Design home: **ADR 0034**.
 
 ---
 
