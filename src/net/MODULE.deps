@@ -4,7 +4,7 @@ purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
 # have passed privacy first, which net enforces by taking a privacy::Verdict.
 allow: util url privacy
 
-public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h WebSocketFrames.h WebSocketConnection.h EventStream.h EventSourceConnection.h
+public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h WebSocketFrames.h WebSocketConnection.h EventStream.h EventSourceConnection.h ResolverCache.h
 
 # ADR 0001 sanctions OpenSSL for the TLS record layer only -- we own HTTP
 # entirely. Exactly one file names it, SocketTransport.cpp, and this line is
@@ -26,7 +26,19 @@ budget: ResponseParser header_lines=70 public_methods=16 members=10
 budget: Cookie         header_lines=50 public_methods=10 members=10
 budget: CookieJar      header_lines=50 public_methods=14 members=2
 budget: HttpCache      header_lines=45 public_methods=14 members=3
-budget: Transport      header_lines=45 public_methods=12 members=0
+# Raised to 50 by the partition key on `StartConnect`. The five lines are the
+# comment saying why a name lookup is keyed by partition and not by host, which
+# is the only thing standing between a resolver cache and a cross-site oracle.
+budget: Transport      header_lines=50 public_methods=12 members=0
+# Names already resolved, keyed by the ADR 0005 partition key. One member: the
+# entry list. The TTL and the bound are constants beside it rather than state,
+# because neither is a decision this class gets to make per instance.
+budget: ResolverCache  header_lines=30 public_methods=6 members=1
+# The real transport's factory. Two members: the options it was built with and
+# the resolver cache every transport it makes shares. The cache is owned here
+# rather than being a process-wide static so that it has a lifetime and a test
+# can ask for a cold one.
+budget: SocketTransportFactory header_lines=35 public_methods=6 members=2
 # One request, in flight. Sixteen members is a lot and every one of them is a
 # line of what used to be a stack frame: the verdict, the four collaborators,
 # the options that a redirect rewrites, the connection, the parser, the

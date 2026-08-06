@@ -30,7 +30,8 @@ EventSourceConnection::EventSourceConnection(std::unique_ptr<Transport> transpor
       host_(std::move(host)),
       port_(port),
       target_(std::move(target)) {
-  if (transport_ == nullptr || !transport_->StartConnect(host_, port_, true)) {
+  if (transport_ == nullptr ||
+      !transport_->StartConnect(verdict_.Partition().Serialize(), host_, port_, true)) {
     state_ = State::Closed;
     return;
   }
@@ -102,7 +103,8 @@ void EventSourceConnection::Restart(std::unique_ptr<Transport> transport, std::i
     return;
   }
   transport_ = std::move(transport);
-  if (transport_ == nullptr || !transport_->StartConnect(host_, port_, true)) {
+  if (transport_ == nullptr ||
+      !transport_->StartConnect(verdict_.Partition().Serialize(), host_, port_, true)) {
     state_ = State::Closed;
     return;
   }

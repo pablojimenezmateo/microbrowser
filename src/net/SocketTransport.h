@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "net/ResolverCache.h"
 #include "net/Transport.h"
 
 namespace microbrowser::net {
@@ -50,8 +51,15 @@ class SocketTransportFactory : public TransportFactory {
 
   std::unique_ptr<Transport> Create() override;
 
+  // The resolved names shared by every transport this factory makes. Owned here
+  // rather than being a process-wide static for the reason the connection pool
+  // is owned rather than global: a cache with no owner has no lifetime, and a
+  // test that wants a cold one has no way to ask for it.
+  ResolverCache& Resolver() { return resolver_; }
+
  private:
   Options options_;
+  ResolverCache resolver_;
 };
 
 // True when this build has TLS compiled in. A test asserts it, so a build that

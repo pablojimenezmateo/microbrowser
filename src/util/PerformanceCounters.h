@@ -101,8 +101,12 @@ namespace microbrowser::util {
   X(NetConnectFailures, "net.connect_failures")                                  \
   /* Blocking `getaddrinfo` calls. The one call in the network stack that      */ \
   /* stops the loop, so this counts stalls rather than work -- see the         */ \
-  /* `net::Resolve` scope beside it.                                           */ \
+  /* `net::Resolve` scope beside it. `hits` is the cache answering instead,    */ \
+  /* and the pair is deliberately on the *expensive* half: a hit counter       */ \
+  /* alone would read as health while every miss stalled the loop.             */ \
   X(NetHostResolves, "net.host_resolves")                                        \
+  X(NetResolverCacheHits, "net.resolver_cache_hits")                             \
+  X(NetResolverCacheMisses, "net.resolver_cache_misses")                         \
   X(NetTlsHandshakes, "net.tls_handshakes")                                      \
   X(NetTlsFailures, "net.tls_failures")                                          \
   X(NetRequestsStarted, "net.requests_started")                                  \

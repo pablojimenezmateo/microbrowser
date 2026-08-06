@@ -117,7 +117,9 @@ class OpenTransport : public net::Transport {
     }
   }
 
-  bool StartConnect(std::string_view, std::uint16_t, bool) override { return true; }
+  bool StartConnect(std::string_view, std::string_view, std::uint16_t, bool) override {
+    return true;
+  }
   net::IoStatus Advance() override { return net::IoStatus::Ready; }
 
   net::IoResult Send(std::span<const std::byte> data) override {

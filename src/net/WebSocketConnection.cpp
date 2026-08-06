@@ -68,7 +68,8 @@ WebSocketConnection::WebSocketConnection(std::unique_ptr<Transport> transport,
       target_(std::move(target)),
       secure_(secure),
       key_(std::move(key)) {
-  if (transport_ == nullptr || !transport_->StartConnect(host_, port_, secure_)) {
+  if (transport_ == nullptr ||
+      !transport_->StartConnect(verdict_.Partition().Serialize(), host_, port_, secure_)) {
     state_ = State::Closed;
     return;
   }

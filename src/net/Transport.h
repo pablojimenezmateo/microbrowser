@@ -62,7 +62,16 @@ class Transport {
   // the caller must not be able to reach the plaintext path by picking a
   // different type — the decision comes from the URL scheme, which came from
   // the privacy layer.
-  virtual bool StartConnect(std::string_view host, std::uint16_t port, bool secure) = 0;
+  //
+  // `partition` is the ADR 0005 partition key, and it is here for the same
+  // reason `ConnectionPool::Acquire` takes one: name resolution is *cached*,
+  // and a resolver cache keyed by host alone is directly observable from script
+  // — a name another site already resolved answers in microseconds where a cold
+  // one takes tens of milliseconds. Passing the key through the one call that
+  // resolves is what makes that partitioning structural rather than remembered.
+  // See `net/ResolverCache.h`.
+  virtual bool StartConnect(std::string_view partition, std::string_view host,
+                            std::uint16_t port, bool secure) = 0;
 
   // Drives connection setup and the TLS handshake forward. `Ready` means the
   // stream is open and may be written to.

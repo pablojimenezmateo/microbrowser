@@ -1043,7 +1043,7 @@ void RegisterFetchTests(std::vector<TestCase>& tests) {
     // connect is *started* and refused a moment later, so the failure shows up
     // in Advance rather than in StartConnect -- which is the whole shape of
     // ADR 0011 in three lines, and the reason this test is worth keeping.
-    const bool started = connection->StartConnect("127.0.0.1", 9, false);
+    const bool started = connection->StartConnect("", "127.0.0.1", 9, false);
     net::IoStatus status = started ? connection->Advance() : net::IoStatus::Failed;
     for (int turn = 0; turn < 1000 && status == net::IoStatus::Blocked; ++turn) {
       status = connection->Advance();

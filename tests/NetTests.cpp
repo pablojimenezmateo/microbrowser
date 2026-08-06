@@ -10,6 +10,7 @@
 #include "net/ContentEncoding.h"
 #include "net/CookieJar.h"
 #include "net/HttpMessage.h"
+#include "net/ResolverCache.h"
 #include "util/PerformanceCounters.h"
 #include "url/PartitionKey.h"
 #include "url/Url.h"
@@ -635,6 +636,66 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     limits.max_output = 2;
     Expect(net::DecodeContentEncoding(bounded, limits) != net::DecodeStatus::Decoded,
            "and a body over the ceiling fails rather than truncating");
+  });
+
+  // The resolver cache, and the one property that makes it safe to have at all.
+  //
+  // A name lookup is tens of milliseconds cold and microseconds warm, which is
+  // a difference any page can time. Keyed by host alone this would answer "has
+  // this browser been to that site?" for every site on the web -- the same
+  // cross-site inference the connection pool is partitioned to prevent. So the
+  // partition is asserted here rather than trusted: a key that quietly became
+  // empty would still make every page faster and every test pass.
+  AddTest(tests, "ResolverCache/IsKeyedByPartitionAndNotByHost", [] {
+    net::ResolverCache cache;
+    net::ResolvedAddress address;
+    address.family = 2;
+    address.address_length = 16;
+    cache.Store("https://a.example", "cdn.example", 443, {address}, 0);
+
+    Expect(cache.Lookup("https://a.example", "cdn.example", 443, 0) != nullptr,
+           "the site that resolved a name gets it back");
+    Expect(cache.Lookup("https://b.example", "cdn.example", 443, 0) == nullptr,
+           "and another site sharing that host does not");
+    Expect(cache.Lookup("https://a.example", "cdn.example", 80, 0) == nullptr,
+           "nor does the same site on another port");
+  });
+
+  AddTest(tests, "ResolverCache/ForgetsAnEntryPastItsTtl", [] {
+    net::ResolverCache cache;
+    net::ResolvedAddress address;
+    address.family = 2;
+    address.address_length = 16;
+    cache.Store("https://a.example", "cdn.example", 443, {address}, 1000);
+
+    Expect(cache.Lookup("https://a.example", "cdn.example", 443,
+                        1000 + net::kResolvedNameTtlMs - 1) != nullptr,
+           "an entry inside the TTL answers");
+    Expect(cache.Lookup("https://a.example", "cdn.example", 443,
+                        1000 + net::kResolvedNameTtlMs) == nullptr,
+           "and one at it does not -- a server that moved must be findable again");
+  });
+
+  AddTest(tests, "ResolverCache/IsBounded", [] {
+    net::ResolverCache cache;
+    net::ResolvedAddress address;
+    address.family = 2;
+    address.address_length = 16;
+    // A page names as many hosts as it likes, so the bound is the browser's.
+    for (std::size_t i = 0; i < net::kMaxResolvedNames * 3; ++i) {
+      cache.Store("https://a.example", "host" + std::to_string(i) + ".example", 443, {address},
+                  static_cast<std::int64_t>(i));
+    }
+    Expect(cache.Size() <= net::kMaxResolvedNames, "the cache does not grow with the page");
+  });
+
+  AddTest(tests, "ResolverCache/DoesNotCacheAFailure", [] {
+    net::ResolverCache cache;
+    // An empty answer is what a failed resolution produces, and storing it would
+    // turn a transient outage into a page that stays broken for a minute.
+    cache.Store("https://a.example", "cdn.example", 443, {}, 0);
+    Expect(cache.Lookup("https://a.example", "cdn.example", 443, 0) == nullptr,
+           "a failed resolution is not remembered");
   });
 }
 

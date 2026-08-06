@@ -46,6 +46,10 @@ class ScriptedTransport : public net::Transport {
   struct Log {
     std::vector<std::string> requests;
     std::vector<std::string> hosts;
+    // The ADR 0005 partition key the connection was opened under. Logged
+    // because it is what keys the resolver cache, and a key that silently
+    // became empty would make that cache global without failing anything.
+    std::vector<std::string> partitions;
     std::vector<bool> secure;
   };
 
@@ -54,7 +58,8 @@ class ScriptedTransport : public net::Transport {
   explicit ScriptedTransport(Factory& factory) : factory_(&factory) {}
   ~ScriptedTransport() override;
 
-  bool StartConnect(std::string_view host, std::uint16_t port, bool secure) override;
+  bool StartConnect(std::string_view partition, std::string_view host, std::uint16_t port,
+                    bool secure) override;
   net::IoStatus Advance() override;
   net::IoResult Send(std::span<const std::byte> data) override;
   net::IoResult Receive(std::span<std::byte> out) override;
@@ -85,6 +90,7 @@ class ScriptedTransport : public net::Transport {
   std::string request_;
   std::string pending_;
   std::string host_;
+  std::string partition_;
   std::size_t index_ = 0;
   std::uint16_t port_ = 0;
   bool secure_ = false;

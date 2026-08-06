@@ -291,7 +291,8 @@ bool FetchRequest::BeginExchange() {
   // `Stage::Connecting`, because an open transport answers `Ready` to
   // `Advance()` and a second state machine for the reused case would be a
   // second place for this to be wrong.
-  if (!reused_ && !connection_->StartConnect(url.HostSerialized(), port, secure)) {
+  if (!reused_ && !connection_->StartConnect(verdict_.Partition().Serialize(),
+                                             url.HostSerialized(), port, secure)) {
     Fail("connect failed");
     return false;
   }

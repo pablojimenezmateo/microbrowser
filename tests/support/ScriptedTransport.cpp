@@ -11,10 +11,12 @@ ScriptedTransport::~ScriptedTransport() {
   }
 }
 
-bool ScriptedTransport::StartConnect(std::string_view host, std::uint16_t port, bool secure) {
+bool ScriptedTransport::StartConnect(std::string_view partition, std::string_view host,
+                                     std::uint16_t port, bool secure) {
   if (factory_ == nullptr) {
     return false;
   }
+  partition_ = std::string(partition);
   host_ = std::string(host);
   port_ = port;
   secure_ = secure;
@@ -46,10 +48,12 @@ bool ScriptedTransport::ClaimNextExchange() {
   }
   if (factory_->log.hosts.size() <= index_) {
     factory_->log.hosts.resize(index_ + 1);
+    factory_->log.partitions.resize(index_ + 1);
     factory_->log.secure.resize(index_ + 1);
     factory_->log.requests.resize(index_ + 1);
   }
   factory_->log.hosts[index_] = host_;
+  factory_->log.partitions[index_] = partition_;
   factory_->log.secure[index_] = secure_;
   pending_ = exchange.response;
   request_.clear();

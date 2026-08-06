@@ -1,8 +1,10 @@
 #include "net/SocketTransport.h"
 
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -25,6 +27,14 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
+
+// A monotonic millisecond count, for the resolver cache's TTL. Steady rather
+// than wall-clock: a cache entry that expired because the system clock was
+// stepped backwards would be a stall nobody could reproduce.
+std::int64_t NowMonotonicMs() {
+  const auto since = std::chrono::steady_clock::now().time_since_epoch();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(since).count();
+}
 
 // One TLS context for the process, built once. Loading the system trust store
 // is expensive and its result does not vary; rebuilding it per connection would
@@ -60,54 +70,30 @@ SSL_CTX* SharedContext(const std::string& ca_bundle_path) {
 
 class SocketTransport : public Transport {
  public:
-  explicit SocketTransport(SocketTransportFactory::Options options)
-      : options_(std::move(options)) {}
+  SocketTransport(SocketTransportFactory::Options options, ResolverCache& resolver)
+      : options_(std::move(options)), resolver_(&resolver) {}
 
   ~SocketTransport() override { Close(); }
 
-  bool StartConnect(std::string_view host, std::uint16_t port, bool secure) override {
+  bool StartConnect(std::string_view partition, std::string_view host, std::uint16_t port,
+                    bool secure) override {
     Close();
     host_ = std::string(host);
     secure_ = secure;
-    const std::string port_text = std::to_string(port);
 
-    // The one call in this file that blocks, and the reason it is called out
-    // here rather than quietly left: `getaddrinfo` has no non-blocking form.
-    // Removing it needs either a thread (rejected in ADR 0011, and the reason
-    // is written there) or a resolver library, which is a third-party
-    // dependency and therefore an ADR of its own. It costs one blocking call
-    // per *host* rather than per resource, which is why it was not worth
-    // either of those to land this.
-    // Scoped, and labelled with the host, because this is a *main-thread stall*
-    // rather than CPU: it does not appear in any counter and a summary that did
-    // not name it attributed the time to whatever scope happened to enclose the
-    // connect. On a cold cache one of these is tens of milliseconds and a page
-    // with four hosts pays it four times, in series, before a byte moves.
-    addrinfo hints{};
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    addrinfo* results = nullptr;
-    int resolved = 0;
-    {
-      util::PerformanceTrace::ScopeLabel label("net::Resolve");
-      label.Field("host", host_);
-      util::PerformanceTrace::Scope scope(label.View());
-      resolved = ::getaddrinfo(host_.c_str(), port_text.c_str(), &hints, &results);
-    }
-    AddPerformanceCounter(PerfCounterId::NetHostResolves);
-    if (resolved != 0) {
+    const std::vector<ResolvedAddress>* addresses = Resolve(partition, host, port);
+    if (addresses == nullptr) {
       AddPerformanceCounter(PerfCounterId::NetConnectFailures);
       stage_ = Stage::Failed;
       return false;
     }
 
-    for (addrinfo* entry = results; entry != nullptr; entry = entry->ai_next) {
+    for (const ResolvedAddress& entry : *addresses) {
       // SOCK_CLOEXEC and SOCK_NONBLOCK on the creating call. A follow-up fcntl
       // leaves a window in which a fork inherits the descriptor, and the
       // architecture lint rejects that form outright.
-      const int fd = ::socket(entry->ai_family,
-                              entry->ai_socktype | SOCK_CLOEXEC | SOCK_NONBLOCK,
-                              entry->ai_protocol);
+      const int fd = ::socket(entry.family, entry.socket_type | SOCK_CLOEXEC | SOCK_NONBLOCK,
+                              entry.protocol);
       if (fd < 0) {
         continue;
       }
@@ -116,7 +102,8 @@ class SocketTransport : public Transport {
       // On a non-blocking socket a connect that has not finished is the normal
       // answer, not a failure: EINPROGRESS means "under way", which is exactly
       // what this method promises to return.
-      if (::connect(fd, entry->ai_addr, entry->ai_addrlen) == 0) {
+      const auto* at = reinterpret_cast<const sockaddr*>(&entry.address);
+      if (::connect(fd, at, entry.address_length) == 0) {
         fd_ = fd;
         stage_ = secure_ ? Stage::Handshaking : Stage::Open;
         break;
@@ -128,7 +115,6 @@ class SocketTransport : public Transport {
       }
       ::close(fd);
     }
-    ::freeaddrinfo(results);
 
     if (fd_ < 0) {
       AddPerformanceCounter(PerfCounterId::NetConnectFailures);
@@ -338,6 +324,68 @@ class SocketTransport : public Transport {
     return IoStatus::Failed;
   }
 
+  // The addresses for one name, from the cache when it has them and from
+  // `getaddrinfo` when it does not. Null means the name did not resolve.
+  //
+  // `getaddrinfo` is the one call in this file that blocks, and the reason it is
+  // called out here rather than quietly left: it has no non-blocking form.
+  // Removing it entirely needs either a thread (rejected in ADR 0011, and the
+  // reason is written there) or a resolver library, which is a third-party
+  // dependency and therefore an ADR of its own. What the cache changes is how
+  // often it is reached: measured at four to six times *per host* on a single
+  // page load, because a connection is opened per concurrent request and each
+  // one resolved from scratch.
+  //
+  // Scoped and labelled with the host, because a resolve is a *main-thread
+  // stall* rather than CPU: a summary that did not name it attributed the time
+  // to whatever scope happened to enclose the connect.
+  const std::vector<ResolvedAddress>* Resolve(std::string_view partition, std::string_view host,
+                                              std::uint16_t port) {
+    const std::int64_t now_ms = NowMonotonicMs();
+    if (const std::vector<ResolvedAddress>* cached =
+            resolver_->Lookup(partition, host, port, now_ms)) {
+      return cached;
+    }
+
+    util::PerformanceTrace::ScopeLabel label("net::Resolve");
+    label.Field("host", host);
+    util::PerformanceTrace::Scope scope(label.View());
+
+    addrinfo hints{};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* results = nullptr;
+    const std::string port_text = std::to_string(port);
+    const int failed = ::getaddrinfo(host_.c_str(), port_text.c_str(), &hints, &results);
+    AddPerformanceCounter(PerfCounterId::NetHostResolves);
+    if (failed != 0) {
+      return nullptr;
+    }
+    std::vector<ResolvedAddress> addresses;
+    for (const addrinfo* entry = results; entry != nullptr; entry = entry->ai_next) {
+      // Anything whose address does not fit a `sockaddr_storage` is not an
+      // address this can connect to anyway, and copying it would be the buffer
+      // overrun. `sockaddr_storage` is defined to be big enough for every family
+      // the system supports, so this is a guard rather than a filter.
+      if (entry->ai_addrlen > sizeof(sockaddr_storage)) {
+        continue;
+      }
+      ResolvedAddress address;
+      address.family = entry->ai_family;
+      address.socket_type = entry->ai_socktype;
+      address.protocol = entry->ai_protocol;
+      address.address_length = entry->ai_addrlen;
+      std::memcpy(&address.address, entry->ai_addr, entry->ai_addrlen);
+      addresses.push_back(address);
+    }
+    ::freeaddrinfo(results);
+    if (addresses.empty()) {
+      return nullptr;
+    }
+    resolver_->Store(partition, host, port, std::move(addresses), now_ms);
+    return resolver_->Lookup(partition, host, port, now_ms);
+  }
+
   bool StartTls() {
     SSL_CTX* context = SharedContext(options_.ca_bundle_path);
     if (context == nullptr) {
@@ -372,6 +420,8 @@ class SocketTransport : public Transport {
   }
 
   SocketTransportFactory::Options options_;
+  // Borrowed from the factory, which outlives every transport it made.
+  ResolverCache* resolver_;
   std::string host_;
   int fd_ = -1;
   SSL* ssl_ = nullptr;
@@ -384,7 +434,7 @@ class SocketTransport : public Transport {
 }  // namespace
 
 std::unique_ptr<Transport> SocketTransportFactory::Create() {
-  return std::make_unique<SocketTransport>(options_);
+  return std::make_unique<SocketTransport>(options_, resolver_);
 }
 
 bool TlsIsAvailable() {

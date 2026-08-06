@@ -297,6 +297,7 @@ microbrowser_module(net
     src/net/HttpCache.cpp
     src/net/HttpMessage.cpp
     src/net/RequestQueue.cpp
+    src/net/ResolverCache.cpp
     src/net/SocketTransport.cpp
     src/net/WebSocketConnection.cpp
     src/net/WebSocketFrames.cpp
