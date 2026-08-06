@@ -183,6 +183,40 @@ void DomBindings::EnsureInterfaces() {
   const Value event_target = MakeInterface("EventTarget", Value::Undefined());
   InstallEventMethods(event_target);
   const Value node = MakeInterface("Node", event_target);
+  // The nodeType constants live on the interface object. ShadyDOM's ShadowRoot
+  // does `Object.defineProperties(proto, { nodeType: { value:
+  // Node.DOCUMENT_FRAGMENT_NODE } })` at load time; without the constant that
+  // value is `undefined`, `getRootNode` takes the `if (this.nodeType)` path
+  // as false and returns undefined, and ShadyCSS's class scoper then throws
+  // `cannot read property 'host' of undefined` on every setAttribute("class").
+  // youtube.com's custom elements never finished stamping.
+  if (Value* node_ctor = interpreter_->GlobalScope()->Lookup("Node")) {
+    if (node_ctor->IsObject()) {
+      static constexpr const char* kNames[] = {
+          "ELEMENT_NODE",
+          "ATTRIBUTE_NODE",
+          "TEXT_NODE",
+          "CDATA_SECTION_NODE",
+          "ENTITY_REFERENCE_NODE",
+          "ENTITY_NODE",
+          "PROCESSING_INSTRUCTION_NODE",
+          "COMMENT_NODE",
+          "DOCUMENT_NODE",
+          "DOCUMENT_TYPE_NODE",
+          "DOCUMENT_FRAGMENT_NODE",
+          "NOTATION_NODE",
+      };
+      for (int i = 0; i < 12; ++i) {
+        const Value number = Value::Number(static_cast<double>(i + 1));
+        node_ctor->object->Set(kNames[i], number);
+        // Also on the prototype: a page that reads `Node.prototype.ELEMENT_NODE`
+        // or an instance's inherited constant gets the same answer browsers do.
+        if (node.IsObject()) {
+          node.object->Set(kNames[i], number);
+        }
+      }
+    }
+  }
   InstallNodeInterface(node);
   InstallNodeQueries(node);
   const Value element = MakeInterface("Element", node);

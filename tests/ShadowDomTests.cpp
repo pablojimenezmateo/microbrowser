@@ -110,6 +110,20 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
                    "bare ShadowRoot and window.ShadowRoot stay one namespace");
   });
 
+  AddTest(tests, "ShadowDom/NodeTypeConstantsAreOnTheNodeInterface", [] {
+    // ShadyDOM defines its ShadowRoot's nodeType as
+    // `Node.DOCUMENT_FRAGMENT_NODE`. Without the constant that property is
+    // undefined, getRootNode returns undefined, and ShadyCSS throws on class.
+    ExpectEqString(Run("",
+                       "console.log(Node.ELEMENT_NODE + ' ' +"
+                       " Node.TEXT_NODE + ' ' + Node.COMMENT_NODE + ' ' +"
+                       " Node.DOCUMENT_NODE + ' ' +"
+                       " Node.DOCUMENT_FRAGMENT_NODE + ' ' +"
+                       " Node.prototype.DOCUMENT_FRAGMENT_NODE);"),
+                   "1 3 8 9 11 11",
+                   "the twelve DOM nodeType constants, on the interface");
+  });
+
   AddTest(tests, "ShadowDom/GetRootNodeFindsTheShadowRootAndOptionallyTheDocument", [] {
     // The presence of this method is load-bearing for youtube.com: ShadyDOM
     // enables itself when `getRootNode` is missing, and then fights the
