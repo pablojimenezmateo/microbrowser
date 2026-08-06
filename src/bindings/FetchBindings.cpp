@@ -67,6 +67,35 @@ void DomBindings::InstallAbortController() {
     signal_prototype.object->DefineAccessor("reason", reason.object, nullptr);
   }
 
+  // `AbortSignal` itself, as a name. A page cannot construct one -- that is a
+  // TypeError in a browser too, because the only way to get a signal is off a
+  // controller -- but the *name* has to resolve, for two reasons a measured page
+  // gives: `signal instanceof AbortSignal`, and the shape youtube's bundle uses,
+  // which is to feature-detect `AbortController` and then reach for `AbortSignal`
+  // unqualified:
+  //
+  //     var $Y2 = typeof AbortController === "function";
+  //     var xh = $Y2 ? AbortSignal : <its own polyfill>;
+  //     typeof xh.timeout !== "function" && (xh.timeout = ...)
+  //
+  // So a browser with `AbortController` and no `AbortSignal` is a shape the web
+  // does not have: the detection passes and the next line throws a
+  // ReferenceError, which is worse than either having both or having neither.
+  // The statics it then fills in -- `abort`, `timeout`, `any`, and
+  // `throwIfAborted` on the prototype -- are deliberately not defined here:
+  // absent, a page polyfills them, and every one of them needs a decision (a
+  // timer, a composed signal) that ADR 0012 says not to fake.
+  const Value signal_constructor =
+      interpreter_->NewNativeValue("AbortSignal", [](NativeCall& call) {
+        return call.Throw("TypeError", "Illegal constructor: AbortSignal");
+      });
+  if (signal_constructor.IsObject()) {
+    signal_constructor.object->Set("prototype", signal_prototype);
+    signal_prototype.object->Set("constructor", signal_constructor);
+    interpreter_->Global()->Set("AbortSignal", signal_constructor);
+    interpreter_->GlobalScope()->Declare("AbortSignal", signal_constructor, false);
+  }
+
   const Value constructor =
       interpreter_->NewNativeValue("AbortController", [this, signal_prototype](NativeCall& call) {
         const Value controller = call.interpreter.NewObjectValue();

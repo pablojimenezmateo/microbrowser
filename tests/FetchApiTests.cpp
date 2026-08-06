@@ -268,6 +268,29 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
                    "the event fires after `aborted` is true, because a handler reads both");
   });
 
+  AddTest(tests, "Fetch/AbortSignalIsANameAPageCanReach", [] {
+    // The detection youtube's bundle makes is `typeof AbortController ===
+    // "function"`, and the very next line reads `AbortSignal` unqualified. A
+    // browser with the controller and not the signal is a shape the web does not
+    // have: the test passes and the next line throws a ReferenceError.
+    Session session;
+    session.Run(
+        "const c = new AbortController();"
+        "console.log(c.signal instanceof AbortSignal);"
+        "console.log(typeof AbortController === 'function' && typeof AbortSignal);"
+        // Constructing one is a TypeError, as it is in a browser -- the only way
+        // to get a signal is off a controller.
+        "try { new AbortSignal() } catch (e) { console.log(e.name) }"
+        // And the prototype is a real, writable object, because what a page does
+        // with it is fill in the statics this browser deliberately does not
+        // define: `abort`, `timeout`, `any`, `throwIfAborted`.
+        "AbortSignal.prototype.throwIfAborted = function () { return 'mine' };"
+        "console.log(c.signal.throwIfAborted());"
+        "console.log(typeof AbortSignal.timeout);");
+    ExpectEqString(session.Console(), "true|function|TypeError|mine|undefined",
+                   "Errors: " + session.Errors());
+  });
+
   AddTest(tests, "Fetch/PostSendsTheBodyAndTheHeaders", [] {
     Session session;
     session.Serve("page.example", OkResponse("text/plain", "ok"));
