@@ -17,15 +17,25 @@
 
 namespace microbrowser::net {
 
-// How many connections one partition may have open at once.
+// How many *sockets* one partition may open at once.
 //
 // **Per key rather than global, and that is the privacy content of this file.**
 // A global limit would let one site's requests starve another's, which is a
 // cross-site interaction of exactly the kind the ADR 0005 partition key exists
 // to prevent — and an observable one, because the starved site can time it.
-// Six is what the rest of the web assumed for a decade of HTTP/1.1, so servers
-// are built for it.
+// Six is what the rest of the web assumed for a decade of HTTP/1.1.
 inline constexpr std::size_t kMaxConnectionsPerPartition = 6;
+
+// How many *requests* one partition may have on the wire at once.
+//
+// Until HTTP/2 this was the same number as `kMaxConnectionsPerPartition`,
+// because one request owned one socket. A multiplexed session can carry many
+// streams, and keeping the bound at six meant youtube.com deferred hundreds of
+// subresources behind a connection that would have taken them all (TD-0010).
+// Sixty-four is below a typical SETTINGS_MAX_CONCURRENT_STREAMS (100) and well
+// inside what `HttpLimits::max_body` can afford in aggregate for the pages this
+// browser loads; raising it further wants a measured per-queue byte budget.
+inline constexpr std::size_t kMaxRequestsPerPartition = 64;
 
 // How long a request may make no progress at all before it is given up on.
 //

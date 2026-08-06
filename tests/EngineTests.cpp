@@ -2188,12 +2188,15 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Engine/ConcurrencyIsBoundedPerPartition", [] {
-    // Eight images from one site. Six may be in flight; the rest wait for a
-    // slot. Per key rather than globally -- see the note on
-    // net::kMaxConnectionsPerPartition, which is where the privacy content of
-    // this bound is written down.
+    // More images than the per-partition request bound. That many may be in
+    // flight; the rest wait for a slot. Per key rather than globally -- see
+    // net::kMaxRequestsPerPartition. (The socket bound is a separate number;
+    // HTTP/2 made them stop being the same thing -- TD-0010.)
+    constexpr int kExtra = 2;
+    constexpr int kTotal =
+        static_cast<int>(net::kMaxRequestsPerPartition) + kExtra;
     std::string html = "<html><body>";
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kTotal; ++i) {
       html += "<img src='/i" + std::to_string(i) + ".png'>";
     }
     html += "</body></html>";
@@ -2202,7 +2205,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ScriptedFactory factory;
     factory.delivery = ScriptedFactory::Delivery::Held;
     factory.script.push_back({"example.org", 443, true, OkResponse("text/html", html)});
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < kTotal; ++i) {
       factory.script.push_back({"example.org", 443, true, OkResponse("image/png", "notapng")});
     }
     session.engine.PageLoader().SetTransport(factory);
@@ -2215,7 +2218,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     RunEngineToIdle(session.engine);
 
     ExpectEqInt(static_cast<long long>(factory.Held()),
-                static_cast<long long>(net::kMaxConnectionsPerPartition),
+                static_cast<long long>(net::kMaxRequestsPerPartition),
                 "exactly the bound is open at once, and the rest are waiting for a slot");
 
     // Letting them go frees slots, and the ones that were waiting start.
@@ -2223,8 +2226,10 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     RunEngineToIdle(session.engine);
     factory.ReleaseAll();
     RunEngineToIdle(session.engine);
+    ExpectEqInt(static_cast<long long>(factory.Held()), 0, "every image has been attempted");
     Expect(!session.engine.IsLoading(), "and the load finishes");
-    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 9,
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()),
+                static_cast<long long>(kTotal) + 1,
                 "every image was eventually asked for");
   });
 

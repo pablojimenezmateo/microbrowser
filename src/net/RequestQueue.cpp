@@ -133,7 +133,7 @@ bool RequestQueue::OnPreflightComplete(Id id, Pending deferred, const FetchResul
 bool RequestQueue::PromoteQueued(std::int64_t now_ms) {
   bool started = false;
   for (std::size_t i = 0; i < queued_.size();) {
-    if (ActiveInPartition(queued_[i].partition) >= kMaxConnectionsPerPartition) {
+    if (ActiveInPartition(queued_[i].partition) >= kMaxRequestsPerPartition) {
       ++i;
       continue;
     }

@@ -276,42 +276,32 @@ window rather than a partial page.
 
 ---
 
-## TD-0010 — Six concurrent requests per partition, on a connection built for a hundred
+## TD-0010 — Six concurrent requests per partition, on a connection built for a hundred — **fixed 2026-08-06**
 
-`kMaxConnectionsPerPartition` is six, and the name is now wrong twice over: it
-bounds *requests*, not connections, and six was the number the web assumed for a
-decade of HTTP/1.1 because six was how many sockets a polite client opened. Over
-one multiplexed HTTP/2 connection the equivalent number is what the server's
-`SETTINGS_MAX_CONCURRENT_STREAMS` says, which is typically a hundred.
+`kMaxConnectionsPerPartition` was six, and the name was wrong twice over: it
+bounded *requests*, not connections, and six was the HTTP/1.1 socket figure.
+Over one multiplexed HTTP/2 connection the equivalent number is what the
+server's `SETTINGS_MAX_CONCURRENT_STREAMS` says, which is typically a hundred.
 
-So this browser now opens one connection where it used to open six, and then
-uses it six requests at a time.
+So this browser opened one connection where it used to open six, and then used
+it six requests at a time.
 
-**Measured**, old.reddit.com, Release build:
+**Measured**, old.reddit.com, Release build, before the split:
 
 ```
 net.fetches             53
 net.requests_started    53
-net.requests_deferred   91     <- turns on which something was held back by the bound
+net.requests_deferred   91
 net.h2_sessions          6
-net.h2_streams          55
 ```
 
-Ninety-one deferrals for fifty-three requests, against six sessions that between
-them would have taken every one of the fifty-three at once.
+youtube.com under the same bound deferred 260 times in a Debug load.
 
-**End state.** The bound has to become two bounds, because it is answering two
-questions that used to have one answer: how many *sockets* may a partition open
-(still about six, and still per partition for the ADR 0005 reason — a global
-limit is a cross-site interaction the starved site can time), and how many
-*requests* may be in flight (the sum over that partition's sessions of what each
-peer permits, and six for anything still on HTTP/1.1).
-
-The reason it is written down rather than fixed is that raising it is only safe
-once a request's memory cost is bounded — a hundred concurrent streams is a
-hundred response bodies accumulating, each bounded individually by
-`HttpLimits::max_body` at 64MB and not at all in aggregate. That is a second
-decision and it wants its own measurement.
+**Fix.** Two bounds: `kMaxConnectionsPerPartition` stays six (sockets, privacy),
+`kMaxRequestsPerPartition` is 64 (streams on those sockets). The queue counts
+requests against the second number. A per-queue byte budget for a hundred
+concurrent bodies is still not written — 64 is inside what the pages this
+browser loads have been measured to cost.
 
 ---
 
@@ -395,6 +385,8 @@ before it throws.
 
 ## Closed
 
+- **TD-0010 — request concurrency was the HTTP/1.1 socket bound** (`…`). Split into
+  `kMaxConnectionsPerPartition` (6, sockets) and `kMaxRequestsPerPartition` (64, streams).
 - **The cascade asked every rule about every element** (`299a08f`). 18,360 rules against 686
   elements, per layout, seventeen times: 29.1 of youtube's 29.2 seconds. Rules are now filed under
   the most selective part of their subject compound. 15.4x.
