@@ -2428,3 +2428,46 @@ four libraries is installed here.** `pkg-config` finds no dav1d, libvpx, libopus
 though apt has all four packaged. ADR 0001 makes adding a dependency a reviewable act, so installing
 them is not something to do silently — the ffmpeg *binary* that produced the WebM fixture is present,
 but that is a tool rather than a link-time dependency.
+
+### The sandbox, before the thing it confines · 2026-08-06 (session 27, second half)
+
+`cc214d4`. ADR 0004's seccomp mechanism with ADR 0031 §4's policy — landed *before* the decoder,
+because the policy is the security property and the codec library is a leaf, and because it needs
+none of the four dependencies that turned out not to be installable here.
+
+**The tests fork, and that is the only way to test a sandbox**: a successful test of a denial is a
+dead process, so every assertion is about a child's exit status. Four denials are watched directly —
+`openat`, `socket`, `fork`, and a second `seccomp` call, which is what makes the filter one-way —
+and so is the other direction, which is the half that is easy to get wrong: a confined process must
+still allocate a megabyte and write to a descriptor it already holds, because every library ADR 0031
+chose does both per frame. A sandbox nobody has watched refuse something is a sandbox nobody knows is
+applied.
+
+Three entries in the policy carry their own reasoning. **A violation kills rather than returning an
+error**, and that is chosen rather than inherited — a library that gracefully handles being denied
+`open` keeps trying, and a compromised one would probe the boundary. **The architecture is checked
+before the syscall number**, because a filter that skips it is one a 32-bit syscall walks straight
+through: a number that is `read` on x86-64 is something else on i386, which is the classic seccomp
+bypass. And **`mprotect` is allowed**, which is the uncomfortable one since it is how W^X is defeated
+— it is on the list because the allocator needs it, and narrowing it by argument is possible and not
+attempted, which is written down rather than glossed. `openat` gets its own note because it is the
+entry a naive list forgets: `open` is the name in the manual and `openat` is what glibc calls.
+
+**The finding: a sanitizer runtime cannot live inside this policy.** The first ASan run killed the
+confined child before the test body executed — ASan intercepts allocation and signals and reads
+`/proc/self/maps` to symbolise a report, so it calls `openat`, `rt_sigaction` and `sigaltstack`, none
+of which a media decoder has any business making. The forked tests skip under sanitizers rather than
+the policy being widened, and the distinction matters: widening it means putting `openat` back on a
+decoder's allowlist, which is the single entry this whole mechanism exists to remove. Every browser
+with a sandbox carries the same note — a sandbox and a sanitizer are alternative ways to inspect one
+process, not simultaneous ones. The ordinary build runs all six tests; ASan, UBSan and TSan are clean.
+
+The policy is a *parameter* rather than the implementation, because the renderer split needs the same
+mechanism with a different list, and a second seccomp filter written later would be a second chance to
+leave a hole in.
+
+**Where this session stops, and it is not a context limit.** The four libraries are not installed:
+`pkg-config` finds none of them, apt has all four, and `sudo` requires a password here. ADR 0001 makes
+adding a dependency a reviewable act, so this is a decision for the user rather than something to do
+quietly — and it is the largest dependency addition in the project's history. Everything that could be
+built without them has been.
