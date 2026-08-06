@@ -266,7 +266,7 @@ bool ParseFunction(std::string_view name, const std::vector<Token>& arguments,
 
 }  // namespace
 
-bool ApplyTransformDeclaration(const std::string& property, const std::string& value,
+bool ApplyTransformDeclaration(std::string_view property, std::string_view value,
                                const ComputedStyle& parent, ComputedStyle& style) {
   if (property == "transform") {
     const std::string lowered = AsciiLowerCase(value);

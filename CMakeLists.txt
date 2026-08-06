@@ -728,11 +728,13 @@ if(MICROBROWSER_PERF_HARNESS_BUILD)
     bench/BenchMain.cpp
     bench/BenchSupport.cpp
     bench/CodecBenchmarks.cpp
+    bench/CssBenchmarks.cpp
     bench/GfxBenchmarks.cpp
     bench/JsBenchmarks.cpp
     tests/support/SyntheticFont.cpp
     tests/support/SyntheticPng.cpp)
-  target_link_libraries(microbrowser_bench PRIVATE microbrowser_gfx microbrowser_js)
+  target_link_libraries(microbrowser_bench PRIVATE microbrowser_gfx microbrowser_js
+                                                microbrowser_css microbrowser_dom)
   target_include_directories(microbrowser_bench PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/bench" "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()

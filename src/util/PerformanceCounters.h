@@ -155,7 +155,7 @@ namespace microbrowser::util {
   /* only to be handed straight back unchanged.                                */ \
   X(CssCandidatesTested, "css.candidates_tested")                                \
   X(CssDeclarationsCascaded, "css.declarations_cascaded")                        \
-  X(CssDeclarationValuesCopied, "css.declaration_values_copied")                 \
+  X(CssVarSubstitutions, "css.var_substitutions")                                 \
   X(CssInlineStyleParses, "css.inline_style_parses")                             \
   /* --- dynamic state and invalidation (ADR 0016) --------------------------- */ \
   /* How many rules in the cascade depend on a state a pointer or a keystroke  */ \

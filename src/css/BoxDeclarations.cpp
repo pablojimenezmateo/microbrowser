@@ -72,7 +72,7 @@ std::optional<Alignment> ParseAlignment(std::string_view value) {
 
 }  // namespace
 
-bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
+bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
                          const ComputedStyle& parent, ComputedStyle& style) {
   if (property == "position") {
     if (value == "static") {

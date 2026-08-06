@@ -597,10 +597,10 @@ std::optional<Length> ParseLength(std::string_view text);
 // `transform` and `transform-origin`. Its own entry point for the reason it is its
 // own translation unit: eleven functions, per-function argument counts and units, and
 // an all-or-nothing error rule that no other property here has.
-bool ApplyTransformDeclaration(const std::string& property, const std::string& value,
+bool ApplyTransformDeclaration(std::string_view property, std::string_view value,
                                const ComputedStyle& parent, ComputedStyle& style);
 
-bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
+bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
                          const ComputedStyle& parent, ComputedStyle& style);
 
 // `transition-*` and `animation-*`. Their own entry points for the reason `transform`'s is: a

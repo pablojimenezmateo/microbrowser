@@ -255,6 +255,16 @@ std::string_view UserAgentStyleSheet();
 bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
                       ComputedStyle& style);
 
+// The same, without a `Declaration` to build first. This is the form the
+// cascade uses and the one the other is written in terms of: a declaration that
+// has been through `var()` substitution has a value that is *not* the one on
+// the rule, so applying it through the struct meant copying the property name
+// and the substituted value into a temporary, per declaration, per element. The
+// views must outlive the call, which they trivially do -- the rule owns one and
+// the substitution buffer owns the other.
+bool ApplyDeclaration(std::string_view property, std::string_view value,
+                      const ComputedStyle& parent, ComputedStyle& style);
+
 // Whether this engine supports `property: value` -- the question `@supports`
 // asks, answered by trying it.
 //

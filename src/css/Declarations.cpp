@@ -362,10 +362,14 @@ bool ApplyBorder(std::string_view value, ComputedStyle& style) {
 
 }  // namespace
 
-bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
-                      ComputedStyle& style) {
-  const std::string& property = declaration.property;
-  const std::string value = Lowered(declaration.value);
+bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
+                      const ComputedStyle& parent, ComputedStyle& style) {
+  // Lowered only when it has to be. A CSS value is nearly always already
+  // lower case, and this used to allocate and copy one per applied declaration
+  // -- 393,210 of them on en.wikipedia.org/wiki/CSS, for a string that in the
+  // overwhelming majority of cases came back identical.
+  std::string lowered;
+  const std::string_view value = LoweredIfNeeded(raw_value, lowered);
 
   if (property == "display") {
     if (value == "block") {
@@ -409,7 +413,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return true;
   }
   if (property == "color") {
-    const auto color = ParseColor(declaration.value);
+    const auto color = ParseColor(raw_value);
     if (!color.has_value()) {
       return false;
     }
@@ -417,7 +421,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return true;
   }
   if (property == "background-color") {
-    const auto color = ParseColor(declaration.value);
+    const auto color = ParseColor(raw_value);
     if (!color.has_value()) {
       return false;
     }
@@ -432,7 +436,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     style.background_color = gfx::Color::Transparent();
     style.background.image.clear();
     style.background.repeat = BackgroundRepeat::Repeat;
-    if (const auto color = ParseColor(declaration.value)) {
+    if (const auto color = ParseColor(raw_value)) {
       style.background_color = *color;
       return true;
     }
@@ -442,14 +446,14 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     // element with no background at all -- which is what it looks like here,
     // and is more honest than a flat colour nobody chose.
     bool understood = false;
-    for (const std::string_view layer : SplitTopLevel(declaration.value, ',')) {
+    for (const std::string_view layer : SplitTopLevel(raw_value, ',')) {
       if (std::string url = ParseUrlFunction(layer); !url.empty()) {
         style.background.image = std::move(url);
         understood = true;
         break;
       }
     }
-    for (const std::string_view word : SplitWords(declaration.value)) {
+    for (const std::string_view word : SplitWords(raw_value)) {
       if (const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(word)) {
         style.background.repeat = *repeat;
         understood = true;
@@ -466,19 +470,19 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
   }
   if (property == "background-image") {
     style.background.image.clear();
-    for (const std::string_view layer : SplitTopLevel(declaration.value, ',')) {
+    for (const std::string_view layer : SplitTopLevel(raw_value, ',')) {
       if (std::string url = ParseUrlFunction(layer); !url.empty()) {
         style.background.image = std::move(url);
         return true;
       }
     }
-    return Lowered(Trim(declaration.value)) == "none";
+    return Lowered(Trim(raw_value)) == "none";
   }
   if (property == "background-repeat") {
     // Two values are the per-axis form; one applies to both. Only the first is
     // read, because `repeat no-repeat` is spelled `repeat-x` far more often
     // and the pair adds a second way to say the same four things.
-    const std::vector<std::string_view> words = SplitWords(declaration.value);
+    const std::vector<std::string_view> words = SplitWords(raw_value);
     if (words.empty()) {
       return false;
     }
@@ -494,7 +498,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     // the image's aspect ratio, which the cascade does not have. A single
     // length applies to the width and leaves the height automatic, which is
     // what keeps an icon's proportions.
-    const std::vector<std::string_view> words = SplitWords(declaration.value);
+    const std::vector<std::string_view> words = SplitWords(raw_value);
     if (words.empty() || words.size() > 2) {
       return false;
     }
@@ -512,7 +516,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return true;
   }
   if (property == "background-position") {
-    const std::vector<std::string_view> words = SplitWords(declaration.value);
+    const std::vector<std::string_view> words = SplitWords(raw_value);
     if (words.empty() || words.size() > 2) {
       return false;
     }
@@ -542,7 +546,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.font_size = parent.font_size * 1.25f;
       return true;
     }
-    const auto length = ParseLength(declaration.value);
+    const auto length = ParseLength(raw_value);
     if (!length.has_value()) {
       return false;
     }
@@ -634,7 +638,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     // A value that parses to nothing (`font-family: ,`) leaves the inherited
     // list alone rather than clearing it, which is what an invalid declaration
     // is supposed to do.
-    std::vector<std::string> families = ParseFontFamilyList(declaration.value);
+    std::vector<std::string> families = ParseFontFamilyList(raw_value);
     if (families.empty()) {
       return false;
     }
@@ -646,7 +650,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.line_height = 0.0f;
       return true;
     }
-    if (const auto length = ParseLength(declaration.value)) {
+    if (const auto length = ParseLength(raw_value)) {
       const float resolved = length->unit == Length::Unit::Percent
                                  ? style.font_size * length->value / 100.0f + length->offset
                                  : length->Resolve(style.font_size, -1.0f);
@@ -736,13 +740,13 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return true;
   }
   if (property == "margin") {
-    return ApplyEdges(declaration.value, style.margin, true, true, true);
+    return ApplyEdges(raw_value, style.margin, true, true, true);
   }
   if (property == "padding") {
-    return ApplyEdges(declaration.value, style.padding, false, false, true);
+    return ApplyEdges(raw_value, style.padding, false, false, true);
   }
   if (property == "width" || property == "height") {
-    const auto length = ParseLength(declaration.value);
+    const auto length = ParseLength(raw_value);
     if (!length.has_value() || !EdgeLengthAllowed(*length, false, true, true)) {
       return false;
     }
@@ -750,7 +754,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return true;
   }
   if (property == "border-color") {
-    const auto color = ParseColor(declaration.value);
+    const auto color = ParseColor(raw_value);
     if (!color.has_value()) {
       return false;
     }
@@ -759,14 +763,14 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     return true;
   }
   if (property == "border-width") {
-    if (!ApplyEdges(declaration.value, style.border_width, false, false, false)) {
+    if (!ApplyEdges(raw_value, style.border_width, false, false, false)) {
       return false;
     }
     style.has_border = true;
     return true;
   }
   if (property == "border") {
-    return ApplyBorder(declaration.value, style);
+    return ApplyBorder(raw_value, style);
   }
 
   // Individual edge properties. Written as a loop rather than sixteen branches.
@@ -775,7 +779,7 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
     const std::string margin_name = "margin-" + std::string(kSides[i]);
     const std::string padding_name = "padding-" + std::string(kSides[i]);
     if (property == margin_name || property == padding_name) {
-      const auto length = ParseLength(declaration.value);
+      const auto length = ParseLength(raw_value);
       const bool is_margin = property == margin_name;
       if (!length.has_value() ||
           !EdgeLengthAllowed(*length, is_margin, is_margin, true)) {
@@ -791,6 +795,11 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
   return false;
 }
 
+bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
+                      ComputedStyle& style) {
+  return ApplyDeclaration(declaration.property, declaration.value, parent, style);
+}
+
 bool SupportsDeclaration(std::string_view property, std::string_view value) {
   const std::string name = Lowered(Trim(property));
   if (name.rfind("--", 0) == 0) {
@@ -800,7 +809,7 @@ bool SupportsDeclaration(std::string_view property, std::string_view value) {
   }
   const ComputedStyle initial;
   ComputedStyle scratch;
-  return ApplyDeclaration(Declaration{name, std::string(Trim(value)), false}, initial, scratch);
+  return ApplyDeclaration(name, Trim(value), initial, scratch);
 }
 
 }  // namespace microbrowser::css

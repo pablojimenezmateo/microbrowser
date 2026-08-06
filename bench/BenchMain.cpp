@@ -11,6 +11,7 @@ namespace microbrowser::bench {
 void RegisterGfxBenchmarks(std::vector<Benchmark>& benchmarks);
 void RegisterJsBenchmarks(std::vector<Benchmark>& benchmarks);
 void RegisterCodecBenchmarks(std::vector<Benchmark>& benchmarks);
+void RegisterCssBenchmarks(std::vector<Benchmark>& benchmarks);
 }  // namespace microbrowser::bench
 
 namespace {
@@ -24,6 +25,7 @@ std::vector<Benchmark> CollectBenchmarks() {
   microbrowser::bench::RegisterGfxBenchmarks(benchmarks);
   microbrowser::bench::RegisterJsBenchmarks(benchmarks);
   microbrowser::bench::RegisterCodecBenchmarks(benchmarks);
+  microbrowser::bench::RegisterCssBenchmarks(benchmarks);
   return benchmarks;
 }
 
