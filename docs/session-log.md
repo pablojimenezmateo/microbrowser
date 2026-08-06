@@ -3189,3 +3189,105 @@ first. All five came from running the real page and reading what it said, and th
 adding four lines of `fprintf` to `RegExp::Compile` to print the pattern it was refusing — which took
 two minutes and is the only way the entity table was ever going to be identified from
 "regular expression is too large".
+
+## Twelve steps into youtube.com, and the first one was a stack trace
+
+`5666416` .. `c363385`. Not a roadmap session: the named target again, run against the real page,
+twelve fixes. The kevlar bundle went from dying at source offset 1,904,386 to running past
+5,614,363 -- past the halfway point of 10.7MB -- and the entry is about the *method*, because eight
+of the twelve were not the feature being built.
+
+**The first change paid for the other eleven.** A compiled function now carries the source offset
+each instruction came from, sparse and sorted, and `CaptureStack` prints it: `at HS (@1814415)`
+rather than `at <anonymous>`. Offsets rather than line numbers, matching what the parser already
+reports its errors by, because the scripts this is read against are minified. Every error below was
+located by pasting that number into a `python3 -c` that prints the source around it. Four sessions
+of this repo's log say the same thing about `masked-errors-hide-the-real-one`; this is the tool that
+makes the masking stop mattering.
+
+**The first thing it located was the machine not running at all.** youtube's bundle was reporting
+`ReferenceError: HS is not defined` from a file in which every visible `HS` is a local. The counter
+said why: `js.compile_bailout_instructions`. 10.7MB of source over a flat `1<<20` instruction cap,
+so the whole bundle ran on the **tree-walker**, which is now only the differential engine. The cap
+was the wrong shape for exactly the reason `RegExp.cpp` learned last session: **what is being
+refused is blowup, and blowup is a ratio.** A floor of `1<<20`, one instruction per two source
+bytes, a ceiling of `8<<20`; kevlar measures 2,740,243 instructions for 10,736,041 bytes, one per
+3.9. `js.compiled_source_bytes` and `js.compiled_instructions` are the counters that say whether the
+bound is near a real page.
+
+Once the machine had it, `@1814415` pointed at `var kY$ = function HS(X){ ... hD.gamma = HS;
+return hD }(1)` -- d3's colour interpolator. **A named function expression could not see its own
+name**, in *either* engine, which is why the tree-walker differential could not see it: the same
+lesson `var` hoisting taught, two engines agreeing is evidence and not proof. Three things put a
+name on a FunctionExpression and only one binds it, so it is a parser flag rather than
+`!string.empty()` -- a method's function carries the method's name and `{ foo(){ return foo } }` is
+a ReferenceError. The binding is immutable *and silent*, because the loud version would take a
+TypeError out of `var f = function f(){ ...; f = null }` and lose the rest of the script. And
+adding one flag exposed `NewFunction`'s `node.number != 0`, which read every *future* function flag
+as "async or generator" -- so the tree-walker refused every named function expression the day the
+flag landed.
+
+**The rest were names in front of features, and one bug that had been waiting.**
+
+`console.info` was absent, and an absent console method is a TypeError that takes the rest of a
+script with it -- one line of Polymer's legacy shim. The whole family landed; six alias `log`
+honestly (nothing is missing behind the name) and eight are *implemented*, because a `console.count`
+that lied about counting is what ADR 0012 forbids. That pushed Builtins.cpp past the module cap,
+correctly: `console` is the host's diagnostic channel and not part of the language.
+
+`NodeFilter`, `createTreeWalker` and `createNodeIterator` are real API rather than a missing name --
+the first genuinely new thing on that page. The hostile-input surface is not a parser: **the filter
+is a page's function and it is called mid-walk**, so it can throw, move `currentNode`, or remove the
+node the walk stands on. Every step re-reads the tree, a current node no longer under the root ends
+the walk rather than resuming from detached memory, and a throw propagates instead of being
+swallowed into "reject".
+
+Writing a TreeWalker filter against `node.tagName === 'SPAN'` found the next one: **`tagName`
+returned the parser's lower-case name while `nodeName` upper-cased it**, with a comment on the test
+calling the difference deliberate. The DOM says they are the same string, every browser agrees, and
+`if (el.tagName === 'SCRIPT')` was silently false here. Twenty-nine test expectations moved; each
+one was a page-visible answer no other browser gives.
+
+`document.implementation.createHTMLDocument` is the one this repo had a written reason not to
+answer -- every `document.*` method was an own property of one wrapper and resolved against
+`document_`. Now the surface is on `Document.prototype`, every query resolves against its
+**receiver**, and `createHTMLDocument` builds a real second `dom::Document`. The test is the
+isolation, both ways. It is also the inversion same-origin iframes will need, and the reason
+`DOMParser` was absent.
+
+`MessageChannel` needed a **task** queue, and the timer queue is the right home rather than a
+convenient one: it is already the thing that hands the loop a deadline, so `TimerQueue::QueueTask`
+inherits zero-idle-CPU instead of arguing for a second wakeup mechanism. A microtask would have made
+a page's scheduler starve exactly the work it was written to let through, invisibly.
+
+`matchMedia` goes through `bindings::GeometrySource`, and only half the reason is that the evaluator
+is in `src/css` where this module may not look. The other half: `matchMedia('(max-width: 700px)')`
+and `window.innerWidth` are one question, and two seams would eventually answer it differently. The
+test asserts the `@media` rule that won the cascade, the script's answer and `innerWidth` all agree
+at once.
+
+`Range` is two boundary points and one ordering function; `collapsed`, `commonAncestorContainer`,
+`compareBoundaryPoints` and `toString` all go through it, because a second implementation of tree
+order would disagree about a case nobody tested. The content-mutation half is **absent** rather than
+approximate: those algorithms split text nodes and reparent partially-contained subtrees, and a
+version that got partial containment wrong would corrupt a page's DOM silently.
+
+**And the bug that had been waiting: a script's thrown value was freed on its way out.** ASan named
+it exactly. `RunCompiled` takes the completion out of the machine, calls `DrainMicrotasks()`, and
+returns it -- and draining is where `MaybeCollect` runs. Between those two lines the value is a
+`js::Value` in a C++ variable, which is the one thing this collector cannot see. Not a new bug: it
+needed a script that throws *and* leaves microtasks pending *and* has allocated past the threshold,
+which is why nothing had reached it before the bundle ran far enough. `ValueRoot` is the guard.
+Reading the root set afterwards found a second hole with no crash behind it yet -- **the module
+table was not a root**, and a module outlives its importer on purpose, so the second `import` of a
+specifier read freed memory.
+
+The last one is a shape rather than a bug: **`XMLHttpRequest` and `Worker` handed out instances from
+a prototype nothing could reach.** They are exactly the two constructors that do not go through
+`MakeInterface`, which has set `constructor.prototype` since it was written. So the test is a *list*
+of ten constructor names rather than two assertions -- the next hand-rolled one will be wrong the
+same way.
+
+Method note, for the fifth session running: **none of these twelve failed a test first.** All twelve
+came from running the real page and reading what it said. What changed this time is that the first
+one made "what it said" include *where*, and the eleven after it took minutes rather than sessions.
