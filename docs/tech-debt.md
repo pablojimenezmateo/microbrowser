@@ -116,10 +116,30 @@ Before the copy-on-write custom properties landed it was 4.66s, so it shrank wit
 is still an entire duplicate pass.
 
 **End state.** Collect background images *during* the cascade that builds the box tree, since that
-pass already has every element's resolved style in hand. The cost is timing: the requests would go
-out after the first box tree rather than before it. The comment at the call site argues that would
-"show the page twice" — worth re-examining, because images already arrive asynchronously and
-already cause a second paint.
+pass already has every element's resolved style in hand.
+
+**Two routes were considered on 2026-08-06 and both have a catch worth knowing before starting.**
+
+*Collect from the box tree instead.* Every `Box` already carries its resolved `ComputedStyle`, so
+reading `background.image` off a walk of `boxes_` costs no cascade at all. The catch is timing, and
+it is not the one the old call-site comment names: the requests would go out after the first
+*layout*, and the first layout does not happen until every render-blocking resource has landed. That
+is precisely the 375ms regression `55f7b40` removed from Hacker News, where `triangle.svg` was named
+by a stylesheet that arrived at 726ms and was not requested until 1104ms.
+
+*Cache the box tree.* `Page::Layout`'s own comment proposes this, and most of the machinery is
+already there — `boxes_` is a member, and eight call sites already `boxes_.reset()` as the
+invalidation signal. It is the better route, because the box tree is rebuilt five to six times per
+load for a document that never changes. The catch is that `LayoutEngine` takes the `ImageProvider`
+as an input, so an image *arriving* changes a replaced box's intrinsic size: every path that changes
+an input has to be audited for invalidation before the cache can be trusted. Getting that wrong
+renders a stale page, which is priority 1 against this entry's priority 4.
+
+**Measured again on 2026-08-06 in a Release build** (the 1.58s above is Debug): 142ms over 3 calls,
+against 272ms for `BuildBoxTree` over 5 and 367ms for `LayoutBoxes` over 5. `css.styles_resolved` is
+**84,731** for one load of a document with roughly 10,600 elements — eight full cascade passes —
+and `css.candidates_tested` is 3,053,593, which is 36 full selector evaluations per element.
+`bench/CssBenchmarks.cpp` is the instrument for the per-element half of that.
 
 ---
 
