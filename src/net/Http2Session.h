@@ -64,11 +64,23 @@ class Http2Session {
   // One request, already decided. Strings rather than a URL because this module
   // may not see `url` — and should not: every question about who may ask for
   // this was answered before it got here.
+  //
+  // **Owned strings rather than views, and that is not a style preference.**
+  // Three of the four are *built* by the caller — the authority is host plus
+  // port, the target is path plus query — so a view field invites
+  // `request.authority = AuthorityFor(url)`, which binds to a temporary that
+  // dies at the semicolon. That is precisely the bug this browser shipped for
+  // one commit: every server on the web reset the stream or answered 400,
+  // because `:authority` was whatever the stack slot held next. Four small
+  // allocations per request, against a network round trip, buys the class of
+  // bug being impossible instead of merely absent.
   struct Request {
-    std::string_view method;
-    std::string_view scheme;
-    std::string_view authority;
-    std::string_view target;
+    std::string method;
+    std::string scheme;
+    std::string authority;
+    std::string target;
+    // Borrowed, and obviously so: a pointer, to something the caller keeps for
+    // the length of the call.
     const HttpHeaders* headers = nullptr;
     std::span<const std::byte> body;
   };

@@ -157,10 +157,10 @@ std::optional<Http2Session::StreamId> Http2Session::StartRequest(const Request& 
   // where they do not, and the ordering is free to get right here and
   // expensive to discover in the field.
   std::vector<hpack::Header> fields;
-  fields.push_back({":method", std::string(request.method)});
-  fields.push_back({":scheme", std::string(request.scheme)});
-  fields.push_back({":authority", std::string(request.authority)});
-  fields.push_back({":path", std::string(request.target)});
+  fields.push_back({":method", request.method});
+  fields.push_back({":scheme", request.scheme});
+  fields.push_back({":authority", request.authority});
+  fields.push_back({":path", request.target});
   if (request.headers != nullptr) {
     for (const HttpHeaders::Field& field : request.headers->Fields()) {
       // `Host` is `:authority` on this wire and sending both is malformed;

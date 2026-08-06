@@ -103,6 +103,12 @@ class Http2ScriptedTransport::Factory : public net::TransportFactory {
   std::size_t connects = 0;
   // Every `:path` the server was asked for, in the order the requests arrived.
   std::vector<std::string> paths;
+  // And every `:authority`. Recorded separately because a test that only
+  // checked the path missed a dangling `string_view` in the authority for a
+  // whole commit -- every real server on the web reset the stream, and the
+  // suite was green. A pseudo-header nobody asserts on is a pseudo-header
+  // nobody is sending correctly.
+  std::vector<std::string> authorities;
   // Whether ALPN says `h2`. False makes this an ordinary transport that will
   // never be handed to a session, which is how a test asks for the HTTP/1.1
   // path from the same fixture.

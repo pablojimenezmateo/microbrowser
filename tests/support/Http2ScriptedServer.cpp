@@ -187,6 +187,7 @@ void Http2ScriptedTransport::Respond(std::uint32_t stream,
   const std::string path(ValueOf(request, ":path"));
   if (factory_ != nullptr) {
     factory_->paths.push_back(path);
+    factory_->authorities.emplace_back(ValueOf(request, ":authority"));
   }
   const Factory::Route* route = factory_ != nullptr ? factory_->Find(path) : nullptr;
 

@@ -380,8 +380,7 @@ bool FetchRequest::StartStream() {
   request.method = remaining_.method;
   request.scheme = url.Scheme();
   request.authority = AuthorityFor(url);
-  const std::string target = RequestTarget(url);
-  request.target = target;
+  request.target = RequestTarget(url);
   request.headers = &request_headers_;
   request.body = std::span<const std::byte>(remaining_.body);
   const std::optional<Http2Session::StreamId> id = session_->StartRequest(request);

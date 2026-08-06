@@ -85,6 +85,13 @@ void RegisterHttp2FetchTests(std::vector<TestCase>& tests) {
     Expect(result.ok, "the fetch must succeed over HTTP/2");
     ExpectEqInt(result.response.status, 200, "with the status the server sent");
     ExpectEqString(BodyOf(result.response), "<h1>hi</h1>", "and the body");
+    ExpectEqInt(static_cast<long long>(factory.paths.size()), 1, "one request arrived");
+    ExpectEqString(factory.paths.front(), "/index.html", "at the target that was asked for");
+    // Every pseudo-header, not just the one the routing uses. A dangling view
+    // in `:authority` made every real server reset the stream while this suite
+    // stayed green, because nothing here read it.
+    ExpectEqString(factory.authorities.front(), "example.com",
+                   "addressed to the host the URL named");
     ExpectEqInt(static_cast<long long>(pool.SessionCount()), 1,
                 "and the session it opened stays in the pool for the next request");
   });
