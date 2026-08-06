@@ -625,6 +625,14 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("const o = Object.create(null); o.x = 4; o.x", "4");
     ExpectEval("Object.create(5)",
                "throw TypeError: Object.create prototype must be an object or null");
+    // core-js keeps Object.create in a local and calls it unbound when wiring
+    // AggregateError.prototype; `this` must not be consulted to reach back.
+    ExpectEval("const create = Object.create; const f = (w, v) => ({"
+               "writable: !!(w & 4), enumerable: !!(w & 1), configurable: !!(w & 2), value: v});"
+               "const C = function C() {}; const p = create(Error.prototype, {"
+               "constructor: f(5, C), message: f(5, ''), name: f(5, 'AggregateError')});"
+               "p.name",
+               "AggregateError");
   });
 
   // --- Classes --------------------------------------------------------------

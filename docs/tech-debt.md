@@ -473,15 +473,32 @@ performance.observer_callbacks  5
 **Session 51** fixed the **es-module-shims parse error** (`SyntaxError: expected ';'` at line 370):
 `LexTemplate` and `SplitTemplate` ended substitutions at the first `}` inside nested template text
 (`with{type:"css"}`) or mis-read `/ '/g` as a single-quoted string. es-module-shims now parses and
-executes (**42s** script time, no syntax error). The polyfill loader still reports failure because
-**core-js throws at runtime** before the chain completes (`TypeError: undefined is not a function` at
-@19450, inside its `AggregateError` polyfill — the file parses). No `runtime-concat` / `ac-render-template`
-bundle fetch appears in the timeline yet; **0 feed articles**.
+executes (**42s** script time, no syntax error).
 
-**End state.** Fix the core-js runtime throw (or skip the `noModule` core-js path when native modules
-work), verify concat `type=module` bundles fetch and execute after the polyfill chain, implement
-`<suspense-replace>` hoisting for the `for=` templates, and close when the snapshot shows feed posts
-rather than an empty main region.
+**Session 52** fixed **`Object.create` with a properties argument when called unbound** (core-js
+keeps `Object.create` in a local and calls it as `u(proto, desc)` while wiring
+`AggregateError.prototype`). The implementation reached `defineProperties` through `this`, which is
+`undefined` on an unbound call — `TypeError: undefined is not a function` at @19450. core-js now
+runs to completion (**299s** script time); the full polyfill chain loads (es-module-shims,
+regenerator-runtime, intersection-observer, custom-elements-es5-adapter) with **no script errors**.
+
+**Measured**, www.reddit.com, 2026-08-06 (after session 52 `Object.create` fix):
+
+```
+display_list.commands       214
+js.modules_loaded           3
+js.dynamic_imports          0
+js.compile_bailouts         0
+performance.observer_callbacks  5
+```
+
+No `runtime-concat` / `ac-render-template` bundle fetch appears in the timeline yet; **0 feed
+articles**. The next blocker is concat `type=module` bundles not fetching or executing after the
+polyfill chain completes.
+
+**End state.** Verify concat `type=module` bundles fetch and execute after the polyfill chain,
+implement `<suspense-replace>` hoisting for the `for=` templates, and close when the snapshot shows
+feed posts rather than an empty main region.
 
 ---
 

@@ -254,7 +254,7 @@ void Interpreter::InstallGlobals() {
   Object* object_constructor = native("Object", [](NativeCall& call) {
     return Argument(call.arguments, 0);
   });
-  install(object_constructor, "create", [](NativeCall& call) {
+  install(object_constructor, "create", [object_constructor](NativeCall& call) {
     const Value prototype = Argument(call.arguments, 0);
     if (!prototype.IsObject() && !prototype.IsNull()) {
       return call.Throw("TypeError", "Object.create prototype must be an object or null");
@@ -270,9 +270,12 @@ void Interpreter::InstallGlobals() {
     // one thing in the engine rather than two.
     const Value descriptors = Argument(call.arguments, 1);
     if (descriptors.IsObject()) {
-      const Value define = call.interpreter.GetPropertyValue(call.self, "defineProperties");
+      // core-js keeps `Object.create` in a local and calls it unbound; `this`
+      // is then undefined and must not be used to reach back to Object.
+      const Value object_value = Value::Obj(object_constructor);
+      const Value define = call.interpreter.GetPropertyValue(object_value, "defineProperties");
       const Result defined =
-          call.interpreter.CallFunction(define, call.self, {made, descriptors});
+          call.interpreter.CallFunction(define, object_value, {made, descriptors});
       if (defined.IsAbrupt()) {
         return call.ThrowValue(defined.value);
       }
@@ -355,13 +358,14 @@ void Interpreter::InstallGlobals() {
     target.object->Define(std::move(key), std::move(property));
     return target;
   });
-  install(object_constructor, "defineProperties", [](NativeCall& call) {
+  install(object_constructor, "defineProperties", [object_constructor](NativeCall& call) {
     const Value target = Argument(call.arguments, 0);
     const Value descriptors = Argument(call.arguments, 1);
     if (!target.IsObject() || !descriptors.IsObject()) {
       return call.Throw("TypeError", "Object.defineProperties requires two objects");
     }
-    const Value define = call.interpreter.GetPropertyValue(call.self, "defineProperty");
+    const Value object_value = Value::Obj(object_constructor);
+    const Value define = call.interpreter.GetPropertyValue(object_value, "defineProperty");
     for (const std::string& key : descriptors.object->Keys()) {
       const Value* descriptor = descriptors.object->GetOwn(key);
       if (descriptor == nullptr) {
@@ -370,7 +374,7 @@ void Interpreter::InstallGlobals() {
       // Through defineProperty rather than around it, so the two cannot
       // disagree about what a descriptor means.
       const Result defined = call.interpreter.CallFunction(
-          define, call.self, {target, Value::String(key), *descriptor});
+          define, object_value, {target, Value::String(key), *descriptor});
       if (defined.IsAbrupt()) {
         return call.ThrowValue(defined.value);
       }
