@@ -438,6 +438,7 @@ microbrowser_module(bindings
     src/bindings/TreeWalkers.cpp
     src/bindings/MessageChannels.cpp
     src/bindings/MediaQueries.cpp
+    src/bindings/Ranges.cpp
     src/bindings/HtmlParsing.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/ViewObservers.cpp

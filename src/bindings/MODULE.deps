@@ -206,7 +206,9 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # holds that are not nodes, each with an install and a per-frame or per-task
 # delivery. See the note on max_tu_lines above -- this number is the one that
 # measures growth, and it is now the argument for splitting the class.
-budget: DomBindings header_lines=620 public_methods=32 members=18
+# And by two for `Range`, which is a third such object -- and the third in one
+# session is the argument above making itself. See max_tu_lines.
+budget: DomBindings header_lines=624 public_methods=32 members=18
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

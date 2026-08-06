@@ -613,6 +613,8 @@ class DomBindings {
   void InstallMatchMedia();
   void TrackMediaQueryList(const js::Value& list);
   void InstallTreeWalkers(const js::Value& document);
+  // `Range`, in Ranges.cpp: two boundary points and the ordering between them.
+  void InstallRange();
 
   // --- HTML from script, in HtmlParsing.cpp ---------------------------------
   // `innerHTML`, `outerHTML` and `insertAdjacentHTML`: a page's string of

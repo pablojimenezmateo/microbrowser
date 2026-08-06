@@ -981,6 +981,80 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "function true function", "MessagePort is an EventTarget with a name");
   });
 
+  AddTest(tests, "DomBindings/ARangeIsTwoBoundaryPointsAndTheirOrder", [] {
+    // Closure's `goog.dom.Range` is how youtube's bundle asks "is this node
+    // before that one", and it stopped on the name. Everything asserted here
+    // falls out of one ordering function over (node, offset) pairs -- which is
+    // the point of it being one function.
+    static constexpr const char* kTree =
+        "<div id=r>one<span id=s>two</span>three</div>";
+    ExpectScript(kTree,
+                 "const r = document.getElementById('r');"
+                 "const a = document.createRange(); a.selectNodeContents(r);"
+                 "a.toString() + '|' + a.collapsed + '|' + a.commonAncestorContainer.id",
+                 "onetwothree|false|r");
+    // `selectNode` puts the boundaries either side; `selectNodeContents` puts
+    // them inside. One character of difference in the name, and the whole
+    // difference in what is covered.
+    ExpectScript(kTree,
+                 "const b = document.createRange();"
+                 "b.selectNode(document.getElementById('s'));"
+                 "b.toString() + '|' + b.startOffset + '|' + b.endOffset + '|' +"
+                 "b.startContainer.id",
+                 "two|1|2|r");
+    // A range that starts and ends inside two *different* text nodes, which is
+    // the case a naive implementation gets wrong.
+    ExpectScript(kTree,
+                 "const r = document.getElementById('r');"
+                 "const c = document.createRange();"
+                 "c.setStart(r.firstChild, 1); c.setEnd(r.lastChild, 2);"
+                 "c.toString()",
+                 "netwoth");
+    // compareBoundaryPoints, and the four constants a page reads off the
+    // constructor as often as off an instance.
+    ExpectScript(kTree,
+                 "const r = document.getElementById('r');"
+                 "const a = document.createRange(); a.selectNodeContents(r);"
+                 "const b = document.createRange(); b.selectNode(document.getElementById('s'));"
+                 "a.compareBoundaryPoints(Range.START_TO_START, b) + ',' +"
+                 "b.compareBoundaryPoints(Range.END_TO_END, a) + ',' +"
+                 "a.compareBoundaryPoints(Range.START_TO_START, a) + ',' +"
+                 "[Range.START_TO_START, Range.START_TO_END, Range.END_TO_END,"
+                 " Range.END_TO_START].join('')",
+                 "-1,-1,0,0123");
+    // Setting a start past the end collapses onto it, so `collapsed` is
+    // honest without anything checking the order at read time.
+    ExpectScript(kTree,
+                 "const r = document.getElementById('r');"
+                 "const e = document.createRange();"
+                 "e.setEnd(r.firstChild, 1); e.setStart(r.lastChild, 2);"
+                 "'' + e.collapsed",
+                 "true");
+    // `collapse()` defaults to the *end*, which is the one people get wrong.
+    ExpectScript(kTree,
+                 "const r = document.getElementById('r');"
+                 "const a = document.createRange(); a.selectNodeContents(r);"
+                 "const toEnd = a.cloneRange(); toEnd.collapse();"
+                 "const toStart = a.cloneRange(); toStart.collapse(true);"
+                 "toEnd.startOffset + ',' + toStart.startOffset + ',' + a.startOffset",
+                 "3,0,0");
+    // Two ranges in different trees are a WrongDocumentError rather than an
+    // arbitrary answer -- the one case the ordering function cannot decide.
+    ExpectScript(kTree,
+                 "const a = document.createRange();"
+                 "a.selectNodeContents(document.getElementById('r'));"
+                 "const other = document.createRange();"
+                 "other.selectNodeContents(document.createElement('div'));"
+                 "try { a.compareBoundaryPoints(Range.START_TO_START, other); 'no throw' }"
+                 "catch (err) { err.message }",
+                 "WrongDocumentError: the ranges are in different trees");
+    ExpectScript(kTree,
+                 "const a = document.createRange();"
+                 "(a instanceof Range) + ',' + (new Range() instanceof Range) + ',' +"
+                 "(typeof document.createRange)",
+                 "true,true,function");
+  });
+
   AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {
     // Nothing is cached between calls: a parsed copy would go stale the moment
     // anything else touched `class`, and `class` is the one attribute two
