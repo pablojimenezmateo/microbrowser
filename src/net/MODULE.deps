@@ -72,7 +72,9 @@ budget: ConnectionPool header_lines=65 public_methods=12 members=2
 # a request that has to ask permission first is *two* exchanges under one id,
 # so what used to be three parallel fields on `Queued` is now a `Pending` value
 # that can be held while the `OPTIONS` runs.
-budget: RequestQueue   header_lines=155 public_methods=17 members=9
+# Raised to 160 lines by the URL an active request carries for the load
+# timeline, which is filled in only when the timeline is on.
+budget: RequestQueue   header_lines=160 public_methods=17 members=9
 # What a preflight bought, remembered so the next request does not buy it
 # again. One member -- the entries -- and the bound on how many there may be is
 # a constant beside it rather than a policy knob: every key in this table comes

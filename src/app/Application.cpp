@@ -11,6 +11,7 @@
 #include "app/KeyRouting.h"
 #include "util/PerformanceCounters.h"
 #include "util/WaitDescriptor.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
 #include "util/StartupTrace.h"
 
@@ -167,6 +168,7 @@ int Application::Run(const AppStartupOptions& options) {
   }
 
   window_.Close();
+  util::LoadTimeline::DumpOnce(stderr);
   util::PerformanceTrace::DumpSummaryOnce();
   util::StartupTrace::DumpSummaryOnce();
   util::DumpPerformanceCountersOnce();

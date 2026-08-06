@@ -12,6 +12,7 @@
 #include "html/Encoding.h"
 #include "html/TreeBuilder.h"
 #include "util/Parse.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
@@ -324,6 +325,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   const html::Encoding encoding = html::SniffEncoding(html, content_type);
   const std::string decoded = html::DecodeToUtf8(html, encoding);
   {
+    util::LoadTimeline::Mark("document.parse.start");
     util::PerformanceTrace::ScopeLabel label("html::ParseDocument");
     label.Field("bytes", static_cast<long long>(decoded.size()));
     util::PerformanceTrace::Scope parse(label.View());
@@ -445,6 +447,7 @@ float Page::Layout(float width) {
   // resolves the cascade for every element, the second places boxes -- and a
   // single "layout is slow" row cannot tell them apart. On youtube.com the
   // split was the whole diagnosis: 98% of it was the cascade.
+  util::LoadTimeline::Mark("layout.start");
   {
     util::PerformanceTrace::Scope build("engine::BuildBoxTree");
     boxes_ = engine.BuildBoxTree(*document_);
@@ -453,6 +456,7 @@ float Page::Layout(float width) {
     util::PerformanceTrace::Scope place("engine::LayoutBoxes");
     content_height_ = engine.Layout(*boxes_, width);
   }
+  util::LoadTimeline::Mark("layout.end");
   // The scroll offsets go back on, clamped against the overflow this layout
   // just measured. Layout consults them and does not own them -- ADR 0018 §1 --
   // which is what makes a scrolled menu still scrolled after a script changes a

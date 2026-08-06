@@ -19,6 +19,7 @@
 #include "gfx/JpegDecoder.h"
 #include "gfx/PngDecoder.h"
 #include "gfx/SvgDecoder.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
@@ -370,6 +371,15 @@ void Engine::OnCompletion(Loader::Completion completion) {
         // A sheet can declare an `@font-face`, and the sheet arrives after the
         // document -- so the font pass runs again here rather than only once.
         StartFontRequests();
+        // And a sheet is what *names* a background image: `AddStyleSheet` has
+        // just re-collected them, and until this line nothing turned the new
+        // ones into requests until the next paint. On Hacker News that put
+        // `triangle.svg` -- named by `news.css`, which arrived at 726ms -- on
+        // the wire at 1104ms, after the first frame, for a round trip the page
+        // then had to wait out. Measured with the load timeline; the same shape
+        // costs every page whose icons come from a stylesheet, which is every
+        // page that has any.
+        StartImageRequests();
         AddPerformanceCounter(PerfCounterId::EngineStyleSheetsLoaded);
       } else {
         // A stylesheet that does not load is a page rendered without it, which
@@ -543,6 +553,18 @@ void Engine::AdvanceLoad() {
   }
   if (load_.MayPaint()) {
     Paint();
+  } else if (load_.painted && !load_.image_bytes.empty()) {
+    // Images that arrived after the first frame, now that they no longer hold
+    // it back. Batched here rather than decoded one at a time as each
+    // completion lands, and that is the point of doing it in `AdvanceLoad`: a
+    // page's images tend to arrive together -- eleven of wikipedia's finish
+    // inside 250 microseconds of each other -- and decoding each one at its own
+    // completion would lay the document out eleven times to reach the same
+    // frame.
+    DecodePendingImages();
+    load_.image_bytes.clear();
+    page_.InvalidateLayout();
+    LayoutAndPaint();
   }
   if (load_.IsFinished()) {
     // The `navigation` entry, before `load_` goes: it is the only thing that
@@ -587,6 +609,10 @@ void Engine::AdvanceLoad() {
 
 void Engine::Paint() {
   DecodePendingImages();
+  // Cleared, because images no longer hold this frame back and more will arrive
+  // after it: leaving them here would decode every already-decoded image again
+  // on the next batch.
+  load_.image_bytes.clear();
   load_.painted = true;
   // The title again. It was sent when the document committed, before its
   // scripts ran, and a page that changes its own title -- which is most of
@@ -608,6 +634,10 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
                       const url::Url* referrer_document) {
   util::PerformanceTrace::Scope scope("engine::Navigate");
   AddPerformanceCounter(PerfCounterId::EngineNavigations);
+  // The origin every other milestone is measured from. Here rather than at the
+  // first request, because the time between deciding to navigate and asking for
+  // a byte is time the user is waiting too.
+  util::LoadTimeline::Begin(url);
 
   page_.SetScrollOffsetY(0.0f);
 
@@ -761,6 +791,11 @@ void Engine::PaintAndSend() { PaintAndSend(gfx::IntPoint{}, nullptr); }
 
 void Engine::PaintAndSend(gfx::IntPoint scroll_delta, const gfx::IntRect* only) {
   util::PerformanceTrace::Scope scope("engine::Paint");
+  // Every path that puts something on screen comes through here, so this is
+  // *the* paint milestone. On a browser with no incremental rendering the first
+  // one is the whole answer to "when did the user see anything" -- see ADR 0030
+  // and TD-0008.
+  util::LoadTimeline::Mark("paint");
   AddPerformanceCounter(PerfCounterId::EnginePaintsProduced);
   AddPerformanceCounter(PerfCounterId::DisplayListBuilds);
 

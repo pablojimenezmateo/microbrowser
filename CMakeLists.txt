@@ -187,6 +187,7 @@ microbrowser_module(util
     src/util/Brotli.cpp
     src/util/Env.cpp
     src/util/Inflate.cpp
+    src/util/LoadTimeline.cpp
     src/util/Parse.cpp
     src/util/PercentEncoding.cpp
     src/util/Random.cpp

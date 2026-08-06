@@ -31,6 +31,7 @@
 #include "ipc/InProcessTransport.h"
 #include "platform/SystemFonts.h"
 #include "util/Parse.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
 #include "util/StartupTrace.h"
 #include "util/PerformanceCounters.h"
@@ -437,6 +438,7 @@ int main(int argc, char** argv) {
   // MICROBROWSER_PERF_SUMMARY=1 and MICROBROWSER_STARTUP_SUMMARY=1 work here
   // exactly as they do in the browser. Without this they read as "no scopes
   // ran", which is the wrong answer to a question about where the time went.
+  microbrowser::util::LoadTimeline::DumpOnce(stderr);
   microbrowser::util::PerformanceTrace::DumpSummaryOnce();
   microbrowser::util::StartupTrace::DumpSummaryOnce();
   microbrowser::util::DumpPerformanceCountersOnce();

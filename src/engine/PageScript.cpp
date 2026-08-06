@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "util/PerformanceCounters.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
 
 namespace microbrowser::engine {
@@ -211,9 +212,18 @@ bool PageScript::RunTiming(Timing timing) {
     label.Field("src", SourceName(slot))
         .Field("bytes", static_cast<long long>(source.size()));
     util::PerformanceTrace::Scope scope(label.View());
+    // A script runs to completion inside one turn of the loop (TD-0007), so
+    // this pair brackets a period during which nothing is drained and no frame
+    // is presented. On the timeline that reads as a gap, which is what it is.
+    if (util::LoadTimeline::Enabled()) {
+      util::LoadTimeline::MarkWith("script.start", SourceName(slot));
+    }
     const js::Result result = entry.module
                                   ? interpreter_->RunModule(source, SourceName(slot))
                                   : interpreter_->Run(source);
+    if (util::LoadTimeline::Enabled()) {
+      util::LoadTimeline::MarkWith("script.end", SourceName(slot));
+    }
     if (result.completion != js::Completion::Throw) {
       continue;
     }

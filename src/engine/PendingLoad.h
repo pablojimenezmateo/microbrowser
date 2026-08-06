@@ -103,11 +103,31 @@ struct PendingLoad {
   }
 
   // Everything that holds the first frame back has resolved.
-  bool MayPaint() const { return active && !painted && scripts_ran && images_outstanding == 0; }
+  //
+  // **Images are deliberately not on this list.** They used to be, and the
+  // comment justifying it argued that an image already on screen should be
+  // there when the page appears rather than a beat later. What that bought was
+  // one avoided reflow; what it cost was the entire first frame. Measured with
+  // the load timeline: Hacker News painted at 1116ms of a 1400ms load, and the
+  // last thing it waited for was `s.gif`, a spacer. en.wikipedia.org/wiki/CSS
+  // painted at 1058ms with its stylesheets in hand since 403ms.
+  //
+  // No browser blocks the first paint on an image, and the reason is the one
+  // this measurement makes concrete: an image is content the user can read
+  // around, and a blank window is not. An image that arrives later is decoded
+  // and laid out then, which is the path a late image already took.
+  bool MayPaint() const { return active && !painted && scripts_ran; }
 
   // And nothing at all is left, including the scripts the page said it would
-  // not wait for.
-  bool IsFinished() const { return painted && async_scripts_outstanding == 0; }
+  // not wait for and the images that no longer hold the frame.
+  //
+  // Images are here rather than in `MayPaint` because `load` means the document
+  // *and its subresources* -- that is the whole difference between it and
+  // `DOMContentLoaded` -- and because `load_` owns the requests: finishing
+  // while one is in flight would drop the response on the floor.
+  bool IsFinished() const {
+    return painted && async_scripts_outstanding == 0 && images_outstanding == 0;
+  }
 
   // How far along, for the progress the UI shows. Never reaches 1.0: that is
   // reserved for the frame actually going out, and a progress bar that

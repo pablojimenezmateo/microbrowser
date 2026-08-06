@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "util/LoadTimeline.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::net {
@@ -151,6 +152,13 @@ bool RequestQueue::PromoteQueued(std::int64_t now_ms) {
       pending = std::move(preflight);
       AddPerformanceCounter(PerfCounterId::NetCorsPreflights);
     }
+    // Stamped before the fetch rather than after, so the timeline's gap column
+    // measures the request and not the bookkeeping around it. The URL is taken
+    // from the verdict, which is the last thing that saw it before the wire.
+    if (util::LoadTimeline::Enabled()) {
+      active.url = pending.verdict.FinalUrl().Serialize();
+      util::LoadTimeline::MarkWith("request.start", active.url);
+    }
     active.request = Fetch(std::move(pending.verdict), policy_, pool_, cookies_, cache_,
                            pending.options, pending.now);
     active_.push_back(std::move(active));
@@ -198,6 +206,22 @@ void RequestQueue::Advance(std::int64_t now_ms) {
       }
       FetchResult result = active.request->TakeResult();
       const Id id = active.id;
+      if (util::LoadTimeline::Enabled()) {
+        // With the outcome, not just the moment. A request that *failed* fast
+        // and one that succeeded fast are the same row otherwise, and a page
+        // that renders four images out of nineteen looks from the timeline
+        // exactly like a page that wanted four.
+        std::string outcome = active.url + " ";
+        if (!result.ok) {
+          outcome += "FAILED " + result.error;
+        } else {
+          outcome += std::to_string(result.response.status);
+          if (result.from_cache) {
+            outcome += " cached";
+          }
+        }
+        util::LoadTimeline::MarkWith("request.done", outcome);
+      }
       std::unique_ptr<Pending> deferred = std::move(active.deferred);
       active_.erase(active_.begin() + static_cast<std::ptrdiff_t>(i));
       if (deferred != nullptr) {

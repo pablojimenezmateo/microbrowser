@@ -156,6 +156,10 @@ class RequestQueue {
     // teaching PartitionKey to hash.
     std::string partition;
     std::int64_t last_progress_ms = 0;
+    // Only ever filled in when the load timeline is on, and empty otherwise: a
+    // per-request string allocated on every load to serve a diagnostic nobody
+    // asked for is exactly the cost instrumentation is supposed to avoid.
+    std::string url;
     // Set only when `request` is the `OPTIONS` of a CORS preflight: the real
     // request, waiting for permission, which starts under the same id once the
     // preflight is allowed. One id space for both is what keeps a caller from
