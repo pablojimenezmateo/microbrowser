@@ -59,6 +59,7 @@ void RegisterInflateTests(std::vector<TestCase>& tests);
 void RegisterIntegrityTests(std::vector<TestCase>& tests);
 void RegisterShadowDomTests(std::vector<TestCase>& tests);
 void RegisterStructuredCloneTests(std::vector<TestCase>& tests);
+void RegisterAudioRingTests(std::vector<TestCase>& tests);
 void RegisterStorageTests(std::vector<TestCase>& tests);
 void RegisterStorageScriptTests(std::vector<TestCase>& tests);
 void RegisterWebFontTests(std::vector<TestCase>& tests);
@@ -208,6 +209,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterIntegrityTests(tests);
   microbrowser::tests::RegisterShadowDomTests(tests);
   microbrowser::tests::RegisterStructuredCloneTests(tests);
+  microbrowser::tests::RegisterAudioRingTests(tests);
   microbrowser::tests::RegisterStorageTests(tests);
   microbrowser::tests::RegisterStorageScriptTests(tests);
   microbrowser::tests::RegisterWebFontTests(tests);

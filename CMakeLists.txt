@@ -264,6 +264,7 @@ microbrowser_module(layout
 
 microbrowser_module(media
   SOURCES
+    src/media/AudioRing.cpp
     src/media/BoxReader.cpp
     src/media/IsoBmff.cpp
   DEPS microbrowser_util)
@@ -524,6 +525,7 @@ add_executable(microbrowser_tests
   tests/IntegrityTests.cpp
   tests/ShadowDomTests.cpp
   tests/StructuredCloneTests.cpp
+  tests/AudioRingTests.cpp
   tests/StorageScriptTests.cpp
   tests/StorageTests.cpp
   tests/WebFontTests.cpp

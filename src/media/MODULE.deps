@@ -1,4 +1,4 @@
-purpose: Containers. What is in a media file and where, never what it decodes to.
+purpose: Containers, and the buffer two threads pass samples through. Never a codec.
 
 # util only, and that is the whole point of the module existing.
 #
@@ -14,7 +14,7 @@ purpose: Containers. What is in a media file and where, never what it decodes to
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h IsoBmff.h
+public: BoxReader.h IsoBmff.h AudioRing.h
 
 extern:
 
@@ -25,6 +25,12 @@ max_tu_lines: 800
 # it is a refusal waiting to happen. Members are the span, the offset and the
 # sticky failure flag -- sticky because a parser that keeps reading after a
 # short read is a parser that reads whatever came next in memory.
+# ADR 0028 §4's ring buffer. It is here rather than in platform because *both* threads
+# name it and platform is the one module engine may not see the inside of -- and rather
+# than in util because it is media's ownership statement, not a general primitive. It
+# holds samples and knows nothing about what produced them, which keeps this module's
+# "never a codec" line true.
+budget: AudioRing       header_lines=105 public_methods=10 members=5
 budget: BoxReader       header_lines=95 public_methods=20 members=3
 budget: BoxHeader       header_lines=40 public_methods=6  members=4
 # What a demux produced. It grows one member per thing a player needs to know
