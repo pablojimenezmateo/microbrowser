@@ -285,10 +285,14 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
                    "td { text-align: center }", "td")
                    .text_align == TextAlign::Center,
            "and a stylesheet still beats it, because it is a hint and not an author rule");
+    // **This assertion used to read `== TextAlign::Left` and its comment used to say the value came
+    // from the div, inherited.** Both were wrong, and the test passed anyway because `Left` was also
+    // the initial value -- so it could not tell "inherited from the div" from "nobody set it". Now
+    // that the initial value is `Start`, it can, and the answer is that nothing set it: `align` is
+    // mapped on cells only, so neither the div's nor the img's produces a declaration.
     Expect(StyleOf("<div align='right'><img align='left'>x</div>", "", "img").text_align ==
-               TextAlign::Left,
-           "`align` on an image is a float, which this does not map -- so the value seen here "
-           "is the div's, inherited, and not one invented from the attribute");
+               TextAlign::Start,
+           "`align` on a div and on an image are both unmapped, so this is the initial value");
   });
 
   AddTest(tests, "StyleResolver/CellPaddingIsReadFromTheTable", [] {

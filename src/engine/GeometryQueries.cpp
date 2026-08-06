@@ -324,6 +324,8 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   }
   if (property == "text-align") {
     switch (style.text_align) {
+      case css::TextAlign::Start: return std::string("start");
+      case css::TextAlign::End: return std::string("end");
       case css::TextAlign::Left: return std::string("left");
       case css::TextAlign::Right: return std::string("right");
       case css::TextAlign::Center: return std::string("center");

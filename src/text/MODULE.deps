@@ -1,4 +1,4 @@
-purpose: Unicode character properties, and the line-break algorithm over them.
+purpose: Unicode character properties, and the line-break and bidirectional algorithms over them.
 
 # util only. This module answers questions about *characters* -- which class a code point belongs
 # to, how wide it is, where a line may break -- and it must not be able to ask about a font, a box
@@ -6,12 +6,16 @@ purpose: Unicode character properties, and the line-break algorithm over them.
 # property lookup. `src/layout` and `src/gfx` depend on it; it depends on neither.
 allow: util
 
-public: LineBreak.h UnicodeProperties.h
+public: LineBreak.h UnicodeProperties.h Bidi.h
 
 extern:
 
-max_tu_lines: 600
+# Raised from 600 for Bidi.cpp, which is UAX #9: one algorithm of twenty-odd numbered rules that are
+# not independent. Splitting it would put half the rules in one file and half in another with the
+# shared state -- classes, levels, the removed-by-X9 mask -- crossing the seam.
+max_tu_lines: 800
 
 budget: LineBreakRange  header_lines=20 public_methods=0 members=3
 budget: WidthRange      header_lines=20 public_methods=0 members=3
 budget: BreakOpportunity header_lines=20 public_methods=0 members=2
+budget: BidiRun         header_lines=20 public_methods=0 members=4

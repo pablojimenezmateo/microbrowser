@@ -52,7 +52,14 @@ enum class Distribution : std::uint8_t {
 // the two are one enum with a value the other never takes.
 enum class Alignment : std::uint8_t { Auto, Stretch, FlexStart, FlexEnd, Center, Baseline };
 enum class FontStyle : std::uint8_t { Normal, Italic };
-enum class TextAlign : std::uint8_t { Left, Right, Center, Justify };
+// `start` is the initial value, and it is a *distinct* value rather than a synonym for left:
+// which edge it means depends on `direction`, and collapsing it to Left at parse time is why an
+// unstyled right-to-left paragraph would hug the wrong margin.
+enum class TextAlign : std::uint8_t { Start, End, Left, Right, Center, Justify };
+
+// `direction`, which feeds the bidi paragraph level (UAX #9 rule P2, ADR 0025 §3). Inherited, and
+// the only CSS property whose value reverses the order text is *painted* in.
+enum class Direction : std::uint8_t { Ltr, Rtl };
 
 enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
@@ -164,7 +171,8 @@ struct ComputedStyle {
   // length, and is resolved by layout.
   float line_height = 0.0f;
 
-  TextAlign text_align = TextAlign::Left;
+  TextAlign text_align = TextAlign::Start;
+  Direction direction = Direction::Ltr;
   // Set by `text-align: -microbrowser-center`, which is what <center> means and
   // what no standard value expresses -- every engine carries an equivalent
   // (`-moz-center`, `-webkit-center`). Not inherited, unlike text_align: see

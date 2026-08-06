@@ -305,6 +305,7 @@ microbrowser_module(storage
 microbrowser_module(text
   SOURCES
     src/text/LineBreak.cpp
+    src/text/Bidi.cpp
     src/text/UnicodeProperties.cpp
   DEPS microbrowser_util)
 
@@ -507,6 +508,13 @@ target_link_libraries(microbrowser_snapshot PRIVATE microbrowser_engine microbro
 add_executable(microbrowser_audiotone tools/audiotone/main.cpp)
 target_link_libraries(microbrowser_audiotone PRIVATE microbrowser_media microbrowser_platform)
 
+# The bidi conformance runner. Not a test target: it needs Unicode's data files, which are not
+# vendored (6MB, versioned upstream) -- so it is a tool a session runs, the same arrangement
+# tools/unicode/generate.py has. See tools/bidiconf/main.cpp for why hand-written tests are not
+# enough for this particular algorithm.
+add_executable(microbrowser_bidiconf tools/bidiconf/main.cpp)
+target_link_libraries(microbrowser_bidiconf PRIVATE microbrowser_text)
+
 add_executable(microbrowser_jsshell tools/jsshell/main.cpp)
 target_link_libraries(microbrowser_jsshell PRIVATE microbrowser_js)
 
@@ -556,6 +564,7 @@ add_executable(microbrowser_tests
   tests/MatroskaTests.cpp
   tests/EncodingTests.cpp
   tests/LineBreakTests.cpp
+  tests/BidiTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
@@ -652,6 +661,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(hls_fuzzer fuzz/HlsFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(matroska_fuzzer fuzz/MatroskaFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(encoding_fuzzer fuzz/EncodingFuzzer.cpp microbrowser_html)
+  microbrowser_fuzzer(bidi_fuzzer fuzz/BidiFuzzer.cpp microbrowser_text)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)

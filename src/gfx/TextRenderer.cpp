@@ -1,5 +1,7 @@
 #include "gfx/TextRenderer.h"
 
+#include <hb.h>
+
 #include <bit>
 #include <utility>
 
@@ -54,16 +56,41 @@ std::vector<TextRenderer::CoveragePiece> TextRenderer::SplitByCoverage(std::stri
   std::size_t at = 0;
   std::size_t piece_start = 0;
   Font* current = nullptr;
+  hb_script_t script = HB_SCRIPT_INVALID;
   std::uint32_t code = 0;
   std::size_t previous = 0;
   while (util::DecodeUtf8(text, at, code)) {
     Font* wanted = fonts_->FontForCodePoint(request, static_cast<char32_t>(code));
+    // **And by script, not only by font.** UAX #24 itemization, and it is a correctness
+    // requirement rather than a nicety: HarfBuzz picks the script for a buffer from its
+    // contents, so a buffer holding Hebrew followed by Arabic is shaped entirely as Hebrew --
+    // and Arabic shaped as Hebrew gets no joining at all, so every letter appears in its
+    // isolated form. `مرحبا` comes out as five disconnected letters, which is unreadable
+    // rather than merely ugly, and it is what this browser did until this line.
+    //
+    // Found by rendering a line with Hebrew and Arabic in it, on the session that added bidi:
+    // bidi put them in one run because they are both level 1, which is right -- one *direction*
+    // is not one *script*.
+    //
+    // Common and Inherited continue whatever run they are in, which is the whole point of those
+    // two values: a space, a comma or a combining mark must not split a word.
+    hb_script_t wanted_script =
+        hb_unicode_script(hb_unicode_funcs_get_default(), static_cast<hb_codepoint_t>(code));
+    if (wanted_script == HB_SCRIPT_COMMON || wanted_script == HB_SCRIPT_INHERITED ||
+        wanted_script == HB_SCRIPT_UNKNOWN) {
+      wanted_script = script;
+    }
     if (current == nullptr) {
       current = wanted;
-    } else if (wanted != current) {
+      script = wanted_script;
+    } else if (wanted != current || (wanted_script != script && wanted_script != HB_SCRIPT_INVALID &&
+                                     script != HB_SCRIPT_INVALID)) {
       pieces.push_back(CoveragePiece{text.substr(piece_start, previous - piece_start), current});
       piece_start = previous;
       current = wanted;
+      script = wanted_script;
+    } else if (script == HB_SCRIPT_INVALID) {
+      script = wanted_script;
     }
     previous = at;
   }
@@ -117,18 +144,45 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
   //
   // The common case -- a whole run in one font -- takes one pass and one shape, which is what the
   // `pieces.size() == 1` path below preserves: splitting must not cost anything on Latin text.
-  float pen = origin.x;
+  // Shaped first, placed second, and **the two halves are separate because a right-to-left run's
+  // pieces go down from the right.** A run this function receives is uniform in direction -- bidi
+  // guaranteed that before it got here -- but it can still be several pieces, because one direction
+  // is not one script and not one font. Within such a run the logically *first* piece is the
+  // *rightmost* one, so placing pieces left to right puts the Hebrew of `ערבית: مرحبا` on the wrong
+  // side of the Arabic. Which it did, until this was probed: `pen=630.7 'ערבית: '` followed by
+  // `pen=683.6 'مرحبا بالعالم'`, exactly reversed. The rendering *looked* plausible, which is why the
+  // probe was necessary and reading the picture was not enough.
+  struct Placed {
+    Font* font = nullptr;
+    const ShapedRun* run = nullptr;
+  };
+  std::vector<Placed> placed;
+  bool right_to_left = false;
   for (const CoveragePiece& piece : SplitByCoverage(text, request)) {
     if (piece.font == nullptr) {
       continue;
     }
-    Font* font = piece.font;
-    const ShapedRun* run = LookupWithFont(piece.text, *font);
+    const ShapedRun* run = LookupWithFont(piece.text, *piece.font);
     if (run == nullptr) {
       continue;
     }
-    painter.DrawGlyphs(*font, *run, FloatPoint{pen, origin.y}, color);
-    pen += run->width;
+    // Any piece being backward makes the run backward. They cannot disagree in a well-formed bidi
+    // run, and if they somehow did, treating the run as backward keeps its pieces adjacent.
+    right_to_left = right_to_left || run->right_to_left;
+    placed.push_back({piece.font, run});
+  }
+  float pen = origin.x;
+  if (right_to_left) {
+    for (std::size_t i = placed.size(); i-- > 0;) {
+      painter.DrawGlyphs(*placed[i].font, *placed[i].run, FloatPoint{pen, origin.y}, color);
+      pen += placed[i].run->width;
+      AddPerformanceCounter(PerfCounterId::TextRunsPainted);
+    }
+    return;
+  }
+  for (const Placed& piece : placed) {
+    painter.DrawGlyphs(*piece.font, *piece.run, FloatPoint{pen, origin.y}, color);
+    pen += piece.run->width;
     AddPerformanceCounter(PerfCounterId::TextRunsPainted);
   }
 }

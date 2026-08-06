@@ -170,6 +170,20 @@ std::vector<Declaration> PresentationalDeclarations(const dom::Element& element)
     add("height", PresentationalLengthValue(attribute("height")));
   }
   add("text-align", PresentationalAlignValue(tag, attribute("align")));
+  // `dir`, on any element. It is a presentational attribute rather than something the user-agent
+  // sheet can express, because its value *is* the property's value -- and it is how nearly every
+  // right-to-left document on the web declares itself: `<html dir="rtl">`.
+  //
+  // `dir="auto"` is deliberately absent rather than mapped to either direction. It means "infer from
+  // the content", which is UAX #9's P2 applied to this element's text, and answering it with a guess
+  // would be worse than answering it with nothing: a wrong direction reverses a sentence, where no
+  // direction leaves it in the paragraph's. Session 34.
+  if (const std::string* dir = element.GetAttribute("dir")) {
+    const std::string lowered = Lowered(Trim(*dir));
+    if (lowered == "rtl" || lowered == "ltr") {
+      add("direction", lowered);
+    }
+  }
 
   if (tag == "table") {
     if (const std::string* border = element.GetAttribute("border")) {
@@ -382,6 +396,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   style.font_family = parent.font_family;
   style.line_height = parent.line_height;
   style.text_align = parent.text_align;
+  style.direction = parent.direction;
   style.white_space = parent.white_space;
   // Custom properties inherit, which is the entire basis of how a modern
   // stylesheet is written: set on `:root` once, referenced everywhere below.

@@ -650,6 +650,10 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.text_align = TextAlign::Justify;
     } else if (value == "left") {
       style.text_align = TextAlign::Left;
+    } else if (value == "start") {
+      style.text_align = TextAlign::Start;
+    } else if (value == "end") {
+      style.text_align = TextAlign::End;
     } else if (value == "-microbrowser-center") {
       // What <center> means, and what no standard value expresses. See the
       // note on ComputedStyle::centers_block_children.
@@ -660,6 +664,18 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       return false;
     }
     style.centers_block_children = false;
+    return true;
+  }
+  if (property == "direction") {
+    // ADR 0025 §3. Inherited, so setting it on <html> is what makes a whole document right-to-left --
+    // which is how every real Arabic and Hebrew page does it.
+    if (value == "ltr") {
+      style.direction = Direction::Ltr;
+    } else if (value == "rtl") {
+      style.direction = Direction::Rtl;
+    } else {
+      return false;
+    }
     return true;
   }
   if (property == "white-space") {
