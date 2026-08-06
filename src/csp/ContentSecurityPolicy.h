@@ -113,6 +113,11 @@ class Policy {
   // Whether the header parsed into any directive this browser enforces.
   bool Empty() const;
 
+  // CSP3 `'strict-dynamic'` on `script-src`: host allowlists do not permit
+  // external scripts; a nonce or hash does, and scripts a permitted script
+  // inserts are allowed transitively (enforced in bindings, not here).
+  bool ScriptStrictDynamic() const { return script_strict_dynamic_; }
+
  private:
   const std::vector<Source>* ListFor(Directive directive) const;
 
@@ -121,6 +126,7 @@ class Policy {
   // allow. An empty entry means the directive was absent; `'none'` is a
   // one-element entry that matches nothing.
   std::array<std::vector<Source>, 7> lists_;
+  bool script_strict_dynamic_ = false;
 };
 
 // Every policy in force on one document.
@@ -146,6 +152,9 @@ class PolicyList {
   // Whether any policy governs `directive`. The engine asks this first, so a
   // document with no policy pays a bool test rather than a URL parse.
   bool Governs(Directive directive) const;
+
+  // True when any policy in force sets `'strict-dynamic'` on `script-src`.
+  bool ScriptStrictDynamic() const;
 
  private:
   std::vector<Policy> policies_;

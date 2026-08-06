@@ -163,6 +163,23 @@ void RegisterCspEnforcementTests(std::vector<TestCase>& tests) {
     ExpectEqString(session.Console(), "ran", "and it ran when it arrived");
   });
 
+  AddTest(tests, "CspEnforcement/StrictDynamicAllowsConcatOnDomContentLoaded", [] {
+    Session session;
+    session.Load(
+        "Content-Security-Policy: script-src 'strict-dynamic' 'nonce-abc'\r\n",
+        "<html><head>"
+        "<script nonce=\"abc\">"
+        "document.addEventListener('DOMContentLoaded', function() {"
+        "  const s = document.createElement('script');"
+        "  s.src = 'https://cdn.example/concat.js';"
+        "  document.body.appendChild(s);"
+        "});"
+        "</script></head><body></body></html>");
+    Expect(session.Requested("/concat.js"),
+           "strict-dynamic lets DOMContentLoaded insert a script without a nonce");
+    ExpectEqString(session.Console(), "ran", "and it ran when it arrived");
+  });
+
   AddTest(tests, "CspEnforcement/ARefusedStylesheetIsNeitherFetchedNorApplied", [] {
     Session session;
     session.Load("Content-Security-Policy: style-src 'none'\r\n",

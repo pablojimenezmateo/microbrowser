@@ -452,6 +452,7 @@ class PageScript {
   bindings::MediaController* media_ = nullptr;
   bindings::CanvasSurface* canvas_ = nullptr;
   bindings::WorkerHost* workers_ = nullptr;
+  bool script_strict_dynamic_ = false;
   std::function<void()> trusted_insertion_flush_;
 };
 

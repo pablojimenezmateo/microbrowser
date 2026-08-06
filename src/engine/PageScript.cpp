@@ -100,6 +100,10 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
 
 bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& policy) {
   bool added = false;
+  script_strict_dynamic_ = policy.ScriptStrictDynamic();
+  if (bindings_ != nullptr) {
+    bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
+  }
   document.ForEachDescendant([this, &policy, &added](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
@@ -148,6 +152,9 @@ bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& 
         collected_scripts_.erase(&element);
       }
       return;
+    }
+    if (bindings_ != nullptr && (trusted || !nonce.empty())) {
+      bindings_->MarkCspTrustedScript(element);
     }
 
     Slot slot;
@@ -236,6 +243,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
                                                      cookies_, sockets_, media_, canvas_,
                                                      workers_);
   bindings_->Install();
+  bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   if (trusted_insertion_flush_) {
     bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);
   }

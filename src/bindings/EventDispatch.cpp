@@ -493,7 +493,12 @@ bool DomBindings::NotifyDomContentLoaded() {
   }
   // Bubbles, so a listener on `window` sees it -- which is where the other
   // half of pages put it.
+  const bool was_trusted = trusted_script_insertion_;
+  if (csp_script_strict_dynamic_) {
+    trusted_script_insertion_ = true;
+  }
   DispatchEventTo(*document_, event);
+  trusted_script_insertion_ = was_trusted;
   return true;
 }
 
@@ -504,7 +509,12 @@ bool DomBindings::NotifyLoad() {
   SetReadyState("complete");
   // At the window, not at the document: `load` does not bubble, and
   // `window.onload` is where every page listens for it.
+  const bool was_trusted = trusted_script_insertion_;
+  if (csp_script_strict_dynamic_) {
+    trusted_script_insertion_ = true;
+  }
   const bool heard = DispatchAtWindow("load");
+  trusted_script_insertion_ = was_trusted;
   if (heard) {
     util::AddPerformanceCounter(util::PerfCounterId::EngineLoadEvents);
   }
@@ -547,7 +557,7 @@ void DomBindings::DeliverWindowMessage(const js::Value& data) {
 }
 
 void DomBindings::MaybeCompleteEsmsFeatureDetection() {
-  if (!trusted_script_insertion_ || interpreter_ == nullptr) {
+  if (interpreter_ == nullptr) {
     return;
   }
   const Value window = Value::Obj(interpreter_->Global());

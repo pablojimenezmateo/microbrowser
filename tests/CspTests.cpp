@@ -179,14 +179,14 @@ void RegisterCspTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Csp/AnUnparseableTokenIsStricterAndNeverLooser", [] {
-    // `'strict-dynamic'` is not implemented. A page that writes it alongside a
-    // nonce still gets the nonce, and gets nothing extra from the keyword.
     Expect(Policies("script-src 'strict-dynamic' 'nonce-abc'")
                .AllowsInline(Directive::Script, "abc", "x"),
            "the tokens we understood still work");
+    Expect(Policies("script-src 'strict-dynamic' 'nonce-abc'").ScriptStrictDynamic(),
+           "strict-dynamic is recognized on script-src");
     Expect(!AllowsScript("script-src 'strict-dynamic' 'nonce-abc'",
                          "https://evil.example/x.js"),
-           "and the one we did not allows nothing");
+           "host allowlists do not authorize scripts when strict-dynamic is on");
     Expect(!AllowsScript("script-src ''''", "https://page.example/a.js"),
            "nonsense matches nothing");
     // A directive with an empty source list allows nothing, which is `'none'`.

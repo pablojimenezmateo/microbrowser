@@ -347,7 +347,7 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # plus the three private ones in PageModules.cpp. The split is the point -- a
 # fetch needs a privacy verdict and a connection pool, and deciding *what* to
 # fetch needs to know what a module graph is.
-budget: PageScript header_lines=417 public_methods=57 members=26
+budget: PageScript header_lines=420 public_methods=57 members=27
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

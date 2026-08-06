@@ -203,11 +203,11 @@ Source ParseSource(std::string_view token) {
     if (std::optional<Source> hash = ParseHashSource(body); hash.has_value()) {
       return *hash;
     }
-    // `'none'`, `'unsafe-eval'`, `'strict-dynamic'`, `'unsafe-hashes'`, and
-    // anything else quoted. All of them become a source that matches nothing,
-    // which is right for `'none'` by definition and right for the others
-    // because this browser has no `eval` (a test says so) and because a
-    // keyword we have not implemented must not be read as permission.
+    // `'none'`, `'unsafe-eval'`, `'unsafe-hashes'`, and anything else quoted.
+    // All of them become a source that matches nothing, which is right for
+    // `'none'` by definition and right for the others because this browser has
+    // no `eval` (a test says so). `'strict-dynamic'` is handled in Policy::Parse
+    // rather than here.
     return nothing;
   }
   if (std::optional<Source> parsed = ParseHostOrScheme(token); parsed.has_value()) {
@@ -362,7 +362,16 @@ Policy Policy::Parse(std::string_view serialized) {
       continue;
     }
     for (std::size_t i = 1; i < tokens.size(); ++i) {
-      list.push_back(ParseSource(tokens[i]));
+      const std::string_view token = tokens[i];
+      if (*directive == Directive::Script && token.size() >= 2 && token.front() == '\'' &&
+          token.back() == '\'') {
+        const std::string_view body = token.substr(1, token.size() - 2);
+        if (util::EqualsAsciiCaseInsensitive(body, "strict-dynamic")) {
+          policy.script_strict_dynamic_ = true;
+          continue;
+        }
+      }
+      list.push_back(ParseSource(token));
     }
     if (list.empty()) {
       // An empty source list allows nothing, exactly as `'none'` does.
@@ -406,6 +415,11 @@ bool Policy::AllowsUrl(Directive directive, const url::Url& target, const url::O
       if (!nonce.empty() && source.value == nonce) {
         return true;
       }
+      continue;
+    }
+    // CSP3: with `'strict-dynamic'`, host allowlists do not authorize script
+    // loads. Only a nonce (above) or transitive trust in bindings does.
+    if (directive == Directive::Script && script_strict_dynamic_) {
       continue;
     }
     if (MatchesUrl(source, target, self)) {
@@ -490,6 +504,11 @@ bool PolicyList::AllowsInline(Directive directive, std::string_view nonce,
 bool PolicyList::Governs(Directive directive) const {
   return std::any_of(policies_.begin(), policies_.end(),
                      [&](const Policy& policy) { return policy.Governs(directive); });
+}
+
+bool PolicyList::ScriptStrictDynamic() const {
+  return std::any_of(policies_.begin(), policies_.end(),
+                     [](const Policy& policy) { return policy.ScriptStrictDynamic(); });
 }
 
 }  // namespace microbrowser::csp

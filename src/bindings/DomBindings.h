@@ -272,6 +272,8 @@ class DomBindings {
   // reddit's polyfill loader appends its tags this way.
   void SetTrustedScriptInsertion(bool trusted) { trusted_script_insertion_ = trusted; }
   void SetTrustedScriptFlush(std::function<void()> hook) { trusted_script_flush_ = std::move(hook); }
+  void SetScriptStrictDynamic(bool enabled) { csp_script_strict_dynamic_ = enabled; }
+  void MarkCspTrustedScript(const dom::Element& element) { csp_trusted_scripts_.insert(&element); }
   bool IsCspTrustedScript(const dom::Element& element) const {
     return csp_trusted_scripts_.contains(&element);
   }
@@ -740,6 +742,7 @@ class DomBindings {
   // string -- and a test needs to see what was written either way. The chrome takes it from here.
   std::string clipboard_;
   bool trusted_script_insertion_ = false;
+  bool csp_script_strict_dynamic_ = false;
   std::function<void()> trusted_script_flush_;
   std::unordered_set<const dom::Element*> csp_trusted_scripts_;
 };

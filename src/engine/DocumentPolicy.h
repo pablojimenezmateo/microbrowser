@@ -81,6 +81,8 @@ class DocumentPolicy {
     return policies_.AllowsInline(directive, nonce, body);
   }
 
+  bool ScriptStrictDynamic() const { return policies_.ScriptStrictDynamic(); }
+
   // What was refused, in the order it was refused, for the console. Local and
   // never sent: a violation report is an outbound request the user did not
   // cause. See csp/ContentSecurityPolicy.h.
