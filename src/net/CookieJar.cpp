@@ -350,6 +350,106 @@ std::string CookieJar::HeaderFor(const url::PartitionKey& key, const url::Url& r
   return out;
 }
 
+std::string CookieJar::DocumentCookie(const url::PartitionKey& key, const url::Url& document_url,
+                                      std::int64_t now) const {
+  const std::string host = CanonicalCookieHost(document_url.HostSerialized());
+  const std::string path =
+      document_url.PathString().empty() ? "/" : document_url.PathString();
+  const bool secure = url::Origin::FromUrl(document_url).IsPotentiallyTrustworthy();
+
+  std::vector<const Entry*> matched;
+  for (const Entry& entry : entries_) {
+    if (!(entry.key == key)) {
+      continue;
+    }
+    const Cookie& cookie = entry.cookie;
+    if (cookie.http_only || cookie.IsExpiredAt(now)) {
+      continue;
+    }
+    if (cookie.host_only ? cookie.domain != host : !CookieDomainMatches(host, cookie.domain)) {
+      continue;
+    }
+    if (!CookiePathMatches(path, cookie.path)) {
+      continue;
+    }
+    if (cookie.secure && !secure) {
+      continue;
+    }
+    matched.push_back(&entry);
+  }
+
+  std::sort(matched.begin(), matched.end(), [](const Entry* a, const Entry* b) {
+    if (a->cookie.path.size() != b->cookie.path.size()) {
+      return a->cookie.path.size() > b->cookie.path.size();
+    }
+    return a->created < b->created;
+  });
+
+  std::string out;
+  for (const Entry* entry : matched) {
+    if (!out.empty()) {
+      out += "; ";
+    }
+    out += entry->cookie.name;
+    out.push_back('=');
+    out += entry->cookie.value;
+  }
+  return out;
+}
+
+bool CookieJar::StoreFromDocument(const url::PartitionKey& key, const url::Url& document_url,
+                                  std::string_view assignment, std::int64_t now) {
+  const std::size_t equals = assignment.find('=');
+  if (equals == std::string_view::npos || equals == 0) {
+    return false;
+  }
+  const auto cookie = ParseSetCookie(assignment, document_url, now);
+  if (!cookie.has_value()) {
+    return false;
+  }
+  Cookie stored = *cookie;
+  // Script cannot mint an HttpOnly cookie. Ignoring the attribute rather than
+  // refusing the whole write matches what other browsers do when a page tries.
+  stored.http_only = false;
+  if (!Store(key, document_url, stored, now)) {
+    return false;
+  }
+  // RFC 6265bis: if the serialized string would exceed 4096 bytes, evict cookies
+  // from the jar until it fits. Oldest first is the conservative answer.
+  constexpr std::size_t kMaxDocumentCookieBytes = 4096;
+  while (DocumentCookie(key, document_url, now).size() > kMaxDocumentCookieBytes) {
+    const std::string host = CanonicalCookieHost(document_url.HostSerialized());
+    const std::string path =
+        document_url.PathString().empty() ? "/" : document_url.PathString();
+    const bool secure = url::Origin::FromUrl(document_url).IsPotentiallyTrustworthy();
+    const auto visible = [&](const Entry& entry) {
+      if (!(entry.key == key)) {
+        return false;
+      }
+      const Cookie& c = entry.cookie;
+      return !c.http_only && !c.IsExpiredAt(now) &&
+             (c.host_only ? c.domain == host : CookieDomainMatches(host, c.domain)) &&
+             CookiePathMatches(path, c.path) && (!c.secure || secure);
+    };
+    std::optional<std::size_t> oldest;
+    std::int64_t oldest_created = 0;
+    for (std::size_t index = 0; index < entries_.size(); ++index) {
+      if (!visible(entries_[index])) {
+        continue;
+      }
+      if (!oldest.has_value() || entries_[index].created < oldest_created) {
+        oldest = index;
+        oldest_created = entries_[index].created;
+      }
+    }
+    if (!oldest.has_value()) {
+      break;
+    }
+    entries_.erase(entries_.begin() + static_cast<std::ptrdiff_t>(*oldest));
+  }
+  return true;
+}
+
 void CookieJar::RemoveExpired(std::int64_t now) {
   entries_.erase(std::remove_if(entries_.begin(), entries_.end(),
                                 [now](const Entry& entry) { return entry.cookie.IsExpiredAt(now); }),

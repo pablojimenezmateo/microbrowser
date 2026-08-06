@@ -260,10 +260,26 @@ void DomBindings::Install() {
   // Empty when nothing is stored for script yet. Reading `undefined` makes
   // `document.cookie.match(...)` throw before the page can handle a missing jar.
   const Value cookie_getter = interpreter_->NewNativeValue(
-      "cookie", [](NativeCall& /*call*/) { return Value::String(std::string()); });
-  if (cookie_getter.IsObject()) {
+      "cookie", [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->cookies_ == nullptr) {
+          return Value::String(std::string());
+        }
+        return Value::String(owner->cookies_->DocumentCookie());
+      });
+  const Value cookie_setter = interpreter_->NewNativeValue(
+      "cookie", [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->cookies_ == nullptr || call.arguments.empty()) {
+          return Value::Undefined();
+        }
+        (void)owner->cookies_->SetDocumentCookie(js::ToString(call.arguments[0]));
+        return Value::Undefined();
+      });
+  if (cookie_getter.IsObject() && cookie_setter.IsObject()) {
     cookie_getter.object->Set(kOwnerSlot, PointerValue(this));
-    target.object->DefineAccessor("cookie", cookie_getter.object, nullptr);
+    cookie_setter.object->Set(kOwnerSlot, PointerValue(this));
+    target.object->DefineAccessor("cookie", cookie_getter.object, cookie_setter.object);
   }
   InstallActiveElement(document);
 

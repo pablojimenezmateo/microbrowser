@@ -177,7 +177,8 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   interpreter_ = std::make_unique<js::Interpreter>();
   bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url,
                                                      geometry_, network_, history_, storage_,
-                                                     sockets_, media_, canvas_, workers_);
+                                                     cookies_, sockets_, media_, canvas_,
+                                                     workers_);
   bindings_->Install();
   timers_.Install(*interpreter_, now_ms);
   frames_.Install(*interpreter_, now_ms);

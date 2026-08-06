@@ -2035,6 +2035,37 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "threw");
   });
 
+  AddTest(tests, "DomBindings/ParentNodeAppendAndReplaceChildren", [] {
+    // reddit's `ac-render-template` hoists with `replaceChildren` and
+    // `append`; Polymer stamps with `append`. All three must move fragments
+    // and strings the way `appendChild` already does.
+    static constexpr const char* kTemplatePage =
+        "<html><body><div id='host'><i>old</i></div>"
+        "<template id='t'><p class='row'>x</p><span>y</span></template>"
+        "</body></html>";
+    ExpectScript(kTemplatePage, "typeof document.getElementById('host').append", "function");
+    ExpectScript(kTemplatePage, "typeof document.getElementById('host').replaceChildren",
+                 "function");
+    ExpectScript(kTemplatePage,
+                 "const host = document.getElementById('host');"
+                 "host.replaceChildren('a', document.createElement('b'));"
+                 "host.childNodes.length + ':' + host.textContent + ':' + host.lastChild.tagName",
+                 "2:a:B");
+    ExpectScript(kTemplatePage,
+                 "const t = document.getElementById('t');"
+                 "const host = document.getElementById('host');"
+                 "host.replaceChildren(t.content.cloneNode(true));"
+                 "document.querySelectorAll('.row').length + ':' + host.textContent.trim() + ':' +"
+                 " t.content.children.length",
+                 "1:xy:2");
+    ExpectScript(kTemplatePage,
+                 "const host = document.getElementById('host');"
+                 "const rep = document.createElement('em');"
+                 "host.firstChild.replaceWith(rep, 'tail');"
+                 "host.childNodes.length + ':' + host.innerHTML",
+                 "2:<em></em>tail");
+  });
+
   AddTest(tests, "DomBindings/TemplateContentIsReachableOnlyThroughContent", [] {
     // A template's markup is not document content: no walk of the tree finds
     // it, and `content` is the only way to reach it. That is what makes a

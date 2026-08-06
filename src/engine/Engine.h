@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "bindings/History.h"
+#include "bindings/Cookies.h"
 #include "bindings/Network.h"
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
@@ -52,7 +53,8 @@ namespace microbrowser::engine {
 class Engine : private bindings::NetworkSource,
                private bindings::HistorySource,
                private bindings::StorageSource,
-               private bindings::SocketSource {
+               private bindings::SocketSource,
+               private bindings::CookieSource {
  public:
   // Fonts arrive from the caller because which fonts exist is a property of
   // the machine, and the engine is the half of the seam that does not know
@@ -307,6 +309,15 @@ class Engine : private bindings::NetworkSource,
                       std::string_view value) override;
   bool RemoveItem(bindings::StorageSource::Kind kind, std::string_view key) override;
   bool Clear(bindings::StorageSource::Kind kind) override;
+
+  // bindings::CookieSource. ADR 0005, in EngineCookies.cpp, and private for the
+  // reason the other seams are: the binding layer holds a reference to the
+  // interface and nothing else has business calling these.
+  //
+  // **This is where the partition key is derived for script-visible cookies,**
+  // and it is the only place. `src/bindings` may not see `url` or `net`.
+  std::string DocumentCookie() override;
+  bool SetDocumentCookie(std::string_view assignment) override;
 
   // The area this document's script reads and writes. Null when the document has no
   // URL a partition key can be built from -- `about:blank`, a document built by a

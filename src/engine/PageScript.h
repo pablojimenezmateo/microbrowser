@@ -73,6 +73,9 @@ class PageScript {
   // And for `sessionStorage`/`localStorage`. Null leaves both names undeclared, which
   // is ADR 0012's rule and ADR 0021 §6's answer for a document with no keyed storage.
   void SetStorageSource(bindings::StorageSource* storage) { storage_ = storage; }
+  // And for `document.cookie`. Null leaves the accessor answering an empty string,
+  // which is what a test with a bare document needs.
+  void SetCookieSource(bindings::CookieSource* cookies) { cookies_ = cookies; }
   // And for `WebSocket`. Null leaves the name undeclared, which is what a page with no
   // socket source must see rather than a constructor that never opens.
   void SetSocketSource(bindings::SocketSource* sockets) { sockets_ = sockets; }
@@ -422,6 +425,7 @@ class PageScript {
   bindings::NetworkSource* network_ = nullptr;
   bindings::HistorySource* history_ = nullptr;
   bindings::StorageSource* storage_ = nullptr;
+  bindings::CookieSource* cookies_ = nullptr;
   bindings::SocketSource* sockets_ = nullptr;
   bindings::MediaController* media_ = nullptr;
   bindings::CanvasSurface* canvas_ = nullptr;

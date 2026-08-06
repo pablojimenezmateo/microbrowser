@@ -13,6 +13,7 @@
 #include "bindings/Workers.h"
 #include "bindings/Media.h"
 #include "bindings/Network.h"
+#include "bindings/Cookies.h"
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
 #include "dom/Node.h"
@@ -120,8 +121,9 @@ class DomBindings {
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
               HistorySource* history = nullptr, StorageSource* storage = nullptr,
-              SocketSource* sockets = nullptr, MediaController* media = nullptr,
-              CanvasSurface* canvas = nullptr, WorkerHost* workers = nullptr);
+              CookieSource* cookies = nullptr, SocketSource* sockets = nullptr,
+              MediaController* media = nullptr, CanvasSurface* canvas = nullptr,
+              WorkerHost* workers = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -711,6 +713,7 @@ class DomBindings {
   // `history` is not declared at all. Same rule as the two above.
   HistorySource* history_ = nullptr;
   StorageSource* storage_ = nullptr;
+  CookieSource* cookies_ = nullptr;
   SocketSource* sockets_ = nullptr;
   MediaController* media_ = nullptr;
   CanvasSurface* canvas_ = nullptr;

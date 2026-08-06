@@ -494,6 +494,35 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
     Expect(!net::ParseSetCookie("=novalue", url, 0).has_value(), "a cookie must have a name");
   });
 
+  AddTest(tests, "Cookie/DocumentCookieHidesHttpOnlyAndPartitions", [] {
+    CookieJar jar;
+    const Url url = MustParse("https://example.com/app");
+    const PartitionKey key = KeyFor("https://example.com/");
+    const PartitionKey other = KeyFor("https://other.example/");
+    jar.StoreFromHeader(key, url, "visible=1", 0);
+    jar.StoreFromHeader(key, url, "secret=2; HttpOnly", 0);
+    jar.StoreFromHeader(other, url, "other=3", 0);
+
+    ExpectEqString(jar.DocumentCookie(key, url, 0), "visible=1",
+                   "script sees non-HttpOnly cookies for its partition only");
+    ExpectEqString(jar.DocumentCookie(other, url, 0), "other=3",
+                   "and not another partition's jar");
+  });
+
+  AddTest(tests, "Cookie/DocumentCookieSetterUpdatesAndIgnoresHttpOnly", [] {
+    CookieJar jar;
+    const Url url = MustParse("https://example.com/");
+    const PartitionKey key = KeyFor("https://example.com/");
+    Expect(jar.StoreFromDocument(key, url, "csrf=abc", 0), "a script write stores");
+    ExpectEqString(jar.DocumentCookie(key, url, 0), "csrf=abc", "and reads back");
+    Expect(jar.StoreFromDocument(key, url, "csrf=def; HttpOnly", 0),
+           "HttpOnly in a script write is ignored, not a refusal");
+    ExpectEqString(jar.DocumentCookie(key, url, 0), "csrf=def",
+                   "and the cookie is still visible to script");
+    Expect(jar.HeaderFor(key, url, true, true, 0).find("csrf=def") != std::string::npos,
+           "requests still send it");
+  });
+
   // --- Content coding -------------------------------------------------------
 
   AddTest(tests, "ContentEncoding/GzipIsDecodedAndTheHeadersStopDescribingTheWire", [] {

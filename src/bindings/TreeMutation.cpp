@@ -218,6 +218,75 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     return owner->InsertNodeBefore(*self, child, nullptr);
   });
 
+  // ParentNode: `append`, `prepend`, and `replaceChildren`. reddit's
+  // `ac-render-template` hoists `<template for="…">` markup with
+  // `target.replaceChildren(template.content.cloneNode(true))` -- without
+  // `replaceChildren` the call throws, the template never moves, and the feed
+  // stays empty while the sidebar card (server-rendered elsewhere) still paints.
+  const auto insert_argument = [this](dom::Node& parent, dom::Node* reference,
+                                      const js::Value& argument) {
+    if (dom::Node* child = NodeOf(argument)) {
+      (void)InsertNodeBefore(parent, child, reference);
+      return;
+    }
+    const js::Value text = CreateText(js::ToString(argument));
+    if (dom::Node* node = NodeOf(text)) {
+      (void)InsertNodeBefore(parent, node, reference);
+    }
+  };
+  method("append", [insert_argument](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "append called on a non-node");
+    }
+    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+      insert_argument(*self, nullptr, Argument(call.arguments, i));
+    }
+    return Value::Undefined();
+  });
+  method("prepend", [insert_argument](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "prepend called on a non-node");
+    }
+    dom::Node* reference = self->FirstChild();
+    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+      insert_argument(*self, reference, Argument(call.arguments, i));
+    }
+    return Value::Undefined();
+  });
+  method("replaceChildren", [this, insert_argument](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "replaceChildren called on a non-node");
+    }
+    ClearChildren(*self);
+    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+      insert_argument(*self, nullptr, Argument(call.arguments, i));
+    }
+    return Value::Undefined();
+  });
+  // ChildNode: swap this node out for one or more nodes in the same parent.
+  method("replaceWith", [insert_argument](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "replaceWith called on a non-node");
+    }
+    dom::Node* parent = self->Parent();
+    if (parent == nullptr) {
+      return call.Throw("NotFoundError", "replaceWith on a node with no parent");
+    }
+    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+      insert_argument(*parent, self, Argument(call.arguments, i));
+    }
+    owner->DetachFromTree(*self);
+    return Value::Undefined();
+  });
+
 }
 
 void DomBindings::ClearChildren(dom::Node& parent) {

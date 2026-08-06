@@ -77,6 +77,19 @@ class CookieJar {
                         bool same_site_context, bool is_top_level_navigation,
                         std::int64_t now) const;
 
+  // What `document.cookie` returns: every non-HttpOnly cookie for `document_url`
+  // in `key`, as `name=value` pairs joined by `"; "`. SameSite is not applied —
+  // script may read its own cookies regardless of how they would travel on a
+  // request.
+  std::string DocumentCookie(const url::PartitionKey& key, const url::Url& document_url,
+                             std::int64_t now) const;
+
+  // A `document.cookie = "..."` write. HttpOnly cannot be set from script; an
+  // attribute that asks for it is ignored. False when the assignment does not
+  // parse or `Store` refused it.
+  bool StoreFromDocument(const url::PartitionKey& key, const url::Url& document_url,
+                         std::string_view assignment, std::int64_t now);
+
   void RemoveExpired(std::int64_t now);
   void Clear() { entries_.clear(); }
   std::size_t Size() const { return entries_.size(); }

@@ -1752,6 +1752,29 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "and the cookie the first response set");
   });
 
+  AddTest(tests, "Engine/DocumentCookieReadsSetCookie", [] {
+    Session session;
+    ScriptedFactory factory;
+    const std::string page =
+        "<script>"
+        "var m = document.cookie.match(/csrf_token=([^;]+)/);"
+        "console.log(m ? m[1] : 'missing');"
+        "</script>";
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+        "Set-Cookie: csrf_token=abc123; Path=/\r\n"
+        "Set-Cookie: secret=hidden; HttpOnly; Path=/\r\n"
+        "Content-Length: " + std::to_string(page.size()) + "\r\n\r\n" + page});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "abc123",
+                   "script reads csrf_token from document.cookie but not HttpOnly cookies");
+  });
+
   AddTest(tests, "Engine/ClickingAGetFormSubmitNavigatesToTheSerializedQuery", [] {
     Session session;
     ScriptedFactory factory;

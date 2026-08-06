@@ -30,7 +30,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # is how the binding layer asks it rather than re-implementing it wrong.
 allow: util js dom html css
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h Media.h Network.h Performance.h Sockets.h Storage.h Timers.h ViewObservers.h Canvas.h Workers.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h
 
 extern:
 
@@ -188,6 +188,8 @@ budget: StorageSource header_lines=50 public_methods=11 members=0
 # because a message crossing by *value* is the whole of what makes a worker tractable here.
 budget: WorkerHost      header_lines=45 public_methods=5 members=0
 budget: NetworkSource   header_lines=40 public_methods=6  members=0
+# ADR 0005's cookie seam. Two methods and the partition key stays on the engine side.
+budget: CookieSource    header_lines=35 public_methods=6  members=0
 # ADR 0029 §2's canvas seam. **One command type rather than forty virtuals**: a command is data, so it
 # can be counted, bounded and (later) sent to another process, and the seam stays as narrow as the
 # feature is wide. The `Kind` list growing is the feature growing, which is what the budget makes visible.
@@ -220,7 +222,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # exposed so `querySelectorAll` can parse a selector once and match it against
 # every element rather than re-tokenising per node. The three-form toy this
 # replaced is how youtube.com's selector lists returned nothing.
-budget: DomBindings header_lines=628 public_methods=33 members=18
+budget: DomBindings header_lines=632 public_methods=33 members=19
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

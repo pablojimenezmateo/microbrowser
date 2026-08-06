@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "bindings/Cookies.h"
 #include "bindings/Geometry.h"
 #include "bindings/Network.h"
 #include "bindings/Media.h"

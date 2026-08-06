@@ -380,6 +380,7 @@ microbrowser_module(engine
     src/engine/ModuleLoader.cpp
     src/engine/EngineSockets.cpp
     src/engine/EngineStorage.cpp
+    src/engine/EngineCookies.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
     src/engine/Animations.cpp

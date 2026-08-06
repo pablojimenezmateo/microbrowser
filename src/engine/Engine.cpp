@@ -113,6 +113,9 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   page_.SetStorageSource(this);
   // And its sockets, same lifetime and same reason.
   page_.SetSocketSource(this);
+  // And its cookies, same lifetime and same reason. Reddit's GQL reads
+  // `csrf_token` from here; Wikipedia's inline script calls `.match` on it.
+  page_.SetCookieSource(this);
 }
 
 bool Engine::HandlePendingMessages() {

@@ -43,7 +43,7 @@ bool DomBindings::HasUserActivation() const {
 
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
                          std::string url, GeometrySource* geometry, NetworkSource* network,
-                         HistorySource* history, StorageSource* storage,
+                         HistorySource* history, StorageSource* storage, CookieSource* cookies,
                          SocketSource* sockets, MediaController* media, CanvasSurface* canvas,
                          WorkerHost* workers)
     : interpreter_(&interpreter),
@@ -53,6 +53,7 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
       network_(network),
       history_(history),
       storage_(storage),
+      cookies_(cookies),
       sockets_(sockets),
       media_(media),
       canvas_(canvas),

@@ -55,7 +55,7 @@ budget: Http2Session   header_lines=195 public_methods=17 members=19
 # answers to one question.
 budget: ResponseParser header_lines=70 public_methods=16 members=10
 budget: Cookie         header_lines=50 public_methods=10 members=10
-budget: CookieJar      header_lines=50 public_methods=14 members=2
+budget: CookieJar      header_lines=60 public_methods=18 members=2
 budget: HttpCache      header_lines=45 public_methods=14 members=3
 # Raised to 50 by the partition key on `StartConnect`. The five lines are the
 # comment saying why a name lookup is keyed by partition and not by host, which
