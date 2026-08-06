@@ -2518,3 +2518,46 @@ is **windows-1252 rather than UTF-8**, because an undeclared page is overwhelmin
 Measured end to end: `naïve café "quoted" … 90°` renders from raw windows-1252 bytes with no
 declaration, and the three rendering sites are unchanged because they all declare UTF-8 and the
 algorithm agrees with them.
+
+### Unicode tables, UAX #14, and CJK inside its box · 2026-08-06 (session 31)
+
+`7fa51f8` the generator and the algorithm, `b4fc5aa` the wiring. The visible bug is gone: a 260px box
+of Japanese wraps to three lines inside its border where it used to be one line running off the page.
+
+**The tables are generated and checked in, and both halves of that matter.** Generated, because
+LineBreak.txt is 3,608 lines and a transcription error in it is a class of text that wraps wrongly with
+no way to notice; checked in, because a build that downloads from unicode.org fails when the network
+does and produces different output depending on when it ran. Ranges rather than per-code-point
+entries: CJK ideographs are one run of 20,992, so the whole of Unicode is 2,812 rows and a lookup is
+twelve comparisons instead of a megabyte.
+
+The pair table is written as UAX #14's numbered rules **in order**, each block citing the rule it
+implements, rather than as a 33x33 grid of letters. A grid is smaller and unreadable; this way a wrong
+answer is traceable to a rule by someone with the specification open, which is the only way this stays
+maintainable.
+
+Two of my expectations were wrong and the data was right, again: `)` is class **CP**, not CL — since
+Unicode 6.1 the parenthesis and square bracket have their own class because LB30 treats them
+differently from `}` — and small kana is `CJ`, resolved to `NS`. Both corrected with the reason at the
+assertion, because a reader will not believe either without it.
+
+**Two findings came from rendering the fixed page, not from the tests.**
+
+The first: the CJK box wrapped correctly and displayed `æ—¥`. That was ADR 0025's windows-1252
+fallback doing exactly what it says — and it is right for a document from a server and wrong for one
+carried in its own URL. A `data:` URL's payload arrives percent-encoded, and the bytes `%E6%97%A5`
+decodes to are UTF-8 because that is what the encoder emitted. So a `data:` URL that names no charset
+is UTF-8 now, which is a deliberate deviation from RFC 2397's `US-ASCII` that every browser also
+makes. One existing test asserted the old content type; it was changed with the reason written at the
+assertion, and a second case added for the URL that names its own charset and must not be overridden.
+
+The second is recorded rather than fixed: **CJK still renders as boxes, and that is our font fallback
+rather than the system's.** `fc-list :lang=ja` finds 31 faces on this machine — Noto Serif CJK is
+installed — and this browser asks for `sans-serif`, gets DejaVu Sans, and stops. There is no
+per-character fallback to a font that covers the code point. So the layout is now right and the glyphs
+are not, which is a shaper question and the next thing this area needs.
+
+A trap worth writing down for that session: the synthetic test font reports **zero width** for glyphs
+it lacks, so a CJK wrapping assertion written against a real font passes without exercising anything.
+The test uses `FixedTextMeasurer` (width per byte) for exactly that reason, and finding this cost a
+failing test that looked like a broken feature.
