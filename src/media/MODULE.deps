@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h HlsPlaylist.h Matroska.h MediaState.h PlaybackClock.h
+public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h HlsPlaylist.h Matroska.h MediaState.h PlaybackClock.h
 
 extern:
 

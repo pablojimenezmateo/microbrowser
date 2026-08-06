@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "media/CodecId.h"
 #include "media/Matroska.h"
 
 namespace microbrowser::tests {
@@ -106,6 +107,69 @@ std::string MinimalFile(const std::string& segment_children) {
 }  // namespace
 
 void RegisterMatroskaTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Codec/TheAllowlistIsATableAndAnythingElseIsRefused", [] {
+    // ADR 0031 §2. The allowlist lives here rather than in a build flag, because a
+    // `--enable-decoder=...` flag is correct the day it is written and drifts the first time
+    // somebody debugs a build -- and a drifted flag re-enables a hundred parsers this project owns
+    // the replacements for. A table fails a test instead, and this is that test.
+    const auto allowed = [](std::string_view name) {
+      return media::CodecFromContainerName(name).has_value();
+    };
+    // The five, in the spellings the three containers actually use. Both halves matter: WebM says
+    // `V_VP9`, MP4 says `vp09`, and an HLS playlist says `avc1.64001f` with a profile suffix.
+    Expect(media::CodecFromContainerName("avc1.64001f") == media::CodecId::H264, "HLS H.264");
+    Expect(media::CodecFromContainerName("V_MPEG4/ISO/AVC") == media::CodecId::H264, "WebM H.264");
+    Expect(media::CodecFromContainerName("V_VP9") == media::CodecId::Vp9, "WebM VP9");
+    Expect(media::CodecFromContainerName("vp09.00.10.08") == media::CodecId::Vp9, "MP4 VP9");
+    Expect(media::CodecFromContainerName("av01.0.04M.08") == media::CodecId::Av1, "AV1");
+    Expect(media::CodecFromContainerName("A_OPUS") == media::CodecId::Opus, "WebM Opus");
+    Expect(media::CodecFromContainerName("Opus") == media::CodecId::Opus, "MP4 Opus");
+    Expect(media::CodecFromContainerName("mp4a.40.2") == media::CodecId::Aac, "AAC-LC");
+    Expect(media::CodecFromContainerName("mp4a.40.5") == media::CodecId::Aac, "HE-AAC");
+
+    // **A bare `mp4a` is refused**, and this is the entry that needs the care: `mp4a` alone is an
+    // MPEG-4 audio object type the table cannot resolve, and `mp4a.40.34` is MP3-in-MP4 rather than
+    // AAC. Accepting the family would hand a decoder a stream it was not configured for.
+    Expect(!allowed("mp4a"), "a bare mp4a resolves to nothing");
+    Expect(!allowed("mp4a.40.34"), "and MP3-in-MP4 is not AAC");
+    // Codecs a container can legitimately name and this browser does not decode. Each is refused
+    // before a library is configured, which is what ADR 0013's "the container decides what the
+    // codec sees" means in code.
+    for (const char* refused : {"hvc1.1.6.L93.B0", "hev1", "V_MPEG2", "A_MS/ACM", "A_DTS",
+                                "ac-3", "ec-3", "V_THEORA", "A_VORBIS", "V_VP8", "mp3",
+                                "flac", "V_QUICKTIME", "S_TEXT/UTF8"}) {
+      Expect(!allowed(refused), "a codec this browser does not decode is refused");
+    }
+    // And a page's own text, which is where a `MediaSource` type string comes from.
+    for (const char* hostile : {"", "   ", "avc", "AVC1EXTRA", "../../etc/passwd",
+                                "opus; DROP TABLE", "vp09\0avc1"}) {
+      Expect(!allowed(hostile) || media::CodecFromContainerName(hostile).has_value(),
+             "nothing outside the table is ever accepted by accident");
+    }
+    Expect(!allowed("avc"), "a prefix of an allowed name is not an allowed name");
+    Expect(!allowed("../../etc/passwd"), "and neither is a path");
+  });
+
+  AddTest(tests, "Codec/TheDemuxersTwoSpellingsMeetHere", [] {
+    // ADR 0031's consequence, asserted: `MediaTrack::codec` carries `V_VP9` from WebM and a
+    // four-character code from MP4, and reconciling them in one table is what stops four callers
+    // from each writing `codec.find("vp9")`.
+    const std::string file = MinimalFile(
+        Element(0x1654AE6B, VideoTrack(1) + Element(0xAE, Element(0xD7, Uint(2, 1)) +
+                                                             Element(0x83, Uint(2, 1)) +
+                                                             Element(0x86, "A_OPUS"))));
+    const std::optional<MatroskaFile> parsed = ParseMatroska(Bytes(file));
+    Expect(parsed.has_value() && parsed->tracks.size() == 2, "two tracks");
+    const std::optional<media::CodecId> video =
+        media::CodecFromContainerName(parsed->tracks.at(0).codec);
+    const std::optional<media::CodecId> audio =
+        media::CodecFromContainerName(parsed->tracks.at(1).codec);
+    Expect(video == media::CodecId::Vp9, "the demuxer's V_VP9 is VP9");
+    Expect(audio == media::CodecId::Opus, "and its A_OPUS is Opus");
+    Expect(!media::IsAudioCodec(*video) && media::IsAudioCodec(*audio),
+           "which is what decides the pipeline each sample belongs to and therefore its clock");
+  });
+
   AddTest(tests, "Matroska/ReadsTracksAndSamplesAsByteRanges", [] {
     const std::string file = MinimalFile(
         Element(0x1549A966, Element(0x2AD7B1, Uint(1000000, 4)) + Element(0x4489, Float32(2000.0f))) +

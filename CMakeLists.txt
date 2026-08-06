@@ -269,6 +269,7 @@ microbrowser_module(media
     src/media/HlsPlaylist.cpp
     src/media/MediaState.cpp
     src/media/BoxReader.cpp
+    src/media/CodecId.cpp
     src/media/IsoBmff.cpp
     src/media/Matroska.cpp
   DEPS microbrowser_util)

@@ -445,6 +445,7 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0028` — the media element, MSE, and the refusal of DRM
 - `docs/adr/0029` — canvas, WebGL, permissions, and the fingerprinting surface
 - `docs/adr/0030` — incremental parsing, and showing a page before it is finished
+- `docs/adr/0031` — the codec decision: which decoders, from where, and in what process
 - `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
 - `docs/roadmap-sessions.json` — the same sessions as state: what is done, what the check is
 - `docs/session-log.md` — what each session found that a diff does not say
