@@ -199,6 +199,76 @@ void DomBindings::WriteLocationFields(const js::Value& location) {
   }
 }
 
+void DomBindings::InstallUrlConstructor() {
+  // `new URL(href[, base])`, and the properties `location` already reports.
+  //
+  // It exists because `URL.createObjectURL` has to hang off something (ADR 0028 §3, session 28) and a
+  // `URL` object that was not constructible would be the stub ADR 0012 forbids. The parse is *not*
+  // here: it goes through `NetworkSource::ResolveUrl` to the one parser in `src/url`, and only the
+  // splitting of the canonical result happens in this module -- the same division of labour, and for
+  // the same reason, as `SplitAddress` above.
+  if (interpreter_ == nullptr || network_ == nullptr) {
+    // No network source means no resolver, and a `URL` that could not parse would answer about
+    // nothing. Absent instead.
+    return;
+  }
+  if (const Value* existing = interpreter_->Global()->Get("URL");
+      existing != nullptr && existing->IsObject()) {
+    return;  // Already installed: this is called from two places and must be idempotent.
+  }
+  const Value prototype = interpreter_->NewObjectValue();
+  const Value constructor = interpreter_->NewNativeValue("URL", [this, prototype](NativeCall& call) {
+    const std::string relative = js::ToString(Argument(call.arguments, 0));
+    const Value base_argument = Argument(call.arguments, 1);
+    // An absent base means the document's own address, which is what a relative URL is relative to.
+    const std::string base =
+        base_argument.IsUndefined() ? url_ : js::ToString(base_argument);
+    const std::string resolved = network_->ResolveUrl(relative, base);
+    if (resolved.empty()) {
+      // The specification throws `TypeError` for a URL that does not parse, and pages depend on it:
+      // `try { new URL(s) } catch { /* not a URL */ }` is the idiomatic validity test.
+      return call.Throw("TypeError", "Failed to construct URL: invalid URL");
+    }
+    const Value object = call.interpreter.NewObjectValue();
+    if (!object.IsObject()) {
+      return Value::Undefined();
+    }
+    if (prototype.IsObject()) {
+      object.object->SetPrototype(prototype.object);
+    }
+    const Address address = SplitAddress(resolved);
+    object.object->Set("href", Value::String(resolved));
+    object.object->Set("protocol", Value::String(address.protocol));
+    object.object->Set("host", Value::String(address.host));
+    object.object->Set("hostname", Value::String(address.hostname));
+    object.object->Set("port", Value::String(address.port));
+    object.object->Set("pathname", Value::String(address.pathname));
+    object.object->Set("search", Value::String(address.search));
+    object.object->Set("hash", Value::String(address.hash));
+    object.object->Set("origin", Value::String(address.origin));
+    return object;
+  });
+  if (!constructor.IsObject()) {
+    return;
+  }
+  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  if (prototype.IsObject()) {
+    // `toString` and `toJSON` both answer with `href`, which is what makes a URL usable everywhere a
+    // string is -- `fetch(new URL(...))` is the common case and it goes through ToString.
+    const Value to_string = interpreter_->NewNativeValue("toString", [](NativeCall& inner) {
+      const Value* href = inner.self.IsObject() ? inner.self.object->GetOwn("href") : nullptr;
+      return href == nullptr ? Value::String("") : *href;
+    });
+    if (to_string.IsObject()) {
+      prototype.object->Set("toString", to_string);
+      prototype.object->Set("toJSON", to_string);
+    }
+    constructor.object->Set("prototype", prototype);
+  }
+  interpreter_->Global()->Set("URL", constructor);
+  interpreter_->GlobalScope()->Declare("URL", constructor, false);
+}
+
 void DomBindings::SetDocumentUrl(std::string url) {
   url_ = std::move(url);
   if (interpreter_ == nullptr) {

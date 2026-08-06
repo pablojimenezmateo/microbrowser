@@ -105,6 +105,10 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
 
   if (attribute != nullptr && attribute->IsObject() && attribute->object->IsCallable()) {
     const js::Result answer = interpreter_->CallFunction(*attribute, holder, {event});
+    if (answer.completion == js::Completion::Throw) {
+      // The same for an `on…` attribute handler, which is the other half of the same rule.
+      interpreter_->ReportUncaught(answer.value, "event handler");
+    }
     // The legacy cancellation: an event handler *attribute* that returns false
     // has prevented the default. A listener returning false has not, which is
     // why this lives here and not in the loop below.
@@ -146,7 +150,17 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
     }
     // `this` is the object the listener was registered on, which is what a
     // handler written as an ordinary function expects.
-    (void)interpreter_->CallFunction(ListenerFunction(entry), holder, {event});
+    //
+    // **The result is looked at.** It used to be discarded, and that made an exception in a listener
+    // vanish completely -- no console line, no script error, nothing. The specification says an
+    // exception in a listener is *reported* and dispatch continues with the next listener, and the
+    // reporting half is not decoration: a whole MSE page in session 28 stopped silently at a
+    // `ReferenceError` inside a `sourceopen` handler, and the only symptom was output that stopped
+    // mid-way. Continuing is right and staying quiet was not.
+    const js::Result outcome = interpreter_->CallFunction(ListenerFunction(entry), holder, {event});
+    if (outcome.completion == js::Completion::Throw) {
+      interpreter_->ReportUncaught(outcome.value, "event listener");
+    }
     if (passive) {
       event.object->Set(kEventInPassiveSlot, Value::Bool(false));
     }

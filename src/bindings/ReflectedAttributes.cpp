@@ -120,6 +120,17 @@ constexpr Reflection kReflections[] = {
     {"HTMLLinkElement", "type", "type", Reflect::Text},
 
     {"HTMLIFrameElement", "src", "src", Reflect::Text},
+    // `<video>` and `<audio>`'s `src`, which was missing -- so `video.src = url` set a plain JavaScript
+    // property on the wrapper and the element never saw it. Found by an MSE page whose `sourceopen`
+    // never fired: the attach hook in SetElementAttribute was right and nothing was reaching it.
+    //
+    // On both interfaces rather than a shared `HTMLMediaElement`, because this engine's interface
+    // table is flat -- the same reason `InstallMediaElement` is called twice.
+    {"HTMLVideoElement", "src", "src", Reflect::Text},
+    {"HTMLVideoElement", "preload", "preload", Reflect::Text},
+    {"HTMLVideoElement", "poster", "poster", Reflect::Text},
+    {"HTMLAudioElement", "src", "src", Reflect::Text},
+    {"HTMLAudioElement", "preload", "preload", Reflect::Text},
     {"HTMLIFrameElement", "name", "name", Reflect::Text},
 };
 
@@ -137,6 +148,16 @@ void DomBindings::SetElementAttribute(dom::Element& element, const std::string& 
   const std::string* previous = element.GetAttribute(name);
   const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
   element.SetAttribute(name, value);
+  // **A media element's `src` set to an object URL is an *attach*, not a fetch.** This is the one path
+  // by which a `MediaSource` reaches an element -- `video.src = URL.createObjectURL(source)` -- and it
+  // has to be noticed here, at the write, because that is where every spelling of it converges:
+  // `video.src =`, `setAttribute('src', …)` and a `srcObject`-style helper all end up on this line.
+  // Attaching is also what *opens* the source and fires `sourceopen`, which is how every player learns
+  // it may start appending.
+  if (media_ != nullptr && name == "src" && value.rfind("blob:", 0) == 0 &&
+      media_->IsMedia(element) && media_->AttachMediaSource(element, value)) {
+    DeliverMediaSourceOpenedFor(value);
+  }
   RunAttributeReaction(element, name, old_value, Value::String(value));
   RecordMutation(element, "attributes", name, old_value, {}, {});
 }

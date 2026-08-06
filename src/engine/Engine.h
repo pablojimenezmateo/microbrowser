@@ -319,6 +319,8 @@ class Engine : private bindings::NetworkSource,
   // the loader is here.
   std::uint64_t StartFetch(const bindings::ScriptRequest& request) override;
   void AbortFetch(std::uint64_t id) override;
+  // `new URL(...)`'s resolve, through the one parser in `src/url`. See bindings/Network.h.
+  std::string ResolveUrl(std::string_view relative, std::string_view base) const override;
   // One response for a request a script made. True when the page's script ran,
   // which is the caller's signal that the document may have changed under it.
   bool OnScriptFetch(Loader::Completion completion);

@@ -98,6 +98,17 @@ class NetworkSource {
   // aborted fetch unable to run its own `then` afterwards. Calling it for an id
   // that has already been delivered is harmless and does nothing.
   virtual void AbortFetch(std::uint64_t id) = 0;
+
+  // A relative URL resolved against the document's base, canonicalised, or empty when it does not
+  // parse. This is here rather than in a URL-shaped interface of its own because it is the same
+  // question a fetch already asks -- and it must be answered by the *one* parser in `src/url`, which
+  // this module may not see. A second URL parser in the binding layer is exactly the "two parsers
+  // disagreeing about where the host ends" that `url/Url.h` names as the vulnerability.
+  //
+  // Added for `new URL(...)` (session 28), which exists because `URL.createObjectURL` has to hang off
+  // something and a `URL` that was not constructible would be a stub -- a page that finds `URL` and
+  // gets a TypeError from `new URL(href)` has taken the branch that assumes it works.
+  virtual std::string ResolveUrl(std::string_view relative, std::string_view base) const = 0;
 };
 
 }  // namespace microbrowser::bindings

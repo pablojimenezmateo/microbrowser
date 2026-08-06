@@ -373,6 +373,7 @@ microbrowser_module(engine
     src/engine/PageEditing.cpp
     src/engine/MediaElements.cpp
     src/engine/PageMedia.cpp
+    src/engine/PageMediaSource.cpp
     src/engine/PageModules.cpp
     src/engine/PageResources.cpp
     src/engine/PageScrolling.cpp
@@ -412,6 +413,7 @@ microbrowser_module(bindings
     src/bindings/ReflectedAttributes.cpp
     src/bindings/ShadowBindings.cpp
     src/bindings/MediaBindings.cpp
+    src/bindings/MediaSourceBindings.cpp
     src/bindings/SocketBindings.cpp
     src/bindings/StorageBindings.cpp
     src/bindings/StyleBindings.cpp

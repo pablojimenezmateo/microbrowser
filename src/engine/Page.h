@@ -437,6 +437,37 @@ class Page : private layout::ImageProvider,
   bool Ended(const dom::Element& element) const override;
   bool Muted(const dom::Element& element) const override;
   bool IsMedia(const dom::Element& element) const override;
+  // --- MSE, in PageMediaSource.cpp (ADR 0028 §3) -----------------------------
+  //
+  // Every one of these is a lookup in `MediaElements`' tables plus a call into `media`. Nothing here
+  // decides anything about a stream: the append algorithm, the quota and the codec allowlist all live
+  // in `src/media`, and this is the layer that turns an id into an object and an object into an id.
+  std::uint64_t CreateMediaSource() override;
+  std::string CreateObjectUrl(std::uint64_t source_id) override;
+  void RevokeObjectUrl(const std::string& url) override;
+  bool AttachMediaSource(dom::Element& element, const std::string& url) override;
+  std::uint64_t SourceForObjectUrl(const std::string& url) const override;
+  int SourceReadyState(std::uint64_t source_id) const override;
+  double SourceDuration(std::uint64_t source_id) const override;
+  void SetSourceDuration(std::uint64_t source_id, double seconds) override;
+  void EndOfStream(std::uint64_t source_id) override;
+  std::uint64_t AddSourceBuffer(std::uint64_t source_id, const std::string& mime_type,
+                                bindings::MediaController::AddBufferError& error) override;
+  void RemoveSourceBuffer(std::uint64_t source_id, std::uint64_t buffer_id) override;
+  int AppendToSourceBuffer(std::uint64_t buffer_id, std::string_view bytes) override;
+  void RemoveFromSourceBuffer(std::uint64_t buffer_id, double start, double end) override;
+  void AbortSourceBuffer(std::uint64_t buffer_id) override;
+  void SetTimestampOffset(std::uint64_t buffer_id, double seconds) override;
+  double TimestampOffset(std::uint64_t buffer_id) const override;
+  void SetAppendWindow(std::uint64_t buffer_id, double start, double end) override;
+  bool SourceBufferUpdating(std::uint64_t buffer_id) const override;
+  std::vector<double> SourceBufferBuffered(std::uint64_t buffer_id) const override;
+  bool IsLiveSourceBuffer(std::uint64_t buffer_id) const override;
+  std::vector<std::string> TakeSourceBufferEvents(std::uint64_t buffer_id) override;
+  std::vector<std::string> TakeMediaSourceEvents(std::uint64_t source_id) override;
+  // What an append changed about the *element*: MSE reports what it holds and the element's state
+  // machine decides what that means. One direction, and one number across the seam.
+  void UpdateMediaReadinessFromSource(std::uint64_t source_id);
 
   // What the loader will drive as bytes arrive, and what a test drives directly. Public because
   // the engine half of session 25 is not built yet and this is the seam it will use.

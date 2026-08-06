@@ -155,6 +155,17 @@ class Interpreter {
   // testable and keeps a page from writing to the terminal.
   const std::vector<std::string>& ConsoleOutput() const { return console_; }
 
+  // An exception nobody caught, from a place where throwing is *reported* rather than propagated: an
+  // event listener, an `on…` handler, an observer callback. It goes to the console line the host
+  // collects, which is the only channel a page's own error has.
+  //
+  // Public because the callers are in `src/bindings`, and it exists because discarding these was
+  // silently losing whole scripts -- see EventDispatch.cpp. `where` is a fixed string chosen by the
+  // caller, never derived from the page, so it cannot echo an attacker's text into a log.
+  void ReportUncaught(const Value& error, const char* where) {
+    console_.push_back(std::string("Uncaught (in ") + where + ") " + ToString(error));
+  }
+
   // The wall clock, in milliseconds since the epoch.
   //
   // Public and in one place because it is a *privacy* surface rather than a

@@ -153,7 +153,11 @@ max_tu_lines: 700
 # localStorage are answered through an interface this module declares, like geometry
 # and the network, so no partition key and no store appears here.
 budget: StorageSource header_lines=50 public_methods=11 members=0
-budget: MediaController header_lines=55 public_methods=18 members=0
+# Raised for MSE (ADR 0028 §3, session 28). The element half and the MediaSource half are one
+# interface on purpose: `video.src = URL.createObjectURL(source)` is the *only* way a MediaSource
+# reaches an element, so the attach lives where both sides are already visible. Splitting them would
+# put that one call across a seam and give the engine two tables to keep in step.
+budget: MediaController header_lines=130 public_methods=45 members=0
 budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the
 # SocketSource this module declares, and the three delivery entry points -- C++-only,

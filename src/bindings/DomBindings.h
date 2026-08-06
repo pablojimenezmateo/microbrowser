@@ -330,6 +330,9 @@ class DomBindings {
   // by the install and by a same-document navigation, so the two cannot come to
   // disagree about which parts a page can read.
   void WriteLocationFields(const js::Value& location);
+  // `new URL(...)`, over the one parser. See WindowBindings.cpp; installed from InstallObjectUrls
+  // because that is what needs it, and idempotent because it may be reached twice.
+  void InstallUrlConstructor();
   // --- Focus, in FocusBindings.cpp ------------------------------------------
   // `focus()` and `blur()` on HTMLElement, and `document.activeElement`.
   void InstallFocus(const js::Value& target);
@@ -434,6 +437,33 @@ class DomBindings {
   // prototype. Absent when there is no controller behind them: a page that finds `play` and
   // gets a promise that never settles has no fallback left.
   void InstallMediaElement(const js::Value& target);
+  // --- MSE, in MediaSourceBindings.cpp ---------------------------------------
+  //
+  // ADR 0028 §3. Installed once per document rather than per element: a `MediaSource` is not an
+  // element and reaches one only through `URL.createObjectURL`, which is why the object URL registry
+  // is installed from here too.
+  void InstallMediaSource();
+  void InstallObjectUrls();
+  js::Value MakeTimeRanges(const std::vector<double>& flat);
+  void DeliverSourceBufferEvents(const js::Value& buffer, std::uint64_t id);
+  void DeliverMediaSourceEvents(const js::Value& source, std::uint64_t id);
+  void RegisterMediaSourceWrapper(std::uint64_t id, const js::Value& wrapper);
+  // The wrappers, so that an event the engine produced can be delivered to the object a page is
+  // holding. Kept as a JS object hung off the interfaces object rather than as a C++ map of
+  // `js::Value` -- a `js::Value` in a C++ field is invisible to the collector, and a MediaSource
+  // collected while its element was still attached is a video that stops.
+  js::Value MediaSourceWrapper(std::uint64_t id) const;
+
+ public:
+  // The engine calls this after attaching a source to an element, which is what fires `sourceopen` --
+  // and `sourceopen` is how every player learns it may start appending. Public because the attach
+  // happens in the engine, on the far side of the seam.
+  bool DeliverMediaSourceOpened(std::uint64_t id);
+  // The same, found from the object URL that was just attached -- because the attach site has the URL
+  // and not the id, and the id-to-URL map is on the far side of the seam.
+  bool DeliverMediaSourceOpenedFor(const std::string& url);
+
+ private:
 
   // --- WebSocket, in SocketBindings.cpp -------------------------------------
   // Installed only when there is a SocketSource, for ADR 0012's reason and its sharpest

@@ -120,6 +120,19 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
   return id;
 }
 
+std::string Engine::ResolveUrl(std::string_view relative, std::string_view base) const {
+  // The one parser, and the *only* thing this adds is a fallback base. `url::Url::Parse` needs a base
+  // that is itself absolute; a page can pass anything as the second argument to `new URL`, so a base
+  // that does not parse makes the whole call fail -- which is what the specification says.
+  const std::optional<url::Url> parsed_base = url::Url::Parse(base);
+  if (!parsed_base.has_value()) {
+    const std::optional<url::Url> absolute = url::Url::Parse(relative);
+    return absolute.has_value() ? absolute->Serialize() : std::string();
+  }
+  const std::optional<url::Url> resolved = url::Url::Parse(relative, *parsed_base);
+  return resolved.has_value() ? resolved->Serialize() : std::string();
+}
+
 void Engine::AbortFetch(std::uint64_t id) {
   script_fetches_.erase(id);
   loader_.Cancel(id);

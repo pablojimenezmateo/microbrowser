@@ -234,6 +234,14 @@ void MediaSourceState::EndOfStream() {
   events_.push_back("sourceended");
 }
 
+void MediaSourceState::ReopenForAppend() {
+  if (state_ == ReadyState::Ended) {
+    state_ = ReadyState::Open;
+    // No event: the specification's "ended" -> "open" transition on append fires nothing, because a
+    // player did not ask for it and a `sourceopen` here would make one re-run its setup.
+  }
+}
+
 SourceBufferState* MediaSourceState::AddSourceBuffer(const std::string& mime_type) {
   if (state_ != ReadyState::Open || buffers_.size() >= kMaxBuffers) {
     return nullptr;

@@ -269,6 +269,10 @@ void DomBindings::EnsureInterfaces() {
   // that itself.
   InstallWebSocket();
   InstallEventSource();
+  // And once more for MSE. `MediaSource` present with a `buffered` that never fills is a player
+  // stalled with no fallback left; absent, the same player uses `<video src>`, which this browser
+  // does have. InstallMediaSource answers that itself.
+  InstallMediaSource();
   // Absent for the same reason when there is nothing to traverse: a page that
   // finds `history.pushState` and gets nothing has already taken the branch that
   // assumes it works. InstallHistory answers that itself.

@@ -146,6 +146,10 @@ class MediaSourceState {
   // readiness can reach "have enough data" -- which it cannot while a source is open, because more
   // might arrive.
   void EndOfStream();
+  // An append while `ended` puts the source back to `open`, which is what the specification says and
+  // what a live stream does every time it gets another segment after a lull. Without it a player that
+  // called `endOfStream` optimistically could never append again.
+  void ReopenForAppend();
 
   // `addSourceBuffer`. Null when the type is not one this browser can decode, which the caller turns
   // into `NotSupportedError`, or when the source is not open.

@@ -124,7 +124,11 @@ budget: Engine header_lines=405 public_methods=15 members=21
 # going away -- is no help at all for. The lines are the headers a `fetch`
 # reads back off a `Response`: a document load wants one header and reads it
 # out of `content_type`, and a page's own request enumerates them.
-budget: MediaElements header_lines=50 public_methods=10 members=2
+# Raised for MSE (ADR 0028 §3, session 28). The MediaSource table, the SourceBuffer index, the object
+# URL registry and the element->source map all live here for the reason the element states do: they
+# are per *document*, they die with a navigation, and Page is already at its member budget. Seven
+# members is four maps and a counter, and every one of them is cleared by the same Clear().
+budget: MediaElements header_lines=80 public_methods=22 members=8
 budget: Loader header_lines=145 public_methods=16 members=7
 # What a load produced. A struct with no invariant, which is why it is one --
 # but a budget so that "what does a caller learn about a response" stays a
@@ -233,7 +237,11 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # +2 members and +25 methods for ADR 0028 §1's media element: one state machine per element a
 # page has touched, the volume beside it, and the MediaController the binding layer asks
 # through. The state machine itself is `media::MediaState` -- pure, and tested on its own.
-budget: Page   header_lines=680 public_methods=102 members=16
+# Raised for MSE. Twenty-two of these are `bindings::MediaController`'s MSE half, which is a wide
+# interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
+# them decides anything. Widening the *interface* is the cost of not widening the seam: the
+# alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
+budget: Page   header_lines=680 public_methods=126 members=16
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
