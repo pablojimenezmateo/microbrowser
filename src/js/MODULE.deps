@@ -397,7 +397,12 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # script threw with enough allocation behind it read freed memory. The lines
 # are the class and the reason; the member and method counts did not move,
 # because it is a scope guard rather than state.
-budget: Interpreter header_lines=1056 public_methods=60 members=21
+# And by 12 more for the stack on `ReportUncaught`. Not surface -- the signature
+# is unchanged and no member moved -- but the *content* of a reported error,
+# which is the difference between "a callback threw" and "a callback threw at
+# offset 1323410". Every caller is a binding reporting a page's own failure, and
+# those are the throws with the least context available anywhere else.
+budget: Interpreter header_lines=1070 public_methods=60 members=21
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the
