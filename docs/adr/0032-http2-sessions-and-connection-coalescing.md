@@ -123,13 +123,21 @@ the setting mid-connection, which is to say only in production.
 
 ## Consequences
 
-**TD-0008 closes, measured.** `en.wikipedia.org/wiki/CSS`, Release build, five consecutive runs
-each:
+**TD-0008 closes, measured.** `en.wikipedia.org/wiki/CSS`, Release build — five runs on HTTP/1.1 and
+**thirty** on HTTP/2, because the first five all drew 19 and that turned out to be luck:
 
-| | images drawn (of 19) | `engine.images_failed` | connections | TLS handshakes |
-|---|---|---|---|---|
-| HTTP/1.1 | 4, 4, 7, 4, 10 | 15 | 13 | 13 |
-| HTTP/2 | 19, 19, 19, 19, 19 | 0 | 3 | 3 |
+| | images drawn (of 19) | `engine.images_loaded` | `engine.images_failed` | connections | TLS handshakes |
+|---|---|---|---|---|---|
+| HTTP/1.1 | 4, 4, 7, 4, 10 | 6 | 15 | 13 | 13 |
+| HTTP/2 | 19 in 28 runs of 30; 18 once, 15 once | 21, every run | **0, every run** | 3, every run | 3, every run |
+
+The transport half is now exactly deterministic: same fetches, same connections, same images
+*loaded*, nothing failed, in every one of the thirty. What TD-0008 named — `upload.wikimedia.org`
+answering 429 to a burst of six connections — is gone.
+
+**Two runs in thirty still do not draw everything they loaded**, and that is a different bug in a
+different layer: the images arrive, and one to four of them miss the display list. It is downstream
+of this ADR and is now the largest remaining source of nondeterminism on that page. See TD-0011.
 
 Connections and handshakes on the other target pages, same build, same day:
 

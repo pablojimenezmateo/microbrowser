@@ -3540,12 +3540,19 @@ opened six sockets, each independently discovered that the server speaks `h2`, a
 have finished with six sessions carrying one stream each. Same burst, same 429, new protocol. What
 fixes it is that the pool serialises the first connect to an origin whose protocol it does not know.
 
-Measured, Release build, five consecutive runs of the same page:
+Measured, Release build — five runs on HTTP/1.1 and **thirty** on HTTP/2:
 
-| | images drawn (of 19) | `engine.images_failed` | connections | TLS handshakes |
-|---|---|---|---|---|
-| HTTP/1.1 | 4, 4, 7, 4, 10 | 15 | 13 | 13 |
-| HTTP/2 | 19, 19, 19, 19, 19 | 0 | 3 | 3 |
+| | images drawn (of 19) | `engine.images_loaded` | `engine.images_failed` | connections | TLS handshakes |
+|---|---|---|---|---|---|
+| HTTP/1.1 | 4, 4, 7, 4, 10 | 6 | 15 | 13 | 13 |
+| HTTP/2 | 19 in 28 of 30; 18 once, 15 once | 21, every run | **0, every run** | 3, every run | 3, every run |
+
+**Thirty, and not five, because the first five all drew 19 and I nearly wrote that down.** They
+did — and then a sixth drew 15. What is actually deterministic is the network half: same fetches,
+same connections, same images loaded, nothing failed, thirty times out of thirty. Two runs in
+thirty still do not *draw* everything they loaded, which is a different bug in a different layer
+and is now TD-0011. Reporting "19 every run" would have closed TD-0008 correctly and hidden a
+one-in-fifteen rendering difference inside the same sentence.
 
 The HTTP/1.1 row was taken **on the same machine the same afternoon**, by commenting out one line —
 the `SSL_CTX_set_alpn_protos` call — and rebuilding. That is worth remembering as a technique: a

@@ -221,13 +221,22 @@ of six parallel HTTP/1.1 connections, and this browser opened six because
 at once. Reproduced outside the browser with `curl` and cleared of the
 `User-Agent`, which was the first suspicion.
 
-**Fixed by ADR 0032.** Five consecutive runs of the same page, Release build,
-same machine, the same afternoon:
+**Fixed by ADR 0032.** Same page, same machine, the same afternoon — five runs
+on HTTP/1.1 and **thirty** on HTTP/2, because the first five all drew 19 and
+that turned out to be luck:
 
-| | images drawn (of 19) | `engine.images_failed` | connections | TLS handshakes |
-|---|---|---|---|---|
-| HTTP/1.1 | 4, 4, 7, 4, 10 | 15 | 13 | 13 |
-| HTTP/2 | 19, 19, 19, 19, 19 | 0 | 3 | 3 |
+| | images drawn (of 19) | `engine.images_loaded` | `engine.images_failed` | connections | TLS handshakes |
+|---|---|---|---|---|---|
+| HTTP/1.1 | 4, 4, 7, 4, 10 | 6 | 15 | 13 | 13 |
+| HTTP/2 | 19 in 28 runs of 30; 18 once, 15 once | 21, every run | **0, every run** | 3, every run | 3, every run |
+
+Nothing fails now, and the network half is exactly deterministic: the same 24
+fetches over the same 3 connections, and the same 21 images loaded, in all
+thirty runs. That is the whole of what this entry was about.
+
+Two runs in thirty still do not *draw* everything they loaded. That is a
+different bug in a different layer and it is **TD-0011**; conflating it with
+this one would leave a closed entry that never quite closes.
 
 **The fix is not HTTP/2, and that is the lesson.** ALPN settles the protocol
 during the handshake, which is *after* a socket is open — so six concurrent
@@ -303,6 +312,45 @@ once a request's memory cost is bounded — a hundred concurrent streams is a
 hundred response bodies accumulating, each bounded individually by
 `HttpLimits::max_body` at 64MB and not at all in aggregate. That is a second
 decision and it wants its own measurement.
+
+---
+
+## TD-0011 — An image can load and still not be drawn, twice in thirty runs
+
+Found while closing TD-0008, and separated from it deliberately: with HTTP/2 in
+place the network half of `en.wikipedia.org/wiki/CSS` is exactly deterministic
+and nothing fails, but the page still does not always draw everything it has.
+
+**Measured**, Release build, thirty consecutive runs:
+
+| runs | images drawn (of 19) | `engine.images_loaded` | `engine.images_failed` | fetches | connections |
+|---|---|---|---|---|---|
+| 28 | 19 | 21 | 0 | 24 | 3 |
+| 1 | 18 | 21 | 0 | 24 | 3 |
+| 1 | 15 | 21 | 0 | 24 | 3 |
+
+Every column except the first is identical across all thirty. The bytes arrive,
+the decode succeeds, `engine.images_loaded` is 21 every time — and then one to
+four of them are missing from the display list.
+
+The load timeline on a bad run does not show the obvious cause. The last four
+images complete at 1194.6ms, a layout runs from 1252.9ms to 1374.9ms *after*
+them, and they are still not drawn. So it is not "the image arrived after the
+last layout"; something between the decode batch and the box tree is the
+suspect, and `CLAUDE.md` already names the shape — images that arrive after
+first paint are decoded in a **batch**, and a batch is a place where an
+ordering can be wrong without being wrong every time.
+
+**Why it is written down rather than fixed.** It needs a different instrument
+from the ones this session used. A counter that says "an image was decoded" and
+a counter that says "an image was painted" would make the gap a subtraction
+rather than a difference between two eyeball counts, and there is no such pair
+today — which is the `font.lookup_hits` lesson again: the counters that exist
+measure the half that is working.
+
+**End state.** The two counters first, then the fix. A one-in-fifteen rendering
+difference is exactly the kind of thing that decays into "wikipedia sometimes
+looks wrong" and is never chased, so it belongs here with its number.
 
 ---
 

@@ -156,7 +156,8 @@ four separate bugs within minutes of existing, three of which are fixed:
 - **`upload.wikimedia.org` answers 429 to a burst of six parallel HTTP/1.1 connections**, which is
   why wikipedia rendered between 4 and 17 of its images at random. Reproduced with `curl` outside
   this browser and cleared of the `User-Agent`. **Fixed on 2026-08-06 by HTTP/2 (ADR 0032):
-  19 of 19 images, five runs out of five.** TD-0008 keeps the measurement, because it was the first
+  nothing fails any more -- `engine.images_failed` is zero and `engine.images_loaded` is 21 in all
+  thirty of thirty runs, over 3 connections rather than 13.** TD-0008 keeps the measurement, because it was the first
   *rendering correctness* cost anybody measured for a missing transport.
 
 **Two benchmark files landed and are the durable half of this.** `bench/CodecBenchmarks.cpp` and
@@ -362,8 +363,11 @@ reasoning; this is the queue.
 
    **§3 landed 2026-08-06 — ADR 0032.** ALPN, framing, multiplexing, flow control and HPACK.
    Hacker News is now **1 connection and 1 TLS handshake for 6 fetches**; old.reddit.com is
-   **6 and 6 for 53**, from 20 and 20 for 40. The rendering win is wikipedia: 19 images of 19,
-   every run, against 4 to 10 with 15 failures on HTTP/1.1 (TD-0008, closed).
+   **6 and 6 for 53**, from 20 and 20 for 40. The rendering win is wikipedia, where the network
+   half is now exactly deterministic: 24 fetches over 3 connections, 21 images loaded and **zero
+   failed**, in thirty runs out of thirty, against 4 to 10 images drawn with 15 failures over 13
+   connections on HTTP/1.1 (TD-0008, closed). Two of those thirty still *draw* less than they
+   loaded, which is **TD-0011** and is a different layer.
 
    **Two things a next session should know before touching it.** First, the fix for TD-0008 was
    *not* HTTP/2 — it was the coalescing, because ALPN answers after the socket is open and six
