@@ -41,7 +41,9 @@ is how to look at a page from a machine with no display. `-v` dumps every displa
 rendering a real page and looking at it; none of them failed a test first.
 
 `./build/microbrowser/microbrowser_jsshell <file.js>` is the same argument for `src/js`: it runs one
-file and prints what it said and what it threw, and **`-p` parses only and reports each error by
+file and prints what it said and what it threw; **`-l` lexes only, which is the only way to ask
+whether a slow parse is the scanner or the tree builder** (on youtube's 5.86MB bundle: 0.38s to lex,
+1.56s to parse, so it is the tree); and **`-p` parses only and reports each error by
 *offset* with the source around it** — a minified bundle is one line of 200KB, so a line number
 locates nothing. Every JavaScript bug in the youtube.com pass was found with it in minutes.
 `MICROBROWSER_JS_TREEWALK=1` selects the tree-walker here too, so running a file twice and diffing
@@ -118,56 +120,70 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 
 ## Where To Pick Up
 
-**youtube.com's 10.7MB application bundle now runs to completion with no script error** (2026-08-06,
-`5666416`..`f712e73`). That is the whole of what changed for it, and it is not the same as the page
-rendering: the snapshot is still 18 display-list commands and no images, so the *next* question is
-what the app does after its code has run, not what stops it running. Twelve fixes; eight of them
-were bugs in things that already existed rather than features that were missing, and
-`docs/session-log.md` has each one with the offset that found it.
+**A performance pass on 2026-08-06 (`299a08f`..`1121b3b`) took every target page between 6x and 41x
+faster, and fixed the reason youtube rendered a white page.** Where things stand:
 
-What the counters say as of that commit, so the next session does not re-measure it:
-`js.compile_bailouts` is **zero** (the machine ran all 2,842,137 instructions of it),
-`engine.load_events` is 1, `net.requests_started` is 26, `layout.boxes_created` is 4302 and
-`display_list.commands` reaches 208 across 13 builds — **and the final frame is 18 commands on a
-page that is 100% white.** So the app's code runs, boxes exist, and nothing reaches the screen. That
-is a different problem from the twelve above and it is where to start.
+| page | before | after |
+|---|---|---|
+| news.ycombinator.com | 9.68s | **1.47s** |
+| old.reddit.com | 34.41s | **5.06s** |
+| en.wikipedia.org/wiki/CSS | 258.97s | **6.36s** |
+| www.youtube.com | 82.4s | **13.65s** |
 
-**`microbrowser_snapshot -eval '<js>'` now asks the page questions** -- it runs a string in the
-loaded page's own interpreter and prints what it evaluated to. It was built to answer exactly this,
-and it did, in two runs. What it says:
+Four of the five fixes were one shape: **a question with a handful of distinct answers, asked once
+per element or once per text run.** The cascade tested every rule against every element; a font
+stack was resolved from scratch for every run's width, line height and ascent; custom properties
+were copied into every element on inherit; a punctuator was matched against all 57 of them. Each is
+now indexed or memoised. `docs/session-log.md` has the numbers and `docs/tech-debt.md` has what was
+*not* fixed, with measurements.
 
-    document.querySelectorAll("*").length          -> 1234
-    customElements.get("ytd-app")                  -> function      (registered)
-    typeof ytInitialData / key count               -> object, 6     (the data is there)
-    elements whose tag starts YTD-                 -> 2
-    document.querySelector("ytd-app").shadowRoot   -> null
-    getComputedStyle(ytd-app).display + its rect   -> block, 1280x0
-    not display:none / with a non-empty box        -> 1136 / 180
+**The white screen was a custom element's prototype being applied after its constructor ran.** A
+derived class's `this` comes from its base and must already carry `new.target.prototype` when
+`super()` returns, because the next line of the constructor calls the class's own methods --
+Polymer's base begins `this._initializeProperties()`. Twenty-nine of thirty-two upgrades threw on
+that line. It survived a previous session because the throw was *swallowed*: the early return
+carried a comment claiming it was reported and nothing reported it. Five call sites had the same
+`(void)CallFunction(...)` and all five now go through `Interpreter::ReportUncaught`, which carries
+the stack.
 
-So the app registered its elements and has its data, and then **built no component tree**: two
-`ytd-*` elements where a rendered page has hundreds, and `ytd-app` has *no shadow root at all* --
-a Polymer element attaches one when it renders its template, so it never rendered. Its box is
-1280x0, which is the consequence rather than the cause.
+**Read `docs/tech-debt.md` before optimising anything here.** Seven entries, each with its
+measurement. The three that matter next:
 
-A third probe narrowed it to one line. The primitives are all fine -- `attachShadow` returns a
-`ShadowRoot`, `template.content` parses, `Polymer` is a function, and the registered class has its
-`properties` and `observers` finalized -- but:
+- **TD-0005** — `engine::CollectImages` resolves the whole cascade a second time, purely to read
+  `background-image` off every element, immediately before `BuildBoxTree` resolves it again. 1.58s
+  on wikipedia, which is *larger than laying the page out*. The largest non-JavaScript item left.
+- **TD-0003** — 1.33M individually allocated AST nodes, three quarters of the parse.
+  `microbrowser_jsshell -l` (new) lexes without building a tree, which is how that was split.
+- **TD-0007** — the loop still runs a page's script to completion in one turn, so youtube is a
+  single 9.7-second uninterruptible call. Six times faster, **same shape**: this is the "app is not
+  responding" the user reported and it is only half fixed. Wants an ADR before anything is
+  attempted -- "a script yields" is a change to the execution model.
 
-    e = document.createElement("ytd-masthead")
-    e.constructor.name                  -> "p"     (so an upgrade ran and applied *a* prototype)
-    e instanceof customElements.get(n)  -> false   (but not *that* constructor's)
+**Where youtube is now.** The bundle runs, upgrades succeed (throws 30 → 1, upgrades 32 → 59), and
+it still does not render. The one remaining throw is its dependency-injection container saying it
+has no provider for a key, at `EhE (@1323410)`:
 
-Those two cannot both be true unless the prototype `UpgradeElement` applied is not
-`constructor.prototype` by the time `instanceof` looks. Polymer's `_finalizeClass` builds a class in
-stages, and `src/bindings/CustomElements.cpp:112` reads `constructor.prototype` exactly once, after
-construction. **Verify before changing anything** -- `-eval` can compare
-`customElements.get(n).prototype` against `Object.getPrototypeOf(document.createElement(n))`
-directly. An element that is not an instance of its own class is enough to stop every Polymer render
-that follows.
+    if(!V.providers.has(J)){if(P)return;throw Error("nd`"+J);}
 
-The display list is worth reading beside it: `-v` shows a 56px masthead, a 72px sidebar and a 1208px
-content column, all white on white with **no text command anywhere**, which is the same finding from
-the other side.
+`Wpt.prototype.resolve` picks between throwing and returning undefined with two `instanceof` checks,
+so that is the first thing to verify -- this engine has had `instanceof` bugs twice now. That is a
+question about the page rather than about layout, and it is readable only because a reported error
+now carries its stack.
+
+**Two instruments were added and both earned their place immediately.** `js::Parse`/`js::Compile`/
+`js::Execute` split what was one row; `engine::BuildBoxTree` and `engine::LayoutBoxes` split what
+was `engine::Page::Layout`, and that split *was* the first diagnosis -- 29,097ms against 22ms. Also
+`js::RunScript`, `html::ParseDocument`, `engine::CollectImages`, `css::ParseStyleSheet`,
+`net::DecodeContentEncoding` and `engine::DecodeImage`, each labelled with what it ran on.
+
+**The counter lesson from this pass is worth more than the fixes.** `font.lookup_hits` read 985,000
+and looked healthy -- it was counting the sized-`Font` cache, which was working, while the three
+full passes above it went unmeasured. **A counter on the cheap half of an operation is worse than no
+counter**, because it reads as evidence the operation is fine. `font.faces_ranked` is the
+replacement: it counts the product the expensive pass actually costs.
+
+And: `perf` and `ptrace` are both blocked in this sandbox, so there was no sampling profiler for any
+of this. It did not matter. Scopes and counters answer "how many times, and in which half".
 
 **Read `docs/roadmap-to-any-page.md` first.** It sequences ADRs 0015–0030 into sessions with a
 runnable check on each, and it supersedes the ordering of this list wherever the two disagree. The
@@ -432,6 +448,20 @@ MICROBROWSER_TRACE_REDRAW=1    # one line per presented frame: full/partial, rec
 MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the bytecode machine
 ```
 
+**Read `MICROBROWSER_PERF_SUMMARY=1` before believing anything about where time goes, and split any
+scope that covers two jobs.** Every fix in the 2026-08-06 performance pass came from one such split;
+none came from reading code. The seams that are scoped today are `engine::BuildBoxTree` /
+`engine::LayoutBoxes` (split from the single `engine::Page::Layout` that hid a 29,097ms-against-22ms
+difference), `js::Parse` / `js::Compile` / `js::Execute`, `js::RunScript`, `html::ParseDocument`,
+`css::ParseStyleSheet`, `engine::CollectImages`, `engine::RebuildAuthorStyleSheets`,
+`net::DecodeContentEncoding` and `engine::DecodeImage` -- the last five labelled with the file or
+byte count they ran on, because a page that serves twenty-six scripts is not diagnosed by a row that
+says "script".
+
+**A counter on the cheap half of an operation is worse than no counter.** `font.lookup_hits` read
+985,000 and looked healthy: it was counting the sized-`Font` cache, which was working, while the
+three full passes over the machine's fonts above it went unmeasured and cost 227 seconds.
+
 `MICROBROWSER_JS_TREEWALK=1` is the differential switch, not a debug print: the two engines
 answering the same suite is the only way to know they agree. Thirty-four tests are expected to fail
 under it and the list is at the top of `tests/JsVmTests.cpp`; anything else appearing there is a
@@ -513,6 +543,8 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0031` — the codec decision: which decoders, from where, and in what process
 - `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
 - `docs/roadmap-sessions.json` — the same sessions as state: what is done, what the check is
+- `docs/tech-debt.md` — shapes that are wrong by design, each with the measurement that says
+  what it costs today. Read it before optimising anything.
 - `docs/session-log.md` — what each session found that a diff does not say
 - `docs/surveys/2026-08-04-reddit-youtube-plex.md` — every number those ADRs cite
 - `docs/performance/m0-baseline.md` — the measurements M0 established
