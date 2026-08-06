@@ -223,6 +223,7 @@ void DomBindings::Install() {
 
   InstallTreeWalkers(target);
   InstallImplementation(target);
+  InstallMessageChannel();
 
   interpreter_->GlobalScope()->Declare("document", document, false);
   InstallEventConstructors();

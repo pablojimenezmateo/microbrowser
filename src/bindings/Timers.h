@@ -34,6 +34,23 @@ class TimerQueue {
   // ran, which is the caller's signal that the document may have changed.
   bool RunDue(js::Interpreter& interpreter, std::int64_t now_ms);
 
+  // Runs `callback` on a *later turn of the loop*, with no arguments.
+  //
+  // What the specification calls queueing a task, and this queue is where a
+  // task goes in this browser: it is the one thing that already hands the loop
+  // a deadline, so a task scheduled here inherits the zero-idle-CPU invariant
+  // rather than needing a second mechanism argued for beside it.
+  //
+  // Not a microtask, and the difference is the whole point. A microtask runs
+  // before the current turn ends, so a page using `MessageChannel` to yield to
+  // the event loop -- which is exactly what it is for -- would never yield.
+  //
+  // Static, and reaches the queue through the interpreter's globals the way
+  // `setTimeout` itself does, so a caller that has neither a TimerQueue nor a
+  // way to get one can still post a task. False when there is no queue
+  // installed, which is a host with no timers rather than a failure.
+  static bool QueueTask(js::Interpreter& interpreter, const js::Value& callback);
+
  private:
   struct Timer {
     double id = 0.0;

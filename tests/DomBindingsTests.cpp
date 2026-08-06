@@ -902,6 +902,85 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "4294967295 1 4 128 6");
   });
 
+  AddTest(tests, "DomBindings/AMessageChannelIsATaskAndACopy", [] {
+    // youtube's kevlar bundle does `TJg((new MessageChannel).port2)` and stops
+    // dead without this. The two properties below are what that use is for and
+    // what a wrong implementation would silently break.
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+
+    bound.interpreter->Run(
+        "globalThis.order = [];"
+        "globalThis.seen = [];"
+        "const c = new MessageChannel();"
+        "c.port1.onmessage = e => { order.push('msg'); seen.push(e.data.n) };"
+        "const o = { n: 7 };"
+        "c.port2.postMessage(o);"
+        "o.n = 99;"
+        "Promise.resolve().then(() => order.push('microtask'));"
+        "order.push('sync');");
+    bound.interpreter->DrainMicrotasks();
+    // **Nothing has been delivered yet, and that is the feature.** A message
+    // through a port is a task: it runs after the turn that posted it, which
+    // is why a page uses a channel to yield to the event loop at all. A
+    // microtask here would make a scheduler starve the work it was written to
+    // let through.
+    ExpectEqString(js::ToString(bound.interpreter->Run("order.join(',')").value),
+                   "sync,microtask", "the microtask ran and the message did not");
+    Expect(timers.RunDue(*bound.interpreter, 0), "the message is a due task");
+    ExpectEqString(js::ToString(bound.interpreter->Run("order.join(',')").value),
+                   "sync,microtask,msg", "and it arrives after both");
+    // Structured-cloned, so mutating the object after the post does not change
+    // what arrives -- both ends are in this heap, and that is exactly why the
+    // copy has to be real.
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + seen[0]").value), "7",
+                   "the message is a copy taken at the post");
+
+    // A post before the far end is listening is queued, not dropped: a page
+    // routinely hands a port somewhere that posts to it immediately.
+    bound.interpreter->Run(
+        "globalThis.late = '';"
+        "const m = new MessageChannel();"
+        "m.port1.postMessage('early');"
+        "m.port2.onmessage = e => { late += e.data };");
+    Expect(timers.RunDue(*bound.interpreter, 1), "the queued message runs once started");
+    ExpectEqString(js::ToString(bound.interpreter->Run("late").value), "early",
+                   "and it is the one posted before the handler existed");
+
+    // A closed port stops delivering rather than throwing: closing is how a
+    // page tears a channel down and the last post racing it is normal.
+    bound.interpreter->Run(
+        "globalThis.after = 0;"
+        "const k = new MessageChannel();"
+        "k.port1.onmessage = () => { after++ };"
+        "k.port1.close();"
+        "k.port2.postMessage(1);");
+    timers.RunDue(*bound.interpreter, 2);
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + after").value), "0",
+                   "a closed port delivers nothing");
+
+    // The transfer list is refused rather than silently copied. A transfer
+    // detaches what it names; copying instead leaves a page holding two live
+    // views on what it believes is one.
+    ExpectEqString(
+        js::ToString(bound.interpreter
+                         ->Run("const t = new MessageChannel();"
+                               "try { t.port1.postMessage(1, [t.port2]); 'no throw' }"
+                               "catch (e) { e.message }")
+                         .value),
+        "DataCloneError: transferring objects is not supported", "a transfer is refused");
+
+    // The interface is real, which is what a polyfill checks before it
+    // decides whether to build its own.
+    ExpectEqString(js::ToString(bound.interpreter
+                                    ->Run("const p = new MessageChannel().port1;"
+                                          "typeof MessagePort + ' ' + (p instanceof MessagePort) +"
+                                          "' ' + (typeof p.addEventListener)")
+                                    .value),
+                   "function true function", "MessagePort is an EventTarget with a name");
+  });
+
   AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {
     // Nothing is cached between calls: a parsed copy would go stale the moment
     // anything else touched `class`, and `class` is the one attribute two

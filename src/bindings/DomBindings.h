@@ -17,6 +17,7 @@
 #include "bindings/Storage.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
+#include "js/StructuredClone.h"
 
 namespace microbrowser::bindings {
 
@@ -278,10 +279,9 @@ class DomBindings {
   // A parentless bag of nodes. Inserting it inserts its children -- see
   // InsertNodeBefore, which is where that happens.
   js::Value CreateDocumentFragment();
-  // `document.implementation`, and `Document.prototype` -- which is where every
+  // `document.implementation`, and `Document.prototype` -- where every
   // `document.*` method now lives rather than on the one wrapper.
   void InstallImplementation(const js::Value& document_interface);
-  js::Value DocumentInterface();
   // Whether an element answers to one of the three selector forms this layer
   // supports. Shared by querySelector, querySelectorAll, matches and closest,
   // which would otherwise be four chances to disagree about what `.a` means.
@@ -591,8 +591,15 @@ class DomBindings {
   // DeliverFetchResponse, which is the one delivery both kinds share.
   void DeliverToXhr(const js::Value& xhr, const ScriptResponse& response);
 
-  // `NodeFilter`, `createTreeWalker` and `createNodeIterator`, in
-  // TreeWalkers.cpp.
+  // `MessageChannel`/`MessagePort` in MessageChannels.cpp -- a page's way to
+  // the *macrotask* queue, hence TimerQueue::QueueTask. `NodeFilter` and the
+  // two cursors in TreeWalkers.cpp. `InterfaceNamed` looks one up.
+  void InstallMessageChannel();
+  void StartPort(const js::Value& port);
+  void DeliverPortMessage(const js::Value& port, const js::SerializedValue& serialized);
+  void DispatchPortMessage(const js::Value& port, const js::Value& data);
+  js::Value InterfaceNamed(const char* name);
+  js::Value DocumentInterface();
   void InstallTreeWalkers(const js::Value& document);
 
   // --- HTML from script, in HtmlParsing.cpp ---------------------------------

@@ -41,6 +41,29 @@ js::Object* Callbacks(js::Interpreter& interpreter) {
 
 }  // namespace
 
+bool TimerQueue::QueueTask(js::Interpreter& interpreter, const js::Value& callback) {
+  if (!callback.IsObject() || !callback.object->IsCallable()) {
+    return false;
+  }
+  js::Object* global = interpreter.Global();
+  const Value* queue_slot = global->GetOwn(kQueueSlot);
+  const Value* now_slot = global->GetOwn(kNowSlot);
+  js::Object* callbacks = Callbacks(interpreter);
+  if (queue_slot == nullptr || now_slot == nullptr || callbacks == nullptr) {
+    return false;
+  }
+  auto* queue = reinterpret_cast<TimerQueue*>(static_cast<std::uintptr_t>(queue_slot->number));
+  Timer timer;
+  timer.id = queue->next_id_++;
+  // Due *now*, which in this queue means "the next time RunDue is called" --
+  // the same thing `setTimeout(f, 0)` gets, and the same thing the loop wakes
+  // for.
+  timer.due_ms = static_cast<std::int64_t>(now_slot->number);
+  queue->timers_.push_back(timer);
+  callbacks->Set(js::NumberToString(timer.id), callback);
+  return true;
+}
+
 void TimerQueue::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   js::Object* global = interpreter.Global();
   const Value callbacks = interpreter.NewObjectValue();
