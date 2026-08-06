@@ -2862,3 +2862,72 @@ installing. Both sessions 28 and 29 wrote checks against playback and both are v
 the point where bytes would be handed to a codec. That is worth flagging as a property of the ledger
 rather than of these sessions: several remaining media checks are written against an end state that
 one blocked session gates, and each will need the same restatement until it lands.
+
+## Session 35 — animation, and the third instance of one bug
+
+`5c6797c`. `transition`, `@keyframes`, the easing functions, and the frame deadline that decides
+whether the loop sleeps.
+
+**ADR 0014 §5 named the risk and it was right to.** "An animation system that keeps a 60Hz loop alive
+on a static page is the most likely way this project loses its central property." So the interface is
+shaped so the loop cannot stay awake by accident rather than shaped for convenience:
+`NextDelayMs` returns *nothing* when nothing is running; a finished transition is **removed** rather
+than parked at progress 1, because one left in the map would answer "yes, I need a frame" forever;
+and `animation-play-state: paused` contributes no deadline at all. The test drives a transition to
+completion frame by frame and asserts the map is empty and the deadline is gone. Hacker News is
+byte-identical at 705 commands with zero animation counters.
+
+**The finding is that this session's two bugs were the same bug as session 34's**, in a third place.
+Session 34: `src/layout` kept its own list of which CSS properties inherit, and it had drifted.
+Session 35, first: `resolver_` is rebuilt in *two* places — a navigation, and a re-parse of the sheets
+after a resize — and when re-registering the animation pass was two lines at one of them, the other
+silently dropped it. The diagnosis was that `AdjustStyle` was never called at all, for any element,
+ever. Session 35, second: the animation clock was set before *painting*, but `InvalidateLayout` also
+re-resolves the cascade (to collect background images), so it is a restyle — and a restyle is where a
+transition starts. Transitions began at instant zero and were over before anything looked at them; the
+symptom was an animation that showed only its final value.
+
+All three are the same shape: **a thing established in one place and quietly invalidated by an
+assignment in another.** No error, no crash, no failing test — the feature simply does not happen.
+What the three have in common is that the invariant was expressed as *a step a caller must remember*
+rather than as something the type enforces. The fixes were the same too: one function that both
+callers go through (`css::InheritInto`, `Page::ResetResolver`), and, where that was not possible,
+writing the ordering requirement into the header where the next person will read it before they need
+it. That is worth generalising: when a feature can be turned off by a line somewhere else, the
+question is not "did I remember" but "can it be remembered from the wrong place".
+
+The easing functions are the part worth having separately, because they are a pure function of one
+number and therefore the only part checkable against the specification's arithmetic rather than against
+a rendering. `ease` and the other keywords are stored *as* their cubic Béziers, so a page spelling one
+out by hand and a page using the keyword animate identically — they would not if one were a curve and
+the other a special case. The Bézier is inverted by Newton falling back to bisection, because the
+derivative is zero at t=0 for `cubic-bezier(1, 0, 1, 1)` and a Newton step there leaves the curve. The
+four `steps()` positions are one piece of arithmetic over the same two numbers.
+
+Three decisions in the interpolators that a first draft gets wrong:
+
+**Colours interpolate in premultiplied alpha**, which is the whole reason it is not three lerps: red
+fading to transparent blue interpolated per channel passes through a half-transparent purple.
+
+**A length whose units do not match snaps at the halfway point** rather than producing a number.
+`10px` to `50%` needs a containing block the cascade does not have, and `auto` is not a number until
+layout runs. A wrong number here would be invisible where a snap is not — the same reasoning as
+session 29's refusals.
+
+**Progress is not clamped to [0,1].** `cubic-bezier(0, 1.5, 1, 1)` overshoots, which is what a page
+asking for a bounce is asking for. The clamp lives where a range is actually *known* — a colour
+channel, not a margin — because a margin genuinely can go negative.
+
+Two things are deliberately absent and said so where the code is. **`opacity` is not on the animatable
+list**, because the property does not exist in this browser: paint has no alpha compositing pass, so
+an animated opacity would interpolate a number nothing reads. That is ADR 0014 §5's own argument for
+ordering animation after transform, applied to itself. And **transform interpolation is componentwise
+on the matrix**, which takes the chord rather than the arc for a rotation; doing it properly needs the
+angle kept beside the matrix, which is a change to `TransformOperation` rather than to the
+interpolator.
+
+Verified on a page with three animating boxes, and the render is the assertion: `#a` a few
+milliseconds into `slide` has moved 1.4px with its background interpolated `FF0000` → `FD0002` — two
+properties from one `@keyframes` — while `#c`'s `steps(4)` correctly holds the first step on *both*,
+left still 0 and colour still pure red. A hover on `#b` starts exactly one transition, on the one
+property that changed.

@@ -399,8 +399,9 @@
       "adr": "0014 §5",
       "anchor": "## Phase E — any page",
       "scope": "After transform, because animating a property that does not apply gains nothing. The loop wakes while animating and not one frame after everything settles.",
-      "check": null,
-      "status": "not_started"
+      "check": "./build/microbrowser/microbrowser_tests Page/ATransition and Page/AKeyframe pass: a transition wakes the loop, shows an interpolated value halfway *through the cascade*, and stops waking the loop the frame it finishes -- with nothing left in the map. Plus a snapshot of a page with three animating boxes showing two properties interpolating from one @keyframes and a steps(4) holding its first step, and Hacker News unchanged at 705 commands with zero animation counters.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 5c6797c. Two bugs, both the same shape as session 34's: a thing set in one place and clobbered in another, with no error and a feature that just stops. (1) `resolver_` is rebuilt in TWO places and the second silently dropped the animation pass -- one ResetResolver() now. (2) `InvalidateLayout` is a restyle (it re-resolves the cascade to collect background images), so a transition can start during it; setting the clock only before painting made transitions begin at instant zero and be over before anything looked. `opacity` is deliberately NOT animatable: the property does not exist, and ADR 0014 §5's own argument is that animating one that does not apply gains nothing. Transform interpolation is componentwise on the matrix, which takes the chord rather than the arc for a rotation -- a stated approximation needing the angle kept beside the matrix."
     },
     {
       "id": 36,
