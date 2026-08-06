@@ -331,7 +331,10 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
     return Value::Number(0);
   });
 
-  InstallEventMethods(target);
+  // The event methods are *not* installed here any more. They live on
+  // `EventTarget.prototype`, which Node inherits from -- same methods, same
+  // objects, one link further up. That is where the specification puts them and
+  // where a polyfill looks for them; see EnsureInterfaces.
 
   InstallMutationMethods(target);
 

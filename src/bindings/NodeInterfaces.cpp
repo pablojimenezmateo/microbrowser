@@ -64,6 +64,12 @@ constexpr TagInterface kTagInterfaces[] = {
     {"h6", "HTMLHeadingElement"},        {"canvas", "HTMLCanvasElement"},
     {"video", "HTMLVideoElement"},       {"audio", "HTMLAudioElement"},
     {"iframe", "HTMLIFrameElement"},     {"template", "HTMLTemplateElement"},
+    // `<svg>` is an Element and not an HTMLElement, which is the one place this
+    // table's chain forks. Only the root tag is listed: the elements *inside* an
+    // SVG subtree are not distinguished, because `src/html` has no foreign
+    // content (TreeBuilder.h says so) and so this DOM has no namespace to ask
+    // about. When foreign content lands, this is where its tags go.
+    {"svg", "SVGElement"},
 };
 
 const char* InterfaceForTag(std::string_view tag) {
@@ -141,7 +147,16 @@ void DomBindings::EnsureInterfaces() {
   // reclaimed memory.
   interpreter_->Global()->Set("#domInterfaces", interfaces_);
 
-  const Value node = MakeInterface("Node", Value::Undefined());
+  // EventTarget is the root, and it is not decoration: the specification puts
+  // `addEventListener` there rather than on Node, and a polyfill that patches
+  // event dispatch patches `EventTarget.prototype` -- which is exactly what
+  // youtube's webcomponents bundle does, guarded by `window.EventTarget ? ... :
+  // ...` where the else branch patches Node and Window separately. A browser
+  // without the name takes the branch written for browsers from before it
+  // existed.
+  const Value event_target = MakeInterface("EventTarget", Value::Undefined());
+  InstallEventMethods(event_target);
+  const Value node = MakeInterface("Node", event_target);
   InstallNodeInterface(node);
   InstallNodeQueries(node);
   const Value element = MakeInterface("Element", node);
@@ -160,6 +175,17 @@ void DomBindings::EnsureInterfaces() {
   // them: focus is an HTML concept, and an SVG element in this tree is an
   // Element with no HTML semantics at all.
   InstallFocus(html_element);
+  // `SVGElement`, before the loop below, because it is the one entry in that
+  // table whose parent is Element rather than HTMLElement -- and MakeInterface
+  // returns an interface that already exists, so the loop leaves it alone.
+  //
+  // Its prototype is empty of SVG's own geometry API, which is honest: nothing
+  // in this browser produces an element that inherits from it yet. What the name
+  // is for is the shape a page uses it in -- `window.SVGElement.prototype
+  // .hasOwnProperty('classList')`, which is how youtube's webcomponents bundle
+  // decides whether `classList` needs patching, reached unqualified off `window`
+  // and therefore a TypeError rather than a ReferenceError when it is missing.
+  MakeInterface("SVGElement", element);
   // Every per-tag interface, up front rather than when its tag is first seen.
   // Lazily was tempting and wrong: `x instanceof HTMLAnchorElement` has to
   // answer *false* on a page with no anchor in it, and a name that does not
@@ -216,6 +242,12 @@ void DomBindings::EnsureInterfaces() {
   // `root.innerHTML = …` is how every component fills one. The context element
   // for the parse is the host -- see HtmlParsing.cpp.
   InstallHtmlParsing(fragment);
+  // A shadow root *is* a DocumentFragment, and it is one with its own name --
+  // which is not a distinction without a difference: a polyfill reparents a
+  // fragment onto `ShadowRoot.prototype` to upgrade it in place, which is the
+  // line youtube's bundle reaches. `PrototypeFor` tells the two apart by whether
+  // the fragment has a host.
+  MakeInterface("ShadowRoot", fragment);
   // A Document is a ParentNode too: `document.querySelector` and
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));
@@ -246,6 +278,33 @@ void DomBindings::EnsureInterfaces() {
     }
     interpreter_->Global()->Set("Image", image);
     interpreter_->GlobalScope()->Declare("Image", image, false);
+  }
+
+  // `HTMLUnknownElement`, which is the interface of a tag no specification
+  // names. Nothing in this browser is given it: the table above is deliberately
+  // short, so "not in the table" means "no interface of its own" rather than
+  // "unknown", and defaulting to this would tell a page that `<section>` is a
+  // tag the HTML specification has never heard of.
+  //
+  // It exists as a name because that is the only way it is used. A custom
+  // element whose constructor threw is reparented onto `HTMLUnknownElement
+  // .prototype` -- the specification says so, and it is the recovery path in
+  // every custom-elements polyfill. A page does not feature-detect this one.
+  MakeInterface("HTMLUnknownElement", html_element);
+
+  // `Window`, and the global object is an instance of it -- which is what makes
+  // `window instanceof Window` and `window instanceof EventTarget` answer the
+  // way a page expects, and gives `Window.prototype` somewhere real to be
+  // patched. The chain is the specification's: global -> Window -> EventTarget
+  // -> Object.
+  //
+  // The event methods stay on the global itself as well, from
+  // InstallWindowEvents. Not redundant: `window` here *is* the global object, so
+  // its own properties are the page's globals, and a page that writes
+  // `window.addEventListener = f` has to shadow rather than fail.
+  const Value window_interface = MakeInterface("Window", event_target);
+  if (window_interface.IsObject()) {
+    interpreter_->Global()->SetPrototype(window_interface.object);
   }
 
   // After every interface exists, because a reflected property lands on the
@@ -308,7 +367,12 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
     case dom::Node::Kind::Comment:
       return named("Comment");
     case dom::Node::Kind::DocumentFragment:
-      return named("DocumentFragment");
+      // A fragment with a host is a shadow root. That is the whole difference
+      // between the two in this tree, and it is the specification's difference
+      // too.
+      return named(static_cast<const dom::DocumentFragment&>(node).Host() != nullptr
+                       ? "ShadowRoot"
+                       : "DocumentFragment");
     case dom::Node::Kind::Document:
     case dom::Node::Kind::DocumentType:
       return named("Document");

@@ -527,6 +527,45 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // right answer rather than a fallback.
     ExpectScript(kPage, "document.createElement('marquee') instanceof HTMLElement", "true");
 
+    // EventTarget is the root, and `window` is one -- which is where the
+    // specification puts `addEventListener` and where a polyfill patches it.
+    // youtube's webcomponents bundle branches on `window.EventTarget`, and the
+    // else branch is written for browsers from before the name existed.
+    ExpectScript(kPage, "document.body instanceof EventTarget", "true");
+    ExpectScript(kPage, "window instanceof EventTarget", "true");
+    ExpectScript(kPage, "window instanceof Window", "true");
+    ExpectScript(kPage, "typeof EventTarget.prototype.addEventListener", "function");
+    ExpectScript(kPage, "Node.prototype.hasOwnProperty('addEventListener')", "false");
+    // The chain, and it ends where every chain does.
+    ExpectScript(kPage, "Object.getPrototypeOf(Node.prototype) === EventTarget.prototype", "true");
+    ExpectScript(kPage, "Object.getPrototypeOf(window) === Window.prototype", "true");
+
+    // SVGElement forks off Element rather than HTMLElement, which is the one
+    // place this table's chain branches. Its own geometry API is absent because
+    // nothing produces an element that would need it: `src/html` has no foreign
+    // content, so an SVG subtree's inner tags are not distinguished either.
+    ExpectScript(kPage, "document.createElement('svg') instanceof SVGElement", "true");
+    ExpectScript(kPage, "document.createElement('svg') instanceof Element", "true");
+    ExpectScript(kPage, "document.createElement('svg') instanceof HTMLElement", "false");
+
+    // A shadow root is a DocumentFragment with its own name, and the two are
+    // told apart by whether the fragment has a host.
+    ExpectScript(kPage,
+                 "document.createElement('div').attachShadow({mode: 'open'}) instanceof ShadowRoot",
+                 "true");
+    ExpectScript(kPage, "document.createDocumentFragment() instanceof ShadowRoot", "false");
+    ExpectScript(kPage,
+                 "Object.getPrototypeOf(ShadowRoot.prototype) === DocumentFragment.prototype",
+                 "true");
+
+    // And the names a polyfill reaches for without ever making one: the type a
+    // failed custom-element upgrade is reparented onto, and the registry's own
+    // interface, which is what `Object.defineProperty(CustomElementRegistry
+    // .prototype, 'define', ...)` needs to exist.
+    ExpectScript(kPage, "typeof HTMLUnknownElement.prototype", "object");
+    ExpectScript(kPage, "customElements instanceof CustomElementRegistry", "true");
+    ExpectScript(kPage, "typeof CustomElementRegistry.prototype.define", "function");
+
     // `new Image()` is the img element's constructor and nothing more, which
     // is what makes it honest to have: the loading a detached image does not
     // do is the synchronous-loading gap, which an `<img>` added by script has

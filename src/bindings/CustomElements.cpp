@@ -182,11 +182,23 @@ void DomBindings::InstallCustomElements() {
   if (!registry.IsObject() || !api.IsObject()) {
     return;
   }
-  const auto method = [this, &api](const char* name, js::NativeFunction function) {
+  // `window.customElements` is an instance of `CustomElementRegistry`, and the
+  // methods go on the interface rather than on the instance. That is where the
+  // specification puts them, and it is where a polyfill replaces one:
+  // youtube's webcomponents bundle assigns `window.customElements.define` and
+  // then `Object.defineProperty(window.CustomElementRegistry.prototype,
+  // "define", ...)` -- the second line is a TypeError in a browser that has the
+  // registry but not its type.
+  const Value prototype = MakeInterface("CustomElementRegistry", Value::Undefined());
+  if (prototype.IsObject()) {
+    api.object->SetPrototype(prototype.object);
+  }
+  const Value target = prototype.IsObject() ? prototype : api;
+  const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, PointerValue(this));
-      api.object->Set(name, native);
+      target.object->Set(name, native);
     }
   };
 

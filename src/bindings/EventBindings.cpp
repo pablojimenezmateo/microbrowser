@@ -396,6 +396,13 @@ void DomBindings::InstallEventConstructors() {
   // tells a key from a click, and it is the check a page makes before reading
   // `e.key` off something that might not have one.
   EventPrototype("KeyboardEvent", "Event");
+  // `ErrorEvent`, which is the one a page constructs itself rather than
+  // receives: the shape is `new ErrorEvent("error", {message, filename, lineno,
+  // colno})`, dispatched at the window so that an error a library caught still
+  // reaches whatever is listening for one. Nothing in this browser dispatches an
+  // ErrorEvent yet -- a script that throws gets a console line -- so this is the
+  // constructor and the prototype and no more, which is what the page uses.
+  EventPrototype("ErrorEvent", "Event");
 }
 
 js::Value DomBindings::CreateLegacyEvent() {
