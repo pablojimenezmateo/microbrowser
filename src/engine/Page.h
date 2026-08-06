@@ -189,6 +189,12 @@ class Page : private layout::ImageProvider,
                            double duration_ms) {
     script_.SetNavigationTiming(dom_content_loaded_ms, load_event_ms, duration_ms);
   }
+  // The legacy `performance.timing`. A separate call from the one above because
+  // it is a separate moment: this is what the engine knows when the document's
+  // bytes land, and the entry above cannot exist until the load is over.
+  void SetDocumentTiming(std::int64_t navigation_start_wall_ms, double response_end_ms) {
+    script_.SetDocumentTiming(navigation_start_wall_ms, response_end_ms);
+  }
   void AddResourceTiming(const std::string& name, const std::string& initiator, double start_ms,
                          double response_end_ms, std::size_t encoded_size,
                          std::size_t decoded_size) {

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/PerformanceEntries.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
@@ -15,6 +16,8 @@ namespace {
 
 using js::NativeCall;
 using js::Value;
+using performance_entries::MakeEntry;
+using performance_entries::Record;
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
@@ -44,10 +47,6 @@ bool IsSupportedType(std::string_view type) {
 // violation log make. Past the bound `mark` still succeeds, because a page that
 // gets a throw from an instrumentation call is a page that breaks over telemetry.
 constexpr std::size_t kMaxEntries = 2048;
-// The same bound on what is held before there is a heap. A document names its
-// subresources, so the list is written from attacker-controlled markup before
-// anything can read it.
-constexpr std::size_t kMaxPendingEntries = 512;
 
 Value EntriesArray(js::Interpreter& interpreter) {
   if (const Value* existing = interpreter.Global()->GetOwn(kEntriesSlot)) {
@@ -78,6 +77,7 @@ Value ObserversArray(js::Interpreter& interpreter) {
   return list;
 }
 
+
 std::string StringField(const Value& object, const char* name) {
   if (!object.IsObject()) {
     return {};
@@ -86,10 +86,12 @@ std::string StringField(const Value& object, const char* name) {
   return value == nullptr ? std::string() : js::ToString(*value);
 }
 
-// One entry, as the object a page reads. A plain object rather than a class with
-// a prototype: every field a page touches is a data property, `toJSON` is the
-// only method the specification puts on one, and a page that spreads an entry
-// into its telemetry payload gets the fields either way.
+}  // namespace
+
+// The two the other half of the module needs, declared in PerformanceEntries.h
+// and defined here because this is where the entry list and the observers live.
+namespace performance_entries {
+
 Value MakeEntry(js::Interpreter& interpreter, std::string_view type, std::string_view name,
                 double start, double duration) {
   const Value entry = interpreter.NewObjectValue();
@@ -103,7 +105,6 @@ Value MakeEntry(js::Interpreter& interpreter, std::string_view type, std::string
   return entry;
 }
 
-// Records `entry` and queues it on every observer watching its type.
 void Record(js::Interpreter& interpreter, const Value& entry) {
   if (!entry.IsObject()) {
     return;
@@ -153,6 +154,10 @@ void Record(js::Interpreter& interpreter, const Value& entry) {
     }
   }
 }
+
+}  // namespace performance_entries
+
+namespace {
 
 // The list handed to an observer's callback: `getEntries`, and the two filtered
 // forms. Built per delivery rather than kept, because it describes one delivery.
@@ -365,6 +370,13 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     performance.object->Set("clearMeasures", clear_measures);
   }
 
+  // `timing`, from whatever the engine has already told this object. Built here
+  // rather than lazily on first read because the read that matters is
+  // youtube.com's very first inline script, and an accessor that could allocate
+  // would be one more thing between a page and its own clock. The other half of
+  // the module: see PerformanceTiming.cpp.
+  InstallTiming(interpreter, performance);
+
   interpreter.Global()->Set("performance", performance);
   interpreter.GlobalScope()->Declare("performance", performance, false);
   interpreter.Global()->SetHidden("#performance:now", Value::Number(0.0));
@@ -546,71 +558,6 @@ void Performance::Tick(js::Interpreter& interpreter, std::int64_t now_ms) {
   interpreter.Global()->SetHidden("#performance:now", Value::Number(Now(now_ms)));
 }
 
-void Performance::SetNavigationTiming(js::Interpreter* interpreter, double dom_content_loaded_ms,
-                                     double load_event_ms, double duration_ms) {
-  if (interpreter == nullptr) {
-    if (pending_.size() < kMaxPendingEntries) {
-      PendingEntry held;
-      held.type = "navigation";
-      held.dom_content_loaded = dom_content_loaded_ms;
-      held.load_event = load_event_ms;
-      held.end = duration_ms;
-      pending_.push_back(std::move(held));
-    }
-    return;
-  }
-  const Value entry = MakeEntry(*interpreter, "navigation", "", 0.0, duration_ms);
-  if (!entry.IsObject()) {
-    return;
-  }
-  // The fields a page actually reads off one. `domContentLoadedEventStart` is the
-  // one reddit's own perf module keys on, and it reports the metric only when it
-  // is non-zero -- so a navigation entry that answered zero would be an entry
-  // that silently does nothing.
-  entry.object->Set("domContentLoadedEventStart", Value::Number(dom_content_loaded_ms));
-  entry.object->Set("domContentLoadedEventEnd", Value::Number(dom_content_loaded_ms));
-  entry.object->Set("loadEventStart", Value::Number(load_event_ms));
-  entry.object->Set("loadEventEnd", Value::Number(load_event_ms));
-  entry.object->Set("responseEnd", Value::Number(dom_content_loaded_ms));
-  entry.object->Set("type", Value::String("navigate"));
-  entry.object->Set("initiatorType", Value::String("navigation"));
-  Record(*interpreter, entry);
-}
-
-void Performance::AddResourceTiming(js::Interpreter* interpreter, std::string_view name,
-                                    std::string_view initiator, double start_ms,
-                                    double response_end_ms, std::size_t encoded_size,
-                                    std::size_t decoded_size) {
-  if (interpreter == nullptr) {
-    if (pending_.size() < kMaxPendingEntries) {
-      PendingEntry held;
-      held.type = "resource";
-      held.name = std::string(name);
-      held.initiator = std::string(initiator);
-      held.start = start_ms;
-      held.end = response_end_ms;
-      held.encoded_size = encoded_size;
-      held.decoded_size = decoded_size;
-      pending_.push_back(std::move(held));
-    }
-    return;
-  }
-  const Value entry = MakeEntry(*interpreter, "resource", name, start_ms,
-                                std::max(0.0, response_end_ms - start_ms));
-  if (!entry.IsObject()) {
-    return;
-  }
-  entry.object->Set("initiatorType", Value::String(std::string(initiator)));
-  entry.object->Set("responseEnd", Value::Number(response_end_ms));
-  entry.object->Set("encodedBodySize", Value::Number(static_cast<double>(encoded_size)));
-  entry.object->Set("decodedBodySize", Value::Number(static_cast<double>(decoded_size)));
-  // `transferSize` is zero for a resource that came out of the cache, which is
-  // what a page tests to compute a cache hit rate -- so it is the decoded size
-  // when bytes crossed the wire and zero when they did not.
-  entry.object->Set("transferSize", Value::Number(static_cast<double>(encoded_size)));
-  entry.object->Set("renderBlockingStatus", Value::String("non-blocking"));
-  Record(*interpreter, entry);
-}
 
 bool Performance::DeliverObservations(js::Interpreter& interpreter) {
   const Value* observers = ExistingObservers(interpreter);

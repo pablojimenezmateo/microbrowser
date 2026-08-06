@@ -63,6 +63,24 @@ class Performance {
   // opposite of a timing oracle.
   void Tick(js::Interpreter& interpreter, std::int64_t now_ms);
 
+  // The legacy `performance.timing`, which is a different interface from the
+  // `navigation` entry below and not a view of it: every field on it is a Unix
+  // timestamp rather than an offset, because a page subtracts one from
+  // `Date.now()`.
+  //
+  // It exists because youtube.com's first inline script is
+  // `ytcsi.setStart(w.performance ? w.performance.timing.responseStart : null)`
+  // -- unguarded past the `performance` test, because no browser has ever had
+  // `performance` without `timing`. It is deprecated, not absent, and a page
+  // reads it before anything else it does.
+  //
+  // Called once per document, before the first script runs, which is why it
+  // takes the two moments the engine has by then: when the navigation started
+  // and when the document's bytes were complete. `interpreter` may be null,
+  // which is the normal case -- see SetNavigationTiming.
+  void SetDocumentTiming(js::Interpreter* interpreter, std::int64_t navigation_start_wall_ms,
+                         double response_end_ms);
+
   // The `navigation` entry for this document, from the engine -- which is the
   // only thing that knows when the load started and when its events fired.
   // Added once per document; a second call replaces it, because a document has
@@ -89,6 +107,15 @@ class Performance {
   bool DeliverObservations(js::Interpreter& interpreter);
 
  private:
+  // Puts `timing` on the `performance` object and fills in what is known.
+  // PerformanceTiming.cpp, which is the half of this module the engine drives.
+  void InstallTiming(js::Interpreter& interpreter, const js::Value& performance) const;
+
+  // Writes the navigation-start-through-responseEnd half of `performance.timing`
+  // from what the engine has said so far. The DOMContentLoaded and load fields
+  // are written by SetNavigationTiming, which is the only thing that knows them.
+  void WriteDocumentTiming(js::Interpreter& interpreter) const;
+
   // An entry the engine produced before this page had an interpreter.
   //
   // Every subresource of a document completes *before* its first script runs --
@@ -115,6 +142,13 @@ class Performance {
   // the collector cannot see a `js::Value` in a C++ field and a callback it
   // cannot see is one it frees while this still points at it.
   std::int64_t origin_ms_ = 0;
+  // What `performance.timing` is built from, held as plain data for the same
+  // reason `pending_` is: the engine knows both numbers before there is a heap.
+  // Zero navigation start means no document has been loaded through this object
+  // -- a `performance.timing` whose fields were all zero is what a browser shows
+  // for a document that never navigated, so it is also the honest initial state.
+  std::int64_t navigation_start_wall_ms_ = 0;
+  double response_end_ms_ = 0.0;
   // Bounded, because a document can name arbitrarily many subresources and this
   // list is written before anything can read it.
   std::vector<PendingEntry> pending_;

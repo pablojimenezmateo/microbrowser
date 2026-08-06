@@ -181,7 +181,12 @@ budget: Result header_lines=35 public_methods=0 members=12
 # is not the same event as its imports having arrived, and only the second lets
 # evaluation start. Counted apart from `scripts_outstanding` for exactly that
 # reason.
-budget: PendingLoad header_lines=105 public_methods=8 members=19
+# A twentieth for the wall clock. Every other time on this struct is steady --
+# deliberately, because a clock correction must not move a deadline -- and
+# `performance.timing` is the one interface whose fields are Unix timestamps by
+# definition. Recording both at the start of the navigation is what keeps the two
+# epochs from being derived from each other, which cannot be done correctly.
+budget: PendingLoad header_lines=115 public_methods=8 members=20
 
 # 185 lines and 38 methods for the form lifecycle: taking the submission a
 # script asked for, firing `load`, and the private SubmitForm every route to a

@@ -49,6 +49,11 @@ struct PendingLoad {
   // timestamp. Zero on a load that never started, which is not a valid time and
   // is why the entries are only produced when the document arrived.
   std::int64_t started_ms = 0;
+  // The same moment on the wall clock, and held separately rather than derived
+  // because the two clocks have unrelated epochs. Only `performance.timing`
+  // reads it: every field of that interface is a Unix timestamp, and the offsets
+  // above are what everything else is measured in.
+  std::int64_t started_wall_ms = 0;
   // When the document's scripts finished, which is what a page reads as
   // `domContentLoadedEventStart`. reddit's own perf module reports its metric
   // only when that number is non-zero, so an entry that answered zero would be

@@ -33,4 +33,18 @@ inline std::int64_t NowMilliseconds() {
       .count();
 }
 
+// Wall time in milliseconds, and there is exactly one caller: the legacy
+// `performance.timing`, whose every field is a Unix timestamp by definition --
+// a page subtracts one from `Date.now()`, so a steady clock's epoch would make
+// every such subtraction meaningless.
+//
+// It is not a new fingerprinting surface: it is `Date.now()`'s clock at
+// `Date.now()`'s resolution, which the page already has. What would be one is a
+// *finer* clock, and this is deliberately not that.
+inline std::int64_t NowWallMilliseconds() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+
 }  // namespace microbrowser::engine

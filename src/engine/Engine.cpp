@@ -473,6 +473,18 @@ void Engine::OnDocument(Loader::Result result) {
 
   page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url,
              std::move(policies), result.content_type);
+
+  // The document's bytes are complete, which is the last moment
+  // `performance.timing` needs before a page can read it: the next thing that
+  // runs a script is `AdvanceLoad`, and youtube.com's first inline script reads
+  // `timing.responseStart` before it does anything else. Recorded here rather
+  // than with the `navigation` entry at the end of the load for that reason --
+  // that one is produced after the last paint, which is far too late.
+  //
+  // *After* `Page::Load`, which detaches the previous document's script half and
+  // with it the object this is stored on.
+  page_.SetDocumentTiming(load_.started_wall_ms,
+                          static_cast<double>(NowMilliseconds() - load_.started_ms));
   if (traversing_) {
     // A traversal's entry is already in the list, at its own index. Its URL is
     // rewritten rather than pushed, because a redirect can land somewhere else
@@ -625,6 +637,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   worker_fetches_.clear();
   load_.active = true;
   load_.started_ms = NowMilliseconds();
+  load_.started_wall_ms = NowWallMilliseconds();
   load_.url = url.empty() ? std::string("about:blank") : url;
   load_.bypass_cache = options.bypass_cache;
 

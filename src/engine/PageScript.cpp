@@ -282,6 +282,12 @@ void PageScript::SetNavigationTiming(double dom_content_loaded_ms, double load_e
                                    duration_ms);
 }
 
+void PageScript::SetDocumentTiming(std::int64_t navigation_start_wall_ms, double response_end_ms) {
+  // Same argument as above: held as plain data until there is a heap. This one
+  // is always early -- the document arriving is what makes a script exist.
+  performance_.SetDocumentTiming(interpreter_.get(), navigation_start_wall_ms, response_end_ms);
+}
+
 void PageScript::AddResourceTiming(const std::string& name, const std::string& initiator,
                                    double start_ms, double response_end_ms,
                                    std::size_t encoded_size, std::size_t decoded_size) {

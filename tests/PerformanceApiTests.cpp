@@ -200,6 +200,47 @@ void RegisterPerformanceApiTests(std::vector<TestCase>& tests) {
                    "Errors: " + session.Errors());
   });
 
+  AddTest(tests, "PerformanceApi/TimingIsReadableFromTheDocumentsFirstScript", [] {
+    // youtube.com's first inline script is
+    // `ytcsi.setStart(w.performance ? w.performance.timing.responseStart : null)`,
+    // unguarded past the `performance` test -- no browser has ever had
+    // `performance` without `timing`. So the assertion is not only that the
+    // fields exist but that they are *filled in by the time a document's own
+    // script runs*, which is before the navigation entry can exist at all.
+    Session session;
+    session.Run("",
+                "const t = performance.timing;"
+                "console.log(t.navigationStart > 0);"
+                "console.log(t.responseStart >= t.navigationStart);"
+                // A Unix timestamp, not an offset: a page subtracts one from
+                // `Date.now()`, and an epoch of zero makes every such
+                // subtraction meaningless.
+                "console.log(Math.abs(Date.now() - t.navigationStart) < 60000);"
+                // An event that has not fired reports zero, which is what a
+                // browser reports for one -- and `load` has not fired here.
+                "console.log(t.loadEventEnd);"
+                // A phase this browser does not measure separately collapses
+                // onto the one enclosing it rather than answering undefined,
+                // because undefined in a subtraction is NaN.
+                "console.log(t.domainLookupEnd === t.fetchStart);"
+                "console.log(t.secureConnectionStart);");
+    ExpectEqString(session.Console(), "true|true|true|0|true|0", "Errors: " + session.Errors());
+  });
+
+  AddTest(tests, "PerformanceApi/TimingFillsInLoadOnceTheLoadIsOver", [] {
+    // The same object, written again as each event lands. Read from a timer
+    // rather than from the document's script, because at that point neither
+    // DOMContentLoaded nor load has happened yet.
+    Session session;
+    session.Run("",
+                "setTimeout(function () {"
+                "  const t = performance.timing;"
+                "  console.log(t.domContentLoadedEventStart >= t.responseStart);"
+                "  console.log(t.loadEventEnd >= t.domContentLoadedEventEnd);"
+                "}, 0);");
+    ExpectEqString(session.Console(), "true|true", "Errors: " + session.Errors());
+  });
+
   AddTest(tests, "PerformanceApi/AResourceEntryExistsForEverySubresource", [] {
     Session session;
     session.Run("<link rel=\"stylesheet\" href=\"/a.css\">",

@@ -417,6 +417,7 @@ microbrowser_module(bindings
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
     src/bindings/Performance.cpp
+    src/bindings/PerformanceTiming.cpp
     src/bindings/AnimationFrames.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp

@@ -225,5 +225,12 @@ budget: AnimationFrames header_lines=55 public_methods=6 members=4
 # data, so there is no `js::Value` the collector cannot see. Everything that
 # survives Install -- the entries, the observers, their queued records -- lives in
 # JavaScript objects hung off the global for that reason.
-budget: Performance header_lines=130 public_methods=12 members=2
+# Four members now, and the two new ones are the legacy `performance.timing`: the
+# wall-clock moment this navigation started and how long the document took to
+# arrive. Held as plain data for the same reason the pending entries are -- both
+# are known before the first script runs, which is the only moment that matters,
+# because youtube.com reads `timing.responseStart` from its first inline script.
+# They are two numbers rather than a built object because a document that never
+# navigated must answer zero, and zero is what an unset pair of them means.
+budget: Performance header_lines=170 public_methods=13 members=4
 budget: PendingEntry header_lines=25 public_methods=0 members=9

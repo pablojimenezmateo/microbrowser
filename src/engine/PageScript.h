@@ -252,6 +252,11 @@ class PageScript {
   // alone.
   void SetNavigationTiming(double dom_content_loaded_ms, double load_event_ms,
                            double duration_ms);
+  // The legacy `performance.timing`, whose fields are Unix timestamps -- hence
+  // the wall clock, which is the only place in this engine one reaches a page.
+  // Called when the document's bytes are complete and therefore before the first
+  // script runs, which is when youtube.com reads `timing.responseStart`.
+  void SetDocumentTiming(std::int64_t navigation_start_wall_ms, double response_end_ms);
   void AddResourceTiming(const std::string& name, const std::string& initiator, double start_ms,
                          double response_end_ms, std::size_t encoded_size,
                          std::size_t decoded_size);
