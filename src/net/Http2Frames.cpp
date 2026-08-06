@@ -6,12 +6,6 @@ namespace microbrowser::net::http2 {
 
 namespace {
 
-// The largest a flow-control window may ever be (RFC 9113 §6.9.1). A peer that
-// asks for more has to be refused rather than clamped: clamping would leave the
-// two ends with different numbers for the same window, and that disagreement is
-// what a flow-control deadlock is made of.
-constexpr std::uint32_t kMaxWindow = 0x7FFFFFFF;
-
 void WriteUint16(std::uint16_t value, std::string& out) {
   out.push_back(static_cast<char>((value >> 8) & 0xFF));
   out.push_back(static_cast<char>(value & 0xFF));
@@ -106,7 +100,7 @@ bool PeerSettings::Apply(std::span<const std::byte> payload, std::int64_t& windo
         max_concurrent_streams = value;
         break;
       case Setting::InitialWindowSize:
-        if (value > kMaxWindow) {
+        if (value > static_cast<std::uint32_t>(kMaxWindow)) {
           return false;
         }
         // Signed, and applied to every open stream by the caller. §6.9.2 is
@@ -169,7 +163,7 @@ void WriteSettingsAck(std::string& out) {
 
 void WriteWindowUpdate(std::uint32_t stream, std::uint32_t increment, std::string& out) {
   WriteFrameHeader(FrameType::WindowUpdate, 0, stream, 4, out);
-  WriteUint32(increment & kMaxWindow, out);
+  WriteUint32(increment & static_cast<std::uint32_t>(kMaxWindow), out);
 }
 
 void WriteRstStream(std::uint32_t stream, ErrorCode code, std::string& out) {

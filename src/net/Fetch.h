@@ -183,6 +183,10 @@ class FetchRequest {
   // that is the only condition under which resending it is not a second side
   // effect.
   bool MayRetry(bool nothing_was_processed) const { return !retried_ && nothing_was_processed; }
+  // The HTTP/1.1 half of that, spelled once: a connection that came out of the
+  // pool and then failed before the server said anything is the race every pool
+  // has, and it is the only HTTP/1.1 failure a resend is safe after.
+  bool PooledConnectionSaidNothing() const { return reused_ && parser_.NothingReceived(); }
 
   privacy::Verdict verdict_;
   const privacy::PrivacyPolicy& policy_;

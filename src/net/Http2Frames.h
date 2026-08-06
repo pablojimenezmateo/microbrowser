@@ -30,6 +30,15 @@ inline constexpr std::size_t kFrameHeaderBytes = 9;
 // and there is no measurement here saying the throughput is missing.
 inline constexpr std::uint32_t kMaxFrameSize = 16384;
 
+// The largest a flow-control window may ever hold (RFC 9113 §6.9.1).
+//
+// Here rather than beside each of the two places that check it, because a peer
+// that asks for more has to be *refused* rather than clamped -- clamped, the
+// two ends hold different numbers for the same window, and that disagreement is
+// what a flow-control deadlock is. Two spellings of that limit is one that can
+// drift.
+inline constexpr std::int64_t kMaxWindow = 0x7FFFFFFF;
+
 // Frames are only ever read after their whole payload has arrived, so this is
 // also the ceiling on what one read can be asked to hold.
 inline constexpr std::size_t kMaxFrameBytes = kFrameHeaderBytes + kMaxFrameSize;

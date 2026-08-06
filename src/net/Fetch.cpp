@@ -627,7 +627,7 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
             return progress;
           }
           if (wrote.status != IoStatus::Ready || wrote.bytes == 0) {
-            retry_or_fail("send failed", reused_ && parser_.NothingReceived());
+            retry_or_fail("send failed", PooledConnectionSaidNothing());
             return true;
           }
           sent_ += wrote.bytes;
@@ -649,13 +649,13 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
             // nowhere else, which is why Closed and Failed are separate answers.
             if (!parser_.Finish()) {
               retry_or_fail(parser_.Error() != nullptr ? parser_.Error() : "truncated response",
-                            reused_ && parser_.NothingReceived());
+                            PooledConnectionSaidNothing());
               return true;
             }
             break;
           }
           if (read.status != IoStatus::Ready) {
-            retry_or_fail("receive failed", reused_ && parser_.NothingReceived());
+            retry_or_fail("receive failed", PooledConnectionSaidNothing());
             return true;
           }
           progress = true;

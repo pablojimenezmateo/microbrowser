@@ -15,12 +15,6 @@ using util::AddPerformanceCounter;
 using util::PerfCounterId;
 using namespace http2;  // NOLINT(google-build-using-namespace) — one file, one protocol
 
-// The largest number a flow-control window may hold (§6.9.1). A window past it
-// is a connection error rather than something to clamp: clamped, the two ends
-// hold different numbers for the same window, and that disagreement is the
-// deadlock.
-constexpr std::int64_t kMaxWindow = 0x7FFFFFFF;
-
 constexpr std::size_t kReadChunk = 32 * 1024;
 
 }  // namespace
