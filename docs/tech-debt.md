@@ -123,20 +123,40 @@ already cause a second paint.
 
 ---
 
-## TD-0006 — Inflate runs at roughly a tenth of the speed it should
+## TD-0006 — Inflate ran bit-at-a-time and byte-at-a-time — **fixed 2026-08-06**
 
-`net::DecodeContentEncoding` scope, on youtube.com: seven gzip responses of 780KB–920KB, at
-**85–119ms each**, which is on the order of 10MB/s. A production inflate manages 200–400MB/s on this
-hardware. Brotli is fine by comparison — 2.1MB in 22ms — which points at `util::Inflate` rather than
-at the framing around it.
+Kept here rather than moved to Closed, because the *measurement* is the part worth keeping: the
+entry said inflate ran "at roughly a tenth of the speed it should" and could not be more precise
+than that, because the only way to time it was to load a page and the network's variance was larger
+than the thing being measured — the same seven gzip responses on youtube.com read anywhere between
+12ms and 25ms from run to run.
 
-**Measured** but not diagnosed: nothing here has looked at why. The likely candidates are a
-bit-at-a-time Huffman decode and a byte-at-a-time match copy, both of which are the textbook first
-implementation.
+`bench/CodecBenchmarks.cpp` is the fix for that, and it had to bring its own DEFLATE encoder:
+`src/util` deliberately has none. Two corpora, because they measure different halves — a 258-byte
+match is two symbol decodes and a `memcpy`, and a three-byte match is two symbol decodes for three
+bytes, and real markup is much closer to the second:
 
-**End state.** Table-driven Huffman with a multi-bit peek, and a match copy that moves words. Both
-are local to `util/Inflate.cpp` and both are exactly the kind of change that wants the existing
-fuzz target run against it.
+| benchmark | before | after | |
+|---|---|---|---|
+| `codec/inflate-symbols` | 4.286 ns/byte | **1.716 ns/byte** | 2.50x |
+| `codec/inflate-copies` | 1.043 ns/byte | **0.485 ns/byte** | 2.15x |
+
+Both halves were the textbook first implementation and both are named in the original entry.
+`DecodeSymbol` called `Bits(1)` once per *bit* of every code; it now peeks nine bits and indexes a
+direct table built with the canonical code assignment, falling back to the bit walk only for codes
+longer than the window, which are by definition uncommon symbols. A match copied one `push_back` per
+byte; it now grows once and copies, with `memcpy` when the match does not overlap and a forward
+byte loop when it does — the second is not a slower `memmove`, it is the only correct thing, since
+`distance` 1 and `length` 200 means two hundred copies of one byte.
+
+The `inflate_fuzzer` target ran 108,781 executions against the new decoder with no crash, and the
+suite passes under ASan.
+
+**What is left.** This is now roughly 600MB/s on the copy-heavy corpus and 580MB/s on the
+symbol-heavy one, which is within range of production zlib rather than a tenth of it. A further
+step exists — a two-level table so long codes are also one lookup, and a 64-bit bit buffer refilled
+eight bytes at a time — and is not obviously worth it: at these numbers decoding youtube's seven
+gzip responses is under 40ms of a 4-second load.
 
 ---
 

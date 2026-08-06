@@ -576,6 +576,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   // style attribute is author-origin with a specificity above any selector.
   std::vector<Declaration> inline_declarations;
   if (const std::string* inline_style = element.GetAttribute("style")) {
+    AddPerformanceCounter(PerfCounterId::CssInlineStyleParses);
     inline_declarations = ParseDeclarationList(*inline_style);
   }
   const std::vector<Declaration> presentational_declarations =
@@ -607,6 +608,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   std::vector<Candidate> ordered;
   for (const std::uint32_t position : candidates) {
     const Entry& entry = rules_[position];
+    AddPerformanceCounter(PerfCounterId::CssCandidatesTested);
     if (!ScopeAdmits(entry, element, element_scope)) {
       continue;
     }
@@ -666,6 +668,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   // comes out as: if the winning declaration for a property is invalid, drop
   // every declaration for that property. An invalid one that was going to lose
   // anyway is simply skipped.
+  AddPerformanceCounter(PerfCounterId::CssDeclarationsCascaded, ordered.size());
   std::vector<std::string> substituted(ordered.size());
   std::vector<bool> usable(ordered.size(), true);
   std::vector<std::string> unset_properties;
@@ -676,6 +679,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
       continue;
     }
     if (declaration.value.find("var(") == std::string::npos) {
+      AddPerformanceCounter(PerfCounterId::CssDeclarationValuesCopied);
       substituted[i] = declaration.value;
       continue;
     }

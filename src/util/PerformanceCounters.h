@@ -146,6 +146,17 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  /* What one cascade actually does, per element. Counted on the expensive     */ \
+  /* halves rather than on the cheap one: `styles_resolved` alone reads as     */ \
+  /* health while a resolve costs fifty selector matches and a hundred string  */ \
+  /* copies. `candidates_tested` counts full selector evaluations,             */ \
+  /* `declarations_cascaded` counts declarations sorted and applied, and       */ \
+  /* `declaration_values_copied` counts the ones whose text was duplicated     */ \
+  /* only to be handed straight back unchanged.                                */ \
+  X(CssCandidatesTested, "css.candidates_tested")                                \
+  X(CssDeclarationsCascaded, "css.declarations_cascaded")                        \
+  X(CssDeclarationValuesCopied, "css.declaration_values_copied")                 \
+  X(CssInlineStyleParses, "css.inline_style_parses")                             \
   /* --- dynamic state and invalidation (ADR 0016) --------------------------- */ \
   /* How many rules in the cascade depend on a state a pointer or a keystroke  */ \
   /* can change. Zero is the common case and is what makes a mouse move free;  */ \

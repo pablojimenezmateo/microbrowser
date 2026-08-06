@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 
 #include "util/PerformanceCounters.h"
 
@@ -47,6 +48,29 @@ class BitReader {
     return value;
   }
 
+  // Loads *up to* `need` bits into the buffer and says how many are really
+  // there. Unlike `Bits` it does not fail at the end of the input: a Huffman
+  // code shorter than the peek window is still decodable from the last few bits
+  // of a stream, and a reader that failed on the peek could not decode it.
+  // The caller is responsible for checking the code it matched against the
+  // returned count — see DecodeSymbol.
+  int Fill(int need) {
+    while (bit_count_ < need && position_ < data_.size()) {
+      buffer_ |= static_cast<std::uint32_t>(data_[position_++]) << bit_count_;
+      bit_count_ += 8;
+    }
+    return bit_count_;
+  }
+
+  // The next `need` bits without consuming them, zero-filled past the end of
+  // what `Fill` actually loaded.
+  std::uint32_t Peek(int need) const { return buffer_ & ((1u << need) - 1u); }
+
+  void Consume(int need) {
+    buffer_ >>= need;
+    bit_count_ -= need;
+  }
+
   void AlignToByte() {
     buffer_ = 0;
     bit_count_ = 0;
@@ -72,13 +96,42 @@ class BitReader {
   bool ok_ = true;
 };
 
+// How many bits the direct-index table covers.
+//
+// Nine, because DEFLATE's fixed literal alphabet tops out at 9 and a dynamic
+// one puts its common symbols well inside that: the table is 512 entries -- one
+// kilobyte, rebuilt per block -- and it decodes the overwhelming majority of
+// symbols with one array read instead of one loop iteration and one function
+// call *per bit*. Going wider costs build time on every block for codes that
+// are rare by construction, since a long code is by definition an uncommon
+// symbol.
+constexpr int kFastBits = 9;
+constexpr int kFastSize = 1 << kFastBits;
+
 // A canonical Huffman table, in the counts-and-symbols form the DEFLATE spec
 // itself describes: `count[n]` codes of length n, and `symbol` holding the
 // symbols ordered by code.
+//
+// Plus `fast`, which is the same information indexed by the next `kFastBits` of
+// input. An entry is `(length << 9) | symbol`, and zero means "no code of
+// `kFastBits` or fewer starts this way" -- unambiguous because a real entry has
+// a length of at least one and is therefore at least 512.
 struct HuffmanTable {
   std::array<std::int16_t, kMaxCodeLength + 1> count{};
   std::array<std::int16_t, kFixedLiteralCodes> symbol{};
+  std::array<std::uint16_t, kFastSize> fast{};
 };
+
+// The low `length` bits of `code`, reversed. DEFLATE writes Huffman codes
+// most-significant bit first and everything else least-significant bit first,
+// so the direct-index table has to be built in the order the reader will see.
+std::uint32_t ReverseBits(std::uint32_t code, int length) {
+  std::uint32_t reversed = 0;
+  for (int i = 0; i < length; ++i) {
+    reversed = (reversed << 1) | ((code >> i) & 1u);
+  }
+  return reversed;
+}
 
 // Returns false for an over-subscribed set (more codes of some length than the
 // tree can hold), which is malformed input rather than a corner case. An
@@ -120,11 +173,60 @@ bool BuildHuffman(HuffmanTable& table, const std::int16_t* lengths, int count) {
           static_cast<std::int16_t>(symbol);
     }
   }
+
+  // The direct-index table, from the canonical code assignment the loop above
+  // just implied: codes of each length run consecutively in `symbol` order, and
+  // the first code of length n+1 is (first code of length n + count[n]) << 1.
+  table.fast.fill(0);
+  std::uint32_t code = 0;
+  int index = 0;
+  for (int length = 1; length <= kMaxCodeLength; ++length) {
+    const int at_this_length = table.count[static_cast<std::size_t>(length)];
+    for (int i = 0; i < at_this_length; ++i, ++index, ++code) {
+      if (length > kFastBits) {
+        continue;  // decoded by the bit walk below; too long to index
+      }
+      const std::int16_t decoded = table.symbol[static_cast<std::size_t>(index)];
+      const auto entry =
+          static_cast<std::uint16_t>((static_cast<std::uint32_t>(length) << 9) |
+                                     static_cast<std::uint32_t>(decoded));
+      // Every index whose low `length` bits are this code, since the bits above
+      // it belong to whatever symbol comes next and are not known yet.
+      for (std::uint32_t fill = ReverseBits(code, length);
+           fill < static_cast<std::uint32_t>(kFastSize); fill += 1u << length) {
+        table.fast[fill] = entry;
+      }
+    }
+    code <<= 1;
+  }
   return true;
 }
 
-// One symbol, walked bit by bit down the code lengths.
+// One symbol.
+//
+// The common case is one array read: peek `kFastBits`, index the table, consume
+// the length it reports. This used to be a loop that called `Bits(1)` once *per
+// bit* of every code, which is why gzip decoded at around a tenth of the speed
+// it should -- see TD-0006.
 int DecodeSymbol(BitReader& reader, const HuffmanTable& table) {
+  const int available = reader.Fill(kFastBits);
+  const std::uint16_t entry = table.fast[reader.Peek(kFastBits)];
+  if (entry != 0) {
+    const int length = static_cast<int>(entry >> 9);
+    // Past the end of the input `Peek` zero-fills, so a code may have "matched"
+    // on bits that are not there. It is a real match only when every bit it
+    // used exists.
+    if (length > available) {
+      reader.Fail();
+      return -1;
+    }
+    reader.Consume(length);
+    return static_cast<int>(entry & 0x1FFu);
+  }
+
+  // A code longer than the window. Rare by construction -- a long code is an
+  // uncommon symbol -- so this stays the original bit walk rather than growing
+  // a second table.
   int code = 0;
   int first = 0;
   int index = 0;
@@ -204,12 +306,29 @@ bool InflateBlock(BitReader& reader, const HuffmanTable& literals, const Huffman
       return false;
     }
 
-    for (std::size_t i = 0; i < length; ++i) {
-      // Read into a local first. `out` may reallocate inside push_back, which
-      // would leave a reference into the old buffer dangling — the copy is not
-      // a style choice.
-      const std::byte value = out[out.size() - distance];
-      out.push_back(value);
+    // Grown once and then copied, rather than one `push_back` per byte: a
+    // match averages a few dozen bytes and every one of them was costing a
+    // capacity check and a possible reallocation. The pointers are taken
+    // *after* the resize for the reason the old comment gave -- the buffer may
+    // move -- which is why this is a resize followed by a copy and not a copy
+    // into a reserved tail.
+    const std::size_t start = out.size();
+    out.resize(start + length);
+    std::byte* destination = out.data() + start;
+    const std::byte* source = out.data() + start - distance;
+    if (distance >= length) {
+      // No overlap: the whole match is already in the output and can move in
+      // one go.
+      std::memcpy(destination, source, length);
+    } else {
+      // Overlapping, which in LZ77 is not a mistake but the way a run is
+      // encoded -- `distance` 1 and `length` 200 means two hundred copies of
+      // one byte. It has to be copied forwards, one byte at a time, because
+      // each byte written is an input to a later one. `memmove` would be
+      // wrong here, not merely slower.
+      for (std::size_t i = 0; i < length; ++i) {
+        destination[i] = source[i];
+      }
     }
   }
 }

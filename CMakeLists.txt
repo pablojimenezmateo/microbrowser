@@ -727,6 +727,7 @@ if(MICROBROWSER_PERF_HARNESS_BUILD)
   add_executable(microbrowser_bench
     bench/BenchMain.cpp
     bench/BenchSupport.cpp
+    bench/CodecBenchmarks.cpp
     bench/GfxBenchmarks.cpp
     bench/JsBenchmarks.cpp
     tests/support/SyntheticFont.cpp
