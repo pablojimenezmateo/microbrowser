@@ -2226,3 +2226,45 @@ tool paid for itself before it made a sound.
 An `<audio src="…mp3">` still cannot play, because there is no decoder until session 27's
 codec decision. That is why the tone exists: it is the honest intermediate, and it exercises
 the ring, the device, the callback and the clock together.
+
+### The media state machines, and activation a page cannot forge · 2026-08-06 (session 25, unfinished)
+
+`2ec98ae` and `37bd0c7`. The part of `HTMLMediaElement` that had to be right, and the flag the
+autoplay refusal rests on.
+
+**"The states are the API" is why the state machine is a pure object.** It holds no samples, no
+element and no network, so its transitions can be *driven and asserted* — which is the only way
+to know they are the specification's rather than an approximation. It produces an ordered list
+of events to fire rather than firing them, because the order is observable: a page that gets
+`canplay` before `loadedmetadata` reads a duration that is not there yet, and `TakeEvents`
+means a document whose script has not run cannot lose them.
+
+The transitions worth writing down, because each is a bug that presents as something else:
+
+- **The ladder fires every rung it climbs past.** A whole file can arrive at once and a page
+  waiting on `canplay` still has to hear it.
+- **A seek drops readiness to Metadata.** ADR 0028 §1 names this one outright: what was decoded
+  was for somewhere else, and a `readyState` that stays at EnoughData across a seek is a player
+  that stalls with no error and no way for the page to tell.
+- **Playing without enough data is `waiting`, not `playing`** — a page shows its spinner on one
+  and hides it on the other.
+- **`NO_SOURCE` is not a slow load**, and `play()` on it is `NotSupportedError` rather than
+  `NotAllowedError`, because a page shows an error message for one and a play button for the
+  other. Confusing them makes a video that could have played look broken.
+- **The end is not a pause.** `ended` is a stream running out; `pause` is something a page or a
+  user did. And `play()` after the end rewinds, or a replay button does nothing.
+
+**For user activation, what matters is where it is set, not what it stores.** A trusted click
+reaches `Page::DispatchClickAt` and a trusted keystroke `Page::DispatchKeyToFocus`; a click a
+page dispatches itself goes through the binding layer and reaches neither. So the test is a
+page that clicks its own button and dispatches its own event, asserting the flag stays clear
+before a real click sets it — the flag being unforgeable is the whole feature, and it is the
+sort of thing that is easy to implement in the wrong place and impossible to notice afterwards.
+
+It is sticky rather than transient, and the header says why and what that costs: the
+specification expires a transient activation so a click cannot license a popup a minute later,
+nothing here opens a window, and the only consumer is autoplay — where sticky is what a user
+expects. The first transient consumer turns this into a timestamp.
+
+What is left of the session is wiring: the binding over the state machine, the engine half that
+drives it from the loader, and default controls as user-agent boxes.
