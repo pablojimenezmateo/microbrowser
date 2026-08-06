@@ -186,7 +186,10 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     auto box = std::make_unique<Box>(Box::Kind::Replaced, style);
     box->SetOrigin(&element);
     attach_background(*box);
-    if (element.TagName() == "img" && images_ != nullptr) {
+    if ((element.TagName() == "img" || element.TagName() == "canvas") && images_ != nullptr) {
+      // A `<canvas>` answers with the bitmap the page drew, through the same hook an `<img>` uses --
+      // which is why canvas needed no layout code at all: it is a replaced element whose intrinsic size
+      // comes from its backing store.
       box->SetImage(images_->ImageForElement(element));
     } else if (element.TagName() == "input" || element.TagName() == "button" ||
                element.TagName() == "textarea" || element.TagName() == "select") {

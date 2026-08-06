@@ -310,6 +310,11 @@ namespace microbrowser::util {
   X(AnimationsStarted, "animation.animations_started")                            \
   X(AnimationsFinished, "animation.animations_finished")                          \
   X(AnimationFramesProduced, "animation.frames_produced")                         \
+  X(CanvasesCreated, "canvas.created")                                            \
+  X(CanvasDraws, "canvas.draws")                                                  \
+  X(CanvasSizeRefusals, "canvas.size_refusals")                                   \
+  X(CanvasReadbacks, "canvas.readbacks")                                          \
+  X(CanvasesTainted, "canvas.tainted")                                            \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \

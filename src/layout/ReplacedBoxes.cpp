@@ -139,10 +139,13 @@ bool IsReplacedElement(const dom::Element& element) {
   // `<video>` and `<audio>` too (ADR 0028 §1): their content comes from outside CSS and their
   // children are fallback the element replaces. Without this a `<video>` lays out its `<source>`
   // children and its "your browser does not support" paragraph as page content.
+  // `<canvas>` too (ADR 0029 §2): its content is a bitmap the page drew, and its children are fallback
+  // it replaces -- without this, the "your browser does not support canvas" paragraph inside one is
+  // laid out as page content.
   return element.TagName() == "img" || element.TagName() == "input" ||
          element.TagName() == "button" || element.TagName() == "textarea" ||
          element.TagName() == "select" || element.TagName() == "video" ||
-         element.TagName() == "audio";
+         element.TagName() == "audio" || element.TagName() == "canvas";
 }
 
 float ReplacedWidth(const Box& box) { return ReplacedIntrinsic(box, true); }

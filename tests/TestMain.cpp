@@ -67,6 +67,7 @@ void RegisterBidiTests(std::vector<TestCase>& tests);
 void RegisterMediaSourceTests(std::vector<TestCase>& tests);
 void RegisterMpegTsTests(std::vector<TestCase>& tests);
 void RegisterAnimationTests(std::vector<TestCase>& tests);
+void RegisterCanvasTests(std::vector<TestCase>& tests);
 void RegisterSandboxTests(std::vector<TestCase>& tests);
 void RegisterMatroskaTests(std::vector<TestCase>& tests);
 void RegisterMediaStateTests(std::vector<TestCase>& tests);
@@ -227,6 +228,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterMediaSourceTests(tests);
   microbrowser::tests::RegisterMpegTsTests(tests);
   microbrowser::tests::RegisterAnimationTests(tests);
+  microbrowser::tests::RegisterCanvasTests(tests);
   microbrowser::tests::RegisterSandboxTests(tests);
   microbrowser::tests::RegisterMatroskaTests(tests);
   microbrowser::tests::RegisterMediaStateTests(tests);

@@ -9,6 +9,7 @@
 
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
+#include "bindings/Canvas.h"
 #include "bindings/Media.h"
 #include "bindings/Network.h"
 #include "bindings/Sockets.h"
@@ -113,7 +114,8 @@ class DomBindings {
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
               HistorySource* history = nullptr, StorageSource* storage = nullptr,
-              SocketSource* sockets = nullptr, MediaController* media = nullptr);
+              SocketSource* sockets = nullptr, MediaController* media = nullptr,
+              CanvasSurface* canvas = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -442,6 +444,12 @@ class DomBindings {
   // ADR 0028 §3. Installed once per document rather than per element: a `MediaSource` is not an
   // element and reaches one only through `URL.createObjectURL`, which is why the object URL registry
   // is installed from here too.
+  // --- canvas, in CanvasBindings.cpp (ADR 0029 §2) ---------------------------
+  void InstallCanvas(const js::Value& target);
+  js::Value MakeCanvasContext(const js::Value& canvas);
+  void InstallImageData(const js::Value& context);
+  js::Value MakeImageData(int width, int height, const std::vector<std::uint8_t>& rgba);
+
   void InstallMediaSource();
   void InstallObjectUrls();
   js::Value MakeTimeRanges(const std::vector<double>& flat);
@@ -628,6 +636,7 @@ class DomBindings {
   StorageSource* storage_ = nullptr;
   SocketSource* sockets_ = nullptr;
   MediaController* media_ = nullptr;
+  CanvasSurface* canvas_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings

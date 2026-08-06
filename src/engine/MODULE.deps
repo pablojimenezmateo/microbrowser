@@ -16,7 +16,11 @@ public: DocumentPolicy.h Engine.h ImageSelection.h Loader.h ModuleLoader.h Page.
 
 extern:
 
-max_tu_lines: 800
+# Raised for Page.h, whose growth is the *interfaces it implements* rather than logic: geometry, media,
+# MSE, the style adjuster and now canvas are five declared seams, each one a list of overrides that
+# exist so a lower module does not have to see a higher one. The bodies are all in their own
+# translation units.
+max_tu_lines: 900
 
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays
@@ -131,6 +135,11 @@ budget: Engine header_lines=405 public_methods=15 members=21
 # ADR 0014 §5. The class the zero-idle-CPU invariant lives in: `NextDelayMs` answering *nothing* is
 # what lets a settled page block forever, and a finished transition left in the map would break it.
 # Four maps and a keyframe list, all cleared by the same Clear().
+# ADR 0029 §2. The backing stores, the graphics state, and the taint -- which is a security boundary and
+# is set at the *draw*: a flag computed at read time would have to re-derive what had been drawn.
+budget: CanvasSurfaces header_lines=110 public_methods=14 members=2
+budget: State         header_lines=50 public_methods=4 members=10
+budget: Surface       header_lines=30 public_methods=0 members=8
 budget: Animations    header_lines=110 public_methods=12 members=5
 budget: MediaElements header_lines=80 public_methods=22 members=8
 budget: Loader header_lines=145 public_methods=16 members=7
@@ -245,7 +254,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=730 public_methods=130 members=19
+budget: Page   header_lines=820 public_methods=142 members=20
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -313,7 +322,7 @@ budget: Page   header_lines=730 public_methods=130 members=19
 # plus the three private ones in PageModules.cpp. The split is the point -- a
 # fetch needs a privacy verdict and a connection pool, and deciding *what* to
 # fetch needs to know what a module graph is.
-budget: PageScript header_lines=415 public_methods=45 members=20
+budget: PageScript header_lines=415 public_methods=47 members=21
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

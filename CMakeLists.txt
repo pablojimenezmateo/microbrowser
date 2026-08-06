@@ -376,6 +376,8 @@ microbrowser_module(engine
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
     src/engine/Animations.cpp
+    src/engine/CanvasSurfaces.cpp
+    src/engine/PageCanvas.cpp
     src/engine/PageAnimations.cpp
     src/engine/MediaElements.cpp
     src/engine/PageMedia.cpp
@@ -404,6 +406,7 @@ microbrowser_module(platform
 
 microbrowser_module(bindings
   SOURCES
+    src/bindings/CanvasBindings.cpp
     src/bindings/CustomElements.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
@@ -578,6 +581,7 @@ add_executable(microbrowser_tests
   tests/MediaSourceTests.cpp
   tests/MpegTsTests.cpp
   tests/AnimationTests.cpp
+  tests/CanvasTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp

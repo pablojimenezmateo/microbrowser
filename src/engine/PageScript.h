@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "bindings/AnimationFrames.h"
+#include "bindings/Canvas.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
@@ -77,6 +78,9 @@ class PageScript {
   // ADR 0028 §1. Null leaves `<video>` with no media API, which is what a page with nothing
   // behind it must see rather than a `play()` whose promise never settles.
   void SetMediaController(bindings::MediaController* media) { media_ = media; }
+  // The canvas commands (ADR 0029 §2). Same lifetime as the others: a surface handed over after the
+  // first script would leave a page whose whole rendering is a canvas with a blank one.
+  void SetCanvasSurface(bindings::CanvasSurface* canvas) { canvas_ = canvas; }
 
   // A socket's events, forwarded to the bindings when there are any. False without an
   // interpreter: a socket cannot outlive its document, but a completion can arrive on the
@@ -389,6 +393,7 @@ class PageScript {
   bindings::StorageSource* storage_ = nullptr;
   bindings::SocketSource* sockets_ = nullptr;
   bindings::MediaController* media_ = nullptr;
+  bindings::CanvasSurface* canvas_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

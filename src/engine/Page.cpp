@@ -243,7 +243,7 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
 
 }  // namespace
 
-Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {
+Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_), canvases_(text_) {
   // The binding layer asks its geometry questions here. Handed over in the
   // constructor rather than per navigation because it is this object for the
   // life of the page, and a source that arrived later would leave the first
@@ -252,6 +252,10 @@ Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {
   // And its media questions, for the same reason and with the same lifetime: the state machines
   // are this object's, so `<video>` has its API from the first script of the first document.
   script_.SetMediaController(this);
+  // And its canvas commands. Same lifetime and same reason: a `<canvas>` in the first document must have
+  // its context from the first script, and a surface handed over later would leave that script without
+  // one -- which for a page whose whole rendering is a canvas is a blank page.
+  script_.SetCanvasSurface(this);
 }
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
@@ -293,6 +297,9 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   ResetResolver();
   animations_.Clear();
   keyframes_.clear();
+  // A canvas is the largest thing a document can hold, so one that outlived its page would be up to
+  // 64MB leaked per navigation.
+  canvases_.Clear();
   // **The bytes become text here, before the tokenizer sees them.** ADR 0025 §2: the encoding comes
   // from the BOM, then `Content-Type`, then a prescan of the first 1024 bytes, then windows-1252 --
   // and the tokenizer's input is code points rather than bytes, which is what makes an ill-formed

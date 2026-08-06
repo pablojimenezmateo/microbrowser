@@ -582,6 +582,12 @@ std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {
 }
 
 std::shared_ptr<const gfx::Image> Page::ImageForElement(const dom::Element& element) const {
+  // A `<canvas>` is its own image source (ADR 0029 §2): the bitmap the page drew, taken through the same
+  // hook an `<img>` uses. That is the whole of what canvas cost layout -- a replaced element whose
+  // pixels come from somewhere other than the network.
+  if (element.TagName() == "canvas") {
+    return canvases_.Snapshot(element);
+  }
   const auto selected = resources_.selected_image_urls.find(&element);
   if (selected == resources_.selected_image_urls.end()) {
     // An <img> a script created after the images were collected. Nothing was

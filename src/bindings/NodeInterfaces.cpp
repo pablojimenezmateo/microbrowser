@@ -177,6 +177,12 @@ void DomBindings::EnsureInterfaces() {
       InstallMediaElement(*found);
     }
   }
+  // `<canvas>`, on its own interface. ADR 0029 §2: `getContext` and the size attributes, and nothing
+  // when there is no surface behind the layer -- a `getContext` returning an object whose methods did
+  // nothing would make a page draw into nothing and show it.
+  if (const Value* canvas_interface = interfaces_.object->GetOwn("HTMLCanvasElement")) {
+    InstallCanvas(*canvas_interface);
+  }
   // `template.content`, on HTMLTemplateElement and nowhere else. It is the only
   // way a page can reach a template's markup -- the tree walks cannot, which is
   // the point of the element -- and it is read-only: the fragment is the

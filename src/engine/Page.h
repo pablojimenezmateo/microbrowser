@@ -13,7 +13,9 @@
 #include "bindings/Network.h"
 #include "bindings/Media.h"
 #include "engine/DocumentPolicy.h"
+#include "bindings/Canvas.h"
 #include "engine/Animations.h"
+#include "engine/CanvasSurfaces.h"
 #include "engine/MediaElements.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
@@ -58,6 +60,7 @@ struct FormSubmission {
 class Page : private layout::ImageProvider,
              private bindings::GeometrySource,
              private css::StyleAdjuster,
+             public bindings::CanvasSurface,
              public bindings::MediaController {
  public:
   explicit Page(gfx::FontProvider& fonts);
@@ -471,6 +474,24 @@ class Page : private layout::ImageProvider,
   // machine decides what that means. One direction, and one number across the seam.
   void UpdateMediaReadinessFromSource(std::uint64_t source_id);
 
+ public:
+  // --- `bindings::CanvasSurface` (ADR 0029 §2), in PageCanvas.cpp --------------
+  //
+  // Every one is a lookup plus a call into `CanvasSurfaces`. Public because the binding layer holds the
+  // interface, like `MediaController`'s half.
+  bool IsCanvas(const dom::Element& element) const override;
+  void SetCanvasSize(dom::Element& element, int width, int height) override;
+  int CanvasWidth(const dom::Element& element) const override;
+  int CanvasHeight(const dom::Element& element) const override;
+  void ExecuteCanvasOp(dom::Element& element, const bindings::CanvasOp& op) override;
+  std::vector<std::uint8_t> ReadCanvasPixels(const dom::Element& element, int x, int y, int width,
+                                             int height) const override;
+  bool CanvasIsTainted(const dom::Element& element) const override;
+  void WriteCanvasPixels(dom::Element& element, int x, int y, int width, int height,
+                         const std::vector<std::uint8_t>& rgba) override;
+  double MeasureCanvasText(const dom::Element& element, const std::string& text) const override;
+
+
   // `css::StyleAdjuster`: the animation pass over a resolved style. Private, and reached only through
   // the resolver -- so nothing can apply an animated value without going through the cascade, which is
   // what keeps layout and `getComputedStyle` from disagreeing mid transition.
@@ -507,6 +528,9 @@ class Page : private layout::ImageProvider,
   // animating on one frame must be at the same instant.
   void SetAnimationTime(std::int64_t now_ms) { animation_time_ms_ = now_ms; }
   Animations& RunningAnimations() { return animations_; }
+  // The `<canvas>` backing stores (ADR 0029 §2). `mutable` for the reason `animations_` is: the paint
+  // path reads a snapshot from a const method, and taking one is a read of what is already there.
+  CanvasSurfaces& Canvases() { return canvases_; }
   const Animations& RunningAnimations() const { return animations_; }
   // Fires whatever the state machine has queued, in order.
   void FlushMediaEvents(dom::Element& element);
@@ -717,6 +741,7 @@ class Page : private layout::ImageProvider,
   // transition is a read. Nothing here *starts* one from a const path: that is `ObserveStyle`, called
   // from the layout pass.
   mutable Animations animations_;
+  mutable CanvasSurfaces canvases_;
   // What time the animation pass believes it is. One number for the whole frame, for the reason the
   // animation-frame callbacks share a timestamp: two elements animating on one frame must be at the
   // same instant, and reading a clock per element is how two halves of one transition desynchronise.
