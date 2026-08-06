@@ -368,9 +368,10 @@ microbrowser_module(platform
     src/platform/AppDirectories.cpp
     src/platform/SystemFonts.cpp
     src/platform/DescriptorWait.cpp
+    src/platform/SdlAudioDevice.cpp
     src/platform/SdlPresenter.cpp
     src/platform/SdlWindow.cpp
-  DEPS microbrowser_util microbrowser_gfx microbrowser_ipc
+  DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_media
   EXTERN ${MICROBROWSER_SDL3_TARGET})
 
 microbrowser_module(bindings
@@ -481,6 +482,12 @@ target_link_libraries(microbrowser_snapshot PRIVATE microbrowser_engine microbro
 # offset rather than by line. The snapshot tool's argument applied to src/js:
 # real script from a real site is where the bugs are, and a megabyte of it on
 # one line needs a tool that can say *where*.
+# Plays a tone through the ring to a real device. ADR 0028 §4's honest intermediate: an
+# `<audio>` element cannot play until there is a decoder, and this is what verifies the half
+# that exists -- the ring, the device, the callback, and a clock counting what was heard.
+add_executable(microbrowser_audiotone tools/audiotone/main.cpp)
+target_link_libraries(microbrowser_audiotone PRIVATE microbrowser_media microbrowser_platform)
+
 add_executable(microbrowser_jsshell tools/jsshell/main.cpp)
 target_link_libraries(microbrowser_jsshell PRIVATE microbrowser_js)
 

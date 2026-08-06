@@ -78,6 +78,14 @@ class AudioRing {
 
   std::size_t ReadableFrames() const;
 
+  // Frames read since this ring was made, ever. **This is what drives the playback clock**,
+  // and it is here rather than on the audio thread for a reason worth keeping: the clock does
+  // not need to be owned by that thread at all if the ring counts. The audio thread then owns
+  // the device handle and the read cursor and nothing else, and the engine builds a position
+  // from an atomic it can read at any time -- which is strictly safer than a clock two
+  // threads touch, and simpler than ADR 0028 §4's own sketch.
+  std::uint64_t FramesRead() const { return frames_read_.load(std::memory_order_relaxed); }
+
   // Underruns since the last check, as a counter the engine reads and clears. A count
   // rather than a flag, because "we ran out three times" and "we ran out once" call for
   // different responses -- a bigger buffer versus a slower decoder.
@@ -92,6 +100,7 @@ class AudioRing {
   std::atomic<std::size_t> write_{0};
   std::atomic<std::size_t> read_{0};
   std::atomic<std::uint32_t> underruns_{0};
+  std::atomic<std::uint64_t> frames_read_{0};
 };
 
 }  // namespace microbrowser::media

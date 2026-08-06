@@ -14,6 +14,7 @@
 #include "TestSupport.h"
 #include "media/AudioRing.h"
 #include "media/PlaybackClock.h"
+#include "platform/SdlAudioDevice.h"
 
 namespace microbrowser::tests {
 
@@ -78,7 +79,7 @@ void RegisterAudioRingTests(std::vector<TestCase>& tests) {
     // Reporting the written position runs video ahead of the sound by exactly that much,
     // and that is the arithmetic a naive clock omits.
     media::PlaybackClock clock(48000);
-    clock.FramesConsumed(48000);
+    clock.SetFramesConsumed(48000);
     Expect(clock.CurrentTimeSeconds() == 1.0, "a second of frames is a second");
     clock.SetBufferedFrames(24000);
     Expect(clock.CurrentTimeSeconds() == 0.5,
@@ -91,8 +92,10 @@ void RegisterAudioRingTests(std::vector<TestCase>& tests) {
     // keeping it would make the clock jump forward by everything that had already played.
     media::PlaybackClock clock(44100);
     double last = clock.CurrentTimeSeconds();
+    std::uint64_t total = 0;
     for (int block = 0; block < 50; ++block) {
-      clock.FramesConsumed(441);
+      total += 441;
+      clock.SetFramesConsumed(total);
       clock.SetBufferedFrames(block % 7 == 0 ? 1000u : 0u);
       const double now = clock.CurrentTimeSeconds();
       Expect(now >= last || block % 7 == 0,
@@ -101,7 +104,9 @@ void RegisterAudioRingTests(std::vector<TestCase>& tests) {
     }
     clock.SeekTo(30.0);
     Expect(clock.CurrentTimeSeconds() == 30.0, "a seek is exactly where it was told");
-    clock.FramesConsumed(44100);
+    // The ring's counter keeps rising across a seek, so the clock has to subtract where it
+    // stood -- otherwise the next update jumps forward by everything already played.
+    clock.SetFramesConsumed(total + 44100);
     Expect(clock.CurrentTimeSeconds() == 31.0, "and time runs from there, not from zero");
   });
 
@@ -110,8 +115,60 @@ void RegisterAudioRingTests(std::vector<TestCase>& tests) {
     // infinity, and a video comparing a timestamp against infinity presents nothing.
     media::PlaybackClock clock(0);
     ExpectEqInt(clock.SampleRate(), 48000, "refused into a real rate");
-    clock.FramesConsumed(48000);
+    clock.SetFramesConsumed(48000);
     Expect(clock.CurrentTimeSeconds() == 1.0, "which answers rather than dividing by zero");
+  });
+
+  AddTest(tests, "PlaybackClock/ATotalIsIdempotentWhereAnIncrementWouldDrift", [] {
+    // The ring reports a *total*, so reading it twice or missing a turn answers the same
+    // position. With an increment, a caller that polled twice would double-count and the
+    // clock would run ahead of the sound -- which is the bug the total exists to prevent.
+    media::AudioRing ring(256, 2);
+    const std::vector<float> frames(200, 0.0f);  // 100 stereo frames
+    ring.Write(frames);
+    std::vector<float> out(200, 0.0f);
+    ring.Read(out);
+    ExpectEqInt(static_cast<long long>(ring.FramesRead()), 100, "the ring counted them");
+    media::PlaybackClock clock(48000);
+    clock.SetFramesConsumed(ring.FramesRead());
+    const double once = clock.CurrentTimeSeconds();
+    clock.SetFramesConsumed(ring.FramesRead());
+    Expect(clock.CurrentTimeSeconds() == once, "and asking twice does not move it");
+    // Silence padded into an underrun is not part of the stream, so it must not advance the
+    // clock past what the media contains.
+    std::vector<float> empty_block(400, 0.0f);
+    ring.Read(empty_block);
+    ExpectEqInt(static_cast<long long>(ring.FramesRead()), 100,
+                "an underrun's silence was never in the stream and is not counted");
+  });
+
+  AddTest(tests, "AudioSink/TheDeviceAgreesWithItselfAboutWhetherItIsRunning", [] {
+    // A test host may or may not have a sound card, and this asserts the same thing either
+    // way -- which is the only honest shape for a test that touches a device. What it is
+    // really checking is the *state machine*: `Start` and `IsRunning` cannot disagree,
+    // `Stop` is idempotent, and nothing is queued when nothing is open.
+    //
+    // No device is not an error, deliberately: a browser that plays video silently on a
+    // machine with no sound card is better than one that refuses to play it.
+    platform::SdlAudioDevice device;
+    media::AudioRing ring(1024, 2);
+    Expect(!device.IsRunning(), "not running before it is started");
+    ExpectEqInt(static_cast<long long>(device.QueuedFrames()), 0, "and holding nothing");
+    const bool started = device.Start(ring);
+    Expect(device.IsRunning() == started, "running exactly when Start said so");
+    if (started) {
+      Expect(device.SampleRate() > 0 && device.Channels() > 0,
+             "and a rate a clock can be built from");
+    } else {
+      ExpectEqInt(device.SampleRate(), 0,
+                  "or no rate at all, rather than a plausible-looking default a clock would "
+                  "silently use");
+    }
+    device.Stop();
+    Expect(!device.IsRunning(), "stopped");
+    device.Stop();
+    Expect(!device.IsRunning(), "and stopping twice is not an error");
+    ExpectEqInt(static_cast<long long>(device.QueuedFrames()), 0, "with nothing left queued");
   });
 
   AddTest(tests, "AudioRing/TwoRealThreadsHandOffWithoutTearing", [] {

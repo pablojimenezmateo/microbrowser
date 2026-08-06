@@ -1,8 +1,8 @@
 purpose: The only module that knows what a window is. SDL lives here and nowhere else.
 
-allow: util gfx
+allow: util gfx media
 
-public: InputEvent.h SdlWindow.h SdlPresenter.h AppDirectories.h SystemFonts.h DescriptorWait.h
+public: InputEvent.h SdlWindow.h SdlPresenter.h SdlAudioDevice.h AppDirectories.h SystemFonts.h DescriptorWait.h
 
 extern: SDL3
 
@@ -33,4 +33,8 @@ budget: AppDirectories header_lines=50 public_methods=6  members=3
 # 75 lines and a thirteenth method for ADR 0024's RegisterWebFont: the provider
 # every real binary uses had inherited the base class's honest refusal, so a page's
 # `@font-face` registered in the tests and nowhere else.
+# ADR 0028 §4's device. Small because the callback is small on purpose: it drains the ring
+# and does nothing else -- no allocation, no lock, no document -- and the header says why
+# each of those is a rule rather than a preference.
+budget: SdlAudioDevice   header_lines=55 public_methods=10 members=4
 budget: SystemFontProvider header_lines=75 public_methods=13 members=3

@@ -30,9 +30,15 @@ class PlaybackClock {
 
   int SampleRate() const { return sample_rate_; }
 
-  // Frames the device consumed. Called from wherever the ring is drained, which is the
-  // audio thread -- so this object belongs to that thread and the engine reads a *copy*.
-  void FramesConsumed(std::uint64_t frames) { consumed_ += frames; }
+  // The ring's total, not an increment. `AudioRing::FramesRead` is an atomic the engine can
+  // read at any time, so **this clock does not live on the audio thread** -- which is simpler
+  // and safer than ADR 0028 §4's own sketch, where the thread owned it: a total is idempotent,
+  // so a caller that reads it twice or misses a turn gets the same answer rather than a
+  // position that drifted by whatever it double-counted.
+  void SetFramesConsumed(std::uint64_t total) {
+    consumed_ = total > seek_frame_base_ ? total - seek_frame_base_ : 0u;
+    total_seen_ = total;
+  }
 
   // How many frames sit in the device's buffer, unheard. Subtracted from the position, and
   // it is a *set* rather than an add because the device reports its own occupancy and a
@@ -50,6 +56,10 @@ class PlaybackClock {
   // forward by the whole of what had already played.
   void SeekTo(double seconds) {
     seek_base_seconds_ = seconds < 0.0 ? 0.0 : seconds;
+    // The ring's counter keeps rising across a seek -- it counts a device's whole life -- so
+    // the base is what it stood at, not zero. Resetting `consumed_` alone would make the next
+    // update jump the clock forward by everything that had already played.
+    seek_frame_base_ = total_seen_;
     consumed_ = 0;
     buffered_ = 0;
   }
@@ -58,6 +68,8 @@ class PlaybackClock {
   int sample_rate_ = 48000;
   std::uint64_t consumed_ = 0;
   std::uint64_t buffered_ = 0;
+  std::uint64_t total_seen_ = 0;
+  std::uint64_t seek_frame_base_ = 0;
   double seek_base_seconds_ = 0.0;
 };
 

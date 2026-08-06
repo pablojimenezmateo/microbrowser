@@ -64,6 +64,9 @@ std::size_t AudioRing::Read(std::span<float> out) {
   if (frames < wanted) {
     underruns_.fetch_add(1, std::memory_order_relaxed);
   }
+  // Real frames only: silence padded into an underrun was not in the stream, and counting it
+  // would advance the clock past what the media actually contains.
+  frames_read_.fetch_add(frames, std::memory_order_relaxed);
   read_.store(at, std::memory_order_release);
   return frames;
 }
