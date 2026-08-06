@@ -258,6 +258,38 @@ void RegisterJsRegExpTests(std::vector<TestCase>& tests) {
            "a counted class repeat stays one instruction");
   });
 
+  AddTest(tests, "JsRegExp/ALongPatternIsNotAnExplodingOne", [] {
+    // The bound is on *blowup*, not on size. youtube.com's HTML unescaper is an
+    // alternation of every named character reference -- 2,100 branches, 18KB of
+    // source -- which compiles to roughly one instruction per character it was
+    // written with. That is a pattern that has not expanded at all, and a flat
+    // ceiling refused it: `SyntaxError: regular expression is too large` was one
+    // of the three errors between this browser and youtube's page.
+    std::string pattern = "&(?:";
+    for (int i = 0; i < 2000; ++i) {
+      if (i != 0) {
+        pattern += '|';
+      }
+      // Eight bytes a branch, so about 16KB of source in 2,000 alternatives --
+      // the same shape and roughly the same size as the real one.
+      pattern += "entity" + std::to_string(i % 10) + ";";
+    }
+    pattern += ")";
+    Expect(pattern.size() > 16000, "the pattern really is that long");
+
+    std::string error;
+    const RegExp expression = RegExp::Compile(pattern, RegExpFlags{}, error);
+    Expect(expression.IsValid(), "a long alternation compiles");
+    ExpectEqString(error, "", "with no error");
+
+    // And the ceiling is still there for a pattern whose source says nothing
+    // about its cost: 18 characters, and the allowance its length earns is the
+    // floor rather than a multiple of it.
+    std::string exploded;
+    Expect(!RegExp::Compile("((ab|cd){100}){100}", RegExpFlags{}, exploded).IsValid(),
+           "a short pattern that expands is still refused");
+  });
+
   AddTest(tests, "JsRegExp/CatastrophicBacktrackingGivesUpInsteadOfHanging", [] {
     // The classic: every way of splitting the run of `a` between the two
     // quantifiers is tried before the final `b` fails. Exponential, and a page

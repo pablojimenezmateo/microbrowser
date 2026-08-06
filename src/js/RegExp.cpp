@@ -25,10 +25,42 @@ namespace microbrowser::js {
 
 namespace {
 
-// Far past any pattern a page contains, and small enough that a pattern which
-// reaches it cannot have cost much to refuse. `(a{100}){100}` is the shape
-// this exists for: ten thousand instructions from eight characters.
-constexpr std::size_t kMaxProgramSize = 20'000;
+// What a compiled pattern may cost, as a double bound: a floor every pattern
+// gets, an allowance that grows with the length of the source, and an absolute
+// ceiling neither can pass. The same shape `src/net` bounds a decompression
+// with, and for the same reason -- what is being refused is *blowup*, and blowup
+// is a ratio rather than a size.
+//
+// `(a{100}){100}` is the shape the floor exists for: ten thousand instructions
+// from eight characters, which is a pattern whose cost has nothing to do with
+// how much of it was written.
+//
+// The allowance exists because a flat ceiling got that backwards, and youtube.com
+// is where it showed: its HTML unescaper is an alternation of all 2,100 named
+// character references, 18KB of source, and it compiled to a shade over 20,000
+// instructions -- roughly one per character it was written with. That pattern has
+// not blown up at all; it is simply long. Refusing it made `SyntaxError:
+// regular expression is too large` the third thing standing between this browser
+// and youtube's page, and the comment this replaces claimed 20,000 was "far past
+// any pattern a page contains", which the measurement says it is not.
+//
+// Four instructions per source byte, because the emitter's worst case for
+// ordinary text is about one -- a literal byte is one `Char` -- and the extra
+// three cover the split-and-jump pair an alternation branch or a quantifier
+// adds. The ceiling is what a pattern with a megabyte of source hits instead,
+// and at 16 bytes an instruction it bounds one compiled pattern to about 3MB.
+constexpr std::size_t kMinProgramSize = 20'000;
+constexpr std::size_t kProgramSizePerSourceByte = 4;
+constexpr std::size_t kMaxProgramSize = 200'000;
+
+// The allowance for one pattern, from the length of what was written.
+std::size_t ProgramSizeLimit(std::size_t source_length) {
+  if (source_length > kMaxProgramSize / kProgramSizePerSourceByte) {
+    return kMaxProgramSize;
+  }
+  return std::clamp(source_length * kProgramSizePerSourceByte, kMinProgramSize, kMaxProgramSize);
+}
+
 // Group nesting. Bounds the parser's recursion, which is otherwise chosen by
 // whoever wrote the pattern.
 constexpr int kMaxParseDepth = 100;
@@ -893,7 +925,11 @@ void CollectGroupRange(const RxNode& node, std::size_t& low, std::size_t& high) 
 
 class Compiler {
  public:
-  explicit Compiler(RegExpProgram& program) : program_(program) {}
+  // `limit` is the caller's allowance for the whole pattern, from
+  // ProgramSizeLimit. A lookaround's inner program gets the same number rather
+  // than a share of it: its code lives in its own vector, and the ceiling is
+  // what bounds the total.
+  Compiler(RegExpProgram& program, std::size_t limit) : program_(program), limit_(limit) {}
 
   bool Compile(const RxNode& root) {
     next_register_ = 2 * (program_.group_count + 1);
@@ -912,7 +948,7 @@ class Compiler {
  private:
   std::size_t Emit(MatchOp op, std::uint32_t x = 0, std::uint32_t y = 0, std::uint32_t z = 0) {
     program_.code.push_back(MatchInstruction{op, x, y, z});
-    if (program_.code.size() > kMaxProgramSize) {
+    if (program_.code.size() > limit_) {
       overflow_ = true;
     }
     return program_.code.size() - 1;
@@ -1070,7 +1106,7 @@ class Compiler {
     // captures are observable after it succeeds -- so it is compiled as a bare
     // body. Wrapping it in Save(0)/Save(1) the way a top-level program is
     // would overwrite the enclosing match's own extent.
-    Compiler inner(sub);
+    Compiler inner(sub, limit_);
     inner.next_register_ = next_register_;
     inner.CompileNode(*node.children.front());
     inner.Emit(MatchOp::Match);
@@ -1121,6 +1157,9 @@ class Compiler {
   }
 
   RegExpProgram& program_;
+  // This pattern's instruction allowance. Not a constant, because it is
+  // computed from how much source the pattern was written with.
+  std::size_t limit_ = kMinProgramSize;
   std::map<std::array<std::uint64_t, 4>, std::uint32_t> classes_;
   std::size_t next_register_ = 0;
   bool overflow_ = false;
@@ -1229,7 +1268,7 @@ RegExp RegExp::Compile(std::string_view pattern, RegExpFlags flags, std::string&
   program->multiline = flags.multiline;
   program->group_count = parser.GroupCount();
   program->group_names = parser.GroupNames();
-  Compiler compiler(*program);
+  Compiler compiler(*program, ProgramSizeLimit(pattern.size()));
   if (!compiler.Compile(*root)) {
     error = "regular expression is too large";
     return result;
