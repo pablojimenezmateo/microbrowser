@@ -73,6 +73,59 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
                    "object true", "a closed root exists and is not reported");
   });
 
+  AddTest(tests, "ShadowDom/ShadowRootHostAndModeAnswerAboutTheHost", [] {
+    // ShadyDOM's parent-chain walk is `fragment.host ? fragment.host : …`.
+    // Without `host` the walk never leaves the root, and every framework that
+    // asks `root.host === this` after `attachShadow` gets false.
+    ExpectEqString(Run("<div id=h></div>",
+                       "const h = document.getElementById('h');"
+                       "const r = h.attachShadow({mode: 'open'});"
+                       "console.log((r.host === h) + ' ' + r.mode + ' ' +"
+                       " (r instanceof ShadowRoot));"),
+                   "true open true", "host points at the element; mode is open");
+    ExpectEqString(Run("<div id=h></div>",
+                       "const h = document.getElementById('h');"
+                       "const r = h.attachShadow({mode: 'closed'});"
+                       "console.log((r.host === h) + ' ' + r.mode);"),
+                   "true closed", "a closed root still names its host and mode");
+    ExpectEqString(Run("",
+                       "const f = document.createDocumentFragment();"
+                       "console.log((f.host == null) + ' ' + (f.mode == null));"),
+                   "true true", "a plain fragment has neither");
+  });
+
+  AddTest(tests, "ShadowDom/ReplacingWindowShadowRootReplacesTheBareNameToo", [] {
+    // ShadyDOM does `window.ShadowRoot = yc` and then stamps with
+    // `ShadowRoot.prototype.za`. An own property *and* a scope binding made
+    // those two spellings diverge: the property changed, the bare name did
+    // not, and youtube.com's Polymer stamp called `undefined` as a method.
+    ExpectEqString(Run("",
+                       "function Yc(){}"
+                       "Yc.prototype.za = function(){ return 1; };"
+                       "window.ShadowRoot = Yc;"
+                       "console.log((ShadowRoot === window.ShadowRoot) + ' ' +"
+                       " (typeof ShadowRoot.prototype.za) + ' ' +"
+                       " ShadowRoot.prototype.za());"),
+                   "true function 1",
+                   "bare ShadowRoot and window.ShadowRoot stay one namespace");
+  });
+
+  AddTest(tests, "ShadowDom/GetRootNodeFindsTheShadowRootAndOptionallyTheDocument", [] {
+    // The presence of this method is load-bearing for youtube.com: ShadyDOM
+    // enables itself when `getRootNode` is missing, and then fights the
+    // native shadow DOM it detected via `attachShadow` alone.
+    ExpectEqString(Run("<div id=h></div>",
+                       "const h = document.getElementById('h');"
+                       "const r = h.attachShadow({mode: 'open'});"
+                       "r.innerHTML = '<span id=s></span>';"
+                       "const s = r.querySelector('#s');"
+                       "console.log((s.getRootNode() === r) + ' ' +"
+                       " (s.getRootNode({composed:true}) === document) + ' ' +"
+                       " (h.getRootNode() === document));"),
+                   "true true true",
+                   "default stops at the shadow root; composed climbs out");
+  });
+
   AddTest(tests, "ShadowDom/ASecondAttachShadowIsAnErrorRatherThanAReplacement", [] {
     // Replacing it silently would strand every reference the page holds into the
     // first tree.

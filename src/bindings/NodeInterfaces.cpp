@@ -144,10 +144,16 @@ js::Value DomBindings::MakeInterface(const char* name, const js::Value& parent) 
   }
   constructor.object->Set("prototype", prototype);
   prototype.object->Set("constructor", constructor);
-  interpreter_->Global()->Set(name, constructor);
-  // Also a binding in the global *scope*, so a bare `HTMLElement` resolves the
-  // way `globalThis.HTMLElement` does -- one namespace rather than two that
-  // happen to overlap, which is the rule the engine's own globals follow.
+  // A binding in the global scope *only*, not also an own property on the
+  // global object. Builtins (Math, Object, …) are the same shape, and the
+  // two spellings stay one namespace because GetProperty/SetProperty on the
+  // global fall through to the binding when there is no own property.
+  //
+  // MakeInterface used to do both Set and Declare. That looked belt-and-
+  // braces and was the opposite: `window.ShadowRoot = yc` (ShadyDOM) updated
+  // the own property while the bare name `ShadowRoot` kept resolving to the
+  // stale binding -- so Polymer stamped with `ShadowRoot.prototype.za` on
+  // *our* prototype, which has no `za`, and youtube.com stayed a white page.
   interpreter_->GlobalScope()->Declare(name, constructor, false);
   interfaces_.object->Set(name, prototype);
   return prototype;
@@ -283,7 +289,44 @@ void DomBindings::EnsureInterfaces() {
   // fragment onto `ShadowRoot.prototype` to upgrade it in place, which is the
   // line youtube's bundle reaches. `PrototypeFor` tells the two apart by whether
   // the fragment has a host.
-  MakeInterface("ShadowRoot", fragment);
+  const Value shadow_root = MakeInterface("ShadowRoot", fragment);
+  // `host` and `mode` live on ShadowRoot, not on DocumentFragment: a plain
+  // fragment has neither, and ShadyDOM's parent-chain walk is
+  // `nodeType === DOCUMENT_FRAGMENT_NODE && node.host ? node.host : …`.
+  // Without `host`, that walk never climbs out of the root, Polymer cannot
+  // find the element it just attached, and a stamped template is stranded.
+  if (shadow_root.IsObject()) {
+    const Value host = interpreter_->NewNativeValue("host", [this](js::NativeCall& call) {
+      dom::Node* self = NodeOf(call.self);
+      if (self == nullptr || !self->IsDocumentFragment()) {
+        return Value::Null();
+      }
+      dom::Element* host_element = static_cast<dom::DocumentFragment*>(self)->Host();
+      return host_element == nullptr ? Value::Null() : WrapperFor(host_element);
+    });
+    if (host.IsObject()) {
+      host.object->Set(kOwnerSlot, PointerValue(this));
+      shadow_root.object->DefineAccessor("host", host.object, nullptr);
+    }
+    // Open or closed, read from the host that owns this root. A fragment that
+    // is not a shadow root has no mode; answering null rather than guessing
+    // is what keeps `fragment.mode` from looking like a real root.
+    const Value mode = interpreter_->NewNativeValue("mode", [this](js::NativeCall& call) {
+      dom::Node* self = NodeOf(call.self);
+      if (self == nullptr || !self->IsDocumentFragment()) {
+        return Value::Null();
+      }
+      dom::Element* host_element = static_cast<dom::DocumentFragment*>(self)->Host();
+      if (host_element == nullptr) {
+        return Value::Null();
+      }
+      return Value::String(std::string(host_element->ShadowIsOpen() ? "open" : "closed"));
+    });
+    if (mode.IsObject()) {
+      mode.object->Set(kOwnerSlot, PointerValue(this));
+      shadow_root.object->DefineAccessor("mode", mode.object, nullptr);
+    }
+  }
   // A Document is a ParentNode too: `document.querySelector` and
   // `container.querySelector` are one operation from two roots.
   InstallParentQueries(MakeInterface("Document", node));

@@ -1,6 +1,7 @@
 #include "bindings/DomBindings.h"
 
 #include "bindings/BindingSupport.h"
+#include "dom/FlatTree.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -314,6 +315,44 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
       case dom::Node::Kind::DocumentType: return Value::Number(10);
     }
     return Value::Number(0);
+  });
+
+  // The root of this node's tree. Without it ShadyDOM decides native shadow
+  // DOM is incomplete (`attachShadow && getRootNode`) and takes over -- and
+  // youtube's polyfill then calls `fragment.za(...)` on *our* ShadowRoot
+  // prototype, which has no such method. With it, ShadyDOM stays out and
+  // Polymer stamps through the native `attachShadow` + `appendChild` path.
+  method("getRootNode", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return Value::Null();
+    }
+    bool composed = false;
+    const Value options = Argument(call.arguments, 0);
+    if (options.IsObject()) {
+      if (const Value* flag = options.object->Get("composed")) {
+        composed = js::ToBoolean(*flag);
+      }
+    }
+    dom::Node* root = self;
+    for (int depth = 0; depth < 10000; ++depth) {
+      if (dom::Node* parent = root->Parent()) {
+        root = parent;
+        continue;
+      }
+      // A shadow root has no parent. `composed: true` climbs out through the
+      // host; otherwise the root *is* the answer -- which is what makes
+      // `element.getRootNode()` inside a component return the shadow root.
+      if (composed) {
+        if (const dom::Element* host = dom::ShadowHostOf(*root)) {
+          root = const_cast<dom::Element*>(host);
+          continue;
+        }
+      }
+      break;
+    }
+    return owner->WrapperFor(root);
   });
 
   // The event methods are *not* installed here any more. They live on
