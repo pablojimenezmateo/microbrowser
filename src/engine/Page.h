@@ -446,6 +446,11 @@ class Page : private layout::ImageProvider,
   // Fires whatever the state machine has queued, in order.
   void FlushMediaEvents(dom::Element& element);
 
+  // The box tree, read-only, or null before the first layout. Public for the same reason
+  // `CurrentDocument` is: a test has to be able to ask what layout produced -- and the question this
+  // answers, "how many lines did that paragraph break into", has no other observer.
+  const layout::Box* Boxes() const { return boxes_.get(); }
+
   // The document, read-only. Public because ADR 0017's user activation lives on it and a test
   // has to be able to ask whether a *page's own* click set it -- which is the property that
   // makes autoplay refusable at all. Const, so the only writer stays this class.

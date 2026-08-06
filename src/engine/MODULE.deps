@@ -233,7 +233,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # +2 members and +25 methods for ADR 0028 §1's media element: one state machine per element a
 # page has touched, the volume beside it, and the MediaController the binding layer asks
 # through. The state machine itself is `media::MediaState` -- pure, and tested on its own.
-budget: Page   header_lines=670 public_methods=101 members=16
+budget: Page   header_lines=680 public_methods=102 members=16
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #

@@ -1,5 +1,7 @@
 #include "layout/LayoutEngine.h"
 
+#include "text/LineBreak.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -274,16 +276,29 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
 
       std::string_view piece = remaining;
       if (full_width > available) {
-        // Break at the last space that fits. When nothing fits, the whole
-        // remainder goes on this line anyway -- the line is empty, and a piece
-        // that never shrinks is how a line-breaking loop spins forever.
+        // Break at the last **break opportunity** that fits, rather than at the last space.
+        //
+        // ADR 0025 §4: a space is not the only place a line may break, and for CJK it is not a place
+        // at all -- Japanese and Chinese have no spaces, so a space-only search found nothing and the
+        // whole paragraph went on one line as wide as the text was long. `text::FindBreakOpportunities`
+        // is UAX #14, and it offers a break between almost every pair of ideographs.
+        //
+        // When nothing fits, the whole remainder goes on this line anyway: the line is empty, and a
+        // piece that never shrinks is how a line-breaking loop spins forever.
         std::size_t best = std::string_view::npos;
-        for (std::size_t at = 0; at < remaining.size(); ++at) {
-          if (remaining[at] != ' ') {
+        for (const text::BreakOpportunity& opportunity : text::FindBreakOpportunities(remaining)) {
+          if (opportunity.offset == 0 || opportunity.offset >= remaining.size()) {
             continue;
           }
-          if (measurer_->MeasureWidth(remaining.substr(0, at), style) <= available) {
-            best = at;
+          // Measured *without* the trailing space, which is what the space-only version did by
+          // construction and what has to be explicit now: a break after a space puts the space at the
+          // end of the line, where it takes no visible width.
+          std::string_view candidate = remaining.substr(0, opportunity.offset);
+          while (!candidate.empty() && candidate.back() == ' ') {
+            candidate.remove_suffix(1);
+          }
+          if (measurer_->MeasureWidth(candidate, style) <= available) {
+            best = opportunity.offset;
           } else {
             break;
           }

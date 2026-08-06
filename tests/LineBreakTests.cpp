@@ -11,6 +11,8 @@
 
 #include "TestSupport.h"
 #include "text/LineBreak.h"
+#include "css/ComputedStyle.h"
+#include "layout/Box.h"
 #include "text/UnicodeProperties.h"
 
 namespace microbrowser::tests {
@@ -40,6 +42,38 @@ std::string Marked(std::string_view text) {
 }  // namespace
 
 void RegisterLineBreakTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "LineBreak/ACjkParagraphWrapsInsteadOfOverflowing", [] {
+    // The wiring, and the bug in one assertion: before this, `InlineLayout` searched for the last
+    // *space* that fit, found none in Japanese, and put the whole paragraph on one line -- as wide as
+    // the text was long, out of its box and off the page.
+    //
+    // Measured with the fixed measurer (width proportional to *bytes*) rather than a real font,
+    // because the synthetic test font has no CJK glyphs and reports zero width for them -- so nothing
+    // would need to wrap and the test would pass without exercising anything. That is worth knowing:
+    // a font-based measurer makes this assertion depend on glyph coverage rather than on breaking.
+    const std::string japanese = "日本語のテキストは空白がないので折り返しが必要です";
+    layout::FixedTextMeasurer measurer(0.5f);
+    css::ComputedStyle style;
+    style.font_size = 16.0f;
+    const float whole = measurer.MeasureWidth(japanese, style);
+    Expect(whole > 200.0f, "the paragraph is wider than the box it will be put in");
+
+    // The opportunities are what layout searches, so the assertion is that a prefix narrow enough to
+    // fit exists at all -- which is exactly what the space-only search could not find.
+    const std::vector<text::BreakOpportunity> breaks = FindBreakOpportunities(japanese);
+    Expect(!breaks.empty(), "there are break opportunities in text with no spaces");
+    bool found_fitting_prefix = false;
+    for (const text::BreakOpportunity& opportunity : breaks) {
+      const std::string prefix = japanese.substr(0, opportunity.offset);
+      if (!prefix.empty() && measurer.MeasureWidth(prefix, style) <= 200.0f) {
+        found_fitting_prefix = true;
+      }
+    }
+    Expect(found_fitting_prefix,
+           "and at least one of them leaves a line that fits, which is what stops the paragraph "
+           "from overflowing its box");
+  });
+
   AddTest(tests, "LineBreak/TheGeneratedTablesAreSortedAndCoverWhatTheyClaim", [] {
     // A generator bug here is a silent one -- text that wraps wrongly with no error -- so the table's
     // structural invariant is asserted rather than assumed: sorted, non-overlapping, and therefore

@@ -55,6 +55,19 @@ DataUrl DecodeDataUrl(std::string_view url) {
   }
 
   result.content_type = metadata.empty() ? "text/plain;charset=US-ASCII" : std::string(metadata);
+  // **A `data:` URL with no `charset` is UTF-8**, and that is a deliberate deviation from RFC 2397's
+  // `US-ASCII` default which every browser also makes. The reason is in the URL itself: the payload
+  // arrived percent-encoded, and the bytes a `%E6%97%A5` decodes to are UTF-8 because that is what
+  // the encoder that produced them emitted. Following the RFC here means decoding those bytes as
+  // windows-1252 -- which is ADR 0025's fallback, correct for a *document from a server* and wrong
+  // for one carried in its own URL -- and rendering `æ—¥` where the author wrote 日.
+  //
+  // Only when no charset was named: a `data:text/html;charset=windows-1252,…` is honoured, because
+  // then the URL said so.
+  if (!metadata.empty() &&
+      util::AsciiLowerCase(result.content_type).find("charset") == std::string::npos) {
+    result.content_type += ";charset=utf-8";
+  }
   if (base64) {
     // The one decoder, in util, for the reason the percent decoder below is
     // there: Subresource Integrity and CSP's hash-sources decode base64 too,

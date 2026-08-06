@@ -333,7 +333,16 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     const engine::DataUrl decoded = engine::DecodeDataUrl("data:text/html,%3Cp%3Ehi%3C/p%3E");
     Expect(decoded.ok, "it decoded");
     ExpectEqString(decoded.body, "<p>hi</p>", "percent escapes are the payload, not decoration");
-    ExpectEqString(decoded.content_type, "text/html", "and the type came from the metadata");
+    // **This expectation changed when encodings landed** (ADR 0025 §2). It used to be exactly
+    // `text/html`; a `data:` URL that names no charset now gets `;charset=utf-8` appended, because the
+    // payload arrived percent-encoded and the bytes `%E6%97%A5` decodes to are UTF-8 -- following RFC
+    // 2397's `US-ASCII` default instead means decoding them as windows-1252 and rendering `æ—¥` where
+    // the author wrote 日. Every browser makes the same deviation.
+    ExpectEqString(decoded.content_type, "text/html;charset=utf-8",
+                   "the type came from the metadata, with the encoding a data URL implies");
+    // A charset the URL *did* name is honoured rather than overridden.
+    ExpectEqString(engine::DecodeDataUrl("data:text/html;charset=windows-1252,x").content_type,
+                   "text/html;charset=windows-1252", "and one that was named is left alone");
   });
 
   AddTest(tests, "Loader/DecodesBase64DataUrls", [] {
