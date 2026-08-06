@@ -68,7 +68,7 @@ budget: Length           header_lines=45 public_methods=10 members=3
 # two halves of `transform-origin`. The list itself is `css::TransformList` in its own
 # header rather than fields here -- see Transform.h for why it stays a list of
 # operations instead of a matrix.
-budget: ComputedStyle    header_lines=250 public_methods=25 members=35
+budget: ComputedStyle    header_lines=290 public_methods=25 members=35
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3
@@ -102,6 +102,12 @@ budget: FontFaceSource header_lines=20 public_methods=2 members=2
 # ADR 0014 §5's animation types. `AnimatableProperty` is the list of what this browser will interpolate
 # and it is deliberately short -- a property on it that interpolated wrongly would be worse than one
 # that is absent, so the list growing is a decision and the budget makes it visible.
+# ADR 0014 §6's grid types. Grouped on ComputedStyle for the reason FlexStyle is: the container reads the
+# tracks and the gaps, the item reads its placement, and loose they would say nothing about belonging to
+# each other.
+budget: GridStyle       header_lines=40 public_methods=2 members=12
+budget: GridTrack       header_lines=30 public_methods=4 members=3
+budget: GridPlacement   header_lines=25 public_methods=3 members=3
 budget: AnimatableProperty header_lines=40 public_methods=0 members=0
 budget: TimingFunction  header_lines=30 public_methods=0 members=7
 budget: TransitionSpec  header_lines=25 public_methods=2 members=5

@@ -174,6 +174,8 @@ const char* DisplayText(css::Display display) {
     case css::Display::Block: return "block";
     case css::Display::InlineBlock: return "inline-block";
     case css::Display::ListItem: return "list-item";
+    case css::Display::Grid: return "grid";
+    case css::Display::InlineGrid: return "inline-grid";
     case css::Display::Table: return "table";
     case css::Display::TableCaption: return "table-caption";
     case css::Display::TableColumnGroup: return "table-column-group";
