@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h HlsPlaylist.h MediaState.h PlaybackClock.h
+public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h HlsPlaylist.h Matroska.h MediaState.h PlaybackClock.h
 
 extern:
 
@@ -40,6 +40,7 @@ budget: MediaState      header_lines=115 public_methods=24 members=12
 # ADR 0028 §2's playlist parser. Structs rather than a class because a playlist *is* data -- the
 # parse is one function and nothing here has state to protect.
 budget: HlsPlaylist     header_lines=45 public_methods=2 members=6
+budget: MatroskaFile    header_lines=40 public_methods=2 members=5
 budget: HlsVariant      header_lines=25 public_methods=2 members=5
 budget: HlsSegment      header_lines=25 public_methods=2 members=3
 budget: BoxReader       header_lines=95 public_methods=20 members=3

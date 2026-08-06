@@ -270,6 +270,7 @@ microbrowser_module(media
     src/media/MediaState.cpp
     src/media/BoxReader.cpp
     src/media/IsoBmff.cpp
+    src/media/Matroska.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(net
@@ -540,6 +541,7 @@ add_executable(microbrowser_tests
   tests/StructuredCloneTests.cpp
   tests/AudioRingTests.cpp
   tests/HlsPlaylistTests.cpp
+  tests/MatroskaTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
   tests/StorageTests.cpp
@@ -633,6 +635,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(websocket_fuzzer fuzz/WebSocketFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(eventstream_fuzzer fuzz/EventStreamFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(hls_fuzzer fuzz/HlsFuzzer.cpp microbrowser_media)
+  microbrowser_fuzzer(matroska_fuzzer fuzz/MatroskaFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
