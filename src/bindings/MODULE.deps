@@ -157,6 +157,9 @@ budget: StorageSource header_lines=50 public_methods=11 members=0
 # interface on purpose: `video.src = URL.createObjectURL(source)` is the *only* way a MediaSource
 # reaches an element, so the attach lives where both sides are already visible. Splitting them would
 # put that one call across a seam and give the engine two tables to keep in step.
+# The seam a page's own requests go out through, plus `ResolveUrl` -- which is here rather than in an
+# interface of its own because it is the same question a fetch already asks, of the same parser.
+budget: NetworkSource   header_lines=40 public_methods=6  members=0
 budget: MediaController header_lines=130 public_methods=45 members=0
 budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the

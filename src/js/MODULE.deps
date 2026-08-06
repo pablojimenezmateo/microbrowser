@@ -375,7 +375,10 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # constructors nest, and separate from `active_objects_` because that one is a
 # root list shared with iteration cursors, so its back() is not reliably the
 # thing being constructed.
-budget: Interpreter header_lines=1010 public_methods=60 members=21
+# Raised by three lines for `ReportUncaught`, which is the channel an exception in an event listener
+# reaches a page through -- see bindings/EventDispatch.cpp, where discarding it was silently losing
+# whole scripts.
+budget: Interpreter header_lines=1020 public_methods=60 members=21
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the
