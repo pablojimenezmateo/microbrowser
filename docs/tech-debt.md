@@ -383,6 +383,27 @@ a `RunLoadToCompletion` busy-wait, not a selector walk.
 youtube.com finishes reliably under the real matcher with a command count that
 is not a white page.
 
+**Instrumentation** (2026-08-06, TD-0013 pass):
+
+| counter | what it measures |
+|---|---|
+| `layout.forced_by_script` | synchronous `Page::Layout` from a geometry query mid-script |
+| `layout.passes` | every `Page::Layout` entry (forced or frame) |
+| `layout.pass_boxes` | sum of box counts after each pass; divide by `layout.passes` for tree size |
+| `layout.runs` | `LayoutEngine::Layout` calls (one per pass, usually) |
+| `layout.boxes_created` | cumulative boxes appended during tree builds |
+| `layout.block_passes` | `LayoutBlock` entries; ratio to boxes is TD-0001 |
+
+Scopes: `engine::Page::Layout`, `engine::LayoutBoxes` (inside it),
+`layout/forced` (inside `EnsureLayoutClean`). `MICROBROWSER_LOAD_TURN_TRACE=1`
+still prints `[load] LayoutBoxes enter/end` when the hang is a missing `end`.
+
+Read with `MICROBROWSER_PERF_COUNTERS=1` on a snapshot. A write-read loop in
+script shows `layout.forced_by_script` rising with `layout.passes`; a post-bundle
+hang with flat memory shows `layout.passes` climbing while `layout.pass_boxes`
+stays high and `layout.block_passes` / `layout.boxes_created` diverge (TD-0001
+ratio on a pathological tree).
+
 ---
 
 ## TD-0014 — Plex's main bundle dies at source offset 370
@@ -496,9 +517,33 @@ No `runtime-concat` / `ac-render-template` bundle fetch appears in the timeline 
 articles**. The next blocker is concat `type=module` bundles not fetching or executing after the
 polyfill chain completes.
 
-**End state.** Verify concat `type=module` bundles fetch and execute after the polyfill chain,
-implement `<suspense-replace>` hoisting for the `for=` templates, and close when the snapshot shows
-feed posts rather than an empty main region.
+**Session 53** fixed **es-module-shims `initPromise` never settling**: the polyfill builds feature-
+detection scripts with `new Blob` + `URL.createObjectURL`, loads them as trusted `<script src=blob:…>`,
+and completes feature detection via `window.postMessage` from a hidden iframe. This browser had no
+`Blob`, no blob URL loader, no `window.postMessage`, and trusted script inserts were only collected
+after the running script returned — so the probe script ran too late and `initPromise` hung.
+
+Landed: `Blob`, per-document `BlobUrlRegistry`, `URL.createObjectURL(Blob)`, loader `blob:` decode,
+`window.postMessage` + `message` events, `HTMLScriptElement.noModule`, `HTMLScriptElement.supports`,
+synchronous `ProcessDynamicScripts` flush on trusted `<script>` insertion, synthetic `esms` message
+after trusted iframe insert, and immediate drain of sync loader completions.
+
+**Measured**, www.reddit.com challenge interstitial, 2026-08-06 (after session 53):
+
+```
+display_list.commands       214
+js.modules_loaded           3
+js.dynamic_imports          0
+```
+
+Timeline now shows `blob:null/1` feature-detection script **during** es-module-shims execution (not
+after the polyfill chain). The full shreddit feed page (post-challenge, ~299s polyfill run) still
+needs a snapshot pass to confirm `runtime-concat` fetches; this environment often lands on the
+`js_challenge=1` interstitial instead.
+
+**End state.** Verify concat `type=module` bundles fetch and execute on the **full** shreddit document
+(not only the challenge page), implement `<suspense-replace>` hoisting for the `for=` templates, and
+close when the snapshot shows feed posts rather than an empty main region.
 
 ---
 

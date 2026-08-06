@@ -271,6 +271,7 @@ class DomBindings {
   // inserts are trusted for `script-src` without carrying the nonce themselves.
   // reddit's polyfill loader appends its tags this way.
   void SetTrustedScriptInsertion(bool trusted) { trusted_script_insertion_ = trusted; }
+  void SetTrustedScriptFlush(std::function<void()> hook) { trusted_script_flush_ = std::move(hook); }
   bool IsCspTrustedScript(const dom::Element& element) const {
     return csp_trusted_scripts_.contains(&element);
   }
@@ -522,6 +523,12 @@ class DomBindings {
 
   void InstallMediaSource();
   void InstallObjectUrls();
+  void InstallBlob();
+  bool IsBlobValue(const js::Value& value) const;
+  std::string BlobBodyOf(const js::Value& blob) const;
+  std::string BlobTypeOf(const js::Value& blob) const;
+  void DeliverWindowMessage(const js::Value& data);
+  void MaybeCompleteEsmsFeatureDetection();
   js::Value MakeTimeRanges(const std::vector<double>& flat);
   void DeliverSourceBufferEvents(const js::Value& buffer, std::uint64_t id);
   void DeliverMediaSourceEvents(const js::Value& source, std::uint64_t id);
@@ -733,6 +740,7 @@ class DomBindings {
   // string -- and a test needs to see what was written either way. The chrome takes it from here.
   std::string clipboard_;
   bool trusted_script_insertion_ = false;
+  std::function<void()> trusted_script_flush_;
   std::unordered_set<const dom::Element*> csp_trusted_scripts_;
 };
 

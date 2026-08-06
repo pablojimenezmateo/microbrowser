@@ -167,6 +167,7 @@ bool Engine::ProcessDynamicScripts() {
   while (page_.CollectInsertedScripts()) {
     changed = true;
     StartPendingScriptRequests();
+    DrainReadyLoaderCompletions();
   }
   if (AdvanceModules()) {
     changed = true;
@@ -192,6 +193,19 @@ bool Engine::ProcessDynamicScripts() {
     LayoutAndPaint();
   }
   return changed;
+}
+
+void Engine::DrainReadyLoaderCompletions() {
+  std::vector<Loader::Completion> completions = loader_.TakeCompletions();
+  for (Loader::Completion& completion : completions) {
+    if (!load_.active) {
+      return;
+    }
+    OnCompletion(std::move(completion));
+    if (!load_.active) {
+      return;
+    }
+  }
 }
 
 void Engine::StartFontRequests() {

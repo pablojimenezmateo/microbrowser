@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -20,6 +21,7 @@
 #include "engine/CanvasSurfaces.h"
 #include "engine/Workers.h"
 #include "util/WaitDescriptor.h"
+#include "util/BlobUrlRegistry.h"
 #include "engine/MediaElements.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
@@ -220,6 +222,7 @@ class Page : private layout::ImageProvider,
   // absence rather than a stub: `fetch` is then not declared at all. See
   // bindings/Network.h and ADR 0012.
   void SetNetworkSource(bindings::NetworkSource* network);
+  void SetTrustedInsertionFlush(std::function<void()> hook);
   // The same, for `window.history`. Borrowed and set before any script runs, for
   // the reason the network source is: a source that arrived later would leave the
   // first script of a document without one, and `history` is declared or not
@@ -255,6 +258,10 @@ class Page : private layout::ImageProvider,
   // Where a page's own sockets are answered, handed over for the life of the engine like
   // the other sources.
   void SetSocketSource(bindings::SocketSource* sockets);
+
+  util::BlobUrlRegistry& BlobUrls() { return blob_urls_; }
+  std::string RegisterBlobUrl(std::string body, std::string mime_type);
+  void RevokeBlobUrl(const std::string& url);
 
   // --- web fonts, ADR 0024 --------------------------------------------------
 
@@ -900,6 +907,7 @@ class Page : private layout::ImageProvider,
   };
   ScrollState scroll_;
   float content_height_ = 0.0f;
+  util::BlobUrlRegistry blob_urls_;
 };
 
 }  // namespace microbrowser::engine

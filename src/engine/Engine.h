@@ -181,6 +181,7 @@ class Engine : private bindings::NetworkSource,
 
   // Acts on one thing that arrived.
   void OnCompletion(Loader::Completion completion);
+  void DrainReadyLoaderCompletions();
   void OnDocument(Loader::Result result);
   // How one subresource is fetched, or nothing when it must not be fetched at
   // all -- which is `integrity` on a cross-origin resource with no
@@ -343,6 +344,8 @@ class Engine : private bindings::NetworkSource,
   void AbortFetch(std::uint64_t id) override;
   // `new URL(...)`'s resolve, through the one parser in `src/url`. See bindings/Network.h.
   std::string ResolveUrl(std::string_view relative, std::string_view base) const override;
+  std::string RegisterBlobUrl(std::string body, std::string mime_type) override;
+  void RevokeBlobUrl(const std::string& url) override;
   // One response for a request a script made. True when the page's script ran,
   // which is the caller's signal that the document may have changed under it.
   bool OnScriptFetch(Loader::Completion completion);

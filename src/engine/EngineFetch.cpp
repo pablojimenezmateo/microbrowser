@@ -138,6 +138,12 @@ void Engine::AbortFetch(std::uint64_t id) {
   loader_.Cancel(id);
 }
 
+std::string Engine::RegisterBlobUrl(std::string body, std::string mime_type) {
+  return page_.RegisterBlobUrl(std::move(body), std::move(mime_type));
+}
+
+void Engine::RevokeBlobUrl(const std::string& url) { page_.RevokeBlobUrl(url); }
+
 bool Engine::OnScriptFetch(Loader::Completion completion) {
   if (script_fetches_.erase(completion.id) == 0) {
     return false;

@@ -43,9 +43,9 @@ Value MakeIdleDeadline(js::Interpreter& interpreter, std::int64_t start_ms, bool
         if (start_slot == nullptr || now_slot == nullptr) {
           return Value::Number(0.0);
         }
-        const std::int64_t start_ms = static_cast<std::int64_t>(js::ToNumber(*start_slot));
-        const std::int64_t now_ms = static_cast<std::int64_t>(js::ToNumber(*now_slot));
-        const std::int64_t remaining = kIdleCallbackBudgetMs - (now_ms - start_ms);
+        const std::int64_t deadline_start_ms = static_cast<std::int64_t>(js::ToNumber(*start_slot));
+        const std::int64_t clock_now_ms = static_cast<std::int64_t>(js::ToNumber(*now_slot));
+        const std::int64_t remaining = kIdleCallbackBudgetMs - (clock_now_ms - deadline_start_ms);
         return Value::Number(static_cast<double>(std::max<std::int64_t>(0, remaining)));
       });
   if (time_remaining.IsObject()) {
@@ -88,11 +88,11 @@ void IdleCallbacks::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     }
     auto* queue =
         reinterpret_cast<IdleCallbacks*>(static_cast<std::uintptr_t>(queue_slot->number));
-    const std::int64_t now_ms = static_cast<std::int64_t>(js::ToNumber(*now_slot));
+    const std::int64_t request_now_ms = static_cast<std::int64_t>(js::ToNumber(*now_slot));
 
     Entry entry;
     entry.id = queue->next_id_++;
-    entry.idle_after_ms = now_ms;
+    entry.idle_after_ms = request_now_ms;
     if (call.arguments.size() >= 2 && call.arguments[1].IsObject()) {
       const Value* timeout = call.arguments[1].object->GetOwn("timeout");
       if (timeout != nullptr) {
@@ -100,7 +100,7 @@ void IdleCallbacks::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
         if (std::isfinite(requested) && requested >= 0.0) {
           entry.has_timeout = true;
           entry.timeout_at_ms =
-              now_ms + std::clamp<std::int64_t>(static_cast<std::int64_t>(requested), 0,
+              request_now_ms + std::clamp<std::int64_t>(static_cast<std::int64_t>(requested), 0,
                                                 std::numeric_limits<std::int64_t>::max() / 2);
         }
       }

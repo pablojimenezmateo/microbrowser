@@ -30,6 +30,7 @@
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 #include "js/Value.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
 
@@ -434,15 +435,10 @@ void DomBindings::InstallMediaSource() {
 }
 
 void DomBindings::InstallObjectUrls() {
-  if (interpreter_ == nullptr || media_ == nullptr) {
+  if (interpreter_ == nullptr) {
     return;
   }
-  // `URL` has to exist for `createObjectURL` to hang off, and **a `URL` that was not constructible
-  // would be a stub of exactly the kind ADR 0012 forbids**: a page that finds `URL` and gets a
-  // TypeError from `new URL(href)` has already taken the branch that assumes it works. So the
-  // constructor is real, and it resolves through `NetworkSource::ResolveUrl` -- the one parser, in
-  // `src/url`, which this module may not see. Splitting the *canonical* result into properties is
-  // arithmetic on a known shape and is what `location` already does.
+  InstallBlob();
   InstallUrlConstructor();
   const Value* url_slot = interpreter_->Global()->Get("URL");
   const Value url = url_slot == nullptr ? Value::Undefined() : *url_slot;
@@ -451,19 +447,28 @@ void DomBindings::InstallObjectUrls() {
   }
   const Value create = interpreter_->NewNativeValue("createObjectURL", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
+    const Value& argument = Argument(call.arguments, 0);
+    if (owner != nullptr && owner->IsBlobValue(argument)) {
+      if (owner->network_ == nullptr) {
+        return call.Throw("TypeError", "createObjectURL expects a Blob");
+      }
+      const std::string blob_url =
+          owner->network_->RegisterBlobUrl(owner->BlobBodyOf(argument), owner->BlobTypeOf(argument));
+      if (blob_url.empty()) {
+        return call.Throw("TypeError", "createObjectURL expects a Blob");
+      }
+      return Value::String(blob_url);
+    }
     if (owner == nullptr || owner->media_ == nullptr) {
       return Value::Undefined();
     }
     const std::uint64_t id = IdIn(Argument(call.arguments, 0), kSourceIdSlot);
     if (id == 0) {
-      // A `Blob` would be the other thing this takes, and there is no `Blob` in this browser -- so
-      // this throws rather than returning a URL that names nothing. A page given a `blob:` URL that
-      // fetches as empty debugs for hours; one given a TypeError reads the line.
-      return call.Throw("TypeError", "createObjectURL expects a MediaSource");
+      return call.Throw("TypeError", "createObjectURL expects a MediaSource or Blob");
     }
     const std::string created = owner->media_->CreateObjectUrl(id);
     if (created.empty()) {
-      return call.Throw("TypeError", "createObjectURL expects a MediaSource");
+      return call.Throw("TypeError", "createObjectURL expects a MediaSource or Blob");
     }
     return Value::String(created);
   });
@@ -473,8 +478,14 @@ void DomBindings::InstallObjectUrls() {
   }
   const Value revoke = interpreter_->NewNativeValue("revokeObjectURL", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
-    if (owner != nullptr && owner->media_ != nullptr) {
-      owner->media_->RevokeObjectUrl(js::ToString(Argument(call.arguments, 0)));
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    const std::string object_url = js::ToString(Argument(call.arguments, 0));
+    if (owner->network_ != nullptr && util::StartsWithAsciiCaseInsensitive(object_url, "blob:null/")) {
+      owner->network_->RevokeBlobUrl(object_url);
+    } else if (owner->media_ != nullptr) {
+      owner->media_->RevokeObjectUrl(object_url);
     }
     return Value::Undefined();
   });

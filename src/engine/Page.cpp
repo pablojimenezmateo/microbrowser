@@ -325,6 +325,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // worker thread is stopped and joined here, on the main thread, while the document is still alive.
   workers_.Clear();
   unrequested_worker_scripts_.clear();
+  blob_urls_.Clear();
   // **The bytes become text here, before the tokenizer sees them.** ADR 0025 §2: the encoding comes
   // from the BOM, then `Content-Type`, then a prescan of the first 1024 bytes, then windows-1252 --
   // and the tokenizer's input is code points rather than bytes, which is what makes an ill-formed
@@ -586,6 +587,10 @@ bool Page::RunDueWork(std::int64_t now_ms) {
 
 void Page::SetNetworkSource(bindings::NetworkSource* network) {
   script_.SetNetworkSource(network);
+}
+
+void Page::SetTrustedInsertionFlush(std::function<void()> hook) {
+  script_.SetTrustedInsertionFlush(std::move(hook));
 }
 
 void Page::SetHistorySource(bindings::HistorySource* history) {

@@ -31,6 +31,7 @@
 
 namespace microbrowser::bindings {
 
+using js::NativeCall;
 using js::Value;
 
 namespace {
@@ -253,6 +254,16 @@ void DomBindings::EnsureInterfaces() {
   // a type before it has one far more often than after.
   for (const TagInterface& entry : kTagInterfaces) {
     MakeInterface(entry.interface, html_element);
+  }
+  if (js::Value* script_ctor = interpreter_->GlobalScope()->Lookup("HTMLScriptElement")) {
+    if (script_ctor->IsObject()) {
+      const Value supports = interpreter_->NewNativeValue("supports", [](NativeCall&) {
+        return Value::Bool(false);
+      });
+      if (supports.IsObject()) {
+        script_ctor->object->Set("supports", supports);
+      }
+    }
   }
   // The media API, on `HTMLVideoElement` and `HTMLAudioElement` and nowhere else -- installed on
   // each rather than on a shared `HTMLMediaElement` prototype because this engine's interface

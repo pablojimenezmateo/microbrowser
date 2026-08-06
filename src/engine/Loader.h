@@ -14,6 +14,7 @@
 #include "net/SocketTransport.h"
 #include "privacy/PrivacyPolicy.h"
 #include "util/WaitDescriptor.h"
+#include "util/BlobUrlRegistry.h"
 
 namespace microbrowser::engine {
 
@@ -139,6 +140,10 @@ class Loader {
     factory_ = &transport;
   }
 
+  // In-memory `blob:` URLs registered by `URL.createObjectURL`. Cleared with
+  // the document that created them.
+  void SetBlobRegistry(util::BlobUrlRegistry* registry) { blob_registry_ = registry; }
+
   // A transport for something that is *not* a request: a WebSocket, which lives outside
   // the queue because it has no response and no completion. The factory rather than the
   // queue, so that a test's scripted transport serves both -- and so that there is
@@ -171,6 +176,7 @@ class Loader {
   // completions so that `CancelAll` clears both, and neither can outlive the
   // document that asked.
   std::vector<Completion> ready_;
+  util::BlobUrlRegistry* blob_registry_ = nullptr;
 };
 
 // Decodes a `data:` URL. Empty and `ok == false` for anything malformed.

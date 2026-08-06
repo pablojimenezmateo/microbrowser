@@ -88,6 +88,7 @@ class PageScript {
   // first script would leave a page whose whole rendering is a canvas with a blank one.
   void SetCanvasSurface(bindings::CanvasSurface* canvas) { canvas_ = canvas; }
   void SetWorkerHost(bindings::WorkerHost* workers) { workers_ = workers; }
+  void SetTrustedInsertionFlush(std::function<void()> hook);
   // A worker's message or error, forwarded to the bindings. False without an interpreter, which is the
   // case on the turn a navigation replaced the document a worker was posting to.
   bool DeliverWorkerMessage(std::uint64_t id, const std::string& serialized,
@@ -451,6 +452,7 @@ class PageScript {
   bindings::MediaController* media_ = nullptr;
   bindings::CanvasSurface* canvas_ = nullptr;
   bindings::WorkerHost* workers_ = nullptr;
+  std::function<void()> trusted_insertion_flush_;
 };
 
 }  // namespace microbrowser::engine

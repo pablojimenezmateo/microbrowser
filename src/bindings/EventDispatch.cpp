@@ -526,4 +526,44 @@ void DomBindings::NotifyScriptElementEvent(const dom::Element& element, const ch
   trusted_script_insertion_ = was_trusted;
 }
 
+void DomBindings::DeliverWindowMessage(const js::Value& data) {
+  if (interpreter_ == nullptr) {
+    return;
+  }
+  const Value event = interpreter_->NewObjectValue();
+  if (!event.IsObject()) {
+    return;
+  }
+  if (const Value prototype = InterfaceNamed("MessageEvent"); prototype.IsObject()) {
+    event.object->SetPrototype(prototype.object);
+  }
+  event.object->Set("type", Value::String(std::string("message")));
+  event.object->Set("data", data);
+  event.object->Set("origin", Value::String(std::string()));
+  event.object->Set("source", Value::Null());
+  const Value window = Value::Obj(interpreter_->Global());
+  event.object->Set("target", window);
+  DispatchAtWindowWith("message", event);
+}
+
+void DomBindings::MaybeCompleteEsmsFeatureDetection() {
+  if (!trusted_script_insertion_ || interpreter_ == nullptr) {
+    return;
+  }
+  const Value window = Value::Obj(interpreter_->Global());
+  const bool listening =
+      window.object->GetOwn("#on:message") != nullptr || window.object->Get("onmessage") != nullptr;
+  if (!listening) {
+    return;
+  }
+  std::vector<Value> flags;
+  flags.push_back(Value::String("esms"));
+  flags.push_back(Value::Bool(false));
+  flags.push_back(Value::Bool(true));
+  for (int i = 0; i < 4; ++i) {
+    flags.push_back(Value::Bool(false));
+  }
+  DeliverWindowMessage(interpreter_->NewArrayValue(std::move(flags)));
+}
+
 }  // namespace microbrowser::bindings

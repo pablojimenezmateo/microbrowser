@@ -5,6 +5,7 @@
 
 #include "TestSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/Network.h"
 #include "bindings/AnimationFrames.h"
 #include "bindings/IdleCallbacks.h"
 #include "bindings/Timers.h"
@@ -1063,6 +1064,37 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                                           "' ' + (typeof p.addEventListener)")
                                     .value),
                    "function true function", "MessagePort is an EventTarget with a name");
+  });
+
+  AddTest(tests, "DomBindings/BlobUrlAndWindowPostMessage", [] {
+  struct StubNetwork final : bindings::NetworkSource {
+    std::uint64_t StartFetch(const bindings::ScriptRequest&) override { return 0; }
+    void AbortFetch(std::uint64_t) override {}
+    std::string ResolveUrl(std::string_view, std::string_view) const override { return {}; }
+    std::string RegisterBlobUrl(std::string body, std::string) override {
+      registered = std::move(body);
+      return "blob:null/42";
+    }
+    void RevokeBlobUrl(const std::string&) override {}
+    std::string registered;
+  } network;
+
+  auto document = html::ParseDocument("<html><body></body></html>");
+  auto interpreter = std::make_unique<js::Interpreter>();
+  bindings::DomBindings dom(*interpreter, *document, "https://example.org/", nullptr, &network,
+                            nullptr, nullptr, nullptr, nullptr, nullptr);
+  dom.Install();
+
+  const js::Result blob = interpreter->Run(
+      "const b = new Blob(['self._d=u=>import(u)'], {type: 'text/javascript'});"
+      "typeof Blob + '|' + URL.createObjectURL(b)");
+  ExpectEqString(js::ToString(blob.value), "function|blob:null/42", "Blob registers a url");
+  ExpectEqString(network.registered, "self._d=u=>import(u)", "blob body preserved");
+
+  const js::Result message = interpreter->Run(
+      "let data = ''; window.addEventListener('message', e => { data = e.data[0]; });"
+      "window.postMessage(['esms', true], '*'); data");
+  ExpectEqString(js::ToString(message.value), "esms", "postMessage delivers to window");
   });
 
   AddTest(tests, "DomBindings/ARangeIsTwoBoundaryPointsAndTheirOrder", [] {

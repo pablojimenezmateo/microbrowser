@@ -114,6 +114,7 @@ constexpr Reflection kReflections[] = {
     {"HTMLScriptElement", "type", "type", Reflect::Text},
     {"HTMLScriptElement", "defer", "defer", Reflect::Presence},
     {"HTMLScriptElement", "async", "async", Reflect::Presence},
+    {"HTMLScriptElement", "noModule", "nomodule", Reflect::Presence},
 
     {"HTMLLinkElement", "href", "href", Reflect::Text},
     {"HTMLLinkElement", "rel", "rel", Reflect::Text},

@@ -109,6 +109,10 @@ class NetworkSource {
   // something and a `URL` that was not constructible would be a stub -- a page that finds `URL` and
   // gets a TypeError from `new URL(href)` has taken the branch that assumes it works.
   virtual std::string ResolveUrl(std::string_view relative, std::string_view base) const = 0;
+
+  // `URL.createObjectURL(new Blob(...))`. Per-document; revoked with navigation.
+  virtual std::string RegisterBlobUrl(std::string body, std::string mime_type) = 0;
+  virtual void RevokeBlobUrl(const std::string& url) = 0;
 };
 
 }  // namespace microbrowser::bindings

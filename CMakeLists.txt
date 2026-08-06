@@ -184,6 +184,7 @@ endfunction()
 microbrowser_module(util
   SOURCES
     src/util/Base64.cpp
+    src/util/BlobUrlRegistry.cpp
     src/util/Brotli.cpp
     src/util/Env.cpp
     src/util/Inflate.cpp
@@ -366,6 +367,7 @@ microbrowser_module(engine
   SOURCES
     src/engine/DocumentPolicy.cpp
     src/engine/Engine.cpp
+    src/engine/EnginePaint.cpp
     src/engine/EngineInput.cpp
     src/engine/EngineFetch.cpp
     src/engine/EngineImages.cpp
@@ -427,6 +429,7 @@ microbrowser_module(bindings
     src/bindings/PerformanceTiming.cpp
     src/bindings/AnimationFrames.cpp
     src/bindings/IdleCallbacks.cpp
+    src/bindings/BlobBindings.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/FetchBindings.cpp

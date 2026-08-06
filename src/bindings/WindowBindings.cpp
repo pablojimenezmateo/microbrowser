@@ -177,6 +177,19 @@ void DomBindings::InstallWindow() {
   InstallNotification();
   InstallCrypto();
   InstallScreenAndPixelRatio();
+  const Value post_message = interpreter_->NewNativeValue("postMessage", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    owner->DeliverWindowMessage(Argument(call.arguments, 0));
+    return Value::Undefined();
+  });
+  if (post_message.IsObject()) {
+    post_message.object->Set(kOwnerSlot, PointerValue(this));
+    global->Set("postMessage", post_message);
+    interpreter_->GlobalScope()->Declare("postMessage", post_message, false);
+  }
 }
 
 void DomBindings::WriteLocationFields(const js::Value& location) {

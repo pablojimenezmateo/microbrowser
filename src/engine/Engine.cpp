@@ -116,6 +116,12 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // And its cookies, same lifetime and same reason. Reddit's GQL reads
   // `csrf_token` from here; Wikipedia's inline script calls `.match` on it.
   page_.SetCookieSource(this);
+  loader_.SetBlobRegistry(&page_.BlobUrls());
+  page_.SetTrustedInsertionFlush([this]() {
+    if (load_.scripts_ran) {
+      ProcessDynamicScripts();
+    }
+  });
 }
 
 bool Engine::HandlePendingMessages() {

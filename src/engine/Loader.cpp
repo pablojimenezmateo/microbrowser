@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "util/Base64.h"
+#include "util/BlobUrlRegistry.h"
 #include "util/PercentEncoding.h"
 #include "util/StringUtil.h"
 
@@ -129,6 +130,22 @@ Loader::RequestId Loader::StartSubresource(std::string_view url, const url::Url&
     result.final_url = std::string(url);
     result.status = 200;
     return Deliver(std::move(result));
+  }
+  if (blob_registry_ != nullptr && util::StartsWithAsciiCaseInsensitive(url, "blob:")) {
+    if (const std::optional<std::string_view> body = blob_registry_->Lookup(url);
+        body.has_value()) {
+      Result result;
+      if (options.method != "GET" || !options.body.empty()) {
+        result.error = "blob URL loads do not support request bodies";
+        return Deliver(std::move(result));
+      }
+      result.ok = true;
+      result.body = std::string(*body);
+      result.content_type = "text/javascript";
+      result.final_url = std::string(url);
+      result.status = 200;
+      return Deliver(std::move(result));
+    }
   }
 
   // Relative to the document, which is what every href in a page is.

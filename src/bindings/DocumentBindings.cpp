@@ -309,6 +309,7 @@ void DomBindings::Install() {
 
   interpreter_->GlobalScope()->Declare("document", document, false);
   InstallEventConstructors();
+  InstallObjectUrls();
   InstallWindow();
 }
 

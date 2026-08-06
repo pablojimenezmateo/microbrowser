@@ -180,8 +180,8 @@ std::vector<SubresourceRequest> PageScript::TakeUnrequestedScripts() {
   if (scripts_requested_ >= pending_urls_.size()) {
     return {};
   }
-  std::vector<SubresourceRequest> pending(pending_urls_.begin() + scripts_requested_,
-                                          pending_urls_.end());
+  std::vector<SubresourceRequest> pending(
+      pending_urls_.begin() + static_cast<std::ptrdiff_t>(scripts_requested_), pending_urls_.end());
   scripts_requested_ = pending_urls_.size();
   return pending;
 }
@@ -218,6 +218,13 @@ void PageScript::AddFetched(std::size_t index, std::string source) {
   slots_[slot].source = std::move(source);
 }
 
+void PageScript::SetTrustedInsertionFlush(std::function<void()> hook) {
+  trusted_insertion_flush_ = std::move(hook);
+  if (bindings_ != nullptr) {
+    bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);
+  }
+}
+
 void PageScript::EnsureInterpreter(dom::Document& document, const std::string& url,
                                    std::int64_t now_ms) {
   if (interpreter_ != nullptr) {
@@ -229,6 +236,9 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
                                                      cookies_, sockets_, media_, canvas_,
                                                      workers_);
   bindings_->Install();
+  if (trusted_insertion_flush_) {
+    bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);
+  }
   timers_.Install(*interpreter_, now_ms);
   frames_.Install(*interpreter_, now_ms);
   idle_.Install(*interpreter_, now_ms);

@@ -412,6 +412,11 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
     const auto& element = static_cast<const dom::Element&>(*child);
     if (element.TagName() == "script") {
       csp_trusted_scripts_.insert(&element);
+      if (trusted_script_flush_) {
+        trusted_script_flush_();
+      }
+    } else if (element.TagName() == "iframe") {
+      MaybeCompleteEsmsFeatureDetection();
     }
   }
   // The record goes to observers of the *parent*, because childList is about
