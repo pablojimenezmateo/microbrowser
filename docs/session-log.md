@@ -2807,3 +2807,58 @@ and never looked inside. So the check is now what is actually verifiable end to 
 named. `tests/Mp4Fixtures.h` was extracted the moment a second test file needed the fMP4 builder,
 because a fixture copied twice is two fixtures that drift — and tests over a drifted fixture agree
 with each other and with nothing else.
+
+## Session 29 — MPEG-TS, and the format difference the other two containers hide
+
+`800e261`. The third container, and the one HLS carries. The playlist parser landed in session 26 and
+was pointing at segments nothing could read.
+
+**One finding, and it is about what a container abstraction hides.** `IsoBmff` and `Matroska` both
+produce `MediaSample` — a `track_id`, an `offset`, a `size` — and after two demuxers that shape looked
+like the module's vocabulary rather than a property of two particular formats. It is not. In a
+transport stream an access unit is carried across however many 188-byte packets it takes, and **every
+one of those packets puts a four-byte header in front of its payload**, so the payload pieces are
+never adjacent in the file. A single-range sample cannot describe one.
+
+The first draft did the obvious thing: it tracked `next_expected` and set a `contiguous` flag. The
+flag was always false for anything spanning two packets, and the parser dropped those samples — which
+is every video frame in every real stream. A test that appended three packets and expected two access
+units got one, and that was the whole diagnosis. `MpegTsSample` now carries a list of ranges and a
+total, so the ADR 0013 line still holds: this module reports *places in the input* and copies nothing.
+The lesson is about the third implementation of anything: two agreeing on a shape is not evidence the
+shape is right, and the cost of finding out at the third is a struct rather than a rewrite.
+
+The rest of the format's character is refusals, and they cluster in a way worth noticing: **almost
+every decision here is "refuse and count" rather than "fail" or "guess"**, because a transport stream
+is designed to be read through damage. It resynchronises when it loses sync, twice — at the start,
+because a live tune-in or a byte-range request begins mid-packet, and again after any corruption. It
+discards the access unit being assembled when the continuity counter skips, rather than joining across
+the hole: half a frame stitched to half of a later one is a frame no decoder can reject, which is
+worse than a missing frame the player can see is missing. It ignores a duplicate continuity value,
+which is legal and deliberate in a broadcast. And it reports counts of all three, because a caller
+needs to know how much it had to recover from.
+
+Two refusals are not about damage. A **scrambled** packet is refused rather than passed on, which is
+ADR 0028 §5's EME refusal reaching all the way down to the container — handing scrambled bytes to a
+decoder as though they were media is feeding it input nothing checked. And a **stream type outside ADR
+0031's five** is refused at the PMT, which is ADR 0013's whole argument for owning this layer: the
+stream type is the only thing that decides what a decoder will be asked to decode. MPEG-2 video and
+AC-3 are common in real transport streams and neither is in the five. The *kind* is still reported, so
+a caller knows it found a video stream it cannot play rather than no video stream at all.
+
+Two absences are stated in the header rather than left to be discovered. There is no duration in a
+transport stream, so `MpegTsSample` has **no duration field at all** rather than a zero a caller might
+read as "instantaneous". And the 33-bit timestamps are reported with their wrap intact, because
+unwrapping needs to know where the previous segment ended — the caller's state, not this parser's.
+
+The fuzz target checks what a *caller* depends on rather than only memory safety: every reported range
+lies inside the input, a sample's pieces are ordered and non-overlapping, and `total_size` is their
+sum. That last one matters because a caller allocates from the number and copies by iterating the
+pieces, so a mismatch is a heap overflow at the far end rather than here. 11,926,908 runs clean.
+
+**The check had to be restated for the second session running, and the reason is the same one.** "A
+Plex transcoded stream plays" needs a decoder — session 27, blocked on four libraries that need
+installing. Both sessions 28 and 29 wrote checks against playback and both are verifiable only up to
+the point where bytes would be handed to a codec. That is worth flagging as a property of the ledger
+rather than of these sessions: several remaining media checks are written against an end state that
+one blocked session gates, and each will need the same restatement until it lands.

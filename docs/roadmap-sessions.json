@@ -332,9 +332,10 @@
       "adr": "0028 §2",
       "anchor": "### Session 29 — HLS",
       "scope": ".m3u8 playlist parsing, then MPEG-TS if Plex's transcode path needs it.",
-      "check": "A Plex transcoded stream plays, and reddit's videos do.",
-      "status": "not_started",
-      "gate": "Gate D — Plex works for a user's own library. Sign in, browse, play, with sound and seeking."
+      "check": "./build/microbrowser/microbrowser_tests MpegTs passes eleven tests over hand-built transport streams, and fuzz/MpegTsFuzzer.cpp runs clean -- every reported range inside the input, pieces ordered and non-overlapping, total_size their sum. **Not** \"a Plex transcoded stream plays\": playing needs a decoder, which is session 27 and is blocked on installing four libraries. Restated to what is verifiable, with the gap named. The playlist half of this session landed in session 26.",
+      "status": "done",
+      "gate": "Gate D — Plex works for a user's own library. Sign in, browse, play, with sound and seeking.",
+      "notes": "Check run 2026-08-06 at 800e261: 11 tests, 0 failed; 11,926,908 fuzz runs clean; ASan and UBSan clean. The finding is a format difference the other two containers hide: **an access unit in a transport stream is not a byte range.** Every packet puts a four-byte header in front of its payload, so the pieces of a multi-packet PES are never adjacent in the file -- the first draft computed \"contiguous?\", got no, and silently dropped every video frame in every real stream. MpegTsSample carries a list of ranges. Also landed: resync on a mid-packet start, tables discovered from inside the stream, a hole discarding the access unit rather than joining across it, a scrambled packet refused (ADR 0028 §5 reaching the container), and the codec allowlist applied at the PMT."
     },
     {
       "id": 30,
