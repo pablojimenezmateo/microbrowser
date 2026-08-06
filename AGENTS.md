@@ -10,7 +10,8 @@ Ladybird is the reference for *engine shape* — library separation, spec-litera
 reference tests, and the process split (`WebContent`, network, image decoder). LibreWolf is the
 reference for *defaults* — blocking, sanitization, partitioning, and zero telemetry are engine-level
 invariants here, not an extension bolted on top. Chromium's site-isolation model is the reference
-for *containment*: the unit of isolation is a site, not a tab.
+for *containment*: the unit of isolation is a site, not a tab. The durable argument for that mix —
+privacy first, correct, and very fast, with compatibility last — is ADR 0033.
 
 Avoid marketing claims in code, commits, or docs. There are internal regression baselines but no
 comparative benchmarks against other browsers. Do not write "fastest" or "lighter than X" — say
