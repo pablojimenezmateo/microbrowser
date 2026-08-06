@@ -9,6 +9,7 @@
 #include "js/BuiltinSupport.h"
 #include "js/StringUnits.h"
 #include "util/Env.h"
+#include "util/PerformanceTrace.h"
 
 namespace microbrowser::js {
 
@@ -911,6 +912,12 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
 }
 
 Result Interpreter::Run(std::string_view source) {
+  // Three jobs with nothing in common but their order, and a page whose bundle
+  // takes eleven seconds needs to know which of them it is spending them in.
+  // Nested inside the host's js::RunScript scope, so the self-time column
+  // splits that row three ways.
+  std::optional<util::PerformanceTrace::Scope> phase;
+  phase.emplace("js::Parse");
   ParseResult parsed = Parse(source);
   if (!parsed.errors.empty()) {
     // A syntax error is a thrown SyntaxError, so a caller has one failure path
@@ -942,11 +949,19 @@ Result Interpreter::Run(std::string_view source) {
   // purpose rather than by a page.
   static const bool tree_walk = util::EnvFlagEnabled("MICROBROWSER_JS_TREEWALK");
   if (!tree_walk) {
-    if (std::unique_ptr<CompiledFunction> compiled = Compile(program, source.size())) {
+    phase.emplace("js::Compile");
+    std::unique_ptr<CompiledFunction> compiled = Compile(program, source.size());
+    if (compiled != nullptr) {
       vm_.programs.push_back(std::move(compiled));
+      phase.emplace("js::Execute");
       return RunCompiled(*vm_.programs.back());
     }
   }
+  // Reaching here is a compile bailout, and the label says so rather than
+  // sharing a row with the machine: a program on the tree-walker is between one
+  // and two orders of magnitude slower, and the counter that says which engine
+  // ran it is invisible from a timing alone.
+  phase.emplace("js::ExecuteTreeWalk");
   return RunProgram(program);
 }
 

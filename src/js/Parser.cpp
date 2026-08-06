@@ -981,24 +981,31 @@ NodePtr ParserImpl::ParseAssignment() {
 
   // A single-identifier arrow: `x => x + 1`. Checked before the general path
   // because the identifier would otherwise be consumed as an expression.
+  //
+  // Put back the way every other lookahead here puts one back -- seek to the
+  // end of the saved token and restore it -- rather than to its *start* and
+  // lexing it again. This runs on every identifier in the program, which in a
+  // minified bundle is most of the tokens in it, so re-lexing here was a second
+  // pass over the source paid for by the one arrow function in ten thousand
+  // identifiers that needed it. The discarded `std::string name` was the same
+  // trade: an allocation per identifier, to hold a copy of a view into a source
+  // buffer that outlives the whole parse.
   if (current_.type == TokenType::Identifier) {
-    const std::size_t offset = current_.start;
-    const std::size_t line = current_.line;
-    const std::string name(current_.lexeme);
+    const Token saved = current_;
     Advance();
     if (At("=>") && !current_.newline_before) {
       Advance();
       NodePtr arrow = Make(NodeKind::ArrowFunction);
       NodePtr parameters = Make(NodeKind::Parameters);
       NodePtr parameter = Make(NodeKind::Identifier);
-      parameter->string = name;
+      parameter->string = saved.lexeme;
       parameters->children.push_back(std::move(parameter));
       arrow->children.push_back(std::move(parameters));
       arrow->children.push_back(At("{") ? ParseBlock() : ParseAssignment());
       return arrow;
     }
-    lexer_.SeekTo(offset, line);
-    Advance();
+    lexer_.SeekTo(saved.end, saved.line);
+    current_ = saved;
   }
 
   NodePtr left = ParseConditional();

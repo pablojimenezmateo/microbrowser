@@ -96,6 +96,43 @@ constexpr std::array<std::string_view, 57> kPunctuators = {
     "=",
 };
 
+// kPunctuators grouped by first byte, so that lexing one does not walk the
+// whole table.
+//
+// The table is ordered longest-first and that order *is* the maximal-munch
+// rule, so this must not reorder it -- it only skips the entries whose first
+// byte cannot match. The grouping is stable, so within a byte the entries keep
+// their relative order and `>>>=` is still tried before `>>>`, `>>` and `>`.
+//
+// Worth the table because of where the common punctuators sit: `.`, `(`, `)`,
+// `,`, `=` and `;` are the last two rows, so the linear scan cost 34 to 57
+// substring comparisons each. Minified script is mostly punctuation -- 1.28
+// million of youtube's 2.05 million tokens -- and this was the single hottest
+// function in the parse.
+struct PunctuatorIndex {
+  // Indices into kPunctuators, grouped by first byte and stable within a group.
+  std::array<std::uint8_t, kPunctuators.size()> order{};
+  std::array<std::uint8_t, 128> begin{};
+  std::array<std::uint8_t, 128> count{};
+};
+
+constexpr PunctuatorIndex BuildPunctuatorIndex() {
+  PunctuatorIndex index{};
+  std::uint8_t next = 0;
+  for (std::size_t lead = 0; lead < index.begin.size(); ++lead) {
+    index.begin[lead] = next;
+    for (std::size_t i = 0; i < kPunctuators.size(); ++i) {
+      if (static_cast<unsigned char>(kPunctuators[i].front()) == lead) {
+        index.order[next++] = static_cast<std::uint8_t>(i);
+        ++index.count[lead];
+      }
+    }
+  }
+  return index;
+}
+
+constexpr PunctuatorIndex kPunctuatorIndex = BuildPunctuatorIndex();
+
 }  // namespace
 
 bool IsReservedWord(std::string_view text) {
@@ -511,8 +548,15 @@ Token Lexer::LexTemplate(std::size_t start, bool newline) {
 
 Token Lexer::LexPunctuator(std::size_t start, bool newline) {
   const std::string_view rest = source_.substr(offset_);
-  for (const std::string_view punctuator : kPunctuators) {
-    if (rest.size() >= punctuator.size() && rest.substr(0, punctuator.size()) == punctuator) {
+  const auto lead = static_cast<unsigned char>(rest.empty() ? 0 : rest.front());
+  if (lead < kPunctuatorIndex.begin.size()) {
+    const std::size_t from = kPunctuatorIndex.begin[lead];
+    const std::size_t to = from + kPunctuatorIndex.count[lead];
+    for (std::size_t i = from; i < to; ++i) {
+      const std::string_view punctuator = kPunctuators[kPunctuatorIndex.order[i]];
+      if (rest.size() < punctuator.size() || rest.substr(0, punctuator.size()) != punctuator) {
+        continue;
+      }
       // `?.3` is a ternary followed by a number, not optional chaining: the
       // spec says so, because `a?.3:0` has to keep working.
       if (punctuator == "?." && rest.size() > 2 && IsDecimalDigit(rest[2])) {
