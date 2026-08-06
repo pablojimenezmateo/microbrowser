@@ -4,7 +4,7 @@ purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
 # have passed privacy first, which net enforces by taking a privacy::Verdict.
 allow: util url privacy
 
-public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h WebSocketFrames.h WebSocketConnection.h
+public: HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h WebSocketFrames.h WebSocketConnection.h EventStream.h
 
 # ADR 0001 sanctions OpenSSL for the TLS record layer only -- we own HTTP
 # entirely. Exactly one file names it, SocketTransport.cpp, and this line is

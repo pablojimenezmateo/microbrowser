@@ -19,6 +19,7 @@
 #include "gfx/FontCatalog.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "net/EventStream.h"
 #include "net/WebSocketConnection.h"
 #include "net/WebSocketFrames.h"
 #include "privacy/PrivacyPolicy.h"
@@ -287,6 +288,84 @@ struct Socket {
 }  // namespace
 
 void RegisterWebSocketTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "EventStream/AnEventIsFieldsUntilABlankLineAndNotALine", [] {
+    // The rule the whole format turns on: fields accumulate and a *blank line*
+    // dispatches. Three `data:` lines are one event with two newlines in it.
+    const net::EventStreamResult result = net::ParseEventStream(
+        "event: tick\ndata: one\ndata: two\nid: 7\n\ndata: next\n\n");
+    ExpectEqInt(static_cast<long long>(result.events.size()), 2, "two events");
+    ExpectEqString(result.events.at(0).type, "tick", "the type");
+    ExpectEqString(result.events.at(0).data, "one\ntwo", "joined by a newline");
+    ExpectEqString(result.events.at(0).id.value_or(""), "7", "and the id");
+    ExpectEqString(result.events.at(1).data, "next", "then the second");
+    Expect(result.events.at(1).type.empty(),
+           "whose type is empty, which the binding turns into `message`");
+  });
+
+  AddTest(tests, "EventStream/APartialEventIsKeptRatherThanDispatched", [] {
+    // What `consumed` is for. A packet boundary inside an event must not deliver half a
+    // message, and the bytes after the last blank line are the caller's to keep.
+    const net::EventStreamResult result = net::ParseEventStream("data: whole\n\ndata: par");
+    ExpectEqInt(static_cast<long long>(result.events.size()), 1, "one whole event");
+    // "data: whole\n\n" is thirteen bytes; everything after it is the caller's to keep.
+    ExpectEqInt(static_cast<long long>(result.consumed), 13,
+                "and the partial one is left in the buffer");
+  });
+
+  AddTest(tests, "EventStream/CommentsAndKeepAlivesCostNothing", [] {
+    // A server holds a stream open for hours with `:keep-alive` comments, and a
+    // dispatch with no `data` field fires nothing -- which is the difference between a
+    // keep-alive and a message, and the reason a long-lived stream is not a message
+    // storm.
+    const net::EventStreamResult result =
+        net::ParseEventStream(":keep-alive\n\n: another\n\ndata: real\n\n");
+    ExpectEqInt(static_cast<long long>(result.events.size()), 1, "only the real one");
+    ExpectEqString(result.events.at(0).data, "real", "with its data");
+  });
+
+  AddTest(tests, "EventStream/OneSpaceIsStrippedAndOnlyOne", [] {
+    // `data:  x` is " x". Stripping both corrupts every payload a server indents, which
+    // is most JSON pretty-printed onto a stream.
+    const net::EventStreamResult result =
+        net::ParseEventStream("data:  indented\n\ndata:tight\n\ndata\n\n");
+    ExpectEqInt(static_cast<long long>(result.events.size()), 3, "three events");
+    ExpectEqString(result.events.at(0).data, " indented", "one space stripped, one kept");
+    ExpectEqString(result.events.at(1).data, "tight", "no space to strip");
+    Expect(result.events.at(2).data.empty(),
+           "and a field with no colon is an empty value rather than an error");
+  });
+
+  AddTest(tests, "EventStream/EveryLineTerminatorIsOneTerminator", [] {
+    // A stream may mix `\r\n`, `\n` and `\r`. Splitting `\r\n` into two would produce a
+    // spurious blank line -- which in this format means *dispatch*, so it would fire an
+    // event per line.
+    const net::EventStreamResult result =
+        net::ParseEventStream("data: a\r\ndata: b\r\n\r\ndata: c\rdata: d\r\r");
+    ExpectEqInt(static_cast<long long>(result.events.size()), 2, "two events, not four");
+    ExpectEqString(result.events.at(0).data, "a\nb", "crlf joined one event");
+    ExpectEqString(result.events.at(1).data, "c\nd", "and so did bare cr");
+  });
+
+  AddTest(tests, "EventStream/RetryIsTheServersOnlySayOverReconnecting", [] {
+    const net::EventStreamResult result = net::ParseEventStream("retry: 4500\ndata: x\n\n");
+    Expect(result.retry_ms.has_value() && *result.retry_ms == 4500u, "the delay it asked for");
+    // A `retry` that is not a number changes nothing rather than resetting the delay: a
+    // stream that sent `retry: soon` must not become a reconnect storm.
+    const net::EventStreamResult bad = net::ParseEventStream("retry: soon\ndata: x\n\n");
+    Expect(!bad.retry_ms.has_value(), "and nonsense is ignored");
+  });
+
+  AddTest(tests, "EventStream/AnEventOverTheBoundIsDroppedRatherThanHeldForever", [] {
+    // A server that sends `data:` forever without a blank line would otherwise grow the
+    // buffer without limit. Dropping one message is better than closing the stream and
+    // better than holding it in memory -- and it is a bound on memory a *peer* controls,
+    // which is why it is in the parser rather than at a caller.
+    std::string stream = "data: " + std::string(200, 'x') + "\n\ndata: ok\n\n";
+    const net::EventStreamResult result = net::ParseEventStream(stream, 64);
+    ExpectEqInt(static_cast<long long>(result.events.size()), 1, "the oversized one is gone");
+    ExpectEqString(result.events.at(0).data, "ok", "and the stream carries on");
+  });
+
   AddTest(tests, "WebSocket/APageOpensASocketAndItsHandlersRun", [] {
     // The end of ADR 0020 §5's path: `new WebSocket(...)` through the binding, the
     // engine's table, the connection, and back as `onopen` and `onmessage`.

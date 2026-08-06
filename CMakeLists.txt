@@ -272,6 +272,7 @@ microbrowser_module(net
   SOURCES
     src/net/ConnectionPool.cpp
     src/net/ContentEncoding.cpp
+    src/net/EventStream.cpp
     src/net/CookieJar.cpp
     src/net/Cors.cpp
     src/net/Fetch.cpp
@@ -612,6 +613,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(woff2_fuzzer fuzz/Woff2Fuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(sfnt_fuzzer fuzz/SfntFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(websocket_fuzzer fuzz/WebSocketFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(eventstream_fuzzer fuzz/EventStreamFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
