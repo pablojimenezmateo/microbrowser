@@ -2471,3 +2471,50 @@ leave a hole in.
 adding a dependency a reviewable act, so this is a decision for the user rather than something to do
 quietly — and it is the largest dependency addition in the project's history. Everything that could be
 built without them has been.
+
+### Character encodings · 2026-08-06 (session 30, taken out of order)
+
+`f469b94` the decoders and the sniffing algorithm, `02b60c7` the wiring. Taken up out of order
+because session 27's remainder needs four libraries this machine cannot install, and this session
+needs none.
+
+**The rule that carries the weight is one I got wrong first.** A UTF-8 sequence's valid *second byte*
+depends on its lead — `E0` requires A0–BF, `ED` requires 80–9F, `F0` requires 90–BF, `F4` requires
+80–8F — and that is not a refinement of "is the resulting code point in range". It decides how many
+U+FFFDs an ill-formed run produces and therefore **where the run ends**. `ED A0 80` is three
+replacements, not one, because the maximal subpart ends after `ED`; a decoder that checks only the
+resulting code point consumes all three bytes and emits one, which is a different document. Overlong
+forms fall out of the same table rather than needing their own check.
+
+The companion rule: a byte that *ends* an ill-formed sequence is never consumed. That is what makes a
+`<` after a bad sequence reach the tokenizer as a `<`, where the tokenizer's own rules apply to it —
+and swallowing it is how a decoder hides the character a sanitiser was looking for.
+
+**Three bugs, and the fuzzer found the first one on its first run.** `find('>') + 1` is 0 when there
+is no `>`, so a truncated `<meta ch` computed a negative length and read gigabytes past the buffer.
+It is reachable from any document whose tag straddles the 1024-byte prescan boundary, which happens by
+construction rather than by accident. The second was the prescan's value scan not stopping at `>`, so
+`<meta charset=utf-8>` produced the label `utf-8>`, resolved to nothing, and fell back to
+windows-1252 on a page that had declared UTF-8 — the confusion this whole file exists to prevent, in
+miniature, in my own code.
+
+The third was in the **fuzzer**, and it is worth recording as a category: my idempotence invariant
+("decoding the output again as UTF-8 changes nothing") trips on well-formed output, because a decoded
+U+FEFF is byte-for-byte a leading BOM and gets stripped the second time. That is a property of the
+format, not a defect, and the check guards with an ASCII byte now. An invariant that is *nearly* true
+is worse than a weaker one that is exactly true.
+
+**Three of my own test expectations were wrong and the code was right** — the replacement counts for
+`E0 80 41` and `E0 80 AF`, and which byte of ISO-8859-5 is А. They are corrected in place with a note
+saying so, because a test that was wrong is worth more as a record than as a silent edit: the next
+person to touch the substitution rules will want to know that the counts are surprising.
+
+Three specification decisions that look arbitrary and each have a reason worth keeping: `iso-8859-1`,
+`latin1` and even `ascii` all mean **windows-1252**, because a page labelled ISO-8859-1 with a 0x93 in
+it means a curly quote and rendering a C1 control there renders something no reader saw; the fallback
+is **windows-1252 rather than UTF-8**, because an undeclared page is overwhelmingly old; and a bare
+`utf-16` label means **little endian**, because that is what the installed base emits.
+
+Measured end to end: `naïve café "quoted" … 90°` renders from raw windows-1252 bytes with no
+declaration, and the three rendering sites are unchanged because they all declare UTF-8 and the
+algorithm agrees with them.
