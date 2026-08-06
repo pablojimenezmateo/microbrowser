@@ -375,8 +375,9 @@
       "adr": "0025 §3",
       "anchor": "## Phase E — any page",
       "scope": "Paragraph levels and run reordering before shaping. Right-to-left text is currently drawn backwards.",
-      "check": null,
-      "status": "not_started"
+      "check": "./build/microbrowser/microbrowser_bidiconf <dir with Unicode's BidiTest.txt and BidiCharacterTest.txt> reports 861948 cases and zero failures, and ./build/microbrowser/microbrowser_snapshot https://he.wikipedia.org/ -o out.ppm -v shows Hebrew right-aligned with numbers reading forward inside it.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 45e675f: 861,948 conformance cases, 0 paragraph-level, 0 level, 0 order failures, on the first run. he.wikipedia.org renders right-to-left (11,696 bidi lines, 12,148 runs). Hacker News byte-identical at 705 commands with zero bidi counters -- the NeedsBidi byte scan is what keeps this off every English page. Two bugs found by rendering rather than by a test: one direction is not one *script*, so a Hebrew+Arabic run shaped as one HarfBuzz buffer got no Arabic joining; and within a right-to-left run the pieces were laid down left to right. The second was invisible in the picture and took a temporary print to settle -- see the session log."
     },
     {
       "id": 34,
@@ -385,8 +386,9 @@
       "adr": "0025 §3",
       "anchor": "## Phase E — any page",
       "scope": "Mirroring, the two-position caret, dir=\"auto\".",
-      "check": null,
-      "status": "not_started"
+      "check": "./build/microbrowser/microbrowser_snapshot on a page with <bdo dir=rtl>abcdef</bdo>, <bdi> around Arabic followed by a number, and dir=auto: -v shows `fedcba`, the number *after* the isolated name, and the number *before* it without the isolation.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 4e850f5. Mirroring (L4), dir=\"auto\" (P2 over the element's own text), unicode-bidi as the control pairs it is defined to be, <bdi>/<bdo> in the UA sheet. THREE bugs, all found by rendering: HarfBuzz guesses direction from the script so an override was ignored (the shaper is now *told*); the NeedsBidi fast path skipped a line whose only bidi controls were synthetic; and src/layout kept a SECOND list of which properties inherit (TextStyleFrom) which had drifted -- direction and unicode-bidi never reached a text box. One list now, css::InheritInto, with a test over it. **The two-position caret is NOT done and is not blocked on bidi**: a page's caret is end-of-value only (src/engine/PageEditing.cpp), so there is no caret position and no boundary to put two of them at. It belongs to whatever session builds a real caret model, and that is not on this roadmap."
     },
     {
       "id": 35,

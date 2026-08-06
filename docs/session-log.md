@@ -2662,3 +2662,79 @@ Found on the same pass and left for later, because it is not this session's: **a
 inline script fails with `SyntaxError: unexpected token '<'` on `<script type="text/javascript"><!--`.**
 That is Annex B HTML-like comments, a JavaScript lexer gap, and the pattern is on a great many older
 pages — where it costs the *whole* script rather than one line.
+
+## Sessions 33–34 — UAX #9, and what a conformance suite cannot tell you
+
+`45e675f`, `4e850f5`. Bidi in two halves: the algorithm and its reordering, then mirroring,
+`dir="auto"` and `unicode-bidi`. Five bugs between them. **The conformance data found none of
+them.**
+
+That is the finding worth keeping. Unicode ships 861,948 test cases for this algorithm — 91,707 in
+BidiCharacterTest.txt and 770,241 in BidiTest.txt — and `src/text/Bidi.cpp` passed all of them on
+the first run: paragraph levels, resolved levels, and visual order. It is genuinely the only thing
+that can validate twenty-odd interacting rules, because a test I write exercises the cases I thought
+of and those are the ones I got right. Three of the ten hand-written tests I *did* write had wrong
+expectations against correct code.
+
+And every one of the five real bugs was outside the algorithm's boundary. The suite checks levels
+and an order of *indices*; it has nothing to say about which font shapes a run, which end of a run
+is painted first, or whether the style a text box carries is the style its parent had.
+
+**One direction is not one script.** A line of Hebrew and Arabic is one bidi run — both are level 1,
+correctly — and handed to HarfBuzz as one buffer it is shaped entirely as Hebrew, because HarfBuzz
+takes a buffer's script from its contents. Arabic shaped as Hebrew gets no joining, so `مرحبا` came
+out as five disconnected letters: unreadable rather than ugly. `SplitByCoverage` now splits by
+script as well as by font, through `hb_unicode_script` rather than a new table — script itemization
+is what that library is sanctioned for, and Common and Inherited continue whatever run they are in
+so a space or a combining mark cannot split a word.
+
+**The bug that only a probe could find.** With the script split in place, the pieces of a run were
+still laid down left to right — so within a right-to-left run the logically-first piece landed
+leftmost instead of rightmost. I looked at the rendering three times and could not tell. I described
+it to myself once as correct and once as wrong. A four-line `fprintf` settled it in one run:
+`pen=630.7 'ערבית: '` followed by `pen=683.6 'مرحبا بالعالم'`, exactly reversed. **Reading a
+rendering of a script you cannot read is not verification**, and the general form of that is worth
+remembering: when the observation channel is the thing under test, add a second channel rather than
+looking harder.
+
+**HarfBuzz will not be told by the text.** `<bdo dir=rtl>abcdef</bdo>` drew `abcdef`, because Latin
+script means left-to-right whatever the resolved level says — and an override is precisely the case
+where the level and the script disagree. `TextShaper::Shape` now takes the direction as a parameter.
+The resolved direction rides on the display list's *text run* rather than on the command, because a
+command is 24 bytes and full — and because it belongs beside the advance: both are facts decided
+before paint that paint cannot recompute.
+
+**A synthetic control announces itself to nothing.** `unicode-bidi` is implemented as the pairs of
+explicit control characters UAX #9 already defines, which is why the property cost almost no code —
+but those controls are inserted by layout, so `NeedsBidi`'s byte scan over the document's text
+correctly reported that an all-ASCII `<bdo>` line needed nothing. The fast path now also asks whether
+any box on the line *wants* a control.
+
+**Two lists of inherited properties, and the older one had drifted.** `src/layout` built the style
+for the anonymous box around a text node with its own hand-written list of seven inherited
+properties. `direction` and `unicode-bidi` went into the cascade's list and not into that one, so a
+right-to-left `<span>` was right-to-left and the text inside it was not. This was invisible in every
+rendering — the paragraph's direction comes from the *block*, so `direction` on a text box is never
+read, and only `unicode-bidi` silently did nothing. There is one list now, `css::InheritInto`, with a
+test asserting what it copies; the text-box caller passes `with_custom_properties=false`, because a
+text box has no declarations and copying that table per text node is a vector copy per text node.
+**Two lists that must agree is not a duplication smell, it is a scheduled bug**, and the schedule is
+"whenever someone adds an inherited property".
+
+Where the algorithm runs is the only design decision in it: after line breaking, because L1 and L2
+reorder per *line*; before shaping, because a shaped run must be uniform in direction. And the
+reorder is across the **line**, not per box — `<span>שלום</span> world` is one bidi paragraph, and
+reordering each span separately is a different wrong answer from no bidi at all.
+
+Measured: `he.wikipedia.org` renders right-to-left with numbers reading forward inside it (11,696
+bidi lines, 12,148 runs). `<bdi>` demonstrably does its job — `user: شخص 3 posts` puts the `3`
+*before* the name without isolation and after it with. And Hacker News is **byte-identical at 705
+display-list commands with zero bidi counters**, which is the assertion that a feature capable of
+costing every page in the world something costs the English ones nothing: `NeedsBidi` rejects a line
+with no byte at or above 0xD6 before decoding anything.
+
+**One piece of session 34 is not built, and it is not bidi's fault.** The two-position caret has
+nothing to attach to: a page's caret is end-of-value only, which `src/engine/PageEditing.cpp` has
+said at the top since the editing code was written. There is no caret *position*, so there is no
+direction boundary to put two of them at. Recorded in the ledger against the caret model, which is
+not on this roadmap at all.
