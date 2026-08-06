@@ -2338,3 +2338,47 @@ measurements, and neither reading was a controlled comparison. Hacker News being
 is the useful control. The message now records the reddit number as **unexplained** rather than
 explained away — a plausible cause in a commit log is worse than an admitted gap, because the next
 person reads it as evidence.
+
+### The last two demuxers · 2026-08-06 (session 26)
+
+`dc206c8` the HLS playlist parser, `ea56136` WebM/Matroska. Fragmented MP4 had landed out of order
+two days earlier, so this closes ADR 0028 §2.
+
+**Both were verified against real inputs before their fixtures were written**, and that ordering is
+the method rather than a courtesy. `test-streams.mux.dev`'s master playlist parses as 5 variants
+with their bitrates, resolutions and comma-bearing codec lists; its 720p media playlist as 64
+segments, complete, with an 11-second target duration. An ffmpeg-produced VP9 + Opus WebM of 18,685
+bytes comes out as 2 tracks and 61 samples with **51 of them sync** — which is exactly 50 Opus
+frames, all of which are keyframes, plus one VP9 keyframe. That number is why I trust the shape;
+the unit tests then assert the corners a real file never exercises.
+
+**For HLS the refusals are the substance**, because every string the parser produces becomes a URL
+this browser fetches and every number becomes a schedule it advances by:
+
+- A file without `#EXTM3U` is not a playlist. A CDN serving an HTML error page with a 200 is the
+  common case, and playing it as one is how a player ends up requesting a segment named `<html>`.
+- A duration a player cannot schedule is *dropped*, not clamped: zero is an infinite loop in a
+  scheduler that advances by duration, and a clamp invents a schedule the playlist never described.
+- A playlist with variants *and* segments is unplayable, because a player cannot know whether to
+  fetch a URL or recurse into it. The first kind seen wins and the rest is refused — a playable
+  subset rather than a guess — and the kind comes from evidence rather than from a tag.
+- Unknown tags are ignored, and that is required rather than lax: HLS is extended by adding them,
+  so a parser that refused one would refuse every playlist written after it.
+
+**EBML's hazards are not the box format's**, which is why WebM is a separate parser rather than a
+mode of the MP4 one. An element's id *and* its size are variable-length integers, so the length of
+the length comes from the file — one function reads both with a flag, because an id keeps its marker
+bit and a size strips it, and two functions would let that arithmetic diverge. An **unknown size is
+legal** and is what a live stream sends, so treating it as an error would refuse every live WebM.
+And a block's timecode is **signed**: a frame may precede its cluster's base, and reading it
+unsigned puts that frame 65 seconds into the future, where a player schedules it and waits.
+
+The Matroska tests *build* their fixtures rather than pasting hex, because EBML is structured and a
+blob hides which field a test is about — `Element(kTracks, …)` says what it means, and a test that
+needs a malformed length writes exactly that. Two of them are exhaustive rather than illustrative:
+every prefix of a file, and every single byte flipped, must come back as a usable file or a refusal
+with no sample pointing past the data. A partial download is the common case for a large video.
+
+One practical note for later sessions: **ffmpeg is on this machine**, which is how the WebM fixture
+was made. Session 28's MSE work needs an initialization segment and media segments, and those are
+one ffmpeg invocation away rather than a hand-built file.
