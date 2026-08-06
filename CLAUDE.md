@@ -132,13 +132,30 @@ What the counters say as of that commit, so the next session does not re-measure
 page that is 100% white.** So the app's code runs, boxes exist, and nothing reaches the screen. That
 is a different problem from the twelve above and it is where to start.
 
-**The tooling gap in the way is the one `docs/session-log.md` named for reddit three sessions ago:
-there is no way to evaluate a probe script against a live page.** `microbrowser_snapshot` can drive
-input and dump a display list, but it cannot ask the page a question -- `customElements.get('ytd-app')`,
-`document.querySelectorAll('ytd-app').length`, what a shadow root contains. Every candidate for the
-blank page (elements that never upgrade, a fetch whose response never becomes nodes, a render the app
-defers to a frame callback nothing delivers) is one line of JavaScript to distinguish and currently
-unanswerable from outside. Build that first; it is smaller than any of the guesses it settles.
+**`microbrowser_snapshot -eval '<js>'` now asks the page questions** -- it runs a string in the
+loaded page's own interpreter and prints what it evaluated to. It was built to answer exactly this,
+and it did, in two runs. What it says:
+
+    document.querySelectorAll("*").length          -> 1234
+    customElements.get("ytd-app")                  -> function      (registered)
+    typeof ytInitialData / key count               -> object, 6     (the data is there)
+    elements whose tag starts YTD-                 -> 2
+    document.querySelector("ytd-app").shadowRoot   -> null
+    getComputedStyle(ytd-app).display + its rect   -> block, 1280x0
+    not display:none / with a non-empty box        -> 1136 / 180
+
+So the app registered its elements and has its data, and then **built no component tree**: two
+`ytd-*` elements where a rendered page has hundreds, and `ytd-app` has *no shadow root at all* --
+a Polymer element attaches one when it renders its template, so it never rendered. Its box is
+1280x0, which is the consequence rather than the cause.
+
+That is the next question, and it is one question rather than three: **what stops Polymer's first
+render?** The candidates are a flush it schedules on something this browser does not deliver, the
+`webcomponents-all-noPatch` shim's own path into `attachShadow`, or a reaction that never fires.
+`-eval` can distinguish them -- ask what `ytd-app.__shady_native_*` looks like, whether
+`attachShadow` was ever called, what the element's own `_template` is. The display list is worth
+reading beside it: `-v` shows a 56px masthead, a 72px sidebar and a 1208px content column, all
+white on white with **no text command anywhere**, which is the same finding from the other side.
 
 **Read `docs/roadmap-to-any-page.md` first.** It sequences ADRs 0015–0030 into sessions with a
 runnable check on each, and it supersedes the ordering of this list wherever the two disagree. The

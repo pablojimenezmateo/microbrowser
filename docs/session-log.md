@@ -3291,3 +3291,26 @@ same way.
 Method note, for the fifth session running: **none of these twelve failed a test first.** All twelve
 came from running the real page and reading what it said. What changed this time is that the first
 one made "what it said" include *where*, and the eleven after it took minutes rather than sessions.
+
+**And then the second tool, for the same reason.** With the bundle running clean the page was still
+blank, and there was no way to ask it anything -- the gap this log named for reddit three sessions
+ago. `microbrowser_snapshot -eval '<js>'` runs a string in the loaded page's *own* interpreter and
+prints what it evaluated to. Two runs, and the investigation turned around:
+
+    document.querySelectorAll("*").length          -> 1234
+    customElements.get("ytd-app")                  -> function
+    typeof ytInitialData / key count               -> object, 6
+    elements whose tag starts YTD-                 -> 2
+    document.querySelector("ytd-app").shadowRoot   -> null
+    getComputedStyle(ytd-app).display + its rect   -> block, 1280x0
+    not display:none / with a non-empty box        -> 1136 / 180
+
+The app registered its elements and has its data, and built **no component tree**: two `ytd-*`
+elements where a rendered page has hundreds, and `ytd-app` with no shadow root -- a Polymer element
+attaches one when it renders its template, so it never rendered. The zero height is the consequence.
+So the next session's question is one question and not three: what stops Polymer's first render.
+
+The general lesson is the one both tools share. **Every session that ended in "it renders wrong and
+I do not know why" ended there because the browser could not be asked.** An error that says where,
+and a page that can be questioned, are not conveniences on top of the work -- between them they
+turned a session's worth of guessing into twelve fixes and a named next step.
