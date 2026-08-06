@@ -89,7 +89,14 @@ budget: FontProvider   header_lines=60 public_methods=8  members=0
 # primitive it is built from. The pair is deliberate -- one answers with a font (the preferred face
 # when nothing covers the character, because a visible box is the honest glyph) and the other answers
 # the coverage question a caller needs to decide whether to keep looking.
-budget: FontCatalog header_lines=130 public_methods=18 members=6
+# 175 lines and a seventh member for the match cache. Choosing a face is a pass
+# over every registered face, and it was being redone per text measurement --
+# 985,000 times against 490 faces on en.wikipedia.org/wiki/CSS, which was 227 of
+# that page's 259 seconds. The lines are the key (what a match depends on, and
+# what it deliberately does not: size) and the invalidation rule, which is the
+# part that has to be right -- a stale entry here is the wrong typeface drawn
+# with the right metrics.
+budget: FontCatalog header_lines=175 public_methods=18 members=7
 # Owns a shaper and an LRU of shaped runs, which is four members before the
 # provider it borrows. Shaping is the most expensive step in the text stack and
 # the cache is why this type exists at all -- see the class comment.

@@ -40,4 +40,9 @@ budget: SdlAudioDevice   header_lines=55 public_methods=10 members=4
 # +1 member and +15 lines for per-character font fallback: the coverage cache, keyed by
 # 256-code-point block. Without it a page of Japanese probes every installed face once per
 # character; with it, once per script.
-budget: SystemFontProvider header_lines=95 public_methods=14 members=4
+# +1 member and +17 lines for the resolution cache. FontFor is three full passes
+# -- every font file on the machine, every loaded face, then the catalog's own
+# match -- to answer a question about the *request*, and layout asks it for the
+# width, the line height and the ascent of every text run. It is dropped when a
+# face is loaded, which is the only event that can change an answer.
+budget: SystemFontProvider header_lines=115 public_methods=14 members=5

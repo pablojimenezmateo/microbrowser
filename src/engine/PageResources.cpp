@@ -266,7 +266,13 @@ void Page::RebuildAuthorStyleSheets() {
     // the loader rather than added to the cascade.
     resources_.font_faces.insert(resources_.font_faces.end(), cached->font_faces.begin(),
                                  cached->font_faces.end());
-    resolver_.AddStyleSheet(*cached, css::Origin::Author);
+    {
+      // Copies every rule into the resolver's own entry list, and the resolver
+      // is thrown away and rebuilt whenever anything changes -- so this is paid
+      // per rebuild, per rule. See TD-0004.
+      util::PerformanceTrace::Scope add("css::AddStyleSheet");
+      resolver_.AddStyleSheet(*cached, css::Origin::Author);
+    }
     CollectKeyframes(*cached);
   }
   // And each shadow root's own sheets, *scoped* to it: a rule inside a component
@@ -298,7 +304,14 @@ void Page::RebuildAuthorStyleSheets() {
   // wants is not known until its stylesheets have arrived. Re-collected here
   // rather than only at load, or a page whose icons come from an external sheet
   // -- which is every page that has any -- would never fetch one.
-  CollectImages();
+  //
+  // Scoped because it resolves the cascade over the whole document a second
+  // time, and it is inside a function that already looked like it only parsed
+  // stylesheets. See TD-0005.
+  {
+    util::PerformanceTrace::Scope collect("engine::CollectImages");
+    CollectImages();
+  }
   boxes_.reset();
 }
 

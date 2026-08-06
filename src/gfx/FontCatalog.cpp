@@ -67,6 +67,8 @@ bool FontCatalog::Register(std::string family, int weight, bool italic,
     default_family_ = entry->family;
   }
   faces_.push_back(std::move(entry));
+  // A new face can win a stack that already settled on another one.
+  InvalidateMatchCache();
   AddPerformanceCounter(PerfCounterId::FontFacesRegistered);
   return true;
 }
@@ -81,6 +83,8 @@ bool FontCatalog::Register(std::vector<std::byte> bytes) {
 
 void FontCatalog::SetGenericFamily(std::string generic, std::string family) {
   generics_[NormalizeFamily(generic)] = NormalizeFamily(family);
+  // `monospace` now means something else, so every stack naming it is stale.
+  InvalidateMatchCache();
 }
 
 std::string FontCatalog::ResolveFamily(std::string_view requested) const {
@@ -112,9 +116,13 @@ std::vector<std::string> FontCatalog::FamilyCandidates(const FontRequest& reques
 }
 
 int FontCatalog::FamilyRank(const std::vector<std::string>& candidates, std::string_view family) {
-  const std::string normalized = NormalizeFamily(family);
+  return RankNormalized(candidates, NormalizeFamily(family));
+}
+
+int FontCatalog::RankNormalized(const std::vector<std::string>& candidates,
+                                std::string_view normalized_family) {
   for (std::size_t i = 0; i < candidates.size(); ++i) {
-    if (candidates[i] == normalized) {
+    if (candidates[i] == normalized_family) {
       return static_cast<int>(i);
     }
   }
@@ -146,6 +154,17 @@ int FontCatalog::BestLoadedDistance(const FontRequest& request) const {
 }
 
 const FontCatalog::Face* FontCatalog::Match(const FontRequest& request) const {
+  AddPerformanceCounter(PerfCounterId::FontMatchQueries);
+  // Asked once per font stack rather than once per question about it. See
+  // `match_cache_`: this is a pass over every registered face, and layout asks
+  // it for the width, the line height and the ascent of every text run.
+  const MatchKey key{request.families, request.weight, request.italic};
+  if (const auto cached = match_cache_.find(key); cached != match_cache_.end()) {
+    AddPerformanceCounter(PerfCounterId::FontMatchCacheHits);
+    return cached->second;
+  }
+  AddPerformanceCounter(PerfCounterId::FontMatchCacheMisses);
+
   // One pass over every loaded face, ranked by where its family sits on the
   // page's list. The list already ends in the default, so falling back is not a
   // second round with different rules -- it is the last entry losing to nothing
@@ -155,14 +174,19 @@ const FontCatalog::Face* FontCatalog::Match(const FontRequest& request) const {
   const Face* best = nullptr;
   int best_distance = kNoMatch;
   for (const std::unique_ptr<Face>& candidate : faces_) {
+    // RankNormalized rather than FamilyRank: `Face::family` was normalized when
+    // it was registered, and normalizing it again here built and destroyed a
+    // string per face per lookup.
     const int distance = MatchDistance(candidate->weight, candidate->italic, request,
-                                       FamilyRank(candidates, candidate->family));
+                                       RankNormalized(candidates, candidate->family));
     if (distance < best_distance) {
       best = candidate.get();
       best_distance = distance;
     }
   }
+  AddPerformanceCounter(PerfCounterId::FontFacesRanked, faces_.size());
   if (best != nullptr) {
+    match_cache_.emplace(key, best);
     return best;
   }
   // Nothing on the list is loaded and nothing answers the default either --

@@ -379,6 +379,24 @@ namespace microbrowser::util {
   X(FontFacesRegistered, "font.faces_registered")                                \
   X(FontLookupHits, "font.lookup_hits")                                          \
   X(FontLookupMisses, "font.lookup_misses")                                      \
+  /* Which *face* a font stack settles on, as opposed to which sized Font --    */ \
+  /* `lookup_hits` counts the second and was hiding the first. Choosing a face  */ \
+  /* is a pass over every registered face, and `faces_ranked` is the product    */ \
+  /* that pass actually costs: on wikipedia it was 985,000 queries against 490  */ \
+  /* faces, which is where 227 of that page's 259 seconds went. Watch           */ \
+  /* faces_ranked rather than the query count -- a page with two faces and a    */ \
+  /* page with five hundred ask the same number of times.                      */ \
+  X(FontMatchQueries, "font.match_queries")                                      \
+  X(FontMatchCacheHits, "font.match_cache_hits")                                 \
+  X(FontMatchCacheMisses, "font.match_cache_misses")                             \
+  X(FontFacesRanked, "font.faces_ranked")                                        \
+  /* And the layer above: resolving a request against the *machine's* fonts,   */ \
+  /* which is three passes -- every font file on disk, every loaded face, then */ \
+  /* the catalog's own match. `resolve_cache_misses` is how many of those      */ \
+  /* triples a page actually costs; it should be the number of distinct font   */ \
+  /* stacks on the page, and nothing like the number of text runs.             */ \
+  X(FontResolveCacheHits, "font.resolve_cache_hits")                             \
+  X(FontResolveCacheMisses, "font.resolve_cache_misses")                         \
   X(ShapedRunCacheHits, "text.shaped_run_cache_hits")                            \
   X(ShapedRunCacheMisses, "text.shaped_run_cache_misses")                        \
   X(TextRunsPainted, "text.runs_painted")                                        \

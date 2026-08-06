@@ -83,9 +83,48 @@ class SystemFontProvider : public gfx::FontProvider {
   std::size_t BestUnloaded(const gfx::FontRequest& request, int& distance_out) const;
   bool Load(Indexed& entry);
 
+  // What a request resolves to, remembered.
+  //
+  // `FontFor` is three full scans -- every *file* on the machine to find a
+  // better unloaded candidate, every loaded face to find what it would beat,
+  // and then the catalog's own match -- and layout asks it for the width, the
+  // line height and the ascent of every text run. On en.wikipedia.org/wiki/CSS
+  // that was 985,000 calls, and 227 of that page's 259 seconds.
+  //
+  // The three scans exist to answer "is there a file worth paging in for this
+  // request", which is a question about the *request*, not about how many times
+  // it is asked. A page uses a handful of stacks, so this stays small.
+  //
+  // Size is part of the key here and not in the catalog's: this hands back a
+  // `Font`, which is a face at a size.
+  struct ResolvedKey {
+    std::vector<std::string> families;
+    std::uint32_t size_bits = 0;
+    int weight = 400;
+    bool italic = false;
+
+    friend bool operator<(const ResolvedKey& a, const ResolvedKey& b) {
+      if (a.size_bits != b.size_bits) {
+        return a.size_bits < b.size_bits;
+      }
+      if (a.weight != b.weight) {
+        return a.weight < b.weight;
+      }
+      if (a.italic != b.italic) {
+        return static_cast<int>(a.italic) < static_cast<int>(b.italic);
+      }
+      return a.families < b.families;
+    }
+  };
+
   gfx::FontCatalog catalog_;
   std::vector<Indexed> index_;
   std::string default_family_;
+  // Dropped whenever a face is loaded, because a newly loaded file is exactly
+  // the thing that can beat an answer already given. That is the only event
+  // that can change one: the index is built once, and `Load` is the single
+  // place a face enters the catalog from it.
+  std::map<ResolvedKey, gfx::Font*> resolved_;
   // Which family covered a code point, keyed by its 256-code-point block. A page of Japanese asks
   // once per character and the answer is the same face every time, so this turns thousands of
   // coverage probes into one per block -- and a block is the right granularity because scripts are

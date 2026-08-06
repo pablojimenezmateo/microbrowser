@@ -114,7 +114,12 @@ class FontCatalog : public FontProvider {
   // The family used for an empty or unmatched request. Set once, at startup,
   // by whoever built the catalog: a request that matches nothing must still
   // render, or a page with one bad family name renders no text at all.
-  void SetDefaultFamily(std::string family) { default_family_ = NormalizeFamily(family); }
+  void SetDefaultFamily(std::string family) {
+    default_family_ = NormalizeFamily(family);
+    // The default is the last entry of every candidate list, so changing it can
+    // change what a stack that matched nothing else settles on.
+    InvalidateMatchCache();
+  }
 
   Font* FontFor(const FontRequest& request) override;
 
@@ -189,6 +194,42 @@ class FontCatalog : public FontProvider {
 
   const Face* Match(const FontRequest& request) const;
 
+  // FamilyRank without the normalization, for a caller that already holds a
+  // normalized name -- which inside this class is every caller, because
+  // `Face::family` is normalized at registration. The public FamilyRank
+  // normalizes and delegates here, so there is still one implementation of the
+  // ordering; what is removed is a `std::string` built and thrown away *per
+  // face, per lookup*, which on a page with 490 registered faces and a million
+  // lookups was hundreds of millions of allocations.
+  static int RankNormalized(const std::vector<std::string>& candidates,
+                            std::string_view normalized_family);
+
+  // What Match answers to, minus everything it does not look at. Size is
+  // deliberately absent: a face is chosen by family, slant and weight, and the
+  // size is applied to the face afterwards -- so 15px and 16px of one stack are
+  // one entry here rather than two.
+  struct MatchKey {
+    std::vector<std::string> families;
+    int weight = 400;
+    bool italic = false;
+
+    friend bool operator<(const MatchKey& a, const MatchKey& b) {
+      if (a.weight != b.weight) {
+        return a.weight < b.weight;
+      }
+      if (a.italic != b.italic) {
+        return static_cast<int>(a.italic) < static_cast<int>(b.italic);
+      }
+      return a.families < b.families;
+    }
+  };
+
+  // Every registration and every change to what a family name means drops this.
+  // A stale entry here is the wrong typeface drawn with the right metrics,
+  // which is worse than a slow lookup -- so it is cleared at each of the four
+  // places that can change the answer rather than validated at read time.
+  void InvalidateMatchCache() { match_cache_.clear(); }
+
   FontLibrary* library_;
   // unique_ptr because a Font holds a FontFace*, so a face's address must
   // outlive every Font resolved from it — a vector that reallocates would
@@ -199,6 +240,19 @@ class FontCatalog : public FontProvider {
   // Keyed on the face and the size's exact bits: two requests for 15.5px must
   // share a Font, and 15.5 and 15.4 must not.
   std::map<std::pair<const Face*, std::uint32_t>, Font> sized_;
+  // Which face a font stack settles on, remembered.
+  //
+  // Matching is a pass over *every* registered face, and it was being redone
+  // per text measurement: 985,000 of them on en.wikipedia.org/wiki/CSS, against
+  // 490 faces, each comparison building a string. That was 227 of the 259
+  // seconds that page took to load. A page uses a handful of distinct stacks,
+  // so this stays small -- it is keyed by what the page asked for, not by how
+  // many times it asked.
+  //
+  // Mutable because choosing a face does not change the catalog: `Match` is
+  // const and stays const, since a caller must not have to know that asking is
+  // what fills this in.
+  mutable std::map<MatchKey, const Face*> match_cache_;
 };
 
 }  // namespace microbrowser::gfx

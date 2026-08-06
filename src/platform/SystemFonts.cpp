@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdio>
 #include <optional>
 #include <system_error>
@@ -197,6 +198,10 @@ std::size_t SystemFontProvider::BestUnloaded(const gfx::FontRequest& request,
 
 bool SystemFontProvider::Load(Indexed& entry) {
   entry.loaded = true;  // set first: a file that fails to parse must not be retried every frame
+  // A newly loaded face can beat an answer already given, and this is the only
+  // event that can. Dropped before the load rather than after so that a
+  // registration failing part-way cannot leave a stale entry behind.
+  resolved_.clear();
   std::vector<std::byte> bytes = ReadFileBytes(entry.path);
   if (bytes.empty()) {
     return false;
@@ -253,6 +258,17 @@ gfx::Font* SystemFontProvider::FontForCodePoint(const gfx::FontRequest& request,
 }
 
 gfx::Font* SystemFontProvider::FontFor(const gfx::FontRequest& request) {
+  // Asked once per distinct request rather than once per question about it.
+  // See `resolved_`: everything below this is three passes over the machine's
+  // fonts, and the answer depends on the request rather than on the asking.
+  const ResolvedKey key{request.families, std::bit_cast<std::uint32_t>(request.size),
+                        request.weight, request.italic};
+  if (const auto cached = resolved_.find(key); cached != resolved_.end()) {
+    util::AddPerformanceCounter(util::PerfCounterId::FontResolveCacheHits);
+    return cached->second;
+  }
+  util::AddPerformanceCounter(util::PerfCounterId::FontResolveCacheMisses);
+
   // Load a file only when it would answer this request *better* than anything
   // already loaded. That is what keeps a page using six faces from paging in
   // every font on the machine, and what still lets the bold face arrive when
@@ -262,7 +278,11 @@ gfx::Font* SystemFontProvider::FontFor(const gfx::FontRequest& request) {
   if (candidate != std::string::npos && candidate_distance < catalog_.BestLoadedDistance(request)) {
     Load(index_[candidate]);
   }
-  return catalog_.FontFor(request);
+  gfx::Font* resolved = catalog_.FontFor(request);
+  // After the load, so the entry records what this request settles on with that
+  // file in rather than without it.
+  resolved_.emplace(key, resolved);
+  return resolved;
 }
 
 }  // namespace microbrowser::platform
