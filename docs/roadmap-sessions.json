@@ -491,11 +491,12 @@
       "id": 47,
       "phase": "E",
       "title": "HTTP/2",
-      "adr": "0010 §3",
+      "adr": "0010 §3, 0032",
       "anchor": "## Phase E — any page",
       "scope": "With HPACK's dynamic table bounded on the decode side regardless of what the peer claims. google.com effectively requires it.",
-      "check": null,
-      "status": "not_started"
+      "check": "MICROBROWSER_PERF_COUNTERS=1 ./build/microbrowser-perf/microbrowser/microbrowser_snapshot https://en.wikipedia.org/wiki/CSS -o out.ppm, five consecutive runs: 19 images drawn every run, engine.images_failed zero every run, and net.connections 3 rather than 13 for the same 24 fetches. That is TD-0008, which is the only measured *rendering* cost of the missing transport and therefore the only check worth running.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 8d3f519, Release build. Five runs, 19/19 images each, engine.images_failed 0 each, 24 fetches over 3 connections and 3 TLS handshakes. The HTTP/1.1 baseline was taken the same afternoon on the same machine by commenting out SSL_CTX_set_alpn_protos: 4, 4, 7, 4, 10 images, 15 failures, 13 connections. Also: news.ycombinator.com 6 fetches / 1 connection / 1 handshake; old.reddit.com 53 / 6 / 6 (was 40 / 20 / 20); www.youtube.com 32 / 9 / 9. HPACK compresses request and response headers 3.68x on old.reddit (net.hpack_block_bytes against net.hpack_decoded_bytes). **The fix for TD-0008 was not HTTP/2, it was the connection coalescing** -- ALPN answers after the socket is open, so six concurrent images would have opened six sockets and negotiated h2 on each, which is the same burst upload.wikimedia.org answers 429 to. Design in ADR 0032, which this session added because ADR 0010 §3 decided the protocol and not the pool. What is left in net is TD-0010: kMaxConnectionsPerPartition bounds requests rather than connections and six is the HTTP/1.1 number."
     },
     {
       "id": 48,
