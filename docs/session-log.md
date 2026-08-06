@@ -2068,3 +2068,72 @@ cannot make the wire bytes look like an HTTP request to an intermediary; `wss://
 there is no intermediary that can see them, and a weak PRNG is no better than a counter
 against that attack while being harder to reason about. A plaintext `ws://` path must not
 ship without a real mask.
+
+### WebSocket and EventSource · 2026-08-06 (session 23 finished)
+
+Five commits. The two long-lived connections, and everything about them that is not the
+bytes on the wire is about the loop.
+
+**The zero-idle-CPU argument is a test now, not a paragraph.** An open connection is one
+descriptor in the idle wait and nothing else — no timer, no poll, no keepalive — so a page
+holding one reports *no runnable work*. The test asserts both halves, and it has to:
+work-and-waiting spins, and neither-work-nor-waiting means messages arrive only when
+something else happens to wake the loop. Ping is answered and never originated for the same
+reason, and a waiting `EventSource` is the only long-lived connection that contributes a
+deadline at all.
+
+**The reconnect is the only request in this browser the user did not cause**, which makes
+it the one place a bug becomes a browser hammering a server on a page nobody is looking at.
+So the bound *is* the feature: the delay doubles from `retry:` or three seconds, caps at
+thirty, and after six consecutive failures it stops and stays stopped. A non-200 or a wrong
+content type is permanent with no retry at all — a URL that answers 404 will answer 404
+again, and retrying it six times with backoff is six requests nobody asked for. A stream
+that delivered something resets the counter, because that counter is about a server that
+cannot hold a connection rather than one that eventually drops a healthy one.
+
+The engine supplies the transport for a reconnect and the *connection* decides when. That
+split is the interesting one: a connection that could make its own transport would be one
+that could reconnect after the page that opened it was gone.
+
+**Three refusals in the frame codec are refusals for reasons of their own**, not because
+the RFC says so. A masked server frame: accepting one means accepting a frame a proxy could
+have rewritten, which is what the masking rule exists to prevent. A redundant length form:
+legal by the letter of §5.2, refused for the reason WOFF2's base-128 refuses leading zeros
+— a second spelling of a length is a second way for two implementations to disagree about
+what a frame is, and the encoder writes the shortest form so this browser never produces a
+frame it would itself refuse. And a control frame that is fragmented or over 125 bytes,
+because a fragmented `close` is a state machine two implementations disagree about.
+
+`Failed` versus `Incomplete` is where the bound lives rather than in a size check: the two
+mean *close* versus *wait* to a connection, so a declared nine exabytes has to be `Failed`
+— answering "incomplete" would be an instruction to buffer it.
+
+**Two bugs, both from doing the work before believing the failure.** The connection
+returned as soon as the transport said the peer had closed, which lost the handshake and
+every frame already in the buffer — a server may answer and hang up in the same packet, and
+many do. And `EventSourceConnection` never set `opened`, because the line that should have
+was a leftover from an earlier shape; the fix also made `open` fire again after a
+reconnect, which is what tells a page the stream is back.
+
+**Testing long-lived connections needed a transport that stays open**, and that is a
+finding worth reusing. `ScriptedTransport` hangs up the moment its canned response has been
+read — a real server behaviour and exactly the wrong one here, since with it the socket is
+Closed by the end of the first `Advance` and nothing about `send`, `close`, a second
+message or the idle wait can be observed. `OpenTransport` answers `Blocked` when it has
+nothing to give, which is the state an idle connection spends its life in. Two smaller
+lessons came with it: **a fake server must compute its handshake from the key the
+connection actually sent** — a hard-coded `Sec-WebSocket-Accept` tests its own paste, and
+fails — and **ASan caught the test holding a pointer to a transport the connection had
+destroyed**, because a closed socket here is usually a destroyed one. The observation is
+shared state that outlives the transport now.
+
+SHA-1 exists in this tree for exactly one caller, and `util/Sha1.h` is mostly an argument
+against a second: the handshake accept is a *protocol* check, not a security claim, and what
+makes the peer trustworthy is `wss://`. The masking key and the handshake key are both
+counters for the same reason, which is also why `ws://` is refused — accepting a plaintext
+socket would quietly invalidate two decisions made elsewhere.
+
+In the `EventSource` binding, one detail a page depends on: `readyState` goes back to
+CONNECTING on a retryable drop and to CLOSED only when the browser has given up. That is how
+a page tells "reconnecting" from "failed", and getting it backwards makes a page tear down a
+stream the browser is about to re-open.
