@@ -2266,5 +2266,33 @@ specification expires a transient activation so a click cannot license a popup a
 nothing here opens a window, and the only consumer is autoplay — where sticky is what a user
 expects. The first transient consumer turns this into a timestamp.
 
-What is left of the session is wiring: the binding over the state machine, the engine half that
-drives it from the loader, and default controls as user-agent boxes.
+The binding landed too, in `7298d18`. **The promise is the part that had to be right**: every
+player on the web calls `play()`, catches `NotAllowedError` and shows a play button, so a
+`play()` that returned undefined would make those players silently do nothing. `NotSupportedError`
+when there is no source is the same argument one level down — a page shows an error for one and a
+button for the other.
+
+Two things are refused rather than faked, both ADR 0012's rule: `canPlayType` answers the empty
+string for everything, because "maybe" is a lie a page acts on and there is no decoder; and
+`load()` throws rather than returning, because a page that calls it expects a reset and a no-op
+leaves stale state.
+
+**Three lessons from that commit are about shape rather than logic, and all three cost time:**
+
+- **The architecture lint refused the first version.** Two state maps on `Page` made it hold
+  members from five modules, and the message is "split the coordination rather than widening the
+  class". It was right: what `Page` does with media is coordinate — read the document's
+  activation, fire the events at script — and `engine::MediaElements` owns the map.
+- **A `const` read has to create the state.** `video.networkState` on an untouched element must
+  answer LOADING when it has a `src`, because that is what the attribute means. The first version
+  only *found* state on the const path and answered EMPTY, reporting "no source" for an element
+  that had one.
+- **`Page::Load` builds a tree but does not run scripts** — the engine's load pipeline does. The
+  first version of the three element tests asserted against a script that never ran and reported
+  an empty console, which is the failure mode a harness should not be able to have quietly. They
+  use the engine harness now.
+
+What is left of the session is the engine half — nothing fetches a media `src` yet, so nothing
+drives `MetadataArrived`/`BufferedAhead`; that is where sessions 26 and 27 arrive — and default
+controls as user-agent boxes, which is the one part of this session that is layout work rather
+than plumbing.
