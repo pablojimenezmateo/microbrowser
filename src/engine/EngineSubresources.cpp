@@ -127,6 +127,7 @@ void Engine::StartSubresources() {
 
   StartImageRequests();
   StartFontRequests();
+  StartWorkerScriptRequests();
 
   load_.total_resources = load_.resources.size();
 }
@@ -140,6 +141,41 @@ void Engine::StartFontRequests() {
         face.url, *page_.BaseUrl(), privacy::ResourceType::Font, NowSeconds(), {});
     font_fetches_[id] = face;
   }
+}
+
+void Engine::StartWorkerScriptRequests() {
+  if (!page_.BaseUrl().has_value()) {
+    return;
+  }
+  for (const Page::PendingWorkerScript& pending : page_.TakeUnrequestedWorkerScripts()) {
+    const Loader::RequestId id = loader_.StartSubresource(
+        pending.url, *page_.BaseUrl(), privacy::ResourceType::Script, NowSeconds(), {});
+    if (id == 0) {
+      // Refused before it went out -- the privacy layer, or a URL the loader would not take. The page
+      // hears about it as an `error` event, which is the same thing a 404 produces: a page does not need
+      // to know *why* its worker script did not arrive, only that it did not.
+      page_.FailWorkerLoad(pending.worker_id, "the worker script could not be requested");
+      continue;
+    }
+    worker_fetches_[id] = pending.worker_id;
+  }
+}
+
+bool Engine::OnWorkerScriptFetch(Loader::Completion completion) {
+  const auto found = worker_fetches_.find(completion.id);
+  if (found == worker_fetches_.end()) {
+    return false;
+  }
+  const std::uint64_t worker_id = found->second;
+  worker_fetches_.erase(found);
+  if (!completion.result.ok || completion.result.body.empty()) {
+    page_.FailWorkerLoad(worker_id, "the worker script failed to load");
+    return true;
+  }
+  // The thread starts here, and anything the page queued while the fetch was in flight is drained on the
+  // worker's first loop iteration -- which is why the inbox exists from `Reserve` rather than from here.
+  page_.ProvideWorkerScript(worker_id, std::move(completion.result.body));
+  return true;
 }
 
 bool Engine::OnFontFetch(Loader::Completion completion) {

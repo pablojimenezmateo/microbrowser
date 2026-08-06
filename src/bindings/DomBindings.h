@@ -10,6 +10,7 @@
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
 #include "bindings/Canvas.h"
+#include "bindings/Workers.h"
 #include "bindings/Media.h"
 #include "bindings/Network.h"
 #include "bindings/Sockets.h"
@@ -115,7 +116,7 @@ class DomBindings {
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
               HistorySource* history = nullptr, StorageSource* storage = nullptr,
               SocketSource* sockets = nullptr, MediaController* media = nullptr,
-              CanvasSurface* canvas = nullptr);
+              CanvasSurface* canvas = nullptr, WorkerHost* workers = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -464,6 +465,18 @@ class DomBindings {
   void SetClipboardText(std::string text) { clipboard_ = std::move(text); }
   const std::string& ClipboardText() const { return clipboard_; }
 
+  // --- workers, in WorkerBindings.cpp (ADR 0022 §1) --------------------------
+  void InstallWorker();
+  void InstallStructuredClone();
+  void RememberWorker(std::uint64_t id, const js::Value& worker);
+
+ public:
+  // A message or an error from a worker, delivered to the page's `Worker` object. Public because the
+  // engine drains the worker queues on the main loop's turn and hands them here.
+  bool DeliverWorkerMessage(std::uint64_t id, const std::string& serialized,
+                            const std::string& error, bool is_error);
+
+ private:
   void InstallCanvas(const js::Value& target);
   js::Value MakeCanvasContext(const js::Value& canvas);
   void InstallImageData(const js::Value& context);
@@ -656,6 +669,7 @@ class DomBindings {
   SocketSource* sockets_ = nullptr;
   MediaController* media_ = nullptr;
   CanvasSurface* canvas_ = nullptr;
+  WorkerHost* workers_ = nullptr;
   // What a page last wrote to the clipboard. Held here rather than handed to the system, because
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
   // string -- and a test needs to see what was written either way. The chrome takes it from here.

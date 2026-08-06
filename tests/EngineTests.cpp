@@ -16,6 +16,9 @@
 #include "url/Url.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include <chrono>
+#include <thread>
+
 #include "support/DriveLoop.h"
 #include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
@@ -2536,6 +2539,121 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/");
     paused.Layout(400.0f);
     Expect(!paused.NextWakeDelay(0).has_value(), "a paused animation schedules nothing");
+  });
+
+  AddTest(tests, "Worker/AScriptRunsOnItsOwnThreadAndMessagesCrossByValue", [] {
+    // **ADR 0022 §1 end to end**, and the assertions worth having are the ones about the *boundary*: a
+    // value crosses as bytes and comes back as an object in the other heap, a `Map` survives both
+    // crossings (which `JSON.parse(JSON.stringify())` cannot do), an uncaught throw inside the worker
+    // arrives as an `error` event, and `terminate()` joins the thread.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<script>"
+                   "var w = new Worker('/w.js');"
+                   "w.onmessage = function(e) {"
+                   "  console.log(e.data.kind + ':' + (e.data.total === undefined ? '' : e.data.total) +"
+                   "           (e.data.isMap === undefined ? '' : e.data.isMap + ',' + e.data.got));"
+                   "  if (e.data.kind === 'ready') { w.postMessage({kind:'sum', upto: 100}); }"
+                   "  else if (e.data.kind === 'sum') {"
+                   "    w.postMessage({kind:'echo', map: new Map([['a','A']])}); }"
+                   "  else if (e.data.kind === 'echo') { w.postMessage('boom'); }"
+                   "};"
+                   "w.onerror = function(e) { console.log('error:' + e.message); w.terminate();"
+                   "                           console.log('terminated'); };"
+                   "</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("application/javascript",
+                   "onmessage = function(e) {"
+                   "  if (e.data.kind === 'sum') {"
+                   "    var t = 0; for (var i = 0; i < e.data.upto; i++) t += i;"
+                   "    postMessage({kind:'sum', total: t});"
+                   "  } else if (e.data.kind === 'echo') {"
+                   "    postMessage({kind:'echo', isMap: e.data.map instanceof Map,"
+                   "                 got: e.data.map.get('a')});"
+                   "  } else { throw new Error('on purpose'); }"
+                   "};"
+                   "postMessage({kind:'ready'});")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    // The crank, until the round trip is done.
+    //
+    // **This one has to wait in wall-clock time, and that is the point rather than a concession.** Every
+    // other test here turns the crank in a tight loop because a canned transport answers instantly; a
+    // worker is a *different thread*, and how soon it runs is the scheduler's business. The first version
+    // spun 2000 turns in microseconds and passed on an idle machine while failing in the full suite,
+    // where the other shards had the cores -- which is exactly the flake a busy-wait against another
+    // thread produces. So it sleeps when there is nothing to do and gives up on a deadline.
+    std::string log;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (std::chrono::steady_clock::now() < deadline) {
+      const bool advanced = session.engine.Advance();
+      const bool ran = session.engine.RunDueWork();
+      log.clear();
+      for (const std::string& line : session.engine.ConsoleOutput()) {
+        log += line + "|";
+      }
+      if (log.find("terminated") != std::string::npos) {
+        break;
+      }
+      if (!advanced && !ran && !session.engine.HasRunnableWork()) {
+        // Nothing for this thread to do, so yield rather than burn a core waiting for the other one.
+        // The real loop blocks on the worker's pipe here; a test has no window to wait on, so a
+        // millisecond is the equivalent.
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    }
+    Expect(log.find("ready:") != std::string::npos,
+           "the worker's script ran on its own thread and posted back: " + log);
+    Expect(log.find("sum:4950") != std::string::npos,
+           "and it computed 0..99 from a message the page sent: " + log);
+    // The one that matters: a `Map` serialised in the page's heap, rebuilt in the worker's, read there,
+    // and the answer serialised back. Two crossings, and `JSON` would have lost it on the first.
+    Expect(log.find("echo:true,A") != std::string::npos,
+           "a Map survived both crossings with its contents: " + log);
+    Expect(log.find("error:") != std::string::npos,
+           "and an uncaught throw inside the worker arrived as an error event: " + log);
+    // `terminate()` ran inside the error handler and joined the thread *before returning*, which is
+    // what makes a page that terminates and then navigates unable to race it. The line after it in the
+    // handler is the proof that the join returned rather than deadlocking.
+    Expect(log.find("terminated") != std::string::npos,
+           "terminate() joined the thread and returned: " + log);
+  });
+
+  AddTest(tests, "Worker/StructuredCloneKeepsWhatJsonWouldLose", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<script>"
+        "var cyc = {}; cyc.self = cyc;"
+        "var clone = structuredClone({m: new Map([['a',1]]), d: new Date(86400000),"
+        "                             arr: new Uint8Array([1,2,3]), cyc: cyc});"
+        "console.log('map=' + (clone.m instanceof Map) + ',' + clone.m.get('a'));"
+        "console.log('date=' + (clone.d instanceof Date) + ',' + clone.d.getTime());"
+        "console.log('bytes=' + (clone.arr instanceof Uint8Array) + ',' + clone.arr[2]);"
+        // A cycle deserialises to *one* object, not to a tree -- which is the property a page that
+        // stores a graph and reads back a tree cannot see it has lost.
+        "console.log('cycle=' + (clone.cyc.self === clone.cyc));"
+        "try { structuredClone(function(){}); } catch (e) { console.log('threw=' + e.message.slice(0,14)); }"
+        "</" "script>",
+        "https://example.org/");
+    page.RunScripts(0);
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    const auto said = [&output](const std::string& line) {
+      return std::find(output.begin(), output.end(), line) != output.end();
+    };
+    Expect(said("map=true,1"), "a Map, which JSON would have flattened to {}");
+    Expect(said("date=true,86400000"), "a Date, which JSON would have made a string");
+    Expect(said("bytes=true,3"), "a typed array, which JSON would have made an object");
+    Expect(said("cycle=true"), "and a cycle, which JSON would have thrown on");
+    Expect(said("threw=DataCloneError"),
+           "a function is a DataCloneError rather than a silent drop -- a clone that lost one would "
+           "hand a page an object that is *nearly* the one it asked for");
   });
 
   AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {

@@ -315,6 +315,11 @@ namespace microbrowser::util {
   X(CanvasSizeRefusals, "canvas.size_refusals")                                   \
   X(CanvasReadbacks, "canvas.readbacks")                                          \
   X(CanvasesTainted, "canvas.tainted")                                            \
+  X(WorkersStarted, "worker.started")                                             \
+  X(WorkersTerminated, "worker.terminated")                                       \
+  X(WorkerRefusals, "worker.refusals")                                            \
+  X(WorkerMessagesHandled, "worker.messages_handled")                             \
+  X(WorkerMessagesDropped, "worker.messages_dropped")                             \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \

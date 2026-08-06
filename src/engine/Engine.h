@@ -203,6 +203,8 @@ class Engine : private bindings::NetworkSource,
   // Called from the subresource pass and again whenever a stylesheet lands, since
   // a face is declared *in* a sheet and the sheet arrives after the document.
   void StartFontRequests();
+  void StartWorkerScriptRequests();
+  bool OnWorkerScriptFetch(Loader::Completion completion);
   // One face's bytes. True when the provider took them and the page therefore
   // needs laying out again -- text measured before a face arrived was measured in
   // a different font, which is what `font-display: swap` looks like from inside.
@@ -419,6 +421,10 @@ class Engine : private bindings::NetworkSource,
   // registering needs the family, weight and slant the descriptors declared -- the
   // file cannot be asked, since what a `font-family` stack names is the descriptor.
   std::map<Loader::RequestId, Page::PendingFontFace> font_fetches_;
+  // Worker scripts in flight, by request. ADR 0022 §1: a worker's script is fetched like any other
+  // subresource, and the worker's thread starts when it arrives -- so a page can construct a worker and
+  // post to it before either has happened.
+  std::map<Loader::RequestId, std::uint64_t> worker_fetches_;
   // Back and forward, for this tab. ADR 0026 §1: it is here rather than in
   // `src/ui` because a `pushState` entry is a URL *plus a state object owned by a
   // document*, and the chrome cannot see a document.

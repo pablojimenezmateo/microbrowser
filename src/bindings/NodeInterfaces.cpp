@@ -279,6 +279,12 @@ void DomBindings::EnsureInterfaces() {
   // stalled with no fallback left; absent, the same player uses `<video src>`, which this browser
   // does have. InstallMediaSource answers that itself.
   InstallMediaSource();
+  // Workers, and `structuredClone` beside them because it is the same algorithm. ADR 0022 §1: absent
+  // rather than broken when there is no host, because a page that finds `Worker` and gets one whose
+  // `onmessage` never fires has no fallback, and one that finds nothing runs its work on the main
+  // thread -- slower and correct.
+  InstallWorker();
+  InstallStructuredClone();
   // Absent for the same reason when there is nothing to traverse: a page that
   // finds `history.pushState` and gets nothing has already taken the branch that
   // assumes it works. InstallHistory answers that itself.

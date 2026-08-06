@@ -9,6 +9,7 @@
 
 #include "bindings/AnimationFrames.h"
 #include "bindings/Canvas.h"
+#include "bindings/Workers.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
@@ -81,6 +82,14 @@ class PageScript {
   // The canvas commands (ADR 0029 §2). Same lifetime as the others: a surface handed over after the
   // first script would leave a page whose whole rendering is a canvas with a blank one.
   void SetCanvasSurface(bindings::CanvasSurface* canvas) { canvas_ = canvas; }
+  void SetWorkerHost(bindings::WorkerHost* workers) { workers_ = workers; }
+  // A worker's message or error, forwarded to the bindings. False without an interpreter, which is the
+  // case on the turn a navigation replaced the document a worker was posting to.
+  bool DeliverWorkerMessage(std::uint64_t id, const std::string& serialized,
+                            const std::string& error, bool is_error) {
+    return bindings_ != nullptr &&
+           bindings_->DeliverWorkerMessage(id, serialized, error, is_error);
+  }
 
   // A socket's events, forwarded to the bindings when there are any. False without an
   // interpreter: a socket cannot outlive its document, but a completion can arrive on the
@@ -394,6 +403,7 @@ class PageScript {
   bindings::SocketSource* sockets_ = nullptr;
   bindings::MediaController* media_ = nullptr;
   bindings::CanvasSurface* canvas_ = nullptr;
+  bindings::WorkerHost* workers_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

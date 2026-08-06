@@ -30,7 +30,8 @@ bool DomBindings::HasUserActivation() const {
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
                          std::string url, GeometrySource* geometry, NetworkSource* network,
                          HistorySource* history, StorageSource* storage,
-                         SocketSource* sockets, MediaController* media, CanvasSurface* canvas)
+                         SocketSource* sockets, MediaController* media, CanvasSurface* canvas,
+                         WorkerHost* workers)
     : interpreter_(&interpreter),
       document_(&document),
       url_(std::move(url)),
@@ -40,7 +41,8 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
       storage_(storage),
       sockets_(sockets),
       media_(media),
-      canvas_(canvas) {}
+      canvas_(canvas),
+      workers_(workers) {}
 
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
   if (selector.empty()) {

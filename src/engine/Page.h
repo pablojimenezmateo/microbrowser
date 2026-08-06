@@ -15,7 +15,10 @@
 #include "engine/DocumentPolicy.h"
 #include "bindings/Canvas.h"
 #include "engine/Animations.h"
+#include "bindings/Workers.h"
 #include "engine/CanvasSurfaces.h"
+#include "engine/Workers.h"
+#include "util/WaitDescriptor.h"
 #include "engine/MediaElements.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
@@ -58,6 +61,7 @@ struct FormSubmission {
 // caller, because *which* fonts exist is a property of the machine and the
 // engine is the half of the seam that does not know what machine it is on.
 class Page : private layout::ImageProvider,
+             public bindings::WorkerHost,
              private bindings::GeometrySource,
              private css::StyleAdjuster,
              public bindings::CanvasSurface,
@@ -491,6 +495,40 @@ class Page : private layout::ImageProvider,
                          const std::vector<std::uint8_t>& rgba) override;
   double MeasureCanvasText(const dom::Element& element, const std::string& text) const override;
 
+  // --- `bindings::WorkerHost` (ADR 0022 §1), in PageWorkers.cpp ----------------
+  //
+  // A worker's *script* has to be fetched, and the page is the half that knows what a URL means and
+  // which subresources arrived -- which is why the host is here rather than on `Workers`.
+  std::uint64_t StartWorker(const std::string& url) override;
+  bool PostToWorker(std::uint64_t id, const std::string& serialized) override;
+  void TerminateWorker(std::uint64_t id) override;
+
+  // The messages workers sent back, delivered to the page on this turn. True when any handler ran, which
+  // the loop reads as "the document may have changed".
+  bool DeliverWorkerMessages();
+  // What the platform wait should watch, and whether anything is already queued. Both go to the loop
+  // through the engine, and both answer *nothing* when there are no workers -- which is what keeps a
+  // page with none from paying for the feature.
+  void AppendWorkerDescriptors(util::WaitDescriptorList& out) const {
+    workers_.AppendDescriptors(out);
+  }
+  bool WorkersHaveWork() const { return workers_.HasWork(); }
+
+  // The worker scripts this page has asked for and not yet been given, taken. The engine fetches them,
+  // for the reason it fetches a `@font-face`'s URL: a request needs a privacy verdict and producing one
+  // is the loader's job. **`new Worker` stays synchronous while the fetch is not** -- the id and the
+  // inbox exist immediately, so a page that posts before the script arrives has its messages queued.
+  struct PendingWorkerScript {
+    std::uint64_t worker_id = 0;
+    std::string url;
+  };
+  std::vector<PendingWorkerScript> TakeUnrequestedWorkerScripts();
+  void ProvideWorkerScript(std::uint64_t worker_id, std::string source);
+  // The script did not load. Delivers the `error` event directly rather than through the worker's queue,
+  // because the worker never started and its pipe is closed before the loop's next turn.
+  void FailWorkerLoad(std::uint64_t worker_id, const std::string& reason);
+  std::size_t WorkerCount() const { return workers_.Count(); }
+
 
   // `css::StyleAdjuster`: the animation pass over a resolved style. Private, and reached only through
   // the resolver -- so nothing can apply an animated value without going through the cascade, which is
@@ -743,6 +781,8 @@ class Page : private layout::ImageProvider,
   // from the layout pass.
   mutable Animations animations_;
   mutable CanvasSurfaces canvases_;
+  Workers workers_;
+  std::vector<PendingWorkerScript> unrequested_worker_scripts_;
   // What time the animation pass believes it is. One number for the whole frame, for the reason the
   // animation-frame callbacks share a timestamp: two elements animating on one frame must be at the
   // same instant, and reading a clock per element is how two halves of one transition desynchronise.

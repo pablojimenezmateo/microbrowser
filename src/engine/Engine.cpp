@@ -172,7 +172,8 @@ bool Engine::Advance() {
   bool socket_activity = AdvanceSockets();
   socket_activity = AdvanceEventSources() || socket_activity;
   if (!load_.active && late_images_.empty() && script_fetches_.empty() &&
-      module_fetches_.empty() && font_fetches_.empty() && !page_.HasPendingModules()) {
+      module_fetches_.empty() && font_fetches_.empty() && worker_fetches_.empty() &&
+      !page_.HasPendingModules()) {
     if (socket_activity) {
       // A message ran a handler, which may have changed the document. Paint, for the
       // reason a timer callback paints: the page a user is looking at is now stale.
@@ -185,6 +186,12 @@ bool Engine::Advance() {
   for (Loader::Completion& completion : completions) {
     if (late_images_.find(completion.id) != late_images_.end()) {
       moved = OnLateImage(std::move(completion)) || moved;
+      continue;
+    }
+    if (worker_fetches_.find(completion.id) != worker_fetches_.end()) {
+      if (OnWorkerScriptFetch(std::move(completion))) {
+        moved = true;
+      }
       continue;
     }
     if (font_fetches_.find(completion.id) != font_fetches_.end()) {
@@ -242,6 +249,10 @@ void Engine::AppendWaitDescriptors(util::WaitDescriptorList& out) const {
   // the whole of how ADR 0020 §5's long-lived connection keeps the zero-idle-CPU
   // invariant: the loop blocks on it, and a server that says nothing costs nothing.
   AppendSocketDescriptors(out);
+  // A worker's wake pipe, for the same reason and by the same mechanism (ADR 0022 §1). A worker with
+  // nothing to say costs nothing; one that posts writes a byte and the loop wakes. No polling, and a
+  // page with no workers adds no descriptors at all.
+  page_.AppendWorkerDescriptors(out);
 }
 
 bool Engine::HasRunnableWork() const {
@@ -257,8 +268,15 @@ bool Engine::HasRunnableWork() const {
   if (SocketsHaveWork()) {
     return true;
   }
+  // A worker message already queued is work now. Without this, a message that arrived between the wait
+  // returning and the drain would sit until the next unrelated wakeup -- which for an idle page is
+  // never.
+  if (page_.WorkersHaveWork()) {
+    return true;
+  }
   return (load_.active || !late_images_.empty() || !script_fetches_.empty() ||
-          !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules()) &&
+          !module_fetches_.empty() || !font_fetches_.empty() || !worker_fetches_.empty() ||
+          page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
 }
 
@@ -271,6 +289,8 @@ std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   std::optional<std::uint32_t> network = loader_.NextDeadlineMs(now_ms);
   // A stream waiting to reconnect. The only deadline a long-lived connection contributes:
   // an *open* one contributes none, which is what lets an idle page with a stream block.
+  // A worker with a message already queued is *work now*, not a deadline: returning zero here would
+  // spin, and the loop's own "is there work" question is what `WorkersHaveWork` answers.
   if (const std::optional<std::uint32_t> retry = NextEventSourceDeadlineMs(now_ms)) {
     network = network.has_value() ? std::min(*network, *retry) : retry;
   }
@@ -287,8 +307,17 @@ bool Engine::RunDueWork() {
   // Before the work rather than after: running a timer may write to the tree, and the restyle that
   // follows starts transitions against *this* instant.
   page_.SetAnimationTime(NowMilliseconds());
+  // Messages workers sent back. Drained before the page's own timers, because a worker's answer is why
+  // the loop woke -- and because a handler may post again, which the same turn should carry out.
+  bool from_workers = page_.DeliverWorkerMessages();
+  // And any worker a handler just constructed. Started here rather than only during a load, because
+  // `new Worker` inside a message handler is how a page builds a pool.
+  StartWorkerScriptRequests();
+  if (from_workers) {
+    LayoutAndPaint();
+  }
   if (!page_.RunDueWork(NowMilliseconds())) {
-    return false;
+    return from_workers;
   }
   if (FollowScriptNavigation()) {
     return true;
@@ -593,6 +622,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // And the modules its graph was still fetching, for the same reason.
   module_fetches_.clear();
   font_fetches_.clear();
+  worker_fetches_.clear();
   load_.active = true;
   load_.started_ms = NowMilliseconds();
   load_.url = url.empty() ? std::string("about:blank") : url;

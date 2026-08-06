@@ -256,6 +256,7 @@ Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_), canvases_
   // its context from the first script, and a surface handed over later would leave that script without
   // one -- which for a page whose whole rendering is a canvas is a blank page.
   script_.SetCanvasSurface(this);
+  script_.SetWorkerHost(this);
 }
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
@@ -300,6 +301,10 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // A canvas is the largest thing a document can hold, so one that outlived its page would be up to
   // 64MB leaked per navigation.
   canvases_.Clear();
+  // ADR 0022 §1's "joined when its document dies, before the document's objects are destroyed". Every
+  // worker thread is stopped and joined here, on the main thread, while the document is still alive.
+  workers_.Clear();
+  unrequested_worker_scripts_.clear();
   // **The bytes become text here, before the tokenizer sees them.** ADR 0025 §2: the encoding comes
   // from the BOM, then `Content-Type`, then a prescan of the first 1024 bytes, then windows-1252 --
   // and the tokenizer's input is code points rather than bytes, which is what makes an ill-formed
