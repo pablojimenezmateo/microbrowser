@@ -168,9 +168,15 @@ void DomBindings::InstallWindow() {
   const Value navigator = interpreter_->NewObjectValue();
   if (navigator.IsObject()) {
     navigator.object->Set("userAgent", Value::String(std::string(util::kUserAgent)));
+    // The rest of ADR 0029 §6's table, plus the permission-gated APIs. In its own translation unit
+    // because the *answers* are a policy with reasons attached and this file is about the window.
+    InstallPrivacyAnswers(navigator);
     global->Set("navigator", navigator);
     interpreter_->GlobalScope()->Declare("navigator", navigator, false);
   }
+  InstallNotification();
+  InstallCrypto();
+  InstallScreenAndPixelRatio();
 }
 
 void DomBindings::WriteLocationFields(const js::Value& location) {

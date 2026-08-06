@@ -16,6 +16,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/Fingerprint.h"
 
 namespace microbrowser::bindings {
 
@@ -378,7 +379,12 @@ void DomBindings::InstallWindowScroll() {
         return Value::Number(0.0);
       }
       const GeometryRect viewport = owner->geometry_->QueryViewport();
-      return Value::Number(static_cast<double>(vertical ? viewport.height : viewport.width));
+      // **Quantised** (ADR 0029 §6). The window's exact pixel size is one of the highest-entropy
+      // things a page can read without asking for anything -- a user resizes a window to a number
+      // nobody else has -- and rounding down collapses it. Down rather than to-nearest, so a page
+      // that lays out to the reported width fits inside the real one.
+      return Value::Number(static_cast<double>(QuantizeViewportExtent(
+          static_cast<int>(vertical ? viewport.height : viewport.width))));
     });
     if (getter.IsObject()) {
       getter.object->Set(kOwnerSlot, PointerValue(this));

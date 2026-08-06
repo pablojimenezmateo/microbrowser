@@ -193,6 +193,18 @@ bool FeatureMatches(const std::vector<Token>& tokens, std::size_t at, std::size_
     if (util::EqualsAsciiCaseInsensitive(feature, "orientation")) {
       return true;
     }
+    // The boolean form of the two `prefers-*` features. `@media (prefers-reduced-motion)` with no value
+    // is the common spelling and means `reduce`, which is why it is answered here rather than only in
+    // the value form below.
+    if (util::EqualsAsciiCaseInsensitive(feature, "prefers-reduced-motion")) {
+      return context.prefers_reduced_motion;
+    }
+    if (util::EqualsAsciiCaseInsensitive(feature, "prefers-color-scheme")) {
+      // `(prefers-color-scheme)` with no value is *always true* per the specification -- the feature is
+      // always available, and a page asking whether it exists gets yes. Not the dark bit: a page that
+      // wrote this and got the preference would style light users darkly.
+      return true;
+    }
     return false;
   }
 
@@ -226,6 +238,32 @@ bool FeatureMatches(const std::vector<Token>& tokens, std::size_t at, std::size_
     return ResolutionFromToken(value, bound) &&
            CompareValues(compare, static_cast<double>(context.device_pixel_ratio),
                          static_cast<double>(bound));
+  }
+  // **ADR 0029 §6's two deliberate exceptions to the constant rule.** Each is one bit, and each changes
+  // whether a page is usable (reduced motion) or comfortable (dark). Paying a bit for that is a better
+  // trade than paying one for `deviceMemory`, and the ADR says so in as many words.
+  if (util::EqualsAsciiCaseInsensitive(feature, "prefers-color-scheme") &&
+      compare == Compare::Exact) {
+    if (IsIdent(value, "dark")) {
+      return context.prefers_dark;
+    }
+    if (IsIdent(value, "light")) {
+      // `light` is the answer for a user with no preference *and* for one who chose light, which is what
+      // the specification says: `no-preference` was removed from the feature precisely because a third
+      // state was a third bit.
+      return !context.prefers_dark;
+    }
+    return false;
+  }
+  if (util::EqualsAsciiCaseInsensitive(feature, "prefers-reduced-motion") &&
+      compare == Compare::Exact) {
+    if (IsIdent(value, "reduce")) {
+      return context.prefers_reduced_motion;
+    }
+    if (IsIdent(value, "no-preference")) {
+      return !context.prefers_reduced_motion;
+    }
+    return false;
   }
   if (util::EqualsAsciiCaseInsensitive(feature, "orientation") && compare == Compare::Exact) {
     if (IsIdent(value, "portrait")) {

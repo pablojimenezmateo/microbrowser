@@ -189,6 +189,7 @@ microbrowser_module(util
     src/util/Inflate.cpp
     src/util/Parse.cpp
     src/util/PercentEncoding.cpp
+    src/util/Random.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
     src/util/Sha1.cpp
@@ -407,6 +408,8 @@ microbrowser_module(platform
 microbrowser_module(bindings
   SOURCES
     src/bindings/CanvasBindings.cpp
+    src/bindings/Fingerprint.cpp
+    src/bindings/PrivacyAnswers.cpp
     src/bindings/CustomElements.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp

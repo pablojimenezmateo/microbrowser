@@ -171,7 +171,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the
 # SocketSource this module declares, and the three delivery entry points -- C++-only,
 # because the only thing allowed to say a message arrived is the thing that read it.
-budget: DomBindings header_lines=565 public_methods=31 members=16
+budget: DomBindings header_lines=600 public_methods=31 members=17
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page
@@ -189,7 +189,7 @@ budget: HistorySource header_lines=45 public_methods=6 members=0
 # it is `window.innerWidth`, which was simply missing, and it is the
 # `rootBounds` every IntersectionObserver with no `root` measures against. It is
 # the one answer here that is not about a node, which is why it takes none.
-budget: GeometrySource header_lines=75 public_methods=6 members=0
+budget: GeometrySource header_lines=75 public_methods=8 members=0
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

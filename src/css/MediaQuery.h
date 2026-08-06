@@ -15,6 +15,15 @@ struct MediaContext {
   float viewport_width = 0.0f;   // CSS pixels
   float viewport_height = 0.0f;  // CSS pixels
   float device_pixel_ratio = 1.0f;
+  // The two `prefers-*` features, and they are **the deliberate exceptions to ADR 0029's constant
+  // rule**. Each is one bit of entropy; each materially changes whether a page is usable or
+  // comfortable; and paying one bit for that is a better deal than paying it for `deviceMemory`.
+  //
+  // They are the user's setting rather than the system's, for the reason `Accept-Language` is a
+  // constant: reading the desktop environment's theme would make the bit vary by *platform* as well as
+  // by preference, which is two bits for one feature.
+  bool prefers_dark = false;
+  bool prefers_reduced_motion = false;
 };
 
 // Whether a `<media-query-list>` matches: the grammar of an `@media` prelude, of

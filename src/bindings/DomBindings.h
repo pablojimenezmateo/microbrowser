@@ -445,6 +445,25 @@ class DomBindings {
   // element and reaches one only through `URL.createObjectURL`, which is why the object URL registry
   // is installed from here too.
   // --- canvas, in CanvasBindings.cpp (ADR 0029 §2) ---------------------------
+  // --- ADR 0029's answers, in PrivacyAnswers.cpp -----------------------------
+  //
+  // What a page is told when it asks about the machine. The *values* are in bindings/Fingerprint.h,
+  // because a page may sniff several of them and two constants meant to agree eventually do not.
+  void InstallPrivacyAnswers(const js::Value& navigator);
+  void InstallPermissions(const js::Value& navigator);
+  void InstallClipboard(const js::Value& navigator);
+  void InstallNotification();
+  void InstallCrypto();
+  // `screen.*` and `devicePixelRatio`, both quantised (ADR 0029 §6). In PrivacyAnswers.cpp with the
+  // rest of the table, and installed from InstallWindow because they are window properties.
+  void InstallScreenAndPixelRatio();
+  // Whether the document has been activated by a real gesture (ADR 0017), which is the gate on a
+  // clipboard *write*. Asked through the media controller, which is where the one copy of that bit
+  // already lives -- a second copy is how two answers about the same gesture come to disagree.
+  bool HasUserActivation() const;
+  void SetClipboardText(std::string text) { clipboard_ = std::move(text); }
+  const std::string& ClipboardText() const { return clipboard_; }
+
   void InstallCanvas(const js::Value& target);
   js::Value MakeCanvasContext(const js::Value& canvas);
   void InstallImageData(const js::Value& context);
@@ -637,6 +656,10 @@ class DomBindings {
   SocketSource* sockets_ = nullptr;
   MediaController* media_ = nullptr;
   CanvasSurface* canvas_ = nullptr;
+  // What a page last wrote to the clipboard. Held here rather than handed to the system, because
+  // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
+  // string -- and a test needs to see what was written either way. The chrome takes it from here.
+  std::string clipboard_;
 };
 
 }  // namespace microbrowser::bindings

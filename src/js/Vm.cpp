@@ -170,8 +170,20 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // A property of the global object is also a global variable, so that
         // `globalThis.x = 1` makes `x` readable: one namespace rather than two
         // that happen to overlap.
-        if (const Value* property = global_->GetOwn(name)) {
-          vm_.stack.push_back(*property);
+        //
+        // Through `HasOwn` and `GetProperty` rather than `GetOwn` -- see the
+        // matching note in Statements.cpp. An accessor the host installed on the
+        // global object has no stored value, so `GetOwn` missed it and the bare
+        // name threw.
+        if (global_->HasOwn(name)) {
+          Result accessor = Result::Normal(Value::Undefined());
+          const Value value = GetProperty(Value::Obj(global_), name, &accessor);
+          if (accessor.completion == Completion::Throw) {
+            pending = accessor;
+            threw = true;
+            break;
+          }
+          vm_.stack.push_back(value);
           break;
         }
         // Not undefined: a name that was never declared is a ReferenceError,

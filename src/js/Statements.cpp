@@ -127,8 +127,21 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       // A property of the global object is also a global variable: `globalThis.x
       // = 1` makes `x` readable, and that is one namespace rather than two that
       // happen to overlap.
-      if (const Value* property = global_->GetOwn(node.string)) {
-        return Result::Normal(*property);
+      //
+      // **Through `HasOwn` and `GetProperty` rather than `GetOwn`**, because an
+      // *accessor* on the global object is a global variable too and `GetOwn`
+      // cannot see one -- it answers with a stored value, and an accessor has
+      // none. That made every global the host installs as a getter unreachable
+      // by its bare name: `innerWidth` threw a ReferenceError while
+      // `window.innerWidth` answered 1280. Found by ADR 0029's answer table,
+      // which adds three more such globals.
+      if (global_->HasOwn(node.string)) {
+        Result abrupt = Result::Normal(Value::Undefined());
+        const Value value = GetProperty(Value::Obj(global_), node.string, &abrupt);
+        if (abrupt.completion == Completion::Throw) {
+          return abrupt;
+        }
+        return Result::Normal(value);
       }
       // Not undefined: a name that was never declared is a ReferenceError, and
       // the distinction is the language's way of catching a typo.

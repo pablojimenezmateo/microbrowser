@@ -19,6 +19,14 @@ using js::Value;
 
 }  // namespace
 
+bool DomBindings::HasUserActivation() const {
+  // Through `dom::Document`, where ADR 0028 §1 put the one copy of this bit: the engine's click and key
+  // paths write it and nothing else does. A second copy in the binding layer is how two answers about
+  // the same gesture come to disagree -- which for a clipboard gate would mean a page writing the
+  // clipboard without one.
+  return document_ != nullptr && document_->HasUserActivation();
+}
+
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
                          std::string url, GeometrySource* geometry, NetworkSource* network,
                          HistorySource* history, StorageSource* storage,

@@ -2538,6 +2538,85 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!paused.NextWakeDelay(0).has_value(), "a paused animation schedules nothing");
   });
 
+  AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {
+    // **ADR 0029 §6's table, asserted.** The values are one thing and the *absences* are the other, and
+    // the absences are why this test exists: `navigator.deviceMemory` and its six siblings are things a
+    // page can find, and under ADR 0012's rule a page that finds nothing takes whatever path it has for
+    // a browser without them. A page that finds a plausible-looking zero takes the path that assumes it
+    // works. So each one is named here, and putting any of them back fails a test rather than slipping
+    // in as a line somebody thought was harmless.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{1000.0f, 700.0f, 1.0f});
+    page.Load(
+        "<script>"
+        "console.log('platform=' + navigator.platform);"
+        "console.log('vendor=' + JSON.stringify(navigator.vendor));"
+        "console.log('language=' + navigator.language + '|' + navigator.languages.join(','));"
+        "console.log('cores=' + navigator.hardwareConcurrency);"
+        "console.log('plugins=' + navigator.plugins.length + ',' + navigator.mimeTypes.length);"
+        "var absent = ['deviceMemory','connection','getBattery','geolocation','mediaDevices',"
+        "  'doNotTrack','globalPrivacyControl','fonts','userAgentData'];"
+        "console.log('absent=' + absent.filter(function(n){ return navigator[n] !== undefined; }));"
+        "console.log('notification=' + Notification.permission);"
+        "console.log('ua-agrees=' + (navigator.appVersion === navigator.userAgent));"
+        "</" "script>",
+        "https://example.org/");
+    page.RunScripts(0);
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    const auto said = [&output](const std::string& line) {
+      return std::find(output.begin(), output.end(), line) != output.end();
+    };
+    Expect(said("platform=Unknown"), "platform is a constant that says nothing about the machine");
+    Expect(said("vendor=\"\""), "vendor is empty");
+    Expect(said("language=en-US|en-US"),
+           "one language, the same constant Accept-Language sends -- a real cost for a "
+           "non-English user and the trade ADR 0029 §1 selects");
+    Expect(said("cores=4"), "a constant, not the core count");
+    Expect(said("plugins=0,0"),
+           "empty rather than absent: plugins.length is one of the oldest fingerprinting reads, and a "
+           "page that finds no plugins object at all assumes an ancient browser");
+    // The one that matters most, and it is one line because the list is the assertion.
+    Expect(said("absent="),
+           "every one of deviceMemory, connection, getBattery, geolocation, mediaDevices, doNotTrack, "
+           "globalPrivacyControl, fonts and userAgentData is undefined");
+    Expect(said("notification=denied"), "default deny, and no prompt");
+    Expect(said("ua-agrees=true"),
+           "appVersion and userAgent are the same constant, because a page may sniff both and two "
+           "constants meant to agree eventually do not");
+  });
+
+  AddTest(tests, "Privacy/TheViewportAndPixelRatioAreQuantised", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    // A window at a size a user dragged it to. The exact number is one of the highest-entropy things a
+    // page can read with no interaction at all, so it is rounded *down* to a multiple of eight -- down,
+    // because a page laying out to the reported width has to fit inside the real one.
+    page.SetViewport(css::MediaContext{1003.0f, 701.0f, 1.5f});
+    page.Load(
+        "<script>"
+        "console.log('inner=' + innerWidth + 'x' + innerHeight);"
+        "console.log('screen=' + screen.width + 'x' + screen.height + ',' + screen.colorDepth);"
+        "console.log('dpr=' + devicePixelRatio);"
+        "</" "script>",
+        "https://example.org/");
+    page.RunScripts(0);
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    const auto said = [&output](const std::string& line) {
+      return std::find(output.begin(), output.end(), line) != output.end();
+    };
+    Expect(said("inner=1000x696"), "1003 and 701 round down to 1000 and 696");
+    // **`screen` reports the viewport, not the display.** The sharpest row on the table: a display's
+    // resolution is a strong, stable identifier readable with no interaction, and it is not a number
+    // any page needs -- what a page wants from `screen.width` is "how much room do I have".
+    Expect(said("screen=1000x696,24"), "and screen agrees with it rather than with the display");
+    Expect(said("dpr=2"), "a 1.5x panel reports 2, which is the nearest of the three allowed ratios");
+    // **Bare identifiers, not `window.`-prefixed.** They resolve because a property of the global object
+    // is a global variable -- including an *accessor*, which is what these are. That did not work until
+    // this session: `innerWidth` threw a ReferenceError while `window.innerWidth` answered, because the
+    // identifier path used `GetOwn` and an accessor has no stored value to find.
+  });
+
   AddTest(tests, "Engine/ASecondNavigationGetsASecondGlobalScope", [] {
     // Two documents in a row, each with a script that touches the tree. The
     // rule is stated on PageScript: a fresh global scope per document, because

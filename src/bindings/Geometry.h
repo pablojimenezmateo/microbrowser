@@ -109,6 +109,13 @@ class GeometrySource {
   // honest answer there rather than an absence, since nothing is on screen.
   virtual GeometryRect QueryViewport() = 0;
 
+  // The device pixel ratio, *unquantised*. Quantising happens where the answer is handed to a page
+  // (ADR 0029 §6, `bindings::QuantizeDevicePixelRatio`) rather than here, because this same number
+  // selects an `<img srcset>` candidate -- and a page should be told a reduced ratio while the image
+  // chosen for it is the one the real display wants. Two different consumers, one truth, one of them
+  // reduced.
+  virtual double QueryDevicePixelRatio() const = 0;
+
   // Scrolls every scrolling ancestor of `node` -- not just the nearest one --
   // until `node` is inside each of their scrollports. `scrollIntoView` on an
   // item in a menu inside a scrolled page has to move both, and an

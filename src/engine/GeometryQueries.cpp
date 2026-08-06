@@ -457,6 +457,13 @@ std::optional<bindings::BoxGeometry> Page::QueryBox(const dom::Node& node) {
   return answer;
 }
 
+double Page::QueryDevicePixelRatio() const {
+  // Unquantised, and the quantising happens at the seam. See the note in bindings/Geometry.h: the same
+  // number selects an `<img srcset>` candidate, and the image chosen for a display should be the one
+  // that display wants even while a page is told a reduced ratio.
+  return static_cast<double>(viewport_.device_pixel_ratio);
+}
+
 bindings::GeometryRect Page::QueryViewport() {
   // No EnsureLayoutClean: the viewport is what the *browser* told this page it
   // has, not something a layout computes. Forcing one here would make reading
