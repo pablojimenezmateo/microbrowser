@@ -702,6 +702,15 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                "2");
   });
 
+  AddTest(tests, "JsInterpreter/SuperCallAcceptsSpreadArguments", [] {
+  // Custom elements call `super(...args)` so the base constructor sees the
+  // upgrade target rather than allocating a second element.
+    ExpectEval("class A { constructor(...xs){ this.args = xs } } "
+               "class B extends A { constructor(...xs){ super(...xs) } } "
+               "new B(1, 2, 3).args.length",
+               "3");
+  });
+
   AddTest(tests, "JsInterpreter/ExtendingSomethingThatIsNotAConstructorThrows", [] {
     ExpectEval("class A extends 5 {}", "throw TypeError: class can only extend a constructor or null");
     // `super.m` in a class with no `extends` resolves against Object.prototype,

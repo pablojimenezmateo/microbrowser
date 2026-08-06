@@ -807,11 +807,12 @@ void Compiler::CallExpression(const Node& node) {
     // class's own fields -- which is the ordering that lets a derived field
     // read a base one.
     std::uint32_t count = 0;
-    if (CallArguments(node, 1, count)) {
-      ThrowSyntax("a spread argument to super() is not supported");
-      return;
+    const bool spread = CallArguments(node, 1, count);
+    if (spread) {
+      Emit(Op::SuperCallApply, 0, -1);
+    } else {
+      Emit(Op::SuperCall, count, -static_cast<int>(count));
     }
-    Emit(Op::SuperCall, count, -static_cast<int>(count));
     Emit(Op::PushUndefined, 0, 1);
     return;
   }

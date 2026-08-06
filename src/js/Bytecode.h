@@ -240,6 +240,7 @@ enum class Op : std::uint8_t {
   // exist because class methods are compiled, and could not before.
   LoadSuperBase,    // -> [the prototype of the object the method was defined on]
   SuperCall,        // a = argument count; [args...] -> []
+  SuperCallApply,   // [argumentArray] -> []; the spread form of SuperCall
   RegExpLiteral,    // a = node index -> [regexp]
   TemplateStrings,  // a = node index -> [array] with `raw`, for a tagged template
 

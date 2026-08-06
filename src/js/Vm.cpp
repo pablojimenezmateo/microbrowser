@@ -887,10 +887,26 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         vm_.stack.push_back(Value::Obj(home->object->Prototype()));
         break;
       }
-      case Op::SuperCall: {
+      case Op::SuperCall:
+      case Op::SuperCallApply: {
         // Copied out rather than pointed at, because everything below this
         // runs a constructor and a set of field initializers -- and a binding
         // read out of the frame is a pointer into a stack those can push onto.
+        std::uint32_t argc = instruction.a;
+        if (instruction.op == Op::SuperCallApply) {
+          const Value list = vm_.stack.back();
+          vm_.stack.pop_back();
+          const std::size_t count = list.IsObject() ? list.object->ElementCount() : 0;
+          if (vm_.stack.size() + count > kValueStackCapacity) {
+            pending = Throw("RangeError", "maximum call stack size exceeded");
+            threw = true;
+            break;
+          }
+          for (std::size_t i = 0; i < count; ++i) {
+            vm_.stack.push_back(list.object->GetElement(i));
+          }
+          argc = static_cast<std::uint32_t>(count);
+        }
         const Value* found = FrameName("__function__", kSlotFunction);
         const Value current = found == nullptr ? Value::Undefined() : *found;
         const Value* self = FrameName("this", kSlotThis);
@@ -900,7 +916,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
           threw = true;
           break;
         }
-        const std::size_t first = vm_.stack.size() - instruction.a;
+        const std::size_t first = vm_.stack.size() - argc;
         const std::vector<Value> arguments(
             vm_.stack.begin() + static_cast<std::ptrdiff_t>(first), vm_.stack.end());
         Object* parent = current.object->SuperConstructor();
