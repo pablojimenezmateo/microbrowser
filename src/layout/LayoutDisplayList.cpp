@@ -14,6 +14,66 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
+// The user agent's own media controls.
+//
+// ADR 0028 §1 puts these in ADR 0018's category: boxes the *user agent* creates inside a page,
+// not widgets `src/ui` owns. That has two consequences worth stating, and both are why this is
+// twenty lines in the display-list builder rather than a control class somewhere:
+//
+//   * They are painted in the page's coordinate space, so a transformed or clipped `<video>`
+//     transforms and clips its controls -- which a widget layer above the page could not do.
+//   * A page that styles the element styles them: they take its colour, and a page that sets
+//     `display: none` gets no controls because it gets no box.
+//
+// What they are *not* is interactive yet: hit testing does not know about them, so this is a
+// drawn control bar rather than a working one. That is the honest state -- a bar that looked
+// clickable and did nothing would be worse -- and it is what a page sees today when it writes
+// `<video controls>`.
+void PaintMediaControls(const Box& box, gfx::DisplayList& out, gfx::FloatPoint offset) {
+  const dom::Element* element = box.Origin();
+  if (element == nullptr || (element->TagName() != "video" && element->TagName() != "audio") ||
+      !element->HasAttribute("controls")) {
+    return;
+  }
+  const gfx::FloatRect content = box.Geometry().content;
+  const gfx::FloatRect area{content.x + offset.x, content.y + offset.y, content.width,
+                            content.height};
+  // The bar's height is the specification's nothing -- there is no specified size -- so it is
+  // the number every browser lands near, and it is clamped to the element: a 20px-tall video
+  // gets a 20px bar rather than a bar taller than the video.
+  const float bar_height = std::min(area.height, 32.0f);
+  if (area.width <= 0.0f || bar_height <= 0.0f) {
+    return;
+  }
+  const gfx::FloatRect bar{area.x, area.Bottom() - bar_height, area.width, bar_height};
+  gfx::Path panel;
+  panel.AddRect(bar);
+  out.FillPath(panel, gfx::Color::Rgba(0x20, 0x20, 0x20, 0xC0));
+
+  // A play triangle, and it points right because nothing is playing: this builder has no access
+  // to the state machine (layout may not see `media`), so what it draws is the *element*, and
+  // a pause bar would be a claim about state it cannot check.
+  const float glyph = std::min(bar_height * 0.5f, 12.0f);
+  const float centre_y = bar.y + bar_height * 0.5f;
+  const float left = bar.x + 10.0f;
+  gfx::Path play;
+  play.MoveTo(gfx::FloatPoint{left, centre_y - glyph * 0.5f});
+  play.LineTo(gfx::FloatPoint{left + glyph * 0.9f, centre_y});
+  play.LineTo(gfx::FloatPoint{left, centre_y + glyph * 0.5f});
+  play.Close();
+  out.FillPath(play, gfx::Color::Rgb(0xF0, 0xF0, 0xF0));
+
+  // The scrubber track, empty. Drawing a filled portion would be a claim about a position
+  // nothing here can read.
+  const float track_left = left + glyph * 0.9f + 10.0f;
+  const float track_right = bar.Right() - 10.0f;
+  if (track_right > track_left) {
+    gfx::Path track;
+    track.AddRect(gfx::FloatRect{track_left, centre_y - 1.5f, track_right - track_left, 3.0f});
+    out.FillPath(track, gfx::Color::Rgba(0xF0, 0xF0, 0xF0, 0x60));
+  }
+}
+
 void PaintCheckedInputIndicator(const Box& box, gfx::DisplayList& out, gfx::FloatPoint offset) {
   const dom::Element* element = box.Origin();
   if (element == nullptr || element->TagName() != "input" || !element->HasAttribute("checked")) {
@@ -401,6 +461,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
                      style.color);
       }
       PaintCheckedInputIndicator(box, out, offset);
+      PaintMediaControls(box, out, offset);
       pop_transform();
       return;
     }

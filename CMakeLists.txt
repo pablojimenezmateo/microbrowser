@@ -258,6 +258,7 @@ microbrowser_module(layout
     src/layout/InlineLayout.cpp
     src/layout/LayoutDisplayList.cpp
     src/layout/LayoutEngine.cpp
+    src/layout/ReplacedBoxes.cpp
     src/layout/ScrollLayout.cpp
     src/layout/TableLayout.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_html microbrowser_css microbrowser_gfx)

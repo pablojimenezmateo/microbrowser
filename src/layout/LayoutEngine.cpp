@@ -1,5 +1,7 @@
 #include "layout/LayoutEngine.h"
 
+#include "layout/ReplacedBoxes.h"
+
 #include "dom/FlatTree.h"
 
 #include <algorithm>
@@ -33,26 +35,7 @@ bool IsSpace(char c) {
 // here renders "boldand italic". Dropping a space that turns out to be at the
 // start of a line is line breaking's job, because only line breaking knows
 // where a line starts.
-std::string CollapseWhitespace(std::string_view text) {
-  std::string out;
-  out.reserve(text.size());
-  bool in_space = false;
-  for (const char c : text) {
-    if (IsSpace(c)) {
-      in_space = true;
-      continue;
-    }
-    if (in_space) {
-      out.push_back(' ');
-    }
-    in_space = false;
-    out.push_back(c);
-  }
-  if (in_space) {
-    out.push_back(' ');
-  }
-  return out;
-}
+
 
 bool IsAllWhitespace(std::string_view text) {
   return std::all_of(text.begin(), text.end(), IsSpace);
@@ -64,127 +47,14 @@ bool IsAllWhitespace(std::string_view text) {
 // image's own size. An <img> with no image and no declared size is 0x0 rather
 // than a placeholder box: a browser that reserved space for something it may
 // never receive would jump when it learned better.
-float ReplacedIntrinsic(const Box& box, bool horizontal) {
-  const css::ComputedStyle& style = box.Style();
-  const css::Length& declared = horizontal ? style.width : style.height;
-  if (!declared.IsAuto() && !declared.IsPercent()) {
-    return std::max(0.0f, declared.Resolve(style.font_size, 0.0f));
-  }
-  if (box.Origin() != nullptr) {
-    // The presentational attribute, which is where most of the web still puts
-    // an image's size and which the cascade does not see.
-    const std::string* attribute = box.Origin()->GetAttribute(horizontal ? "width" : "height");
-    if (attribute != nullptr) {
-      if (const std::optional<double> value = util::ParseDouble(*attribute)) {
-        if (*value >= 0.0 && *value < 1e6) {
-          return static_cast<float>(*value);
-        }
-      }
-    }
-  }
-  // An aspect ratio with the other axis known, which is what reserves the box
-  // for an image before the image has arrived. Checked before the image's own
-  // size, because a page that states a ratio means it to win over one.
-  if (style.aspect_ratio > 0.0f) {
-    const css::Length& other = horizontal ? style.height : style.width;
-    if (!other.IsAuto() && !other.IsPercent()) {
-      const float extent = std::max(0.0f, other.Resolve(style.font_size, 0.0f));
-      return horizontal ? extent * style.aspect_ratio : extent / style.aspect_ratio;
-    }
-  }
-  if (box.Image() != nullptr && box.Image()->IsValid()) {
-    return static_cast<float>(horizontal ? box.Image()->Width() : box.Image()->Height());
-  }
-  if (box.Origin() != nullptr && (box.Origin()->TagName() == "input" ||
-                                  box.Origin()->TagName() == "button" ||
-                                  box.Origin()->TagName() == "textarea" ||
-                                  box.Origin()->TagName() == "select")) {
-    if (!horizontal) {
-      if (box.Origin()->TagName() == "textarea") {
-        const std::string* rows = box.Origin()->GetAttribute("rows");
-        if (rows != nullptr) {
-          if (const std::optional<double> parsed = util::ParseDouble(*rows)) {
-            if (*parsed > 0.0 && *parsed < 1000.0) {
-              return static_cast<float>(*parsed) * style.font_size * 1.2f + 6.0f;
-            }
-          }
-        }
-      }
-      return style.font_size * 1.2f + 6.0f;
-    }
-    const std::string* size =
-        box.Origin()->GetAttribute(box.Origin()->TagName() == "textarea" ? "cols" : "size");
-    if (size != nullptr) {
-      if (const std::optional<double> parsed = util::ParseDouble(*size)) {
-        if (*parsed > 0.0 && *parsed < 1000.0) {
-          return static_cast<float>(*parsed) * style.font_size * 0.6f + 12.0f;
-        }
-      }
-    }
-    if (!box.Text().empty()) {
-      return static_cast<float>(box.Text().size()) * style.font_size * 0.6f + 18.0f;
-    }
-    return style.font_size * 20.0f * 0.6f + 12.0f;
-  }
-  return 0.0f;
-}
-
-float ReplacedWidth(const Box& box) { return ReplacedIntrinsic(box, true); }
-float ReplacedHeight(const Box& box) { return ReplacedIntrinsic(box, false); }
-
 // A text box that is nothing but collapsible whitespace.
 bool IsCollapsibleSpace(const Box& box) {
   return box.GetKind() == Box::Kind::Text &&
          box.Style().white_space == css::WhiteSpace::Normal && IsAllWhitespace(box.Text());
 }
 
-bool IsReplacedElement(const dom::Element& element) {
-  return element.TagName() == "img" || element.TagName() == "input" ||
-         element.TagName() == "button" || element.TagName() == "textarea" ||
-         element.TagName() == "select";
-}
 
-std::string FormControlText(const dom::Element& element) {
-  if (const std::optional<std::string> selected = html::SelectedOptionText(element)) {
-    return *selected;
-  }
-  if (element.TagName() == "button") {
-    return CollapseWhitespace(element.TextContent());
-  }
-  if (html::IsTextareaElement(element)) {
-    const std::string* value = element.GetAttribute("value");
-    const std::string current = value != nullptr ? *value : element.TextContent();
-    if (!current.empty()) {
-      return current;
-    }
-    if (const std::string* placeholder = element.GetAttribute("placeholder")) {
-      return *placeholder;
-    }
-    return {};
-  }
-  if (html::IsCheckboxInput(element) || html::IsRadioInput(element)) {
-    return {};
-  }
-  if (const std::string* value = element.GetAttribute("value"); value != nullptr && !value->empty()) {
-    if (html::IsPasswordInput(element)) {
-      return {};
-    }
-    return *value;
-  }
-  if (html::IsTextInputType(element)) {
-    if (const std::string* placeholder = element.GetAttribute("placeholder")) {
-      return *placeholder;
-    }
-    return {};
-  }
-  if (html::IsSubmitControl(element)) {
-    return "Submit";
-  }
-  if (html::IsResetControl(element)) {
-    return "Reset";
-  }
-  return {};
-}
+
 
 }  // namespace
 

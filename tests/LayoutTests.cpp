@@ -1281,6 +1281,67 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(fills.at(1) == gfx::Color::Rgb(0, 0, 0xFF), "the in-flow content is over it");
   });
 
+  AddTest(tests, "Layout/AVideoIsReplacedWithTheSpecificationsDefaultSize", [] {
+    // ADR 0028 §1. 300x150 is what every browser uses before metadata arrives, and a page laying
+    // out around a video before it loads is laying out around this number -- so a wrong one moves
+    // the page when the video appears.
+    const LaidOut result = Run("<video src=movie.mp4></video>", "body { margin: 0 }", 400.0f);
+    const Box* video = FindBox(*result.root, "video");
+    Expect(video != nullptr, "there is a box");
+    Expect(video->Geometry().content.width == 300.0f, "300 wide");
+    Expect(video->Geometry().content.height == 150.0f, "and 150 tall");
+    // Its children are fallback the element replaces. Without that, a `<video>` lays out its
+    // `<source>` elements and its "your browser does not support" paragraph as page content.
+    const LaidOut fallback = Run(
+        "<video src=movie.mp4><source src=a.webm><p>no video</p></video>", "body { margin: 0 }",
+        400.0f);
+    Expect(TextBoxes(*fallback.root).empty(), "and no fallback text is laid out");
+  });
+
+  AddTest(tests, "Layout/AnAudioElementIsItsControlsOrNothing", [] {
+    // An `<audio>` with controls is 300x54; one without takes *no space at all*, which is what
+    // makes an `<audio>` used as a sound effect not push a page around. Every browser does this.
+    const LaidOut with = Run("<audio src=s.mp3 controls></audio>", "body { margin: 0 }", 400.0f);
+    const Box* audible = FindBox(*with.root, "audio");
+    Expect(audible != nullptr && audible->Geometry().content.width == 300.0f, "300 wide");
+    Expect(audible->Geometry().content.height == 54.0f, "and 54 tall");
+    const LaidOut without = Run("<audio src=s.mp3></audio>", "body { margin: 0 }", 400.0f);
+    const Box* silent = FindBox(*without.root, "audio");
+    Expect(silent != nullptr && silent->Geometry().content.width == 0.0f, "no width");
+    Expect(silent->Geometry().content.height == 0.0f, "and no height without controls");
+  });
+
+  AddTest(tests, "Layout/DefaultControlsArePaintedBoxesRatherThanWidgets", [] {
+    // ADR 0028 §1 puts them in ADR 0018's category: boxes the *user agent* creates inside a page,
+    // not widgets `src/ui` owns. So they are in the display list, in the page's coordinate space
+    // -- which is what makes a transformed or clipped video transform and clip its controls.
+    const LaidOut result =
+        Run("<video src=movie.mp4 controls></video>", "body { margin: 0 }", 400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    std::vector<gfx::FloatRect> fills;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        if (const gfx::Path* path = list.PathAt(fill->path)) {
+          fills.push_back(path->ControlBounds());
+        }
+      }
+    }
+    Expect(fills.size() >= 3, "a bar, a play glyph and a scrubber track");
+    // The bar sits at the bottom of the element rather than over the middle of it.
+    Expect(fills.at(0).y > 100.0f && fills.at(0).width == 300.0f,
+           "the bar spans the element at its bottom edge");
+    // And a page that hides the element gets no controls, because it gets no box.
+    const LaidOut hidden =
+        Run("<video src=movie.mp4 controls></video>", "video { display: none }", 400.0f);
+    gfx::DisplayList empty;
+    layout::BuildDisplayList(*hidden.root, empty);
+    for (const gfx::DisplayCommand& command : empty.Commands()) {
+      Expect(!std::holds_alternative<gfx::FillPathCommand>(command),
+             "display:none means no controls, because it means no box");
+    }
+  });
+
   AddTest(tests, "Layout/PaintsNothingForAnEmptyDocument", [] {
     const LaidOut result = Run("", "");
     gfx::DisplayList list;
