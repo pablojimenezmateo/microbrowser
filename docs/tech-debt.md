@@ -354,6 +354,45 @@ looks wrong" and is never chased, so it belongs here with its number.
 
 ---
 
+## TD-0012 — The JS heap limit is a flat cell count, and a real page fills it
+
+`Heap::limit_` is a hard ceiling on `objects_ + environments_`. Past it,
+`AllocateObject` returns null and the interpreter throws `RangeError: out of
+memory`. That is the right *shape* of refusal — a page must not grow forever —
+but the number is not derived from anything a page costs.
+
+**Measured**, youtube.com, Debug build, after the 2026-08-06 Polymer-upgrade
+fixes (so the collector *is* running during custom-element reactions):
+
+```
+js.heap_live_peak   500000     <- equal to the then-limit
+js.heap_oom              8
+```
+
+Raising the default to 2M is the unblock, not the design. The live set of a
+single SPA is a property of the page, and a flat constant will be wrong again
+the moment the feed fills in.
+
+**Two bugs this measurement found that are fixed, not debt.**
+
+1. `CallFunction` raised `call_depth_` around `CallCompiled`. `MaybeCollect`
+   refuses to run when `call_depth_ != 0`, so every VM safepoint during a
+   custom-element reaction (entered from C++) was a no-op — the page allocated
+   straight into the ceiling. Compiled code's stacks are data; the depth flag
+   is for C++ locals the collector cannot see. Removed for the CallCompiled
+   path.
+2. An OOM `MakeError` falls back to a bare string when the heap cannot hold an
+   Error object, so `ReportUncaught` had no `.stack` to print. It now appends
+   `CaptureStack` for string errors too.
+
+**End state.** A limit expressed in bytes (or in cells with a per-page soft
+target and a hard process ceiling), with `js.heap_live_peak` read against it in
+the same way `js.compiled_instructions` is read against the instruction ratio.
+A page that sits at 90% of the limit should be visible in the counter dump
+before it throws.
+
+---
+
 ## Closed
 
 - **The cascade asked every rule about every element** (`299a08f`). 18,360 rules against 686

@@ -831,14 +831,15 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   Object* function = callee.object;
   if (function->Code() != nullptr) {
     // A compiled body, entered from C++ -- a native calling a callback, the
-    // host dispatching an event, or the tree-walker calling a function the
-    // compiler got to. The depth goes up for the duration because the C++
-    // frame underneath holds values the collector cannot see, and that is
-    // exactly what makes it unsafe to collect at a safepoint inside.
-    ++call_depth_;
-    Result result = CallCompiled(function, self, arguments);
-    --call_depth_;
-    return result;
+    // host dispatching an event, or a custom-element reaction. Do *not* raise
+    // call_depth_: that flag exists to block safepoints under C++ locals the
+    // collector cannot see (natives, the tree-walker, ClassLiteral). The
+    // machine's stacks are data and GatherVmRoots sees them, which is the
+    // whole reason the bytecode engine exists. Raising the depth here made
+    // every VM safepoint a no-op for the duration of a reaction, so youtube's
+    // Polymer upgrades allocated straight into the 500k heap limit and threw
+    // `RangeError: out of memory` with no stack (MakeError itself was OOM).
+    return CallCompiled(function, self, arguments);
   }
   if (function->GetKind() == Object::Kind::Native) {
     ++call_depth_;

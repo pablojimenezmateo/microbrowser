@@ -281,6 +281,16 @@ namespace microbrowser::util {
   /* page: youtube's kevlar bundle is 10.7MB and was refused by a flat cap.    */ \
   X(JsCompiledSourceBytes, "js.compiled_source_bytes")                            \
   X(JsCompiledInstructions, "js.compiled_instructions")                           \
+  /* Hits on the hard heap cell limit. A non-zero count that coincides with an */ \
+  /* `out of memory` throw means the live set does not fit, or safepoints are  */ \
+  /* not collecting -- the youtube Polymer-upgrade OOM of 2026-08-06 was the   */ \
+  /* second: CallFunction raised call_depth_ around CallCompiled and every     */ \
+  /* safepoint became a no-op for the duration of a custom-element reaction.   */ \
+  X(JsHeapOom, "js.heap_oom")                                                     \
+  /* Peak live cells (objects + environments) observed at a successful         */ \
+  /* collection. The number to read against the hard limit when a page gets    */ \
+  /* close: a peak near the limit with heap_oom still zero is headroom left.   */ \
+  X(JsHeapLivePeak, "js.heap_live_peak")                                          \
   /* The module graph. `dynamic_imports` against `dynamic_imports_settled` is   */ \
   /* the pair to read: the difference is a page waiting on a promise nobody     */ \
   /* answered, which is a page that hangs with no error anywhere.               */ \
@@ -524,6 +534,9 @@ using PerfCounterSnapshot = std::array<std::uint64_t, kPerfCounterCount>;
 
 void ResetPerformanceCounters();
 void AddPerformanceCounter(PerfCounterId id, std::uint64_t delta = 1);
+// Raise the counter to `value` when that is larger than what it holds. For
+// peaks (live heap cells, watermark sizes) rather than event counts.
+void MaxPerformanceCounter(PerfCounterId id, std::uint64_t value);
 std::uint64_t ReadPerformanceCounter(PerfCounterId id);
 PerfCounterSnapshot CapturePerformanceCounters();
 std::vector<std::pair<std::string_view, std::uint64_t>> NonZeroCounterDelta(

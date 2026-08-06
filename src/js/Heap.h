@@ -741,8 +741,14 @@ class Heap {
   // interpreter turns that into a RangeError, which is the same answer a real
   // engine gives when it cannot grow.
   //
-  // When the bytecode VM arrives with a scannable value stack, this becomes a
-  // trigger to collect rather than a reason to fail.
+  // Soft capacity for live cells (objects + environments). Past the limit,
+  // allocation fails and the interpreter turns that into a RangeError.
+  //
+  // 2M rather than 500k: youtube.com's Polymer upgrades hold about 500k live
+  // cells at peak with the collector running (js.heap_live_peak), so the old
+  // ceiling was a hard wall the moment a custom-element reaction did any real
+  // work. The bytecode VM makes this a *live-set* budget rather than a "fail
+  // before collect" budget -- see MaybeCollect and GatherVmRoots.
   void SetLimit(std::size_t cells) { limit_ = cells; }
   bool AtLimit() const { return objects_.size() + environments_.size() >= limit_; }
 
@@ -779,7 +785,7 @@ class Heap {
   // Around 150 MB here, which is far more than any page legitimately needs and
   // far less than the machine has. Measured rather than guessed: the fuzzer's
   // recursive allocator reached 600 MB at four times this.
-  std::size_t limit_ = 500'000;
+  std::size_t limit_ = 2'000'000;
   // Worklist, kept as a member so a deep object graph is traced iteratively.
   // Recursing here would put the collector's stack depth under the control of
   // whoever wrote the page.

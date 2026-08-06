@@ -46,6 +46,14 @@ void AddPerformanceCounter(PerfCounterId id, std::uint64_t delta) {
   Counters()[ToIndex(id)].fetch_add(delta, std::memory_order_relaxed);
 }
 
+void MaxPerformanceCounter(PerfCounterId id, std::uint64_t value) {
+  std::atomic<std::uint64_t>& cell = Counters()[ToIndex(id)];
+  std::uint64_t current = cell.load(std::memory_order_relaxed);
+  while (value > current &&
+         !cell.compare_exchange_weak(current, value, std::memory_order_relaxed)) {
+  }
+}
+
 std::uint64_t ReadPerformanceCounter(PerfCounterId id) {
   return Counters()[ToIndex(id)].load(std::memory_order_relaxed);
 }

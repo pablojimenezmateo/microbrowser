@@ -8,6 +8,7 @@
 #include "js/BigInt.h"
 #include "js/Collections.h"
 #include "js/RegExp.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::js {
 
@@ -597,6 +598,7 @@ bool Heap::WeakDelete(const Object* table, const Object* key) {
 
 Object* Heap::AllocateObject(Object::Kind kind) {
   if (AtLimit()) {
+    util::AddPerformanceCounter(util::PerfCounterId::JsHeapOom);
     return nullptr;
   }
   ++since_collection_;
@@ -606,6 +608,7 @@ Object* Heap::AllocateObject(Object::Kind kind) {
 
 Environment* Heap::AllocateEnvironment(Environment* parent) {
   if (AtLimit()) {
+    util::AddPerformanceCounter(util::PerfCounterId::JsHeapOom);
     return nullptr;
   }
   ++since_collection_;
@@ -752,6 +755,7 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
   }
 
   const std::size_t before = objects_.size() + environments_.size();
+  util::MaxPerformanceCounter(util::PerfCounterId::JsHeapLivePeak, before);
   // Before the objects go, so the side table never holds a key that has been
   // freed -- a stale entry would be handed out as a compiled pattern the next
   // time an object happened to be allocated at the same address.

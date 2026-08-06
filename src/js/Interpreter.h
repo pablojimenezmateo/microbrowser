@@ -183,6 +183,14 @@ class Interpreter {
           line += "\n    " + stack->AsString();
         }
       }
+    } else if (error.type == ValueType::String) {
+      // MakeError falls back to a bare string when the heap cannot hold an
+      // Error object -- which is exactly the OOM case that most needs a place.
+      // CaptureStack still works: frames are on the machine, not the heap.
+      const std::string stack = CaptureStack("RangeError", error.AsString());
+      if (!stack.empty()) {
+        line += "\n    " + stack;
+      }
     }
     console_.push_back(std::move(line));
   }
