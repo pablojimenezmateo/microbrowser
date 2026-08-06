@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "css/CssText.h"
+#include "text/Bidi.h"
+#include "util/StringUtil.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::css {
@@ -146,6 +148,46 @@ std::string PresentationalAlignValue(std::string_view tag_name, std::string_view
   return {};
 }
 
+// P2 over an element's own text: true when the first strong character is right-to-left.
+//
+// This is `dir="auto"`, and the walk is the specification's rather than a simplification of it: it
+// skips a descendant that has its own `dir`, skips `<bdi>` (which is its own paragraph by
+// definition), and skips `<script>` and `<style>` (whose text is not text). Bounded at 4,096 bytes,
+// because the answer is decided by the *first* strong character and a page that puts none in the
+// first four kilobytes of a comment is a page whose direction nobody can infer either.
+bool DirectionFromContent(const dom::Element& element) {
+  std::string collected;
+  const auto walk = [&collected](const dom::Node& node, auto& self) -> void {
+    for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+      if (collected.size() >= 4096) {
+        return;
+      }
+      if (child->IsText()) {
+        collected += static_cast<const dom::Text&>(*child).Data();
+        continue;
+      }
+      if (!child->IsElement()) {
+        continue;
+      }
+      const auto* child_element = static_cast<const dom::Element*>(child.get());
+      const std::string_view child_tag = child_element->TagName();
+      if (child_tag == "script" || child_tag == "style" || child_tag == "bdi" ||
+          child_element->GetAttribute("dir") != nullptr) {
+        continue;
+      }
+      self(*child_element, self);
+    }
+  };
+  walk(element, walk);
+  std::vector<std::uint32_t> code_points;
+  std::size_t at = 0;
+  std::uint32_t code = 0;
+  while (util::DecodeUtf8(collected, at, code)) {
+    code_points.push_back(code);
+  }
+  return text::ParagraphLevel(code_points) == 1;
+}
+
 // The declarations an element's presentational attributes stand for.
 std::vector<Declaration> PresentationalDeclarations(const dom::Element& element) {
   const std::string_view tag = element.TagName();
@@ -174,15 +216,15 @@ std::vector<Declaration> PresentationalDeclarations(const dom::Element& element)
   // sheet can express, because its value *is* the property's value -- and it is how nearly every
   // right-to-left document on the web declares itself: `<html dir="rtl">`.
   //
-  // `dir="auto"` is deliberately absent rather than mapped to either direction. It means "infer from
-  // the content", which is UAX #9's P2 applied to this element's text, and answering it with a guess
-  // would be worse than answering it with nothing: a wrong direction reverses a sentence, where no
-  // direction leaves it in the paragraph's. Session 34.
-  if (const std::string* dir = element.GetAttribute("dir")) {
-    const std::string lowered = Lowered(Trim(*dir));
-    if (lowered == "rtl" || lowered == "ltr") {
-      add("direction", lowered);
-    }
+  // `dir="auto"` is UAX #9's P2 applied to this element's own text, which is what makes a comment
+  // field holding user-supplied text lay out the way its author wrote it rather than the way the page
+  // around it runs. `<bdi>` defaults to it, and that is the element's whole purpose.
+  const std::string* dir = element.GetAttribute("dir");
+  const std::string lowered = dir == nullptr ? std::string() : Lowered(Trim(*dir));
+  if (lowered == "rtl" || lowered == "ltr") {
+    add("direction", lowered);
+  } else if (lowered == "auto" || (dir == nullptr && tag == "bdi")) {
+    add("direction", DirectionFromContent(element) ? "rtl" : "ltr");
   }
 
   if (tag == "table") {
@@ -389,18 +431,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   // initial value. Doing this by construction rather than by a per-property
   // `inherit` check is what makes the resolve one pass.
   ComputedStyle style;
-  style.color = parent.color;
-  style.font_size = parent.font_size;
-  style.font_weight = parent.font_weight;
-  style.font_style = parent.font_style;
-  style.font_family = parent.font_family;
-  style.line_height = parent.line_height;
-  style.text_align = parent.text_align;
-  style.direction = parent.direction;
-  style.white_space = parent.white_space;
-  // Custom properties inherit, which is the entire basis of how a modern
-  // stylesheet is written: set on `:root` once, referenced everywhere below.
-  style.custom_properties = parent.custom_properties;
+  InheritInto(parent, style);
 
   // The style attribute participates in the cascade rather than being applied
   // after it. Applied afterwards, it would beat an `!important` author rule,
@@ -589,6 +620,13 @@ ul, ol { margin: 1em 0; padding-left: 40px }
 blockquote { margin: 1em 40px }
 pre { white-space: pre; margin: 1em 0 }
 hr { margin: 0.5em 0; border-width: 1px; border-color: gray }
+/* The two bidi elements, whose whole meaning is a `unicode-bidi` value. `<bdo>` overrides the
+   algorithm for its contents; `<bdi>` isolates them, which is what makes an untrusted user name
+   safe to put in the middle of a sentence -- without it, a name that starts with an Arabic letter
+   reorders the text around it. `<bdi>`'s `dir` also defaults to `auto` rather than inheriting,
+   which is the point of the element and is handled where `dir` is read. */
+bdo { unicode-bidi: bidi-override }
+bdi { unicode-bidi: isolate }
 )CSS";
 }
 

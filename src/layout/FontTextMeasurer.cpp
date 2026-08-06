@@ -4,9 +4,9 @@
 
 namespace microbrowser::layout {
 
-float FontTextMeasurer::MeasureWidth(std::string_view text,
-                                     const css::ComputedStyle& style) const {
-  return text_->MeasureRun(text, FontRequestFor(style));
+float FontTextMeasurer::MeasureWidth(std::string_view text, const css::ComputedStyle& style,
+                                     bool right_to_left) const {
+  return text_->MeasureRun(text, FontRequestFor(style), right_to_left);
 }
 
 float FontTextMeasurer::LineHeight(const css::ComputedStyle& style) const {

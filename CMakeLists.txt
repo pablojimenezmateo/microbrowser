@@ -238,7 +238,7 @@ microbrowser_module(css
     src/css/StyleSheet.cpp
     src/css/TransformDeclarations.cpp
   src/css/Tokenizer.cpp
-  DEPS microbrowser_util microbrowser_dom microbrowser_gfx)
+  DEPS microbrowser_util microbrowser_dom microbrowser_gfx microbrowser_text)
 
 microbrowser_module(html
   SOURCES

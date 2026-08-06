@@ -24,6 +24,7 @@ records which version produced it. Fetch them with:
     curl -O https://www.unicode.org/Public/15.1.0/ucd/LineBreak.txt
     curl -O https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt
     curl -O https://www.unicode.org/Public/15.1.0/ucd/BidiBrackets.txt
+    curl -O https://www.unicode.org/Public/15.1.0/ucd/BidiMirroring.txt
     curl -O https://www.unicode.org/Public/15.1.0/ucd/extracted/DerivedBidiClass.txt   # into extracted/
 """
 
@@ -178,7 +179,29 @@ def bracket_pairs(path):
     return pairs
 
 
+def mirror_pairs(path):
+    """BidiMirroring.txt: (code, mirrored) for rule L4.
+
+    Separate from BidiBrackets.txt and not derivable from it: every bracket mirrors, but so do 428
+    characters that are not brackets -- the mathematical relations, the arrows with a direction in
+    their name, the CJK corner brackets. `<` painting as `>` in right-to-left text is this table and
+    not the bracket one.
+    """
+    pairs = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = [part.strip() for part in line.split(";")]
+        if len(parts) < 2 or not parts[1]:
+            continue
+        pairs.append((int(parts[0], 16), int(parts[1], 16)))
+    pairs.sort()
+    return pairs
+
+
 bidi = bidi_classes(ucd / "extracted" / "DerivedBidiClass.txt")
+mirrors = mirror_pairs(ucd / "BidiMirroring.txt")
 brackets = bracket_pairs(ucd / "BidiBrackets.txt")
 
 out = (out_dir / "UnicodeTables.inc").open("w", encoding="utf-8")
@@ -230,5 +253,14 @@ out.write("// Bidi_Paired_Bracket, for rule N0. Sorted, searched by code point.\
 out.write("constexpr BracketPair kBracketPairs[] = {\n")
 for code, paired, is_open in brackets:
     out.write("    {0x%X, 0x%X, %s},\n" % (code, paired, "true" if is_open else "false"))
+out.write("};\n\n")
+
+out.write("// Bidi_Mirroring_Glyph, for rule L4: what to paint instead when this character sits in a\n")
+out.write("// right-to-left run. Separate from the bracket table and not derivable from it -- every\n")
+out.write("// bracket mirrors, but so do the mathematical relations, the directional arrows and the CJK\n")
+out.write("// corner brackets. `<` painting as `>` is this table.\n")
+out.write("constexpr MirrorPair kMirrorPairs[] = {\n")
+for code, mirrored in mirrors:
+    out.write("    {0x%X, 0x%X},\n" % (code, mirrored))
 out.write("};\n")
 out.close()

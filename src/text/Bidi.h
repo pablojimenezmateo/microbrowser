@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -41,6 +42,17 @@ enum class BidiClass : std::uint8_t {
 };
 
 BidiClass BidiClassOf(std::uint32_t code_point);
+
+// Rule L4: what to paint instead of this character when it sits in a right-to-left run, or the
+// character itself when nothing mirrors. `(` in Hebrew text paints as `)` -- the *character* is still
+// U+0028 and copying the text still yields U+0028, which is why this is a paint-time substitution and
+// not a rewrite of the text.
+std::uint32_t MirroredGlyph(std::uint32_t code_point);
+
+// `text` with every mirrorable character replaced, for a right-to-left run. Returns the input
+// unchanged -- no allocation, no copy -- when nothing in it mirrors, which is the overwhelmingly
+// common case even in Arabic and Hebrew.
+std::string MirrorForRightToLeft(std::string_view utf8);
 
 // The paired bracket for rule N0, and whether this code point opens one. Zero when it is not a
 // bracket at all.

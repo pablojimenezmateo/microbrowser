@@ -59,11 +59,18 @@ class TextShaper {
   TextShaper(const TextShaper&) = delete;
   TextShaper& operator=(const TextShaper&) = delete;
 
-  // Shapes UTF-8 `text` with `font`. Direction, script and language are guessed
+  // Shapes UTF-8 `text` with `font`, in the direction the caller names. Script and language are guessed
   // from the text itself, which is right for a single run and is not a
   // substitute for the bidi algorithm — that arrives with line layout, and its
   // job is to hand this function runs that are already one direction each.
-  const ShapedRun& Shape(const Font& font, std::string_view text);
+  //
+  // **The direction is a parameter and not a guess**, and that distinction is the whole reason this
+  // signature changed: HarfBuzz derives direction from the script of the text, which agrees with bidi
+  // for ordinary Hebrew or Arabic and disagrees for exactly the cases where an author asked for
+  // something -- `unicode-bidi: bidi-override` and `<bdo>`. `<bdo dir=rtl>abcdef</bdo>` drew
+  // `abcdef` because Latin script means left-to-right whatever the level said. The caller is bidi,
+  // which already knows.
+  const ShapedRun& Shape(const Font& font, std::string_view text, bool right_to_left);
 
   const ShapedRun& Run() const { return run_; }
 

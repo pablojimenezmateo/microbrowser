@@ -27,6 +27,25 @@
 
 namespace microbrowser::css {
 
+void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_custom_properties) {
+  child.color = parent.color;
+  child.font_size = parent.font_size;
+  child.font_weight = parent.font_weight;
+  child.font_style = parent.font_style;
+  child.font_family = parent.font_family;
+  child.line_height = parent.line_height;
+  child.text_align = parent.text_align;
+  child.direction = parent.direction;
+  child.unicode_bidi = parent.unicode_bidi;
+  child.white_space = parent.white_space;
+  if (with_custom_properties) {
+    // Custom properties inherit, which is the entire basis of how a modern stylesheet is written:
+    // set on `:root` once, referenced everywhere below.
+    child.custom_properties = parent.custom_properties;
+  }
+}
+
+
 namespace {
 
 // Splits on `separator`, but not inside a function's parentheses or a string.
@@ -673,6 +692,24 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
       style.direction = Direction::Ltr;
     } else if (value == "rtl") {
       style.direction = Direction::Rtl;
+    } else {
+      return false;
+    }
+    return true;
+  }
+  if (property == "unicode-bidi") {
+    if (value == "normal") {
+      style.unicode_bidi = UnicodeBidi::Normal;
+    } else if (value == "embed") {
+      style.unicode_bidi = UnicodeBidi::Embed;
+    } else if (value == "isolate") {
+      style.unicode_bidi = UnicodeBidi::Isolate;
+    } else if (value == "bidi-override") {
+      style.unicode_bidi = UnicodeBidi::BidiOverride;
+    } else if (value == "isolate-override") {
+      style.unicode_bidi = UnicodeBidi::IsolateOverride;
+    } else if (value == "plaintext") {
+      style.unicode_bidi = UnicodeBidi::Plaintext;
     } else {
       return false;
     }

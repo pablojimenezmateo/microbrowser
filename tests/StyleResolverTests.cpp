@@ -14,6 +14,7 @@
 namespace microbrowser::tests {
 
 using css::ComputedStyle;
+using css::Direction;
 using css::Display;
 using css::FontStyle;
 using css::Length;
@@ -21,7 +22,10 @@ using css::Origin;
 using css::ParseColor;
 using css::ParseLength;
 using css::ParseStyleSheet;
+using css::InheritInto;
+using css::Position;
 using css::StyleResolver;
+using css::UnicodeBidi;
 using css::SupportsDeclaration;
 using css::TextAlign;
 using css::WhiteSpace;
@@ -293,6 +297,64 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(StyleOf("<div align='right'><img align='left'>x</div>", "", "img").text_align ==
                TextAlign::Start,
            "`align` on a div and on an image are both unmapped, so this is the initial value");
+  });
+
+  AddTest(tests, "StyleResolver/DirectionComesFromTheAttributeAndFromTheContent", [] {
+    Expect(StyleOf("<div dir=rtl>x</div>", "", "div").direction == Direction::Rtl, "dir=rtl");
+    Expect(StyleOf("<div dir=RTL>x</div>", "", "div").direction == Direction::Rtl,
+           "and it is case-insensitive, like every HTML attribute value that is a keyword");
+    Expect(StyleOf("<div dir=ltr>x</div>", "", "div").direction == Direction::Ltr, "dir=ltr");
+    Expect(StyleOf("<div>x</div>", "", "div").direction == Direction::Ltr,
+           "and nothing at all is left-to-right");
+    // `dir=auto` is P2 over the element's own text, which is what makes a field holding
+    // user-supplied text lay out the way its author wrote it.
+    Expect(StyleOf("<div dir=auto>שלום</div>", "", "div").direction == Direction::Rtl,
+           "auto with Hebrew content");
+    Expect(StyleOf("<div dir=auto>hello שלום</div>", "", "div").direction == Direction::Ltr,
+           "auto is decided by the *first* strong character, not by a majority");
+    Expect(StyleOf("<div dir=auto>123 שלום</div>", "", "div").direction == Direction::Rtl,
+           "and a number is not strong, so it does not decide");
+    // The walk skips a descendant with its own `dir`, because that subtree is not this element's
+    // text for this purpose -- otherwise a nested `<span dir=rtl>` would flip its parent.
+    Expect(StyleOf("<div dir=auto><span dir=rtl>שלום</span> hello</div>", "", "div").direction ==
+               Direction::Ltr,
+           "a descendant with its own dir does not vote");
+    // `<bdi>` defaults to auto, which is the whole point of the element.
+    Expect(StyleOf("<div><bdi>שלום</bdi></div>", "", "bdi").direction == Direction::Rtl,
+           "bdi infers its own direction with no attribute at all");
+    Expect(StyleOf("<div><bdi>שלום</bdi></div>", "", "bdi").unicode_bidi == UnicodeBidi::Isolate,
+           "and the user-agent sheet isolates it");
+    Expect(StyleOf("<div><bdo dir=rtl>x</bdo></div>", "", "bdo").unicode_bidi ==
+               UnicodeBidi::BidiOverride,
+           "and overrides a bdo");
+  });
+
+  AddTest(tests, "StyleResolver/OneListOfInheritedProperties", [] {
+    // `src/layout` used to keep a second list of which properties inherit, for the anonymous box it
+    // builds around a text node -- and it had drifted: `direction` and `unicode-bidi` were added to
+    // the cascade and not to it, so a right-to-left `<span>` was right-to-left and its own text was
+    // not. There is one list now (`css::InheritInto`), and this asserts what it copies. **A property
+    // added to it belongs here too**, which is the only way a third caller stays honest.
+    ComputedStyle parent;
+    parent.direction = Direction::Rtl;
+    parent.unicode_bidi = UnicodeBidi::Isolate;
+    parent.text_align = TextAlign::Center;
+    parent.font_size = 21.0f;
+    parent.custom_properties.emplace_back("--x", "1");
+    ComputedStyle child;
+    InheritInto(parent, child);
+    Expect(child.direction == Direction::Rtl, "direction inherits");
+    Expect(child.unicode_bidi == UnicodeBidi::Isolate, "unicode-bidi inherits here, and not in CSS");
+    Expect(child.text_align == TextAlign::Center, "text-align inherits");
+    Expect(child.font_size == 21.0f, "font-size inherits");
+    Expect(child.custom_properties.size() == 1, "and so do custom properties");
+    Expect(child.position == Position::Static,
+           "while a non-inherited property stays at its initial value");
+    ComputedStyle text_child;
+    InheritInto(parent, text_child, /*with_custom_properties=*/false);
+    Expect(text_child.direction == Direction::Rtl, "the text-box form inherits the rest");
+    Expect(text_child.custom_properties.empty(),
+           "and skips the custom-property table, because a text box never resolves a var()");
   });
 
   AddTest(tests, "StyleResolver/CellPaddingIsReadFromTheTable", [] {

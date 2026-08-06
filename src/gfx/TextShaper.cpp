@@ -43,7 +43,8 @@ void TextShaper::ReleaseFont() {
   cached_size_ = 0.0f;
 }
 
-const ShapedRun& TextShaper::Shape(const Font& font, std::string_view text) {
+const ShapedRun& TextShaper::Shape(const Font& font, std::string_view text,
+                                   bool right_to_left) {
   run_.Clear();
   if (text.empty() || buffer_ == nullptr) {
     return run_;
@@ -94,6 +95,9 @@ const ShapedRun& TextShaper::Shape(const Font& font, std::string_view text) {
   hb_buffer_add_utf8(buffer, text.data(), static_cast<int>(text.size()), 0,
                      static_cast<int>(text.size()));
   hb_buffer_guess_segment_properties(buffer);
+  // After the guess, because the guess also sets script and language -- which are still worth having.
+  // Only the direction is overridden, and only ever to what bidi already resolved.
+  hb_buffer_set_direction(buffer, right_to_left ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
   hb_shape(static_cast<hb_font_t*>(hb_font_), buffer, nullptr, 0);
 
   unsigned int count = 0;

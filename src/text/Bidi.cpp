@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <string>
 
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
@@ -30,6 +31,11 @@ struct BracketPair {
   std::uint32_t code;
   std::uint32_t paired;
   bool opens;
+};
+
+struct MirrorPair {
+  std::uint32_t code;
+  std::uint32_t mirrored;
 };
 
 #include "text/BidiTables.inc"
@@ -171,6 +177,53 @@ std::uint32_t PairedBracket(std::uint32_t code_point, bool& opens) {
     }
   }
   return 0;
+}
+
+std::uint32_t MirroredGlyph(std::uint32_t code_point) {
+  std::size_t low = 0;
+  std::size_t high = std::size(kMirrorPairs);
+  while (low < high) {
+    const std::size_t mid = low + (high - low) / 2;
+    if (code_point < kMirrorPairs[mid].code) {
+      high = mid;
+    } else if (code_point > kMirrorPairs[mid].code) {
+      low = mid + 1;
+    } else {
+      return kMirrorPairs[mid].mirrored;
+    }
+  }
+  return code_point;
+}
+
+std::string MirrorForRightToLeft(std::string_view utf8) {
+  // Two passes, and the first one usually ends it. Every mirrorable character is at U+0028 or above
+  // and the table is 428 entries, so a scan that finds nothing costs one lookup per code point and no
+  // allocation at all -- which matters because this runs on every right-to-left run painted, and
+  // almost none of them contain a bracket.
+  std::size_t at = 0;
+  bool any = false;
+  while (at < utf8.size() && !any) {
+    std::uint32_t code = 0;
+    if (!util::DecodeUtf8(utf8, at, code)) {
+      break;
+    }
+    any = MirroredGlyph(code) != code;
+  }
+  if (!any) {
+    return std::string(utf8);
+  }
+  std::string out;
+  out.reserve(utf8.size());
+  at = 0;
+  while (at < utf8.size()) {
+    std::uint32_t code = 0;
+    if (!util::DecodeUtf8(utf8, at, code)) {
+      break;
+    }
+    util::AppendUtf8(out, MirroredGlyph(code));
+  }
+  util::AddPerformanceCounter(util::PerfCounterId::TextMirroredRuns);
+  return out;
 }
 
 std::uint8_t ParagraphLevel(const std::vector<std::uint32_t>& text) {

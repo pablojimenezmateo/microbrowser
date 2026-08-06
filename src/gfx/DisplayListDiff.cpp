@@ -52,7 +52,8 @@ IntRect CommandBounds(const DisplayList& list, const DisplayCommand& command) {
     const DisplayList::TextRun* run = list.TextAt(text->text);
     const FontRequest* font = list.FontAt(text->font);
     if (run != nullptr && font != nullptr) {
-      single.DrawText(run->text, run->advance, *font, text->origin, text->color);
+      single.DrawText(run->text, run->advance, *font, text->origin, text->color,
+                      run->right_to_left);
     }
   } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
     if (image->image < list.Images().size()) {

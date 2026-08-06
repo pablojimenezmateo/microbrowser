@@ -68,6 +68,11 @@ struct TextFragment {
   // only the font knows: mixing the two is the classic reason text renders one
   // line too low.
   float baseline = 0.0f;
+  // Whether bidi resolved this fragment to a right-to-left level. Paint needs it for rule L4 -- a
+  // `(` in right-to-left text is painted as `)` -- and it is a property of the *fragment* rather than
+  // of the box, because one text box can contribute a left-to-right and a right-to-left fragment to
+  // the same line.
+  bool right_to_left = false;
 
   friend bool operator==(const TextFragment&, const TextFragment&) = default;
 };
@@ -341,7 +346,13 @@ class ImageProvider {
 class TextMeasurer {
  public:
   virtual ~TextMeasurer() = default;
-  virtual float MeasureWidth(std::string_view text, const css::ComputedStyle& style) const = 0;
+  // `right_to_left` is bidi's answer, not a guess from the text -- and it is here rather than
+  // defaulted because a measurement taken in one direction and a paint done in the other is a line
+  // that ends up a fraction of a pixel short at every direction boundary. Shaping is
+  // direction-dependent even when the advances happen to match, which they usually do; "usually" is
+  // not a property to build a line box on.
+  virtual float MeasureWidth(std::string_view text, const css::ComputedStyle& style,
+                             bool right_to_left = false) const = 0;
   virtual float LineHeight(const css::ComputedStyle& style) const = 0;
   // Distance from the top of the line box to the baseline. Positive.
   virtual float Ascent(const css::ComputedStyle& style) const = 0;
@@ -357,7 +368,8 @@ class FixedTextMeasurer : public TextMeasurer {
  public:
   explicit FixedTextMeasurer(float advance_ratio = 0.5f) : ratio_(advance_ratio) {}
 
-  float MeasureWidth(std::string_view text, const css::ComputedStyle& style) const override;
+  float MeasureWidth(std::string_view text, const css::ComputedStyle& style,
+                     bool right_to_left = false) const override;
   float LineHeight(const css::ComputedStyle& style) const override;
   float Ascent(const css::ComputedStyle& style) const override;
 

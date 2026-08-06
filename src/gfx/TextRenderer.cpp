@@ -29,12 +29,14 @@ std::size_t TextRenderer::KeyHash::operator()(const Key& key) const {
   MixInto(hash, std::hash<const void*>{}(key.face));
   MixInto(hash, key.size_bits);
   MixInto(hash, static_cast<std::size_t>(key.hinting));
+  MixInto(hash, key.right_to_left ? 1u : 0u);
   return hash;
 }
 
-TextRenderer::Key TextRenderer::KeyFor(std::string_view text, const Font& font) {
+TextRenderer::Key TextRenderer::KeyFor(std::string_view text, const Font& font,
+                                       bool right_to_left) {
   return Key{std::string(text), font.FaceIdentity(), std::bit_cast<std::uint32_t>(font.PixelSize()),
-             font.HintingMode()};
+             font.HintingMode(), right_to_left};
 }
 
 void TextRenderer::SetCapacity(std::size_t runs) {
@@ -103,8 +105,9 @@ std::vector<TextRenderer::CoveragePiece> TextRenderer::SplitByCoverage(std::stri
   return pieces;
 }
 
-const ShapedRun* TextRenderer::LookupWithFont(std::string_view text, Font& font) {
-  Key key = KeyFor(text, font);
+const ShapedRun* TextRenderer::LookupWithFont(std::string_view text, Font& font,
+                                              bool right_to_left) {
+  Key key = KeyFor(text, font, right_to_left);
   const auto existing = entries_.find(key);
   if (existing != entries_.end()) {
     AddPerformanceCounter(PerfCounterId::ShapedRunCacheHits);
@@ -113,7 +116,7 @@ const ShapedRun* TextRenderer::LookupWithFont(std::string_view text, Font& font)
   }
 
   AddPerformanceCounter(PerfCounterId::ShapedRunCacheMisses);
-  const ShapedRun& shaped = shaper_.Shape(font, text);
+  const ShapedRun& shaped = shaper_.Shape(font, text, right_to_left);
 
   if (capacity_ == 0) {
     // Not cacheable, but still shaped. Returning the shaper's own run is safe
@@ -131,7 +134,7 @@ const ShapedRun* TextRenderer::LookupWithFont(std::string_view text, Font& font)
 }
 
 void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRequest& request,
-                           FloatPoint origin, Color color) {
+                           FloatPoint origin, Color color, bool right_to_left) {
   if (text.empty() || color.IsFullyTransparent()) {
     return;
   }
@@ -145,7 +148,9 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
   // The common case -- a whole run in one font -- takes one pass and one shape, which is what the
   // `pieces.size() == 1` path below preserves: splitting must not cost anything on Latin text.
   // Shaped first, placed second, and **the two halves are separate because a right-to-left run's
-  // pieces go down from the right.** A run this function receives is uniform in direction -- bidi
+  // pieces go down from the right.** The direction is the caller's -- bidi resolved it -- rather than
+  // anything read back off a shaped run, which is why `<bdo>` works: an override says right-to-left
+  // about Latin text, and no amount of looking at the text would say so. A run this function receives is uniform in direction -- bidi
   // guaranteed that before it got here -- but it can still be several pieces, because one direction
   // is not one script and not one font. Within such a run the logically *first* piece is the
   // *rightmost* one, so placing pieces left to right puts the Hebrew of `ערבית: مرحبا` on the wrong
@@ -157,18 +162,14 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
     const ShapedRun* run = nullptr;
   };
   std::vector<Placed> placed;
-  bool right_to_left = false;
   for (const CoveragePiece& piece : SplitByCoverage(text, request)) {
     if (piece.font == nullptr) {
       continue;
     }
-    const ShapedRun* run = LookupWithFont(piece.text, *piece.font);
+    const ShapedRun* run = LookupWithFont(piece.text, *piece.font, right_to_left);
     if (run == nullptr) {
       continue;
     }
-    // Any piece being backward makes the run backward. They cannot disagree in a well-formed bidi
-    // run, and if they somehow did, treating the run as backward keeps its pieces adjacent.
-    right_to_left = right_to_left || run->right_to_left;
     placed.push_back({piece.font, run});
   }
   float pen = origin.x;
@@ -187,7 +188,8 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
   }
 }
 
-float TextRenderer::MeasureRun(std::string_view text, const FontRequest& request) {
+float TextRenderer::MeasureRun(std::string_view text, const FontRequest& request,
+                               bool right_to_left) {
   if (text.empty()) {
     return 0.0f;
   }
@@ -199,7 +201,7 @@ float TextRenderer::MeasureRun(std::string_view text, const FontRequest& request
     if (piece.font == nullptr) {
       continue;
     }
-    if (const ShapedRun* run = LookupWithFont(piece.text, *piece.font)) {
+    if (const ShapedRun* run = LookupWithFont(piece.text, *piece.font, right_to_left)) {
       width += run->width;
     }
   }

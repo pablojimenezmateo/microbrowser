@@ -214,6 +214,22 @@ void RegisterBidiTests(std::vector<TestCase>& tests) {
     Expect(!text::NeedsBidi(""), "and an empty line needs nothing");
   });
 
+  AddTest(tests, "Bidi/MirroringIsAPaintSubstitutionAndNotARewrite", [] {
+    // Rule L4. `(` in right-to-left text is painted as `)`, and the *character* is still U+0028 --
+    // which is why this is a function paint calls and not something that touches the DOM.
+    Expect(text::MirroredGlyph('(') == ')', "a parenthesis mirrors");
+    Expect(text::MirroredGlyph('<') == '>', "and so does a less-than, which is not a bracket at all "
+                                            "-- BidiMirroring.txt is a separate table for that reason");
+    Expect(text::MirroredGlyph('a') == 'a', "a letter does not");
+    Expect(text::MirroredGlyph(0x0000) == 0x0000, "and neither does NUL");
+    ExpectEqString(text::MirrorForRightToLeft("a(b)c"), "a)b(c", "a whole run at once");
+    ExpectEqString(text::MirrorForRightToLeft("שלום"), "שלום",
+                   "and text with nothing mirrorable comes back unchanged");
+    // The `<` case is the one that matters for a browser: a run of right-to-left text containing an
+    // angle bracket paints the other one, and 428 characters do this while only 128 are brackets.
+    ExpectEqString(text::MirrorForRightToLeft("1<2"), "1>2", "a relation mirrors too");
+  });
+
   AddTest(tests, "Bidi/DeeplyNestedEmbeddingsOverflowRatherThanClamp", [] {
     // 125 is the depth limit, and past it an embedding is *ignored* -- with its matching pop ignored
     // too, which is what the overflow counters are for. Clamping instead would silently reinterpret

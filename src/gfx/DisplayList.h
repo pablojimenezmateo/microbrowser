@@ -206,6 +206,12 @@ class DisplayList {
   struct TextRun {
     std::string text;
     float advance = 0.0f;
+    // The direction bidi resolved, which the shaper is *told* rather than left to guess. It lives on
+    // the run beside the advance rather than on the command because a command is 24 bytes and full --
+    // and because it belongs here: like the advance, it is a fact about this stretch of text that was
+    // decided before paint. It cannot be recomputed at paint time either, since
+    // `unicode-bidi: bidi-override` makes Latin text right-to-left and nothing in the text says so.
+    bool right_to_left = false;
 
     friend bool operator==(const TextRun&, const TextRun&) = default;
   };
@@ -243,7 +249,7 @@ class DisplayList {
   // must work without a font — damage is computed by the compositor side, which
   // has a display list and nothing else.
   void DrawText(std::string_view text, float advance, const FontRequest& font, FloatPoint origin,
-                Color color);
+                Color color, bool right_to_left = false);
 
   // Shares the image rather than copying it. Null and invalid images record
   // nothing, which is what a page whose <img> has not loaded should paint.

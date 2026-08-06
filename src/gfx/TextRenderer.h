@@ -35,12 +35,13 @@ class TextRenderer {
   // request resolves to no font, which is what a page naming a family that is
   // not installed should do — not crash, and not silently pick something.
   void DrawRun(Painter& painter, std::string_view text, const FontRequest& request,
-               FloatPoint origin, Color color);
+               FloatPoint origin, Color color, bool right_to_left = false);
 
   // Total advance width of `text`, or 0 when the request resolves to no font.
   // Shares the cache with DrawRun, so measuring during layout and painting
   // afterwards shape each run once between them.
-  float MeasureRun(std::string_view text, const FontRequest& request);
+  float MeasureRun(std::string_view text, const FontRequest& request,
+                   bool right_to_left = false);
 
   // Ascent and descent for a request, both positive and measured from the
   // baseline. Zeroed when nothing resolves.
@@ -66,11 +67,14 @@ class TextRenderer {
     const void* face = nullptr;
     std::uint32_t size_bits = 0;
     Hinting hinting = Hinting::None;
+    // Part of the key, because the same text shaped in the two directions is two different glyph
+    // vectors -- and a cache that ignored it would answer a measurement with the other one.
+    bool right_to_left = false;
 
     friend bool operator==(const Key&, const Key&) = default;
   };
 
-  static Key KeyFor(std::string_view text, const Font& font);
+  static Key KeyFor(std::string_view text, const Font& font, bool right_to_left);
   struct KeyHash {
     std::size_t operator()(const Key& key) const;
   };
@@ -90,7 +94,7 @@ class TextRenderer {
 
   // The shaped-run cache, keyed by text and font. Takes the font rather than choosing one, because
   // choosing is now per character and happens in SplitByCoverage.
-  const ShapedRun* LookupWithFont(std::string_view text, Font& font);
+  const ShapedRun* LookupWithFont(std::string_view text, Font& font, bool right_to_left);
 
   FontProvider* fonts_;
   TextShaper shaper_;

@@ -12,10 +12,12 @@ extern:
 
 # Raised from 600 for Bidi.cpp, which is UAX #9: one algorithm of twenty-odd numbered rules that are
 # not independent. Splitting it would put half the rules in one file and half in another with the
-# shared state -- classes, levels, the removed-by-X9 mask -- crossing the seam.
-max_tu_lines: 800
+# shared state -- classes, levels, the removed-by-X9 mask -- crossing the seam. Raised again from 800
+# to 900 for rule L4, which is a second table and its two lookups.
+max_tu_lines: 900
 
 budget: LineBreakRange  header_lines=20 public_methods=0 members=3
 budget: WidthRange      header_lines=20 public_methods=0 members=3
 budget: BreakOpportunity header_lines=20 public_methods=0 members=2
 budget: BidiRun         header_lines=20 public_methods=0 members=4
+budget: MirrorPair      header_lines=20 public_methods=0 members=2

@@ -122,7 +122,7 @@ void DisplayList::StrokePath(const Path& path, const StrokeStyle& style, Color c
 }
 
 void DisplayList::DrawText(std::string_view text, float advance, const FontRequest& font,
-                           FloatPoint origin, Color color) {
+                           FloatPoint origin, Color color, bool right_to_left) {
   if (text.empty() || color.IsFullyTransparent() || !std::isfinite(advance) ||
       !std::isfinite(origin.x) || !std::isfinite(origin.y)) {
     return;
@@ -134,7 +134,7 @@ void DisplayList::DrawText(std::string_view text, float advance, const FontReque
   if (font_index == fonts_.size()) {
     fonts_.push_back(font);
   }
-  texts_.push_back(TextRun{std::string(text), advance});
+  texts_.push_back(TextRun{std::string(text), advance, right_to_left});
   commands_.emplace_back(DrawTextCommand{static_cast<std::uint32_t>(texts_.size() - 1), font_index,
                                          origin, color});
   AddPerformanceCounter(PerfCounterId::DisplayListCommands);
@@ -340,7 +340,8 @@ void Execute(const DisplayList& list, Painter& painter, const IntRect& damage,
       const DisplayList::TextRun* run = list.TextAt(text->text);
       const FontRequest* font = list.FontAt(text->font);
       if (text_renderer != nullptr && run != nullptr && font != nullptr) {
-        text_renderer->DrawRun(painter, run->text, *font, text->origin, text->color);
+        text_renderer->DrawRun(painter, run->text, *font, text->origin, text->color,
+                               run->right_to_left);
       }
     } else if (const auto* image = std::get_if<DrawImageCommand>(&command)) {
       if (const Image* pixels = list.ImageAt(image->image)) {

@@ -282,6 +282,7 @@ namespace microbrowser::util {
   X(TextBreakOpportunities, "text.break_opportunities")                           \
   X(TextBidiLines, "text.bidi_lines")                                             \
   X(TextBidiRuns, "text.bidi_runs")                                               \
+  X(TextMirroredRuns, "text.mirrored_runs")                                       \
   X(EncodingReplacements, "encoding.replacements")                                 \
   X(EncodingFromPrescan, "encoding.from_prescan")                                 \
   X(EncodingFellBackToWindows1252, "encoding.fell_back_to_windows1252")            \

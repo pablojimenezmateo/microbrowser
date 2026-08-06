@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "html/FormControl.h"
+#include "text/Bidi.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::layout {
@@ -375,11 +376,18 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
       const gfx::FontRequest font = FontRequestFor(style);
       for (const TextFragment& fragment : box.Fragments()) {
         const std::string_view piece(box.Text().data() + fragment.begin, fragment.length);
+        // Rule L4, and it belongs here rather than in the DOM: the *character* is still U+0028, and
+        // `textContent` and a copy to the clipboard must both still say so. Only what is painted
+        // changes. `MirrorForRightToLeft` returns its input when nothing in the run mirrors, which is
+        // almost every run even in Arabic.
+        const std::string mirrored =
+            fragment.right_to_left ? text::MirrorForRightToLeft(piece) : std::string();
         // The baseline, not the top of the line box. They differ by an ascent,
         // and using the wrong one puts every line of text a line too low.
-        out.DrawText(piece, fragment.rect.width, font,
+        out.DrawText(fragment.right_to_left ? std::string_view(mirrored) : piece,
+                     fragment.rect.width, font,
                      gfx::FloatPoint{fragment.rect.x + offset.x, fragment.baseline + offset.y},
-                     style.color);
+                     style.color, fragment.right_to_left);
       }
       return;
     }

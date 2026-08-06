@@ -430,6 +430,9 @@ void WriteDisplayList(ByteWriter& writer, const gfx::DisplayList& list) {
       writer.WriteF32(text->origin.x);
       writer.WriteF32(text->origin.y);
       writer.WriteF32(run->advance);
+      // The resolved direction, which the receiver has no way to recompute: bidi ran in the process
+      // that built this list, and `unicode-bidi: bidi-override` means the text itself does not say.
+      writer.WriteU8(run->right_to_left ? 1u : 0u);
       WriteFontRequest(writer, *font);
       writer.WriteString(run->text);
     } else if (const auto* image = std::get_if<gfx::DrawImageCommand>(&command)) {
@@ -542,8 +545,9 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
         const float x = reader.ReadF32();
         const float y = reader.ReadF32();
         const float advance = reader.ReadF32();
+        const std::uint8_t right_to_left = reader.ReadU8();
         if (!reader.Ok() || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(advance) ||
-            advance < 0.0f) {
+            advance < 0.0f || right_to_left > 1) {
           return false;
         }
         gfx::FontRequest font;
@@ -554,7 +558,7 @@ bool ReadDisplayList(ByteReader& reader, gfx::DisplayList& out) {
         if (!reader.Ok()) {
           return false;
         }
-        out.DrawText(run, advance, font, gfx::FloatPoint{x, y}, color);
+        out.DrawText(run, advance, font, gfx::FloatPoint{x, y}, color, right_to_left != 0);
         break;
       }
       case CommandTag::DrawImage: {

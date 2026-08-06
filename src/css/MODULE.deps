@@ -1,6 +1,10 @@
 purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error recovery is normative.
 
-allow: util dom gfx
+# `text` is here for one question: `dir="auto"` is UAX #9's rule P2 applied to an element's own
+# text, and "which direction is this text?" is a character-property question -- which is exactly what
+# `src/text` exists to answer and the only kind of question it can answer. It cannot see a box, a
+# font or a document, so nothing about layout can reach the cascade through it.
+allow: util dom gfx text
 
 public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h Length.h Transform.h StyleResolver.h MediaQuery.h
 

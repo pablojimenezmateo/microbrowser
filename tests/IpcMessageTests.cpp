@@ -241,6 +241,9 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteF32(x);
       writer.WriteF32(0.0f);
       writer.WriteF32(advance);
+      // The resolved bidi direction, which the codec now writes with every run. Zero here: this test
+      // is about the *other* fields being hostile, and a bad direction byte is a separate refusal.
+      writer.WriteU8(0);
       writer.WriteU32(families);
       // Deliberately one, whatever the declared count says: a reader that
       // trusts the count walks off the end of the buffer, and a reader that

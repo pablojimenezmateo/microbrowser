@@ -39,7 +39,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 20.0f);
     TextShaper shaper;
-    const ShapedRun& run = shaper.Shape(font, "");
+    const ShapedRun& run = shaper.Shape(font, "", false);
     Expect(run.glyphs.empty(), "nothing in, nothing out");
     Expect(run.width == 0.0f, "and no width");
   });
@@ -49,7 +49,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 40.0f);
     TextShaper shaper;
-    const ShapedRun& run = shaper.Shape(font, "ABCD");
+    const ShapedRun& run = shaper.Shape(font, "ABCD", false);
 
     ExpectEqInt(static_cast<long long>(run.glyphs.size()), 4, "four characters, four glyphs");
     for (std::size_t i = 0; i < run.glyphs.size(); ++i) {
@@ -67,7 +67,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 32.0f);
     TextShaper shaper;
-    const ShapedRun& run = shaper.Shape(font, "ABCD");
+    const ShapedRun& run = shaper.Shape(font, "ABCD", false);
 
     float expected_width = 0.0f;
     for (const PositionedGlyph& glyph : run.glyphs) {
@@ -86,9 +86,9 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     TextShaper shaper;
 
     Font small(face, 16.0f);
-    const float small_width = shaper.Shape(small, "ABCD").width;
+    const float small_width = shaper.Shape(small, "ABCD", false).width;
     Font large(face, 48.0f);
-    const float large_width = shaper.Shape(large, "ABCD").width;
+    const float large_width = shaper.Shape(large, "ABCD", false).width;
 
     Expect(std::abs(large_width - 3.0f * small_width) < 0.1f,
            "three times the size is three times the width; a stale cached shaping font would "
@@ -102,7 +102,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 24.0f);
     TextShaper shaper;
-    const ShapedRun& run = shaper.Shape(font, "A B");
+    const ShapedRun& run = shaper.Shape(font, "A B", false);
 
     ExpectEqInt(static_cast<long long>(run.glyphs.size()), 3, "two letters and a space");
     ExpectEqInt(static_cast<long long>(run.glyphs[0].cluster), 0, "'A' starts at byte 0");
@@ -117,7 +117,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 24.0f);
     TextShaper shaper;
-    const ShapedRun& run = shaper.Shape(font, "AZA");
+    const ShapedRun& run = shaper.Shape(font, "AZA", false);
 
     ExpectEqInt(static_cast<long long>(run.glyphs.size()), 3, "three characters, three glyphs");
     ExpectEqInt(run.glyphs[1].glyph, 0, "the unmapped one is .notdef");
@@ -129,7 +129,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     Font font(face, 24.0f);
     TextShaper shaper;
     // U+00E9 is two bytes in UTF-8, so the following 'A' is at byte 2, not 1.
-    const ShapedRun& run = shaper.Shape(font, "\xC3\xA9" "A");
+    const ShapedRun& run = shaper.Shape(font, "\xC3\xA9" "A", false);
     ExpectEqInt(static_cast<long long>(run.glyphs.size()), 2, "two characters");
     ExpectEqInt(static_cast<long long>(run.glyphs[0].cluster), 0, "the first starts at byte 0");
     ExpectEqInt(static_cast<long long>(run.glyphs[1].cluster), 2,
@@ -146,7 +146,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     for (const std::string& text : {std::string("\xFF\xFE\xFD"), std::string("\xC3"),
                                     std::string("A\x80\x80" "B"), std::string("\xED\xA0\x80"),
                                     std::string(1000, '\xF4')}) {
-      const ShapedRun& run = shaper.Shape(font, text);
+      const ShapedRun& run = shaper.Shape(font, text, false);
       for (const PositionedGlyph& glyph : run.glyphs) {
         Expect(glyph.cluster <= text.size(),
                "a cluster must index the text it came from, whatever that text was");
@@ -160,7 +160,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     TextShaper shaper;
     for (const float size : {0.0f, -8.0f, std::numeric_limits<float>::quiet_NaN()}) {
       Font font(face, size);
-      Expect(shaper.Shape(font, "ABCD").glyphs.empty(),
+      Expect(shaper.Shape(font, "ABCD", false).glyphs.empty(),
              "a size the font cannot be set to must shape to nothing, not to garbage");
     }
   });
@@ -171,8 +171,8 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     Font font(face, 24.0f);
     TextShaper shaper;
 
-    shaper.Shape(font, "ABCD");
-    const ShapedRun& second = shaper.Shape(font, "A");
+    shaper.Shape(font, "ABCD", false);
+    const ShapedRun& second = shaper.Shape(font, "A", false);
     ExpectEqInt(static_cast<long long>(second.glyphs.size()), 1,
                 "the buffer must be cleared between runs, not appended to");
     Expect(std::abs(second.width - font.Advance(second.glyphs[0].glyph)) < 0.05f,
@@ -186,7 +186,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 40.0f);
     TextShaper shaper;
-    const ShapedRun run = shaper.Shape(font, "AA");
+    const ShapedRun run = shaper.Shape(font, "AA", false);
 
     Canvas canvas(120, 60);
     canvas.Clear(Color::Rgb(0xFF, 0xFF, 0xFF));
@@ -208,7 +208,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 40.0f);
     TextShaper shaper;
-    const ShapedRun run = shaper.Shape(font, "A");
+    const ShapedRun run = shaper.Shape(font, "A", false);
 
     Canvas canvas(60, 60);
     canvas.Clear(Color::Rgb(0xFF, 0xFF, 0xFF));
@@ -229,7 +229,7 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 20.0f);
     TextShaper shaper;
-    const ShapedRun run = shaper.Shape(font, "AB");
+    const ShapedRun run = shaper.Shape(font, "AB", false);
 
     Canvas canvas(64, 64);
     Painter painter(canvas);
@@ -249,11 +249,11 @@ void RegisterTextShaperTests(std::vector<TestCase>& tests) {
     TextShaper shaper;
 
     Font large(face, 44.0f);
-    painter.DrawGlyphs(large, shaper.Shape(large, "ABCD"), FloatPoint{8.0f, 46.0f},
+    painter.DrawGlyphs(large, shaper.Shape(large, "ABCD", false), FloatPoint{8.0f, 46.0f},
                        Color::Rgb(0x1F, 0x6F, 0xEB));
 
     Font small(face, 22.0f);
-    painter.DrawGlyphs(small, shaper.Shape(small, "AB CD"), FloatPoint{8.0f, 82.0f},
+    painter.DrawGlyphs(small, shaper.Shape(small, "AB CD", false), FloatPoint{8.0f, 82.0f},
                        Color::Rgb(0, 0, 0));
 
     const ComparisonResult result = CompareAgainstGolden(canvas, "text/run");

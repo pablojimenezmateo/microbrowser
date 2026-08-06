@@ -197,7 +197,7 @@ void RegisterGlyphCacheTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 16.0f);
     TextShaper shaper;
-    const ShapedRun run = shaper.Shape(font, "AAAA");
+    const ShapedRun run = shaper.Shape(font, "AAAA", false);
 
     Canvas canvas(200, 40);
     canvas.Clear(Color::Rgb(0xFF, 0xFF, 0xFF));
@@ -227,7 +227,7 @@ void RegisterGlyphCacheTests(std::vector<TestCase>& tests) {
     FontFace face = LoadSyntheticFace(library);
     Font font(face, 20.0f);
     TextShaper shaper;
-    const ShapedRun run = shaper.Shape(font, "AB");
+    const ShapedRun run = shaper.Shape(font, "AB", false);
 
     Canvas canvas(120, 120);
     canvas.Clear(Color::Rgb(0xFF, 0xFF, 0xFF));
@@ -259,7 +259,7 @@ void RegisterGlyphCacheTests(std::vector<TestCase>& tests) {
     cached.Clear(Color::Rgb(0xFF, 0xFF, 0xFF));
     Painter cached_painter(cached);
     TextShaper shaper;
-    const ShapedRun run = shaper.Shape(font, "D");
+    const ShapedRun run = shaper.Shape(font, "D", false);
     cached_painter.DrawGlyphs(font, run, FloatPoint{10.0f, 50.0f}, Color::Rgb(0, 0, 0));
 
     Canvas direct(80, 80);

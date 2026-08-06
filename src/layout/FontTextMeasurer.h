@@ -19,7 +19,8 @@ class FontTextMeasurer : public TextMeasurer {
  public:
   explicit FontTextMeasurer(gfx::TextRenderer& text) : text_(&text) {}
 
-  float MeasureWidth(std::string_view text, const css::ComputedStyle& style) const override;
+  float MeasureWidth(std::string_view text, const css::ComputedStyle& style,
+                     bool right_to_left = false) const override;
   float LineHeight(const css::ComputedStyle& style) const override;
   float Ascent(const css::ComputedStyle& style) const override;
 

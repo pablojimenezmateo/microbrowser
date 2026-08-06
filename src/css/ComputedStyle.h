@@ -61,6 +61,27 @@ enum class TextAlign : std::uint8_t { Start, End, Left, Right, Center, Justify }
 // the only CSS property whose value reverses the order text is *painted* in.
 enum class Direction : std::uint8_t { Ltr, Rtl };
 
+// `unicode-bidi`: what a box does to the bidi algorithm around its own text. Each value is one pair
+// of explicit control characters that UAX #9 already defines, which is why the property costs almost
+// nothing here -- the algorithm was written with these in it.
+//
+// **Inherited in this browser, and it is not inherited in CSS.** The deviation is deliberate and its
+// cost is bounded: what the property really applies to is an inline *box*, and line layout here is
+// flattened -- a line is a sequence of text slices, and the inline boxes they came from are not items
+// on it. Inheriting it means each text slice knows its own (direction, unicode-bidi) pair, which
+// produces the same answer in every case except one: an inline box containing two child boxes gets
+// two adjacent controlled runs where the specification has one around both. For `embed` and
+// `bidi-override` those are indistinguishable (same level, adjacent, so one level run either way);
+// for `isolate` they differ, and that case is `<bdi>a<span>b</span></bdi>`.
+enum class UnicodeBidi : std::uint8_t {
+  Normal,
+  Embed,
+  Isolate,
+  BidiOverride,
+  IsolateOverride,
+  Plaintext,
+};
+
 enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
 
@@ -173,6 +194,7 @@ struct ComputedStyle {
 
   TextAlign text_align = TextAlign::Start;
   Direction direction = Direction::Ltr;
+  UnicodeBidi unicode_bidi = UnicodeBidi::Normal;
   // Set by `text-align: -microbrowser-center`, which is what <center> means and
   // what no standard value expresses -- every engine carries an equivalent
   // (`-moz-center`, `-webkit-center`). Not inherited, unlike text_align: see
@@ -424,5 +446,21 @@ bool ApplyTransformDeclaration(const std::string& property, const std::string& v
 
 bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
                          const ComputedStyle& parent, ComputedStyle& style);
+
+// Copies exactly the properties that inherit, and nothing else.
+//
+// **One list, because two lists is how a property comes to be inherited by an element and not by its
+// own text.** `src/layout` had its own copy of this -- `TextStyleFrom`, which built the style for an
+// anonymous text box -- and it listed seven properties. When `direction` and `unicode-bidi` were
+// added to the cascade they were added to the resolver's list and not to that one, so a
+// right-to-left `<span>` was right-to-left and the text inside it was not. The bug was invisible in
+// every rendering: the paragraph's direction came from the block, so only `unicode-bidi` -- read off
+// the text box -- silently did nothing.
+//
+// `custom_properties` is skipped when `with_custom_properties` is false, which is the one case where
+// the two callers legitimately differ: a text box never resolves a `var()`, and copying the table
+// into every one of them is a vector copy per text node.
+void InheritInto(const ComputedStyle& parent, ComputedStyle& child,
+                 bool with_custom_properties = true);
 
 }  // namespace microbrowser::css

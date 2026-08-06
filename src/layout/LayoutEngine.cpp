@@ -96,15 +96,15 @@ gfx::FontRequest FontRequestFor(const css::ComputedStyle& style) {
 }
 
 css::ComputedStyle TextStyleFrom(const css::ComputedStyle& parent) {
+  // The inherited properties and nothing else -- through the *cascade's* one list rather than a
+  // second one here. This function used to name them itself, and it had drifted: `direction` and
+  // `unicode-bidi` inherit and were missing, so a right-to-left `<span>` was right-to-left and its
+  // own text was not.
+  //
+  // Custom properties are deliberately not copied. A text box has no declarations, so it never
+  // resolves a `var()`, and copying the table into every text node is a vector copy per text node.
   css::ComputedStyle text_style;
-  text_style.color = parent.color;
-  text_style.font_size = parent.font_size;
-  text_style.font_weight = parent.font_weight;
-  text_style.font_style = parent.font_style;
-  text_style.font_family = parent.font_family;
-  text_style.line_height = parent.line_height;
-  text_style.text_align = parent.text_align;
-  text_style.white_space = parent.white_space;
+  css::InheritInto(parent, text_style, /*with_custom_properties=*/false);
   return text_style;
 }
 
@@ -114,8 +114,11 @@ Box& Box::Append(std::unique_ptr<Box> child) {
   return *children_.back();
 }
 
-float FixedTextMeasurer::MeasureWidth(std::string_view text,
-                                      const css::ComputedStyle& style) const {
+float FixedTextMeasurer::MeasureWidth(std::string_view text, const css::ComputedStyle& style,
+                                      bool right_to_left) const {
+  // A fixed advance per byte does not depend on direction, and saying so here is better than a
+  // signature that pretends it might.
+  (void)right_to_left;
   return static_cast<float>(text.size()) * style.font_size * ratio_;
 }
 
