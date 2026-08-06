@@ -42,7 +42,11 @@ budget: Decoder        header_lines=50 public_methods=8 members=4
 # owns one request and one response. That is the split `Engine` and `Page`
 # already carry, and here it also separates the failures that cost one request
 # from the failures that cost every request on the socket.
-budget: Http2Session   header_lines=180 public_methods=17 members=19
+# Raised to 195 by the comment on `Request`, which is nine lines saying why its
+# four fields are owned strings rather than views. That comment is the record of
+# a bug that made every server on the web refuse this browser while the suite
+# stayed green, and it is cheaper here than rediscovered.
+budget: Http2Session   header_lines=195 public_methods=17 members=19
 # Raised from 60 header lines by ADR 0010's connection reuse. The three new
 # questions -- was the body self-delimited, is anything left after it, has
 # anything arrived at all -- are all things only the parser knows, and all
