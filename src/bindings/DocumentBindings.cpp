@@ -138,6 +138,61 @@ void DomBindings::Install() {
     DomBindings* owner = OwnerOf(call);
     return owner == nullptr ? Value::Null() : owner->CreateDocumentFragment();
   });
+  // `importNode` and `adoptNode` -- the two ways a node crosses documents.
+  //
+  // Polymer stamps every custom-element template with
+  // `shadowRoot.appendChild(document.importNode(template.content, true))`.
+  // Without `importNode` that call throws, the template never arrives, and a
+  // page of upgraded hosts paints nothing. youtube.com was exactly that:
+  // two `ytd-*` elements, no shadow trees, a white frame. ShadyDOM's polyfill
+  // left `__shady_importNode` on the prototype and nothing under the public
+  // name, because it wraps a native that was not there to wrap.
+  //
+  // Same clone as `cloneNode`, on purpose: two answers to "copy this subtree"
+  // is how a stamp and a clone diverge. Documents and shadow roots refuse --
+  // importing either is NotSupportedError / HierarchyRequestError, and a
+  // TypeError here matches every other DOM refusal in this module.
+  method("importNode", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* node = NodeOf(Argument(call.arguments, 0));
+    if (owner == nullptr || node == nullptr) {
+      return call.Throw("TypeError", "importNode requires a Node");
+    }
+    if (node->GetKind() == dom::Node::Kind::Document) {
+      return call.Throw("TypeError", "Document nodes cannot be imported");
+    }
+    if (node->IsDocumentFragment() &&
+        static_cast<const dom::DocumentFragment*>(node)->Host() != nullptr) {
+      return call.Throw("TypeError", "ShadowRoot nodes cannot be imported");
+    }
+    // Deep by default in the sense that Polymer always passes true; the
+    // specification defaults to false, same as cloneNode.
+    const bool deep = call.arguments.size() < 2 ? false : js::ToBoolean(Argument(call.arguments, 1));
+    std::unique_ptr<dom::Node> copy = CloneDomNode(*node, deep);
+    if (copy == nullptr) {
+      return call.Throw("TypeError", "this node type cannot be imported");
+    }
+    return owner->AdoptClone(std::move(copy));
+  });
+  // Already owned by this bindings instance -- there is one DomBindings per
+  // page, and every document it makes shares it -- so adopt is identity for a
+  // node that is already here. A Document or a ShadowRoot still refuses, so a
+  // page that probes with those gets a throw rather than a silent wrong keep.
+  method("adoptNode", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* node = NodeOf(Argument(call.arguments, 0));
+    if (owner == nullptr || node == nullptr) {
+      return call.Throw("TypeError", "adoptNode requires a Node");
+    }
+    if (node->GetKind() == dom::Node::Kind::Document) {
+      return call.Throw("TypeError", "Document nodes cannot be adopted");
+    }
+    if (node->IsDocumentFragment() &&
+        static_cast<const dom::DocumentFragment*>(node)->Host() != nullptr) {
+      return call.Throw("TypeError", "ShadowRoot nodes cannot be adopted");
+    }
+    return owner->WrapperFor(node);
+  });
   method("createComment", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     if (owner == nullptr) {

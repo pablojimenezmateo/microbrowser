@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -108,5 +109,14 @@ inline std::string LowerCase(std::string_view text) { return util::AsciiLowerCas
 // there is one tree here with no XML in it. SVG is rendered from its own
 // decoder and never becomes elements.
 std::string NodeNameOf(const dom::Node& node);
+
+// A deep or shallow copy of `node`, for `cloneNode` and `document.importNode`.
+//
+// One implementation rather than two: Polymer stamps a template with
+// `document.importNode(template.content, true)`, and until that existed the
+// call threw and every custom element's template stayed empty -- which is why
+// youtube.com painted a white page with two upgraded hosts and no shadow
+// trees. `cloneNode` and `importNode` must describe the same tree.
+std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep);
 
 }  // namespace microbrowser::bindings

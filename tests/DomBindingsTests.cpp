@@ -2020,6 +2020,59 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "0:1:<span>y</span>");
   });
 
+  AddTest(tests, "DomBindings/ImportNodeStampsATemplateTheWayPolymerDoes", [] {
+    // Polymer (and Lit, and every webcomponents polyfill) stamps with
+    // `document.importNode(template.content, true)`, not `cloneNode`. The two
+    // must agree on the tree, and `importNode` must exist: a missing name is
+    // what left youtube.com as two upgraded hosts with empty shadows.
+    static constexpr const char* kTemplatePage =
+        "<html><body><template id='t'><p class='row'>x</p><span>y</span></template>"
+        "</body></html>";
+    ExpectScript(kTemplatePage, "typeof document.importNode", "function");
+    ExpectScript(kTemplatePage, "typeof document.adoptNode", "function");
+    ExpectScript(kTemplatePage,
+                 "const t = document.getElementById('t');"
+                 "const stamp = document.importNode(t.content, true);"
+                 "document.body.appendChild(stamp);"
+                 "document.querySelectorAll('.row').length + ':' +"
+                 " document.body.textContent.trim() + ':' + t.content.children.length",
+                 "1:xy:2");
+    // Shallow import copies the fragment and none of its children -- the
+    // specification's default, and the footgun Polymer avoids by passing true.
+    ExpectScript(kTemplatePage,
+                 "const stamp = document.importNode(document.getElementById('t').content);"
+                 "stamp.childNodes.length",
+                 "0");
+    ExpectScript(kTemplatePage,
+                 "try { document.importNode(document); 'no' } catch (e) { 'threw' }",
+                 "threw");
+    ExpectScript(kTemplatePage,
+                 "const host = document.createElement('div');"
+                 "const root = host.attachShadow({mode:'open'});"
+                 "try { document.importNode(root, true); 'no' } catch (e) { 'threw' }",
+                 "threw");
+    // adoptNode of a node already here is identity, and leaves it in place.
+    ExpectScript(kTemplatePage,
+                 "const p = document.createElement('p');"
+                 "document.body.appendChild(p);"
+                 "document.adoptNode(p) === p && p.parentNode === document.body",
+                 "true");
+    // Comments are children. Polymer indexes stamp targets by child offset,
+    // so a clone that dropped them would point every listener at the wrong
+    // node (or at undefined). Built with createComment rather than markup:
+    // the HTML parser is free to drop empty comments, and this assertion is
+    // about the clone, not the parser.
+    ExpectScript("<html><body></body></html>",
+                 "const t = document.createElement('template');"
+                 "t.content.appendChild(document.createComment(''));"
+                 "t.content.appendChild(document.createElement('p'));"
+                 "t.content.appendChild(document.createComment(''));"
+                 "const s = document.importNode(t.content, true);"
+                 "s.childNodes.length + ':' + s.childNodes[0].nodeType + ':' +"
+                 " s.childNodes[2].nodeType",
+                 "3:8:8");
+  });
+
   AddTest(tests, "DomBindings/StyleWritesThroughToTheAttribute", [] {
     // Backed by the `style` attribute rather than a parsed copy, because the
     // attribute is the state: the cascade reads it and `setAttribute` can

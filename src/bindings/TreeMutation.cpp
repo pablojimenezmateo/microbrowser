@@ -24,8 +24,6 @@
 
 namespace microbrowser::bindings {
 
-namespace {
-
 using js::NativeCall;
 using js::Value;
 
@@ -33,7 +31,8 @@ using js::Value;
 //
 // Copied rather than shared: a clone is a new node, and two parents pointing
 // at one node is the shape of every "it moved when I edited the copy" bug.
-std::unique_ptr<dom::Node> CopyNode(const dom::Node& node, bool deep) {
+// Shared with `document.importNode` -- see BindingSupport.h.
+std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep) {
   std::unique_ptr<dom::Node> copy;
   switch (node.GetKind()) {
     case dom::Node::Kind::Element: {
@@ -48,13 +47,20 @@ std::unique_ptr<dom::Node> CopyNode(const dom::Node& node, bool deep) {
     case dom::Node::Kind::Text:
       copy = std::make_unique<dom::Text>(static_cast<const dom::Text&>(node).Data());
       break;
+    case dom::Node::Kind::Comment:
+      // Comments are part of the tree a template stamps. Polymer's
+      // `_stampTemplate` finds nodes by child index (`parentIndex`), and a
+      // clone that drops comments shifts every index after the first one --
+      // which is how youtube's stamp threw `addEventListener of undefined`
+      // after DI finally worked. Cloning a comment is cheap and exact.
+      copy = std::make_unique<dom::Comment>(static_cast<const dom::Comment&>(node).Data());
+      break;
     case dom::Node::Kind::DocumentFragment:
       // A fragment clones to an empty fragment, and `deep` fills it below --
       // which is what makes `template.content.cloneNode(true)` the way a page
       // stamps out a repeated subtree.
       copy = std::make_unique<dom::DocumentFragment>();
       break;
-    case dom::Node::Kind::Comment:
     case dom::Node::Kind::Document:
     case dom::Node::Kind::DocumentType:
       // Cloning a document or a doctype is not something a page does, and
@@ -77,14 +83,12 @@ std::unique_ptr<dom::Node> CopyNode(const dom::Node& node, bool deep) {
     }
   }
   for (const std::unique_ptr<dom::Node>& child : source->Children()) {
-    if (std::unique_ptr<dom::Node> child_copy = CopyNode(*child, true)) {
+    if (std::unique_ptr<dom::Node> child_copy = CloneDomNode(*child, true)) {
       destination->Append(std::move(child_copy));
     }
   }
   return copy;
 }
-
-}  // namespace
 
 void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
   const auto accessor = [this, &wrapper](const char* name, js::NativeFunction get,
@@ -141,7 +145,7 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     }
     // Shallow by default, which catches out everyone who forgets the argument
     // and is what the specification says.
-    return owner->AdoptClone(CopyNode(*self, js::ToBoolean(Argument(call.arguments, 0))));
+    return owner->AdoptClone(CloneDomNode(*self, js::ToBoolean(Argument(call.arguments, 0))));
   });
   method("removeChild", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
