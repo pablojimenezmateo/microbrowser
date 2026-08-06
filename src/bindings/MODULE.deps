@@ -174,7 +174,18 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the
 # SocketSource this module declares, and the three delivery entry points -- C++-only,
 # because the only thing allowed to say a message arrived is the thing that read it.
-budget: DomBindings header_lines=600 public_methods=31 members=18
+# Raised by ten for the second document. `DocumentOf`, `DocumentInterface` and
+# `InstallImplementation` are what make `document` stop meaning "the one tree
+# this object was built around": every `document.*` method now resolves against
+# its *receiver*, and `document.implementation.createHTMLDocument()` returns a
+# real second `dom::Document` rather than a second name for the page's own.
+# That is surface arriving on purpose -- it is the same inversion same-origin
+# iframes need, and the reason `DOMParser` has been absent.
+#
+# The public method and member counts did not move, which is the number to
+# watch: this is not the class taking on another job, it is one of its
+# existing answers stopping being a global.
+budget: DomBindings header_lines=610 public_methods=31 members=18
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

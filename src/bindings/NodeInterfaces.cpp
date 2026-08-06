@@ -371,6 +371,15 @@ void DomBindings::EnsureInterfaces() {
   InstallWindowEvents();
 }
 
+js::Value DomBindings::DocumentInterface() {
+  EnsureInterfaces();
+  if (!interfaces_.IsObject()) {
+    return Value::Undefined();
+  }
+  const Value* found = interfaces_.object->GetOwn("Document");
+  return found == nullptr ? Value::Undefined() : *found;
+}
+
 js::Value DomBindings::PrototypeFor(const dom::Node& node) {
   EnsureInterfaces();
   if (!interfaces_.IsObject()) {

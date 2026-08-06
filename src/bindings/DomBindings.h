@@ -258,9 +258,14 @@ class DomBindings {
   // the DOM's own, because a page reads them back as `event.eventPhase`.
   enum class EventPhase { None = 0, Capturing = 1, AtTarget = 2, Bubbling = 3 };
 
-  // The first element, in document order, that answers to `matches`.
-  dom::Element* FindElement(const std::function<bool(const dom::Element&)>& matches) const;
+  // Searching one tree. `root` is a parameter because `document` is no longer
+  // the only document a page can hold -- see DocumentOf in DomBindings.cpp.
+  static dom::Element* FindElementIn(dom::Node& root,
+                                     const std::function<bool(const dom::Element&)>& matches);
+  static void ForEachElementIn(dom::Node& root,
+                               const std::function<void(dom::Element&)>& visit);
   void ForEachElement(const std::function<void(dom::Element&)>& visit) const;
+  dom::Node* DocumentOf(const js::Value& self) const;
   // A new element, owned here until something appends it. A node's owner is
   // its parent, so one without a parent needs somewhere to live -- and the
   // alternative, handing script a node it owns, would put a raw pointer's
@@ -273,6 +278,10 @@ class DomBindings {
   // A parentless bag of nodes. Inserting it inserts its children -- see
   // InsertNodeBefore, which is where that happens.
   js::Value CreateDocumentFragment();
+  // `document.implementation`, and `Document.prototype` -- which is where every
+  // `document.*` method now lives rather than on the one wrapper.
+  void InstallImplementation(const js::Value& document_interface);
+  js::Value DocumentInterface();
   // Whether an element answers to one of the three selector forms this layer
   // supports. Shared by querySelector, querySelectorAll, matches and closest,
   // which would otherwise be four chances to disagree about what `.a` means.
@@ -582,10 +591,8 @@ class DomBindings {
   // DeliverFetchResponse, which is the one delivery both kinds share.
   void DeliverToXhr(const js::Value& xhr, const ScriptResponse& response);
 
-  // --- Walking the tree, in TreeWalkers.cpp ---------------------------------
-  // `NodeFilter`, `document.createTreeWalker` and `document.createNodeIterator`
-  // -- a cursor that remembers where it is, over a tree a page's own filter is
-  // allowed to change under it.
+  // `NodeFilter`, `createTreeWalker` and `createNodeIterator`, in
+  // TreeWalkers.cpp.
   void InstallTreeWalkers(const js::Value& document);
 
   // --- HTML from script, in HtmlParsing.cpp ---------------------------------

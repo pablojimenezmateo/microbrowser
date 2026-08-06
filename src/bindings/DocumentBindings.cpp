@@ -23,12 +23,22 @@ void DomBindings::Install() {
   if (!document.IsObject()) {
     return;
   }
+  // Everything below goes on `Document.prototype` rather than on this one
+  // wrapper -- the same move Node and Element made, and for a second reason
+  // here: `document.implementation.createHTMLDocument()` makes a *real* second
+  // document, and a method that only existed as an own property of the page's
+  // own wrapper would be missing from it entirely.
+  //
+  // The wrapper itself when there is no interface object, which is the
+  // out-of-memory path and not a mode.
+  const Value document_interface = DocumentInterface();
+  const Value& target = document_interface.IsObject() ? document_interface : document;
 
-  const auto method = [this, &document](const char* name, js::NativeFunction function) {
+  const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, PointerValue(this));
-      document.object->Set(name, native);
+      target.object->Set(name, native);
     }
   };
 
@@ -38,17 +48,18 @@ void DomBindings::Install() {
       return Value::Null();
     }
     const std::string wanted = js::ToString(Argument(call.arguments, 0));
-    return owner->WrapperFor(owner->FindElement([&wanted](const dom::Element& element) {
-      const std::string* id = element.GetAttribute("id");
-      return id != nullptr && *id == wanted;
-    }));
+    return owner->WrapperFor(
+        FindElementIn(*owner->DocumentOf(call.self), [&wanted](const dom::Element& element) {
+          const std::string* id = element.GetAttribute("id");
+          return id != nullptr && *id == wanted;
+        }));
   });
   method("getElementsByTagName", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     const std::string wanted = LowerCase(js::ToString(Argument(call.arguments, 0)));
     std::vector<Value> found;
     if (owner != nullptr) {
-      owner->ForEachElement([&](dom::Element& element) {
+      ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
         if (wanted == "*" || element.TagName() == wanted) {
           found.push_back(owner->WrapperFor(&element));
         }
@@ -65,7 +76,8 @@ void DomBindings::Install() {
       return Value::Null();
     }
     const std::string selector = js::ToString(Argument(call.arguments, 0));
-    return owner->WrapperFor(owner->FindElement(
+    return owner->WrapperFor(FindElementIn(
+        *owner->DocumentOf(call.self),
         [&selector](const dom::Element& element) { return Matches(element, selector); }));
   });
   method("querySelectorAll", [](NativeCall& call) {
@@ -73,7 +85,7 @@ void DomBindings::Install() {
     const std::string selector = js::ToString(Argument(call.arguments, 0));
     std::vector<Value> found;
     if (owner != nullptr) {
-      owner->ForEachElement([&](dom::Element& element) {
+      ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
         if (Matches(element, selector)) {
           found.push_back(owner->WrapperFor(&element));
         }
@@ -90,7 +102,7 @@ void DomBindings::Install() {
     const std::string selector = "." + js::ToString(Argument(call.arguments, 0));
     std::vector<Value> found;
     if (owner != nullptr) {
-      owner->ForEachElement([&](dom::Element& element) {
+      ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
         if (Matches(element, selector)) {
           found.push_back(owner->WrapperFor(&element));
         }
@@ -151,6 +163,11 @@ void DomBindings::Install() {
   // when DOMContentLoaded fires, "complete" when the load does. What is still
   // a deviation is *when* the scripts run relative to the parse, which
   // PageScript.h records.
+  //
+  // The accessor is shared and the *state* is per-document: it reads a hidden
+  // slot on its own receiver, so a document made by `createHTMLDocument` --
+  // which is finished the moment it exists -- answers "complete" without the
+  // page's own lifecycle touching it.
   const Value ready = interpreter_->NewNativeValue("readyState", [](NativeCall& call) {
     if (!call.self.IsObject()) {
       return Value::String(std::string("loading"));
@@ -160,24 +177,25 @@ void DomBindings::Install() {
   });
   if (ready.IsObject()) {
     document.object->SetHidden(kReadyStateSlot, Value::String(std::string("loading")));
-    document.object->DefineAccessor("readyState", ready.object, nullptr);
+    target.object->DefineAccessor("readyState", ready.object, nullptr);
   }
 
   // `document.body` and `document.documentElement`, as accessors so they
   // follow the tree rather than freezing whatever it looked like at install.
-  const auto element_accessor = [this, &document](const char* name, const char* tag) {
+  const auto element_accessor = [this, &target](const char* name, const char* tag) {
     const Value native =
         interpreter_->NewNativeValue(name, [tag](NativeCall& call) {
           DomBindings* owner = OwnerOf(call);
-          return owner == nullptr ? Value::Null()
-                                  : owner->WrapperFor(owner->FindElement(
-                                        [tag](const dom::Element& element) {
-                                          return element.TagName() == tag;
-                                        }));
+          return owner == nullptr
+                     ? Value::Null()
+                     : owner->WrapperFor(FindElementIn(
+                           *owner->DocumentOf(call.self), [tag](const dom::Element& element) {
+                             return element.TagName() == tag;
+                           }));
         });
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, PointerValue(this));
-      document.object->DefineAccessor(name, native.object, nullptr);
+      target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
   element_accessor("body", "body");
@@ -193,16 +211,18 @@ void DomBindings::Install() {
     if (owner == nullptr) {
       return Value::String(std::string());
     }
-    dom::Element* title = owner->FindElement(
+    dom::Element* title = FindElementIn(
+        *owner->DocumentOf(call.self),
         [](const dom::Element& element) { return element.TagName() == "title"; });
     return Value::String(title == nullptr ? std::string() : title->TextContent());
   });
   if (title_getter.IsObject()) {
     title_getter.object->Set(kOwnerSlot, PointerValue(this));
-    document.object->DefineAccessor("title", title_getter.object, nullptr);
+    target.object->DefineAccessor("title", title_getter.object, nullptr);
   }
 
-  InstallTreeWalkers(document);
+  InstallTreeWalkers(target);
+  InstallImplementation(target);
 
   interpreter_->GlobalScope()->Declare("document", document, false);
   InstallEventConstructors();
@@ -214,6 +234,89 @@ void DomBindings::SetReadyState(const char* state) {
   if (document.IsObject()) {
     document.object->SetHidden(kReadyStateSlot, Value::String(std::string(state)));
   }
+}
+
+void DomBindings::InstallImplementation(const js::Value& document_interface) {
+  const Value implementation = interpreter_->NewObjectValue();
+  if (!implementation.IsObject() || !document_interface.IsObject()) {
+    return;
+  }
+  const auto method = [this, &implementation](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      implementation.object->Set(name, native);
+    }
+  };
+
+  // **A real second document, not a second view of this one.**
+  //
+  // youtube's `webcomponents-all-noPatch.js` makes one at module scope --
+  // `Sd = document.implementation.createHTMLDocument("inert")` -- and parses
+  // markup into elements created from it, which is what every sanitizer does
+  // too. The point of the API is that the result is *inert*: nothing in it is
+  // rendered, and nothing a page puts in it can reach the page.
+  //
+  // Handing back the page's own document under a new name would satisfy the
+  // call and break exactly that, which is the stub ADR 0012 calls worse than
+  // an absence. So this builds `<html><head><title>…</title></head><body>` in
+  // a fresh `dom::Document`, and every `document.*` query resolves against its
+  // receiver -- see DocumentOf.
+  method("createHTMLDocument", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    auto made = std::make_unique<dom::Document>();
+    dom::Document* raw = made.get();
+    // Owned here for the life of the page, like every other node script made
+    // and nothing appended: a node's owner is its parent, and a document has
+    // none. A wrapper holds a raw pointer, so the node may not outlive it.
+    owner->unattached_.push_back(std::move(made));
+
+    auto& html = static_cast<dom::Element&>(raw->Append(std::make_unique<dom::Element>("html")));
+    auto& head = static_cast<dom::Element&>(html.Append(std::make_unique<dom::Element>("head")));
+    // The title is created whenever the argument was given at all, including
+    // as the empty string -- which is the specification's distinction and not
+    // a corner: `createHTMLDocument()` with no argument has no title element.
+    if (!Argument(call.arguments, 0).IsUndefined()) {
+      dom::Node& title = head.Append(std::make_unique<dom::Element>("title"));
+      title.Append(std::make_unique<dom::Text>(js::ToString(Argument(call.arguments, 0))));
+    }
+    html.Append(std::make_unique<dom::Element>("body"));
+    const Value wrapper = owner->WrapperFor(raw);
+    if (wrapper.IsObject()) {
+      // Finished the moment it exists: there is no load behind it and no
+      // parser running in it, so "loading" would be a state nothing could
+      // ever leave.
+      wrapper.object->SetHidden(kReadyStateSlot, Value::String(std::string("complete")));
+    }
+    return wrapper;
+  });
+
+  // A doctype node, which a page passes to `createDocument` and reads
+  // `.name` off. Public and qualified ids are accepted and dropped: this
+  // parser has no XML in it, so there is nothing behind them to be right
+  // about, and `name` is the only field anything reads.
+  method("createDocumentType", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    auto made = std::make_unique<dom::DocumentType>(js::ToString(Argument(call.arguments, 0)));
+    dom::Node* raw = made.get();
+    owner->unattached_.push_back(std::move(made));
+    return owner->WrapperFor(raw);
+  });
+
+  // True for everything, which is what the DOM standard says to answer and
+  // is not a shortcut: `hasFeature` was deprecated precisely because engines
+  // disagreed about it, and the specified behaviour is now to return true.
+  method("hasFeature", [](NativeCall&) { return Value::Bool(true); });
+
+  // On the interface, so every document has one -- including the ones this
+  // makes, which is what lets a page nest the call.
+  document_interface.object->Set("implementation", implementation);
 }
 
 }  // namespace microbrowser::bindings

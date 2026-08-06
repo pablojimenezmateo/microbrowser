@@ -495,11 +495,11 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
   });
 }
 
-dom::Element* DomBindings::FindElement(
-    const std::function<bool(const dom::Element&)>& matches) const {
+dom::Element* DomBindings::FindElementIn(
+    dom::Node& root, const std::function<bool(const dom::Element&)>& matches) {
   dom::Element* found = nullptr;
   // Depth-first, in document order, which is what every selector API promises.
-  document_->ForEachDescendant([&](const dom::Node& node) {
+  root.ForEachDescendant([&](const dom::Node& node) {
     if (found != nullptr || !node.IsElement()) {
       return;
     }
@@ -511,12 +511,38 @@ dom::Element* DomBindings::FindElement(
   return found;
 }
 
-void DomBindings::ForEachElement(const std::function<void(dom::Element&)>& visit) const {
-  document_->ForEachDescendant([&](const dom::Node& node) {
+void DomBindings::ForEachElementIn(dom::Node& root,
+                                   const std::function<void(dom::Element&)>& visit) {
+  root.ForEachDescendant([&](const dom::Node& node) {
     if (node.IsElement()) {
       visit(const_cast<dom::Element&>(static_cast<const dom::Element&>(node)));
     }
   });
+}
+
+void DomBindings::ForEachElement(const std::function<void(dom::Element&)>& visit) const {
+  ForEachElementIn(*document_, visit);
+}
+
+// Which tree a `document.*` call is about.
+//
+// The receiver when it is a document, and the page's own otherwise -- which
+// covers `document.getElementById(...)` and a method pulled off and called on
+// nothing alike. It exists because `document` stopped being the only document
+// a page can hold: `document.implementation.createHTMLDocument()` makes a real
+// second one, and a query on it that answered about the page on screen would
+// be exactly the stub ADR 0012 calls worse than an absence -- a name that
+// resolves, a call that succeeds, and an answer about the wrong tree.
+//
+// Deliberately not "any node": these are document methods, and
+// `Document.prototype.getElementById.call(someDiv, 'x')` is a page asking for
+// something the interface does not offer.
+dom::Node* DomBindings::DocumentOf(const js::Value& self) const {
+  dom::Node* receiver = NodeOf(self);
+  if (receiver != nullptr && receiver->GetKind() == dom::Node::Kind::Document) {
+    return receiver;
+  }
+  return document_;
 }
 
 
