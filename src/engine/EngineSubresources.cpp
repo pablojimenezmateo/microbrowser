@@ -129,7 +129,69 @@ void Engine::StartSubresources() {
   StartFontRequests();
   StartWorkerScriptRequests();
 
+  page_.MarkScriptsRequested();
   load_.total_resources = load_.resources.size();
+}
+
+void Engine::StartPendingScriptRequests() {
+  if (!load_.active || !load_.base.has_value()) {
+    return;
+  }
+  const std::size_t first_index = page_.PendingScripts().size();
+  std::vector<SubresourceRequest> pending = page_.TakeUnrequestedScripts();
+  if (pending.empty()) {
+    return;
+  }
+  const std::size_t base_index = first_index - pending.size();
+  const url::Url& document = *load_.base;
+  for (std::size_t i = 0; i < pending.size(); ++i) {
+    const std::size_t index = base_index + i;
+    const std::optional<net::FetchOptions> options = OptionsForSubresource(pending[i]);
+    if (!options.has_value()) {
+      continue;
+    }
+    const Loader::RequestId id = loader_.StartSubresource(
+        pending[i].url, document, privacy::ResourceType::Script, NowSeconds(), *options);
+    load_.resources[id] = PendingResource{ResourceKind::Script, index, {}};
+    ++load_.total_resources;
+    ++(page_.PendingScriptIsAsync(index) ? load_.async_scripts_outstanding
+                                         : load_.scripts_outstanding);
+  }
+}
+
+bool Engine::ProcessDynamicScripts() {
+  if (!load_.scripts_ran) {
+    return false;
+  }
+  bool changed = false;
+  while (page_.CollectInsertedScripts()) {
+    changed = true;
+    StartPendingScriptRequests();
+  }
+  if (AdvanceModules()) {
+    changed = true;
+    if (FollowScriptNavigation()) {
+      return true;
+    }
+  }
+  if (load_.modules_outstanding > 0 || load_.scripts_outstanding > 0) {
+    if (changed) {
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+    }
+    return changed;
+  }
+  if (page_.RunPendingScripts()) {
+    if (FollowScriptNavigation()) {
+      return true;
+    }
+    return ProcessDynamicScripts();
+  }
+  if (changed) {
+    page_.InvalidateLayout();
+    LayoutAndPaint();
+  }
+  return changed;
 }
 
 void Engine::StartFontRequests() {

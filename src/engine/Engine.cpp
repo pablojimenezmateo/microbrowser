@@ -409,7 +409,13 @@ void Engine::OnCompletion(Loader::Completion completion) {
       if (completion.result.ok) {
         page_.AddScript(resource.index, std::move(completion.result.body));
         AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
-        if (is_async && load_.scripts_ran && page_.RunReadyAsyncScripts()) {
+        if (load_.scripts_ran) {
+          if (ProcessDynamicScripts()) {
+            if (FollowScriptNavigation()) {
+              return;
+            }
+          }
+        } else if (is_async && page_.RunReadyAsyncScripts()) {
           // It landed after the page was already up. Running it can have
           // changed the tree, so the page is laid out again -- which is what
           // an async script arriving late looks like in every browser.
@@ -538,6 +544,13 @@ void Engine::AdvanceLoad() {
   if (!load_.active || !load_.document_arrived) {
     return;
   }
+  if (load_.scripts_ran) {
+    if (ProcessDynamicScripts()) {
+      if (FollowScriptNavigation()) {
+        return;
+      }
+    }
+  }
   // Scripts run once every render-blocking resource has resolved, and before
   // the images are decoded. Stylesheets first so a script that asks about a
   // style sees the ones the document declared; images after, so a script that
@@ -553,6 +566,10 @@ void Engine::AdvanceLoad() {
     // away -- so nothing below may touch `load_`. reddit's front door is this
     // line: its interstitial fills in a form from `DOMContentLoaded` and
     // submits it, and the answer to that submission is the real page.
+    if (FollowScriptNavigation()) {
+      return;
+    }
+    ProcessDynamicScripts();
     if (FollowScriptNavigation()) {
       return;
     }
@@ -573,6 +590,16 @@ void Engine::AdvanceLoad() {
     LayoutAndPaint();
   }
   if (load_.IsFinished()) {
+    if (load_.scripts_outstanding > 0 || load_.modules_outstanding > 0) {
+      return;
+    }
+    ProcessDynamicScripts();
+    if (FollowScriptNavigation()) {
+      return;
+    }
+    if (load_.scripts_outstanding > 0 || load_.modules_outstanding > 0) {
+      return;
+    }
     // The `navigation` entry, before `load_` goes: it is the only thing that
     // knows when this navigation started, and a page observing `navigation` with
     // `buffered: true` reads it from a script that has not run yet.

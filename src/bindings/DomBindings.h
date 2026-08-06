@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "bindings/Geometry.h"
@@ -265,6 +266,15 @@ class DomBindings {
   // Fires `hashchange`, for a navigation that changed only the fragment: the one
   // case that has always been able to move the URL without a load.
   bool DispatchHashChange(const std::string& old_url, const std::string& new_url);
+
+  // While a script the policy already allowed is running, `<script>` nodes it
+  // inserts are trusted for `script-src` without carrying the nonce themselves.
+  // reddit's polyfill loader appends its tags this way.
+  void SetTrustedScriptInsertion(bool trusted) { trusted_script_insertion_ = trusted; }
+  bool IsCspTrustedScript(const dom::Element& element) const {
+    return csp_trusted_scripts_.contains(&element);
+  }
+  void NotifyScriptElementEvent(const dom::Element& element, const char* type);
 
  private:
   // Where an event is on its way through the propagation path. The numbers are
@@ -722,6 +732,8 @@ class DomBindings {
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
   // string -- and a test needs to see what was written either way. The chrome takes it from here.
   std::string clipboard_;
+  bool trusted_script_insertion_ = false;
+  std::unordered_set<const dom::Element*> csp_trusted_scripts_;
 };
 
 }  // namespace microbrowser::bindings

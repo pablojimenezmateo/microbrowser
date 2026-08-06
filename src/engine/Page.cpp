@@ -280,6 +280,13 @@ void Page::AddScript(std::size_t pending_index, std::string source) {
   script_.AddFetched(pending_index, std::move(source));
 }
 
+bool Page::CollectInsertedScripts() {
+  if (document_ == nullptr) {
+    return false;
+  }
+  return script_.CollectInserted(*document_, policy_);
+}
+
 void Page::RunScripts(std::int64_t now_ms) {
   if (document_ == nullptr) {
     return;

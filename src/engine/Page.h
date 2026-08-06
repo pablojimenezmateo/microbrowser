@@ -167,9 +167,18 @@ class Page : private layout::ImageProvider,
   // paint and which do not -- see PageScript::Timing and ADR 0011.
   bool PendingScriptIsAsync(std::size_t index) const { return script_.IsAsync(index); }
   void AddScript(std::size_t pending_index, std::string source);
+  // Finds `<script>` elements added after the parse-time walk and queues them.
+  // True when any were found.
+  bool CollectInsertedScripts();
+  std::vector<SubresourceRequest> TakeUnrequestedScripts() {
+    return script_.TakeUnrequestedScripts();
+  }
+  bool HasOutstandingScriptFetches() const { return script_.HasOutstandingScriptFetches(); }
+  void MarkScriptsRequested() { script_.MarkScriptsRequested(); }
   // Runs any `async` script whose source arrived after RunScripts. True when
   // one did, which means the document may have changed.
   bool RunReadyAsyncScripts() { return script_.RunReadyAsync(); }
+  bool RunPendingScripts() { return script_.RunPendingScripts(); }
   // Runs the document's scripts. Idempotent, so a caller that fetches
   // subresources first and one that does not can both end with it.
   void RunScripts(std::int64_t now_ms);

@@ -30,7 +30,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # is how the binding layer asks it rather than re-implementing it wrong.
 allow: util js dom html css
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h
 
 extern:
 
@@ -259,6 +259,10 @@ budget: Timer       header_lines=20 public_methods=0 members=4
 # is how a page's animation and its observers end up disagreeing about when the
 # same frame happened.
 budget: AnimationFrames header_lines=55 public_methods=6 members=4
+# `requestIdleCallback`. Same shape as AnimationFrames: pending ids, a counter,
+# and callbacks in the JavaScript heap. Nothing schedules when nothing is
+# pending, which is the zero-idle-CPU line.
+budget: IdleCallbacks header_lines=55 public_methods=4 members=2
 # `performance` and `PerformanceObserver`. One member -- the epoch -- and that is
 # the claim: the entries, the observers and their queued records all live in
 # JavaScript objects hung off the global, because the collector cannot see a

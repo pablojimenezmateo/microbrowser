@@ -6,6 +6,7 @@
 #include "TestSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/AnimationFrames.h"
+#include "bindings/IdleCallbacks.h"
 #include "bindings/Timers.h"
 #include "html/TreeBuilder.h"
 #include "js/Interpreter.h"
@@ -1742,6 +1743,56 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     Expect(!frames.NextDelay(0).has_value(), "the request is gone");
     Expect(!frames.RunDue(interpreter, 100), "and nothing runs");
     ExpectEqString(js::ToString(interpreter.Run("String(n)").value), "0", "the callback did not");
+  });
+
+  AddTest(tests, "IdleCallbacks/NothingScheduledMeansTheLoopMayBlock", [] {
+    js::Interpreter interpreter;
+    bindings::IdleCallbacks idle;
+    idle.Install(interpreter, 1000);
+    Expect(!idle.NextDelay(1000).has_value(),
+           "nothing asked for idle work, so no deadline and the loop may block");
+
+    interpreter.Run("requestIdleCallback(() => {});");
+    Expect(idle.NextDelay(1000).has_value(), "one request, one idle deadline");
+    Expect(idle.RunDue(interpreter, 1000), "and it runs on the next idle pass");
+    Expect(!idle.NextDelay(1000).has_value(),
+           "after which nothing is scheduled again -- a settled page must not keep waking");
+  });
+
+  AddTest(tests, "IdleCallbacks/DeadlineReportsTimeoutAndTimeRemaining", [] {
+    js::Interpreter interpreter;
+    bindings::IdleCallbacks idle;
+    idle.Install(interpreter, 0);
+    interpreter.Run(
+        "globalThis.seen = '';"
+        "requestIdleCallback(d => {"
+        "  seen = d.didTimeout + ':' + d.timeRemaining();"
+        "}, { timeout: 40 });");
+    Expect(idle.RunDue(interpreter, 50), "the timeout eventually fires");
+    ExpectEqString(js::ToString(interpreter.Run("seen").value), "true:50",
+                   "a timed-out callback is told it timed out and gets a budget");
+  });
+
+  AddTest(tests, "DomBindings/SuspenseReplaceHoistsTemplateForMarkup", [] {
+    // reddit's shape: feed markup lives in `<template for="…">` and a
+    // `<suspense-replace>` custom element hoists it on connect.
+    static constexpr const char* kPage =
+        "<html><body>"
+        "<template for=\"s_feed\"><article class=\"post\">feed</article></template>"
+        "<suspense-replace for=\"s_feed\"></suspense-replace>"
+        "</body></html>";
+    ExpectScript(kPage,
+                 "class SuspenseReplace extends HTMLElement {"
+                 "  connectedCallback() {"
+                 "    const id = this.getAttribute('for');"
+                 "    const tpl = document.querySelector('template[for=\"' + id + '\"]');"
+                 "    if (tpl) this.replaceChildren(tpl.content.cloneNode(true));"
+                 "  }"
+                 "}"
+                 "customElements.define('suspense-replace', SuspenseReplace);"
+                 "document.querySelectorAll('.post').length + ':' +"
+                 " document.querySelector('suspense-replace').childNodes.length",
+                 "1:1");
   });
 
   AddTest(tests, "Timers/NothingScheduledMeansTheLoopMayBlock", [] {

@@ -335,6 +335,13 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     std::fprintf(stderr, "[load] finished after %llu turns\n",
                  static_cast<unsigned long long>(turns));
   }
+  // A page's last script turn often registers a timer or `requestIdleCallback`;
+  // if `Advance()` returned true that same iteration, `RunDueWork` never ran.
+  for (int pass = 0; pass < 64; ++pass) {
+    if (!engine.RunDueWork()) {
+      break;
+    }
+  }
 }
 
 }  // namespace

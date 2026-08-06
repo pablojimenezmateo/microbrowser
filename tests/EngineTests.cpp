@@ -270,6 +270,23 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 1, "one line, not two");
   });
 
+  AddTest(tests, "Page/InsertedExternalScriptIsCollectedAfterRun", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><script>"
+        "const s = document.createElement('script');"
+        "s.src = 'late.js';"
+        "document.head.appendChild(s);"
+        "</script></body></html>",
+        "https://example.org/");
+    page.RunScripts(0);
+    Expect(page.CollectInsertedScripts(), "the injected tag is found after Run");
+    const std::vector<engine::SubresourceRequest> pending = page.TakeUnrequestedScripts();
+    ExpectEqInt(static_cast<long long>(pending.size()), 1, "one late script to fetch");
+    ExpectEqString(pending[0].url, "late.js", "named as written");
+  });
+
   AddTest(tests, "Page/AClickReachesTheElementUnderIt", [] {
     // An inline element has no box geometry of its own -- its text fragments
     // carry the rectangles -- and a text box has no element. So a click on the

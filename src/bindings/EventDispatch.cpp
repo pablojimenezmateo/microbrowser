@@ -511,4 +511,19 @@ bool DomBindings::NotifyLoad() {
   return heard;
 }
 
+void DomBindings::NotifyScriptElementEvent(const dom::Element& element, const char* type) {
+  if (interpreter_ == nullptr || document_ == nullptr) {
+    return;
+  }
+  const Value event = MakeEvent(type, false, false, false);
+  if (!event.IsObject()) {
+    return;
+  }
+  const bool was_trusted = trusted_script_insertion_;
+  trusted_script_insertion_ = true;
+  DispatchEventTo(const_cast<dom::Element&>(element), event);
+  interpreter_->DrainMicrotasks();
+  trusted_script_insertion_ = was_trusted;
+}
+
 }  // namespace microbrowser::bindings

@@ -97,7 +97,8 @@ class Engine : private bindings::NetworkSource,
   // there would show a page with holes where its visible images go.
   bool IsLoading() const {
     return load_.active || !late_images_.empty() || !script_fetches_.empty() ||
-           !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules();
+           !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules() ||
+           page_.HasOutstandingScriptFetches();
   }
 
   // What the page's script threw, so a host that is debugging one can say why
@@ -200,6 +201,10 @@ class Engine : private bindings::NetworkSource,
   // Concurrency is bounded per partition key inside the request queue, which is
   // where that bound belongs -- see ADR 0005 for why it is per key.
   void StartSubresources();
+  // Fetches `<script>` elements a page injected after the parse-time walk.
+  void StartPendingScriptRequests();
+  // Collects, fetches, and runs scripts a page added after `RunScripts`.
+  bool ProcessDynamicScripts();
   // Fetches every image the page wants and has not been given. Called from the
   // initial subresource pass and again at each frame, because an
   // `<img loading="lazy">` becomes wanted when it is scrolled towards -- which

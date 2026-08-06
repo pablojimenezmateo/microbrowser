@@ -378,6 +378,7 @@ namespace microbrowser::util {
   X(AnimationsStarted, "animation.animations_started")                            \
   X(AnimationsFinished, "animation.animations_finished")                          \
   X(AnimationFramesProduced, "animation.frames_produced")                         \
+  X(IdleCallbacksRun, "idle.callbacks_run")                                       \
   X(CanvasesCreated, "canvas.created")                                            \
   X(CanvasDraws, "canvas.draws")                                                  \
   X(CanvasSizeRefusals, "canvas.size_refusals")                                   \

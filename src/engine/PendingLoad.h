@@ -126,7 +126,8 @@ struct PendingLoad {
   // `DOMContentLoaded` -- and because `load_` owns the requests: finishing
   // while one is in flight would drop the response on the floor.
   bool IsFinished() const {
-    return painted && async_scripts_outstanding == 0 && images_outstanding == 0;
+    return painted && async_scripts_outstanding == 0 && scripts_outstanding == 0 &&
+           modules_outstanding == 0 && images_outstanding == 0;
   }
 
   // How far along, for the progress the UI shows. Never reaches 1.0: that is

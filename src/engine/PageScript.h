@@ -5,9 +5,11 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "bindings/AnimationFrames.h"
+#include "bindings/IdleCallbacks.h"
 #include "bindings/Canvas.h"
 #include "bindings/Workers.h"
 #include "bindings/DomBindings.h"
@@ -166,6 +168,16 @@ class PageScript {
   // a slot that existed and was skipped at run time would still have been
   // fetched, and a fetch the policy forbids is the request enforcement is for.
   void Collect(dom::Document& document, const DocumentPolicy& policy);
+  // Scripts a page injected after the initial walk. Polyfill loaders append
+  // `<script type=module src=…>` tags; reddit's concat bundle is among them.
+  bool CollectInserted(dom::Document& document, const DocumentPolicy& policy);
+  // External scripts added since the last fetch batch started.
+  std::vector<SubresourceRequest> TakeUnrequestedScripts();
+  void MarkScriptsRequested() { scripts_requested_ = pending_urls_.size(); }
+  bool HasOutstandingScriptFetches() const { return scripts_requested_ < pending_urls_.size(); }
+  // Runs any script whose source is ready after `CollectInserted`, even when
+  // the first pass of `Run` already happened.
+  bool RunPendingScripts();
   // The external scripts, in the order they were found. The caller fetches
   // them, because what a URL turns into is the loader's problem -- and because
   // a fetch needs a privacy verdict, which this layer has no business
@@ -364,6 +376,8 @@ class PageScript {
     // engine saying there is no resolver, which is a legible answer and not a
     // parse error.
     bool module = false;
+    // The `<script>` this slot came from, for `load`/`error` after a fetch.
+    const dom::Element* element = nullptr;
   };
 
   // Installs the resolver and the dynamic-import starter, and resets the graph.
@@ -390,12 +404,19 @@ class PageScript {
   std::vector<Slot> slots_;
   std::vector<SubresourceRequest> pending_urls_;
   std::vector<std::size_t> pending_slots_;
+  // Every `<script>` that has been queued, so a later walk skips it.
+  std::unordered_set<const dom::Element*> collected_scripts_;
+  // How many of `pending_urls_` the loader has already been asked to fetch.
+  std::size_t scripts_requested_ = 0;
   bool ran_ = false;
   bindings::TimerQueue timers_;
   // Not folded into the timers. A timer is a deadline the page chose; a frame
   // is one the browser chose, shared by every callback, and existing only
   // while something has asked for it. See AnimationFrames.
   bindings::AnimationFrames frames_;
+  // Not folded into the timers or the frames. An idle callback runs in the gap
+  // after those, or when its timeout expires -- see IdleCallbacks.
+  bindings::IdleCallbacks idle_;
   // `performance` and `PerformanceObserver`. Not folded into AnimationFrames even
   // though they share an epoch: a frame is a deadline the browser chose and a
   // measurement is a fact the page recorded, and the only thing they have in

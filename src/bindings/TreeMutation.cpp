@@ -408,6 +408,12 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // node: appending a detached tree connects everything in it, and a custom
   // element three levels down is as connected as the root is.
   NotifyConnection(*child, true);
+  if (trusted_script_insertion_ && child->IsElement()) {
+    const auto& element = static_cast<const dom::Element&>(*child);
+    if (element.TagName() == "script") {
+      csp_trusted_scripts_.insert(&element);
+    }
+  }
   // The record goes to observers of the *parent*, because childList is about
   // a node's children changing rather than about the child.
   RecordMutation(parent, "childList", {}, Value::Null(), {child}, {});

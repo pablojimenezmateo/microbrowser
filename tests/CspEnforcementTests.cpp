@@ -149,6 +149,20 @@ void RegisterCspEnforcementTests(std::vector<TestCase>& tests) {
     Expect(!session.Requested("/other.js"), "and the one without it is refused");
   });
 
+  AddTest(tests, "CspEnforcement/ATrustedDynamicScriptIsFetchedWithoutANonce", [] {
+    Session session;
+    session.Load("Content-Security-Policy: script-src 'nonce-abc'\r\n",
+                 "<html><body>"
+                 "<script nonce=\"abc\">"
+                 "const s = document.createElement('script');"
+                 "s.src = 'https://cdn.example/late.js';"
+                 "document.head.appendChild(s);"
+                 "</script></body></html>");
+    Expect(session.Requested("/late.js"),
+           "a script a trusted script inserted is not refused for lacking a nonce");
+    ExpectEqString(session.Console(), "ran", "and it ran when it arrived");
+  });
+
   AddTest(tests, "CspEnforcement/ARefusedStylesheetIsNeitherFetchedNorApplied", [] {
     Session session;
     session.Load("Content-Security-Policy: style-src 'none'\r\n",

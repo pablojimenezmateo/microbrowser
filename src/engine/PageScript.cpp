@@ -74,6 +74,8 @@ void PageScript::Detach() {
   slots_.clear();
   pending_urls_.clear();
   pending_slots_.clear();
+  collected_scripts_.clear();
+  scripts_requested_ = 0;
   errors_.clear();
   ran_ = false;
   timers_ = bindings::TimerQueue{};
@@ -82,6 +84,7 @@ void PageScript::Detach() {
   requested_modules_.clear();
   modules_.Clear();
   frames_ = bindings::AnimationFrames{};
+  idle_ = bindings::IdleCallbacks{};
   performance_ = bindings::Performance{};
 }
 
@@ -89,12 +92,15 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
   slots_.clear();
   pending_urls_.clear();
   pending_slots_.clear();
+  collected_scripts_.clear();
+  scripts_requested_ = 0;
   ran_ = false;
+  CollectInserted(document, policy);
+}
 
-  // Gathered before any of them runs, because running one can add elements to
-  // the tree -- and a walk that collected as it went would then try to run
-  // whatever a script had just written.
-  document.ForEachDescendant([this, &policy](const dom::Node& node) {
+bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& policy) {
+  bool added = false;
+  document.ForEachDescendant([this, &policy, &added](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
     }
@@ -105,34 +111,55 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
     const std::string* src = element.GetAttribute("src");
     const bool external = src != nullptr && !src->empty();
     const bool module = IsModule(element);
+    const std::string text = node.TextContent();
+    if (!external && text.empty()) {
+      return;
+    }
+    const bool seen = collected_scripts_.contains(&element);
+    if (seen) {
+      if (!external) {
+        return;
+      }
+      const bool already_queued = std::any_of(
+          pending_urls_.begin(), pending_urls_.end(),
+          [&](const SubresourceRequest& request) { return request.url == *src; });
+      if (already_queued) {
+        return;
+      }
+    } else {
+      collected_scripts_.insert(&element);
+    }
     const std::string* nonce_attribute = element.GetAttribute("nonce");
     const std::string_view nonce =
         nonce_attribute == nullptr ? std::string_view{} : std::string_view(*nonce_attribute);
+    const bool trusted =
+        bindings_ != nullptr && bindings_->IsCspTrustedScript(element);
 
-    // `script-src`. An external script is judged by its URL and an inline one
-    // by its text, and a nonce answers for either -- which is CSP2's change and
-    // what makes reddit's `default-src 'none'; script-src 'nonce-…'` a page that
-    // runs rather than a page that does not.
     if (external) {
-      if (!policy.AllowsUrl(csp::Directive::Script, *src, nonce)) {
+      if (!trusted && !policy.AllowsUrl(csp::Directive::Script, *src, nonce)) {
+        if (!seen) {
+          collected_scripts_.erase(&element);
+        }
         return;
       }
-    } else if (!policy.AllowsInline(csp::Directive::Script, nonce, node.TextContent())) {
+    } else if (!policy.AllowsInline(csp::Directive::Script, nonce, text)) {
       AddPerformanceCounter(PerfCounterId::CspInlineBlocked);
+      if (!seen) {
+        collected_scripts_.erase(&element);
+      }
       return;
     }
 
     Slot slot;
     slot.timing = TimingFor(element, external, module);
     slot.module = module;
+    slot.element = &element;
     if (!external) {
-      slot.source = node.TextContent();
+      slot.source = text;
       slots_.push_back(std::move(slot));
+      added = true;
       return;
     }
-    // A slot now, filled later. Its position is what keeps document order
-    // across the two kinds, and an external script that never arrives leaves
-    // an empty slot rather than moving everything after it.
     SubresourceRequest request;
     request.url = *src;
     if (const std::string* integrity = element.GetAttribute("integrity")) {
@@ -144,7 +171,29 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
     pending_urls_.push_back(std::move(request));
     pending_slots_.push_back(slots_.size());
     slots_.push_back(std::move(slot));
+    added = true;
   });
+  return added;
+}
+
+std::vector<SubresourceRequest> PageScript::TakeUnrequestedScripts() {
+  if (scripts_requested_ >= pending_urls_.size()) {
+    return {};
+  }
+  std::vector<SubresourceRequest> pending(pending_urls_.begin() + scripts_requested_,
+                                          pending_urls_.end());
+  scripts_requested_ = pending_urls_.size();
+  return pending;
+}
+
+bool PageScript::RunPendingScripts() {
+  if (interpreter_ == nullptr) {
+    return false;
+  }
+  bool ran = RunTiming(Timing::Blocking);
+  ran = RunTiming(Timing::Deferred) || ran;
+  ran = RunTiming(Timing::Async) || ran;
+  return ran;
 }
 
 bool PageScript::IsAsync(std::size_t index) const {
@@ -182,6 +231,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   bindings_->Install();
   timers_.Install(*interpreter_, now_ms);
   frames_.Install(*interpreter_, now_ms);
+  idle_.Install(*interpreter_, now_ms);
   performance_.Install(*interpreter_, now_ms);
   // After the interpreter exists and before anything runs: a module's first
   // `import` is resolved during evaluation, and the resolver has to be there.
@@ -231,9 +281,16 @@ bool PageScript::RunTiming(Timing timing) {
                    source.size());
       std::fflush(stderr);
     }
+    const dom::Element* element = entry.element;
+    if (bindings_ != nullptr) {
+      bindings_->SetTrustedScriptInsertion(true);
+    }
     const js::Result result = entry.module
                                   ? interpreter_->RunModule(source, SourceName(slot))
                                   : interpreter_->Run(source);
+    if (bindings_ != nullptr) {
+      bindings_->SetTrustedScriptInsertion(false);
+    }
     if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
       std::fprintf(stderr, "[load] script.end %s\n", SourceName(slot).c_str());
       std::fflush(stderr);
@@ -242,7 +299,13 @@ bool PageScript::RunTiming(Timing timing) {
       util::LoadTimeline::MarkWith("script.end", SourceName(slot));
     }
     if (result.completion != js::Completion::Throw) {
+      if (element != nullptr && bindings_ != nullptr) {
+        bindings_->NotifyScriptElementEvent(*element, "load");
+      }
       continue;
+    }
+    if (element != nullptr && bindings_ != nullptr) {
+      bindings_->NotifyScriptElementEvent(*element, "error");
     }
     std::string report = SourceName(slot) + ": " + js::ToString(result.value);
     // The stack when the thrown value carries one, which every error the
@@ -357,10 +420,18 @@ std::optional<std::uint32_t> PageScript::NextWakeDelay(std::int64_t now_ms) cons
   }
   const std::optional<std::uint32_t> timer = timers_.NextDelay(now_ms);
   const std::optional<std::uint32_t> frame = frames_.NextDelay(now_ms);
-  if (!timer.has_value()) {
-    return frame;
+  const std::optional<std::uint32_t> idle = idle_.NextDelay(now_ms);
+  std::optional<std::uint32_t> soonest;
+  for (const std::optional<std::uint32_t>* candidate :
+       {&timer, &frame, &idle}) {
+    if (!candidate->has_value()) {
+      continue;
+    }
+    soonest = soonest.has_value() ? std::optional<std::uint32_t>(
+                                        std::min(*soonest, **candidate))
+                                  : *candidate;
   }
-  return frame.has_value() ? std::optional<std::uint32_t>(std::min(*timer, *frame)) : timer;
+  return soonest;
 }
 
 bool PageScript::RunDueWork(std::int64_t now_ms) {
@@ -370,12 +441,13 @@ bool PageScript::RunDueWork(std::int64_t now_ms) {
   if (interpreter_ == nullptr) {
     return false;
   }
-  // Timers first, then the frame. That is the order the event loop defines and
-  // it is the useful one: a timer that moves something should be reflected by
-  // the frame that draws it, in the same turn rather than 16ms later.
+  // Timers first, then the frame, then idle callbacks. That is the order the
+  // event loop defines: a timer that moves something should be reflected by the
+  // frame that draws it, and idle work runs only after both.
   const bool timers = timers_.RunDue(*interpreter_, now_ms);
   const bool frame = frames_.RunDue(*interpreter_, now_ms);
-  return timers || frame;
+  const bool idle = idle_.RunDue(*interpreter_, now_ms);
+  return timers || frame || idle;
 }
 
 bool PageScript::DispatchSubmit(dom::Element& form) {
