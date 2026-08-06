@@ -253,6 +253,17 @@ namespace microbrowser::util {
   /* changing is a component being rebuilt rather than updated.                */ \
   X(DomShadowRootsAttached, "dom.shadow_roots_attached")                          \
   X(DomSlotChanges, "dom.slot_changes")                                          \
+  /* Custom elements. An upgrade that ran and an element that ended up an       */ \
+  /* instance of its own class are different facts, and the gap between these   */ \
+  /* two counters is the second one failing. Worth counting rather than         */ \
+  /* asserting because the failure is invisible from the page: the element is   */ \
+  /* in the tree, it has a prototype, its methods are simply somebody else's.   */ \
+  X(DomCustomElementUpgrades, "dom.custom_element_upgrades")                      \
+  X(DomCustomElementConstructorThrows, "dom.custom_element_constructor_throws")   \
+  /* An upgrade whose class had no usable `prototype` to apply, so the element  */ \
+  /* kept whatever the construction left on it. Above zero means every          */ \
+  /* component of that class renders as a plain element.                       */ \
+  X(DomCustomElementPrototypeMissing, "dom.custom_element_prototype_missing")     \
   /* Web fonts. `refused` above zero means a face this browser cannot decode -- */ \
   /* a WOFF2 until ADR 0024's brotli lands -- and the page rendered in the next */ \
   /* family of its stack, which is what a stack is for.                        */ \

@@ -20,6 +20,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
 
@@ -94,25 +95,55 @@ void DomBindings::UpgradeElement(dom::Element& element) {
   }
   wrapper.object->Set(kUpgradedSlot, Value::Bool(true));
 
+  // The class's prototype goes on *before* the constructor runs, and that
+  // ordering is the whole of whether a component works.
+  //
+  // A derived constructor's `this` comes from its base, and in a real engine
+  // that object already has `new.target.prototype` installed by the time
+  // `super()` returns -- so the very next line of the constructor may call the
+  // class's own methods. Applying it afterwards instead makes `super()` hand
+  // back a bare HTMLElement, and every constructor that calls one of its own
+  // methods throws on the first one.
+  //
+  // Which is not a corner case: it is what a framework's base class *is*.
+  // Polymer's begins `this._initializeProperties()`, and on youtube.com that
+  // threw for twenty-nine of thirty-two upgrades, so no component ever
+  // rendered and the page was blank. The element kept the prototype the failed
+  // upgrade left it with, which is why it was not an instance of its own class.
+  //
+  // Setting it before is also what the specification says: the element's
+  // prototype is set as part of constructing it, and a constructor that then
+  // throws leaves the element "failed" without reverting anything.
+  const Value* prototype = constructor->object->GetOwn("prototype");
+  if (prototype != nullptr && prototype->IsObject()) {
+    wrapper.object->SetPrototype(prototype->object);
+  } else {
+    util::AddPerformanceCounter(util::PerfCounterId::DomCustomElementPrototypeMissing);
+  }
+
   // The handoff described at the top of this file: HTMLElement's constructor
   // returns whatever is parked here, so `super()` inside the page's class
   // yields the element that already exists.
   interfaces_.object->Set(kUpgradeSlot, wrapper);
   const js::Result constructed = interpreter_->ConstructValue(*constructor, {});
   interfaces_.object->Set(kUpgradeSlot, Value::Undefined());
+  util::AddPerformanceCounter(util::PerfCounterId::DomCustomElementUpgrades);
   if (constructed.completion == js::Completion::Throw) {
+    util::AddPerformanceCounter(util::PerfCounterId::DomCustomElementConstructorThrows);
     // A constructor that throws leaves the element in the tree as a plain
     // element rather than removing it, which is what a browser does: the
     // document is the page's, and a failed upgrade is not a reason to change
-    // it. The throw is reported the way any uncaught one is.
+    // it.
+    //
+    // Reported, and it was not. The comment here said "the throw is reported
+    // the way any uncaught one is" and nothing reported it: `ConstructValue`
+    // hands the error back and this returned. On youtube.com that hid *thirty*
+    // failing upgrades behind a blank page and an empty error list -- the
+    // symptom looked like a component that never rendered, because that is
+    // exactly what it was, and there was no way to see it from outside.
+    // EventDispatch.cpp lost whole scripts to the same omission.
+    interpreter_->ReportUncaught(constructed.value, "custom element constructor");
     return;
-  }
-  // The prototype comes from the class whether or not its constructor set
-  // anything, so a class body with only methods still works.
-  if (const Value* prototype = constructor->object->GetOwn("prototype")) {
-    if (prototype->IsObject()) {
-      wrapper.object->SetPrototype(prototype->object);
-    }
   }
   // Already in the document at upgrade time means connected now.
   for (const dom::Node* at = &element; at != nullptr; at = at->Parent()) {

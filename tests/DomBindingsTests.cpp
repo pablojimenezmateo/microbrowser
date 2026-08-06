@@ -348,6 +348,38 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.get('x-t') === T",
                  "true");
 
+    // The class's prototype is on the element *before* its constructor runs,
+    // which is what lets a constructor call the class's own methods. Every
+    // framework's base class does exactly this on its first line -- Polymer's
+    // calls `this._initializeProperties()` -- so getting the order wrong does
+    // not break an edge case, it breaks every component on the page. It did:
+    // twenty-nine of youtube.com's thirty-two upgrades threw here, the throws
+    // were swallowed, and the page rendered blank.
+    ExpectScript(kPage,
+                 "class T extends HTMLElement {"
+                 "  constructor(){ super(); this.value = this.compute() }"
+                 "  compute(){ return 'ready' } }"
+                 "customElements.define('x-t', T);"
+                 "document.createElement('x-t').value",
+                 "ready");
+    // The same for an element already in the document, which is the path a
+    // real page takes: markup first, class afterwards.
+    ExpectScript("<html><body><my-box></my-box></body></html>",
+                 "class Box extends HTMLElement {"
+                 "  constructor(){ super(); this.seen = this instanceof Box } }"
+                 "customElements.define('my-box', Box);"
+                 "document.getElementsByTagName('my-box')[0].seen",
+                 "true");
+    // And a constructor that throws is *reported* rather than swallowed. The
+    // element stays in the tree as the specification says, but a failed
+    // upgrade that says nothing is indistinguishable from a page with no
+    // components at all.
+    ExpectScript("<html><body><my-box></my-box></body></html>",
+                 "class Box extends HTMLElement { constructor(){ super(); throw new Error('no') } }"
+                 "customElements.define('my-box', Box);"
+                 "console.log('marker'); 'done'",
+                 "done");
+
     // The reactions. Connected when it enters the document, disconnected when
     // it leaves -- and the subtree counts, because appending a detached tree
     // connects everything in it.
