@@ -448,7 +448,7 @@ Rendering text in Roboto is necessary for a readable youtube.com but is not suff
 
 ---
 
-## TD-0016 — reddit's feed waits on `<suspense-replace>` hoisting `for=` templates
+## TD-0016 — reddit's feed waits on polyfill chain, then `<suspense-replace>` hoisting
 
 Session 14 fixed `<template>` parsing: reddit puts the feed and sidebar inside
 `<template for="s_8a5ed_0">` and `<template for="s_8a5ed_1">` (**729** and **1668** nodes) for its
@@ -460,25 +460,28 @@ Session 50 landed `PerformanceObserver` and the module loader (ADR 0037). After 
 (`9689730`) the page draws **214 commands / 48 script runs / 1 image** — search box, user menu, and
 sidebar card render. **Gate B is still not met:** the feed does not fill in.
 
-**Measured**, www.reddit.com, 2026-08-06:
+**Measured**, www.reddit.com, 2026-08-06 (after session 51 template-parser fix):
 
 ```
+display_list.commands       214
+js.modules_loaded           3
 js.dynamic_imports          0
 js.compile_bailouts         0
-performance.observer_callbacks  3
+performance.observer_callbacks  5
 ```
 
-`js.dynamic_imports` at zero means reddit's `import()` of the Navigation API polyfill never runs —
-those paths sit behind `window.Sentry?.…` and **`requestIdleCallback`**, which is absent. The feed
-content is not missing because the module loader failed; it is missing because **nothing hoists the
-`for=` templates** and the idle-scheduled import graph never starts.
+**Session 51** fixed the **es-module-shims parse error** (`SyntaxError: expected ';'` at line 370):
+`LexTemplate` and `SplitTemplate` ended substitutions at the first `}` inside nested template text
+(`with{type:"css"}`) or mis-read `/ '/g` as a single-quoted string. es-module-shims now parses and
+executes (**42s** script time, no syntax error). The polyfill loader still reports failure because
+**core-js throws at runtime** before the chain completes (`TypeError: undefined is not a function` at
+@19450, inside its `AggregateError` polyfill — the file parses). No `runtime-concat` / `ac-render-template`
+bundle fetch appears in the timeline yet; **0 feed articles**.
 
-**End state.** Implement `<suspense-replace>` (or the minimal primitive it needs:
-`template.content` + `cloneNode` + insertion + `connectedCallback` ordering is already landed;
-the custom element's hoist algorithm is not), add `requestIdleCallback` if the bundle still will not
-reach `import()` without it, and close when the snapshot shows feed posts rather than an empty main
-region. ADR 0037 documents what the loader already does; this entry is what Gate B still needs
-beside it.
+**End state.** Fix the core-js runtime throw (or skip the `noModule` core-js path when native modules
+work), verify concat `type=module` bundles fetch and execute after the polyfill chain, implement
+`<suspense-replace>` hoisting for the `for=` templates, and close when the snapshot shows feed posts
+rather than an empty main region.
 
 ---
 

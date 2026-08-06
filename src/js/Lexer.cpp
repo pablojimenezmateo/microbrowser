@@ -511,14 +511,9 @@ Token Lexer::LexTemplate(std::size_t start, bool newline) {
   // (a template inside a substitution inside a template) in one place instead
   // of duplicating a brace counter here and a parser there.
   ++offset_;  // the backtick
-  int depth = 0;
   while (offset_ < source_.size()) {
     const char c = source_[offset_];
     if (c == '\\') {
-      // Clamped, not `+= 2`. A backslash as the last byte of the input would
-      // otherwise put the offset one past the end, and every token carries its
-      // end offset -- so an error message that slices the source by it reads
-      // out of bounds. Found by the fuzzer.
       offset_ = std::min(offset_ + 2, source_.size());
       continue;
     }
@@ -528,16 +523,10 @@ Token Lexer::LexTemplate(std::size_t start, bool newline) {
       continue;
     }
     if (c == '$' && Peek(1) == '{') {
-      ++depth;
-      offset_ += 2;
+      offset_ = ScanSubstitutionEnd(source_, offset_ + 1);
       continue;
     }
-    if (c == '}' && depth > 0) {
-      --depth;
-      ++offset_;
-      continue;
-    }
-    if (c == '`' && depth == 0) {
+    if (c == '`') {
       ++offset_;
       return MakeToken(TokenType::TemplateString, start, newline);
     }

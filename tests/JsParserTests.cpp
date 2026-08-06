@@ -269,6 +269,18 @@ void RegisterJsParserTests(std::vector<TestCase>& tests) {
     ExpectClean("`a ${ `b ${c}` } d`");
   });
 
+  AddTest(tests, "JsParser/NestedTemplateWithImportAssertionStringParses", [] {
+    // reddit's es-module-shims polyfill (line 364-369) -- found by snapshot.
+    ExpectClean(
+        "const x = `foo ${true ? `b(\\`import\"\\${b('','text/css')}\"with{type:\"css\"}\\`)` : "
+        "'false'} bar`");
+  });
+
+  AddTest(tests, "JsParser/TemplateSubstitutionWithSingleQuoteRegexParses", [] {
+    // es-module-shims urlJsString (line 636) -- /'/g inside a substitution.
+    ExpectClean("function f(url) { return `'${url.replace(/'/g, \"\\\\'\")}'`; }");
+  });
+
   AddTest(tests, "JsParser/ASubstitutionIsParsedAsAnExpression", [] {
     // A leading brace is an object literal here, not a block.
     ExpectClean("`${ { a: 1 }.a }`");

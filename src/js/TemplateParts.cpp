@@ -1,6 +1,10 @@
 #include "js/TemplateParts.h"
 
+#include <algorithm>
+
 namespace microbrowser::js {
+
+std::size_t ScanSubstitutionEnd(std::string_view source, std::size_t brace_at);
 
 namespace {
 
@@ -38,7 +42,117 @@ void AppendUtf8(std::string& out, char32_t codepoint) {
   }
 }
 
+bool IsRegexFlag(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$';
+}
+
+bool CanStartRegex(std::string_view source, std::size_t slash_at) {
+  while (slash_at > 0) {
+    const char prev = source[slash_at - 1];
+    if (prev == ' ' || prev == '\t' || prev == '\n' || prev == '\r') {
+      --slash_at;
+      continue;
+    }
+    return prev == '(' || prev == ',' || prev == '=' || prev == ':' || prev == '!' || prev == '&' ||
+           prev == '|' || prev == '?' || prev == '{' || prev == '[' || prev == '}' || prev == ';' ||
+           prev == '+' || prev == '-' || prev == '*' || prev == '%' || prev == '~' || prev == '>';
+  }
+  return true;
+}
+
+std::size_t ScanRegexEnd(std::string_view source, std::size_t slash_at) {
+  std::size_t scan = slash_at + 1;
+  bool in_class = false;
+  while (scan < source.size()) {
+    const char c = source[scan];
+    if (c == '\\') {
+      scan = std::min(scan + 2, source.size());
+      continue;
+    }
+    if (c == '[' && !in_class) {
+      in_class = true;
+    } else if (c == ']' && in_class) {
+      in_class = false;
+    } else if (c == '/' && !in_class) {
+      ++scan;
+      break;
+    }
+    ++scan;
+  }
+  while (scan < source.size() && IsRegexFlag(source[scan])) {
+    ++scan;
+  }
+  return scan;
+}
+
+std::size_t ScanNestedTemplateEnd(std::string_view source, std::size_t backtick_at) {
+  std::size_t scan = backtick_at + 1;
+  while (scan < source.size()) {
+    const char c = source[scan];
+    if (c == '\\') {
+      scan = std::min(scan + 2, source.size());
+      continue;
+    }
+    if (IsLineTerminator(c)) {
+      ++scan;
+      continue;
+    }
+    if (c == '$' && scan + 1 < source.size() && source[scan + 1] == '{') {
+      scan = ScanSubstitutionEnd(source, scan + 1);
+      continue;
+    }
+    if (c == '`') {
+      return scan + 1;
+    }
+    ++scan;
+  }
+  return scan;
+}
+
 }  // namespace
+
+std::size_t ScanSubstitutionEnd(std::string_view source, std::size_t brace_at) {
+  std::size_t depth = 1;
+  std::size_t scan = brace_at + 1;
+  while (scan < source.size() && depth > 0) {
+    const char c = source[scan];
+    if (c == '\\') {
+      scan = std::min(scan + 2, source.size());
+      continue;
+    }
+    if (c == '/' && CanStartRegex(source, scan)) {
+      scan = ScanRegexEnd(source, scan);
+      continue;
+    }
+    if (c == '\'' || c == '"') {
+      const char quote = c;
+      ++scan;
+      while (scan < source.size()) {
+        if (source[scan] == '\\') {
+          scan = std::min(scan + 2, source.size());
+          continue;
+        }
+        if (source[scan] == quote) {
+          ++scan;
+          break;
+        }
+        ++scan;
+      }
+      continue;
+    }
+    if (c == '`') {
+      scan = ScanNestedTemplateEnd(source, scan);
+      continue;
+    }
+    if (c == '{') {
+      ++depth;
+    } else if (c == '}') {
+      --depth;
+    }
+    ++scan;
+  }
+  return scan;
+}
 
 bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, std::size_t& lines) {
   if (at >= source.size()) {
@@ -53,8 +167,6 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
     case 'f': out.push_back('\f'); return true;
     case 'v': out.push_back('\v'); return true;
     case '0':
-      // `\0` is a NUL only when no digit follows; `\01` is a legacy octal
-      // escape, which is a syntax error in strict mode and is refused here.
       if (at < source.size() && IsDecimalDigit(source[at])) {
         return false;
       }
@@ -104,14 +216,12 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
     }
     default:
       if (IsLineTerminator(escape)) {
-        // A line continuation contributes nothing to the value.
         if (escape == '\r' && at < source.size() && source[at] == '\n') {
           ++at;
         }
         ++lines;
         return true;
       }
-      // An unrecognised escape is the character itself: `\q` is q.
       out.push_back(escape);
       return true;
   }
@@ -120,12 +230,7 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
 TemplateParts SplitTemplate(std::string_view raw) {
   TemplateParts parts;
   std::string literal;
-  // The same span with escapes untouched, accumulated beside the cooked one so
-  // the two cannot get out of step.
   std::string raw_literal;
-  // The backticks are part of the token. An unterminated template never
-  // reaches here -- the lexer refuses it -- but the bounds are written so that
-  // one would produce a short last chunk rather than read past the end.
   const std::size_t end = raw.size() >= 2 ? raw.size() - 1 : raw.size();
   std::size_t at = raw.empty() ? 0 : 1;
 
@@ -136,9 +241,6 @@ TemplateParts SplitTemplate(std::string_view raw) {
       std::size_t lines = 0;
       const std::size_t before = at;
       if (!DecodeEscape(raw, at, literal, lines)) {
-        // The lexer already accepted this token, so a malformed escape here is
-        // not a second chance to reject it. Emit the character and carry on --
-        // the alternative is a template that lexes and then vanishes.
         at = before;
         if (at < end) {
           literal.push_back(raw[at++]);
@@ -153,23 +255,9 @@ TemplateParts SplitTemplate(std::string_view raw) {
       continue;
     }
 
-    // A substitution. Its extent is the matching close brace, counted so that
-    // an object literal or a nested template inside it does not end it early.
-    std::size_t depth = 1;
     const std::size_t begin = at + 2;
-    std::size_t scan = begin;
-    for (; scan < end && depth > 0; ++scan) {
-      if (raw[scan] == '\\') {
-        ++scan;  // an escaped brace is not a brace
-      } else if (raw[scan] == '{') {
-        ++depth;
-      } else if (raw[scan] == '}') {
-        --depth;
-      }
-    }
-    if (depth != 0) {
-      // Unbalanced: the rest is literal text rather than a substitution that
-      // silently swallows it.
+    const std::size_t scan = ScanSubstitutionEnd(raw, at + 1);
+    if (scan <= begin || scan > end || raw[scan - 1] != '}') {
       raw_literal.push_back(raw[at]);
       literal.push_back(raw[at++]);
       continue;

@@ -54,4 +54,8 @@ struct TemplateParts {
 // the fix is for there to be one.
 TemplateParts SplitTemplate(std::string_view raw);
 
+// Returns the index just past the closing `}` of a `${` substitution whose `{`
+// is at brace_at. Skips string literals and nested templates inside.
+std::size_t ScanSubstitutionEnd(std::string_view source, std::size_t brace_at);
+
 }  // namespace microbrowser::js

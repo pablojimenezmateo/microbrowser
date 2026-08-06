@@ -264,6 +264,17 @@ void RegisterJsLexerTests(std::vector<TestCase>& tests) {
     Expect(At(Lex("`abc"), 0).type == TokenType::Invalid, "and does not loop");
   });
 
+  AddTest(tests, "JsLexer/ASubstitutionBraceBalancesObjectLiterals", [] {
+    // es-module-shims builds feature-detection script text in a template whose
+    // substitution contains nested templates with import-assertion strings.
+    const std::string_view source =
+        "`${true ? `b(\\`import\"\\${b('','text/css')}\"with{type:\"css\"}\\`)` : 'false'}`";
+    const std::vector<Token> tokens = Lex(source);
+    Expect(At(tokens, 0).type == TokenType::TemplateString, "one token through the braces");
+    ExpectEqString(std::string(At(tokens, 0).lexeme), std::string(source),
+                   "the `}` in with{type:\"css\"} does not end the substitution early");
+  });
+
   AddTest(tests, "JsLexer/PrivateNamesLexAsTheirOwnKind", [] {
     const std::vector<Token> tokens = Lex("this.#count");
     Expect(At(tokens, 2).type == TokenType::PrivateIdentifier, "#count is a private name");
