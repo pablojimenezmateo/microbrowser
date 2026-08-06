@@ -170,6 +170,7 @@ bool Engine::Advance() {
   // loader's queue, so nothing below this line would ever look at one. Its events run
   // script, which is why it is here and not inside the paint.
   bool socket_activity = AdvanceSockets();
+  socket_activity = AdvanceEventSources() || socket_activity;
   if (!load_.active && late_images_.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && !page_.HasPendingModules()) {
     if (socket_activity) {
@@ -267,7 +268,12 @@ std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   // Not gated on `load_.active` any more: with nothing loading the loader still
   // answers when it holds an idle connection, and that deadline is the only
   // thing that will ever close it.
-  const std::optional<std::uint32_t> network = loader_.NextDeadlineMs(now_ms);
+  std::optional<std::uint32_t> network = loader_.NextDeadlineMs(now_ms);
+  // A stream waiting to reconnect. The only deadline a long-lived connection contributes:
+  // an *open* one contributes none, which is what lets an idle page with a stream block.
+  if (const std::optional<std::uint32_t> retry = NextEventSourceDeadlineMs(now_ms)) {
+    network = network.has_value() ? std::min(*network, *retry) : retry;
+  }
   if (!timers.has_value()) {
     return network;
   }

@@ -205,6 +205,13 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   bool DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text);
   bool DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
                           bool clean, bool failed);
+  bool DeliverEventSourceOpen(std::uint64_t id);
+  bool DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
+                                 const std::string& data, const std::string& last_id);
+  // True when a handler ran. `permanent` says whether a reconnect will follow, which is
+  // what lets a page show "reconnecting" rather than "failed".
+  bool DeliverEventSourceError(std::uint64_t id, bool permanent);
+
   // Where a page's own sockets are answered, handed over for the life of the engine like
   // the other sources.
   void SetSocketSource(bindings::SocketSource* sockets);

@@ -272,6 +272,7 @@ microbrowser_module(net
   SOURCES
     src/net/ConnectionPool.cpp
     src/net/ContentEncoding.cpp
+    src/net/EventSourceConnection.cpp
     src/net/EventStream.cpp
     src/net/CookieJar.cpp
     src/net/Cors.cpp

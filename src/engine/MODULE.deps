@@ -110,7 +110,7 @@ max_tu_lines: 800
 # +2 members and +40 header lines for ADR 0020 §5's WebSockets: the table and its next
 # id. The table is the *first* thing this engine owns that outlives a request and not a
 # document -- it is cleared by a navigation, which is what makes that true.
-budget: Engine header_lines=395 public_methods=15 members=20
+budget: Engine header_lines=405 public_methods=15 members=21
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -229,7 +229,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # belongs to is Engine's. `UpdateUrl` is the one worth naming -- it moves the
 # address, recomputes `:target` from the new fragment and moves the base with it,
 # which is the whole of what a `pushState` does to a document.
-budget: Page   header_lines=605 public_methods=76 members=15
+budget: Page   header_lines=625 public_methods=80 members=15
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -297,7 +297,7 @@ budget: Page   header_lines=605 public_methods=76 members=15
 # plus the three private ones in PageModules.cpp. The split is the point -- a
 # fetch needs a privacy verdict and a connection pool, and deciding *what* to
 # fetch needs to know what a module graph is.
-budget: PageScript header_lines=365 public_methods=40 members=19
+budget: PageScript header_lines=400 public_methods=44 members=19
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

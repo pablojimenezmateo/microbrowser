@@ -305,4 +305,159 @@ bool DomBindings::DeliverSocketClose(std::uint64_t id, std::uint16_t code,
   return ran;
 }
 
+
+// --- EventSource ----------------------------------------------------------------------
+//
+// The same table and the same absence rule as `WebSocket`. What differs is that a stream
+// *reconnects* on its own, so `readyState` goes back to CONNECTING on a drop rather than to
+// CLOSED -- and a page reads exactly that to show "reconnecting".
+void DomBindings::InstallEventSource() {
+  if (sockets_ == nullptr) {
+    return;
+  }
+  const Value constructor =
+      interpreter_->NewNativeValue("EventSource", [](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->sockets_ == nullptr) {
+          return Value::Undefined();
+        }
+        const std::string url = js::ToString(Argument(call.arguments, 0));
+        const Value stream = call.interpreter.NewObjectValue();
+        if (!stream.IsObject()) {
+          return stream;
+        }
+        const std::uint64_t id = owner->sockets_->OpenEventSource(url);
+        stream.object->Set(kSocketIdSlot, Value::Number(static_cast<double>(id)));
+        stream.object->Set(kOwnerSlot, PointerValue(owner));
+        stream.object->Set("url", Value::String(url));
+        stream.object->Set("readyState", Value::Number(id == 0 ? kClosed : kConnecting));
+        stream.object->Set("onopen", Value::Null());
+        stream.object->Set("onmessage", Value::Null());
+        stream.object->Set("onerror", Value::Null());
+        // `withCredentials` is absent rather than false: a page that reads it is asking
+        // whether it can send cookies cross-origin, and answering `false` would be a claim
+        // about a code path that does not exist here. ADR 0012's rule.
+        const Value close = call.interpreter.NewNativeValue("close", [](NativeCall& inner) -> Value {
+          DomBindings* self = OwnerOf(inner);
+          const Value* id_slot =
+              inner.callee == nullptr ? nullptr : inner.callee->GetOwn(kSocketIdSlot);
+          if (self == nullptr || self->sockets_ == nullptr || id_slot == nullptr) {
+            return Value::Undefined();
+          }
+          const std::uint64_t stream_id = static_cast<std::uint64_t>(id_slot->number);
+          if (const Value target = self->SocketWithId(stream_id); target.IsObject()) {
+            target.object->Set("readyState", Value::Number(kClosed));
+          }
+          self->sockets_->CloseEventSource(stream_id);
+          self->ForgetSocket(stream_id);
+          return Value::Undefined();
+        });
+        if (close.IsObject()) {
+          close.object->Set(kOwnerSlot, PointerValue(owner));
+          close.object->Set(kSocketIdSlot, Value::Number(static_cast<double>(id)));
+        }
+        stream.object->Set("close", close);
+
+        if (id != 0) {
+          const Value list = owner->LiveSockets();
+          if (list.IsObject()) {
+            std::vector<Value> kept;
+            for (std::size_t i = 0; i < list.object->ElementCount(); ++i) {
+              kept.push_back(list.object->GetElement(i));
+            }
+            kept.push_back(stream);
+            const Value replacement = call.interpreter.NewArrayValue(std::move(kept));
+            if (replacement.IsObject() && owner->interfaces_.IsObject()) {
+              owner->interfaces_.object->Set(kSocketsKey, replacement);
+            }
+          }
+        }
+        return stream;
+      });
+  if (!constructor.IsObject()) {
+    return;
+  }
+  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  constructor.object->Set("CONNECTING", Value::Number(kConnecting));
+  constructor.object->Set("OPEN", Value::Number(kOpen));
+  constructor.object->Set("CLOSED", Value::Number(kClosed));
+  interpreter_->Global()->Set("EventSource", constructor);
+  interpreter_->GlobalScope()->Declare("EventSource", constructor, false);
+}
+
+bool DomBindings::DeliverEventSourceOpen(std::uint64_t id) {
+  const Value stream = SocketWithId(id);
+  if (!stream.IsObject()) {
+    return false;
+  }
+  stream.object->Set("readyState", Value::Number(kOpen));
+  const Value* handler = stream.object->GetOwn("onopen");
+  if (handler == nullptr || !handler->IsObject()) {
+    return false;
+  }
+  const Value event = interpreter_->NewObjectValue();
+  if (event.IsObject()) {
+    event.object->Set("type", Value::String("open"));
+    event.object->Set("target", stream);
+  }
+  interpreter_->CallFunction(*handler, stream, {event});
+  return true;
+}
+
+bool DomBindings::DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
+                                            const std::string& data,
+                                            const std::string& last_id) {
+  const Value stream = SocketWithId(id);
+  if (!stream.IsObject()) {
+    return false;
+  }
+  // A named event goes to `on<name>` if the page assigned one, and to `onmessage`
+  // otherwise -- which is what `addEventListener('ping')` would do and is as close as this
+  // gets without one. A page that uses the listener form finds nothing rather than a
+  // listener that never fires, and that is written where the gap is.
+  const std::string slot = type.empty() ? std::string("onmessage") : "on" + type;
+  const Value* handler = stream.object->GetOwn(slot.c_str());
+  if (handler == nullptr || !handler->IsObject()) {
+    handler = stream.object->GetOwn("onmessage");
+  }
+  if (handler == nullptr || !handler->IsObject()) {
+    return false;
+  }
+  const Value event = interpreter_->NewObjectValue();
+  if (event.IsObject()) {
+    event.object->Set("type", Value::String(type.empty() ? std::string("message") : type));
+    event.object->Set("target", stream);
+    event.object->Set("data", Value::String(data));
+    event.object->Set("lastEventId", Value::String(last_id));
+  }
+  interpreter_->CallFunction(*handler, stream, {event});
+  return true;
+}
+
+bool DomBindings::DeliverEventSourceError(std::uint64_t id, bool permanent) {
+  const Value stream = SocketWithId(id);
+  if (!stream.IsObject()) {
+    return false;
+  }
+  // **CONNECTING on a retryable drop, CLOSED only when it has given up.** A page reads
+  // exactly this to tell "reconnecting" from "failed", and getting it backwards makes a
+  // page tear down a stream the browser is about to re-open.
+  stream.object->Set("readyState", Value::Number(permanent ? kClosed : kConnecting));
+  const Value* handler = stream.object->GetOwn("onerror");
+  bool ran = false;
+  if (handler != nullptr && handler->IsObject()) {
+    const Value event = interpreter_->NewObjectValue();
+    if (event.IsObject()) {
+      event.object->Set("type", Value::String("error"));
+      event.object->Set("target", stream);
+    }
+    interpreter_->CallFunction(*handler, stream, {event});
+    ran = true;
+  }
+  if (permanent) {
+    ForgetSocket(id);
+  }
+  return ran;
+}
+
 }  // namespace microbrowser::bindings

@@ -259,6 +259,7 @@ void DomBindings::EnsureInterfaces() {
   // because a page waiting on `onopen` has no fallback left. InstallWebSocket answers
   // that itself.
   InstallWebSocket();
+  InstallEventSource();
   // Absent for the same reason when there is nothing to traverse: a page that
   // finds `history.pushState` and gets nothing has already taken the branch that
   // assumes it works. InstallHistory answers that itself.

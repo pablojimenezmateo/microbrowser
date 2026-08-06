@@ -19,6 +19,7 @@
 #include "gfx/FontCatalog.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "net/EventSourceConnection.h"
 #include "net/EventStream.h"
 #include "net/WebSocketConnection.h"
 #include "net/WebSocketFrames.h"
@@ -225,10 +226,16 @@ class PageFactory : public net::TransportFactory {
       return scripted;
     }
     auto observed = std::make_shared<OpenTransport::Observed>();
-    auto socket = std::make_unique<OpenTransport>(observed);
-    socket->AnswerHandshake(frames_);
+    auto connection = std::make_unique<OpenTransport>(observed);
+    if (stream_.empty()) {
+      connection->AnswerHandshake(frames_);
+    } else {
+      // An event stream answers with an ordinary HTTP response rather than an upgrade, so
+      // there is no key to compute anything from.
+      connection->Deliver(stream_);
+    }
     sockets_.push_back(std::move(observed));
-    return socket;
+    return connection;
   }
 
   void SetDocument(std::string html) {
@@ -238,6 +245,8 @@ class PageFactory : public net::TransportFactory {
   // What the socket says *after* its handshake. The handshake itself is computed from
   // the key the connection sent, which is what a server does.
   void SetFrames(std::string frames) { frames_ = std::move(frames); }
+  // For an `EventSource`: a whole HTTP response, since a stream has no handshake.
+  void SetStream(std::string stream) { stream_ = std::move(stream); }
   const std::vector<std::shared_ptr<OpenTransport::Observed>>& Sockets() const {
     return sockets_;
   }
@@ -245,6 +254,7 @@ class PageFactory : public net::TransportFactory {
  private:
   std::string document_;
   std::string frames_;
+  std::string stream_;
   bool document_taken_ = false;
   std::vector<std::shared_ptr<OpenTransport::Observed>> sockets_;
 };
@@ -287,7 +297,152 @@ struct Socket {
 
 }  // namespace
 
+namespace {
+
+// An EventSource over a transport that stays open, for the reason a WebSocket needs one.
+struct LiveStream {
+  std::shared_ptr<OpenTransport::Observed> observed = std::make_shared<OpenTransport::Observed>();
+  OpenTransport* transport = nullptr;
+  std::unique_ptr<net::EventSourceConnection> connection;
+
+  explicit LiveStream(std::string_view first) {
+    auto owned = std::make_unique<OpenTransport>(observed);
+    transport = owned.get();
+    transport->Deliver(first);
+    const std::optional<url::Url> url = url::Url::Parse("https://feed.example/events");
+    privacy::PrivacyPolicy policy;
+    privacy::Request request;
+    request.url = *url;
+    request.container = url::ContainerId::Default();
+    request.top_level_site = url::Site::FromUrl(*url);
+    request.type = privacy::ResourceType::Other;
+    connection = std::make_unique<net::EventSourceConnection>(
+        std::move(owned), policy.Decide(request), "feed.example", 443, "/events");
+  }
+
+  // A fresh transport for a reconnect, which the engine would otherwise supply.
+  OpenTransport* Reconnect(std::string_view bytes, std::int64_t now_ms) {
+    auto owned = std::make_unique<OpenTransport>();
+    OpenTransport* raw = owned.get();
+    raw->Deliver(bytes);
+    connection->Restart(std::move(owned), now_ms);
+    return raw;
+  }
+};
+
+std::string StreamHead(std::string_view body) {
+  return std::string("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n") +
+         std::string(body);
+}
+
+}  // namespace
+
 void RegisterWebSocketTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "EventSource/OpensOnATwoHundredEventStreamAndDeliversEvents", [] {
+    LiveStream stream(StreamHead("data: first\n\n"));
+    const net::EventSourceConnection::Progress progress = stream.connection->Advance(0);
+    Expect(stream.connection->GetState() == net::EventSourceConnection::State::Open, "open");
+    ExpectEqInt(static_cast<long long>(progress.events.size()), 1, "one event");
+    ExpectEqString(progress.events.at(0).data, "first", "with its data");
+    // The two headers that make this a stream request rather than a document one.
+    Expect(stream.transport->Written().find("Accept: text/event-stream") != std::string::npos,
+           "it asked for a stream");
+    Expect(stream.transport->Written().find("Cache-Control: no-cache") != std::string::npos,
+           "and promised not to take a cached one");
+    // Still open with nothing outstanding, and contributing no deadline: an idle stream
+    // costs a descriptor and nothing else.
+    Expect(stream.connection->Interest().has_value(), "it waits on its socket");
+    Expect(!stream.connection->RetryAtMs().has_value(), "and asks for no timer");
+  });
+
+  AddTest(tests, "EventSource/AnythingButATwoHundredEventStreamIsPermanent", [] {
+    // A 404 will answer 404 again, so retrying it six times with backoff is six requests
+    // nobody asked for. The specification makes this failure permanent and so does this.
+    LiveStream missing("HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n");
+    const net::EventSourceConnection::Progress progress = missing.connection->Advance(0);
+    Expect(progress.failed && progress.closed, "failed, permanently");
+    Expect(!missing.connection->RetryAtMs().has_value(), "with no reconnect scheduled");
+    // A 200 with the wrong type is the same answer: a page that gets HTML where it asked
+    // for a stream is a page whose URL is wrong, not a page with a flaky server.
+    LiveStream wrong_type("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\ndata: x\n\n");
+    Expect(wrong_type.connection->Advance(0).closed, "and so is the wrong content type");
+  });
+
+  AddTest(tests, "EventSource/ADropBacksOffAndResumesFromTheLastEventId", [] {
+    // The only request in this browser the user did not cause, so this is the test that
+    // matters: the delay doubles, and the reconnect carries `Last-Event-ID`.
+    LiveStream stream(StreamHead("id: 42\ndata: one\n\n"));
+    stream.connection->Advance(0);
+    ExpectEqString(stream.connection->LastEventId(), "42", "the id is remembered");
+    // The transport hangs up: OpenTransport closes when told, and a closed transport
+    // reports Closed.
+    stream.transport->Close();
+    const net::EventSourceConnection::Progress dropped = stream.connection->Advance(1000);
+    Expect(dropped.failed && !dropped.closed, "a drop is a failure that will be retried");
+    Expect(stream.connection->RetryAtMs().has_value(), "with a time to try again");
+    ExpectEqInt(static_cast<long long>(*stream.connection->RetryAtMs()), 4000,
+                "three seconds after the drop, which is the specification's default");
+    Expect(!stream.connection->NeedsTransport(3999), "not before then");
+    Expect(stream.connection->NeedsTransport(4000), "and then yes");
+
+    OpenTransport* second = stream.Reconnect(StreamHead("data: two\n\n"), 4000);
+    const net::EventSourceConnection::Progress resumed = stream.connection->Advance(4000);
+    ExpectEqInt(static_cast<long long>(resumed.events.size()), 1, "the stream resumed");
+    Expect(second->Written().find("Last-Event-ID: 42") != std::string::npos,
+           "and told the server where it stopped, which is what makes it a resume");
+  });
+
+  AddTest(tests, "EventSource/GivesUpAfterABoundedNumberOfFailures", [] {
+    // A server that drops every connection immediately gets slower and then gets left
+    // alone. Without the cap this is a browser hammering a server on a page nobody is
+    // looking at.
+    LiveStream stream("");
+    // A server that hangs up the instant it is asked: the transport is closed before the
+    // connection ever reads from it.
+    stream.transport->Close();
+    std::vector<std::int64_t> delays;
+    std::int64_t now = 0;
+    for (int attempt = 0; attempt < net::EventSourceConnection::kMaxAttempts + 2; ++attempt) {
+      const net::EventSourceConnection::Progress progress = stream.connection->Advance(now);
+      if (progress.closed) {
+        break;
+      }
+      if (const std::optional<std::int64_t> at = stream.connection->RetryAtMs()) {
+        delays.push_back(*at - now);
+        now = *at;
+        stream.Reconnect("", now)->Close();
+      }
+    }
+    Expect(stream.connection->GetState() == net::EventSourceConnection::State::Closed,
+           "it stopped trying");
+    Expect(delays.size() >= 3, "after several attempts");
+    Expect(delays.at(1) > delays.at(0) && delays.at(2) > delays.at(1),
+           "each wait longer than the last, which is what backoff means");
+    Expect(delays.back() <= net::EventSourceConnection::kMaxRetryMs,
+           "and never longer than the cap");
+  });
+
+  AddTest(tests, "EventSource/AServersRetryFieldSetsTheDelay", [] {
+    // The server's only say over it, and it resets the backoff -- a stream that ran fine
+    // and then dropped should not inherit a doubling from an earlier failure.
+    LiveStream stream(StreamHead("retry: 500\ndata: x\n\n"));
+    stream.connection->Advance(0);
+    stream.transport->Close();
+    stream.connection->Advance(100);
+    ExpectEqInt(static_cast<long long>(*stream.connection->RetryAtMs()), 600,
+                "half a second after the drop, because the server asked for that");
+  });
+
+  AddTest(tests, "EventSource/ClosingIsNotADropAndScheduesNothing", [] {
+    LiveStream stream(StreamHead("data: x\n\n"));
+    stream.connection->Advance(0);
+    stream.connection->Close();
+    Expect(stream.connection->GetState() == net::EventSourceConnection::State::Closed, "closed");
+    Expect(!stream.connection->RetryAtMs().has_value(),
+           "and nothing is scheduled: a page that closed a stream did not lose one");
+    Expect(!stream.connection->Interest().has_value(), "with nothing left in the wait");
+  });
+
   AddTest(tests, "EventStream/AnEventIsFieldsUntilABlankLineAndNotALine", [] {
     // The rule the whole format turns on: fields accumulate and a *blank line*
     // dispatches. Three `data:` lines are one event with two newlines in it.
@@ -364,6 +519,48 @@ void RegisterWebSocketTests(std::vector<TestCase>& tests) {
     const net::EventStreamResult result = net::ParseEventStream(stream, 64);
     ExpectEqInt(static_cast<long long>(result.events.size()), 1, "the oversized one is gone");
     ExpectEqString(result.events.at(0).data, "ok", "and the stream carries on");
+  });
+
+  AddTest(tests, "EventSource/APageOpensAStreamAndItsHandlersRun", [] {
+    // The end of the EventSource path: `new EventSource(...)`, the engine's table, the
+    // connection, and back as `onopen` and `onmessage` -- including a *named* event, which
+    // is how servers label them.
+    gfx::FontLibrary library;
+    gfx::FontCatalog fonts{library};
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+    ipc::InProcessChannel channel;
+    engine::Engine engine{channel.Engine(), fonts};
+    PageFactory factory;
+    factory.SetStream(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n"
+        "data: one\n\nevent: ping\ndata: two\nid: 9\n\n");
+    factory.SetDocument(
+        "<html><body><script>"
+        "const es = new EventSource('https://page.example/events');"
+        "es.onopen = () => console.log('open:' + es.readyState);"
+        "es.onmessage = (e) => console.log('msg:' + e.type + ':' + e.data + ':' + e.lastEventId);"
+        "console.log('ctor:' + es.readyState);"
+        "</script></body></html>");
+    engine.PageLoader().SetTransport(factory);
+    channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    engine.HandlePendingMessages();
+    channel.Ui().Send(ipc::NavigateMessage{"https://page.example/"});
+    engine.HandlePendingMessages();
+    RunEngineToIdle(engine);
+    for (int turn = 0; turn < 4; ++turn) {
+      engine.Advance();
+    }
+    std::string console;
+    for (const std::string& line : engine.ConsoleOutput()) {
+      console += line + "|";
+    }
+    Expect(console.find("ctor:0") != std::string::npos, "CONNECTING at construction");
+    Expect(console.find("open:1") != std::string::npos, "then OPEN");
+    Expect(console.find("msg:message:one:") != std::string::npos,
+           "an unnamed event arrives as `message`");
+    Expect(console.find("msg:ping:two:9") != std::string::npos,
+           "and a named one keeps its name and carries the id");
   });
 
   AddTest(tests, "WebSocket/APageOpensASocketAndItsHandlersRun", [] {

@@ -17,6 +17,7 @@
 //     open, and `AppendSocketDescriptors` plus `SocketsHaveWork` are the whole of how
 //     this file participates in the loop.
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -24,6 +25,7 @@
 #include <utility>
 
 #include "csp/ContentSecurityPolicy.h"
+#include "engine/Clock.h"
 #include "engine/Engine.h"
 #include "net/WebSocketConnection.h"
 #include "privacy/PrivacyPolicy.h"
@@ -138,6 +140,28 @@ void Engine::AppendSocketDescriptors(util::WaitDescriptorList& out) const {
       }
     }
   }
+  for (const auto& [id, stream] : event_sources_) {
+    if (const std::optional<util::WaitDescriptor> interest = stream->Interest()) {
+      if (interest->IsValid()) {
+        out.push_back(*interest);
+      }
+    }
+  }
+}
+
+std::optional<std::uint32_t> Engine::NextEventSourceDeadlineMs(std::int64_t now_ms) const {
+  // A stream *waiting* to reconnect is the one thing in this file that needs a timer, and
+  // it is the reason an EventSource is not simply a socket. An open stream contributes
+  // nothing, so an idle page with one still blocks indefinitely.
+  std::optional<std::uint32_t> soonest;
+  for (const auto& [id, stream] : event_sources_) {
+    if (const std::optional<std::int64_t> at = stream->RetryAtMs()) {
+      const std::int64_t delay = *at > now_ms ? *at - now_ms : 0;
+      const std::uint32_t clamped = static_cast<std::uint32_t>(std::min<std::int64_t>(delay, 60000));
+      soonest = soonest.has_value() ? std::min(*soonest, clamped) : clamped;
+    }
+  }
+  return soonest;
 }
 
 bool Engine::SocketsHaveWork() const {
@@ -194,11 +218,111 @@ bool Engine::AdvanceSockets() {
   return delivered;
 }
 
+std::uint64_t Engine::OpenEventSource(std::string_view url) {
+  const std::optional<url::Url>& base = page_.BaseUrl();
+  if (!base.has_value()) {
+    return 0;
+  }
+  const std::optional<url::Url> target = url::Url::Parse(url, *base);
+  // `https` only, for the reason `wss` is required: this is a long-lived connection whose
+  // bytes are a page's own data, and a plaintext one on an encrypted page is the one
+  // unencrypted thing on it.
+  if (!target.has_value() || target->Scheme() != "https") {
+    return 0;
+  }
+  // The same directive a `fetch` and a socket ask about, and the same reason it is asked
+  // here: the policy lives in `src/csp`, which `src/bindings` may not see.
+  if (!page_.Policy().AllowsUrl(csp::Directive::Connect, url)) {
+    return 0;
+  }
+  privacy::Request request;
+  request.url = *target;
+  request.initiator = url::Origin::FromUrl(*base);
+  request.top_level_site = url::Site::FromUrl(*base);
+  request.container = url::ContainerId::Default();
+  request.type = privacy::ResourceType::Other;
+  request.is_subresource = true;
+  const privacy::Verdict verdict = loader_.Policy().Decide(request, &*base);
+  if (!verdict.IsAllowed()) {
+    return 0;
+  }
+  std::unique_ptr<net::Transport> transport = loader_.NewTransport();
+  if (transport == nullptr) {
+    return 0;
+  }
+  std::string path = target->PathString();
+  if (path.empty()) {
+    path = "/";
+  }
+  if (target->HasQuery()) {
+    path += "?" + target->Query();
+  }
+  const std::uint64_t id = ++next_socket_id_;
+  event_sources_.emplace(id, std::make_unique<net::EventSourceConnection>(
+                                 std::move(transport), verdict, target->HostSerialized(),
+                                 target->Port().value_or(443), std::move(path)));
+  return id;
+}
+
+void Engine::CloseEventSource(std::uint64_t id) {
+  const auto found = event_sources_.find(id);
+  if (found != event_sources_.end()) {
+    found->second->Close();
+    event_sources_.erase(found);
+  }
+}
+
+bool Engine::AdvanceEventSources() {
+  const std::int64_t now = NowMilliseconds();
+  bool delivered = false;
+  std::vector<std::uint64_t> ids;
+  ids.reserve(event_sources_.size());
+  for (const auto& [id, stream] : event_sources_) {
+    ids.push_back(id);
+  }
+  for (const std::uint64_t id : ids) {
+    auto found = event_sources_.find(id);
+    if (found == event_sources_.end()) {
+      continue;
+    }
+    // The reconnect, and this is the only place a transport is made for a request the user
+    // did not cause. The *connection* decides when -- backoff, cap, and giving up are its
+    // business -- and the engine only supplies the socket, because a connection that could
+    // make its own would be one that could reconnect after its document was gone.
+    if (found->second->NeedsTransport(now)) {
+      found->second->Restart(loader_.NewTransport(), now);
+    }
+    const net::EventSourceConnection::Progress progress = found->second->Advance(now);
+    if (progress.opened) {
+      delivered = page_.DeliverEventSourceOpen(id) || delivered;
+    }
+    for (const net::ServerSentEvent& event : progress.events) {
+      delivered =
+          page_.DeliverEventSourceMessage(id, event.type, event.data, event.id.value_or(""))
+              ? true
+              : delivered;
+    }
+    if (progress.failed) {
+      // `error` fires on every drop, including the ones that will be retried -- which is
+      // what the specification says and what lets a page show "reconnecting".
+      delivered = page_.DeliverEventSourceError(id, progress.closed) || delivered;
+    }
+    if (progress.closed) {
+      event_sources_.erase(id);
+    }
+  }
+  return delivered;
+}
+
 void Engine::CloseAllSockets() {
   // A navigation. Erasing is closing: the connection's destructor closes its transport,
   // which is what makes "no socket outlives its document" a property of the type rather
   // than a sequence someone has to remember.
   sockets_.clear();
+  // And the streams, whose reconnect makes this the more important of the two: a stream
+  // that outlived its document would keep asking a server for events on behalf of a page
+  // that is gone.
+  event_sources_.clear();
 }
 
 }  // namespace microbrowser::engine

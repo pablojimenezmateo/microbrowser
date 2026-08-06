@@ -89,6 +89,17 @@ class PageScript {
     return bindings_ != nullptr &&
            bindings_->DeliverSocketClose(id, code, reason, clean, failed);
   }
+  bool DeliverEventSourceOpen(std::uint64_t id) {
+    return bindings_ != nullptr && bindings_->DeliverEventSourceOpen(id);
+  }
+  bool DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
+                                 const std::string& data, const std::string& last_id) {
+    return bindings_ != nullptr &&
+           bindings_->DeliverEventSourceMessage(id, type, data, last_id);
+  }
+  bool DeliverEventSourceError(std::uint64_t id, bool permanent) {
+    return bindings_ != nullptr && bindings_->DeliverEventSourceError(id, permanent);
+  }
   // Fires `popstate`, or `hashchange`, at the window. False before this page has
   // an interpreter, which is a traversal on a document that never ran a script.
   // Moves the address the binding layer answers with. Nothing before this page

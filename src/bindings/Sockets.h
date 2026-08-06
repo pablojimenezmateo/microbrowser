@@ -46,6 +46,13 @@ class SocketSource {
   // zero -- a `bufferedAmount` that always answered zero would make a page that paces
   // itself send without limit.
   virtual std::uint64_t SocketBufferedAmount(std::uint64_t id) = 0;
+
+  // `EventSource`, on the same seam and for the same reason: the questions are identical
+  // -- resolve a URL, ask `connect-src`, pass the privacy layer, keep the connection with
+  // the document -- and two interfaces asking them would be two places for the answers to
+  // drift. Zero means refused, exactly as for a socket.
+  virtual std::uint64_t OpenEventSource(std::string_view url) = 0;
+  virtual void CloseEventSource(std::uint64_t id) = 0;
 };
 
 }  // namespace microbrowser::bindings

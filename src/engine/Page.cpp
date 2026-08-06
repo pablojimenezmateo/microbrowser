@@ -522,6 +522,19 @@ void Page::SetSocketSource(bindings::SocketSource* sockets) {
 
 bool Page::DeliverSocketOpen(std::uint64_t id) { return script_.DeliverSocketOpen(id); }
 
+bool Page::DeliverEventSourceOpen(std::uint64_t id) {
+  return script_.DeliverEventSourceOpen(id);
+}
+
+bool Page::DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
+                                     const std::string& data, const std::string& last_id) {
+  return script_.DeliverEventSourceMessage(id, type, data, last_id);
+}
+
+bool Page::DeliverEventSourceError(std::uint64_t id, bool permanent) {
+  return script_.DeliverEventSourceError(id, permanent);
+}
+
 bool Page::DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text) {
   return script_.DeliverSocketMessage(id, data, text);
 }

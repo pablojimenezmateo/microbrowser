@@ -12,6 +12,7 @@
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
 #include "engine/Loader.h"
+#include "net/EventSourceConnection.h"
 #include "net/WebSocketConnection.h"
 #include "engine/Page.h"
 #include "engine/PendingLoad.h"
@@ -262,6 +263,8 @@ class Engine : private bindings::NetworkSource,
   bool SendSocket(std::uint64_t id, std::string_view data, bool text) override;
   void CloseSocket(std::uint64_t id, std::uint16_t code, std::string_view reason) override;
   std::uint64_t SocketBufferedAmount(std::uint64_t id) override;
+  std::uint64_t OpenEventSource(std::string_view url) override;
+  void CloseEventSource(std::uint64_t id) override;
 
   // The loop's three questions about a long-lived connection. A socket with nothing
   // queued is *not* runnable work -- it is a descriptor in the wait -- which is the
@@ -271,6 +274,10 @@ class Engine : private bindings::NetworkSource,
   // Everything readable, and the events that follow. True when script ran, which is the
   // caller's signal that the document may have changed under it.
   bool AdvanceSockets();
+  // The streams, and the one deadline this file needs: a stream *waiting* to reconnect.
+  // An open one contributes nothing, so an idle page with a stream still blocks.
+  bool AdvanceEventSources();
+  std::optional<std::uint32_t> NextEventSourceDeadlineMs(std::int64_t now_ms) const;
   // A navigation. Erasing is closing, because the connection's destructor closes its
   // transport.
   void CloseAllSockets();
@@ -366,6 +373,10 @@ class Engine : private bindings::NetworkSource,
   // then a connection sits in the idle wait costing nothing.
   std::map<std::uint64_t, std::unique_ptr<net::WebSocketConnection>> sockets_;
   std::uint64_t next_socket_id_ = 0;
+  // The page's event streams, in the same table shape and with the same lifetime. Separate
+  // from `sockets_` because the *reconnect* is theirs alone: it is the one request in this
+  // browser the user did not cause, so it has a deadline in the loop that a socket has not.
+  std::map<std::uint64_t, std::unique_ptr<net::EventSourceConnection>> event_sources_;
   storage::PartitionedStorage session_storage_;
   storage::PartitionedStorage local_storage_;
   Page page_;

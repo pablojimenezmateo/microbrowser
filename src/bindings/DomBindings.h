@@ -139,6 +139,12 @@ class DomBindings {
   bool DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text);
   bool DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
                           bool clean, bool failed);
+  // An `EventSource`'s three events. `permanent` on the error says whether a reconnect
+  // follows, which is what lets a page distinguish "reconnecting" from "gave up".
+  bool DeliverEventSourceOpen(std::uint64_t id);
+  bool DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
+                                 const std::string& data, const std::string& last_id);
+  bool DeliverEventSourceError(std::uint64_t id, bool permanent);
 
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
@@ -422,6 +428,9 @@ class DomBindings {
   // case: a page that finds `WebSocket` and gets a constructor that never fires `open`
   // waits forever, where a page that finds nothing falls back to polling and works.
   void InstallWebSocket();
+  // `EventSource`, on the same source and installed with it: both are long-lived
+  // connections and both are absent when there is nothing behind them.
+  void InstallEventSource();
   // The live sockets, as a JavaScript array hung off the interfaces object -- which is
   // already a GC root. A C++ table of `js::Value` would be invisible to the collector.
   js::Value LiveSockets();
