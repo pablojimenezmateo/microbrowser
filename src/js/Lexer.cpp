@@ -135,6 +135,37 @@ bool Lexer::SkipWhitespaceAndComments() {
       }
       continue;
     }
+    // Annex B §B.1.3, HTML-like comments: `<!--` is a line comment, and so is `-->` when nothing but
+    // whitespace and comments precedes it on its line.
+    //
+    // This is not a curiosity. `<script type="text/javascript"><!--` is how a page written before 1998
+    // hid its script from a browser that did not have one, and the pattern is still on a great many
+    // documents -- aozora.gr.jp's front page among them, where without this the *whole* first script
+    // fails with `SyntaxError: unexpected token '<'` rather than one line of it.
+    //
+    // **Accepted unconditionally rather than behind a script-versus-module flag**, which is the same
+    // decision ParserImpl.h makes about `import`: whether a file is a module is the *host's* answer,
+    // and the parser is asked what the file needs before the host has decided what the file is. The
+    // cost of being wrong is narrow in one direction and wide in the other -- a module containing
+    // `<!--` is a file nobody has written, and a classic script containing it is on the web today.
+    if (c == '<' && Peek(1) == '!' && Peek(2) == '-' && Peek(3) == '-') {
+      offset_ += 4;
+      while (offset_ < source_.size() && !IsLineTerminator(source_[offset_])) {
+        ++offset_;
+      }
+      continue;
+    }
+    // The closing form, and the line condition is the whole of what keeps it from breaking arithmetic:
+    // `a-->b` on one line is `a-- > b` and must stay that way. `newline` is true exactly when this skip
+    // crossed a terminator, and a skip always begins where the previous token ended -- so it answers
+    // "is this the start of a line?" without a second cursor. At offset zero there is no previous line.
+    if (c == '-' && Peek(1) == '-' && Peek(2) == '>' && (newline || offset_ == 0)) {
+      offset_ += 3;
+      while (offset_ < source_.size() && !IsLineTerminator(source_[offset_])) {
+        ++offset_;
+      }
+      continue;
+    }
     if (c == '/' && Peek(1) == '*') {
       offset_ += 2;
       bool closed = false;

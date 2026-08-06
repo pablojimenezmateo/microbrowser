@@ -271,6 +271,31 @@ void RegisterJsLexerTests(std::vector<TestCase>& tests) {
     Expect(At(Lex("#"), 0).type == TokenType::Invalid, "a bare hash is not a name");
   });
 
+  // --- HTML-like comments (Annex B §B.1.3) ---------------------------------
+
+  AddTest(tests, "JsLexer/HtmlLikeCommentsAreComments", [] {
+    // `<script type="text/javascript"><!--` is how a page written before 1998 hid its script from a
+    // browser that did not have one, and it is still on a great many documents -- aozora.gr.jp's front
+    // page among them, where without this the *whole* first script fails with
+    // `SyntaxError: unexpected token '<'` rather than one line of it. Found by rendering that page.
+    ExpectEqString(Joined("<!-- hidden\nvar a = 1;"), "var|a|=|1|;", "the open form is a line comment");
+    ExpectEqString(Joined("var a = 1;\n--> also hidden\nvar b = 2;"), "var|a|=|1|;|var|b|=|2|;",
+                   "and so is the close form on its own line");
+    // At the very start of the source there is no previous line, and the close form is still a comment.
+    ExpectEqString(Joined("--> gone\nvar a;"), "var|a|;", "including at offset zero");
+  });
+
+  AddTest(tests, "JsLexer/TheCloseFormOnlyCountsAtTheStartOfALine", [] {
+    // The rule that keeps Annex B from breaking arithmetic: `a-->b` is `a-- > b`, and it is real code.
+    // A lexer that took `-->` as a comment wherever it appeared would silently delete the rest of the
+    // line -- which is a wrong program rather than a syntax error.
+    ExpectEqString(Joined("a-->b"), "a|--|>|b", "mid-line it is a decrement and a comparison");
+    ExpectEqString(Joined("a\n-->b"), "a", "at the start of a line it is a comment");
+    // A block comment before it on the line does not spoil it: the condition is "nothing but whitespace
+    // and comments", which is exactly what the skip loop has already consumed by the time it gets here.
+    ExpectEqString(Joined("a\n/* c */ --> b\nc"), "a|c", "a comment before it still counts");
+  });
+
   // --- Robustness -----------------------------------------------------------
 
   AddTest(tests, "JsLexer/EveryInputTerminatesAndEndsAtEndOfFile", [] {
