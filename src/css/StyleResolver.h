@@ -1,13 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "css/ComputedStyle.h"
 #include "css/StyleSheet.h"
 #include "dom/FlatTree.h"
 #include "dom/Node.h"
+#include "util/TransparentStringHash.h"
 
 namespace microbrowser::css {
 
@@ -190,7 +194,42 @@ class StyleResolver {
   static bool ScopeAdmits(const Entry& entry, const dom::Element& element,
                           const dom::Node* element_scope);
 
+  // Which rules could conceivably match an element, keyed by the one part of the
+  // selector that is cheap to look up.
+  //
+  // Without this the cascade tested every element against every rule, which is
+  // quadratic in the size of the page and was 99% of the time to load
+  // youtube.com: 18,360 rules against 686 elements is 12.6 million full selector
+  // matches, per layout, seventeen times. A rule can only match an element whose
+  // subject compound it describes, so it is filed under the most selective thing
+  // that compound states -- its id, else one of its classes, else its tag -- and
+  // an element asks only the three or four lists that could name it.
+  //
+  // `universal` is the escape hatch and it has to exist: a subject that states
+  // none of those three (`*`, `[hidden]`, `:hover`, and the two selectors that
+  // reach out of their own tree, `:host` and `::slotted()`) is checked against
+  // everything. A rule filed wrongly here does not render wrongly *sometimes* --
+  // it stops applying entirely -- so the fallback is deliberately the default
+  // rather than the exception, and only the three kinds that are certain to be
+  // stated on the element get a narrower home.
+  template <typename V>
+  using ByName =
+      std::unordered_map<std::string, V, util::TransparentStringHash, std::equal_to<>>;
+
+  struct RuleIndex {
+    ByName<std::vector<std::uint32_t>> by_id;
+    ByName<std::vector<std::uint32_t>> by_class;
+    ByName<std::vector<std::uint32_t>> by_tag;
+    std::vector<std::uint32_t> universal;
+  };
+
+  // Appends the indices of every rule that could match `element` to `out`, in
+  // ascending document order. Not deduplicated across buckets, because a rule
+  // is filed in exactly one of them.
+  void CandidateRules(const dom::Element& element, std::vector<std::uint32_t>& out) const;
+
   std::vector<Entry> rules_;
+  RuleIndex index_;
   StyleInvalidation invalidation_;
   const StyleAdjuster* adjuster_ = nullptr;
   std::size_t next_order_ = 0;

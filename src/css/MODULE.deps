@@ -84,7 +84,16 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # function of (element, selector) -- ADR 0016's rule -- and a scope is neither an
 # element nor a selector. An Entry carries the shadow root it came from; null is
 # the document, so the common comparison costs a pointer compare.
-budget: StyleResolver header_lines=95 public_methods=18 members=4
+# 95 -> 130 and a fourth member for the rule index. The cascade matched every
+# element against every rule, which is quadratic in the page and was 99% of the
+# time to load youtube.com -- 29.1 of 29.2 seconds, with the box placement it
+# was hiding behind measuring 22ms. The index is a member rather than a free
+# function because it has to be built as sheets are added and consulted per
+# element, and those are the resolver's two jobs; the header lines are the
+# explanation of what may be filed where, which is the part that has to be
+# right, since a rule filed under a key its element never asks for does not
+# render *sometimes* -- it stops applying.
+budget: StyleResolver header_lines=130 public_methods=20 members=5
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not

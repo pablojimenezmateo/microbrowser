@@ -330,6 +330,95 @@ StyleChangeEffect StyleInvalidation::EffectOf(dom::ElementState changed) const {
   return StyleChangeEffect::None;
 }
 
+namespace {
+
+// Where a rule is filed, so that an element can find it without every element
+// having to look at every rule.
+//
+// The key is a *necessary* condition for the match, never a sufficient one: a
+// rule under `by_class["title"]` still has its whole selector evaluated. So the
+// only way to be wrong here is to file a rule somewhere an element that it
+// matches will not look -- which is why anything the subject does not state
+// outright falls through to the universal list.
+//
+// Id beats class beats tag on selectivity, which is the order pages are written
+// in: `#masthead .item` narrows to one element, `div .item` narrows to a third
+// of the document.
+enum class BucketKind { Id, Class, Tag, Universal };
+
+struct Bucket {
+  BucketKind kind = BucketKind::Universal;
+  std::string_view name;
+};
+
+Bucket BucketFor(const Selector& selector) {
+  const CompoundSelector* subject = selector.Subject();
+  if (subject == nullptr) {
+    return {};
+  }
+  Bucket best;
+  for (const SelectorPart& part : subject->parts) {
+    switch (part.kind) {
+      case SelectorPart::Kind::Id:
+        // Nothing is more selective, so this one ends the search.
+        return {BucketKind::Id, part.name};
+      case SelectorPart::Kind::Class:
+        if (best.kind != BucketKind::Class) {
+          best = {BucketKind::Class, part.name};
+        }
+        break;
+      case SelectorPart::Kind::Type:
+        if (best.kind == BucketKind::Universal) {
+          best = {BucketKind::Tag, part.name};
+        }
+        break;
+      case SelectorPart::Kind::Host:
+      case SelectorPart::Kind::Slotted:
+        // Both match an element in a *different* tree from the rule, chosen by
+        // the scope rather than by anything the compound says about the element
+        // itself. Filing them by the tag beside them would hide a component's
+        // `:host` from its own host.
+        return {};
+      case SelectorPart::Kind::Universal:
+      case SelectorPart::Kind::Attribute:
+      case SelectorPart::Kind::PseudoClass:
+      case SelectorPart::Kind::Is:
+      case SelectorPart::Kind::Where:
+      case SelectorPart::Kind::Not:
+      case SelectorPart::Kind::Nth:
+        // None of these narrows to a name the element carries. `:is(.a, .b)`
+        // could be split across two buckets and is not: a rule filed in two
+        // places is a rule that can be collected twice, and the declaration
+        // would then be applied twice at the same specificity.
+        break;
+    }
+  }
+  return best;
+}
+
+// Whitespace-separated words of a `class` attribute. Kept here rather than
+// shared with the matcher's ContainsWord: that one answers a membership
+// question, this one enumerates, and folding them together would make the hot
+// path allocate.
+template <typename Fn>
+void ForEachClassWord(std::string_view classes, Fn&& fn) {
+  std::size_t at = 0;
+  while (at < classes.size()) {
+    while (at < classes.size() && util::IsHtmlWhitespace(classes[at])) {
+      ++at;
+    }
+    const std::size_t begin = at;
+    while (at < classes.size() && !util::IsHtmlWhitespace(classes[at])) {
+      ++at;
+    }
+    if (at > begin) {
+      fn(classes.substr(begin, at - begin));
+    }
+  }
+}
+
+}  // namespace
+
 void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin,
                                   const dom::Node* scope) {
   for (const StyleRule& rule : sheet.rules) {
@@ -342,9 +431,57 @@ void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin,
       entry.scope = scope;
       entry.specificity = selector.ComputeSpecificity();
       entry.order = next_order_++;
+
+      const auto position = static_cast<std::uint32_t>(rules_.size());
+      const Bucket bucket = BucketFor(selector);
+      switch (bucket.kind) {
+        case BucketKind::Id:
+          index_.by_id[std::string(bucket.name)].push_back(position);
+          break;
+        case BucketKind::Class:
+          index_.by_class[std::string(bucket.name)].push_back(position);
+          break;
+        case BucketKind::Tag:
+          index_.by_tag[std::string(bucket.name)].push_back(position);
+          break;
+        case BucketKind::Universal:
+          index_.universal.push_back(position);
+          break;
+      }
       rules_.push_back(std::move(entry));
     }
   }
+}
+
+void StyleResolver::CandidateRules(const dom::Element& element,
+                                   std::vector<std::uint32_t>& out) const {
+  out.clear();
+  const auto append = [&out](const std::vector<std::uint32_t>& bucket) {
+    out.insert(out.end(), bucket.begin(), bucket.end());
+  };
+
+  append(index_.universal);
+  if (const auto tag = index_.by_tag.find(element.TagName()); tag != index_.by_tag.end()) {
+    append(tag->second);
+  }
+  if (const std::string* id = element.GetAttribute("id")) {
+    if (const auto found = index_.by_id.find(*id); found != index_.by_id.end()) {
+      append(found->second);
+    }
+  }
+  if (const std::string* classes = element.GetAttribute("class")) {
+    ForEachClassWord(*classes, [&](std::string_view word) {
+      if (const auto found = index_.by_class.find(word); found != index_.by_class.end()) {
+        append(found->second);
+      }
+    });
+  }
+
+  // Document order, which is what the cascade's last tiebreak compares. The
+  // sort also collapses the one case that can produce a duplicate: an element
+  // whose `class` attribute repeats a word.
+  std::sort(out.begin(), out.end());
+  out.erase(std::unique(out.begin(), out.end()), out.end());
 }
 
 const dom::Node* StyleResolver::ScopeOf(const dom::Node& node) {
@@ -456,8 +593,20 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   // answer for every entry and a walk to the root per rule is a walk per rule.
   const dom::Node* element_scope = ScopeOf(element);
 
+  // Only the rules whose subject could name this element, rather than all of
+  // them. See RuleIndex: the list is in document order and every rule on it
+  // still gets its whole selector evaluated.
+  //
+  // The scratch vector is a member of the call rather than of the resolver on
+  // purpose -- StyleFor is const and is the function a future parallel cascade
+  // would run on several elements at once, and a shared buffer is the one thing
+  // that would stop it.
+  std::vector<std::uint32_t> candidates;
+  CandidateRules(element, candidates);
+
   std::vector<Candidate> ordered;
-  for (const Entry& entry : rules_) {
+  for (const std::uint32_t position : candidates) {
+    const Entry& entry = rules_[position];
     if (!ScopeAdmits(entry, element, element_scope)) {
       continue;
     }

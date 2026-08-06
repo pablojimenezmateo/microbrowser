@@ -2,10 +2,13 @@
 
 #include <algorithm>
 
+#include "util/PerformanceCounters.h"
+
 namespace microbrowser::layout {
 
 float FontTextMeasurer::MeasureWidth(std::string_view text, const css::ComputedStyle& style,
                                      bool right_to_left) const {
+  util::AddPerformanceCounter(util::PerfCounterId::LayoutTextMeasurements);
   return text_->MeasureRun(text, FontRequestFor(style), right_to_left);
 }
 

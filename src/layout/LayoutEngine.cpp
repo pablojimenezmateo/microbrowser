@@ -393,6 +393,7 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
 void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_width,
                                float& cursor_y, FloatContext& floats,
                                bool center_in_container, const ForcedSize* forced) const {
+  AddPerformanceCounter(PerfCounterId::LayoutBlockPasses);
   const css::ComputedStyle& style = box.Style();
   BoxGeometry& geometry = box.Geometry();
   geometry.margin = style.margin;

@@ -436,8 +436,18 @@ float Page::Layout(float width) {
   // and the cascade, neither of which changes here, so this is the obvious
   // thing to cache -- and the split between BuildBoxTree and Layout is what
   // makes caching it a change to this function alone.
-  boxes_ = engine.BuildBoxTree(*document_);
-  content_height_ = engine.Layout(*boxes_, width);
+  // Two scopes rather than one. They are different kinds of work -- the first
+  // resolves the cascade for every element, the second places boxes -- and a
+  // single "layout is slow" row cannot tell them apart. On youtube.com the
+  // split was the whole diagnosis: 98% of it was the cascade.
+  {
+    util::PerformanceTrace::Scope build("engine::BuildBoxTree");
+    boxes_ = engine.BuildBoxTree(*document_);
+  }
+  {
+    util::PerformanceTrace::Scope place("engine::LayoutBoxes");
+    content_height_ = engine.Layout(*boxes_, width);
+  }
   // The scroll offsets go back on, clamped against the overflow this layout
   // just measured. Layout consults them and does not own them -- ADR 0018 §1 --
   // which is what makes a scrolled menu still scrolled after a script changes a

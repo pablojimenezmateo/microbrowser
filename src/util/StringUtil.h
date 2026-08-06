@@ -111,6 +111,17 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b
   return IsAsciiDigit(c) || IsAsciiAlpha(c);
 }
 
+// HTML's "ASCII whitespace": the five characters that separate the words of a
+// space-separated attribute such as `class` or `rel`. Not `\v`, which TrimAscii
+// does strip -- that one follows C's isspace, and the two sets differing by one
+// character is exactly the kind of thing every hand-rolled copy gets slightly
+// differently. There were two such copies, in the selector matcher and in the
+// cascade's class-bucket walk, and they are the same question about the same
+// attribute.
+[[nodiscard]] constexpr bool IsHtmlWhitespace(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r';
+}
+
 [[nodiscard]] constexpr bool EndsWith(std::string_view text, std::string_view suffix) {
   return text.size() >= suffix.size() && text.substr(text.size() - suffix.size()) == suffix;
 }

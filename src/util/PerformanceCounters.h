@@ -382,6 +382,21 @@ namespace microbrowser::util {
   /* only way to tell that page apart from a slow one.                         */ \
   X(LayoutForcedByScript, "layout.forced_by_script")                             \
   X(LayoutDisplayListsBuilt, "layout.display_lists_built")                       \
+  /* Every entry into LayoutBlock, against the boxes that exist. This is the    */ \
+  /* ratio that matters and the one nothing was reporting: a layout algorithm   */ \
+  /* that measures a subtree and then places it walks that subtree twice, and   */ \
+  /* two such algorithms nested inside one another walk it four times. On       */ \
+  /* youtube.com the ratio was 1200:1 -- a box laid out twelve hundred times    */ \
+  /* -- and every scope-level timing said only "layout is slow".                */ \
+  X(LayoutBlockPasses, "layout.block_passes")                                    \
+  /* The passes a memoised measurement did not have to do. The difference       */ \
+  /* between this and the one above is the whole of what the cache is worth.    */ \
+  X(LayoutMeasureCacheHits, "layout.measure_cache_hits")                         \
+  X(LayoutMeasureCacheMisses, "layout.measure_cache_misses")                     \
+  /* Text handed to the shaper by layout rather than by paint. Intrinsic width  */ \
+  /* measurement is the other half of a slow layout and is invisible from the   */ \
+  /* box counters, which count boxes rather than the work each one asks for.    */ \
+  X(LayoutTextMeasurements, "layout.text_measurements")                          \
   /* --- compression --------------------------------------------------------- */ \
   X(UtilInflateCalls, "util.inflate_calls")                                      \
   X(UtilInflateBytes, "util.inflate_bytes")                                      \

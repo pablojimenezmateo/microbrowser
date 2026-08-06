@@ -6,6 +6,7 @@
 
 #include "css/StyleSheet.h"
 #include "dom/Node.h"
+#include "util/StringUtil.h"
 
 // Matching a selector against an element, and the specificity that decides
 // which of two matching rules wins. Split from the parser because they are
@@ -24,14 +25,11 @@ bool ContainsWord(std::string_view haystack, std::string_view word) {
   }
   std::size_t start = 0;
   while (start < haystack.size()) {
-    while (start < haystack.size() && (haystack[start] == ' ' || haystack[start] == '\t' ||
-                                       haystack[start] == '\n' || haystack[start] == '\f' ||
-                                       haystack[start] == '\r')) {
+    while (start < haystack.size() && util::IsHtmlWhitespace(haystack[start])) {
       ++start;
     }
     std::size_t end = start;
-    while (end < haystack.size() && haystack[end] != ' ' && haystack[end] != '\t' &&
-           haystack[end] != '\n' && haystack[end] != '\f' && haystack[end] != '\r') {
+    while (end < haystack.size() && !util::IsHtmlWhitespace(haystack[end])) {
       ++end;
     }
     if (end > start && haystack.substr(start, end - start) == word) {
