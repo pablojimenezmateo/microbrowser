@@ -1,0 +1,17 @@
+purpose: Unicode character properties, and the line-break algorithm over them.
+
+# util only. This module answers questions about *characters* -- which class a code point belongs
+# to, how wide it is, where a line may break -- and it must not be able to ask about a font, a box
+# or a document, because every one of those would be a way for a layout decision to leak into a
+# property lookup. `src/layout` and `src/gfx` depend on it; it depends on neither.
+allow: util
+
+public: LineBreak.h UnicodeProperties.h
+
+extern:
+
+max_tu_lines: 600
+
+budget: LineBreakRange  header_lines=20 public_methods=0 members=3
+budget: WidthRange      header_lines=20 public_methods=0 members=3
+budget: BreakOpportunity header_lines=20 public_methods=0 members=2

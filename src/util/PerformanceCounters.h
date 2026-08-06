@@ -279,6 +279,7 @@ namespace microbrowser::util {
   X(CspViolations, "csp.violations")                                             \
   X(CspInlineBlocked, "csp.inline_blocked")                                      \
   X(SriChecks, "sri.checks")                                                     \
+  X(TextBreakOpportunities, "text.break_opportunities")                           \
   X(EncodingReplacements, "encoding.replacements")                                 \
   X(EncodingFromPrescan, "encoding.from_prescan")                                 \
   X(EncodingFellBackToWindows1252, "encoding.fell_back_to_windows1252")            \

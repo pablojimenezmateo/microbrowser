@@ -299,6 +299,12 @@ microbrowser_module(storage
     src/storage/StorageArea.cpp
   DEPS microbrowser_util microbrowser_url)
 
+microbrowser_module(text
+  SOURCES
+    src/text/LineBreak.cpp
+    src/text/UnicodeProperties.cpp
+  DEPS microbrowser_util)
+
 microbrowser_module(gfx
   SOURCES
     src/gfx/AffineTransform.cpp
@@ -546,6 +552,7 @@ add_executable(microbrowser_tests
   tests/HlsPlaylistTests.cpp
   tests/MatroskaTests.cpp
   tests/EncodingTests.cpp
+  tests/LineBreakTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
@@ -590,7 +597,7 @@ add_executable(microbrowser_tests
   tests/support/ScriptedTransport.cpp
   tests/support/SyntheticFont.cpp
   tests/support/SyntheticPng.cpp)
-target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_url
+target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_text microbrowser_url
                                                 microbrowser_privacy
                                                 microbrowser_net
                                                 microbrowser_csp

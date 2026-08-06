@@ -62,6 +62,7 @@ void RegisterStructuredCloneTests(std::vector<TestCase>& tests);
 void RegisterAudioRingTests(std::vector<TestCase>& tests);
 void RegisterHlsPlaylistTests(std::vector<TestCase>& tests);
 void RegisterEncodingTests(std::vector<TestCase>& tests);
+void RegisterLineBreakTests(std::vector<TestCase>& tests);
 void RegisterSandboxTests(std::vector<TestCase>& tests);
 void RegisterMatroskaTests(std::vector<TestCase>& tests);
 void RegisterMediaStateTests(std::vector<TestCase>& tests);
@@ -217,6 +218,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterAudioRingTests(tests);
   microbrowser::tests::RegisterHlsPlaylistTests(tests);
   microbrowser::tests::RegisterEncodingTests(tests);
+  microbrowser::tests::RegisterLineBreakTests(tests);
   microbrowser::tests::RegisterSandboxTests(tests);
   microbrowser::tests::RegisterMatroskaTests(tests);
   microbrowser::tests::RegisterMediaStateTests(tests);
