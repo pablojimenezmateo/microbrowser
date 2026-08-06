@@ -2184,3 +2184,45 @@ device is open" — which makes the session's check a question about whether a d
 exists, and is worth knowing before writing it. And an `<audio src="…mp3">` cannot actually
 play until session 27's codec decision lands, so the honest intermediate is a synthesised
 tone through the ring to a real device.
+
+### The audio device, and the clock that did not need the thread · 2026-08-06 (session 24 finished)
+
+`a59e3e0` completes it. The device, the sink interface, and a tone tool that verifies
+everything except the decode.
+
+**Writing the ownership statement first changed the design, which is the whole argument for
+the rule.** ADR 0028 §4 has the audio thread owning the playback clock. It does not need to:
+the ring already counts frames read, and making that an atomic means the *engine* builds a
+position from a value it can read at any time. The audio thread then owns the device handle
+and the read cursor and nothing else — strictly less to reason about than a clock two threads
+touch.
+
+Two properties fell out of that and are now asserted. **A total is idempotent where an
+increment drifts**: a caller that polls twice or misses a turn gets the same position rather
+than one that ran ahead by whatever it double-counted. And **an underrun's padded silence is
+not counted**, because it was never in the stream and counting it would advance the clock past
+what the media contains. Neither would have occurred to me while writing an additive
+`FramesConsumed`; both are obvious once the counter belongs to the ring.
+
+**The device is the thread.** SDL3 calls its callback on its own audio thread, so "no audio
+thread when nothing is playing" is exactly "no open device" — which turns this session's check
+from a lifecycle nobody can observe into a state the object can be asked about. `Stop` joins,
+because SDL guarantees no further callback after the stream is destroyed, and that is what
+makes the ring safe to destroy afterwards; the interface says so, since a caller that reverses
+the two has a use-after-free the sink cannot prevent.
+
+The callback's four rules are in the header rather than in a review comment because each has
+been a real bug in some player: no allocation (the allocator may be held by the thread trying
+to stop it), no lock (a lock in an audio callback is a click), no document or decoder (it
+cannot see them, by module contract), and always fill the whole block.
+
+**`heard 0.50s` against `generated 0.50s`** is what the tone tool prints, with zero underruns
+while playing and seven in the tail after the tone ended. The two counts are reported
+separately on purpose: the tail is a device asking for samples that no longer exist, and
+lumping them together would hide the number that matters behind the one that does not. The
+first version printed `heard 0.00s`, which is how the clock's missing driver was found — the
+tool paid for itself before it made a sound.
+
+An `<audio src="…mp3">` still cannot play, because there is no decoder until session 27's
+codec decision. That is why the tone exists: it is the honest intermediate, and it exercises
+the ring, the device, the callback and the clock together.
