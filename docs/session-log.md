@@ -3103,3 +3103,37 @@ that stores a graph and reads back a tree cannot see it has lost.
 
 TSan clean, which is the check that matters for this one and the reason it was worth running the whole
 suite under it rather than the new tests alone.
+
+## Handoff — sessions 27 and 39 both part-landed, on purpose
+
+`e3b07c2`, `17080b8`, `6ec0d72`. Two sessions are `in_progress` in the ledger and both have their
+remaining work written out there in order. This entry is about *why* they are in that state, because a
+half-finished session is normally a smell and these two are not.
+
+**Session 27 was unblocked mid-session.** It had been stuck for four sessions on four libraries that
+needed a `sudo` this agent does not have, and the user installed them while session 39 was in progress.
+The ledger's rule is to take the lowest unfinished session, and 27 is lower than 39 — and it *gates* the
+media checks that sessions 28 and 29 had to have restated. So the right move was to stop 39 where it stood
+and pivot, which is what the two partial commits are.
+
+**Both partial commits are value types and declarations, and that is what makes them safe to land.**
+`e3b07c2` is grid's `GridTrack`/`GridPlacement`/`GridStyle` with no algorithm; `6ec0d72` is the decoder
+protocol's message shapes with no bodies and deliberately no CMake entry, so nothing links against
+functions that do not exist. In both cases the *reasoning* is the expensive part and the code that will
+read it is mechanical: a track is a minmax with equal ends, a placement is line numbers and not cell
+indices, a decoder reply is a trust boundary in the direction nothing else here is. Re-deriving those
+costs a session; typing the algorithm afterwards does not.
+
+**And one thing went wrong that is worth the entry on its own.** `e3b07c2` added two values to
+`css::Display` and did not build: `engine::GeometryQueries`'s `DisplayText` switches over every value with
+`-Werror=switch`, and I committed without a full build. That is this repo's one hard rule — never leave a
+red tree — broken by me, and `17080b8` is the fix. The lint is right to be exhaustive rather than to
+default: `getComputedStyle` answering `''` for a display value that exists would be a page concluding the
+element is not displayed, and a compile error is the cheap version of that bug. The lesson is narrower than
+"build before committing": **adding a value to an enum is a change to every exhaustive switch over it**,
+and this codebase has those on purpose.
+
+Where the next session should start: `docs/roadmap-sessions.json` session 27's `notes`, which lists the
+five remaining pieces in order and two findings not to rediscover — that a sanitizer runtime cannot live
+inside the decoder's seccomp policy, and that a frame currently crosses inline rather than in shared
+memory, which departs from ADR 0031 §3 with the cost written into the header rather than hidden.
