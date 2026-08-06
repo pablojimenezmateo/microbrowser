@@ -202,6 +202,8 @@ void DomBindings::Install() {
     document.object->DefineAccessor("title", title_getter.object, nullptr);
   }
 
+  InstallTreeWalkers(document);
+
   interpreter_->GlobalScope()->Declare("document", document, false);
   InstallEventConstructors();
   InstallWindow();

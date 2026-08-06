@@ -810,6 +810,98 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "typeof document.getElementById('d').firstChild.tagName", "undefined");
   });
 
+  AddTest(tests, "DomBindings/ATreeWalkerWalksAndAFilterDecides", [] {
+    // youtube.com's `webcomponents-all-noPatch.js` opens with
+    // `document.createTreeWalker(document, NodeFilter.SHOW_ALL, null, !1)` at
+    // module scope, so an absent NodeFilter ended the polyfill on its first
+    // line -- and with it every custom element the page is built out of.
+    static constexpr const char* kTree =
+        "<div id=r>one<span id=s>two</span><!--c--><p id=p>three</p></div>";
+    // `whatToShow` is applied before the filter, and the mask is
+    // `1 << (nodeType - 1)` -- which is why SHOW_TEXT is 4 and not 2.
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ELEMENT, null, false);"
+                 "let out = [], n; while ((n = w.nextNode())) out.push(n.id); out.join(',')",
+                 "s,p");
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ALL, null, false);"
+                 "let out = [], n; while ((n = w.nextNode())) out.push(n.nodeType);"
+                 "out.join(',')",
+                 "3,1,3,8,1,3");
+    // Absent `whatToShow` is SHOW_ALL, which is what `createTreeWalker(root)`
+    // relies on.
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'));"
+                 "let n = 0; while (w.nextNode()) n++; n",
+                 "6");
+    // **Reject takes the subtree and skip does not.** The one thing about
+    // this API that is easy to get backwards, so both are asserted: `span`
+    // rejected loses its text child, `span` skipped keeps it.
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ALL, function (node) {"
+                 "    return node.nodeName === 'SPAN' ? NodeFilter.FILTER_REJECT"
+                 "                                    : NodeFilter.FILTER_ACCEPT });"
+                 "let n = 0; while (w.nextNode()) n++; n",
+                 "4");
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ALL, function (node) {"
+                 "    return node.nodeName === 'SPAN' ? NodeFilter.FILTER_SKIP"
+                 "                                    : NodeFilter.FILTER_ACCEPT });"
+                 "let n = 0; while (w.nextNode()) n++; n",
+                 "5");
+    // A filter object with `acceptNode`, which is what a polyfill written
+    // against the original interface passes.
+    ExpectScript(kTree,
+                 "let seen = 0;"
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ELEMENT, { acceptNode: function () { seen++; return 1 } });"
+                 "while (w.nextNode()) {} seen",
+                 "2");
+    // The five relative moves, and that each leaves `currentNode` alone when
+    // it finds nothing -- which is what a `while (w.nextSibling())` loop is
+    // written against.
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ELEMENT, null, false);"
+                 "w.firstChild().id + ' ' + w.nextSibling().id + ' ' +"
+                 "(w.nextSibling() === null) + ' ' + w.currentNode.id + ' ' + w.parentNode().id",
+                 "s p true p r");
+    // `currentNode` is writable, which is how a page positions the walk.
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ELEMENT, null, false);"
+                 "w.currentNode = document.getElementById('p');"
+                 "(w.previousNode() || {}).id + ' ' + (w.nextNode() || {}).id + ' ' +"
+                 "(w.nextNode() === null)",
+                 "s p true");
+    // A NodeIterator is the flat sequence, and its first `nextNode` answers
+    // with the root itself.
+    ExpectScript(kTree,
+                 "const it = document.createNodeIterator(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ELEMENT, null);"
+                 "let out = [], n; while ((n = it.nextNode())) out.push(n.id); out.join(',')",
+                 "r,s,p");
+    // A throw out of a filter stops the walk and propagates. Not swallowed
+    // into a reject: a filter that threw has not answered, and continuing
+    // would be inventing one.
+    ExpectScript(kTree,
+                 "const w = document.createTreeWalker(document.getElementById('r'),"
+                 "  NodeFilter.SHOW_ELEMENT, function () { throw new Error('no') });"
+                 "try { w.nextNode(); 'no throw' } catch (e) { e.message }",
+                 "no");
+    // The constants a page reads far more often than it implements the
+    // interface.
+    ExpectScript(kTree,
+                 "NodeFilter.SHOW_ALL + ' ' + NodeFilter.SHOW_ELEMENT + ' ' +"
+                 "NodeFilter.SHOW_TEXT + ' ' + NodeFilter.SHOW_COMMENT + ' ' +"
+                 "(NodeFilter.FILTER_ACCEPT + NodeFilter.FILTER_REJECT + NodeFilter.FILTER_SKIP)",
+                 "4294967295 1 4 128 6");
+  });
+
   AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {
     // Nothing is cached between calls: a parsed copy would go stale the moment
     // anything else touched `class`, and `class` is the one attribute two

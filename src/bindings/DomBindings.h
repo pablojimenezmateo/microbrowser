@@ -582,6 +582,12 @@ class DomBindings {
   // DeliverFetchResponse, which is the one delivery both kinds share.
   void DeliverToXhr(const js::Value& xhr, const ScriptResponse& response);
 
+  // --- Walking the tree, in TreeWalkers.cpp ---------------------------------
+  // `NodeFilter`, `document.createTreeWalker` and `document.createNodeIterator`
+  // -- a cursor that remembers where it is, over a tree a page's own filter is
+  // allowed to change under it.
+  void InstallTreeWalkers(const js::Value& document);
+
   // --- HTML from script, in HtmlParsing.cpp ---------------------------------
   // `innerHTML`, `outerHTML` and `insertAdjacentHTML`: a page's string of
   // markup becoming nodes, through the fragment parsing algorithm with a
