@@ -2382,3 +2382,49 @@ with no sample pointing past the data. A partial download is the common case for
 One practical note for later sessions: **ffmpeg is on this machine**, which is how the WebM fixture
 was made. Session 28's MSE work needs an initialization segment and media segments, and those are
 one ffmpeg invocation away rather than a hand-built file.
+
+### The codec decision · 2026-08-06 (session 27, the ADR half)
+
+`13d1008`. ADR 0031 is written, and the part of it that is code today is the allowlist.
+
+**ADR 0013 deferred this with a reason worth having honoured**: "choosing a dependency before that is
+how a project acquires ffmpeg by accident." Deciding it now was informed by things that did not exist
+then — the audio path, the element's state machines, and all three demuxers — and by two measurements
+taken today rather than recalled: the public HLS master playlist serves `avc1.64001f` with
+`mp4a.40.2`, and a locally produced WebM carries `V_VP9` with `A_OPUS`. So H.264 and AAC are
+unavoidable, and a browser shipping only the open formats would fail the sites ADR 0007 picked.
+
+**The decision is mixed rather than uniform**, and that is the interesting part: dav1d for AV1,
+libvpx for VP9, libopus for Opus, and `libavcodec`'s decoders for H.264 and AAC alone. Three of the
+five have a library that is small, readable, replaceable *and* the implementation their encoders were
+validated against; two do not, and their alternatives (openh264, fdk-aac) are licensing arrangements
+rather than libraries one audits and patches. Taking ffmpeg for AV1 when dav1d exists would be
+choosing the larger dependency for uniformity, which is precisely the trade ADR 0001 says not to make.
+
+**The load-bearing decision turned out to be where the allowlist lives**, and writing the ADR is what
+surfaced it. ADR 0013 says the container is ours because it decides what the codec is asked to decode
+— and a `--enable-decoder=h264,aac` build flag does *not* keep that true. It is correct the day it is
+written and drifts the first time somebody debugs a build, and a drifted flag re-enables a hundred
+parsers this project owns the replacements for. So `media::CodecId` is a five-entry table that fails a
+test instead, and it reconciles the two spellings the demuxers produce (`V_VP9` versus `vp09`) in one
+place rather than in four callers each writing `codec.find("vp9")`.
+
+The entry that needed care is AAC. A bare `mp4a` is an MPEG-4 audio object type the table cannot
+resolve, and `mp4a.40.34` is MP3-in-MP4 rather than AAC — so the table lists the profiles rather than
+the family, and both refusals are asserted. Fourteen other codecs a container can legitimately name
+are asserted refused too, because "refused before a library is configured" is what ADR 0013's sentence
+means in code.
+
+Two things the ADR states that are worth repeating outside it. **Hardware decode is refused for now
+and flagged as the first line to re-examine** — unlike EME's refusal, nothing about it is
+incompatible with this project's values; it is deferred because a GPU driver bug is a kernel
+compromise rather than a process one, and what that costs (no smooth 4K, more power for 1080p) is
+written without softening. And **a decoder crash is an ordinary path**: the element fires `error`,
+which the state machine from session 25 already has, and the process is *not* restarted for the same
+sample, because a restart loop on a hostile file is a denial of service the page chose.
+
+What is left of this session is the process itself, and the first step needs the user: **none of the
+four libraries is installed here.** `pkg-config` finds no dav1d, libvpx, libopus or libavcodec,
+though apt has all four packaged. ADR 0001 makes adding a dependency a reviewable act, so installing
+them is not something to do silently — the ffmpeg *binary* that produced the WebM fixture is present,
+but that is a tool rather than a link-time dependency.
