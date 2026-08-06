@@ -68,7 +68,19 @@ struct CompileState {
   // because a finalizer is emitted once per path that leaves its try, and
   // nested try/finally multiplies. A page can write that on purpose.
   std::size_t emitted = 0;
+  // What `emitted` is allowed to reach, worked out from the length of the
+  // source. Set once by Compile; see kInstructionsPerSourceByte.
+  std::size_t instruction_limit = 0;
   int depth = 0;
+  // Where in the source the node currently being compiled starts.
+  //
+  // Set by the two dispatchers -- Statement and Expression -- and read by
+  // Emit, which files it against the instruction it just wrote. Shared across
+  // every Compiler in the program rather than held per function, because a
+  // nested function body is compiled in the middle of its enclosing one: the
+  // position is a property of where the walk *is*, not of which chunk is being
+  // filled.
+  std::uint32_t position = 0;
 };
 
 // Where a `break` or a `continue` goes, and what it has to unwind on the way.
@@ -188,7 +200,7 @@ class Compiler {
   // this compiler or one of its parents placed it, and by name when not.
   void EmitLoad(std::string_view name);
   void EmitStore(std::string_view name);
-  void EmitDeclare(std::string_view name, bool is_const);
+  void EmitDeclare(std::string_view name, bool is_const, bool silent_const = false);
   // The packed operand for a name, or false when it is not placed anywhere or
   // does not fit the packing.
   bool ResolveSlot(std::string_view name, std::uint32_t& packed);
@@ -343,7 +355,65 @@ class CompileDepth {
   bool exceeded_;
 };
 
+// Makes a node's source offset the position every instruction emitted while it
+// is in scope is filed under, and puts the enclosing node's back on the way
+// out.
+//
+// The restore is the part worth having: without it, the instructions an outer
+// node emits *after* its children -- the Call in `f(g())`, the Add in `a + b`
+// -- would be filed under the last child, and those are exactly the
+// instructions a stack points at.
+class CompilePosition {
+ public:
+  CompilePosition(CompileState& state, std::size_t start)
+      : state_(state), saved_(state.position) {
+    state_.position = static_cast<std::uint32_t>(start);
+  }
+  ~CompilePosition() { state_.position = saved_; }
+  CompilePosition(const CompilePosition&) = delete;
+  CompilePosition& operator=(const CompilePosition&) = delete;
+
+ private:
+  CompileState& state_;
+  std::uint32_t saved_;
+};
+
 inline constexpr int kMaxCompileDepth = 400;
-inline constexpr std::size_t kMaxEmittedInstructions = 1u << 20;
+
+// What a program is allowed to compile to, as a floor, an allowance per source
+// byte, and a ceiling -- the same double bound `src/net` uses for a
+// decompression and `src/js/RegExp.cpp` uses for a pattern, and for the same
+// reason: **what is being refused is blowup, and blowup is a ratio.** A flat
+// cap refuses a long program and a duplicating one on the same terms, and the
+// long one is the one real pages are made of.
+//
+// The measurement is youtube.com. Its kevlar bundle is 10.7MB of minified
+// source and compiles to 2,740,243 instructions -- one per 3.9 source bytes,
+// which is not blowup, it is simply a large program. The flat 1<<20 cap this
+// replaces refused it, and a refusal here is not a failure a page can see: the
+// program still runs, on the *tree-walker*, which is now only the differential
+// engine. That is how `ReferenceError: HS is not defined` came out of a bundle
+// in which every `HS` is a local -- the machine never saw the file.
+//
+// One instruction per two source bytes, which is twice what the measurement
+// above needs; the slack is for code that is dense rather than minified, where
+// the same statement is written in fewer bytes. The floor keeps every program
+// that compiled before compiling now. The ceiling is what a program whose
+// `try`/`finally` nesting multiplies hits instead, and at eight bytes an
+// instruction it bounds one program's code to about 64MB.
+inline constexpr std::size_t kMinEmittedInstructions = 1u << 20;
+inline constexpr std::size_t kInstructionsPerSourceByte = 1;
+inline constexpr std::size_t kSourceBytesPerInstruction = 2;
+inline constexpr std::size_t kMaxEmittedInstructions = 8u << 20;
+
+// The allowance for one program, from the length of what was written.
+inline std::size_t EmittedInstructionLimit(std::size_t source_length) {
+  const std::size_t allowance =
+      source_length / kSourceBytesPerInstruction * kInstructionsPerSourceByte;
+  if (allowance >= kMaxEmittedInstructions) {
+    return kMaxEmittedInstructions;
+  }
+  return allowance < kMinEmittedInstructions ? kMinEmittedInstructions : allowance;
+}
 
 }  // namespace microbrowser::js

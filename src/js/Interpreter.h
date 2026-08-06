@@ -999,6 +999,13 @@ class Interpreter {
   struct Module {
     std::string specifier;
     const Node* program = nullptr;
+    // How many bytes the tree was parsed from. Kept because a module's body is
+    // compiled at *evaluation* time and the source is gone by then, and the
+    // compiler's instruction bound is a ratio against it -- see
+    // kInstructionsPerSourceByte. It is the eighth field, and the seven above
+    // ask for an argument: this is not evaluation-order state, it is the one
+    // thing about the source that the tree does not carry.
+    std::size_t source_length = 0;
     // The module's own top-level scope, whose parent is the global one. A
     // module's declarations are not globals, which is the first thing modules
     // were added to the language for.

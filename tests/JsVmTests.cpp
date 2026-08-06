@@ -109,7 +109,7 @@ bool Compiles(std::string_view source) {
   if (!parsed.errors.empty() || parsed.program == nullptr) {
     return false;
   }
-  return js::Compile(*parsed.program) != nullptr;
+  return js::Compile(*parsed.program, source.size()) != nullptr;
 }
 
 // How many function bodies a program compiled into. The point of counting is
@@ -120,7 +120,7 @@ std::size_t CompiledBodies(std::string_view source) {
   if (!parsed.errors.empty() || parsed.program == nullptr) {
     return 0;
   }
-  const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program);
+  const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program, source.size());
   return compiled == nullptr ? 0 : compiled->functions.size();
 }
 
@@ -133,7 +133,7 @@ bool FirstBodyIsFlattened(std::string_view source) {
   if (!parsed.errors.empty() || parsed.program == nullptr) {
     return false;
   }
-  const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program);
+  const std::unique_ptr<js::CompiledFunction> compiled = js::Compile(*parsed.program, source.size());
   if (compiled == nullptr || compiled->functions.empty()) {
     return false;
   }
@@ -835,6 +835,85 @@ void RegisterJsVmTests(std::vector<TestCase>& tests) {
   });
 
   // --- Both engines ---------------------------------------------------------
+
+  AddTest(tests, "JsVm/ANamedFunctionExpressionSeesItsOwnName", [] {
+    // The binding a named function expression has to itself, which neither
+    // engine had. youtube.com's kevlar bundle is where it showed:
+    // `var kY$ = function HS(X){ ... hD.gamma = HS; return hD }(1)` -- d3's
+    // interpolator -- died on `ReferenceError: HS is not defined` in a file
+    // where every other `HS` is a local, so it read as a scoping bug with no
+    // location at all.
+    ExpectEval("var f = function me(n){ return n <= 1 ? 1 : n * me(n - 1) }; f(5)", "120");
+    // Visible only inside. `typeof` rather than a read, because the read is a
+    // ReferenceError and this is asserting an *absence*.
+    ExpectEval("var f = function me(){}; typeof me", "undefined");
+    // Three things put a name on a function expression and only this one binds
+    // it. Named evaluation does not: `h` inside the body must be the outer
+    // `var`, which is what makes this observable at all -- reassign it and the
+    // body has to see the new value.
+    ExpectEval("var h = function(){ return h }; var keep = h; h = 42; keep()", "42");
+    // Nor does a method's name, in either spelling.
+    ExpectEval("var o = { foo: function(){ return typeof foo } }; o.foo()", "undefined");
+    ExpectEval("var o = { bar(){ return typeof bar } }; o.bar()", "undefined");
+    // The binding is immutable *and silent*: a write is dropped rather than
+    // thrown, because the spec makes it with CreateImmutableBinding(name,
+    // false). A TypeError here would lose the rest of a script that does
+    // `var f = function f(){ ...; f = null }`.
+    ExpectEval("var k = function nm(){ nm = 1; return nm === k }; k()", "true");
+    // It is one scope, so the body's own declarations shadow it the normal way.
+    ExpectEval("var g = function nm(){ var nm = 3; return nm }; g()", "3");
+    ExpectEval("var g = function nm(nm){ return nm }; g(7)", "7");
+    // And it survives the closure: the function outlives the expression, so
+    // the binding has to as well.
+    ExpectEval("var mk = function(){ return function me(n){ return n ? me(n-1) : 'done' } };"
+               "mk()(3)",
+               "done");
+    for (const std::string_view source : {
+             "var f = function me(n){ return n <= 1 ? 1 : n * me(n - 1) }; f(5)",
+             "var f = function me(){}; typeof me",
+             "var h = function(){ return h }; var keep = h; h = 42; keep()",
+             "var k = function nm(){ nm = 1; return nm === k }; k()",
+             "var g = function nm(){ var nm = 3; return nm }; g()",
+         }) {
+      ExpectSameOnBothEngines(source);
+    }
+  });
+
+  AddTest(tests, "JsVm/ACompiledProgramCarriesTheOffsetsItWasWrittenAt", [] {
+    // A stack that names anonymous frames and no positions says a page failed
+    // and not where -- and on a 10MB minified bundle the where is the whole
+    // question. Asserted as offsets into the source rather than line numbers
+    // for the same reason the parser reports its errors that way.
+    const std::string_view source = "function a(){ null.x }\nfunction b(){ a() }\nb()";
+    js::ParseResult parsed = js::Parse(source);
+    Expect(parsed.errors.empty(), "the fixture parses");
+    const std::unique_ptr<js::CompiledFunction> compiled =
+        js::Compile(*parsed.program, source.size());
+    Expect(compiled != nullptr, "the fixture compiles");
+    Expect(!compiled->positions.empty(), "the top level carries positions");
+    // Sparse and sorted, which is what makes the binary search in PositionOf
+    // right. One entry per *change*, so the count is well under the
+    // instruction count.
+    for (std::size_t i = 1; i < compiled->positions.size(); ++i) {
+      Expect(compiled->positions[i - 1].first < compiled->positions[i].first,
+             "positions are sorted by instruction");
+    }
+    Expect(compiled->positions.size() < compiled->code.size(),
+           "positions are sparser than the code");
+    // The error a page actually sees.
+    Interpreter interpreter;
+    const Result result = interpreter.Run(source);
+    ExpectEqInt(static_cast<int>(result.completion), static_cast<int>(Completion::Throw),
+                "the fixture throws");
+    const js::Value* stack =
+        result.value.IsObject() ? result.value.object->GetOwn("stack") : nullptr;
+    Expect(stack != nullptr, "the thrown error has a stack");
+    const std::string text = js::ToString(*stack);
+    Expect(text.find("at a (@") != std::string::npos,
+           "the innermost frame is named and located: " + text);
+    Expect(text.find("at b (@") != std::string::npos,
+           "the caller is named and located: " + text);
+  });
 
   AddTest(tests, "JsVm/BothEnginesAgree", [] {
     // Differential, on the shapes where the two are most likely to drift: the

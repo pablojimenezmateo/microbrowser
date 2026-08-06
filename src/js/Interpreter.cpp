@@ -187,6 +187,15 @@ std::string Interpreter::CaptureStack(std::string_view kind,
     const std::string& name = frame.code == nullptr ? std::string() : frame.code->name;
     out += "\n    at ";
     out += name.empty() ? "<anonymous>" : name;
+    if (frame.code != nullptr && !frame.code->positions.empty()) {
+      // `ip` has already been advanced past the instruction being executed, so
+      // the one that threw -- or, in an outer frame, the call that led here --
+      // is the one before it.
+      const std::uint32_t at = frame.ip == 0 ? 0 : frame.ip - 1;
+      out += " (@";
+      out += std::to_string(frame.code->PositionOf(at));
+      out += ")";
+    }
     ++written;
   }
   return out;
@@ -235,7 +244,11 @@ void Interpreter::MaybeCollect() {
 }
 
 Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow) {
-  if (node.number != 0.0) {
+  // The two flags that need somewhere to put a frame down, by name rather than
+  // by `number != 0`. It was the latter, which read every *future* flag as
+  // "async or generator" -- and kFunctionNamedExpression, which is neither,
+  // made the tree-walker refuse `var f = function me(){}` the day it was added.
+  if ((static_cast<std::uint8_t>(node.number) & (kFunctionAsync | kFunctionGenerator)) != 0) {
     // An async function or a generator, and this is the tree-walker's function
     // -- the machine makes its own in the Closure opcode. A tree-walker can run
     // neither: its state is C++ stack frames, and both `await` and `yield` need
@@ -530,7 +543,7 @@ Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const
     // the assignment `Math = x`, or the two spellings would disagree from the
     // next read on.
     if (global_scope_->HasOwn(key.Text())) {
-      if (!global_scope_->Assign(key.Text(), value)) {
+      if (global_scope_->Assign(key.Text(), value) == Environment::AssignResult::Constant) {
         return Throw("TypeError", "assignment to constant variable '" + key.Text() + "'");
       }
       return Result::Normal(value);
@@ -908,7 +921,7 @@ Result Interpreter::Run(std::string_view source) {
   // purpose rather than by a page.
   static const bool tree_walk = util::EnvFlagEnabled("MICROBROWSER_JS_TREEWALK");
   if (!tree_walk) {
-    if (std::unique_ptr<CompiledFunction> compiled = Compile(program)) {
+    if (std::unique_ptr<CompiledFunction> compiled = Compile(program, source.size())) {
       vm_.programs.push_back(std::move(compiled));
       return RunCompiled(*vm_.programs.back());
     }

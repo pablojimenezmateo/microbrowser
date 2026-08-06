@@ -133,6 +133,7 @@ Result Interpreter::LoadModule(const std::string& specifier, const std::string& 
   // object points at its own body in the tree.
   programs_.push_back(std::move(parsed.program));
   record->program = programs_.back().get();
+  record->source_length = source.size();
   record->scope = heap_.AllocateEnvironment(global_scope_);
   record->exports = NewObject();
   if (record->scope == nullptr || record->exports == nullptr) {
@@ -278,7 +279,8 @@ Result Interpreter::EvaluateModule(Module& module) {
   bool ran_compiled = false;
   Result outcome = Result::Normal();
   if (!tree_walk) {
-    if (std::unique_ptr<CompiledFunction> compiled = Compile(*module.program)) {
+    if (std::unique_ptr<CompiledFunction> compiled =
+            Compile(*module.program, module.source_length)) {
       vm_.programs.push_back(std::move(compiled));
       outcome = RunCompiled(*vm_.programs.back(), module.scope);
       ran_compiled = true;
@@ -566,6 +568,7 @@ Result Interpreter::RunModule(std::string_view source, std::string_view specifie
   auto record = std::make_unique<Module>();
   record->specifier = name;
   record->program = programs_.back().get();
+  record->source_length = source.size();
   record->scope = heap_.AllocateEnvironment(global_scope_);
   record->exports = NewObject();
   if (record->scope == nullptr || record->exports == nullptr) {

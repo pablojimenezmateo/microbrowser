@@ -110,6 +110,7 @@ void Compiler::Block(const Node& node) {
 }
 
 void Compiler::Statement(const Node& node) {
+  const CompilePosition position(state_, node.start);
   const CompileDepth depth(state_, kMaxCompileDepth);
   if (depth.Exceeded() || state_.failed) {
     Fail(BailoutReason::Depth);

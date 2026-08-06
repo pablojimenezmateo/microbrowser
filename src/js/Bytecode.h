@@ -384,6 +384,9 @@ struct SlotDeclaration {
   std::uint32_t slot = 0;
   std::uint32_t name = 0;
   bool is_const = false;
+  // Whether writing to this const is dropped rather than thrown. Set for
+  // exactly one binding in the language -- see Binding::silent_const.
+  bool silent_const = false;
 };
 
 // Where a throw goes, and what has to be unwound to get there.
@@ -439,6 +442,20 @@ struct CompiledFunction {
   // order. A call through an expression contributes nothing rather than a
   // guess.
   std::vector<std::pair<std::uint32_t, std::uint32_t>> call_names;
+  // Where each instruction came from, as a byte offset into the program's
+  // source.
+  //
+  // The same shape and the same argument as `call_names` above, one question
+  // over: a stack that names anonymous frames and no positions says a page
+  // failed and not where. A line number would not answer it either -- the
+  // scripts this has to be read against are minified, and a bundle is one line
+  // of a megabyte -- which is why this is an offset, matching what the parser
+  // already reports its errors by.
+  //
+  // Sparse and sorted: an entry only where the offset differs from the
+  // previous instruction's, which on real code is a small fraction of them.
+  // Looked up by the largest entry not past the instruction.
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> positions;
   // The same names, already built as property keys.
   //
   // A named access used to pass `names[a]` to GetProperty, which takes a
@@ -498,6 +515,25 @@ struct CompiledFunction {
   // function, which has an `arguments` of its own, and does not stop at an
   // arrow, which does not.
   bool needs_arguments = false;
+
+  // The source offset instruction `at` was compiled from, or 0 when nothing
+  // was recorded. The table is sparse, so this is the last entry not past it.
+  std::uint32_t PositionOf(std::uint32_t at) const {
+    if (positions.empty()) {
+      return 0;
+    }
+    std::size_t low = 0;
+    std::size_t high = positions.size();
+    while (low < high) {
+      const std::size_t mid = low + (high - low) / 2;
+      if (positions[mid].first <= at) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low == 0 ? 0 : positions[low - 1].second;
+  }
 };
 
 // The value stack is reserved once and never grows.
@@ -548,7 +584,12 @@ inline constexpr std::size_t kIterationCapacity = 1u << 12;
 // passes on whichever engine took the program. Half a chunk is not runnable,
 // so one unsupported construct rejects the program rather than the function --
 // a function's code has to be complete for its *caller* to be compilable.
-std::unique_ptr<CompiledFunction> Compile(const Node& program);
+//
+// `source_length` is what the tree was parsed from, in bytes. It is the
+// instruction bound's denominator rather than a diagnostic: see
+// kInstructionsPerSourceByte in CompilerImpl.h for why a flat cap was the
+// wrong shape and what refusing a real bundle actually cost.
+std::unique_ptr<CompiledFunction> Compile(const Node& program, std::size_t source_length);
 
 // One call in progress.
 //

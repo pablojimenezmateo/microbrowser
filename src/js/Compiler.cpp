@@ -40,12 +40,18 @@ std::uint32_t Compiler::Emit(Op op, std::uint32_t a, int delta) {
   if (state_.failed) {
     return 0;
   }
-  if (++state_.emitted > kMaxEmittedInstructions) {
+  if (++state_.emitted > state_.instruction_limit) {
     Fail(BailoutReason::Instructions);
     return 0;
   }
   const auto at = static_cast<std::uint32_t>(function_.code.size());
   function_.code.push_back(Instruction{op, a});
+  // One entry per *change* of position, which is what keeps this a fraction of
+  // the instruction count rather than a parallel array: a statement compiles to
+  // a run of instructions that all came from the same offset.
+  if (function_.positions.empty() || function_.positions.back().second != state_.position) {
+    function_.positions.emplace_back(at, state_.position);
+  }
   const int depth = static_cast<int>(stack_depth_) + delta;
   if (depth < 0) {
     // The compiler and its own arithmetic disagreeing. Not reachable from a
@@ -180,6 +186,7 @@ void Compiler::RunFinalizers(std::size_t depth) {
 // --- Expressions ------------------------------------------------------------
 
 void Compiler::Expression(const Node& node) {
+  const CompilePosition position(state_, node.start);
   const CompileDepth depth(state_, kMaxCompileDepth);
   if (depth.Exceeded() || state_.failed) {
     Fail(BailoutReason::Depth);
@@ -1189,11 +1196,14 @@ void Compiler::Assignment(const Node& node) {
   BindTarget(*target, false, false);
 }
 
-std::unique_ptr<CompiledFunction> Compile(const Node& program) {
+std::unique_ptr<CompiledFunction> Compile(const Node& program, std::size_t source_length) {
   CompileState state;
+  state.instruction_limit = EmittedInstructionLimit(source_length);
   auto compiled = std::make_unique<CompiledFunction>();
   Compiler compiler(state, *compiled);
   compiler.Program(program);
+  util::AddPerformanceCounter(util::PerfCounterId::JsCompiledSourceBytes, source_length);
+  util::AddPerformanceCounter(util::PerfCounterId::JsCompiledInstructions, state.emitted);
   if (!state.failed) {
     return compiled;
   }
