@@ -299,23 +299,154 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     return Value::Bool(self != nullptr && self->IsElement() &&
                        !static_cast<dom::Element*>(self)->Attributes().empty());
   });
-  // The attributes as `{name, value}` records, in document order. Not a live
-  // NamedNodeMap: a page that mutates this array changes nothing, and a live
-  // one would need a proxy per element for a surface almost nothing reads.
+  // NamedNodeMap shape: length, item, getNamedItem, indexed Attrs, and
+  // Symbol.iterator. Used to be a plain Array of `{name, value}` records --
+  // enough for `attributes[0].name`, and wrong for the one call youtube's
+  // property binder makes: `attributes.getNamedItem("class-name")`. That
+  // threw, the custom-element reaction aborted, and the stamp stopped.
+  //
+  // Fresh per read, like classList: the map holds the element and re-reads
+  // the attribute list on every method, so a setAttribute between two reads
+  // is visible. Not a Proxy-backed live map -- almost nothing mutates through
+  // the map itself, and getNamedItem/item are what pages actually call.
   accessor("attributes", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
-    std::vector<Value> out;
-    if (self != nullptr && self->IsElement()) {
-      for (const dom::Attribute& attribute : static_cast<dom::Element*>(self)->Attributes()) {
+    if (owner == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    auto& element = static_cast<dom::Element&>(*self);
+    const Value map = call.interpreter.NewObjectValue();
+    if (!map.IsObject()) {
+      return map;
+    }
+    map.object->Set(kNodeSlot, PointerValue(&element));
+
+    const auto make_attr = [](js::Interpreter& interpreter,
+                              const dom::Attribute& attribute) {
+      const Value entry = interpreter.NewObjectValue();
+      if (entry.IsObject()) {
+        entry.object->Set("name", Value::String(attribute.name));
+        entry.object->Set("value", Value::String(attribute.value));
+        // Attr's historical aliases. Cheap, and stops a page that probes
+        // `nodeName` after getNamedItem from seeing undefined.
+        entry.object->Set("nodeName", Value::String(attribute.name));
+        entry.object->Set("localName", Value::String(attribute.name));
+      }
+      return entry;
+    };
+
+    const Value length = call.interpreter.NewNativeValue("length", [](NativeCall& inner) {
+      dom::Node* node = NodeOf(inner.self);
+      if (node == nullptr || !node->IsElement()) {
+        return Value::Number(0);
+      }
+      return Value::Number(
+          static_cast<double>(static_cast<dom::Element*>(node)->Attributes().size()));
+    });
+    if (length.IsObject()) {
+      length.object->Set(kOwnerSlot, PointerValue(owner));
+      map.object->DefineAccessor("length", length.object, nullptr);
+    }
+
+    const Value item = call.interpreter.NewNativeValue("item", [make_attr](NativeCall& inner) {
+      dom::Node* node = NodeOf(inner.self);
+      if (node == nullptr || !node->IsElement()) {
+        return Value::Null();
+      }
+      const auto& attributes = static_cast<dom::Element*>(node)->Attributes();
+      const double index = js::ToNumber(Argument(inner.arguments, 0));
+      if (!(index >= 0) || index >= static_cast<double>(attributes.size())) {
+        return Value::Null();
+      }
+      return make_attr(inner.interpreter, attributes[static_cast<std::size_t>(index)]);
+    });
+    if (item.IsObject()) {
+      item.object->Set(kOwnerSlot, PointerValue(owner));
+      map.object->Set("item", item);
+    }
+
+    const Value get_named =
+        call.interpreter.NewNativeValue("getNamedItem", [make_attr](NativeCall& inner) {
+          dom::Node* node = NodeOf(inner.self);
+          if (node == nullptr || !node->IsElement()) {
+            return Value::Null();
+          }
+          const std::string name = js::ToString(Argument(inner.arguments, 0));
+          for (const dom::Attribute& attribute :
+               static_cast<dom::Element*>(node)->Attributes()) {
+            if (attribute.name == name) {
+              return make_attr(inner.interpreter, attribute);
+            }
+          }
+          return Value::Null();
+        });
+    if (get_named.IsObject()) {
+      get_named.object->Set(kOwnerSlot, PointerValue(owner));
+      map.object->Set("getNamedItem", get_named);
+    }
+
+    // Indexed Attrs for `attributes[0]` and for Closure's length-based
+    // fallback iterator when Symbol.iterator is missing. Snapshot of this
+    // read; getNamedItem/item re-read.
+    const auto& attributes = element.Attributes();
+    for (std::size_t i = 0; i < attributes.size(); ++i) {
+      map.object->Set(std::to_string(i), make_attr(call.interpreter, attributes[i]));
+    }
+
+    // `for (const attr of element.attributes)` and Closure's `_.A(map)`,
+    // which prefers Symbol.iterator over the length fallback.
+    const Value iterate =
+        call.interpreter.NewNativeValue("[Symbol.iterator]", [make_attr](NativeCall& inner) {
+          dom::Node* node = NodeOf(inner.self);
+          std::vector<Value> out;
+          if (node != nullptr && node->IsElement()) {
+            for (const dom::Attribute& attribute :
+                 static_cast<dom::Element*>(node)->Attributes()) {
+              out.push_back(make_attr(inner.interpreter, attribute));
+            }
+          }
+          const Value entries = inner.interpreter.NewArrayValue(std::move(out));
+          if (!entries.IsObject()) {
+            return Value::Undefined();
+          }
+          const js::Value* protocol = entries.object->Get(
+              js::PropertyKey::Symbol(inner.interpreter.SymbolIterator()));
+          if (protocol == nullptr) {
+            return Value::Undefined();
+          }
+          const js::Result made = inner.interpreter.CallFunction(*protocol, entries, {});
+          return made.completion == js::Completion::Throw ? Value::Undefined() : made.value;
+        });
+    if (iterate.IsObject()) {
+      iterate.object->Set(kOwnerSlot, PointerValue(owner));
+      map.object->Set(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()), iterate);
+    }
+    return map;
+  });
+
+  // Attr by name, or null. Same Attr shape getNamedItem returns; the binder
+  // that needed getNamedItem does not call this, but pages that probe both
+  // spellings deserve one answer.
+  method("getAttributeNode", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Null();
+    }
+    const std::string name = js::ToString(Argument(call.arguments, 0));
+    for (const dom::Attribute& attribute : static_cast<dom::Element*>(self)->Attributes()) {
+      if (attribute.name == name) {
         const Value entry = call.interpreter.NewObjectValue();
         if (entry.IsObject()) {
           entry.object->Set("name", Value::String(attribute.name));
           entry.object->Set("value", Value::String(attribute.value));
-          out.push_back(entry);
+          entry.object->Set("nodeName", Value::String(attribute.name));
+          entry.object->Set("localName", Value::String(attribute.name));
         }
+        return entry;
       }
     }
-    return call.interpreter.NewArrayValue(std::move(out));
+    return Value::Null();
   });
 }
 

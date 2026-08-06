@@ -90,13 +90,92 @@ js::Value DomBindings::MakeClassList(dom::Element& element) {
   // collector, and a raw pointer in one is a lifetime nobody is tracking.
   list.object->Set(kNodeSlot, PointerValue(&element));
 
+  const auto class_names = [](const dom::Element& target) {
+    const std::string* current = target.GetAttribute("class");
+    std::vector<std::string> names;
+    std::string word;
+    for (const char c : current == nullptr ? std::string() : *current) {
+      if (c == ' ' || c == '\t' || c == '\n') {
+        if (!word.empty()) {
+          names.push_back(word);
+          word.clear();
+        }
+        continue;
+      }
+      word.push_back(c);
+    }
+    if (!word.empty()) {
+      names.push_back(word);
+    }
+    return names;
+  };
+
+  // length + item + Symbol.iterator: DOMTokenList is iterable. youtube builds
+  // a CSS-path diagnostic with `for (const c of _.A(el.classList))`, and our
+  // four-method object was truthy but neither iterable nor length-bearing --
+  // Closure's `_.A` then threw `Error: c\`[object Object]` and aborted the
+  // custom-element reaction mid-stamp.
+  const Value length = interpreter_->NewNativeValue("length", [class_names](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Number(0);
+    }
+    return Value::Number(
+        static_cast<double>(class_names(*static_cast<dom::Element*>(self)).size()));
+  });
+  if (length.IsObject()) {
+    length.object->Set(kOwnerSlot, PointerValue(this));
+    list.object->DefineAccessor("length", length.object, nullptr);
+  }
+  const Value item = interpreter_->NewNativeValue("item", [class_names](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Null();
+    }
+    const auto names = class_names(*static_cast<dom::Element*>(self));
+    const double index = js::ToNumber(Argument(call.arguments, 0));
+    if (!(index >= 0) || index >= static_cast<double>(names.size())) {
+      return Value::Null();
+    }
+    return Value::String(names[static_cast<std::size_t>(index)]);
+  });
+  if (item.IsObject()) {
+    item.object->Set(kOwnerSlot, PointerValue(this));
+    list.object->Set("item", item);
+  }
+  const Value iterate =
+      interpreter_->NewNativeValue("[Symbol.iterator]", [class_names](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        std::vector<Value> out;
+        if (self != nullptr && self->IsElement()) {
+          for (const std::string& name : class_names(*static_cast<dom::Element*>(self))) {
+            out.push_back(Value::String(name));
+          }
+        }
+        const Value entries = call.interpreter.NewArrayValue(std::move(out));
+        if (!entries.IsObject()) {
+          return Value::Undefined();
+        }
+        const js::Value* protocol = entries.object->Get(
+            js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
+        if (protocol == nullptr) {
+          return Value::Undefined();
+        }
+        const js::Result made = call.interpreter.CallFunction(*protocol, entries, {});
+        return made.completion == js::Completion::Throw ? Value::Undefined() : made.value;
+      });
+  if (iterate.IsObject()) {
+    iterate.object->Set(kOwnerSlot, PointerValue(this));
+    list.object->Set(js::PropertyKey::Symbol(interpreter_->SymbolIterator()), iterate);
+  }
+
   // The four methods a page uses, each reading and rewriting the `class`
   // attribute. Nothing is cached between calls: a parsed copy would go stale
   // the moment anything else touched the attribute, and `class` is the one
   // attribute two pieces of code fight over.
   enum class Change { Add, Remove, Toggle, Contains };
-  const auto operate = [this, &list](const char* name, Change change) {
-    const Value native = interpreter_->NewNativeValue(name, [change](NativeCall& call) {
+  const auto operate = [this, &list, class_names](const char* name, Change change) {
+    const Value native = interpreter_->NewNativeValue(name, [change, class_names](NativeCall& call) {
       dom::Node* self = NodeOf(call.self);
       if (self == nullptr || !self->IsElement()) {
         return Value::Undefined();
@@ -106,22 +185,7 @@ js::Value DomBindings::MakeClassList(dom::Element& element) {
       if (wanted.empty()) {
         return Value::Undefined();
       }
-      const std::string* current = target.GetAttribute("class");
-      std::vector<std::string> names;
-      std::string word;
-      for (const char c : current == nullptr ? std::string() : *current) {
-        if (c == ' ' || c == '\t' || c == '\n') {
-          if (!word.empty()) {
-            names.push_back(word);
-            word.clear();
-          }
-          continue;
-        }
-        word.push_back(c);
-      }
-      if (!word.empty()) {
-        names.push_back(word);
-      }
+      std::vector<std::string> names = class_names(target);
 
       const auto found = std::find(names.begin(), names.end(), wanted);
       const bool present = found != names.end();

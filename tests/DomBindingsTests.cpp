@@ -120,9 +120,16 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.getElementById('title').localName", "h1");
     ExpectScript(kPage, "document.getElementById('title').hasAttributes()", "true");
     ExpectScript(kPage, "document.createElement('div').hasAttributes()", "false");
+    // NamedNodeMap, not Array: youtube's property binder calls getNamedItem.
     ExpectScript(kPage,
-                 "document.getElementById('title').attributes.map(a => a.name).sort().join()",
-                 "class,id");
+                 "const a = document.getElementById('title').attributes;"
+                 "[...a].map(x => x.name).sort().join() + '|' +"
+                 " a.getNamedItem('id').value + '|' + a.length + '|' +"
+                 " (a.getNamedItem('nope') === null)",
+                 "class,id|title|2|true");
+    ExpectScript(kPage,
+                 "document.getElementById('title').getAttributeNode('class').value",
+                 "big head");
   });
 
   // Events a page makes and dispatches itself. Dispatch used to exist only as
@@ -1150,6 +1157,12 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const t = document.getElementById('title'); "
                  "'' + t.classList.toggle('big') + t.classList.toggle('big')",
                  "falsetrue");
+    // Iterable + length: youtube's path builder does `_.A(el.classList)`.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title'); "
+                 "[...t.classList].join(',') + '|' + t.classList.length + '|' +"
+                 " t.classList.item(1)",
+                 "big,head|2|head");
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.removeAttribute('class'); "
                  "t.getAttribute('class') === null",
