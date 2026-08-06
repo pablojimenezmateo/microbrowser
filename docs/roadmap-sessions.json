@@ -432,8 +432,9 @@
       "adr": "0022",
       "anchor": "## Phase E — any page",
       "scope": "With the thread ownership statement. Service workers stay refused.",
-      "check": null,
-      "status": "not_started"
+      "check": "./build/microbrowser/microbrowser_tests Worker/ passes: a worker's script runs on its own thread, computes a sum from a message the page sent, a Map survives BOTH crossings with its contents, an uncaught throw arrives as an error event, and the line after terminate() proves the join returned. Plus TSan clean, which is the check that matters for a thread.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 7d342a6. The ownership statement is in src/engine/Workers.h: it owns its interpreter (constructed and destroyed ON the worker thread, which is stronger than a lock), borrows NOTHING, and is always joined and never detached. Zero idle CPU survives: the worker blocks on a condvar and wakes the loop with one byte down a pipe handed to the platform wait -- one byte per batch, and no descriptors at all for a page with no workers. `new Worker` is synchronous while the fetch is not: the id and inbox exist immediately so posts queue. Same-origin scripts only. **The finding was about the test**: the first version busy-spun 2000 turns like every other engine test, passed alone, and failed in the full suite where other shards had the cores -- a busy-wait against another thread is a test that passes on an idle machine. Refused per the ADR: SharedWorker, service workers, the Cache API, SharedArrayBuffer/Atomics."
     },
     {
       "id": 39,

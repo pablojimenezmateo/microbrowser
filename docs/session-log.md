@@ -3048,3 +3048,58 @@ written against and failed silently for a shape added later.** `GetOwn` was righ
 a value. The inherited-property list was right when both copies were written on the same day. Neither
 announced itself when the assumption stopped holding, which is the argument for the architecture lint
 existing at all — and for tests that assert absences.
+
+## Session 38 — the first thread that runs a page's code, and a test that had to learn to wait
+
+`7d342a6`. Dedicated workers, structured clone across the seam, and `structuredClone()`.
+
+**The ownership statement is the deliverable as much as the code is.** `AGENTS.md` requires one for any
+thread, and ADR 0022 §1 had already written it — so the work was making the code enforce it rather than
+promise it. The strongest line is that a worker's `js::Interpreter` is **constructed on the worker
+thread and destroyed there**: that is not a discipline, it is a scope. There is no window in which two
+threads could both hold it, so there is nothing to synchronise and no lock to get wrong. The borrow list
+is empty for the same reason — no DOM, no document, no font, no loader — and what crosses is
+`js::SerializedValue` bytes and two atomics.
+
+`Workers::Clear` joins on navigation and the destructor joins whatever is left, so a worker is always
+joined and nothing is ever detached. A detached thread holding an interpreter is a use-after-free waiting
+for the process to exit. `terminate()` joins **before returning**, which is what stops a page that
+terminates and then navigates from racing it — and the assertion for that is not a count, it is the line
+*after* `terminate()` in the page's own handler running at all.
+
+**Zero idle CPU survives, and the mechanism is the one the sockets already use.** A worker with nothing
+to do blocks on its condition variable. The main loop is woken by a pipe the worker writes one byte to,
+handed to the platform wait beside the sockets — no polling, no timer, and a page with no workers adds no
+descriptors at all. One byte per *batch* rather than per message: if the loop has not drained the last
+signal, another tells it nothing. The drain reads the pipe **before** the outbox, not after, because the
+other order loses a message posted between the two — the byte gets eaten and the message is left, and the
+loop goes back to sleep holding it.
+
+`new Worker` is synchronous while its fetch is not, and the shape that makes that work is worth
+recording: **the id and the inbox exist before the thread does.** A page constructs a worker and posts to
+it immediately; the messages queue in an inbox that is already there, and the thread drains them on its
+first iteration. A script that never loads produces an `error` event, which is what the specification
+says and is why returning an object for a doomed worker is correct rather than a lie.
+
+The one security check on the whole feature is that the script is **same-origin**. A worker runs a page's
+own code with its own heap; a cross-origin script would be another origin's code running with this page's
+messages.
+
+**The finding was about the test, not the code.** The first version turned the crank in a tight loop 2000
+times, because that is what every other engine test here does — a canned transport answers instantly and
+there has never been anything to wait *for*. It passed when run alone and failed in the full suite, where
+the other shards had the cores: 2000 spins take microseconds and the worker thread had not been scheduled
+yet. The fix is to sleep a millisecond when nothing is runnable and give up on a wall-clock deadline,
+which is what the real loop does by blocking on the pipe. **A busy-wait against another thread is a test
+that passes on an idle machine** — and it is a new failure mode for this suite, because until now nothing
+in it was concurrent. Every future test that involves a thread inherits the rule.
+
+Worth noting what the structured clone bought without extra work: it already existed in `src/js`, written
+for `history.pushState`'s state, and it was exactly the right thing for a worker message *and* for
+`structuredClone()`. A `Map` survives both crossings with its contents — serialised in the page's heap,
+rebuilt in the worker's, read there, and the answer serialised back — where `JSON.parse(JSON.stringify())`
+loses it on the first. Cycles deserialise to one object rather than a tree, which is the property a page
+that stores a graph and reads back a tree cannot see it has lost.
+
+TSan clean, which is the check that matters for this one and the reason it was worth running the whole
+suite under it rather than the new tests alone.
