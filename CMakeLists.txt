@@ -266,6 +266,7 @@ microbrowser_module(layout
 microbrowser_module(media
   SOURCES
     src/media/AudioRing.cpp
+    src/media/HlsPlaylist.cpp
     src/media/MediaState.cpp
     src/media/BoxReader.cpp
     src/media/IsoBmff.cpp
@@ -538,6 +539,7 @@ add_executable(microbrowser_tests
   tests/ShadowDomTests.cpp
   tests/StructuredCloneTests.cpp
   tests/AudioRingTests.cpp
+  tests/HlsPlaylistTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
   tests/StorageTests.cpp
@@ -630,6 +632,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(sfnt_fuzzer fuzz/SfntFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(websocket_fuzzer fuzz/WebSocketFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(eventstream_fuzzer fuzz/EventStreamFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(hls_fuzzer fuzz/HlsFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)

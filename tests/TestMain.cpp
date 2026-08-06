@@ -60,6 +60,7 @@ void RegisterIntegrityTests(std::vector<TestCase>& tests);
 void RegisterShadowDomTests(std::vector<TestCase>& tests);
 void RegisterStructuredCloneTests(std::vector<TestCase>& tests);
 void RegisterAudioRingTests(std::vector<TestCase>& tests);
+void RegisterHlsPlaylistTests(std::vector<TestCase>& tests);
 void RegisterMediaStateTests(std::vector<TestCase>& tests);
 void RegisterStorageTests(std::vector<TestCase>& tests);
 void RegisterStorageScriptTests(std::vector<TestCase>& tests);
@@ -211,6 +212,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterShadowDomTests(tests);
   microbrowser::tests::RegisterStructuredCloneTests(tests);
   microbrowser::tests::RegisterAudioRingTests(tests);
+  microbrowser::tests::RegisterHlsPlaylistTests(tests);
   microbrowser::tests::RegisterMediaStateTests(tests);
   microbrowser::tests::RegisterStorageTests(tests);
   microbrowser::tests::RegisterStorageScriptTests(tests);

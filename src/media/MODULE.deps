@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h MediaState.h PlaybackClock.h
+public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h HlsPlaylist.h MediaState.h PlaybackClock.h
 
 extern:
 
@@ -37,6 +37,11 @@ budget: AudioSink       header_lines=45  public_methods=8  members=0
 # network. That is what lets the transitions be driven and asserted without a decoder, which
 # is the only way to know they are the specification's rather than an approximation.
 budget: MediaState      header_lines=115 public_methods=24 members=12
+# ADR 0028 §2's playlist parser. Structs rather than a class because a playlist *is* data -- the
+# parse is one function and nothing here has state to protect.
+budget: HlsPlaylist     header_lines=45 public_methods=2 members=6
+budget: HlsVariant      header_lines=25 public_methods=2 members=5
+budget: HlsSegment      header_lines=25 public_methods=2 members=3
 budget: BoxReader       header_lines=95 public_methods=20 members=3
 budget: BoxHeader       header_lines=40 public_methods=6  members=4
 # What a demux produced. It grows one member per thing a player needs to know
