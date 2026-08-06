@@ -277,7 +277,12 @@ budget: MapIndex    header_lines=20 public_methods=0  members=2
 # patterns and the map indexes are here: native state belonging to one cell,
 # dropped by the sweep that frees it rather than by a second lifetime story
 # that could disagree.
-budget: Heap        header_lines=160 public_methods=26 members=10
+# Grew by one for `limit_`: the heap ceiling is a *member* rather than a
+# constant so a test can lower it and so ADR 0034 can move it to bytes later
+# without another shape change. The previous flat 500k sat equal to
+# youtube.com's live set and threw eight OOMs; 2M is the unblock, not the
+# design. See docs/adr/0034-javascript-heap-bounds.md and TD-0012.
+budget: Heap        header_lines=160 public_methods=26 members=11
 # The tree-walking interpreter.
 #
 # The member count went *down* at the commit that raised these numbers, from
@@ -402,7 +407,11 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # which is the difference between "a callback threw" and "a callback threw at
 # offset 1323410". Every caller is a binding reporting a page's own failure, and
 # those are the throws with the least context available anywhere else.
-budget: Interpreter header_lines=1070 public_methods=60 members=21
+# And by 12 more for the OOM string path in the same method: when MakeError
+# cannot allocate an Error object it falls back to a bare string, and that
+# string still needs CaptureStack appended or youtube's eight heap_oom throws
+# report with no place. See 94317dd and TD-0012.
+budget: Interpreter header_lines=1090 public_methods=60 members=21
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the
