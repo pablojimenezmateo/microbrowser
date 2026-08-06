@@ -37,6 +37,18 @@ void DropBodyHeaders(FetchOptions& options) {
   options.headers = std::move(kept);
 }
 
+// `Host` on HTTP/1.1 and `:authority` on HTTP/2 -- the same string, built once,
+// because two spellings of "the server this is addressed to" is one more place
+// for the two protocols to disagree about where a request is going.
+std::string AuthorityFor(const url::Url& url) {
+  std::string authority = url.HostSerialized();
+  if (url.Port().has_value()) {
+    authority.push_back(':');
+    authority += std::to_string(*url.Port());
+  }
+  return authority;
+}
+
 // The request line target: path and query, never the fragment. A fragment is
 // client-side and sending one tells a server something it has no business
 // knowing.
@@ -96,12 +108,7 @@ bool SendsOrigin(const CorsParams& cors, std::string_view method) {
 HttpHeaders BuildHeaders(const url::Url& url, const FetchOptions& options,
                          const privacy::Verdict& verdict, const std::string& cookie_header) {
   HttpHeaders headers;
-  std::string host = url.HostSerialized();
-  if (url.Port().has_value()) {
-    host.push_back(':');
-    host += std::to_string(*url.Port());
-  }
-  headers.Add("Host", host);
+  headers.Add("Host", AuthorityFor(url));
   headers.Add("User-Agent", util::kUserAgent);
   headers.Add("Accept-Language", "en-US");
   // Exactly the set net::DecodeContentEncoding can undo. Advertising more than
@@ -175,8 +182,31 @@ FetchRequest::FetchRequest(privacy::Verdict verdict, const privacy::PrivacyPolic
 }
 
 FetchRequest::~FetchRequest() {
+  ReleaseEverything();
+}
+
+void FetchRequest::ReleaseEverything() {
   if (connection_ != nullptr) {
     connection_->Close();
+    connection_.reset();
+  }
+  if (session_ != nullptr) {
+    if (stream_ != 0) {
+      // Tells the server to stop sending. Without it an abandoned image goes on
+      // arriving on a connection nineteen other requests are sharing.
+      session_->CloseStream(stream_);
+      stream_ = 0;
+    }
+    // Dropped, not closed: the session belongs to the pool and to whoever else
+    // is using it.
+    session_.reset();
+  }
+  if (owns_connect_) {
+    // The claim on "somebody is connecting to this origin". Every path out of
+    // this class comes through here, because a claim left behind parks every
+    // other request for the same origin until the stall deadline.
+    pool_.AbandonConnect(connect_key_);
+    owns_connect_ = false;
   }
 }
 
@@ -184,10 +214,7 @@ void FetchRequest::Fail(std::string_view reason) {
   if (complete_) {
     return;
   }
-  if (connection_ != nullptr) {
-    connection_->Close();
-    connection_.reset();
-  }
+  ReleaseEverything();
   result_ = FetchResult{};
   result_.error = std::string(reason);
   result_.redirects = redirects_;
@@ -197,10 +224,7 @@ void FetchRequest::Fail(std::string_view reason) {
 }
 
 void FetchRequest::Complete(HttpResponse response, const url::Url& url) {
-  if (connection_ != nullptr) {
-    connection_->Close();
-    connection_.reset();
-  }
+  ReleaseEverything();
 
   // **The CORS decision, at the last point inside `net` and before a result
   // exists.** Every way a response can arrive -- the wire, the cache, a
@@ -268,10 +292,11 @@ bool FetchRequest::BeginExchange() {
     }
   }
 
-  const HttpHeaders headers = BuildHeaders(url, remaining_, verdict_, cookie_header);
-  outgoing_ = SerializeRequest(remaining_.method, RequestTarget(url), headers);
-  outgoing_.append(reinterpret_cast<const char*>(remaining_.body.data()),
-                   remaining_.body.size());
+  // The header *list*, not a serialized request: HTTP/1.1 and HTTP/2 send the
+  // same fields and differ only in how they are framed, and the framing cannot
+  // be chosen until ALPN has answered. Building this once here is what keeps
+  // the two protocols from ever disagreeing about what was sent.
+  request_headers_ = BuildHeaders(url, remaining_, verdict_, cookie_header);
   sent_ = 0;
   parser_ = ResponseParser{};
 
@@ -280,8 +305,29 @@ bool FetchRequest::BeginExchange() {
   ConnectionPool::Lease lease =
       pool_.Acquire(verdict_.Partition().Serialize(), url.HostSerialized(), port, secure,
                     /*allow_reuse=*/!retried_);
-  connection_ = std::move(lease.connection);
+  connect_key_ = std::move(lease.key);
+  owns_connect_ = lease.owns_connect;
   reused_ = lease.reused;
+
+  if (lease.wait_for_protocol) {
+    // Somebody else is opening the connection whose ALPN decides whether this
+    // origin speaks HTTP/2. Opening a second one would be the burst that
+    // protocol exists to remove -- see ConnectionPool::Acquire.
+    stage_ = Stage::AwaitingProtocol;
+    return true;
+  }
+  if (lease.session != nullptr) {
+    // An origin already known to speak HTTP/2, with a session already open.
+    // Nothing is connected and nothing is handshaked: this request is a stream.
+    session_ = std::move(lease.session);
+    if (!StartStream()) {
+      Fail("the connection could not take another request");
+      return false;
+    }
+    return true;
+  }
+
+  connection_ = std::move(lease.connection);
   if (connection_ == nullptr) {
     Fail("no transport");
     return false;
@@ -300,13 +346,51 @@ bool FetchRequest::BeginExchange() {
   return true;
 }
 
-bool FetchRequest::MayRetryOnFreshConnection() const {
-  // Only a pooled connection, only once, and only while the server has said
-  // nothing at all. The moment a byte of a response has arrived, resending the
-  // request would be sending it twice — which for anything but a GET is a
-  // second side effect, and for a GET is still a second request the user did
-  // not make.
-  return reused_ && !retried_ && parser_.NothingReceived();
+void FetchRequest::ChooseProtocol() {
+  // **The one place the two protocols diverge.** The verdict, the cookies, the
+  // cache, CORS, the redirect chain and the retry rule are all above this line
+  // or below it, and none of them is written twice.
+  if (connection_->NegotiatedProtocol() == "h2") {
+    session_ = pool_.AdoptHttp2(connect_key_, std::move(connection_));
+    connection_.reset();
+    owns_connect_ = false;  // AdoptHttp2 released it
+    if (session_ == nullptr || !StartStream()) {
+      Fail("the connection could not take the request");
+    }
+    return;
+  }
+  if (owns_connect_) {
+    // Recorded, so the next six requests to this origin do not queue behind
+    // each other: a bound that is right while the protocol is unknown is wrong
+    // the moment it is known.
+    pool_.FinishedHttp1(connect_key_);
+    owns_connect_ = false;
+  }
+  const url::Url& url = verdict_.FinalUrl();
+  outgoing_ = SerializeRequest(remaining_.method, RequestTarget(url), request_headers_);
+  outgoing_.append(reinterpret_cast<const char*>(remaining_.body.data()),
+                   remaining_.body.size());
+  sent_ = 0;
+  stage_ = Stage::Sending;
+}
+
+bool FetchRequest::StartStream() {
+  const url::Url& url = verdict_.FinalUrl();
+  Http2Session::Request request;
+  request.method = remaining_.method;
+  request.scheme = url.Scheme();
+  request.authority = AuthorityFor(url);
+  const std::string target = RequestTarget(url);
+  request.target = target;
+  request.headers = &request_headers_;
+  request.body = std::span<const std::byte>(remaining_.body);
+  const std::optional<Http2Session::StreamId> id = session_->StartRequest(request);
+  if (!id.has_value()) {
+    return false;
+  }
+  stream_ = *id;
+  stage_ = Stage::Streaming;
+  return true;
 }
 
 void FetchRequest::ReleaseConnection(const HttpResponse& response, std::int64_t now_ms) {
@@ -347,16 +431,8 @@ void FetchRequest::ReleaseConnection(const HttpResponse& response, std::int64_t 
   connection_.reset();
 }
 
-void FetchRequest::FinishResponse(std::int64_t now_ms) {
+void FetchRequest::DeliverResponse(HttpResponse response) {
   const url::Url url = verdict_.FinalUrl();
-  HttpResponse response = parser_.TakeResponse();
-
-  // First, while the parser still knows how the body was framed and while the
-  // verdict still names the URL this exchange was with. After a redirect
-  // rewrites either of those, the connection would be filed under the wrong key
-  // — and a connection under the wrong partition key is the cross-site linkage
-  // ADR 0005 exists to prevent.
-  ReleaseConnection(response, now_ms);
 
   // Before anything reads the body, and before the cache is offered it: what is
   // stored, matched against a redirect, or handed to a parser is the decoded
@@ -461,11 +537,11 @@ void FetchRequest::FinishResponse(std::int64_t now_ms) {
   // The connection has already gone back to the pool if it could. If the
   // redirect stays on the same host in the same partition, the next exchange
   // takes it straight back out — which is the case ADR 0010 was written for and
-  // the one that used to cost a whole handshake.
-  if (connection_ != nullptr) {
-    connection_->Close();
-    connection_.reset();
-  }
+  // the one that used to cost a whole handshake. On HTTP/2 there is nothing to
+  // take back out and nothing to close: the session is the pool's, this
+  // request's stream is already finished with, and the next hop asks for
+  // another one on the same connection.
+  ReleaseEverything();
   parser_ = ResponseParser{};
   reused_ = false;
   retried_ = false;
@@ -481,13 +557,12 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
   // or on the first read, and it looks exactly like a server that went away.
   // The difference is that this one was never asked anything, so asking again
   // on a fresh socket repeats nothing.
-  const auto retry_or_fail = [this](std::string_view reason) {
-    if (!MayRetryOnFreshConnection()) {
+  const auto retry_or_fail = [this](std::string_view reason, bool nothing_was_processed) {
+    if (!MayRetry(nothing_was_processed)) {
       Fail(reason);
       return;
     }
-    connection_->Close();
-    connection_.reset();
+    ReleaseEverything();
     retried_ = true;
     reused_ = false;
     sent_ = 0;
@@ -517,10 +592,30 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
           Fail("connect failed");
           return true;
         }
-        stage_ = Stage::Sending;
+        // The handshake is over, so ALPN has an answer and this request finds
+        // out which protocol it is speaking.
+        ChooseProtocol();
         progress = true;
         break;
       }
+
+      case Stage::AwaitingProtocol:
+        // Another request is opening the connection whose ALPN will say whether
+        // this origin speaks HTTP/2. Going round again re-asks the pool, which
+        // by then has either a session to join or an origin known to speak
+        // HTTP/1.1. Blocked rather than runnable, so this does not spin: the
+        // connecting request's socket is in the loop's wait, and if that request
+        // has gone away `RequestQueue::HasRunnableWork` is what says so.
+        stage_ = Stage::Begin;
+        if (!BeginExchange()) {
+          return true;
+        }
+        if (stage_ == Stage::AwaitingProtocol) {
+          blocked_ = true;
+          return progress;
+        }
+        progress = true;
+        break;
 
       case Stage::Sending: {
         while (sent_ < outgoing_.size()) {
@@ -533,7 +628,7 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
             return progress;
           }
           if (wrote.status != IoStatus::Ready || wrote.bytes == 0) {
-            retry_or_fail("send failed");
+            retry_or_fail("send failed", reused_ && parser_.NothingReceived());
             return true;
           }
           sent_ += wrote.bytes;
@@ -554,13 +649,14 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
             // A body delimited by the connection closing is complete here and
             // nowhere else, which is why Closed and Failed are separate answers.
             if (!parser_.Finish()) {
-              retry_or_fail(parser_.Error() != nullptr ? parser_.Error() : "truncated response");
+              retry_or_fail(parser_.Error() != nullptr ? parser_.Error() : "truncated response",
+                            reused_ && parser_.NothingReceived());
               return true;
             }
             break;
           }
           if (read.status != IoStatus::Ready) {
-            retry_or_fail("receive failed");
+            retry_or_fail("receive failed", reused_ && parser_.NothingReceived());
             return true;
           }
           progress = true;
@@ -574,15 +670,64 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
           Fail(parser_.Error() != nullptr ? parser_.Error() : "incomplete response");
           return true;
         }
-        FinishResponse(now_ms);
+        HttpResponse response = parser_.TakeResponse();
+        // Released first, while the parser still knows how the body was framed
+        // and while the verdict still names the URL this exchange was with.
+        // After a redirect rewrites either, the connection would be filed under
+        // the wrong key -- and a connection under the wrong partition key is
+        // the cross-site linkage ADR 0005 exists to prevent.
+        ReleaseConnection(response, now_ms);
+        DeliverResponse(std::move(response));
         return true;
+      }
+
+      case Stage::Streaming: {
+        // Advancing the *session* moves every request sharing this connection,
+        // not just this one. That is the whole of multiplexing and it is why a
+        // request no longer owns the socket it is reading from.
+        progress |= session_->Advance();
+        switch (session_->StateOf(stream_)) {
+          case Http2Session::StreamState::Open:
+            blocked_ = session_->IsBlocked();
+            return progress;
+          case Http2Session::StreamState::Complete: {
+            HttpResponse response = session_->TakeResponse(stream_);
+            stream_ = 0;
+            // Nothing to release: the session stays in the pool with whatever
+            // other requests are still on it. `DeliverResponse` drops this
+            // request's reference when it completes or redirects.
+            DeliverResponse(std::move(response));
+            return true;
+          }
+          case Http2Session::StreamState::Refused:
+          case Http2Session::StreamState::Failed: {
+            const char* reason = session_->ErrorOf(stream_);
+            const bool refused =
+                session_->StateOf(stream_) == Http2Session::StreamState::Refused;
+            retry_or_fail(reason != nullptr ? reason : "the stream failed", refused);
+            return true;
+          }
+          case Http2Session::StreamState::Unknown:
+            Fail("the stream went away");
+            return true;
+        }
+        return progress;
       }
     }
   }
 }
 
 std::optional<util::WaitDescriptor> FetchRequest::Interest() const {
-  if (complete_ || connection_ == nullptr) {
+  if (complete_) {
+    return std::nullopt;
+  }
+  // On HTTP/2 this is the *shared* connection's descriptor, so several requests
+  // report the same one. That is correct and is why `RequestQueue` deduplicates
+  // before handing the list to the wait: one socket, watched once.
+  if (session_ != nullptr) {
+    return session_->Interest();
+  }
+  if (connection_ == nullptr) {
     return std::nullopt;
   }
   return connection_->Interest();

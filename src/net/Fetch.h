@@ -11,6 +11,7 @@
 #include "net/CookieJar.h"
 #include "net/Cors.h"
 #include "net/HttpCache.h"
+#include "net/Http2Session.h"
 #include "net/HttpMessage.h"
 #include "net/Transport.h"
 #include "privacy/PrivacyPolicy.h"
@@ -113,6 +114,13 @@ class FetchRequest {
   // it is complete, or when its transport cannot block.
   std::optional<util::WaitDescriptor> Interest() const;
 
+  // True while this request is parked because another connect to the same
+  // origin has not yet said which protocol it speaks (see
+  // `ConnectionPool::Acquire`). It has no socket of its own, so it has nothing
+  // for the loop to wait on -- the queue asks, because a parked request whose
+  // connector has gone away is runnable and nothing else would ever say so.
+  bool IsAwaitingProtocol() const { return stage_ == Stage::AwaitingProtocol; }
+
   // The partition this request is being made in. The concurrency bound is per
   // key rather than global — see RequestQueue.
   const url::PartitionKey& Partition() const { return verdict_.Partition(); }
@@ -124,27 +132,57 @@ class FetchRequest {
  private:
   enum class Stage : std::uint8_t {
     Begin,       // nothing opened yet, or a redirect just re-entered the policy
+    // Parked: somebody else is opening the connection whose ALPN will say
+    // whether this origin speaks HTTP/2, and opening a second one would be the
+    // burst that protocol exists to remove.
+    AwaitingProtocol,
     Connecting,  // the TCP connect, and the TLS handshake behind it
-    Sending,     // the request line, the headers, then the body
-    Receiving,
+    Sending,     // the request line, the headers, then the body -- HTTP/1.1
+    Receiving,   // HTTP/1.1
+    Streaming,   // one stream on a shared HTTP/2 session
     Done,
   };
 
   // Opens the connection for the current URL, or serves it from cache. False
   // when the request finished here rather than moving on.
   bool BeginExchange();
-  // Cookies, cache, and the redirect decision. Sets the next stage.
-  void FinishResponse(std::int64_t now_ms);
+  // The handshake is over and ALPN has answered. Either the socket becomes a
+  // session in the pool and this request becomes a stream on it, or the origin
+  // is recorded as HTTP/1.1 and the request is serialized. **This is the one
+  // place the two protocols diverge**, and everything before and after it --
+  // the verdict, the cookies, the cache, CORS, redirects, the retry rule -- is
+  // shared by construction rather than by discipline.
+  void ChooseProtocol();
+  // Puts this request on the session as a stream. False when the session could
+  // not take it, which is a fresh connection's job rather than a failure.
+  bool StartStream();
+  // Cookies, cache, and the redirect decision. Sets the next stage. Takes the
+  // response rather than reading it off the parser, because on HTTP/2 there is
+  // no parser -- the session assembled it. Steady time is not a parameter: what
+  // this does is measured in the wall clock a cookie and a cache entry expire
+  // against, and the connection was given back before it was called.
+  void DeliverResponse(HttpResponse response);
   void Complete(HttpResponse response, const url::Url& url);
   // Hands the connection back to the pool, or closes it. Everything that
   // decides between those two is in one place on purpose: a connection kept
   // when it should not have been is the next request reading a body as a
   // status line.
   void ReleaseConnection(const HttpResponse& response, std::int64_t now_ms);
-  // True when a reused connection failed before it said anything, which is the
-  // race every pool has: the server closed it while it was idle. Worth exactly
-  // one retry on a fresh socket, and no more.
-  bool MayRetryOnFreshConnection() const;
+  // Gives back whatever this request is holding: the HTTP/1.1 socket, its
+  // HTTP/2 stream, and the claim on "somebody is connecting to this origin".
+  // One function because forgetting the third parks every other request for the
+  // same origin until the stall deadline, and there are five paths out of here.
+  void ReleaseEverything();
+  // True when a request that has produced nothing may be sent again on a fresh
+  // connection. Worth exactly one retry and no more.
+  //
+  // `nothing_was_processed` is the protocol-specific half: on HTTP/1.1 it is a
+  // pooled connection that failed before saying anything -- the race every pool
+  // has -- and on HTTP/2 it is REFUSED_STREAM or a GOAWAY that never promised
+  // to handle this stream. Both mean the server did not act on the request, and
+  // that is the only condition under which resending it is not a second side
+  // effect.
+  bool MayRetry(bool nothing_was_processed) const { return !retried_ && nothing_was_processed; }
 
   privacy::Verdict verdict_;
   const privacy::PrivacyPolicy& policy_;
@@ -155,6 +193,18 @@ class FetchRequest {
   std::int64_t now_ = 0;
 
   std::unique_ptr<Transport> connection_;
+  // Set instead of `connection_` once ALPN said `h2`: the connection is the
+  // pool's and is shared with every other request to this origin.
+  std::shared_ptr<Http2Session> session_;
+  Http2Session::StreamId stream_ = 0;
+  // The pool key this request's connection was taken under, and whether this
+  // request is the one holding that origin's connect claim.
+  std::string connect_key_;
+  bool owns_connect_ = false;
+  // Built once, before the protocol is known, because both protocols send the
+  // same fields and only the framing differs. Keeping the *header list* rather
+  // than the serialized request is what makes that true.
+  HttpHeaders request_headers_;
   ResponseParser parser_;
   // The request line, headers and body as one buffer, and how much of it has
   // gone out. A partial write is normal on a non-blocking socket, and treating

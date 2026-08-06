@@ -63,6 +63,17 @@ SSL_CTX* SharedContext(const std::string& ca_bundle_path) {
     // before.
     SSL_CTX_set_options(created, SSL_OP_NO_TICKET);
     SSL_CTX_set_session_cache_mode(created, SSL_SESS_CACHE_OFF);
+    // ALPN, in the wire format the extension uses: a length byte then the
+    // name, most preferred first. Offering `h2` is ADR 0010 §3 and it is one
+    // line here because the negotiation is the server's to make -- everything
+    // hard about HTTP/2 is what happens after it answers.
+    //
+    // `http/1.1` is offered beside it and is not a fallback to be removed
+    // later: plenty of the web still speaks it, and a client that offered only
+    // `h2` would fail to connect to those servers rather than talk to them.
+    static constexpr unsigned char kAlpn[] = {2, 'h', '2', 8, 'h', 't', 't',
+                                              'p', '/', '1', '.', '1'};
+    SSL_CTX_set_alpn_protos(created, kAlpn, sizeof(kAlpn));
     return created;
   }();
   return context;
@@ -196,9 +207,12 @@ class SocketTransport : public Transport {
       fd_ = -1;
     }
     stage_ = Stage::Idle;
+    protocol_.clear();
     want_read_ = false;
     want_write_ = false;
   }
+
+  std::string_view NegotiatedProtocol() const override { return protocol_; }
 
   std::optional<util::WaitDescriptor> Interest() const override {
     if (fd_ < 0 || stage_ == Stage::Idle || stage_ == Stage::Failed ||
@@ -268,6 +282,16 @@ class SocketTransport : public Transport {
         return IoStatus::Failed;
       }
       AddPerformanceCounter(PerfCounterId::NetTlsHandshakes);
+      // Read once, here, rather than through OpenSSL on every call: the answer
+      // cannot change after the handshake, and `NegotiatedProtocol` is asked on
+      // a path where a `const` method reaching into a live SSL object would be
+      // a lie about what it does.
+      const unsigned char* selected = nullptr;
+      unsigned int selected_length = 0;
+      SSL_get0_alpn_selected(ssl_, &selected, &selected_length);
+      if (selected != nullptr && selected_length > 0) {
+        protocol_.assign(reinterpret_cast<const char*>(selected), selected_length);
+      }
       stage_ = Stage::Open;
       want_read_ = false;
       want_write_ = true;
@@ -423,6 +447,10 @@ class SocketTransport : public Transport {
   // Borrowed from the factory, which outlives every transport it made.
   ResolverCache* resolver_;
   std::string host_;
+  // What ALPN settled on, captured the moment the handshake finished. Cleared
+  // by `Close`, because a transport that has been closed and reconnected has
+  // negotiated again.
+  std::string protocol_;
   int fd_ = -1;
   SSL* ssl_ = nullptr;
   Stage stage_ = Stage::Idle;

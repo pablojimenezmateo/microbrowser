@@ -93,6 +93,21 @@ class Transport {
   // for it would be a lie that costs a wakeup.
   virtual std::optional<util::WaitDescriptor> Interest() const = 0;
 
+  // What ALPN settled on during the handshake: `h2`, `http/1.1`, or empty when
+  // nothing was negotiated. Only meaningful once `Advance()` has answered
+  // `Ready`, because before that there has been no handshake to negotiate in.
+  //
+  // A method on the transport rather than a parameter to `StartConnect`,
+  // because the answer is the *server's* and is not known until the handshake
+  // is over. That timing is the whole difficulty of adding HTTP/2 to a
+  // connection pool: a socket has to be opened before anyone can find out
+  // whether it should have been shared. See `ConnectionPool::Acquire`.
+  //
+  // Empty by default, so a transport that has no TLS — a scripted one, a
+  // plaintext socket — says the true thing without having to know the protocol
+  // exists.
+  virtual std::string_view NegotiatedProtocol() const { return {}; }
+
  protected:
   Transport() = default;
 };

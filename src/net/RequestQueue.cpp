@@ -241,11 +241,31 @@ std::vector<RequestQueue::Completion> RequestQueue::TakeCompletions() {
 }
 
 void RequestQueue::AppendDescriptors(util::WaitDescriptorList& out) const {
+  const std::size_t ours = out.size();
   for (const Active& active : active_) {
-    if (const std::optional<util::WaitDescriptor> interest = active.request->Interest()) {
-      if (interest->IsValid()) {
-        out.push_back(*interest);
+    const std::optional<util::WaitDescriptor> interest = active.request->Interest();
+    if (!interest.has_value() || !interest->IsValid()) {
+      continue;
+    }
+    // Deduplicated, and HTTP/2 is why: several requests share one session and
+    // therefore one descriptor, so a page fetching nineteen images over one
+    // connection would otherwise hand the wait nineteen copies of the same
+    // socket. Linear over a list bounded by the per-partition concurrency
+    // limit, which is smaller than any container that would beat it.
+    bool already = false;
+    for (std::size_t i = ours; i < out.size(); ++i) {
+      if (out[i].descriptor == interest->descriptor) {
+        // Merged rather than skipped: two requests on one socket can want
+        // different things, and a wait that dropped the second want would
+        // sleep through the event it was for.
+        out[i].readable = out[i].readable || interest->readable;
+        out[i].writable = out[i].writable || interest->writable;
+        already = true;
+        break;
       }
+    }
+    if (!already) {
+      out.push_back(*interest);
     }
   }
 }
@@ -260,6 +280,14 @@ bool RequestQueue::HasRunnableWork() const {
     // instead would make a canned transport that is deliberately holding a
     // response look like one that is ready to hand it over.
     if (!active.request->IsBlocked()) {
+      return true;
+    }
+    // A request parked waiting to learn whether its origin speaks HTTP/2 has no
+    // socket of its own; it is woken by the socket of whoever is connecting. If
+    // nobody is connecting any more -- that request was cancelled, or failed --
+    // then this one is runnable and there is nothing else in the loop that
+    // would ever say so. Without this it would sit until the stall deadline.
+    if (active.request->IsAwaitingProtocol() && pool_.PendingConnects() == 0) {
       return true;
     }
   }

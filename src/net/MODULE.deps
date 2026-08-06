@@ -4,7 +4,7 @@ purpose: HTTP, cookies, and the socket layer. Everything that touches the wire.
 # have passed privacy first, which net enforces by taking a privacy::Verdict.
 allow: util url privacy
 
-public: Hpack.h HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h WebSocketFrames.h WebSocketConnection.h EventStream.h EventSourceConnection.h ResolverCache.h
+public: Hpack.h Http2Frames.h Http2Session.h HttpMessage.h CookieJar.h Transport.h HttpCache.h Fetch.h RequestQueue.h SocketTransport.h ContentEncoding.h ConnectionPool.h Cors.h WebSocketFrames.h WebSocketConnection.h EventStream.h EventSourceConnection.h ResolverCache.h
 
 # ADR 0001 sanctions OpenSSL for the TLS record layer only -- we own HTTP
 # entirely. Exactly one file names it, SocketTransport.cpp, and this line is
@@ -23,6 +23,26 @@ budget: HttpHeaders    header_lines=40 public_methods=16 members=1
 # which is the entire content of RFC 7541's CVE history. Growing this list means
 # adding state a peer can steer, and that is worth a commit message.
 budget: Decoder        header_lines=50 public_methods=8 members=4
+# One HTTP/2 connection. Nineteen members, and the number is the protocol
+# rather than the implementation: a connection that carries many requests at
+# once has to hold, at minimum, the socket, the HPACK decoder that is the
+# connection's and not any stream's, the peer's settings, both halves of the
+# outgoing buffer, the incoming buffer, the streams, the four fields of a header
+# block being assembled across CONTINUATIONs, two flow-control windows, the next
+# stream id, the last one a GOAWAY promised, and whether it has failed.
+#
+# The one to watch is the header-block group. `assembling_`, `header_block_`,
+# `assembling_end_stream_` and `continuations_` exist because HPACK cannot be
+# paused mid-field, so a block split across frames has to be reassembled before
+# it is decoded -- and while it is being reassembled no other frame may arrive.
+# Anything added there is state a peer steers.
+#
+# Implemented in two translation units, split by whose state each function
+# touches: Http2Session.cpp owns the socket and the connection, Http2Streams.cpp
+# owns one request and one response. That is the split `Engine` and `Page`
+# already carry, and here it also separates the failures that cost one request
+# from the failures that cost every request on the socket.
+budget: Http2Session   header_lines=180 public_methods=17 members=19
 # Raised from 60 header lines by ADR 0010's connection reuse. The three new
 # questions -- was the body self-delimited, is anything left after it, has
 # anything arrived at all -- are all things only the parser knows, and all
@@ -36,7 +56,12 @@ budget: HttpCache      header_lines=45 public_methods=14 members=3
 # Raised to 50 by the partition key on `StartConnect`. The five lines are the
 # comment saying why a name lookup is keyed by partition and not by host, which
 # is the only thing standing between a resolver cache and a cross-site oracle.
-budget: Transport      header_lines=50 public_methods=12 members=0
+# Raised to 70 lines by `NegotiatedProtocol`. Its comment is most of the
+# increase and is load-bearing: the answer comes from the *server*, during the
+# handshake, so a socket has to be opened before anyone can find out whether it
+# should have been shared. That timing is the whole difficulty of putting
+# HTTP/2 behind a connection pool.
+budget: Transport      header_lines=70 public_methods=13 members=0
 # Names already resolved, keyed by the ADR 0005 partition key. One member: the
 # entry list. The TTL and the bound are constants beside it rather than state,
 # because neither is a decision this class gets to make per instance.
@@ -59,11 +84,29 @@ budget: SocketTransportFactory header_lines=35 public_methods=6 members=2
 # whether the single retry that fact buys has been spent. Neither can be
 # derived -- the pool has already forgotten which connection it handed over,
 # and by the time a send fails there is nothing left to ask.
-budget: FetchRequest   header_lines=100 public_methods=16 members=19
+#
+# Raised to 24 members and 150 lines by HTTP/2 (ADR 0032). Five, and they are
+# one fact each: the shared session and this request's stream on it, the pool
+# key and whether this request holds that origin's connect claim, and the
+# header *list* -- kept rather than the serialized request, because both
+# protocols send the same fields and which framing to use is not known until
+# ALPN has answered. That last one is what keeps `Fetch` from having two copies
+# of what a request contains.
+budget: FetchRequest   header_lines=150 public_methods=17 members=24
 # Connections kept between requests, keyed by the ADR 0005 partition key. Two
 # members: the factory it falls back to, and the idle list. Everything else in
 # it is policy about when to let one go.
-budget: ConnectionPool header_lines=65 public_methods=12 members=2
+#
+# Raised to 5 members by HTTP/2 (ADR 0032), and every one of the three is the
+# protocol rather than the implementation. `sessions_` is the second thing this
+# pool now hands out and the first it hands out *shared*. `claims_` is the
+# coalescing: at most one connect per origin while nobody knows which protocol
+# it speaks, because ALPN answers after the socket is open and six requests
+# would otherwise open six. `protocols_` is what takes that bound off again the
+# moment the answer is known -- bounded and partition-keyed, because "has this
+# browser learned that example.com speaks HTTP/2" is a question about where the
+# user has been.
+budget: ConnectionPool header_lines=145 public_methods=18 members=5
 # The scheduler in front of Fetch. Four collaborators, three lists (started,
 # waiting on a slot, finished) and a counter. The three lists are the shape of
 # the problem: a bound per partition means a request can exist without a

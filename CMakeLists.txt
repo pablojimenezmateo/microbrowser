@@ -297,6 +297,9 @@ microbrowser_module(net
     src/net/Fetch.cpp
     src/net/HttpCache.cpp
     src/net/Hpack.cpp
+    src/net/Http2Frames.cpp
+    src/net/Http2Session.cpp
+    src/net/Http2Streams.cpp
     src/net/HttpMessage.cpp
     src/net/RequestQueue.cpp
     src/net/ResolverCache.cpp
@@ -585,6 +588,9 @@ add_executable(microbrowser_tests
   tests/PerformanceApiTests.cpp
   tests/InflateTests.cpp
   tests/HpackTests.cpp
+  tests/Http2Tests.cpp
+  tests/Http2FetchTests.cpp
+  tests/support/Http2ScriptedServer.cpp
   tests/IntegrityTests.cpp
   tests/ShadowDomTests.cpp
   tests/StructuredCloneTests.cpp
@@ -703,6 +709,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(content_encoding_fuzzer fuzz/ContentEncodingFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cors_fuzzer fuzz/CorsFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(hpack_fuzzer fuzz/HpackFuzzer.cpp microbrowser_net)
+  microbrowser_fuzzer(http2_fuzzer fuzz/Http2Fuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(csp_fuzzer fuzz/CspFuzzer.cpp microbrowser_csp)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
