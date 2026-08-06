@@ -196,6 +196,41 @@ Font* FontCatalog::FontFor(const FontRequest& request) {
   return &inserted.first->second;
 }
 
+bool FontCatalog::CoversCodePoint(const FontRequest& request, char32_t code_point) const {
+  const Face* matched = Match(request);
+  return matched != nullptr && matched->face.GlyphForCodepoint(code_point) != 0;
+}
+
+Font* FontCatalog::FontForCodePoint(const FontRequest& request, char32_t code_point) {
+  // The requested family first: a font stack is what the author asked for, and falling back before
+  // checking it would ignore them. Asked of the *face* rather than of the `Font`, because coverage is
+  // a property of the face and a `Font` is a face at a size.
+  if (Font* preferred = FontFor(request); preferred != nullptr) {
+    if (CoversCodePoint(request, code_point)) {
+      return preferred;
+    }
+    // Every registered face, in registration order. A catalog holds a handful -- a test's fixtures, a
+    // page's `@font-face` set -- so this is a short walk and not an index lookup. `SystemFontProvider`
+    // is where the machine's thousands of faces are, and it overrides this for that reason.
+    for (const std::unique_ptr<Face>& candidate : faces_) {
+      if (candidate->face.GlyphForCodepoint(code_point) == 0) {
+        continue;
+      }
+      FontRequest fallback = request;
+      fallback.families = {candidate->family};
+      if (Font* found = FontFor(fallback); found != nullptr) {
+        AddPerformanceCounter(PerfCounterId::FontFallbacks);
+        return found;
+      }
+    }
+    // Nothing covers it. The preferred face is returned rather than null: it draws `.notdef`, which is
+    // a visible box, and a box is the honest glyph for a code point this machine cannot draw. Null
+    // would drop the character silently, which is worse -- the reader cannot tell text is missing.
+    return preferred;
+  }
+  return nullptr;
+}
+
 bool FontCatalog::RegisterWebFont(std::string family, int weight, bool italic,
                                   std::vector<std::byte> bytes) {
   // A downloaded font is the one attacker-controlled input this browser hands to a

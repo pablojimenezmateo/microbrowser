@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::gfx {
 
@@ -47,14 +48,36 @@ void TextRenderer::Clear() {
   recent_.clear();
 }
 
-const ShapedRun* TextRenderer::Lookup(std::string_view text, const FontRequest& request,
-                                      Font*& font_out) {
-  font_out = fonts_->FontFor(request);
-  if (font_out == nullptr) {
-    return nullptr;
+std::vector<TextRenderer::CoveragePiece> TextRenderer::SplitByCoverage(std::string_view text,
+                                                                      const FontRequest& request) {
+  std::vector<CoveragePiece> pieces;
+  std::size_t at = 0;
+  std::size_t piece_start = 0;
+  Font* current = nullptr;
+  std::uint32_t code = 0;
+  std::size_t previous = 0;
+  while (util::DecodeUtf8(text, at, code)) {
+    Font* wanted = fonts_->FontForCodePoint(request, static_cast<char32_t>(code));
+    if (current == nullptr) {
+      current = wanted;
+    } else if (wanted != current) {
+      pieces.push_back(CoveragePiece{text.substr(piece_start, previous - piece_start), current});
+      piece_start = previous;
+      current = wanted;
+    }
+    previous = at;
   }
+  if (piece_start < text.size() || pieces.empty()) {
+    pieces.push_back(CoveragePiece{text.substr(piece_start), current});
+  }
+  if (pieces.size() > 1) {
+    AddPerformanceCounter(PerfCounterId::TextRunsSplitByCoverage);
+  }
+  return pieces;
+}
 
-  Key key = KeyFor(text, *font_out);
+const ShapedRun* TextRenderer::LookupWithFont(std::string_view text, Font& font) {
+  Key key = KeyFor(text, font);
   const auto existing = entries_.find(key);
   if (existing != entries_.end()) {
     AddPerformanceCounter(PerfCounterId::ShapedRunCacheHits);
@@ -63,7 +86,7 @@ const ShapedRun* TextRenderer::Lookup(std::string_view text, const FontRequest& 
   }
 
   AddPerformanceCounter(PerfCounterId::ShapedRunCacheMisses);
-  const ShapedRun& shaped = shaper_.Shape(*font_out, text);
+  const ShapedRun& shaped = shaper_.Shape(font, text);
 
   if (capacity_ == 0) {
     // Not cacheable, but still shaped. Returning the shaper's own run is safe
@@ -85,22 +108,48 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
   if (text.empty() || color.IsFullyTransparent()) {
     return;
   }
-  Font* font = nullptr;
-  const ShapedRun* run = Lookup(text, request, font);
-  if (run == nullptr) {
-    return;
+  // Split at coverage boundaries and draw each piece with the font that can draw it.
+  //
+  // **This is what makes CJK render rather than showing boxes.** A page asks for `sans-serif`, gets a
+  // face with no CJK glyphs, and every ideograph is a `.notdef` box -- on a machine with 31 Japanese
+  // faces installed. One font per *element* is what the author asked for; one font per *character* is
+  // what the machine can do, and every browser resolves it this way.
+  //
+  // The common case -- a whole run in one font -- takes one pass and one shape, which is what the
+  // `pieces.size() == 1` path below preserves: splitting must not cost anything on Latin text.
+  float pen = origin.x;
+  for (const CoveragePiece& piece : SplitByCoverage(text, request)) {
+    if (piece.font == nullptr) {
+      continue;
+    }
+    Font* font = piece.font;
+    const ShapedRun* run = LookupWithFont(piece.text, *font);
+    if (run == nullptr) {
+      continue;
+    }
+    painter.DrawGlyphs(*font, *run, FloatPoint{pen, origin.y}, color);
+    pen += run->width;
+    AddPerformanceCounter(PerfCounterId::TextRunsPainted);
   }
-  painter.DrawGlyphs(*font, *run, origin, color);
-  AddPerformanceCounter(PerfCounterId::TextRunsPainted);
 }
 
 float TextRenderer::MeasureRun(std::string_view text, const FontRequest& request) {
   if (text.empty()) {
     return 0.0f;
   }
-  Font* font = nullptr;
-  const ShapedRun* run = Lookup(text, request, font);
-  return run == nullptr ? 0.0f : run->width;
+  // Measured the same way it is drawn, piece by piece. A measurement taken with one font and a paint
+  // done with several is a line that overflows by however much the fallback face differs -- and the
+  // two answers coming from one function is the only way they cannot drift.
+  float width = 0.0f;
+  for (const CoveragePiece& piece : SplitByCoverage(text, request)) {
+    if (piece.font == nullptr) {
+      continue;
+    }
+    if (const ShapedRun* run = LookupWithFont(piece.text, *piece.font)) {
+      width += run->width;
+    }
+  }
+  return width;
 }
 
 FontMetrics TextRenderer::MetricsFor(const FontRequest& request) {

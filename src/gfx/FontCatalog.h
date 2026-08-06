@@ -31,6 +31,22 @@ class FontProvider {
   // is destroyed or a new face is registered.
   virtual Font* FontFor(const FontRequest& request) = 0;
 
+  // A font that can actually draw `code_point`, which is not the same question.
+  //
+  // **The bug this exists for:** a page asking for `sans-serif` gets DejaVu Sans, which has no CJK
+  // glyphs -- so a Japanese paragraph renders as boxes on a machine with 31 Japanese faces installed.
+  // Every browser answers this by falling back *per character* rather than per element, because a font
+  // stack is what the author asked for and coverage is what the machine has.
+  //
+  // Null when nothing on this machine covers it, which is a legitimate answer -- the code point is
+  // then genuinely undrawable here and a box is the honest glyph. The default implementation ignores
+  // the code point, which is right for a provider with one face: a test's synthetic font either has
+  // the glyph or nothing does.
+  virtual Font* FontForCodePoint(const FontRequest& request, char32_t code_point) {
+    (void)code_point;
+    return FontFor(request);
+  }
+
   // A face the *document* supplied -- an `@font-face` whose bytes have arrived.
   //
   // Virtual here rather than only on FontCatalog because the engine holds a
@@ -101,6 +117,18 @@ class FontCatalog : public FontProvider {
   void SetDefaultFamily(std::string family) { default_family_ = NormalizeFamily(family); }
 
   Font* FontFor(const FontRequest& request) override;
+
+  // A registered face that covers `code_point`, preferring the requested family. Walks the registered
+  // faces when the match does not have the glyph -- a catalog is small (a test's fixtures, a page's
+  // `@font-face` set), so the walk is over a handful of faces rather than a system index.
+  Font* FontForCodePoint(const FontRequest& request, char32_t code_point) override;
+
+  // Whether the face this request matches has a glyph for `code_point`. The primitive the fallback is
+  // built from, and it is a separate question from `FontForCodePoint` because that one *answers with a
+  // font* -- including the preferred one when nothing covers the character, since a visible box is the
+  // honest glyph for something this machine cannot draw. A caller deciding whether to keep looking
+  // needs the coverage answer rather than the font.
+  bool CoversCodePoint(const FontRequest& request, char32_t code_point) const;
 
   std::size_t FaceCount() const { return faces_.size(); }
 

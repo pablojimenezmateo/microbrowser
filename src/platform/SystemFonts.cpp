@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "util/Env.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::platform {
 
@@ -201,6 +202,54 @@ bool SystemFontProvider::Load(Indexed& entry) {
     return false;
   }
   return catalog_.Register(entry.family, entry.weight, entry.italic, std::move(bytes));
+}
+
+
+gfx::Font* SystemFontProvider::FontForCodePoint(const gfx::FontRequest& request,
+                                                char32_t code_point) {
+  gfx::Font* preferred = FontFor(request);
+  // The requested stack first: it is what the author asked for, and a fallback that ran before
+  // checking it would ignore them. This is also the overwhelmingly common path -- Latin text in a
+  // Latin font -- and it costs one glyph-index lookup.
+  if (preferred != nullptr && catalog_.CoversCodePoint(request, code_point)) {
+    return preferred;
+  }
+
+  // Remembered per 256-code-point block. A page of Japanese asks this question once per character and
+  // the answer is the same face every time, so without the cache this is a face load per character.
+  // A block is the right granularity because scripts occupy contiguous ranges.
+  const std::uint32_t block = static_cast<std::uint32_t>(code_point) >> 8;
+  if (const auto remembered = coverage_.find(block); remembered != coverage_.end()) {
+    if (remembered->second.empty()) {
+      // Nothing on this machine covers this block, and that is worth caching: the alternative is
+      // re-probing every installed face for every character of an undrawable run.
+      return preferred;
+    }
+    gfx::FontRequest cached = request;
+    cached.families = {remembered->second};
+    if (gfx::Font* found = FontFor(cached); found != nullptr) {
+      return found;
+    }
+  }
+
+  // Load candidates in index order until one covers it. Lazily, because the index holds every face on
+  // the machine and loading them all to answer one question is how a browser takes a second to draw a
+  // paragraph -- and the block cache means this runs once per script rather than once per character.
+  for (Indexed& entry : index_) {
+    if (!entry.loaded && !Load(entry)) {
+      continue;
+    }
+    gfx::FontRequest candidate = request;
+    candidate.families = {entry.family};
+    if (!catalog_.CoversCodePoint(candidate, code_point)) {
+      continue;
+    }
+    coverage_[block] = entry.family;
+    util::AddPerformanceCounter(util::PerfCounterId::FontFallbacks);
+    return FontFor(candidate);
+  }
+  coverage_[block] = std::string();
+  return preferred;
 }
 
 gfx::Font* SystemFontProvider::FontFor(const gfx::FontRequest& request) {

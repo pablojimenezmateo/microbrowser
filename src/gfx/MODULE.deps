@@ -70,7 +70,7 @@ budget: FontLibrary    header_lines=30 public_methods=8  members=1
 budget: FontFace       header_lines=45 public_methods=16 members=2
 budget: Font           header_lines=50 public_methods=14 members=3
 budget: TextShaper     header_lines=40 public_methods=10 members=6
-budget: FontProvider   header_lines=35 public_methods=8  members=0
+budget: FontProvider   header_lines=60 public_methods=8  members=0
 # The matcher is public and static, with its reasoning next to it, because
 # platform's font database ranks files it has not loaded by the same rule. Two
 # implementations of "which face answers this request" would drift.
@@ -85,9 +85,15 @@ budget: FontProvider   header_lines=35 public_methods=8  members=0
 # catalog is an ordinary registration -- the family, weight and slant come from the
 # `@font-face` descriptors rather than from the file, because the descriptors are
 # what a `font-family` stack names.
-budget: FontCatalog header_lines=115 public_methods=16 members=6
+# 130 lines and 18 methods: per-character font fallback added `FontForCodePoint` and the coverage
+# primitive it is built from. The pair is deliberate -- one answers with a font (the preferred face
+# when nothing covers the character, because a visible box is the honest glyph) and the other answers
+# the coverage question a caller needs to decide whether to keep looking.
+budget: FontCatalog header_lines=130 public_methods=18 members=6
 # Owns a shaper and an LRU of shaped runs, which is four members before the
 # provider it borrows. Shaping is the most expensive step in the text stack and
 # the cache is why this type exists at all -- see the class comment.
-budget: TextRenderer   header_lines=60 public_methods=12 members=6
+# 80 lines for per-character font fallback: the coverage split is the unit both painting and
+# measuring use, so that the two cannot disagree about where a fallback began.
+budget: TextRenderer   header_lines=80 public_methods=12 members=6
 budget: AffineTransform header_lines=70 public_methods=22 members=6

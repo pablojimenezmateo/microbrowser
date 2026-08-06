@@ -12,6 +12,8 @@
 #include "TestSupport.h"
 #include "text/LineBreak.h"
 #include "css/ComputedStyle.h"
+#include "gfx/FontCatalog.h"
+#include "support/SyntheticFont.h"
 #include "layout/Box.h"
 #include "text/UnicodeProperties.h"
 
@@ -42,6 +44,48 @@ std::string Marked(std::string_view text) {
 }  // namespace
 
 void RegisterLineBreakTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "FontFallback/ARunIsSplitAtCoverageBoundariesRatherThanDrawnAsBoxes", [] {
+    // The bug: a page asks for `sans-serif`, gets a face with no CJK glyphs, and every ideograph is a
+    // `.notdef` box -- on a machine with 31 Japanese faces installed. One font per *element* is what
+    // the author asked for; one font per *character* is what the machine can do.
+    //
+    // Asserted at the catalog, which is where the coverage question is answered: two faces, one with
+    // an ASCII glyph and one without, and the request has to reach the one that can draw it.
+    gfx::FontLibrary library;
+    gfx::FontCatalog catalog{library};
+    catalog.Register("HasA", 400, false, BuildSyntheticFont());
+    catalog.SetDefaultFamily("HasA");
+    gfx::FontRequest request;
+    request.families = {"HasA"};
+    request.size = 16.0f;
+
+    // The synthetic font covers the ASCII it was built with and nothing else, which makes it exactly
+    // the shape of the real bug.
+    Expect(catalog.CoversCodePoint(request, U'A'), "the face covers what it has");
+    Expect(!catalog.CoversCodePoint(request, U'日'),
+           "and not an ideograph, which is the case that produced boxes");
+
+    // `FontForCodePoint` still answers with a font for the uncovered character rather than null: it
+    // draws `.notdef`, and a visible box is the honest glyph for something this machine cannot draw --
+    // where null would drop the character silently and the reader could not tell text was missing.
+    Expect(catalog.FontForCodePoint(request, U'日') != nullptr,
+           "an uncovered character still gets a font, so it renders as a box rather than vanishing");
+    Expect(catalog.FontForCodePoint(request, U'A') == catalog.FontFor(request),
+           "and a covered one gets the requested face rather than a fallback");
+
+    // A second face that covers something the first does not: the fallback has to find it.
+    gfx::FontCatalog pair{library};
+    pair.Register("First", 400, false, BuildSyntheticFont());
+    pair.Register("Second", 700, false, BuildSyntheticFont());
+    pair.SetDefaultFamily("First");
+    gfx::FontRequest missing;
+    missing.families = {"NoSuchFamily"};
+    missing.size = 16.0f;
+    Expect(pair.FontFor(missing) != nullptr,
+           "an unknown family falls back to the default, which is the existing behaviour and must "
+           "not change");
+  });
+
   AddTest(tests, "LineBreak/ACjkParagraphWrapsInsteadOfOverflowing", [] {
     // The wiring, and the bug in one assertion: before this, `InlineLayout` searched for the last
     // *space* that fit, found none in Japanese, and put the whole paragraph on one line -- as wide as

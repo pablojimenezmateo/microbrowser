@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,18 @@ class SystemFontProvider : public gfx::FontProvider {
 
   gfx::Font* FontFor(const gfx::FontRequest& request) override;
 
+  // A face on this machine that covers `code_point`.
+  //
+  // **The bug this exists for:** a page asking for `sans-serif` got DejaVu Sans, which has no CJK
+  // glyphs, so a Japanese paragraph rendered as boxes on a machine with 31 Japanese faces installed.
+  // This is where the machine's faces are, so this is where the fallback has to live.
+  //
+  // It loads candidates *lazily and in index order*, stopping at the first that covers the code
+  // point, and remembers the answer per code point block -- because a page of Japanese asks this
+  // question once per character and the answer is the same face every time. Without the cache this
+  // would be a face load per character.
+  gfx::Font* FontForCodePoint(const gfx::FontRequest& request, char32_t code_point) override;
+
   // A page's own `@font-face`, into the same catalog the system fonts land in.
   //
   // Forwarded rather than inherited-by-default, and the bug it fixes is worth the
@@ -73,6 +86,14 @@ class SystemFontProvider : public gfx::FontProvider {
   gfx::FontCatalog catalog_;
   std::vector<Indexed> index_;
   std::string default_family_;
+  // Which family covered a code point, keyed by its 256-code-point block. A page of Japanese asks
+  // once per character and the answer is the same face every time, so this turns thousands of
+  // coverage probes into one per block -- and a block is the right granularity because scripts are
+  // laid out in contiguous ranges.
+  //
+  // An empty string means "nothing on this machine covers it", which is worth caching too: the
+  // alternative is re-probing every installed face for every character of an undrawable run.
+  std::map<std::uint32_t, std::string> coverage_;
 };
 
 // Reads a whole file. Empty on any failure, including a file too large to be a

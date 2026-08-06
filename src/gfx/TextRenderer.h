@@ -5,6 +5,7 @@
 #include <list>
 #include <string>
 #include <string_view>
+#include <vector>
 #include <unordered_map>
 
 #include "gfx/FontCatalog.h"
@@ -75,7 +76,21 @@ class TextRenderer {
   };
 
   // Null when the request resolves to no font.
-  const ShapedRun* Lookup(std::string_view text, const FontRequest& request, Font*& font_out);
+  // A stretch of text and the font that can draw it. The unit of both painting and measuring, so
+  // that the two answers cannot disagree about where a fallback began.
+  struct CoveragePiece {
+    std::string_view text;
+    Font* font = nullptr;
+  };
+
+  // Maximal stretches of `text` each drawable by one font. One piece for ordinary Latin text, which is
+  // the path that must stay cheap; more when the run crosses a coverage boundary -- a Japanese word in
+  // an English sentence, an emoji, a mathematical symbol.
+  std::vector<CoveragePiece> SplitByCoverage(std::string_view text, const FontRequest& request);
+
+  // The shaped-run cache, keyed by text and font. Takes the font rather than choosing one, because
+  // choosing is now per character and happens in SplitByCoverage.
+  const ShapedRun* LookupWithFont(std::string_view text, Font& font);
 
   FontProvider* fonts_;
   TextShaper shaper_;

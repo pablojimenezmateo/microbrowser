@@ -37,4 +37,7 @@ budget: AppDirectories header_lines=50 public_methods=6  members=3
 # and does nothing else -- no allocation, no lock, no document -- and the header says why
 # each of those is a rule rather than a preference.
 budget: SdlAudioDevice   header_lines=55 public_methods=10 members=4
-budget: SystemFontProvider header_lines=75 public_methods=13 members=3
+# +1 member and +15 lines for per-character font fallback: the coverage cache, keyed by
+# 256-code-point block. Without it a page of Japanese probes every installed face once per
+# character; with it, once per script.
+budget: SystemFontProvider header_lines=95 public_methods=14 members=4

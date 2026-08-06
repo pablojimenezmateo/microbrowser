@@ -328,6 +328,8 @@ namespace microbrowser::util {
   X(DamageDiffsFullRepaint, "paint.damage_diffs_full_repaint")                   \
   X(DamageRectsProduced, "paint.damage_rects_produced")                          \
   /* --- text ---------------------------------------------------------------- */ \
+  X(TextRunsSplitByCoverage, "text.runs_split_by_coverage")                       \
+  X(FontFallbacks, "font.fallbacks")                                              \
   X(FontFacesRegistered, "font.faces_registered")                                \
   X(FontLookupHits, "font.lookup_hits")                                          \
   X(FontLookupMisses, "font.lookup_misses")                                      \
