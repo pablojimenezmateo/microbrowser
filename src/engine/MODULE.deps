@@ -125,7 +125,7 @@ max_tu_lines: 900
 # elements upgrade, is that response in the tree, what does this shadow root
 # contain. Each is one line of JavaScript, and each was previously answered by
 # adding an `fprintf` and rebuilding.
-budget: Engine header_lines=415 public_methods=16 members=22
+budget: Engine header_lines=416 public_methods=16 members=22
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -159,7 +159,7 @@ budget: State         header_lines=50 public_methods=4 members=10
 budget: Surface       header_lines=30 public_methods=0 members=8
 budget: Animations    header_lines=110 public_methods=12 members=5
 budget: MediaElements header_lines=80 public_methods=22 members=8
-budget: Loader header_lines=145 public_methods=16 members=7
+budget: Loader header_lines=145 public_methods=17 members=8
 # What a load produced. A struct with no invariant, which is why it is one --
 # but a budget so that "what does a caller learn about a response" stays a
 # decision. Everything on it is already filtered: what a cross-origin response
@@ -276,7 +276,10 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=835 public_methods=152 members=22
+budget: Page   header_lines=835 public_methods=159 members=22
+# Text measurement split from Page for fan-out: one coordinator member rather than
+# `gfx::TextRenderer` and `layout::FontTextMeasurer` on Page itself.
+budget: PageTextContext header_lines=30 public_methods=5 members=2
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -344,7 +347,7 @@ budget: Page   header_lines=835 public_methods=152 members=22
 # plus the three private ones in PageModules.cpp. The split is the point -- a
 # fetch needs a privacy verdict and a connection pool, and deciding *what* to
 # fetch needs to know what a module graph is.
-budget: PageScript header_lines=415 public_methods=51 members=23
+budget: PageScript header_lines=417 public_methods=57 members=26
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

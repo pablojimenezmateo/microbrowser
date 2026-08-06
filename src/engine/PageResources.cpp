@@ -330,7 +330,7 @@ void Page::EnsureBoxTree() {
     AddPerformanceCounter(PerfCounterId::BoxTreeBuildSkipped);
     return;
   }
-  const layout::LayoutEngine engine(resolver_, measurer_, this);
+  const layout::LayoutEngine engine(resolver_, text_ctx_.Measurer(), this);
   util::PerformanceTrace::Scope build("engine::BuildBoxTree");
   boxes_ = engine.BuildBoxTree(*document_);
   layout_.document_version = doc_ver;
@@ -544,7 +544,7 @@ bool Page::AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes)
                                           entry.italic == registrations.back().italic
                                       ? std::move(bytes)
                                       : bytes;
-    registered = text_.Fonts().RegisterWebFont(entry.family, entry.weight, entry.italic,
+    registered = text_ctx_.Text().Fonts().RegisterWebFont(entry.family, entry.weight, entry.italic,
                                                std::move(copy)) ||
                  registered;
   }

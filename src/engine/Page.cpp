@@ -247,7 +247,7 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
 
 }  // namespace
 
-Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_), canvases_(text_) {
+Page::Page(gfx::FontProvider& fonts) : text_ctx_(fonts), canvases_(text_ctx_.Text()) {
   // The binding layer asks its geometry questions here. Handed over in the
   // constructor rather than per navigation because it is this object for the
   // life of the page, and a source that arrived later would leave the first
@@ -442,7 +442,7 @@ float Page::Layout(float width) {
     RebuildAuthorStyleSheets();
   }
   EnsureBoxTree();
-  const layout::LayoutEngine engine(resolver_, measurer_, this);
+  const layout::LayoutEngine engine(resolver_, text_ctx_.Measurer(), this);
   // The box tree is rebuilt when the document or cascade changes. Background
   // images are queued during that one cascade pass rather than in a second
   // walk -- TD-0005.
@@ -608,6 +608,12 @@ void Page::SetCookieSource(bindings::CookieSource* cookies) {
 void Page::SetSocketSource(bindings::SocketSource* sockets) {
   script_.SetSocketSource(sockets);
 }
+
+std::string Page::RegisterBlobUrl(std::string body, std::string mime_type) {
+  return blob_urls_.Register(std::move(body), std::move(mime_type));
+}
+
+void Page::RevokeBlobUrl(const std::string& url) { blob_urls_.Revoke(url); }
 
 bool Page::DeliverSocketOpen(std::uint64_t id) { return script_.DeliverSocketOpen(id); }
 

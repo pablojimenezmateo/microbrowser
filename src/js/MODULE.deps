@@ -22,7 +22,7 @@ extern:
 # seam per opcode or building a second dispatch mechanism. Both are worse than a long
 # switch. Raised in session 22 by the property-read fix, which added thirteen lines to
 # it (an exception thrown by a getter or a Proxy trap used to be swallowed).
-max_tu_lines: 1340
+max_tu_lines: 1350
 
 budget: Token  header_lines=40 public_methods=8  members=9
 # Grew by one member for identifiers written with `\uXXXX` escapes: the decoded

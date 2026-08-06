@@ -222,7 +222,10 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # exposed so `querySelectorAll` can parse a selector once and match it against
 # every element rather than re-tokenising per node. The three-form toy this
 # replaced is how youtube.com's selector lists returned nothing.
-budget: DomBindings header_lines=632 public_methods=33 members=19
+# Raised by fourteen header lines and two members for `document.scripts` /
+# `document.images` / `document.links` and the selector-list matcher those APIs
+# share with `querySelector`.
+budget: DomBindings header_lines=649 public_methods=33 members=21
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page
