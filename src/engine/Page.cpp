@@ -323,7 +323,12 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // would be a dangling one.
   const html::Encoding encoding = html::SniffEncoding(html, content_type);
   const std::string decoded = html::DecodeToUtf8(html, encoding);
-  document_ = html::ParseDocument(decoded);
+  {
+    util::PerformanceTrace::ScopeLabel label("html::ParseDocument");
+    label.Field("bytes", static_cast<long long>(decoded.size()));
+    util::PerformanceTrace::Scope parse(label.View());
+    document_ = html::ParseDocument(decoded);
+  }
   boxes_.reset();
   // A new document starts at the top, and the scroll offset goes with the
   // layout state rather than surviving it. So does every per-element offset:

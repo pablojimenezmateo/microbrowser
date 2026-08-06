@@ -9,6 +9,7 @@
 #include "util/Brotli.h"
 #include "util/Inflate.h"
 #include "util/PerformanceCounters.h"
+#include "util/PerformanceTrace.h"
 #include "util/SaturatingMath.h"
 #include "util/StringUtil.h"
 
@@ -101,6 +102,15 @@ DecodeStatus DecodeContentEncoding(HttpResponse& response, DecodeLimits limits) 
                   [](const std::string& coding) { return coding == "identity"; })) {
     return DecodeStatus::Identity;
   }
+
+  // Undoing a content coding is the one place in the network stack that is CPU
+  // rather than wait, and it was unscoped: 9MB on the wire becoming 36MB of
+  // JavaScript and CSS is real work, and nothing before this said how much of a
+  // load it was.
+  util::PerformanceTrace::ScopeLabel label("net::DecodeContentEncoding");
+  label.Field("coding", codings.empty() ? std::string_view("?") : std::string_view(codings.back()))
+      .Field("bytes", static_cast<long long>(response.body.size()));
+  util::PerformanceTrace::Scope scope(label.View());
 
   std::vector<std::byte> body = std::move(response.body);
   std::vector<std::byte> decoded;

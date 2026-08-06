@@ -23,6 +23,7 @@
 #include "engine/ImageSelection.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
+#include "util/PerformanceTrace.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::engine {
@@ -222,6 +223,11 @@ void Page::CollectStyleSheets() {
 }
 
 void Page::RebuildAuthorStyleSheets() {
+  // Every author sheet is re-tokenized and re-parsed here, and this runs again
+  // whenever a shadow root's `<style>` changes or the viewport does. On
+  // youtube.com that is 626,658 CSS tokens per rebuild. The scope is what makes
+  // the re-parse visible; see TD-0002 for why it is still a re-parse.
+  util::PerformanceTrace::Scope rebuild_scope("engine::RebuildAuthorStyleSheets");
   ResetResolver();
   resources_.font_faces.clear();
   for (const std::optional<std::string>& css : resources_.author_sheet_slots) {

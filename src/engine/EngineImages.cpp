@@ -110,6 +110,10 @@ void Engine::DecodeImage(const std::string& src, const std::string& bytes) {
   // named it — ADR 0023 §2. Trying each decoder until one succeeds is the
   // shape that makes every decoder reachable by every image, which is three
   // times the attack surface for no compatibility gained.
+  util::PerformanceTrace::ScopeLabel label("engine::DecodeImage");
+  label.Field("src", src).Field("bytes", static_cast<long long>(bytes.size()));
+  util::PerformanceTrace::Scope scope(label.View());
+
   const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
                                         bytes.size());
   gfx::Image image;

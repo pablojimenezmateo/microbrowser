@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "util/PerformanceCounters.h"
+#include "util/PerformanceTrace.h"
 
 namespace microbrowser::engine {
 
@@ -203,6 +204,13 @@ bool PageScript::RunTiming(Timing timing) {
     // It is also why the throw has to be recorded. Continuing past a failure
     // and saying nothing about it is how nine failed scripts and no scripts at
     // all come to look the same from outside.
+    // Labelled with the script's own name and size, because "script is slow" is
+    // not a finding on a page that serves twenty-six of them and one of them is
+    // 10.7MB. ScopeLabel does the concatenation only when the channel is on.
+    util::PerformanceTrace::ScopeLabel label("js::RunScript");
+    label.Field("src", SourceName(slot))
+        .Field("bytes", static_cast<long long>(source.size()));
+    util::PerformanceTrace::Scope scope(label.View());
     const js::Result result = entry.module
                                   ? interpreter_->RunModule(source, SourceName(slot))
                                   : interpreter_->Run(source);
