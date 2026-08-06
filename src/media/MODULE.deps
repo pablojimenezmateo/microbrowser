@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h PlaybackClock.h
+public: BoxReader.h IsoBmff.h AudioRing.h AudioSink.h MediaState.h PlaybackClock.h
 
 extern:
 
@@ -33,6 +33,10 @@ max_tu_lines: 800
 budget: AudioRing       header_lines=125 public_methods=11 members=6
 budget: PlaybackClock   header_lines=75  public_methods=8  members=6
 budget: AudioSink       header_lines=45  public_methods=8  members=0
+# ADR 0028 §1's two state machines, as state and nothing else -- no samples, no element, no
+# network. That is what lets the transitions be driven and asserted without a decoder, which
+# is the only way to know they are the specification's rather than an approximation.
+budget: MediaState      header_lines=115 public_methods=24 members=12
 budget: BoxReader       header_lines=95 public_methods=20 members=3
 budget: BoxHeader       header_lines=40 public_methods=6  members=4
 # What a demux produced. It grows one member per thing a player needs to know

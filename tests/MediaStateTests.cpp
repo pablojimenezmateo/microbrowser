@@ -1,0 +1,212 @@
+// `HTMLMediaElement`'s state machines.
+//
+// ADR 0028 §1: **the states are the API.** Every player on the web is written against them, so
+// these assertions are about transitions and *event order* rather than about playback -- and
+// they can be, because `media::MediaState` holds no samples, no element and no network. That
+// separation is the only way to know the machine is the specification's rather than an
+// approximation of it.
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "TestSupport.h"
+#include "media/MediaState.h"
+
+namespace microbrowser::tests {
+
+namespace {
+
+using media::MediaState;
+
+std::string Events(MediaState& state) {
+  std::string joined;
+  for (const std::string_view event : state.TakeEvents()) {
+    joined += joined.empty() ? "" : ",";
+    joined += std::string(event);
+  }
+  return joined;
+}
+
+}  // namespace
+
+void RegisterMediaStateTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "MediaState/TheReadinessLadderFiresEveryRungItClimbsPast", [] {
+    // A whole file can arrive at once, and a page waiting on `canplay` still has to hear it.
+    // So the climb fires every rung it passes rather than one event per state change.
+    MediaState state;
+    state.BeginLoad();
+    ExpectEqString(Events(state), "loadstart", "the load started");
+    state.MetadataArrived(120.0);
+    ExpectEqString(Events(state), "durationchange,loadedmetadata", "duration before readiness");
+    Expect(state.Duration() == 120.0, "and the duration is there when loadedmetadata fires");
+    state.BufferedAhead(30.0);
+    ExpectEqString(Events(state), "loadeddata,canplay,canplaythrough",
+                   "three rungs in one step, in order");
+    Expect(state.ReadyState() == MediaState::Ready::EnoughData, "and it landed at the top");
+    Expect(state.NetworkState() == MediaState::Network::Idle,
+           "with the network idle rather than still loading");
+  });
+
+  AddTest(tests, "MediaState/DataBeforeMetadataDoesNotClimbAnything", [] {
+    // Bytes before the container is parsed are bytes nobody can interpret. The first rung means
+    // "we know what this is", so promoting past it on data alone would make `duration` readable
+    // before it exists.
+    MediaState state;
+    state.BeginLoad();
+    state.BufferedAhead(10.0);
+    Expect(state.ReadyState() == MediaState::Ready::Nothing, "still nothing");
+    ExpectEqString(Events(state), "loadstart", "and no readiness events");
+  });
+
+  AddTest(tests, "MediaState/NoSourceIsNotASlowLoad", [] {
+    // A page polling `networkState` for a stall has to be able to tell "nothing to load" from
+    // "loading slowly", which is why NO_SOURCE exists as a separate value.
+    MediaState state;
+    state.BeginLoad();
+    state.FailNoSource();
+    Expect(state.NetworkState() == MediaState::Network::NoSource, "NO_SOURCE, not LOADING");
+    ExpectEqString(Events(state), "loadstart,error", "and an error");
+    // And `play()` on it is NotSupportedError rather than NotAllowedError: a page shows an error
+    // message for one and a play button for the other.
+    Expect(state.Play(true) == MediaState::PlayRefusal::NotSupported, "play is not supported");
+  });
+
+  AddTest(tests, "MediaState/AutoplayIsRefusedUnlessMutedOrActivated", [] {
+    // ADR 0028 §1 over ADR 0017's user activation. This is the behaviour pages are written
+    // against: they call `play()`, catch `NotAllowedError`, and show a play button.
+    MediaState unmuted;
+    unmuted.BeginLoad();
+    unmuted.MetadataArrived(10.0);
+    unmuted.BufferedAhead(5.0);
+    Events(unmuted);
+    Expect(unmuted.Play(false) == MediaState::PlayRefusal::NotAllowed,
+           "no activation and not muted: refused");
+    Expect(unmuted.Paused(), "and it did not start");
+    ExpectEqString(Events(unmuted), "", "with no events at all, because nothing happened");
+
+    // Muted is allowed, which is what every browser does.
+    MediaState muted;
+    muted.BeginLoad();
+    muted.MetadataArrived(10.0);
+    muted.BufferedAhead(5.0);
+    muted.SetMuted(true);
+    Events(muted);
+    Expect(muted.Play(false) == MediaState::PlayRefusal::None, "muted plays");
+    ExpectEqString(Events(muted), "play,playing", "and says so");
+
+    // And a user gesture allows an unmuted one.
+    MediaState gestured;
+    gestured.BeginLoad();
+    gestured.MetadataArrived(10.0);
+    gestured.BufferedAhead(5.0);
+    Events(gestured);
+    Expect(gestured.Play(true) == MediaState::PlayRefusal::None, "activation plays");
+  });
+
+  AddTest(tests, "MediaState/PlayingWithoutEnoughDataIsWaitingRatherThanPlaying", [] {
+    // A page shows its spinner on `waiting` and hides it on `playing`. An element that claimed
+    // `playing` with nothing decoded would show video that is not moving.
+    MediaState state;
+    state.BeginLoad();
+    state.MetadataArrived(60.0);
+    Events(state);
+    Expect(state.Play(true) == MediaState::PlayRefusal::None, "play is allowed");
+    ExpectEqString(Events(state), "play,waiting", "but it is waiting, not playing");
+    state.BufferedAhead(2.0);
+    ExpectEqString(Events(state), "loadeddata,canplay,canplaythrough,playing",
+                   "and `playing` comes when the data does");
+  });
+
+  AddTest(tests, "MediaState/ASeekDropsReadinessBecauseTheDecodedDataWasForSomewhereElse", [] {
+    // **The bug ADR 0028 §1 names.** A `readyState` that stayed at EnoughData across a seek is a
+    // player that stalls with no error and no way for the page to tell.
+    MediaState state;
+    state.BeginLoad();
+    state.MetadataArrived(100.0);
+    state.BufferedAhead(30.0);
+    Events(state);
+    state.SeekTo(80.0);
+    Expect(state.ReadyState() == MediaState::Ready::Metadata, "readiness dropped");
+    Expect(state.Seeking(), "and it is seeking");
+    ExpectEqString(Events(state), "seeking", "which is what it says");
+    Expect(state.CurrentTime() == 80.0, "the position moved immediately, as the API promises");
+    // The clock reporting the new position is the only evidence a decoder arrived there.
+    state.AdvanceTo(80.0);
+    Expect(!state.Seeking(), "the seek completed");
+    ExpectEqString(Events(state), "seeked,timeupdate", "with `seeked` before the time update");
+    // A seek past the end is clamped rather than refused: a page dragging a scrubber to the
+    // right edge means "the end", not "an error".
+    state.SeekTo(500.0);
+    Expect(state.CurrentTime() == 100.0, "clamped to the duration");
+  });
+
+  AddTest(tests, "MediaState/TimeUpdateIsThrottledAndTheEndIsNotAPause", [] {
+    MediaState state;
+    state.BeginLoad();
+    state.MetadataArrived(1.0);
+    state.BufferedAhead(2.0);
+    state.Play(true);
+    Events(state);
+    // About 4Hz. A page that re-rendered a scrubber per audio callback would drop frames doing
+    // it, which is why the throttle exists rather than as a nicety.
+    int updates = 0;
+    for (int step = 1; step <= 20; ++step) {
+      state.AdvanceTo(static_cast<double>(step) * 0.05);
+      for (const std::string_view event : state.TakeEvents()) {
+        updates += event == "timeupdate" ? 1 : 0;
+      }
+    }
+    Expect(updates >= 3 && updates <= 6, "four a second, not twenty");
+    Expect(state.Ended(), "and reaching the duration ended it");
+    Expect(state.Paused(), "which pauses");
+
+    // `pause` is *not* fired at the end, and that asymmetry is real: `ended` is a stream running
+    // out and `pause` is something a page or a user did. A page that treats them the same shows
+    // a play button where it should show replay.
+    MediaState second;
+    second.BeginLoad();
+    second.MetadataArrived(2.0);
+    second.BufferedAhead(5.0);
+    second.Play(true);
+    Events(second);
+    second.AdvanceTo(2.0);
+    const std::string at_end = Events(second);
+    Expect(at_end.find("ended") != std::string::npos, "ended fired");
+    Expect(at_end.find("pause") == std::string::npos, "and pause did not");
+  });
+
+  AddTest(tests, "MediaState/PlayAfterTheEndRewindsRatherThanDoingNothing", [] {
+    // Without this a replay button does nothing and the page has to know to seek first.
+    MediaState state;
+    state.BeginLoad();
+    state.MetadataArrived(5.0);
+    state.BufferedAhead(10.0);
+    state.Play(true);
+    state.AdvanceTo(5.0);
+    Events(state);
+    Expect(state.Ended() && state.CurrentTime() == 5.0, "it ended at the end");
+    Expect(state.Play(true) == MediaState::PlayRefusal::None, "play again");
+    Expect(!state.Ended() && state.CurrentTime() == 0.0, "rewound to the start");
+    ExpectEqString(Events(state), "play,playing", "and started");
+  });
+
+  AddTest(tests, "MediaState/ChangingSourceIsAFreshElement", [] {
+    // A page that sets `src` again gets a new element's worth of state. Keeping the old
+    // duration is how a page ends up with a scrubber for the previous video.
+    MediaState state;
+    state.BeginLoad();
+    state.MetadataArrived(100.0);
+    state.BufferedAhead(30.0);
+    state.Play(true);
+    state.AdvanceTo(50.0);
+    Events(state);
+    state.BeginLoad();
+    Expect(state.Duration() == 0.0, "no duration");
+    Expect(state.CurrentTime() == 0.0, "at the start");
+    Expect(state.ReadyState() == MediaState::Ready::Nothing, "and nothing is ready");
+    ExpectEqString(Events(state), "loadstart", "with a fresh loadstart");
+  });
+}
+
+}  // namespace microbrowser::tests

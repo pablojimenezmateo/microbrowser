@@ -279,6 +279,9 @@ namespace microbrowser::util {
   X(CspViolations, "csp.violations")                                             \
   X(CspInlineBlocked, "csp.inline_blocked")                                      \
   X(SriChecks, "sri.checks")                                                     \
+  X(MediaLoadsStarted, "media.loads_started")                                      \
+  X(MediaLoadFailures, "media.load_failures")                                     \
+  X(MediaAutoplayRefusals, "media.autoplay_refusals")                             \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \
