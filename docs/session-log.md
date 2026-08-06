@@ -2561,3 +2561,36 @@ A trap worth writing down for that session: the synthetic test font reports **ze
 it lacks, so a CJK wrapping assertion written against a real font passes without exercising anything.
 The test uses `FixedTextMeasurer` (width per byte) for exactly that reason, and finding this cost a
 failing test that looked like a broken feature.
+
+### Per-character font fallback · 2026-08-06 (session 31's second finding, fixed)
+
+`d1034c8`. The bug the previous commit found by looking at the page it had just fixed: line breaking
+put the Japanese inside its box, and every ideograph rendered as a box, on a machine with **31
+Japanese faces installed**.
+
+One font per *element* is what the author asked for; one font per *character* is what the machine can
+do. Every browser resolves it the second way, and the three pieces here are the minimum that does:
+
+The **pair of questions** is the part worth keeping. `FontForCodePoint` answers with a font — and for
+an uncovered character it answers with the *preferred* face rather than null, because that draws
+`.notdef` and a visible box is the honest glyph for something this machine genuinely cannot draw.
+Null would drop the character silently, where a reader cannot tell text is missing. But a caller
+deciding whether to keep looking needs the coverage answer rather than the font, so
+`CoversCodePoint` exists beside it. Collapsing the two would make "nothing covers this" and "this is
+what to draw" the same answer, and they are opposites.
+
+The **block cache** is what makes it affordable. A page of Japanese asks once per character and the
+answer is the same face every time; without a cache that is a face load per character, and this
+machine has 533 faces to load. Keyed by 256-code-point block, because scripts occupy contiguous
+ranges — and "nothing covers this block" is cached too, or an undrawable run re-probes every
+installed face for every one of its characters.
+
+**Painting and measuring go through the same split**, and that is not tidiness: a measurement taken
+with one font and a paint done with several is a line that overflows by however much the fallback
+face differs from the requested one. One function, two callers, no way for them to disagree about
+where a fallback began.
+
+Measured: 14 fallbacks and 12 runs split for the Japanese paragraph, 139 glyphs drawn, and `UAX 14`
+still in the Latin face *inside the same paragraph* — which is the mixed-script case the split exists
+for. Hacker News is unchanged at 705 display-list commands with **zero** fallbacks and zero splits,
+which is the assertion that the common path costs nothing.
