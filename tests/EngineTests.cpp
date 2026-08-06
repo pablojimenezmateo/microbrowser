@@ -2420,6 +2420,124 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "and stops scheduling the moment the page stops asking");
   });
 
+  // An element by id, for the two animation tests below. `dom::Document` has no `getElementById` --
+  // that lives in the binding layer, where a page reaches it -- so the walk is here.
+  const auto element_with_id = [](dom::Document& document, std::string_view id) -> dom::Element* {
+    dom::Element* found = nullptr;
+    document.ForEachDescendant([&](const dom::Node& node) {
+      if (found != nullptr || !node.IsElement()) {
+        return;
+      }
+      const auto& element = static_cast<const dom::Element&>(node);
+      const std::string* value = element.GetAttribute("id");
+      if (value != nullptr && *value == id) {
+        found = const_cast<dom::Element*>(&element);
+      }
+    });
+    return found;
+  };
+
+  AddTest(tests, "Page/ATransitionWakesTheLoopAndThenStopsWaking", [element_with_id] {
+    // **The assertion ADR 0014 §5 asks for, in as many words**: "the loop wakes while something is
+    // animating and *not one frame after everything has settled*". At `Page` rather than `Engine`
+    // because time is a parameter here -- a test that waited 16ms of real time per frame would be a
+    // slow test that is also a flaky one.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetAnimationTime(0);
+    page.Load(
+        "<html><head><style>"
+        "#box { width: 100px; background-color: rgb(0,0,0); transition: width 200ms linear }"
+        "#box.wide { width: 300px }"
+        "</style></head><body><div id='box'>ABC</div></body></html>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    Expect(!page.NextWakeDelay(0).has_value(),
+           "a page whose transition has not been triggered schedules nothing -- which is the case "
+           "every page with a :hover transition is in while the pointer is elsewhere");
+
+    // The class change is what a hover or a script would do. The transition starts on the *next*
+    // restyle, because that is when the cascade produces a different width.
+    dom::Element* box = element_with_id(*page.MutableDocument(), "box");
+    Expect(box != nullptr, "the element is there");
+    box->SetAttribute("class", "wide");
+    // **The clock before the invalidation**, and the order is the point rather than an incantation:
+    // `InvalidateLayout` resolves the cascade again to collect background images, so it is a restyle --
+    // and a restyle is where a transition starts. Setting the time afterwards made the transition begin
+    // at instant zero and be over before anything looked at it, which is how this was found.
+    page.SetAnimationTime(1000);
+    page.InvalidateLayout();
+    page.Layout(400.0f);
+    Expect(page.NextWakeDelay(1000).has_value(), "and now it asks for frames");
+    ExpectEqInt(static_cast<long long>(page.RunningAnimations().RunningCount()), 1,
+                "exactly one transition, on the one property that changed");
+
+    // Halfway through, at linear easing, the width is halfway. Read through the cascade rather than off
+    // the animation object, because what matters is that *layout* sees the interpolated value.
+    page.SetAnimationTime(1100);
+    page.InvalidateLayout();
+    page.Layout(400.0f);
+    const css::ComputedStyle halfway = page.StyleOfForTesting(*box);
+    Expect(halfway.width.value > 190.0f && halfway.width.value < 210.0f,
+           "halfway through a 100px-to-300px linear transition the width is about 200px, and it is "
+           "the cascade that says so; got " + std::to_string(halfway.width.value));
+
+    // Past the end. The transition is dropped, and *the final value survives* -- because a
+    // transition's `to` is the resolved style, which is why a transition needs no fill mode.
+    std::int64_t now = 1000;
+    for (int frame = 0; frame < 40 && page.NextWakeDelay(now).has_value(); ++frame) {
+      now += 16;
+      page.SetAnimationTime(now);
+      page.RunDueWork(now);
+    }
+    Expect(!page.NextWakeDelay(now).has_value(),
+           "and the loop stops being woken the moment the transition finishes");
+    ExpectEqInt(static_cast<long long>(page.RunningAnimations().RunningCount()), 0,
+                "with nothing left in the map -- a finished transition that stayed would ask for a "
+                "frame forever, which is how this feature would cost a core");
+    page.InvalidateLayout();
+    page.Layout(400.0f);
+    ExpectEqString(std::to_string(static_cast<int>(page.StyleOfForTesting(*box).width.value)), "300",
+                   "and the element is left where the transition was heading");
+  });
+
+  AddTest(tests, "Page/AKeyframeAnimationRunsAndAPausedOneAsksForNothing", [element_with_id] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetAnimationTime(0);
+    page.Load(
+        "<html><head><style>"
+        "@keyframes slide { from { left: 0px } to { left: 100px } }"
+        "#box { position: relative; animation: slide 1s linear }"
+        "</style></head><body><div id='box'>ABC</div></body></html>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.NextWakeDelay(0).has_value(),
+           "an animation starts by itself -- unlike a transition, which needs something to change");
+    dom::Element* box = element_with_id(*page.MutableDocument(), "box");
+    Expect(box != nullptr, "the element is there");
+    page.SetAnimationTime(500);
+    page.InvalidateLayout();
+    page.Layout(400.0f);
+    const css::ComputedStyle halfway = page.StyleOfForTesting(*box);
+    Expect(halfway.inset.left.value > 45.0f && halfway.inset.left.value < 55.0f,
+           "halfway through, halfway along");
+
+    // A paused animation asks for no frames at all, which is the whole point of `paused` and the one
+    // case where something is running and the loop should still block.
+    TestFonts paused_fonts;
+    engine::Page paused(paused_fonts.catalog);
+    paused.SetAnimationTime(0);
+    paused.Load(
+        "<html><head><style>"
+        "@keyframes slide { from { left: 0px } to { left: 100px } }"
+        "#box { position: relative; animation: slide 1s linear paused }"
+        "</style></head><body><div id='box'>ABC</div></body></html>",
+        "https://example.org/");
+    paused.Layout(400.0f);
+    Expect(!paused.NextWakeDelay(0).has_value(), "a paused animation schedules nothing");
+  });
+
   AddTest(tests, "Engine/ASecondNavigationGetsASecondGlobalScope", [] {
     // Two documents in a row, each with a script that touches the tree. The
     // rule is stated on PageScript: a fresh global scope per document, because

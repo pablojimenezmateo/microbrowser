@@ -561,6 +561,12 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
     const Declaration resolved{declaration.property, substituted[i], declaration.important};
     ApplyDeclaration(resolved, parent, style);
   }
+  // The animation pass, last, because a running transition's value is what everything downstream must
+  // see -- layout, paint and `getComputedStyle` alike. Null for a resolver with no engine behind it,
+  // which is every test about selectors.
+  if (adjuster_ != nullptr) {
+    adjuster_->AdjustStyle(element, style);
+  }
   return style;
 }
 

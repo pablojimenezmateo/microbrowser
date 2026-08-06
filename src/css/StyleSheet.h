@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "css/Animation.h"
 #include "css/MediaQuery.h"
 #include "css/Token.h"
 #include "dom/Node.h"
@@ -253,6 +254,10 @@ struct StyleSheet {
   // with the same family and weight replaces an earlier one, and a font stack is
   // resolved against the database as it stands when text is measured.
   std::vector<FontFace> font_faces;
+  // The `@keyframes` blocks, by name and in document order. A later block with the same name replaces
+  // an earlier one -- which is the cascade rule for named animations and is not the same as merging
+  // them: a page that redefines `spin` means the new one and not both.
+  std::vector<KeyframesRule> keyframes;
   // Rules and at-rules the parser did not understand. Counted rather than
   // guessed at, for the same reason a filter list's unknown option skips the
   // whole rule: a partially-understood rule applies to requests, or elements,

@@ -284,6 +284,9 @@ std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
 }
 
 bool Engine::RunDueWork() {
+  // Before the work rather than after: running a timer may write to the tree, and the restyle that
+  // follows starts transitions against *this* instant.
+  page_.SetAnimationTime(NowMilliseconds());
   if (!page_.RunDueWork(NowMilliseconds())) {
     return false;
   }
@@ -700,6 +703,10 @@ int Engine::MaxScroll() const {
 }
 
 void Engine::LayoutAndPaint() {
+  // The instant this frame is at, set before anything restyles. Every restyle in a turn -- a hover, a
+  // script, a resize -- must agree about what time it is, or two halves of one transition end up at
+  // two different progresses on the same frame.
+  page_.SetAnimationTime(NowMilliseconds());
   if (viewport_size_.width > 0) {
     page_.Layout(static_cast<float>(viewport_size_.width) / device_scale_);
     page_.SetScrollOffsetY(static_cast<float>(std::clamp(ScrollY(), 0, MaxScroll())));

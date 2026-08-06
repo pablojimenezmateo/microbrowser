@@ -222,7 +222,7 @@ void Page::CollectStyleSheets() {
 }
 
 void Page::RebuildAuthorStyleSheets() {
-  resolver_ = css::StyleResolver{};
+  ResetResolver();
   resources_.font_faces.clear();
   for (const std::optional<std::string>& css : resources_.author_sheet_slots) {
     if (css.has_value()) {
@@ -235,6 +235,7 @@ void Page::RebuildAuthorStyleSheets() {
       resources_.font_faces.insert(resources_.font_faces.end(), sheet.font_faces.begin(),
                                    sheet.font_faces.end());
       resolver_.AddStyleSheet(sheet, css::Origin::Author);
+      CollectKeyframes(sheet);
     }
   }
   // And each shadow root's own sheets, *scoped* to it: a rule inside a component
@@ -249,6 +250,7 @@ void Page::RebuildAuthorStyleSheets() {
     resources_.font_faces.insert(resources_.font_faces.end(), sheet.font_faces.begin(),
                                  sheet.font_faces.end());
     resolver_.AddStyleSheet(sheet, css::Origin::Author, scope);
+    CollectKeyframes(sheet);
   }
   // A background image is named by the cascade, so the set of images a document
   // wants is not known until its stylesheets have arrived. Re-collected here

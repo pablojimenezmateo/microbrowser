@@ -128,6 +128,10 @@ budget: Engine header_lines=405 public_methods=15 members=21
 # URL registry and the element->source map all live here for the reason the element states do: they
 # are per *document*, they die with a navigation, and Page is already at its member budget. Seven
 # members is four maps and a counter, and every one of them is cleared by the same Clear().
+# ADR 0014 §5. The class the zero-idle-CPU invariant lives in: `NextDelayMs` answering *nothing* is
+# what lets a settled page block forever, and a finished transition left in the map would break it.
+# Four maps and a keyframe list, all cleared by the same Clear().
+budget: Animations    header_lines=110 public_methods=12 members=5
 budget: MediaElements header_lines=80 public_methods=22 members=8
 budget: Loader header_lines=145 public_methods=16 members=7
 # What a load produced. A struct with no invariant, which is why it is one --
@@ -241,7 +245,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=680 public_methods=126 members=16
+budget: Page   header_lines=730 public_methods=130 members=19
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #

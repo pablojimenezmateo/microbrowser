@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "css/Animation.h"
 #include "css/Length.h"
 #include "css/Transform.h"
 #include "gfx/Color.h"
@@ -219,6 +220,13 @@ struct ComputedStyle {
   // establishes a stacking context and an auto does not, and the difference decides
   // whether a positioned descendant can paint above this box's siblings.
   std::optional<int> z_index;
+  // `transition` and `animation` (ADR 0014 §5). **Not inherited**, which is the specification's rule
+  // and the useful one: a transition set on a container must not make every descendant animate the
+  // same property. They are vectors because both properties are comma-separated lists, and a page
+  // routinely transitions three properties at three speeds.
+  std::vector<TransitionSpec> transitions;
+  std::vector<AnimationSpec> animations;
+
   Length transform_origin_x = Length{50.0f, Length::Unit::Percent};
   Length transform_origin_y = Length{50.0f, Length::Unit::Percent};
   // Per axis, because a page sets them separately as often as together --
@@ -446,6 +454,14 @@ bool ApplyTransformDeclaration(const std::string& property, const std::string& v
 
 bool ApplyBoxDeclaration(const std::string& property, const std::string& value,
                          const ComputedStyle& parent, ComputedStyle& style);
+
+// `transition-*` and `animation-*`. Their own entry points for the reason `transform`'s is: a
+// comma-separated list of space-separated lists, where the order inside an item is mostly free and one
+// position -- duration before delay -- is decided by which time came first. ADR 0014 §5.
+bool ApplyTransitionDeclaration(std::string_view property, std::string_view value,
+                                ComputedStyle& style);
+bool ApplyAnimationDeclaration(std::string_view property, std::string_view value,
+                               ComputedStyle& style);
 
 // Copies exactly the properties that inherit, and nothing else.
 //

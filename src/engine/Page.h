@@ -13,6 +13,7 @@
 #include "bindings/Network.h"
 #include "bindings/Media.h"
 #include "engine/DocumentPolicy.h"
+#include "engine/Animations.h"
 #include "engine/MediaElements.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
@@ -56,6 +57,7 @@ struct FormSubmission {
 // engine is the half of the seam that does not know what machine it is on.
 class Page : private layout::ImageProvider,
              private bindings::GeometrySource,
+             private css::StyleAdjuster,
              public bindings::MediaController {
  public:
   explicit Page(gfx::FontProvider& fonts);
@@ -469,11 +471,43 @@ class Page : private layout::ImageProvider,
   // machine decides what that means. One direction, and one number across the seam.
   void UpdateMediaReadinessFromSource(std::uint64_t source_id);
 
+  // `css::StyleAdjuster`: the animation pass over a resolved style. Private, and reached only through
+  // the resolver -- so nothing can apply an animated value without going through the cascade, which is
+  // what keeps layout and `getComputedStyle` from disagreeing mid transition.
+  void AdjustStyle(const dom::Element& element, css::ComputedStyle& style) const override;
+  // The `@keyframes` a sheet defined, added to what this document knows. Accumulated across sheets
+  // rather than replaced per sheet, because a page routinely defines its animations in one file and
+  // uses them from another -- and a later definition of the same name replaces the earlier one, which
+  // is the cascade rule for a named animation.
+  void CollectKeyframes(const css::StyleSheet& sheet);
+  // A fresh resolver, **with the animation pass re-registered**. One function because there are two
+  // places that need a fresh one -- a navigation and a re-parse of the sheets after a resize -- and the
+  // second of them silently dropped the adjuster when it was two lines. A pointer set in one place and
+  // clobbered by an assignment in another is the same shape of bug as two lists of which properties
+  // inherit: it produces no error, and the feature just stops.
+  void ResetResolver();
+
   // What the loader will drive as bytes arrive, and what a test drives directly. Public because
   // the engine half of session 25 is not built yet and this is the seam it will use.
   media::MediaState* MediaStateFor(const dom::Element& element);
   const media::MediaState* MediaStateFor(const dom::Element& element) const;
   MediaElements& MediaElementStates() { return media_; }
+  // The running transitions and animations (ADR 0014 §5). Exposed so the engine can ask for the frame
+  // deadline -- which is the one number that decides whether the loop blocks or wakes.
+  // What time an animation pass believes it is.
+  //
+  // **Every restyle uses it, and a restyle happens for more reasons than a frame does** -- a hover, a
+  // script write, a resize, and `InvalidateLayout`, which resolves the cascade again to collect
+  // background images. So this has to be set before *any* of them, not before painting: a transition
+  // that started during a pass whose clock was stale begins at the wrong instant and is already over by
+  // the time anything looks at it. That is exactly how the first version of this failed, and the
+  // symptom was a transition that showed only its final value.
+  //
+  // One number per turn, for the reason the animation-frame callbacks share a timestamp: two elements
+  // animating on one frame must be at the same instant.
+  void SetAnimationTime(std::int64_t now_ms) { animation_time_ms_ = now_ms; }
+  Animations& RunningAnimations() { return animations_; }
+  const Animations& RunningAnimations() const { return animations_; }
   // Fires whatever the state machine has queued, in order.
   void FlushMediaEvents(dom::Element& element);
 
@@ -486,6 +520,11 @@ class Page : private layout::ImageProvider,
   // has to be able to ask whether a *page's own* click set it -- which is the property that
   // makes autoplay refusable at all. Const, so the only writer stays this class.
   const dom::Document* CurrentDocument() const { return document_.get(); }
+  dom::Document* MutableDocument() { return document_.get(); }
+  // The style the cascade *and the animation pass* produce for an element, which is the only way to
+  // assert that layout sees an interpolated value rather than that an animation object holds one. Named
+  // for what it is: nothing in the browser calls it.
+  css::ComputedStyle StyleOfForTesting(const dom::Element& element) const;
 
   // Whether the current focus came from the keyboard: the `:focus-visible`
   // heuristic every browser converged on. Set by Tab, cleared by a click or by
@@ -673,6 +712,19 @@ class Page : private layout::ImageProvider,
   // nothing. A const getter that answered defaults instead was the first version, and it read as
   // "no source" on an element that had one.
   mutable MediaElements media_;
+  // Running transitions and animations. `mutable` because `AdjustStyle` is const -- it is called from
+  // the cascade, which is const by construction -- and reading the current value of a running
+  // transition is a read. Nothing here *starts* one from a const path: that is `ObserveStyle`, called
+  // from the layout pass.
+  mutable Animations animations_;
+  // What time the animation pass believes it is. One number for the whole frame, for the reason the
+  // animation-frame callbacks share a timestamp: two elements animating on one frame must be at the
+  // same instant, and reading a clock per element is how two halves of one transition desynchronise.
+  std::int64_t animation_time_ms_ = 0;
+  // Every `@keyframes` this document has seen, kept so that a second stylesheet's arrival does not drop
+  // the first one's animations. The copy in `animations_` is what a frame reads; this is what a merge
+  // starts from.
+  std::vector<css::KeyframesRule> keyframes_;
   // One member rather than an interpreter and a binding layer, which is what
   // the fan-out lint asked for the moment script arrived: Page coordinates,
   // and each thing it coordinates owns itself.

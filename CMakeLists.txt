@@ -235,6 +235,9 @@ microbrowser_module(css
     src/css/SelectorMatch.cpp
     src/css/SelectorParse.cpp
     src/css/StyleResolver.cpp
+    src/css/Animation.cpp
+    src/css/AnimationDeclarations.cpp
+    src/css/Timing.cpp
     src/css/StyleSheet.cpp
     src/css/TransformDeclarations.cpp
   src/css/Tokenizer.cpp
@@ -372,6 +375,8 @@ microbrowser_module(engine
     src/engine/EngineStorage.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
+    src/engine/Animations.cpp
+    src/engine/PageAnimations.cpp
     src/engine/MediaElements.cpp
     src/engine/PageMedia.cpp
     src/engine/PageMediaSource.cpp
@@ -572,6 +577,7 @@ add_executable(microbrowser_tests
   tests/BidiTests.cpp
   tests/MediaSourceTests.cpp
   tests/MpegTsTests.cpp
+  tests/AnimationTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp

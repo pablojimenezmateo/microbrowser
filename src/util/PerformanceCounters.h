@@ -305,6 +305,11 @@ namespace microbrowser::util {
   X(MpegTsPacketsParsed, "media.mpegts_packets")                                  \
   X(MpegTsSamples, "media.mpegts_samples")                                        \
   X(MpegTsResyncs, "media.mpegts_resyncs")                                        \
+  X(TransitionsStarted, "animation.transitions_started")                          \
+  X(TransitionsFinished, "animation.transitions_finished")                        \
+  X(AnimationsStarted, "animation.animations_started")                            \
+  X(AnimationsFinished, "animation.animations_finished")                          \
+  X(AnimationFramesProduced, "animation.frames_produced")                         \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \

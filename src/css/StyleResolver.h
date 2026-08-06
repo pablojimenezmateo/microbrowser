@@ -88,6 +88,20 @@ bool PropertyAffectsLayout(std::string_view property);
 // The cascade order, in full, because getting it partly right is the usual
 // outcome: origin, then `!important` (which *reverses* the origin order), then
 // specificity, then document order. Every one of those is tested.
+// A last pass over a resolved style, before anything reads it.
+//
+// Declared here and implemented by `src/engine` -- the same inversion `bindings::GeometrySource` uses
+// and for the same reason. What needs it is animation (ADR 0014 §5): a running transition overwrites
+// the properties it controls, and the value depends on *what time it is*, which a pure cascade cannot
+// know. Putting the hook here rather than making every caller of `StyleFor` remember to call the
+// engine is what stops layout and `getComputedStyle` from disagreeing about an element's width mid
+// transition.
+class StyleAdjuster {
+ public:
+  virtual ~StyleAdjuster() = default;
+  virtual void AdjustStyle(const dom::Element& element, ComputedStyle& style) const = 0;
+};
+
 class StyleResolver {
  public:
   StyleResolver();
@@ -106,6 +120,11 @@ class StyleResolver {
   // this *before* deciding whether a state change is worth recomputing
   // anything, which is the only order in which "costs nothing" can be true.
   const StyleInvalidation& Invalidation() const { return invalidation_; }
+
+  // The animation pass, or null for a resolver with no engine behind it -- which is every test about
+  // selectors and the user-agent sheet. Null means the cascade's answer is final, which is what it was
+  // before animations existed.
+  void SetAdjuster(const StyleAdjuster* adjuster) { adjuster_ = adjuster; }
 
   // The style of one element, given its parent's already-computed style.
   // Passing the parent style rather than looking it up is what makes
@@ -173,6 +192,7 @@ class StyleResolver {
 
   std::vector<Entry> rules_;
   StyleInvalidation invalidation_;
+  const StyleAdjuster* adjuster_ = nullptr;
   std::size_t next_order_ = 0;
 };
 

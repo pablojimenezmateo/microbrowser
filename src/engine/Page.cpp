@@ -290,7 +290,9 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // A fresh resolver per document. Author sheets belong to the document that
   // carried them, and keeping the old one would let the previous page's CSS
   // style this one.
-  resolver_ = css::StyleResolver{};
+  ResetResolver();
+  animations_.Clear();
+  keyframes_.clear();
   // **The bytes become text here, before the tokenizer sees them.** ADR 0025 §2: the encoding comes
   // from the BOM, then `Content-Type`, then a prescan of the first 1024 bytes, then windows-1252 --
   // and the tokenizer's input is code points rather than bytes, which is what makes an ill-formed
@@ -501,7 +503,13 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
 
 
 std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
-  const std::optional<std::uint32_t> from_script = script_.NextWakeDelay(now_ms);
+  std::optional<std::uint32_t> from_script = script_.NextWakeDelay(now_ms);
+  // A running transition or animation asks for a frame. **Nothing when nothing is running**, which is
+  // the whole of how ADR 0014 §5's invariant is kept: a page with a `:hover` transition costs nothing
+  // while the pointer is elsewhere, because there is no transition to ask.
+  if (const std::optional<std::uint32_t> frame = animations_.NextDelayMs(now_ms)) {
+    from_script = from_script.has_value() ? std::min(*from_script, *frame) : frame;
+  }
   if (scroll_.pending_events.empty()) {
     return from_script;
   }
@@ -517,6 +525,15 @@ std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
 bool Page::RunDueWork(std::int64_t now_ms) {
   bool ran = DispatchPendingScrollEvents();
   ran = script_.RunDueWork(now_ms) || ran;
+  // A frame for whatever is animating. `Running()` before `Advance` because a frame is owed while
+  // something is in flight -- the value moved even if nothing *finished* -- and `Advance` is what drops
+  // the finished ones so that the next `NextWakeDelay` can answer nothing.
+  if (animations_.Running()) {
+    animations_.Advance(now_ms);
+    animation_time_ms_ = now_ms;
+    ran = true;
+    AddPerformanceCounter(PerfCounterId::AnimationFramesProduced);
+  }
   if (!ran) {
     return false;
   }

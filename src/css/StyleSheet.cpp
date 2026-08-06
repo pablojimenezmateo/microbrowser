@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "css/CssText.h"
+#include "util/StringUtil.h"
 #include "css/Selectors.h"
 #include "css/StyleResolver.h"
 #include "css/Tokenizer.h"
@@ -450,6 +451,7 @@ std::vector<UnicodeRange> ParseUnicodeRanges(std::string_view value) {
   return ranges;
 }
 
+
 void ParseFontFace(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
                    StyleSheet& sheet) {
   FontFace face;
@@ -520,6 +522,134 @@ std::size_t FindBlockEnd(const std::vector<Token>& tokens, std::size_t open, std
   return at;
 }
 
+// One keyframe selector: `from`, `to`, or a percentage. Nothing else is legal, and a block whose
+// prelude is something else is dropped rather than placed at zero -- an unrecognised offset silently
+// becoming the first keyframe would rewrite the animation's start.
+bool KeyframeOffset(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                    double& out) {
+  std::size_t at = from;
+  while (at < to && tokens[at].kind == Token::Kind::Whitespace) {
+    ++at;
+  }
+  if (at >= to) {
+    return false;
+  }
+  if (tokens[at].kind == Token::Kind::Ident) {
+    const std::string word = Lowered(tokens[at].value);
+    if (word == "from") {
+      out = 0.0;
+      return true;
+    }
+    if (word == "to") {
+      out = 1.0;
+      return true;
+    }
+    return false;
+  }
+  if (tokens[at].kind == Token::Kind::Percentage) {
+    // Outside 0..100 is invalid rather than clamped: the specification says so, and a `-50%` keyframe
+    // clamped to zero would replace the animation's real start.
+    if (tokens[at].number < 0.0 || tokens[at].number > 100.0) {
+      return false;
+    }
+    out = tokens[at].number / 100.0;
+    return true;
+  }
+  return false;
+}
+
+void ParseKeyframes(const std::vector<Token>& tokens, std::size_t prelude_from,
+                    std::size_t prelude_to, std::size_t from, std::size_t to, StyleSheet& sheet) {
+  KeyframesRule rule;
+  for (std::size_t at = prelude_from; at < prelude_to; ++at) {
+    if (tokens[at].kind == Token::Kind::Ident || tokens[at].kind == Token::Kind::String) {
+      rule.name = tokens[at].value;
+      break;
+    }
+  }
+  if (rule.name.empty()) {
+    ++sheet.skipped;
+    return;
+  }
+  std::size_t at = from;
+  while (at < to) {
+    while (at < to && (tokens[at].kind == Token::Kind::Whitespace ||
+                       tokens[at].kind == Token::Kind::Semicolon)) {
+      ++at;
+    }
+    if (at >= to) {
+      break;
+    }
+    const std::size_t selector_start = at;
+    while (at < to && tokens[at].kind != Token::Kind::LeftBrace &&
+           tokens[at].kind != Token::Kind::EndOfFile) {
+      ++at;
+    }
+    if (at >= to || tokens[at].kind != Token::Kind::LeftBrace) {
+      ++sheet.skipped;
+      break;
+    }
+    const std::size_t selector_end = at;
+    const std::size_t block_start = at + 1;
+    const std::size_t block_end = FindBlockEnd(tokens, at, to);
+    // A keyframe selector may be a *list*: `0%, 50% { … }` is two keyframes with one declaration
+    // block, which is how a page writes an animation that pauses in the middle.
+    std::vector<double> offsets;
+    std::size_t piece = selector_start;
+    while (piece <= selector_end) {
+      std::size_t comma = piece;
+      while (comma < selector_end && tokens[comma].kind != Token::Kind::Comma) {
+        ++comma;
+      }
+      double offset = 0.0;
+      if (KeyframeOffset(tokens, piece, comma, offset)) {
+        offsets.push_back(offset);
+      } else {
+        ++sheet.skipped;
+      }
+      if (comma >= selector_end) {
+        break;
+      }
+      piece = comma + 1;
+    }
+    if (!offsets.empty()) {
+      const std::vector<Declaration> declarations =
+          ParseDeclarations(tokens, block_start, block_end);
+      for (const double offset : offsets) {
+        Keyframe frame;
+        frame.offset = offset;
+        for (const Declaration& declaration : declarations) {
+          frame.declarations.emplace_back(declaration.property, declaration.value);
+        }
+        rule.frames.push_back(std::move(frame));
+      }
+    }
+    at = block_end;
+    if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
+      ++at;
+    }
+  }
+  // Sorted by offset, stably, so that two blocks at the same offset keep document order -- the later
+  // one wins per property, which is the cascade rule applied inside an animation.
+  std::stable_sort(rule.frames.begin(), rule.frames.end(),
+                   [](const Keyframe& a, const Keyframe& b) { return a.offset < b.offset; });
+  if (rule.frames.empty()) {
+    ++sheet.skipped;
+    return;
+  }
+  // A later block with the same name *replaces* an earlier one rather than merging with it: a page
+  // that redefines `spin` means the new one.
+  const auto existing = std::find_if(sheet.keyframes.begin(), sheet.keyframes.end(),
+                                     [&rule](const KeyframesRule& held) {
+                                       return util::EqualsAsciiCaseInsensitive(held.name, rule.name);
+                                     });
+  if (existing != sheet.keyframes.end()) {
+    *existing = std::move(rule);
+  } else {
+    sheet.keyframes.push_back(std::move(rule));
+  }
+}
+
 void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
                    const MediaContext& context,
                    StyleSheet& sheet) {
@@ -555,6 +685,22 @@ void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size
       at = block_end;
       if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
         ++at;
+      }
+
+      if (at_rule == "keyframes") {
+        // `@keyframes <name> { <offset> { declarations } ... }`, which is the only at-rule whose block
+        // contains *rules whose preludes are percentages* rather than selectors -- so it is parsed here
+        // rather than by ParseRuleList, which would try to read `0%` as a selector and drop the block.
+        //
+        // The declarations are kept as text. See the note on `Keyframe`: a keyframe's values resolve
+        // against the element the animation runs on, and resolving them here would freeze `50%` and
+        // `2em` against the wrong one.
+        ParseKeyframes(tokens, prelude_start, block_start - 1, block_start, block_end, sheet);
+        at = block_end;
+        if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
+          ++at;
+        }
+        continue;
       }
 
       if (at_rule == "font-face") {
