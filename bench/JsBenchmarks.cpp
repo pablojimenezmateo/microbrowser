@@ -107,7 +107,7 @@ std::shared_ptr<Prepared> Prepare(std::string_view source, bool compile) {
   js::ParseResult parsed = js::Parse(source);
   prepared->program = std::move(parsed.program);
   if (compile && prepared->program != nullptr) {
-    prepared->compiled = js::Compile(*prepared->program);
+    prepared->compiled = js::Compile(*prepared->program, source.size());
   }
   return prepared;
 }

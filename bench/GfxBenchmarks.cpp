@@ -184,14 +184,14 @@ void RegisterGfxBenchmarks(std::vector<Benchmark>& benchmarks) {
   AddBenchmark(benchmarks, "text/shape-page", glyphs_per_page, "glyph", [&f] {
     gfx::Font font(*f.face, 16.0f);
     for (int i = 0; i < kLines; ++i) {
-      f.shaper.Shape(font, kLine);
+      f.shaper.Shape(font, kLine, /*right_to_left=*/false);
     }
   });
 
   AddBenchmark(benchmarks, "text/draw-page", glyphs_per_page, "glyph", [&f] {
     gfx::Font font(*f.face, 16.0f);
     for (int i = 0; i < kLines; ++i) {
-      const auto& run = f.shaper.Shape(font, kLine);
+      const auto& run = f.shaper.Shape(font, kLine, /*right_to_left=*/false);
       f.painter.DrawGlyphs(font, run, gfx::FloatPoint{8.0f, 20.0f + static_cast<float>(i) * 19.0f},
                            Color::Rgb(0x20, 0x20, 0x28));
     }

@@ -99,6 +99,10 @@ namespace microbrowser::util {
   X(NetCacheStores, "net.cache_stores")                                          \
   X(NetConnections, "net.connections")                                           \
   X(NetConnectFailures, "net.connect_failures")                                  \
+  /* Blocking `getaddrinfo` calls. The one call in the network stack that      */ \
+  /* stops the loop, so this counts stalls rather than work -- see the         */ \
+  /* `net::Resolve` scope beside it.                                           */ \
+  X(NetHostResolves, "net.host_resolves")                                        \
   X(NetTlsHandshakes, "net.tls_handshakes")                                      \
   X(NetTlsFailures, "net.tls_failures")                                          \
   X(NetRequestsStarted, "net.requests_started")                                  \

@@ -17,6 +17,7 @@
 #include <openssl/x509v3.h>
 
 #include "util/PerformanceCounters.h"
+#include "util/PerformanceTrace.h"
 
 namespace microbrowser::net {
 
@@ -77,11 +78,24 @@ class SocketTransport : public Transport {
     // dependency and therefore an ADR of its own. It costs one blocking call
     // per *host* rather than per resource, which is why it was not worth
     // either of those to land this.
+    // Scoped, and labelled with the host, because this is a *main-thread stall*
+    // rather than CPU: it does not appear in any counter and a summary that did
+    // not name it attributed the time to whatever scope happened to enclose the
+    // connect. On a cold cache one of these is tens of milliseconds and a page
+    // with four hosts pays it four times, in series, before a byte moves.
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     addrinfo* results = nullptr;
-    if (::getaddrinfo(host_.c_str(), port_text.c_str(), &hints, &results) != 0) {
+    int resolved = 0;
+    {
+      util::PerformanceTrace::ScopeLabel label("net::Resolve");
+      label.Field("host", host_);
+      util::PerformanceTrace::Scope scope(label.View());
+      resolved = ::getaddrinfo(host_.c_str(), port_text.c_str(), &hints, &results);
+    }
+    AddPerformanceCounter(PerfCounterId::NetHostResolves);
+    if (resolved != 0) {
       AddPerformanceCounter(PerfCounterId::NetConnectFailures);
       stage_ = Stage::Failed;
       return false;

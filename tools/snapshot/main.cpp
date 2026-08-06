@@ -267,12 +267,28 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     if (engine.Advance() || engine.HasRunnableWork()) {
       continue;
     }
+    // Due timers, animation frames and worker messages. The real loop runs this
+    // beside Advance() and this one did not, which was two bugs rather than an
+    // omission: a page that armed a timer during its load made `NextDeadlineMs`
+    // answer zero, and with nothing here to consume it the wait returned
+    // instantly and the loop **span** -- 376,522 turns and 768ms on
+    // youtube.com's front page. And a snapshot showed a document whose timers
+    // had never run, which is not the page the browser draws.
+    if (engine.RunDueWork()) {
+      continue;
+    }
     microbrowser::util::WaitDescriptorList descriptors;
     engine.AppendWaitDescriptors(descriptors);
     if (descriptors.empty()) {
       break;  // nothing outstanding and nothing runnable: the load is stuck
     }
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
+    // Scoped under `wait::` rather than a module name, and that prefix is the
+    // convention: a `wait::` row is time the loop spent *blocked*, not time it
+    // spent working, so it must not be read as a hotspot. Without it a page
+    // whose whole cost is round trips shows a summary that adds up to a tenth
+    // of the wall clock and says nothing about the other nine.
+    microbrowser::util::PerformanceTrace::Scope wait("wait::Network");
     microbrowser::platform::WaitOnDescriptors(
         descriptors,
         deadline.has_value() ? static_cast<std::int32_t>(*deadline) : -1);
