@@ -418,7 +418,7 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
       if (trusted_script_flush_) {
         trusted_script_flush_();
       }
-    } else if (element.TagName() == "iframe") {
+    } else if (element.TagName() == "iframe" && element.GetAttribute("src") == nullptr) {
       // es-module-shims feature detection inserts a hidden iframe with `srcdoc` after registering a
       // `message` listener. Without `srcdoc`/`contentDocument`, the iframe never posts back; answer
       // with the same synthetic `esms` tuple the trusted-insert path used in session 53.

@@ -569,9 +569,29 @@ after the polyfill chain). The full shreddit feed page (post-challenge, ~299s po
 needs a snapshot pass to confirm `runtime-concat` fetches; this environment often lands on the
 `js_challenge=1` interstitial instead.
 
-**End state.** Verify concat `type=module` bundles fetch and execute on the **full** shreddit document
-(not only the challenge page), implement `<suspense-replace>` hoisting for the `for=` templates, and
-close when the snapshot shows feed posts rather than an empty main region.
+**Session 54** fixed **es-module-shims `initPromise` on the runtime iframe path**: session 53's
+synthetic `['esms', …]` message fired only on *trusted* iframe insert (blob probe), but the polyfill's
+main feature detection inserts an iframe from ordinary script after `addEventListener('message')`.
+This browser has no `iframe.srcdoc` or `contentDocument`, so the real probe never posts back. Now any
+`src`-less iframe insert delivers the same synthetic tuple when a `message` listener is registered.
+
+**Measured**, www.reddit.com `js_challenge=1` interstitial, 2026-08-06 (after session 54):
+
+| metric | before (82b109a) | after (session 54) |
+|---|---|---|
+| snapshot wall time | ~5 s | **>360 s** (killed at timeout; 99% CPU) |
+| `js.modules_loaded` | 3 | not yet captured (timeline flushes at exit) |
+| `runtime-concat` in timeline | absent | not yet captured |
+| feed articles | 0 | 0 (expected until polyfill + hoisting) |
+
+The five-second snapshot was `initPromise` still hung; the multi-minute CPU-bound run is the concat
+polyfill chain executing — the expected shape after session 52's **299 s** measurement. Gate B still
+needs a completed snapshot (feed articles > 0, `ac-render-template` registered) and
+`<suspense-replace>` hoisting.
+
+**End state.** Let the challenge-interstitial polyfill chain run to completion and confirm
+`runtime-concat` fetches in the timeline; implement `<suspense-replace>` hoisting for the `for=`
+templates; close when the snapshot shows feed posts rather than an empty main region.
 
 ---
 
