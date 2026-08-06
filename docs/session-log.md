@@ -3137,3 +3137,55 @@ Where the next session should start: `docs/roadmap-sessions.json` session 27's `
 five remaining pieces in order and two findings not to rediscover — that a sanitizer runtime cannot live
 inside the decoder's seccomp policy, and that a frame currently crosses inline rather than in shared
 memory, which departs from ADR 0031 §3 with the cost written into the header rather than hidden.
+
+## The three errors between this browser and youtube.com — and the two behind them
+
+`78e5e0c`, `05cc89f`, `28fbf81`, `a2be0ed`. Not a roadmap session: a named target, run against the
+real page, three errors fixed, and the point of the entry is what they turned out to be.
+
+The three, in the order `microbrowser_snapshot https://www.youtube.com/` printed them:
+
+1. `TypeError: cannot read property 'responseStart' of undefined` — the page's *first* inline script,
+   `ytcsi.setStart(w.performance ? w.performance.timing.responseStart : null)`. Guarded on
+   `performance`, unguarded on `timing`, because no browser has ever had one without the other.
+2. `TypeError: cannot read property 'prototype' of undefined` in `webcomponents-all-noPatch.js` —
+   `window.SVGElement.prototype`, and past it `EventTarget`, `Window`, `ShadowRoot`,
+   `CustomElementRegistry`, `HTMLUnknownElement`.
+3. `ReferenceError: AbortSignal is not defined` in the kevlar bundle —
+   `var xh = (typeof AbortController === "function") ? AbortSignal : <own polyfill>`.
+
+**Not one of them was a missing feature.** Every one was a missing *name* in front of a feature this
+browser already had. We had `AbortController` and every signal it makes; we had the whole DOM type
+hierarchy; we had four kinds of performance entry. What a page needs beyond the behaviour is the
+vocabulary to talk about it, and ADR 0012's rule reads differently from this side: *a partial
+implementation is what sends a page down the native path*. A browser with `AbortController` and no
+`AbortSignal` is a shape the web does not have, so nothing is written to survive it — the detection
+passes and the next line throws.
+
+**Two more appeared behind them, and both were worth the trip.**
+
+`SyntaxError: regular expression is too large`, which only became reachable once AbortSignal stopped
+throwing. The pattern is youtube's HTML unescaper: an alternation of all 2,100 named character
+references, 18,390 bytes of source, compiling to a shade over 20,000 instructions — about one per
+character it was written with. `kMaxProgramSize` was a flat 20,000 with a comment saying it was "far
+past any pattern a page contains". It was not. The bound is now the same double bound `src/net` uses
+for a decompression — a floor, an allowance per source byte, a ceiling — because **what is being
+refused is blowup, and blowup is a ratio**. `(a{100}){100}` still earns only the floor, so nothing
+that was refused before is accepted now.
+
+`ReferenceError: HS is not defined` in the kevlar bundle, still open. `HS` appears 964 times in that
+file and every visible occurrence is a *local* — a function parameter or a `var` inside a closure. So
+this is either a scoping bug in the engine or a masked error of the kind `masked-errors-hide-the-real-one`
+describes for reddit. Annex B block-function hoisting is the obvious suspect and is a known gap in
+`docs/js-conformance-roadmap.md`. Whoever takes it: the bundle URL changes per request (the `am=`
+parameter), so pin a copy before bisecting it.
+
+**Where youtube stops now**: `webcomponents-all-noPatch.js` runs past everything above and stops on
+`NodeFilter`, which needs `document.createTreeWalker` and `document.implementation.createHTMLDocument`
+— real new API rather than a missing name, and the first thing on that page that actually is.
+
+Method note, because it is the same one three sessions running: none of these five failed a test
+first. All five came from running the real page and reading what it said, and the fourth was found by
+adding four lines of `fprintf` to `RegExp::Compile` to print the pattern it was refusing — which took
+two minutes and is the only way the entity table was ever going to be identified from
+"regular expression is too large".
