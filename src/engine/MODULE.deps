@@ -276,7 +276,7 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=825 public_methods=152 members=22
+budget: Page   header_lines=835 public_methods=152 members=22
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #

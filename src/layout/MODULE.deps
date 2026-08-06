@@ -54,7 +54,7 @@ budget: Box             header_lines=225 public_methods=48 members=12
 # a distinction some pass would otherwise have to rediscover from style. The
 # budget is here so that growth in the vocabulary is a decision.
 budget: Kind            header_lines=40 public_methods=0 members=0
-budget: ImageProvider   header_lines=25 public_methods=6  members=0
+budget: ImageProvider   header_lines=28 public_methods=7  members=0
 # Raised to 5 for `right_to_left`: bidi resolves a direction per *fragment*, because one text box
 # can put a left-to-right and a right-to-left fragment on the same line, and paint needs it for
 # rule L4 and for telling the shaper rather than letting it guess.

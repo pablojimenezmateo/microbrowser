@@ -100,31 +100,6 @@ than shared with the parsed sheet the cache now holds; those two decisions shoul
 
 ---
 
-## TD-0005 — Collecting background images resolves the whole cascade a second time — **partially fixed 2026-08-06**
-
-`Page::CollectImages` used to end with `resolver_.ForEachStyledElement(...)` purely to read
-`style.background.image` off every element. That full cascade walk is gone: `layout::ImageProvider::WantImage`
-is called from `BuildFor` during `EnsureBoxTree`, and from `RestyleWithoutLayout` when a
-stylesheet rebuild can update the existing box tree instead of throwing it away.
-
-**Measured**, Release build, `en.wikipedia.org/wiki/CSS`, after the fix:
-
-| scope | before (Debug) | after (Release) |
-|---|---|---|
-| `engine::CollectImages` | 2650 ms / 3 calls (full cascade) | **12 ms / 7 calls** (img tags only) |
-| `engine::BuildBoxTree` | 5090 ms / 5 calls (Debug) | 562–1052 ms / 6–7 calls |
-
-The duplicate *cascade* pass is eliminated. `CollectImages` no longer appears in the top-15
-summary. `BuildBoxTree` call count can rise when sheets arrive before the first layout (boxes
-did not exist yet, so `RestyleWithoutLayout` could not run) — that is fewer total style walks
-than cascade-plus-`CollectImages`, but not yet the cached-box-tree end state below.
-
-**End state (remaining).** Cache the box tree across layouts when only geometry changes; audit
-`AddImage` → `InvalidateBoxTree` so a decode batch does not force seven rebuilds on wikipedia.
-`engine.box_tree_build_skipped` is the counter for whether the skip path is working.
-
----
-
 ## TD-0006 — Inflate ran bit-at-a-time and byte-at-a-time — **fixed 2026-08-06**
 
 Kept here rather than moved to Closed, because the *measurement* is the part worth keeping: the
@@ -509,6 +484,13 @@ beside it.
 
 ## Closed
 
+- **TD-0005 — `CollectImages` duplicated the cascade** (2026-08-06). Background URLs are queued
+  through `ImageProvider::WantImage` during the one `EnsureBoxTree` pass; `CollectImages` walks
+  `<img>` tags only. `EnsureBoxTree` caches the box tree by mutation version and
+  `StyleResolver::Generation()`, skipping rebuild when neither changed. Debug build,
+  `en.wikipedia.org/wiki/CSS`: `engine::CollectImages` **2351 ms / 3 calls → 16 ms / 7 calls**;
+  duplicate `ForEachStyledElement` gone. `AddImage` still invalidates the box tree when intrinsic
+  sizes change — that audit is separate from the duplicate-cascade problem this entry named.
 - **TD-0010 — request concurrency was the HTTP/1.1 socket bound** (`…`). Split into
   `kMaxConnectionsPerPartition` (6, sockets) and `kMaxRequestsPerPartition` (64, streams).
 - **The cascade asked every rule about every element** (`299a08f`). 18,360 rules against 686

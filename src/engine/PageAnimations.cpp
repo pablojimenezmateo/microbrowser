@@ -22,6 +22,7 @@
 namespace microbrowser::engine {
 
 void Page::ResetResolver() {
+  InvalidateBoxTree();
   resolver_ = css::StyleResolver{};
   resolver_.SetAdjuster(this);
 }
