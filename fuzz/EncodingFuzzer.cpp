@@ -32,6 +32,8 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
       html::Encoding::Utf8,       html::Encoding::Windows1252, html::Encoding::Iso8859_2,
       html::Encoding::Iso8859_5,  html::Encoding::Iso8859_7,   html::Encoding::Iso8859_9,
       html::Encoding::Iso8859_15, html::Encoding::Utf16Le,     html::Encoding::Utf16Be,
+      html::Encoding::ShiftJis,   html::Encoding::EucJp,       html::Encoding::EucKr,
+      html::Encoding::Big5,       html::Encoding::Gb18030,
   };
   const html::Encoding encoding = kEncodings[data[0] % (sizeof(kEncodings) / sizeof(kEncodings[0]))];
   const std::string_view bytes(reinterpret_cast<const char*>(data + 1), size - 1);
@@ -56,11 +58,72 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     __builtin_trap();
   }
 
+  // **The multi-byte family gets a weaker invariant than the single-byte one, and the weakening is
+  // the interesting part.** In Shift_JIS, Big5 and GB18030 a trail byte may be an ASCII byte in
+  // 0x40-0x7E, and in EUC-KR in 0x41-0xFE -- so `81 41` is one character and the `A` is legitimately
+  // gone. What must still hold is the half that matters for encoding-confusion XSS:
+  //
+  //   * no ASCII character is *invented* -- every ASCII byte out was an ASCII byte in; and
+  //   * **every input byte below 0x40 that is not an ASCII digit survives, in order.** That set is
+  //     exactly where the syntactically significant characters live -- `< > & " \' / = : ;`, space and
+  //     every C0 control -- and no sequence in any of the five can consume one.
+  //
+  // Two real deletion bugs were found by stating this before writing it: EUC-JP's 0x8F path and
+  // GB18030's four-byte path both consumed their bytes blindly, so `8F 3C` and `81 30 3C 3C` each
+  // deleted a `<`. **The digit exemption was then found by the fuzzer itself**, on `cf 34 d6 32` as
+  // GB18030 -- the four-byte form's second and fourth bytes are digits by construction, so a
+  // well-formed one legitimately eats two of them. That was this invariant being wrong rather than the
+  // decoder, and the exemption is narrow on purpose: a digit cannot begin a tag, an attribute or an
+  // entity, so losing one cannot change how a document parses.
+  const bool multi_byte = encoding == html::Encoding::ShiftJis ||
+                          encoding == html::Encoding::EucJp || encoding == html::Encoding::EucKr ||
+                          encoding == html::Encoding::Big5 || encoding == html::Encoding::Gb18030;
+  if (multi_byte) {
+    std::string input_significant;
+    for (const char c : bytes) {
+      if (static_cast<unsigned char>(c) < 0x40 &&
+          !(static_cast<unsigned char>(c) >= 0x30 && static_cast<unsigned char>(c) <= 0x39)) {
+        input_significant.push_back(c);
+      }
+    }
+    std::string output_significant;
+    for (const char c : decoded) {
+      if (static_cast<unsigned char>(c) < 0x40 &&
+          !(static_cast<unsigned char>(c) >= 0x30 && static_cast<unsigned char>(c) <= 0x39)) {
+        output_significant.push_back(c);
+      }
+    }
+    if (input_significant != output_significant) {
+      __builtin_trap();
+    }
+    // And nothing was invented above 0x40 either: an ASCII byte out must have been an ASCII byte in,
+    // which is the direction that turns a sanitised document into a script-executing one.
+    std::string input_ascii;
+    for (const char c : bytes) {
+      if (static_cast<unsigned char>(c) < 0x80) {
+        input_ascii.push_back(c);
+      }
+    }
+    std::size_t seen = 0;
+    for (const char c : decoded) {
+      if (static_cast<unsigned char>(c) < 0x80) {
+        // In order, and as a subsequence rather than an equality -- a consumed trail byte is a gap.
+        while (seen < input_ascii.size() && input_ascii[seen] != c) {
+          ++seen;
+        }
+        if (seen == input_ascii.size()) {
+          __builtin_trap();
+        }
+        ++seen;
+      }
+    }
+  }
+
   // No ASCII character was invented. Every ASCII byte in the output must be traceable to an ASCII byte
   // in the input, in order -- and for the single-byte encodings the two sequences must be equal.
   const bool single_byte = encoding != html::Encoding::Utf8 &&
                            encoding != html::Encoding::Utf16Le &&
-                           encoding != html::Encoding::Utf16Be;
+                           encoding != html::Encoding::Utf16Be && !multi_byte;
   if (single_byte) {
     std::string input_ascii;
     for (const char c : bytes) {

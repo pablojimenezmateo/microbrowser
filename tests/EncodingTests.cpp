@@ -225,13 +225,19 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Encoding/AnUnknownLabelFallsThroughRatherThanToUtf8", [] {
-    // The confusion in miniature: a page that declares `shift_jis` and is decoded as UTF-8 is a page
+    // The confusion in miniature: a page that declares an encoding and is decoded as UTF-8 is a page
     // whose bytes are reinterpreted. An unrecognised label must take the *next* step of the algorithm.
-    Expect(!EncodingFromLabel("shift_jis").has_value(), "an encoding this browser lacks is nothing");
-    Expect(!EncodingFromLabel("gb18030").has_value(), "and so is another");
+    //
+    // `shift_jis` and `gb18030` were the examples here until session 32 built them, so the examples
+    // are now labels this browser still lacks -- ISO-2022-JP, which is stateful, and the standard's
+    // own `replacement` encoding. **The two changed assertions are the session's own change**, and
+    // they are the whole reason the test still means something: an example that has become supported
+    // proves nothing about the fall-through.
+    Expect(!EncodingFromLabel("iso-2022-jp").has_value(), "an encoding this browser lacks is nothing");
+    Expect(!EncodingFromLabel("hz-gb-2312").has_value(), "and so is another");
     Expect(!EncodingFromLabel("").has_value(), "and an empty label");
     // With an unknown header, the meta still gets its turn.
-    Expect(SniffEncoding("<meta charset=utf-8>", "text/html; charset=euc-kr") == Encoding::Utf8,
+    Expect(SniffEncoding("<meta charset=utf-8>", "text/html; charset=x-nonesuch") == Encoding::Utf8,
            "the algorithm continues rather than guessing");
   });
 
@@ -249,6 +255,107 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
                    "an odd length ends in a replacement");
     // Big-endian is the same text with the units swapped, which is what the label distinguishes.
     ExpectEqString(Decode(std::string("\0h\0i", 4), Encoding::Utf16Be), "hi", "big endian");
+  });
+  AddTest(tests, "Encoding/TheLegacyMultiByteLabelsResolve", [] {
+    // Every spelling in the Encoding Standard's label list, because a page whose label is unrecognised
+    // falls through to windows-1252 -- and windows-1252 applied to Japanese is mojibake rather than
+    // text. `ms_kanji`, `x-sjis` and `windows-31j` are all in real documents.
+    Expect(EncodingFromLabel("Shift_JIS") == Encoding::ShiftJis, "the canonical name");
+    Expect(EncodingFromLabel("ms_kanji") == Encoding::ShiftJis, "and an alias");
+    Expect(EncodingFromLabel("windows-31j") == Encoding::ShiftJis, "and another");
+    Expect(EncodingFromLabel("EUC-JP") == Encoding::EucJp, "euc-jp");
+    Expect(EncodingFromLabel("euc-kr") == Encoding::EucKr, "euc-kr");
+    Expect(EncodingFromLabel("ks_c_5601-1987") == Encoding::EucKr, "and its Korean alias");
+    Expect(EncodingFromLabel("big5") == Encoding::Big5, "big5");
+    // GBK and GB2312 decode *as* GB18030, which is what the standard says: it is a superset, so a GBK
+    // document decoded with it produces the same characters rather than an approximation.
+    Expect(EncodingFromLabel("gbk") == Encoding::Gb18030, "gbk is gb18030");
+    Expect(EncodingFromLabel("gb2312") == Encoding::Gb18030, "and so is gb2312");
+  });
+
+  AddTest(tests, "Encoding/TheMultiByteDecodersProduceRealText", [] {
+    // One sentence per encoding, from bytes to characters. The expected strings are not typed from a
+    // table: every one of them was produced by the platform's own codec for that encoding, and the
+    // *whole* two-byte space of all five was swept against an independent implementation of the
+    // standard's algorithm in the same session -- 27,972 sequences each, zero disagreements, plus
+    // 4,000 random byte strings including truncated and interleaved ones. What is here is the part a
+    // reader can check by eye.
+    ExpectEqString(Decode("\x93\xFA\x96\x7B\x8C\xEA", Encoding::ShiftJis), "日本語",
+                   "Shift_JIS");
+    ExpectEqString(Decode("\xC6\xFC\xCB\xDC\xB8\xEC", Encoding::EucJp), "日本語", "EUC-JP");
+    ExpectEqString(Decode("\xC7\xD1\xB1\xB9\xB8\xBB", Encoding::EucKr), "한국말", "EUC-KR");
+    ExpectEqString(Decode("\xA5\xBF\xC5\xE9\xA6\x72", Encoding::Big5), "正體字", "Big5");
+    ExpectEqString(Decode("\xD6\xD0\xCE\xC4", Encoding::Gb18030), "中文", "GB18030");
+    // Halfwidth katakana is a single byte in Shift_JIS and a two-byte 0x8E sequence in EUC-JP -- the
+    // same characters reached two different ways, which is the pair most likely to be got wrong.
+    ExpectEqString(Decode("\xB1\xB2\xB3", Encoding::ShiftJis), "ｱｲｳ", "single-byte katakana");
+    ExpectEqString(Decode("\x8E\xB1\x8E\xB2\x8E\xB3", Encoding::EucJp), "ｱｲｳ",
+                   "and the 0x8E form");
+    // ASCII passes through all five, which is what makes an HTML document in any of them parseable.
+    ExpectEqString(Decode("<b>a</b>", Encoding::Big5), "<b>a</b>", "ASCII is ASCII");
+  });
+
+  AddTest(tests, "Encoding/AMultiByteDecoderRefusesRatherThanGuesses", [] {
+    // A lead with no trail, a lead with a trail out of range, and a truncated tail. In each case the
+    // answer is U+FFFD and **the byte that ended the sequence is decoded on its own** -- which is the
+    // property the fuzz target exists for: a decoder that swallowed it would delete the `<` a
+    // sanitiser was looking for.
+    ExpectEqString(Decode("\x93", Encoding::ShiftJis), kReplacement, "a lead at the end");
+    ExpectEqString(Decode("\x93\x3C", Encoding::ShiftJis), kReplacement + "<",
+                   "a lead then a less-than: the less-than survives");
+    ExpectEqString(Decode("\xC6\x41", Encoding::EucJp), kReplacement + "A",
+                   "EUC-JP's trail range excludes ASCII entirely");
+    ExpectEqString(Decode("\x81\x40\x3C", Encoding::EucKr), kReplacement + "@<",
+                   "an unassigned EUC-KR lead pair");
+    // The 0x8E prefix with a byte that is not katakana, and 0x8F -- JIS X 0212, which this browser has
+    // no index for and therefore refuses. Both consume one byte, not two or three.
+    ExpectEqString(Decode("\x8E\x41", Encoding::EucJp), kReplacement + "A", "0x8E then ASCII");
+    ExpectEqString(Decode("\x8F\x3C\x3C", Encoding::EucJp), kReplacement + "<<",
+                   "0x8F whose trail bytes are not trail bytes keeps both");
+    // GB18030's four-byte form, refused -- and the *shape* is checked before four bytes are consumed.
+    // `81 30 3C 3C` is not a four-byte sequence, so only the 0x81 is eaten.
+    ExpectEqString(Decode("\x81\x30\x3C\x3C", Encoding::Gb18030), kReplacement + "0<<",
+                   "a malformed four-byte sequence does not eat the text after it");
+    ExpectEqString(Decode("\x81\x30\x81\x30", Encoding::Gb18030), kReplacement,
+                   "a well-formed one is one refusal rather than four characters");
+  });
+
+  AddTest(tests, "Encoding/TheAwkwardCornersOfTheLegacyIndexes", [] {
+    // Five things that are each a decoder's own exception, and each one a place a from-scratch
+    // implementation goes wrong quietly.
+    //
+    // Big5 has four pointers that decode to *two* code points -- a vowel plus a combining tone mark.
+    // A decoder that emitted only the base would drop the tone from Taiwanese Mandarin transcription.
+    ExpectEqString(Decode("\x88\x62", Encoding::Big5), "Ê\xCC\x84", "Big5's two-code-point pointer");
+    // 0x88A3 rather than 0x88A5, and the two expectations this replaced were both mine and both
+    // wrong: pointer 1166 is the *caron* pair and 1164 is the macron one. Written down because getting
+    // one of these four backwards is invisible without a reference.
+    ExpectEqString(Decode("\x88\xA3", Encoding::Big5), "ê\xCC\x84", "and its lowercase pair");
+    // GB18030's single-byte euro, which no other encoding here has.
+    ExpectEqString(Decode("\x80", Encoding::Gb18030), "€", "0x80 is the euro sign");
+    // Shift_JIS's 0x80 is U+0080 -- and it is *encoded* rather than passed through. Pushing the raw
+    // byte emits a lone continuation byte, which is ill-formed UTF-8 out of a decoder whose entire
+    // job is to produce UTF-8. The differential sweep in this session found exactly that.
+    ExpectEqString(Decode("\x80", Encoding::ShiftJis), "\xC2\x80", "and Shift_JIS's is U+0080");
+    // Shift_JIS's extension area is a private-use code point rather than an index entry, which is what
+    // keeps a vendor character from becoming U+FFFD.
+    Expect(Decode("\xF0\x40", Encoding::ShiftJis) != kReplacement,
+           "the extension area decodes to private use");
+    // And GB18030's index disagrees with the vendor table in twenty places: pointer 6555 is an
+    // ideographic space in the standard's index and a private-use character in cp936. The standard is
+    // what a page was authored against in a browser.
+    ExpectEqString(Decode("\xA3\xA0", Encoding::Gb18030), "\xE3\x80\x80",
+                   "the index wins over the vendor table");
+  });
+
+  AddTest(tests, "Encoding/ADeclaredLegacyEncodingIsSniffedAndDecoded", [] {
+    // End to end, which is the only assertion here that exercises the *wiring*: a label in a
+    // `Content-Type`, a label in a `<meta>`, and the bytes decoded accordingly.
+    Expect(SniffEncoding("<html>", "text/html; charset=Shift_JIS") == Encoding::ShiftJis,
+           "from the header");
+    Expect(SniffEncoding("<meta charset=big5>") == Encoding::Big5, "and from the document");
+    ExpectEqString(DecodeToUtf8("\x93\xFA", SniffEncoding("<meta charset=shift_jis>")), "日",
+                   "and DecodeToUtf8 dispatches to it");
   });
 }
 

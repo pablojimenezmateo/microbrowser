@@ -389,9 +389,35 @@ std::optional<Encoding> EncodingFromLabel(std::string_view label) {
   if (lowered == "utf-16be" || lowered == "utf16be") {
     return Encoding::Utf16Be;
   }
-  // Everything else -- including the multi-byte encodings this browser does not have yet -- is
-  // *nothing*, so the caller falls through to the next step of the algorithm rather than to UTF-8. A
-  // page that declares `shift_jis` and is decoded as UTF-8 is a page whose bytes are reinterpreted.
+  // The legacy multi-byte labels, every spelling the Encoding Standard's index lists. `shift-jis` with
+  // a hyphen, `sjis`, `ms_kanji` and `csshiftjis` are all in real documents, and a page whose label is
+  // unrecognised falls through to windows-1252 -- which for Japanese is mojibake rather than text.
+  if (lowered == "shift_jis" || lowered == "shift-jis" || lowered == "sjis" ||
+      lowered == "ms_kanji" || lowered == "csshiftjis" || lowered == "windows-31j" ||
+      lowered == "x-sjis") {
+    return Encoding::ShiftJis;
+  }
+  if (lowered == "euc-jp" || lowered == "eucjp" || lowered == "x-euc-jp" ||
+      lowered == "cseucpkdfmtjapanese") {
+    return Encoding::EucJp;
+  }
+  if (lowered == "euc-kr" || lowered == "euckr" || lowered == "windows-949" ||
+      lowered == "ks_c_5601-1987" || lowered == "korean" || lowered == "cseuckr") {
+    return Encoding::EucKr;
+  }
+  if (lowered == "big5" || lowered == "big5-hkscs" || lowered == "cn-big5" ||
+      lowered == "csbig5" || lowered == "x-x-big5") {
+    return Encoding::Big5;
+  }
+  if (lowered == "gb18030" || lowered == "gbk" || lowered == "gb2312" || lowered == "chinese" ||
+      lowered == "csgb2312" || lowered == "x-gbk") {
+    // GBK and GB2312 are decoded as GB18030, which is what the standard says: GB18030 is a superset
+    // and decoding a GBK document with it produces the same characters.
+    return Encoding::Gb18030;
+  }
+  // Everything else is *nothing*, so the caller falls through to the next step of the algorithm rather
+  // than to UTF-8. What is left in that category is small now -- ISO-2022-JP, the EBCDIC labels, and
+  // the `replacement` encoding the standard defines for labels that are dangerous to honour.
   return std::nullopt;
 }
 
@@ -457,6 +483,12 @@ std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
       return DecodeUtf16(body, true);
     case Encoding::Utf16Be:
       return DecodeUtf16(body, false);
+    case Encoding::ShiftJis:
+    case Encoding::EucJp:
+    case Encoding::EucKr:
+    case Encoding::Big5:
+    case Encoding::Gb18030:
+      return DecodeMultiByte(body, encoding);
     default:
       return DecodeSingleByte(body, encoding);
   }

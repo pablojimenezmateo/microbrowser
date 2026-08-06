@@ -16,8 +16,8 @@ namespace microbrowser::html {
 // Encoding confusion leading to XSS is a real, repeatedly exploited bug family, and every rule below
 // that looks pedantic is load-bearing for it.
 //
-// The set is the one ADR 0025 §2 chose by usage. What is *not* here yet is the multi-byte family --
-// Shift_JIS, EUC-JP, GB18030, Big5, EUC-KR -- which needs generated tables and is session 32.
+// The set is the one ADR 0025 §2 chose by usage, and it is now complete: the single-byte tables here,
+// and the multi-byte family in MultiByteEncodings.cpp behind generated indexes.
 enum class Encoding : std::uint8_t {
   Utf8,
   // The fallback, and it is **not** UTF-8. That is what the specification says, and the reason is
@@ -32,6 +32,15 @@ enum class Encoding : std::uint8_t {
   Iso8859_15,
   Utf16Le,
   Utf16Be,
+  // The legacy multi-byte family, ADR 0025 §2's fourth group and session 32. Each is a lead byte, a
+  // trail byte and its own pointer arithmetic over one of four generated indexes -- see
+  // MultiByteEncodings.cpp, where the *ranges* are the difficulty: a wrong one produces plausible
+  // wrong characters rather than a failure.
+  ShiftJis,
+  EucJp,
+  EucKr,
+  Big5,
+  Gb18030,
 };
 
 // A label as a document wrote it -- `utf-8`, `UTF8`, `iso-8859-1`, `latin1`, `windows-1252`, `cp1252`
@@ -55,6 +64,10 @@ std::optional<Encoding> EncodingFromLabel(std::string_view label);
 // does not count, in every browser, so a page that puts one at byte 2000 is decoded as though it had
 // none -- and matching that is what makes this browser agree with the one the page was tested in.
 Encoding SniffEncoding(std::string_view bytes, std::string_view content_type = {});
+
+// The multi-byte decoders, in their own translation unit because their tables are 648KB of generated
+// data. Called by DecodeToUtf8; separate so that this header does not imply the tables.
+std::string DecodeMultiByte(std::string_view bytes, Encoding encoding);
 
 // The document's bytes as UTF-8, with every ill-formed sequence replaced by U+FFFD.
 //

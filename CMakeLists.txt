@@ -245,6 +245,7 @@ microbrowser_module(html
     src/html/Focus.cpp
     src/html/FormControl.cpp
     src/html/Encoding.cpp
+    src/html/MultiByteEncodings.cpp
     src/html/Tokenizer.cpp
     src/html/TreeBuilder.cpp
     src/html/TreeBuilderTable.cpp
