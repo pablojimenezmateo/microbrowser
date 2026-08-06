@@ -248,6 +248,9 @@ Page::Page(gfx::FontProvider& fonts) : text_(fonts), measurer_(text_) {
   // life of the page, and a source that arrived later would leave the first
   // script of a document without one.
   script_.SetGeometrySource(this);
+  // And its media questions, for the same reason and with the same lifetime: the state machines
+  // are this object's, so `<video>` has its API from the first script of the first document.
+  script_.SetMediaController(this);
 }
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }

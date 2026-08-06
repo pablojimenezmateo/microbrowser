@@ -22,7 +22,7 @@ using js::Value;
 DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
                          std::string url, GeometrySource* geometry, NetworkSource* network,
                          HistorySource* history, StorageSource* storage,
-                         SocketSource* sockets)
+                         SocketSource* sockets, MediaController* media)
     : interpreter_(&interpreter),
       document_(&document),
       url_(std::move(url)),
@@ -30,7 +30,8 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
       network_(network),
       history_(history),
       storage_(storage),
-      sockets_(sockets) {}
+      sockets_(sockets),
+      media_(media) {}
 
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
   if (selector.empty()) {

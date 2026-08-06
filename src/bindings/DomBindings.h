@@ -9,6 +9,7 @@
 
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
+#include "bindings/Media.h"
 #include "bindings/Network.h"
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
@@ -112,7 +113,7 @@ class DomBindings {
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
               HistorySource* history = nullptr, StorageSource* storage = nullptr,
-              SocketSource* sockets = nullptr);
+              SocketSource* sockets = nullptr, MediaController* media = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -141,6 +142,11 @@ class DomBindings {
                           bool clean, bool failed);
   // An `EventSource`'s three events. `permanent` on the error says whether a reconnect
   // follows, which is what lets a page distinguish "reconnecting" from "gave up".
+  // A media event at an element, from the state machine that saw the transition. Trusted, and
+  // therefore a C++ entry point: a page that could fire `canplay` at its own element could make
+  // a player believe data arrived.
+  bool DispatchMediaEvent(dom::Element& element, const std::string& type);
+
   bool DeliverEventSourceOpen(std::uint64_t id);
   bool DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
                                  const std::string& data, const std::string& last_id);
@@ -423,6 +429,12 @@ class DomBindings {
   // element, so a property name nobody enumerated in advance still resolves.
   js::Value MakeComputedStyle(dom::Element& element);
 
+  // --- media, in MediaBindings.cpp -------------------------------------------
+  // `HTMLMediaElement`'s methods and properties, installed on the `<video>`/`<audio>`
+  // prototype. Absent when there is no controller behind them: a page that finds `play` and
+  // gets a promise that never settles has no fallback left.
+  void InstallMediaElement(const js::Value& target);
+
   // --- WebSocket, in SocketBindings.cpp -------------------------------------
   // Installed only when there is a SocketSource, for ADR 0012's reason and its sharpest
   // case: a page that finds `WebSocket` and gets a constructor that never fires `open`
@@ -585,6 +597,7 @@ class DomBindings {
   HistorySource* history_ = nullptr;
   StorageSource* storage_ = nullptr;
   SocketSource* sockets_ = nullptr;
+  MediaController* media_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings

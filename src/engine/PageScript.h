@@ -74,6 +74,9 @@ class PageScript {
   // And for `WebSocket`. Null leaves the name undeclared, which is what a page with no
   // socket source must see rather than a constructor that never opens.
   void SetSocketSource(bindings::SocketSource* sockets) { sockets_ = sockets; }
+  // ADR 0028 §1. Null leaves `<video>` with no media API, which is what a page with nothing
+  // behind it must see rather than a `play()` whose promise never settles.
+  void SetMediaController(bindings::MediaController* media) { media_ = media; }
 
   // A socket's events, forwarded to the bindings when there are any. False without an
   // interpreter: a socket cannot outlive its document, but a completion can arrive on the
@@ -88,6 +91,13 @@ class PageScript {
                           bool clean, bool failed) {
     return bindings_ != nullptr &&
            bindings_->DeliverSocketClose(id, code, reason, clean, failed);
+  }
+  // A media event at an element. ADR 0028 §1's event set is what a page listens to, and this is
+  // a C++ entry point for the reason click dispatch is: an event the *browser* produced is
+  // trusted, and a page that could fire `canplay` at its own element could make a player believe
+  // data arrived.
+  bool DispatchMediaEvent(dom::Element& element, const std::string& type) {
+    return bindings_ != nullptr && bindings_->DispatchMediaEvent(element, type);
   }
   bool DeliverEventSourceOpen(std::uint64_t id) {
     return bindings_ != nullptr && bindings_->DeliverEventSourceOpen(id);
@@ -378,6 +388,7 @@ class PageScript {
   bindings::HistorySource* history_ = nullptr;
   bindings::StorageSource* storage_ = nullptr;
   bindings::SocketSource* sockets_ = nullptr;
+  bindings::MediaController* media_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

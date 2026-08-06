@@ -354,6 +354,8 @@ microbrowser_module(engine
     src/engine/EngineStorage.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
+    src/engine/MediaElements.cpp
+    src/engine/PageMedia.cpp
     src/engine/PageModules.cpp
     src/engine/PageResources.cpp
     src/engine/PageScrolling.cpp
@@ -362,7 +364,7 @@ microbrowser_module(engine
   DEPS microbrowser_util microbrowser_gfx microbrowser_ipc microbrowser_url
        microbrowser_privacy microbrowser_net microbrowser_csp microbrowser_dom
        microbrowser_html microbrowser_css microbrowser_layout microbrowser_js
-       microbrowser_bindings microbrowser_storage)
+       microbrowser_bindings microbrowser_storage microbrowser_media)
 
 microbrowser_module(platform
   SOURCES
@@ -391,6 +393,7 @@ microbrowser_module(bindings
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
     src/bindings/ShadowBindings.cpp
+    src/bindings/MediaBindings.cpp
     src/bindings/SocketBindings.cpp
     src/bindings/StorageBindings.cpp
     src/bindings/StyleBindings.cpp

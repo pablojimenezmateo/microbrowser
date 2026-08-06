@@ -6,15 +6,21 @@
 // separation is the only way to know the machine is the specification's rather than an
 // approximation of it.
 
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "TestSupport.h"
 #include "dom/Node.h"
+#include "engine/Engine.h"
 #include "engine/Page.h"
 #include "gfx/FontCatalog.h"
+#include "ipc/InProcessTransport.h"
+#include "ipc/Message.h"
 #include "media/MediaState.h"
+#include "support/DriveLoop.h"
+#include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
 
 namespace microbrowser::tests {
@@ -32,9 +38,113 @@ std::string Events(MediaState& state) {
   return joined;
 }
 
+// A page with script, which needs the engine's load pipeline: `Page::Load` builds a tree but the
+// scripts are collected and run by the engine, so a media test that only loaded a page would
+// assert about a script that never ran -- which is how the first version of these three passed
+// nothing.
+struct ScriptedPage {
+  gfx::FontLibrary library;
+  gfx::FontCatalog fonts{library};
+  ipc::InProcessChannel channel;
+  engine::Engine engine{channel.Engine(), fonts};
+  ScriptedFactory factory;
+
+  ScriptedPage(std::string_view body) {
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+    std::string html = "<html><body>";
+    html += body;
+    html += "</body></html>";
+    std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " +
+                           std::to_string(html.size()) + "\r\n\r\n" + html;
+    factory.script.push_back(
+        ScriptedTransport::Exchange{"page.example", 443, true, std::move(response)});
+    engine.PageLoader().SetTransport(factory);
+    channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    engine.HandlePendingMessages();
+    channel.Ui().Send(ipc::NavigateMessage{"https://page.example/"});
+    engine.HandlePendingMessages();
+    RunEngineToIdle(engine);
+  }
+
+  std::string Console() const {
+    std::string joined;
+    for (const std::string& line : engine.ConsoleOutput()) {
+      joined += line + "|";
+    }
+    return joined;
+  }
+};
+
 }  // namespace
 
 void RegisterMediaStateTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "MediaElement/PlayReturnsAPromiseThatRejectsWhenAutoplayIsRefused", [] {
+    // **The mechanism every player on the web uses.** A page calls `play()`, catches
+    // `NotAllowedError`, and shows a play button. A `play()` that returned undefined would make
+    // those players silently do nothing -- which is why the promise is the part of this API that
+    // had to be right.
+    ScriptedPage page(
+        "<body><video id=v src='movie.mp4'></video><script>"
+        "const v = document.getElementById('v');"
+        "console.log('paused:' + v.paused + ' ready:' + v.readyState + ' net:' + v.networkState);"
+        "v.play().then(() => console.log('resolved')).catch(e => console.log('rejected:' + e.name));"
+        "</script></body>");
+
+    const std::string console = page.Console();
+    Expect(console.find("paused:true") != std::string::npos, "it starts paused");
+    Expect(console.find("net:2") != std::string::npos,
+           "and LOADING, because it has a src -- which is what makes the refusal NotAllowed "
+           "rather than NotSupported");
+    Expect(console.find("rejected:NotAllowedError") != std::string::npos,
+           "and autoplay without a gesture rejects with the name pages catch");
+  });
+
+  AddTest(tests, "MediaElement/AMutedElementPlaysAndItsPropertiesAnswer", [] {
+    // Muted autoplay is allowed, which is what every browser does. And the properties are
+    // accessors rather than stored values, so `currentTime` after a seek is the seek -- a copy
+    // would have stopped matching the moment the state machine moved.
+    ScriptedPage page(
+        "<body><video id=v src='movie.mp4' muted></video><script>"
+        "const v = document.getElementById('v');"
+        "v.muted = true;"
+        "v.play().then(() => console.log('playing:' + !v.paused)).catch(e => console.log('no:' + e.name));"
+        "v.volume = 5;"
+        "v.currentTime = 12.5;"
+        "console.log('volume:' + v.volume + ' time:' + v.currentTime + ' ended:' + v.ended);"
+        "</script></body>");
+
+    const std::string console = page.Console();
+    Expect(console.find("playing:true") != std::string::npos, "muted play resolves and unpauses");
+    // Volume clamps rather than throwing: a page overreaching is not a page in error, and the
+    // specification clamps.
+    Expect(console.find("volume:1 ") != std::string::npos, "volume clamped to 1");
+    Expect(console.find("time:12.5") != std::string::npos,
+           "and assigning currentTime is a seek, which moves the position immediately");
+  });
+
+  AddTest(tests, "MediaElement/ThePlayMethodIsAbsentOnAnythingThatIsNotMedia", [] {
+    // `document.body.play` must not exist. A media API on every element would make a typo look
+    // like a player that does nothing, and `canPlayType` answering "maybe" would be a lie a page
+    // acts on -- so it answers the empty string until a decoder exists.
+    ScriptedPage page(
+        "<body><video id=v></video><script>"
+        "console.log('body:' + typeof document.body.play + ' video:' + typeof document.getElementById('v').play);"
+        "console.log('type:[' + document.getElementById('v').canPlayType('video/mp4') + ']');"
+        "document.getElementById('v').play().catch(e => console.log('empty:' + e.name));"
+        "</script></body>");
+
+    const std::string console = page.Console();
+    Expect(console.find("body:undefined video:function") != std::string::npos,
+           "only a media element has the media API");
+    Expect(console.find("type:[]") != std::string::npos,
+           "canPlayType is honest: nothing can be played yet");
+    // No `src` is NO_SOURCE, so this is NotSupportedError rather than NotAllowedError -- a page
+    // shows an error for one and a play button for the other.
+    Expect(console.find("empty:NotSupportedError") != std::string::npos,
+           "and an element with no source cannot play for a different reason");
+  });
+
   AddTest(tests, "MediaState/TheReadinessLadderFiresEveryRungItClimbsPast", [] {
     // A whole file can arrive at once, and a page waiting on `canplay` still has to hear it.
     // So the climb fires every rung it passes rather than one event per state change.

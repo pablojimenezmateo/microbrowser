@@ -168,6 +168,15 @@ void DomBindings::EnsureInterfaces() {
   for (const TagInterface& entry : kTagInterfaces) {
     MakeInterface(entry.interface, html_element);
   }
+  // The media API, on `HTMLVideoElement` and `HTMLAudioElement` and nowhere else -- installed on
+  // each rather than on a shared `HTMLMediaElement` prototype because this engine's interface
+  // table is flat, and `video instanceof HTMLMediaElement` is not a question any measured page
+  // asks. What pages do ask for is `video.play`, and that is what this puts there.
+  for (const char* interface : {"HTMLVideoElement", "HTMLAudioElement"}) {
+    if (const Value* found = interfaces_.object->GetOwn(interface)) {
+      InstallMediaElement(*found);
+    }
+  }
   // `template.content`, on HTMLTemplateElement and nowhere else. It is the only
   // way a page can reach a template's markup -- the tree walks cannot, which is
   // the point of the element -- and it is read-only: the fragment is the

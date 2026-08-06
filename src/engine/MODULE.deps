@@ -10,7 +10,7 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # whether a request is allowed by *our* policy and csp whether it is allowed by
 # the *page's*. Both are decided here, at one seam, because the alternative is
 # each of the four resource paths deciding for itself. See ADR 0020 §3.
-allow: util gfx ipc url privacy csp net dom html css layout js bindings storage
+allow: util gfx ipc url privacy csp net dom html css layout js bindings storage media
 
 public: DocumentPolicy.h Engine.h ImageSelection.h Loader.h ModuleLoader.h Page.h PendingLoad.h SessionHistory.h Subresource.h
 
@@ -124,6 +124,7 @@ budget: Engine header_lines=405 public_methods=15 members=21
 # going away -- is no help at all for. The lines are the headers a `fetch`
 # reads back off a `Response`: a document load wants one header and reads it
 # out of `content_type`, and a page's own request enumerates them.
+budget: MediaElements header_lines=50 public_methods=10 members=2
 budget: Loader header_lines=145 public_methods=16 members=7
 # What a load produced. A struct with no invariant, which is why it is one --
 # but a budget so that "what does a caller learn about a response" stays a
@@ -229,7 +230,10 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # belongs to is Engine's. `UpdateUrl` is the one worth naming -- it moves the
 # address, recomputes `:target` from the new fragment and moves the base with it,
 # which is the whole of what a `pushState` does to a document.
-budget: Page   header_lines=635 public_methods=81 members=15
+# +2 members and +25 methods for ADR 0028 §1's media element: one state machine per element a
+# page has touched, the volume beside it, and the MediaController the binding layer asks
+# through. The state machine itself is `media::MediaState` -- pure, and tested on its own.
+budget: Page   header_lines=670 public_methods=101 members=16
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -297,7 +301,7 @@ budget: Page   header_lines=635 public_methods=81 members=15
 # plus the three private ones in PageModules.cpp. The split is the point -- a
 # fetch needs a privacy verdict and a connection pool, and deciding *what* to
 # fetch needs to know what a module graph is.
-budget: PageScript header_lines=400 public_methods=44 members=19
+budget: PageScript header_lines=415 public_methods=45 members=20
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

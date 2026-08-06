@@ -11,7 +11,9 @@
 
 #include "bindings/Geometry.h"
 #include "bindings/Network.h"
+#include "bindings/Media.h"
 #include "engine/DocumentPolicy.h"
+#include "engine/MediaElements.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "gfx/DisplayList.h"
@@ -52,7 +54,9 @@ struct FormSubmission {
 // display list and stops there. Fonts arrive as a gfx::FontProvider from the
 // caller, because *which* fonts exist is a property of the machine and the
 // engine is the half of the seam that does not know what machine it is on.
-class Page : private layout::ImageProvider, private bindings::GeometrySource {
+class Page : private layout::ImageProvider,
+             private bindings::GeometrySource,
+             public bindings::MediaController {
  public:
   explicit Page(gfx::FontProvider& fonts);
 
@@ -411,6 +415,33 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // a text field work without a second mechanism.
   dom::Element* FocusedElement() const;
 
+  // --- media, in PageMedia.cpp ---------------------------------------------
+  // ADR 0028 §1's `bindings::MediaController`. Implemented here rather than in the engine
+  // because the state is per *element* and the elements are this object's, and public rather
+  // than private inheritance would let anything holding a Page drive playback.
+  PlayResult Play(dom::Element& element) override;
+  void Pause(dom::Element& element) override;
+  void Seek(dom::Element& element, double seconds) override;
+  void SetMuted(dom::Element& element, bool muted) override;
+  void SetVolume(dom::Element& element, double volume) override;
+  double CurrentTime(const dom::Element& element) const override;
+  double Duration(const dom::Element& element) const override;
+  double Volume(const dom::Element& element) const override;
+  int ReadyState(const dom::Element& element) const override;
+  int NetworkState(const dom::Element& element) const override;
+  bool Paused(const dom::Element& element) const override;
+  bool Ended(const dom::Element& element) const override;
+  bool Muted(const dom::Element& element) const override;
+  bool IsMedia(const dom::Element& element) const override;
+
+  // What the loader will drive as bytes arrive, and what a test drives directly. Public because
+  // the engine half of session 25 is not built yet and this is the seam it will use.
+  media::MediaState* MediaStateFor(const dom::Element& element);
+  const media::MediaState* MediaStateFor(const dom::Element& element) const;
+  MediaElements& MediaElementStates() { return media_; }
+  // Fires whatever the state machine has queued, in order.
+  void FlushMediaEvents(dom::Element& element);
+
   // The document, read-only. Public because ADR 0017's user activation lives on it and a test
   // has to be able to ask whether a *page's own* click set it -- which is the property that
   // makes autoplay refusable at all. Const, so the only writer stays this class.
@@ -593,6 +624,15 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   layout::FontTextMeasurer measurer_;
   css::StyleResolver resolver_;
   std::unique_ptr<dom::Document> document_;
+  // ADR 0028 §1's per-element state, in its own class. It was two maps here and the architecture
+  // lint refused it -- five modules' worth of members on one class -- which was the right call:
+  // what this class does with media is coordinate, and what MediaElements does is own the map.
+  // Mutable because a *read* creates it. `video.networkState` on an element nobody has touched
+  // has to answer LOADING when it has a `src` -- that is what the attribute means -- and
+  // creating on first use is what makes fifty untouched `<video>` elements in a feed cost
+  // nothing. A const getter that answered defaults instead was the first version, and it read as
+  // "no source" on an element that had one.
+  mutable MediaElements media_;
   // One member rather than an interpreter and a binding layer, which is what
   // the fan-out lint asked for the moment script arrived: Page coordinates,
   // and each thing it coordinates owns itself.
