@@ -92,4 +92,21 @@ js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect);
 // forty call sites in this module and `util::` on each of them buys nothing.
 inline std::string LowerCase(std::string_view text) { return util::AsciiLowerCase(text); }
 
+// What a node calls itself: `nodeName`, and for an element `tagName` too.
+//
+// **They are the same string, and this exists because they were not.**
+// `nodeName` upper-cased the parser's tag name and `tagName` handed back the
+// stored lower-case one, with a comment saying the two "deliberately differ".
+// The DOM says the opposite -- Element.tagName *is* its qualified name, which
+// for an HTML element in an HTML document is upper case -- and every browser
+// agrees, so `if (el.tagName === 'SCRIPT')` is written everywhere and was
+// silently false here. One function so a third caller cannot invent a third
+// answer.
+//
+// Upper case unconditionally, which is right for this browser rather than a
+// simplification: the rule is really "HTML elements in HTML documents", and
+// there is one tree here with no XML in it. SVG is rendered from its own
+// decoder and never becomes elements.
+std::string NodeNameOf(const dom::Node& node);
+
 }  // namespace microbrowser::bindings

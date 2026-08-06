@@ -196,7 +196,7 @@ void RegisterFocusTests(std::vector<TestCase>& tests) {
   // --- The script side -------------------------------------------------------
 
   AddTest(tests, "Focus/ActiveElementReportsTheDocumentFocus", [] {
-    ExpectScript("<body><input id=a></body>", "document.activeElement.tagName", "body");
+    ExpectScript("<body><input id=a></body>", "document.activeElement.tagName", "BODY");
     ExpectScript("<body><input id=a></body>",
                  "document.getElementById('a').focus();"
                  "document.activeElement.id",
@@ -204,7 +204,7 @@ void RegisterFocusTests(std::vector<TestCase>& tests) {
     ExpectScript("<body><input id=a></body>",
                  "const a = document.getElementById('a'); a.focus(); a.blur();"
                  "document.activeElement.tagName",
-                 "body");
+                 "BODY");
   });
 
   AddTest(tests, "Focus/FocusingWhatCannotHoldFocusIsANoOp", [] {

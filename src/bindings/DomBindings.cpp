@@ -295,22 +295,7 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
   });
   accessor("nodeName", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
-    if (self == nullptr) {
-      return Value::Undefined();
-    }
-    // Upper case for an element, which is what the DOM has always reported and
-    // what `node.nodeName === 'DIV'` tests against. `tagName` here is the
-    // lower-case name the parser stored, so the two deliberately differ.
-    if (self->IsElement()) {
-      std::string name = static_cast<dom::Element*>(self)->TagName();
-      for (char& c : name) {
-        if (c >= 'a' && c <= 'z') {
-          c = static_cast<char>(c - 'a' + 'A');
-        }
-      }
-      return Value::String(name);
-    }
-    return Value::String(std::string(self->IsText() ? "#text" : "#document"));
+    return self == nullptr ? Value::Undefined() : Value::String(NodeNameOf(*self));
   });
 
   accessor("nodeType", [](NativeCall& call) {
@@ -370,12 +355,14 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     }
   };
 
+  // The same string `nodeName` gives, because the DOM says they are the same
+  // string. See NodeNameOf.
   accessor("tagName", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
       return Value::Undefined();
     }
-    return Value::String(static_cast<dom::Element*>(self)->TagName());
+    return Value::String(NodeNameOf(*self));
   });
   // `id` and `className` are not here any more. They were getter-only, so
   // `el.id = 'x'` was a silent no-op -- see ReflectedAttributes.cpp, which
@@ -484,7 +471,7 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
             upper = true;
             continue;
           }
-          name.push_back(upper && c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c);
+          name.push_back(upper ? util::detail::AsciiToUpper(c) : c);
           upper = false;
         }
         data.object->Set(name, Value::String(attribute.value));

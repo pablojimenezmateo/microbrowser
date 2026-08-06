@@ -13,6 +13,10 @@ constexpr char AsciiToLower(char c) {
   return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
 }
 
+constexpr char AsciiToUpper(char c) {
+  return (c >= 'a' && c <= 'z') ? static_cast<char>(c - 'a' + 'A') : c;
+}
+
 constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b) {
   if (a.size() != b.size()) {
     return false;
@@ -81,6 +85,18 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b
   std::string out(text);
   for (char& c : out) {
     c = detail::AsciiToLower(c);
+  }
+  return out;
+}
+
+// The other direction, and here for the reason the lower-caser is: three
+// modules had a `c - 'a' + 'A'` of their own. `tagName` and `nodeName` are the
+// callers that matter -- the DOM reports an HTML element's name upper-cased,
+// and they were two implementations that disagreed with each other.
+[[nodiscard]] inline std::string AsciiUpperCase(std::string_view text) {
+  std::string out(text);
+  for (char& c : out) {
+    c = detail::AsciiToUpper(c);
   }
   return out;
 }

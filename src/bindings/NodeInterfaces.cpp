@@ -83,6 +83,26 @@ const char* InterfaceForTag(std::string_view tag) {
 
 }  // namespace
 
+std::string NodeNameOf(const dom::Node& node) {
+  switch (node.GetKind()) {
+    case dom::Node::Kind::Element:
+      return util::AsciiUpperCase(static_cast<const dom::Element&>(node).TagName());
+    case dom::Node::Kind::Text:
+      return "#text";
+    case dom::Node::Kind::Comment:
+      return "#comment";
+    case dom::Node::Kind::Document:
+      return "#document";
+    case dom::Node::Kind::DocumentFragment:
+      return "#document-fragment";
+    case dom::Node::Kind::DocumentType:
+      // A doctype's name, as written -- `html` for every page this browser
+      // will meet, and not upper-cased, because it is not a tag name.
+      return static_cast<const dom::DocumentType&>(node).Name();
+  }
+  return "#unknown";
+}
+
 js::Value DomBindings::MakeInterface(const char* name, const js::Value& parent) {
   if (const Value* existing = interfaces_.object->GetOwn(name)) {
     return *existing;

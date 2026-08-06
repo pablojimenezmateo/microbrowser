@@ -106,7 +106,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "one");
     ExpectScript(kPage, "document.getElementById('list').firstElementChild"
                         ".previousElementSibling === null", "true");
-    ExpectScript(kPage, "document.getElementById('list').parentElement.tagName", "body");
+    ExpectScript(kPage, "document.getElementById('list').parentElement.tagName", "BODY");
     // `parentElement` is null where `parentNode` is the document, which is the
     // whole difference between them.
     ExpectScript(kPage, "document.documentElement.parentElement === null", "true");
@@ -230,7 +230,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.readyState", "loading");
     ExpectScript(kPage, "document.createComment('hi').nodeType", "8");
     ExpectScript(kPage, "document.createElementNS('http://www.w3.org/1999/xhtml','div').tagName",
-                 "div");
+                 "DIV");
   });
 
   // A fragment is a parentless bag of nodes that inserts as a unit. The point
@@ -243,7 +243,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "f.appendChild(document.createElement('b'));"
                  "document.body.appendChild(f);"
                  "document.body.lastElementChild.tagName",
-                 "b");
+                 "B");
     // The fragment is emptied, not inserted: the body gains two children and
     // no fragment, and the fragment is reusable rather than detached.
     ExpectScript(kPage,
@@ -259,7 +259,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "f.appendChild(document.createElement('i'));"
                  "document.body.insertBefore(f, document.getElementById('list'));"
                  "document.body.children[1].tagName",
-                 "i");
+                 "I");
     ExpectScript(kPage, "document.createDocumentFragment().nodeType", "11");
     ExpectScript(kPage, "document.createDocumentFragment() instanceof DocumentFragment", "true");
     ExpectScript(kPage, "document.createDocumentFragment() instanceof Node", "true");
@@ -571,7 +571,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // do is the synchronous-loading gap, which an `<img>` added by script has
     // equally.
     ExpectScript(kPage, "new Image() instanceof HTMLImageElement", "true");
-    ExpectScript(kPage, "new Image().tagName", "img");
+    ExpectScript(kPage, "new Image().tagName", "IMG");
     ExpectScript(kPage, "new Image(4, 5).getAttribute('height')", "5");
 
     // The base a custom element extends. Being able to *write* this is the
@@ -603,18 +603,18 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "DomBindings/ScriptCanFindElements", [] {
-    ExpectScript(kPage, "document.getElementById('title').tagName", "h1");
+    ExpectScript(kPage, "document.getElementById('title').tagName", "H1");
     ExpectScript(kPage, "document.getElementById('title').textContent", "Hello");
     ExpectScript(kPage, "document.getElementById('nope') === null", "true");
     ExpectScript(kPage, "document.getElementsByTagName('p').length", "2");
     ExpectScript(kPage, "document.getElementsByTagName('p')[1].textContent", "two");
-    ExpectScript(kPage, "document.body.tagName", "body");
-    ExpectScript(kPage, "document.documentElement.tagName", "html");
+    ExpectScript(kPage, "document.body.tagName", "BODY");
+    ExpectScript(kPage, "document.documentElement.tagName", "HTML");
   });
 
   AddTest(tests, "DomBindings/QuerySelectorHandlesTheThreeSimpleForms", [] {
     ExpectScript(kPage, "document.querySelector('p').textContent", "one");
-    ExpectScript(kPage, "document.querySelector('#list').tagName", "div");
+    ExpectScript(kPage, "document.querySelector('#list').tagName", "DIV");
     ExpectScript(kPage, "document.querySelector('.big').textContent", "Hello");
     // Whole-word, so `.head` matches and `.hea` does not -- a substring match
     // here would make `.btn` select every `btn-large` on the page.
@@ -643,7 +643,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.id = 'moved';"
                  "t.getAttribute('id') + '/' + document.getElementById('moved').tagName",
-                 "moved/h1");
+                 "moved/H1");
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.className = 'a b';"
                  "t.getAttribute('class')",
@@ -710,7 +710,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // The distinction that trips up anyone who indexes into the wrong one and
     // gets a whitespace text node.
     ExpectScript(kPage, "document.getElementById('list').children.length", "2");
-    ExpectScript(kPage, "document.getElementById('list').children[0].tagName", "p");
+    ExpectScript(kPage, "document.getElementById('list').children[0].tagName", "P");
     ExpectScript("<div id=d>text<span></span></div>",
                  "document.getElementById('d').childNodes.length", "2");
     ExpectScript("<div id=d>text<span></span></div>",
@@ -728,7 +728,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "made");
     // A created node is owned by the bindings until it is attached, so
     // creating one and dropping it leaks nothing and dangles nothing.
-    ExpectScript(kPage, "document.createElement('div').tagName", "div");
+    ExpectScript(kPage, "document.createElement('div').tagName", "DIV");
     // Appending an attached node *moves* it. That was a TypeError while
     // removal did not exist, because moving means detaching and detaching
     // meant destroying; it is the ordinary DOM behaviour now that detaching
@@ -771,8 +771,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.getElementById('title').matches('.bi')", "false");
     // `closest` is this element or the nearest ancestor, which is how a click
     // handler finds the row a button is in.
-    ExpectScript(kPage, "document.querySelector('p').closest('#list').tagName", "div");
-    ExpectScript(kPage, "document.querySelector('p').closest('p').tagName", "p");
+    ExpectScript(kPage, "document.querySelector('p').closest('#list').tagName", "DIV");
+    ExpectScript(kPage, "document.querySelector('p').closest('p').tagName", "P");
     ExpectScript(kPage, "document.querySelector('p').closest('.nothing') === null", "true");
   });
 
@@ -787,12 +787,27 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.getElementById('d').lastChild.previousSibling.nodeName", "A");
     ExpectScript("<div id=d><a></a></div>",
                  "document.getElementById('d').firstChild.nextSibling === null", "true");
-    // `nodeName` is upper case and `tagName` is the name the parser stored, so
-    // the two deliberately differ.
+    // `nodeName` and `tagName` are the *same string* for an element, which is
+    // what the DOM says and what every browser does. They used to differ here
+    // -- `nodeName` upper-cased and `tagName` handed back the parser's stored
+    // lower-case name -- and a comment above this assertion called that
+    // deliberate. It was a bug: `el.tagName === 'SCRIPT'` is written
+    // everywhere and was silently false.
     ExpectScript(kPage,
                  "document.getElementById('title').nodeName + ' ' + "
                  "document.getElementById('title').tagName",
-                 "H1 h1");
+                 "H1 H1");
+    // The names for everything that is not an element, which had one answer
+    // (`#document`) for four different kinds.
+    ExpectScript("<div id=d>t<!--c--></div>",
+                 "const d = document.getElementById('d');"
+                 "d.firstChild.nodeName + ' ' + d.lastChild.nodeName + ' ' + "
+                 "document.nodeName + ' ' + document.createDocumentFragment().nodeName",
+                 "#text #comment #document #document-fragment");
+    // And a node that is not an element has no `tagName` at all, rather than
+    // the node name under a second spelling.
+    ExpectScript("<div id=d>t</div>",
+                 "typeof document.getElementById('d').firstChild.tagName", "undefined");
   });
 
   AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {
@@ -898,17 +913,17 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
         "<input name=extra form=login value=e>"
         "<form id=other></form></body>";
     ExpectScript(kForms, "document.forms.length", "2");
-    ExpectScript(kForms, "document.forms[0].tagName", "form");
+    ExpectScript(kForms, "document.forms[0].tagName", "FORM");
     ExpectScript(kForms, "document.forms.namedItem('login').id", "login");
     ExpectScript(kForms, "document.forms.namedItem('nothing') === null", "true");
     ExpectScript(kForms, "document.forms[0].elements.length", "3");
     ExpectScript(kForms, "document.forms[0].elements.namedItem('extra').getAttribute('value')",
                  "e");
-    ExpectScript(kForms, "document.forms[0].elements.namedItem('user').tagName", "input");
+    ExpectScript(kForms, "document.forms[0].elements.namedItem('user').tagName", "INPUT");
     // An `<img>` inside a form is not one of its elements.
     ExpectScript(kForms,
                  "[...document.forms[0].elements].map(e => e.tagName).join(',')",
-                 "input,input,input");
+                 "INPUT,INPUT,INPUT");
     ExpectScript(kForms, "document.forms[0].elements.namedItem('user').form.id", "login");
     ExpectScript(kForms, "document.body.form === null", "true");
   });
@@ -1030,7 +1045,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // freezing what it looked like when the bindings were installed.
     ExpectScript("<html><head><title>Some Page</title></head><body></body></html>",
                  "document.title", "Some Page");
-    ExpectScript("<html><head></head><body></body></html>", "document.head.tagName", "head");
+    ExpectScript("<html><head></head><body></body></html>", "document.head.tagName", "HEAD");
     ExpectScript(kPage,
                  "const t = document.createTextNode('hi'); const d = document.createElement('i');"
                  "d.appendChild(t); d.textContent",
@@ -1470,7 +1485,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const first = list.children[0];"
                  "list.removeChild(first);"
                  "list.children.length + ' ' + first.tagName + ' ' + first.textContent",
-                 "1 p one");
+                 "1 P one");
     // And it can be put back somewhere else, which is what a page does when it
     // reorders a list.
     ExpectScript(kPage,
@@ -1504,7 +1519,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "let sink = null;"
                  "for (let i = 0; i < 20000; i++) { sink = { i, next: sink && sink.i }; }"
                  "gone.textContent + ':' + gone.tagName + ':' + (gone.parentNode === null)",
-                 "one:p:true");
+                 "one:P:true");
   });
 
   AddTest(tests, "DomBindings/NodesCanBeInsertedAndReplacedInPlace", [] {
@@ -1513,14 +1528,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const fresh = document.createElement('em');"
                  "list.insertBefore(fresh, list.children[0]);"
                  "list.children[0].tagName + ' ' + list.children.length",
-                 "em 3");
+                 "EM 3");
     // A null reference appends, which is what the specification says and what
     // a page relies on when it inserts before "nothing".
     ExpectScript(kPage,
                  "const list = document.getElementById('list');"
                  "list.insertBefore(document.createElement('em'), null);"
                  "list.children[list.children.length - 1].tagName",
-                 "em");
+                 "EM");
     // In before out, so the replacement lands where the old node was rather
     // than at the end -- the whole difference from remove-then-append.
     ExpectScript(kPage,
@@ -1530,7 +1545,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const returned = list.replaceChild(fresh, old);"
                  "list.children[0].tagName + ' ' + list.children.length + ' ' + "
                  "(returned === old) + ' ' + returned.textContent",
-                 "em 2 true one");
+                 "EM 2 true one");
   });
 
   AddTest(tests, "DomBindings/AppendingAnAttachedNodeMovesIt", [] {
@@ -1540,7 +1555,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const box = document.getElementById('box');"
                  "box.appendChild(box.children[0]);"
                  "Array.from(box.children).map(e => e.tagName).join('')",
-                 "bca");
+                 "BCA");
     ExpectScript("<div id=box><a></a></div><div id=other></div>",
                  "const box = document.getElementById('box');"
                  "document.getElementById('other').appendChild(box.children[0]);"
@@ -1567,7 +1582,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const kept = list.children[0];"
                  "list.textContent = 'gone';"
                  "kept.tagName + ':' + kept.textContent",
-                 "p:one");
+                 "P:one");
 
     // The safety property that separates this from innerHTML: markup in the
     // string is text, not markup. A page that writes user input through
@@ -1593,7 +1608,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const t = document.getElementById('title');"
                  "t.innerHTML = '<i>x</i>';"
                  "t.children.length + ':' + t.children[0].tagName + ':' + t.textContent",
-                 "1:i:x");
+                 "1:I:x");
     // The context element is the observable difference: `<td>` becomes a cell
     // in a row and bare text anywhere else.
     ExpectScript(kPage,
@@ -1620,7 +1635,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "t.outerHTML = '<h2 id=\"t2\">new</h2>';"
                  "document.getElementById('title') === null ? "
                  "  document.getElementById('t2').tagName : 'still there'",
-                 "h2");
+                 "H2");
   });
 
   AddTest(tests, "DomBindings/InnerHtmlDoesNotRunScripts", [] {
@@ -1741,7 +1756,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage,
                  "const c = document.getElementById('list').cloneNode();"
                  "c.tagName + ' ' + c.children.length + ' ' + c.getAttribute('id')",
-                 "div 0 list");
+                 "DIV 0 list");
     ExpectScript(kPage,
                  "const c = document.getElementById('list').cloneNode(true);"
                  "c.children.length + ' ' + c.textContent",
