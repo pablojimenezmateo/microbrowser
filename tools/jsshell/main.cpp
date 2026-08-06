@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "js/Interpreter.h"
+#include "js/Lexer.h"
 #include "util/PerformanceCounters.h"
 #include "js/Parser.h"
 #include "js/Value.h"
@@ -30,9 +31,10 @@
 namespace {
 
 const char* kUsage =
-    "usage: microbrowser_jsshell [-p] [-q] <file.js>\n"
-    "       microbrowser_jsshell [-p] [-q] -e <source>\n"
+    "usage: microbrowser_jsshell [-p|-l] [-q] <file.js>\n"
+    "       microbrowser_jsshell [-p|-l] [-q] -e <source>\n"
     "  -p  parse only; print each syntax error with the source around it\n"
+    "  -l  lex only; print the token count and nothing else\n"
     "  -q  do not echo console output\n";
 
 // Sixty characters either side of `offset`, control characters folded to
@@ -73,6 +75,7 @@ bool ReadFile(const char* path, std::string& out) {
 
 int main(int argc, char** argv) {
   bool parse_only = false;
+  bool lex_only = false;
   bool quiet = false;
   std::string source;
   bool have_source = false;
@@ -81,6 +84,8 @@ int main(int argc, char** argv) {
     const std::string_view arg = argv[i];
     if (arg == "-p") {
       parse_only = true;
+    } else if (arg == "-l") {
+      lex_only = true;
     } else if (arg == "-q") {
       quiet = true;
     } else if (arg == "-e" && i + 1 < argc) {
@@ -99,6 +104,25 @@ int main(int argc, char** argv) {
   if (!have_source) {
     std::fputs(kUsage, stderr);
     return 2;
+  }
+
+  // Lexing with no tree built, which is the only way to answer "is the parse
+  // slow because of the scanner or because of the nodes?" from outside. The
+  // question came up measuring youtube's 5.9MB bundle and there was no way to
+  // ask it: `-p` covers both halves at once. Prints a count so the loop cannot
+  // be optimised away and so two runs can be compared for more than time.
+  if (lex_only) {
+    microbrowser::js::Lexer lexer(source);
+    std::size_t tokens = 0;
+    while (true) {
+      const microbrowser::js::Token token = lexer.Next();
+      if (token.type == microbrowser::js::TokenType::EndOfFile) {
+        break;
+      }
+      ++tokens;
+    }
+    std::printf("%zu tokens\n", tokens);
+    return 0;
   }
 
   if (parse_only) {
