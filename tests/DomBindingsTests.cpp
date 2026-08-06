@@ -1149,6 +1149,22 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   ExpectEqString(js::ToString(message.value), "esms", "postMessage delivers to window");
   });
 
+  AddTest(tests, "DomBindings/IframeInsertCompletesEsmsFeatureDetection", [] {
+    auto document = html::ParseDocument("<html><head></head><body></body></html>");
+    auto interpreter = std::make_unique<js::Interpreter>();
+    bindings::DomBindings dom(*interpreter, *document, "https://example.org/", nullptr, nullptr,
+                              nullptr, nullptr, nullptr, nullptr, nullptr);
+    dom.Install();
+
+    const js::Result outcome = interpreter->Run(
+        "let flags = null;"
+        "window.addEventListener('message', e => { flags = e.data; });"
+        "document.head.appendChild(document.createElement('iframe'));"
+        "flags ? flags[0] + ':' + flags[1] + ':' + flags[2] : 'none'");
+    ExpectEqString(js::ToString(outcome.value), "esms:false:true",
+                 "iframe insert delivers synthetic esms feature tuple");
+  });
+
   AddTest(tests, "DomBindings/ARangeIsTwoBoundaryPointsAndTheirOrder", [] {
     // Closure's `goog.dom.Range` is how youtube's bundle asks "is this node
     // before that one", and it stopped on the name. Everything asserted here

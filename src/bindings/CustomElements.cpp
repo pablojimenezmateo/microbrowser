@@ -199,7 +199,12 @@ void DomBindings::RunElementReaction(dom::Element& element, const char* callback
   // Reported rather than discarded, for the reason the constructor's throw now
   // is: a reaction that throws is how a component stops halfway, and a silent
   // one is indistinguishable from a component that had nothing to do.
+  const bool was_trusted = trusted_script_insertion_;
+  if (csp_script_strict_dynamic_) {
+    trusted_script_insertion_ = true;
+  }
   const js::Result ran = interpreter_->CallFunction(*handler, wrapper, {});
+  trusted_script_insertion_ = was_trusted;
   if (ran.completion == js::Completion::Throw) {
     interpreter_->ReportUncaught(ran.value, "custom element reaction");
   }

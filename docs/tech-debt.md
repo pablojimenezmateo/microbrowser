@@ -465,7 +465,8 @@ wikimedia), or a **sandbox/network burst** has not been isolated — it was not 
 **End state.** Counters that pair `gfx.web_fonts_registered` with `gfx.font_load_failures` and
 `net.connections` at failure time, then either fix the exhaustion path or document a host limit.
 Rendering text in Roboto is necessary for a readable youtube.com but is not sufficient for thumbnails
-(Polymer/DI at @1323410 and TD-0013 are still the primary white-page causes).
+(Polymer binding attributes at `[[computedBadges]]` were fixed in session 56; **0 images** and partial
+stamp remain — see snapshot: 78 display-list commands, 2 `ytd-thumbnail`, 6 fonts, ~4 min wall).
 
 ---
 

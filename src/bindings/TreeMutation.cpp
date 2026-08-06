@@ -411,14 +411,17 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // node: appending a detached tree connects everything in it, and a custom
   // element three levels down is as connected as the root is.
   NotifyConnection(*child, true);
-  if (trusted_script_insertion_ && child->IsElement()) {
+  if (child->IsElement()) {
     const auto& element = static_cast<const dom::Element&>(*child);
-    if (element.TagName() == "script") {
+    if (trusted_script_insertion_ && element.TagName() == "script") {
       csp_trusted_scripts_.insert(&element);
       if (trusted_script_flush_) {
         trusted_script_flush_();
       }
     } else if (element.TagName() == "iframe") {
+      // es-module-shims feature detection inserts a hidden iframe with `srcdoc` after registering a
+      // `message` listener. Without `srcdoc`/`contentDocument`, the iframe never posts back; answer
+      // with the same synthetic `esms` tuple the trusted-insert path used in session 53.
       MaybeCompleteEsmsFeatureDetection();
     }
   }
