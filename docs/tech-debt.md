@@ -166,6 +166,68 @@ anything is attempted: "a script yields" is a change to the execution model, not
 
 ---
 
+## TD-0008 — No HTTP/2, so a burst of six connections gets rate-limited and the page loses images
+
+`en.wikipedia.org/wiki/CSS` renders **between 4 and 17 of its 19 images, at
+random, from run to run**. The cause is not in this browser's loop, its decoders
+or its layout: `upload.wikimedia.org` answers **HTTP 429** to a burst of six
+parallel HTTP/1.1 connections, and this browser opens six because
+`kMaxConnectionsPerPartition` is six and it has no other way to fetch six images
+at once.
+
+**Measured**, with the load timeline added in `55f7b40`, five consecutive runs of
+the same page:
+
+| run | images drawn | `engine.images_failed` |
+|---|---|---|
+| 1 | 14 | 2 |
+| 2 | **4** | 15 |
+| 3 | 14 | 5 |
+| 4 | **4** | 15 |
+| 5 | 14 | 5 |
+
+`net.fetches` is 24 every time: the requests are made, and the responses are
+429s. Reproduced outside this browser -- six parallel `curl --http1.1` requests
+to that host return `200 200 200 429 200 429` -- so it is the concurrency and
+not the `User-Agent`, which was the first suspicion and was tested and cleared.
+
+A real browser never sees this, because it speaks HTTP/2 to that host: one
+connection, multiplexed, no burst to rate-limit. This is the first *rendering
+correctness* cost anybody has measured for the missing transport, as opposed to
+a latency cost, and it is the argument ADR 0010 §3 did not have.
+
+**End state.** ALPN and HTTP/2 -- ADR 0010 §3, mostly a parser problem: framing,
+multiplexing, flow control and HPACK. Lowering the concurrency bound is the
+tempting cheap fix and is the wrong one: it slows every page that is not being
+rate-limited to work around one that is, and the number that would work is a
+guess about somebody else's edge.
+
+---
+
+## TD-0009 — The first paint still waits for every stylesheet and every blocking script
+
+Fixed for images in `55f7b40`; the shape remains for everything else, and on a
+page whose CSS and JavaScript are large that is the whole wait. Hacker News is
+now gated entirely on `hn.js`: the document is parsed at 553ms and the frame goes
+out at 1111ms, of which 535ms is waiting for a 6KB script on a fresh connection.
+
+Some of that is correct and must stay -- a stylesheet *is* render-blocking, and a
+synchronous script may write to the document. What is not correct is that there
+is no paint at all before it: there is no incremental parse and no first paint of
+the part of the document that has arrived, so a slow subresource is a blank
+window rather than a partial page.
+
+**Measured** (load timeline, release build):
+
+| page | document parsed | first paint | gap |
+|---|---|---|---|
+| news.ycombinator.com | 553ms | 1111ms | **558ms** |
+| en.wikipedia.org/wiki/CSS | 229ms | 744ms | **515ms** |
+
+**End state.** ADR 0030, which this now has numbers for.
+
+---
+
 ## Closed
 
 - **The cascade asked every rule about every element** (`299a08f`). 18,360 rules against 686
