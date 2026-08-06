@@ -18,6 +18,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "css/StyleSheet.h"
 
 namespace microbrowser::bindings {
 
@@ -154,9 +155,10 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
       return Value::Null();
     }
     const std::string selector = js::ToString(Argument(call.arguments, 0));
+    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
     dom::Element* found = nullptr;
     EachDescendantElement(*self, [&](dom::Element& element) {
-      if (found == nullptr && Matches(element, selector)) {
+      if (found == nullptr && MatchesSelectorList(element, compiled)) {
         found = &element;
       }
     });
@@ -168,8 +170,9 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     std::vector<Value> found;
     if (owner != nullptr && self != nullptr) {
       const std::string selector = js::ToString(Argument(call.arguments, 0));
+      const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
       EachDescendantElement(*self, [&](dom::Element& element) {
-        if (Matches(element, selector)) {
+        if (MatchesSelectorList(element, compiled)) {
           found.push_back(owner->WrapperFor(&element));
         }
       });

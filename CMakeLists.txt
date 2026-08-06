@@ -454,7 +454,7 @@ microbrowser_module(bindings
     src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp
     src/bindings/XhrBindings.cpp
-  DEPS microbrowser_js microbrowser_dom microbrowser_html)
+  DEPS microbrowser_js microbrowser_dom microbrowser_html microbrowser_css)
 
 microbrowser_module(js
   SOURCES

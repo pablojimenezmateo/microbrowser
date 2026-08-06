@@ -12,6 +12,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "css/StyleSheet.h"
 
 namespace microbrowser::bindings {
 
@@ -68,25 +69,25 @@ void DomBindings::Install() {
     return call.interpreter.NewArrayValue(std::move(found));
   });
   method("querySelector", [](NativeCall& call) {
-    // Tag, `#id` and `.class` only. A real selector engine exists in `src/css`
-    // and this module is not allowed to see it -- widening `allow:` to reach it
-    // would widen a security boundary for a convenience.
     DomBindings* owner = OwnerOf(call);
     if (owner == nullptr) {
       return Value::Null();
     }
     const std::string selector = js::ToString(Argument(call.arguments, 0));
+    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
     return owner->WrapperFor(FindElementIn(
-        *owner->DocumentOf(call.self),
-        [&selector](const dom::Element& element) { return Matches(element, selector); }));
+        *owner->DocumentOf(call.self), [&compiled](const dom::Element& element) {
+          return MatchesSelectorList(element, compiled);
+        }));
   });
   method("querySelectorAll", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     const std::string selector = js::ToString(Argument(call.arguments, 0));
+    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
     std::vector<Value> found;
     if (owner != nullptr) {
       ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
-        if (Matches(element, selector)) {
+        if (MatchesSelectorList(element, compiled)) {
           found.push_back(owner->WrapperFor(&element));
         }
       });
@@ -100,10 +101,11 @@ void DomBindings::Install() {
   method("getElementsByClassName", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     const std::string selector = "." + js::ToString(Argument(call.arguments, 0));
+    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
     std::vector<Value> found;
     if (owner != nullptr) {
       ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
-        if (Matches(element, selector)) {
+        if (MatchesSelectorList(element, compiled)) {
           found.push_back(owner->WrapperFor(&element));
         }
       });

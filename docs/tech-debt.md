@@ -383,6 +383,42 @@ before it throws. Design home: **ADR 0034**.
 
 ---
 
+## TD-0013 — Real `querySelector` unblocks youtube.js into a CPU hang
+
+`DomBindings::Matches` was a three-form toy (`#id`, `.class`, exact tag). That
+was enough for early tests and wrong for every framework: a selector list like
+`ytd-app,ytd-masthead`, a combinator like `div > span`, or an attribute like
+`link[rel~="stylesheet"]` silently matched nothing, while
+`querySelector("ytd-app")` still worked. Wiring `querySelector` /
+`querySelectorAll` / `matches` / `closest` to `css::ParseSelectorList` +
+`Selector::Matches` is the correct fix (and `document.scripts` /
+`document.images` / `document.links` landed beside it).
+
+**Measured**, Debug build, after that wiring (2026-08-06):
+
+| | toy matcher | real selectors |
+|---|---|---|
+| youtube.com load | ~80s, 56 display-list commands, finishes | **≥5 min at ~99% CPU, never finishes** |
+| `MatchesSelectorList` calls | n/a | **not a match storm** (no 50M-call abort) |
+| early `querySelectorAll` | misses `script:not([nonce])`, `link[rel~=…]` | finds them, then hangs in a non-selector path |
+
+So the hang is not "matching is too slow". Real answers let the page's own
+bootstrap take a branch the toy matcher accidentally skipped, and that branch
+spins without allocating (memory stable at ~3.6%) and without running enough
+JS bytecodes to hit `kMaxSteps` — which is the shape of a native-heavy loop or
+a `RunLoadToCompletion` busy-wait, not a selector walk.
+
+`MICROBROWSER_SELECTOR_TRACE=1` counts `Matches` / `MatchesSelectorList` calls
+for the next diagnosis. The next instrument should count turns of
+`RunLoadToCompletion` / `Advance` / `RunDueWork` the same way.
+
+**End state.** Find the branch (likely after the first real stylesheet / script
+queries succeed), fix the engine bug or the missing API it is waiting on, and
+close this when youtube.com finishes a load under the real matcher with a
+command count that is not 56.
+
+---
+
 ## Closed
 
 - **TD-0010 — request concurrency was the HTTP/1.1 socket bound** (`…`). Split into

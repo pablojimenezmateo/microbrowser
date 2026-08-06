@@ -107,23 +107,43 @@ void DomBindings::InstallFormApis() {
   // The accessor would have landed on an object nothing could reach.
   const Value* document_interface =
       interfaces_.IsObject() ? interfaces_.object->GetOwn("Document") : nullptr;
-  const Value forms = interpreter_->NewNativeValue("forms", [](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    if (owner == nullptr) {
-      return Value::Undefined();
-    }
-    std::vector<dom::Element*> found;
-    owner->ForEachElement([&](dom::Element& element) {
-      if (IsFormElement(element)) {
-        found.push_back(&element);
-      }
-    });
-    return owner->MakeNamedCollection(found);
+
+  const auto document_collection =
+      [this, document_interface](const char* name, auto predicate) {
+        const Value accessor = interpreter_->NewNativeValue(name, [predicate](NativeCall& call) {
+          DomBindings* owner = OwnerOf(call);
+          if (owner == nullptr) {
+            return Value::Undefined();
+          }
+          std::vector<dom::Element*> found;
+          owner->ForEachElement([&](dom::Element& element) {
+            if (predicate(element)) {
+              found.push_back(&element);
+            }
+          });
+          return owner->MakeNamedCollection(found);
+        });
+        if (accessor.IsObject() && document_interface != nullptr &&
+            document_interface->IsObject()) {
+          accessor.object->Set(kOwnerSlot, PointerValue(this));
+          document_interface->object->DefineAccessor(name, accessor.object, nullptr);
+        }
+      };
+  document_collection("forms",
+                      [](const dom::Element& element) { return IsFormElement(element); });
+  // `document.scripts` / `images` / `links` are the same shape as `forms`.
+  // youtube's bootstrap and every framework that waits for "the page's own
+  // scripts" read `document.scripts`; without it the name is `undefined` and
+  // feature detection takes the branch written for browsers that have none.
+  document_collection("scripts", [](const dom::Element& element) {
+    return element.TagName() == "script";
   });
-  if (forms.IsObject() && document_interface != nullptr && document_interface->IsObject()) {
-    forms.object->Set(kOwnerSlot, PointerValue(this));
-    document_interface->object->DefineAccessor("forms", forms.object, nullptr);
-  }
+  document_collection("images", [](const dom::Element& element) {
+    return element.TagName() == "img";
+  });
+  document_collection("links", [](const dom::Element& element) {
+    return element.TagName() == "a" && element.GetAttribute("href") != nullptr;
+  });
 
   const Value* form_interface = interfaces_.IsObject()
                                     ? interfaces_.object->GetOwn("HTMLFormElement")

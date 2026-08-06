@@ -20,7 +20,15 @@ purpose: The seam between script and the document. The only module that sees bot
 # nothing would notice. The engine already computes it from html::FormOwner,
 # and two answers to "which controls does this form own" is exactly the class
 # of bug ADR 0012 calls worse than an absence.
-allow: util js dom html
+#
+# `css` is here for the same reason, and the bug it closes is worse: 
+# `querySelector` / `matches` / `closest` answered with a three-form toy
+# matcher (`#id`, `.class`, exact tag). `ytd-app,ytd-masthead` and `div > p`
+# silently matched nothing, so Polymer and youtube.com walked an empty tree
+# while `querySelector("ytd-app")` still worked. Selector matching is a pure
+# function of (element, selector) that already lives in `src/css`; this line
+# is how the binding layer asks it rather than re-implementing it wrong.
+allow: util js dom html css
 
 public: AnimationFrames.h DomBindings.h Geometry.h History.h Media.h Network.h Performance.h Sockets.h Storage.h Timers.h ViewObservers.h Canvas.h Workers.h
 
@@ -208,7 +216,11 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # measures growth, and it is now the argument for splitting the class.
 # And by two for `Range`, which is a third such object -- and the third in one
 # session is the argument above making itself. See max_tu_lines.
-budget: DomBindings header_lines=624 public_methods=32 members=18
+# And by four for `MatchesSelectorList`: the same CSS engine the cascade uses,
+# exposed so `querySelectorAll` can parse a selector once and match it against
+# every element rather than re-tokenising per node. The three-form toy this
+# replaced is how youtube.com's selector lists returned nothing.
+budget: DomBindings header_lines=628 public_methods=33 members=18
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

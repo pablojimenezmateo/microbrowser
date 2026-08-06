@@ -280,10 +280,19 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     }
     microbrowser::util::WaitDescriptorList descriptors;
     engine.AppendWaitDescriptors(descriptors);
-    if (descriptors.empty()) {
-      break;  // nothing outstanding and nothing runnable: the load is stuck
-    }
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
+    if (descriptors.empty() && !deadline.has_value()) {
+      break;  // nothing outstanding, nothing runnable, no timer: stuck
+    }
+    if (descriptors.empty()) {
+      // A timer or animation frame is due later. Sleep until then rather than
+      // spinning Advance/HasRunnableWork, which is how a page that armed rAF
+      // during load burned a core at 99% with nothing on the wire (TD-0013).
+      microbrowser::util::PerformanceTrace::Scope wait("wait::Deadline");
+      microbrowser::platform::WaitOnDescriptors(
+          descriptors, static_cast<std::int32_t>(*deadline));
+      continue;
+    }
     // Scoped under `wait::` rather than a module name, and that prefix is the
     // convention: a `wait::` row is time the loop spent *blocked*, not time it
     // spent working, so it must not be read as a hotspot. Without it a page

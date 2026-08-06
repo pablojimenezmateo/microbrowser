@@ -1,10 +1,14 @@
 #include "bindings/DomBindings.h"
 
 #include "bindings/BindingSupport.h"
+#include "css/StyleSheet.h"
 #include "dom/FlatTree.h"
+#include "util/Env.h"
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdio>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,6 +21,15 @@ namespace {
 using js::NativeCall;
 using js::Object;
 using js::Value;
+
+bool MatchesAny(const dom::Element& element, const std::vector<css::Selector>& selectors) {
+  for (const css::Selector& selector : selectors) {
+    if (selector.Matches(element)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 }  // namespace
 
@@ -46,38 +59,38 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
       workers_(workers) {}
 
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
-  if (selector.empty()) {
-    return false;
-  }
-  const char kind = selector.front();
-  const std::string wanted =
-      kind == '#' || kind == '.' ? selector.substr(1) : LowerCase(selector);
-  if (wanted.empty()) {
-    return false;
-  }
-  if (kind == '#') {
-    const std::string* id = element.GetAttribute("id");
-    return id != nullptr && *id == wanted;
-  }
-  if (kind != '.') {
-    return selector == "*" || element.TagName() == wanted;
-  }
-  const std::string* names = element.GetAttribute("class");
-  if (names == nullptr) {
-    return false;
-  }
-  // Whole-word, so `.btn` does not match `class="btn-large"`. A substring
-  // test here would select half the page and look almost right.
-  for (std::size_t at = names->find(wanted); at != std::string::npos;
-       at = names->find(wanted, at + 1)) {
-    const bool left = at == 0 || (*names)[at - 1] == ' ';
-    const bool right =
-        at + wanted.size() == names->size() || (*names)[at + wanted.size()] == ' ';
-    if (left && right) {
-      return true;
+  // The real CSS selector engine, not the three-form toy this used to be.
+  // `#id`, `.class` and an exact tag were enough for early tests and wrong for
+  // every framework: `ytd-app,ytd-masthead`, `div > span`, `:not(.x)` and
+  // `[attr]` all silently matched nothing while `querySelector("ytd-app")`
+  // still worked, which is how youtube.com looked like it had an app element
+  // and no component tree. Parse once per call; querySelectorAll parses once
+  // for the whole walk via MatchesSelectorList.
+  if (util::EnvFlagEnabled("MICROBROWSER_SELECTOR_TRACE")) {
+    // A hang under a real page with real selectors is usually "one query in a
+    // hot loop", and the only way to see which is to count. Off by default.
+    static std::uint64_t calls = 0;
+    if ((++calls % 1000000ULL) == 0ULL) {
+      std::fprintf(stderr, "[selector] matches_calls=%llu last=%s\n",
+                   static_cast<unsigned long long>(calls), selector.c_str());
     }
   }
-  return false;
+  return MatchesSelectorList(element, css::ParseSelectorList(selector));
+}
+
+bool DomBindings::MatchesSelectorList(const dom::Element& element,
+                                      const std::vector<css::Selector>& selectors) {
+  if (util::EnvFlagEnabled("MICROBROWSER_SELECTOR_TRACE")) {
+    // querySelectorAll parses once and calls this per element, so the string
+    // form of Matches is not on the hot path -- count here or the trace is
+    // silent on the hang it exists to diagnose (TD-0013).
+    static std::uint64_t calls = 0;
+    if ((++calls % 5'000'000ULL) == 0ULL) {
+      std::fprintf(stderr, "[selector] list_match_calls=%llu selectors=%zu\n",
+                   static_cast<unsigned long long>(calls), selectors.size());
+    }
+  }
+  return MatchesAny(element, selectors);
 }
 
 js::Value DomBindings::MakeClassList(dom::Element& element) {

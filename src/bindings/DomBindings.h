@@ -19,6 +19,10 @@
 #include "js/Interpreter.h"
 #include "js/StructuredClone.h"
 
+namespace microbrowser::css {
+struct Selector;
+}
+
 namespace microbrowser::bindings {
 
 // A form submission a script asked for and has not had yet.
@@ -288,10 +292,17 @@ class DomBindings {
   // `document.implementation`, and `Document.prototype` -- where every
   // `document.*` method now lives rather than on the one wrapper.
   void InstallImplementation(const js::Value& document_interface);
-  // Whether an element answers to one of the three selector forms this layer
-  // supports. Shared by querySelector, querySelectorAll, matches and closest,
-  // which would otherwise be four chances to disagree about what `.a` means.
+  // Whether an element answers to a CSS selector. Shared by querySelector,
+  // querySelectorAll, matches and closest, which would otherwise be four
+  // chances to disagree. Implemented by `src/css` (see MODULE.deps): the
+  // three-form toy this used to be (`#id` / `.class` / exact tag) is how
+  // youtube.com's `querySelectorAll("ytd-app,ytd-masthead")` returned nothing
+  // while `querySelector("ytd-app")` still worked.
   static bool Matches(const dom::Element& element, const std::string& selector);
+  // The same, after the caller has parsed the list once -- querySelectorAll
+  // walks every element and must not re-tokenize the selector for each.
+  static bool MatchesSelectorList(const dom::Element& element,
+                                  const std::vector<css::Selector>& selectors);
   // `scrollTop`/`scrollLeft`, `scrollWidth`/`scrollHeight`, and the three
   // methods that write them. Split out of InstallGeometry because the two
   // halves answer different questions: one measures a box and the other moves

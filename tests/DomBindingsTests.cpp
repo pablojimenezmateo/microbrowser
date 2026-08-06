@@ -1260,6 +1260,33 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kForms, "document.body.form === null", "true");
   });
 
+  AddTest(tests, "DomBindings/DocumentCollectionsCoverScriptsImagesAndLinks", [] {
+    constexpr const char* kPage =
+        "<body><script src=a.js></script><script>1</script>"
+        "<img id=i src=x.png><a href=/go>go</a><a name=n>no</a></body>";
+    ExpectScript(kPage, "document.scripts.length", "2");
+    ExpectScript(kPage, "document.images.length", "1");
+    ExpectScript(kPage, "document.images[0].id", "i");
+    ExpectScript(kPage, "document.links.length", "1");
+    ExpectScript(kPage, "document.links[0].getAttribute('href')", "/go");
+  });
+
+  AddTest(tests, "DomBindings/QuerySelectorUsesTheCssSelectorEngine", [] {
+    // The three-form toy (`#id` / `.class` / exact tag) made selector lists and
+    // combinators silently match nothing -- which is how youtube.com's
+    // `querySelectorAll("ytd-app,ytd-masthead")` returned 0 while
+    // `querySelector("ytd-app")` still found the app.
+    constexpr const char* kPage =
+        "<body><div id=a><span class=x>1</span></div>"
+        "<div id=b><span class=y>2</span></div>"
+        "<ytd-app></ytd-app><ytd-masthead></ytd-masthead></body>";
+    ExpectScript(kPage, "document.querySelectorAll('ytd-app,ytd-masthead').length", "2");
+    ExpectScript(kPage, "document.querySelectorAll('div > span').length", "2");
+    ExpectScript(kPage, "document.querySelectorAll('div span.x').length", "1");
+    ExpectScript(kPage, "document.querySelector('#a > span.x').textContent", "1");
+    ExpectScript(kPage, "document.querySelector('span.x').matches('div > span')", "true");
+  });
+
   AddTest(tests, "DomBindings/RequestSubmitIsNotAnAliasForSubmit", [] {
     // The distinction with a page-shaped consequence: `requestSubmit()` fires
     // `submit` and `submit()` does not. A browser that aliases them submits the
