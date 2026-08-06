@@ -302,6 +302,9 @@ namespace microbrowser::util {
   X(MediaSourceSegmentsEvicted, "media.source_segments_evicted")                  \
   X(MediaSourceBuffersCreated, "media.source_buffers_created")                    \
   X(MediaObjectUrlsCreated, "media.object_urls_created")                          \
+  X(MpegTsPacketsParsed, "media.mpegts_packets")                                  \
+  X(MpegTsSamples, "media.mpegts_samples")                                        \
+  X(MpegTsResyncs, "media.mpegts_resyncs")                                        \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \

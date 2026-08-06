@@ -273,6 +273,7 @@ microbrowser_module(media
     src/media/BufferedRanges.cpp
     src/media/HlsPlaylist.cpp
     src/media/MediaSourceState.cpp
+    src/media/MpegTs.cpp
     src/media/MediaState.cpp
     src/media/BoxReader.cpp
     src/media/CodecId.cpp
@@ -570,6 +571,7 @@ add_executable(microbrowser_tests
   tests/LineBreakTests.cpp
   tests/BidiTests.cpp
   tests/MediaSourceTests.cpp
+  tests/MpegTsTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
@@ -668,6 +670,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(encoding_fuzzer fuzz/EncodingFuzzer.cpp microbrowser_html)
   microbrowser_fuzzer(bidi_fuzzer fuzz/BidiFuzzer.cpp microbrowser_text)
   microbrowser_fuzzer(buffered_ranges_fuzzer fuzz/BufferedRangesFuzzer.cpp microbrowser_media)
+  microbrowser_fuzzer(mpegts_fuzzer fuzz/MpegTsFuzzer.cpp microbrowser_media)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)

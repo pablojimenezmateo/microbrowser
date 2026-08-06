@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h BufferedRanges.h HlsPlaylist.h Matroska.h MediaSourceState.h MediaState.h PlaybackClock.h
+public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h BufferedRanges.h HlsPlaylist.h Matroska.h MediaSourceState.h MediaState.h MpegTs.h PlaybackClock.h
 
 extern:
 
@@ -41,6 +41,11 @@ budget: MediaState      header_lines=115 public_methods=24 members=12
 # parse is one function and nothing here has state to protect.
 budget: HlsPlaylist     header_lines=45 public_methods=2 members=6
 budget: MatroskaFile    header_lines=40 public_methods=2 members=5
+# ADR 0028 §2's third container, and the one HLS carries. A packet multiplex rather than a tree, so
+# what it reports includes how much it had to *recover* from -- a transport stream is designed to be
+# read through damage and a caller needs to know how much there was.
+budget: MpegTsFile      header_lines=35 public_methods=2 members=8
+budget: MpegTsStream    header_lines=25 public_methods=2 members=5
 budget: HlsVariant      header_lines=25 public_methods=2 members=5
 budget: HlsSegment      header_lines=25 public_methods=2 members=3
 budget: BoxReader       header_lines=95 public_methods=20 members=3
