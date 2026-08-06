@@ -236,6 +236,12 @@ void DomBindings::DispatchPortMessage(const js::Value& port, const js::Value& da
         if (!event.IsObject()) {
           return Value::Undefined();
         }
+        // A real MessageEvent, because there is one: this is the interface a
+        // page checks with `instanceof` and patches through
+        // `MessageEvent.prototype`.
+        if (const Value prototype = self->InterfaceNamed("MessageEvent"); prototype.IsObject()) {
+          event.object->SetPrototype(prototype.object);
+        }
         event.object->Set("type", Value::String(std::string("message")));
         event.object->Set("target", port);
         event.object->Set("data", data);
@@ -260,7 +266,6 @@ void DomBindings::DispatchPortMessage(const js::Value& port, const js::Value& da
             call.interpreter.ReportUncaught(outcome.value, "message port listener");
           }
         }
-        (void)self;
         return Value::Undefined();
       });
   // The task holds the port and the data in its captures, and the *function

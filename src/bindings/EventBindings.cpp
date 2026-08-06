@@ -215,9 +215,15 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     return Value::Undefined();
   }
   if (parent != nullptr) {
-    const Value base = EventPrototype(parent, nullptr);
-    if (base.IsObject()) {
-      prototype.object->SetPrototype(base.object);
+    // Looked up, **not created**. Creating it here would have to guess the
+    // grandparent, and the only guess available is "none" -- so a chain built
+    // out of order would silently give the middle link the root's methods and
+    // no Event above it. The list in InstallEventConstructors is parent-first
+    // for that reason, and this is what makes breaking that order fail loudly
+    // (no prototype) rather than quietly (the wrong one).
+    if (const Value* base = interfaces_.object->GetOwn(parent);
+        base != nullptr && base->IsObject()) {
+      prototype.object->SetPrototype(base->object);
     }
   }
   interfaces_.object->Set(name, prototype);
@@ -280,7 +286,8 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
   // which is what a polyfill patches and what `instanceof` needs.
   DomBindings* self = this;
   const bool custom = std::string(name) == "CustomEvent";
-  const Value constructor = interpreter_->NewNativeValue(name, [self, custom](NativeCall& call) {
+  const Value constructor =
+      interpreter_->NewNativeValue(name, [self, custom, prototype](NativeCall& call) {
     const std::string type = js::ToString(Argument(call.arguments, 0));
     const Value options = Argument(call.arguments, 1);
     const auto option = [&options](const char* key) {
@@ -294,6 +301,16 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     // under `new` -- the receiver a construct call builds is discarded in
     // favour of an object the native returns.
     const Value event = self->MakeEvent(type, option("bubbles"), option("cancelable"), false);
+    // **Its own prototype, not Event's.** MakeEvent gives every event
+    // `Event.prototype`, because that is right for the ones the browser makes
+    // and hands to a listener -- but a constructed one has to be an instance of
+    // the constructor that was called. Without this line the whole hierarchy
+    // above existed and nothing was ever an instance of any of it:
+    // `new CustomEvent('x') instanceof CustomEvent` was false, which is the
+    // check a page makes before reading `.detail`.
+    if (event.IsObject() && prototype.IsObject()) {
+      event.object->SetPrototype(prototype.object);
+    }
     if (event.IsObject() && custom) {
       const Value* detail = options.IsObject() ? options.object->Get("detail") : nullptr;
       event.object->Set("detail", detail == nullptr ? Value::Undefined() : *detail);
@@ -389,13 +406,49 @@ void DomBindings::InstallEventConstructors() {
   // Naming them is what builds them. CustomEvent and MouseEvent both extend
   // Event, which is a chain a polyfill walks: it reads `Event.prototype` to
   // patch behaviour and expects the others to inherit the patch.
+  //
+  // **Parent-first, and the order is load-bearing** -- see EventPrototype,
+  // which looks a parent up rather than creating one, because creating it
+  // would have to guess the grandparent.
   EventPrototype("Event", nullptr);
   EventPrototype("CustomEvent", "Event");
-  EventPrototype("MouseEvent", "Event");
+  // UIEvent is the real base of everything a user does, and it was missing:
+  // MouseEvent and KeyboardEvent chained straight to Event, so a polyfill that
+  // patches `UIEvent.prototype` -- which is where a library puts a fix meant
+  // for every input event at once -- reached nothing.
+  EventPrototype("UIEvent", "Event");
+  EventPrototype("MouseEvent", "UIEvent");
   // `e instanceof KeyboardEvent` is how a handler bound to several event types
   // tells a key from a click, and it is the check a page makes before reading
   // `e.key` off something that might not have one.
-  EventPrototype("KeyboardEvent", "Event");
+  EventPrototype("KeyboardEvent", "UIEvent");
+  // FocusEvent was being created on demand by the focus dispatcher with `Event`
+  // as its parent, which is one place deciding the hierarchy for itself. It is
+  // declared here with the rest so there is one list.
+  EventPrototype("FocusEvent", "UIEvent");
+  EventPrototype("InputEvent", "UIEvent");
+  // The three that extend MouseEvent, and the reason the chain matters: a
+  // handler bound to both `click` and `wheel` reads `e.clientX` off either, and
+  // that only works if a WheelEvent *is* a MouseEvent.
+  //
+  // The list is what youtube's bundle names, which is how every list in this
+  // file is chosen: `WheelEvent`, `PointerEvent`, `DragEvent`, `MessageEvent`
+  // and `PromiseRejectionEvent` all appear in it, and `WheelEvent` is where it
+  // stopped at source offset 9,444,946 -- 88% of the way through 10.7MB.
+  EventPrototype("WheelEvent", "MouseEvent");
+  EventPrototype("PointerEvent", "MouseEvent");
+  EventPrototype("DragEvent", "MouseEvent");
+  // `MessageEvent` is the one this browser actually delivers: a `MessagePort`
+  // hands one to its listener, so this is the interface behind an object that
+  // already exists rather than a name in front of nothing.
+  EventPrototype("MessageEvent", "Event");
+  // `ProgressEvent`, which is what an XHR's `progress`/`load`/`error` are.
+  EventPrototype("ProgressEvent", "Event");
+  // `PromiseRejectionEvent`. Nothing dispatches one -- an unhandled rejection
+  // gets a console line and no more, which docs/js-conformance-roadmap.md
+  // records -- so this is the constructor and the prototype and no behaviour,
+  // which is what a page that *constructs* one uses.
+  EventPrototype("PromiseRejectionEvent", "Event");
   // `ErrorEvent`, which is the one a page constructs itself rather than
   // receives: the shape is `new ErrorEvent("error", {message, filename, lineno,
   // colno})`, dispatched at the window so that an error a library caught still

@@ -128,6 +128,38 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   // Events a page makes and dispatches itself. Dispatch used to exist only as
   // a C++ entry point for a real click; this is the script-facing half, and it
   // is deliberately untrusted -- see the note on DispatchClick.
+  AddTest(tests, "DomBindings/AConstructedEventIsAnInstanceOfItsOwnConstructor", [] {
+    // **The hierarchy existed and nothing was ever an instance of any of it.**
+    // `MakeEvent` gives every event `Event.prototype`, which is right for the
+    // ones the browser makes, and the constructors returned those unchanged --
+    // so `new CustomEvent('x') instanceof CustomEvent` was false, which is the
+    // check a page makes before reading `.detail`.
+    ExpectScript("<body></body>",
+                 "const c = new CustomEvent('x', { detail: 7 });"
+                 "(c instanceof CustomEvent) + ',' + (c instanceof Event) + ',' + c.detail",
+                 "true,true,7");
+    // UIEvent was missing entirely, so a mouse event chained straight to Event
+    // and a library patching `UIEvent.prototype` -- which is where a fix meant
+    // for every input event at once goes -- reached nothing.
+    ExpectScript("<body></body>",
+                 "const w = new WheelEvent('wheel', { bubbles: true });"
+                 "(w instanceof MouseEvent) + ',' + (w instanceof UIEvent) + ',' +"
+                 "(w instanceof Event) + ',' + w.bubbles + ',' + typeof w.stopPropagation",
+                 "true,true,true,true,function");
+    ExpectScript("<body></body>",
+                 "UIEvent.prototype.patched = 1;"
+                 "new MouseEvent('click').patched + ',' + new Event('x').patched",
+                 "1,undefined");
+    // Every name in the list, and the list is what youtube's bundle actually
+    // says -- `WheelEvent` is where it stopped, 88% of the way through 10.7MB.
+    ExpectScript("<body></body>",
+                 "['Event','UIEvent','MouseEvent','KeyboardEvent','FocusEvent','InputEvent',"
+                 " 'WheelEvent','PointerEvent','DragEvent','MessageEvent','ProgressEvent',"
+                 " 'PromiseRejectionEvent','CustomEvent','ErrorEvent']"
+                 "  .filter(n => typeof globalThis[n] !== 'function').join(',')",
+                 "");
+  });
+
   AddTest(tests, "DomBindings/APageCanMakeAndDispatchItsOwnEvents", [] {
     ExpectScript(kPage,
                  "var seen = ''; document.body.addEventListener('ping', e => seen = e.type);"
@@ -936,6 +968,16 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // copy has to be real.
     ExpectEqString(js::ToString(bound.interpreter->Run("'' + seen[0]").value), "7",
                    "the message is a copy taken at the post");
+    // And the event a port delivers is a real MessageEvent, which is what a
+    // page checks before trusting `.data`.
+    bound.interpreter->Run(
+        "globalThis.kind = '';"
+        "const q = new MessageChannel();"
+        "q.port1.onmessage = e => { kind = '' + (e instanceof MessageEvent) };"
+        "q.port2.postMessage(1);");
+    timers.RunDue(*bound.interpreter, 0);
+    ExpectEqString(js::ToString(bound.interpreter->Run("kind").value), "true",
+                   "the delivered event is a MessageEvent");
 
     // A post before the far end is listening is queued, not dropped: a page
     // routinely hands a port somewhere that posts to it immediately.

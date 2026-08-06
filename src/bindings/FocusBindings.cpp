@@ -76,7 +76,7 @@ void DomBindings::DispatchFocusEvent(dom::Element& target, const char* type, boo
   if (!event.IsObject()) {
     return;
   }
-  const Value prototype = EventPrototype("FocusEvent", "Event");
+  const Value prototype = EventPrototype("FocusEvent", "UIEvent");
   if (prototype.IsObject()) {
     event.object->SetPrototype(prototype.object);
   }
