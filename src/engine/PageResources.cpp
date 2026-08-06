@@ -300,22 +300,45 @@ void Page::RebuildAuthorStyleSheets() {
     resolver_.AddStyleSheet(*cached, css::Origin::Author, scope);
     CollectKeyframes(*cached);
   }
-  // A background image is named by the cascade, so the set of images a document
-  // wants is not known until its stylesheets have arrived. Re-collected here
-  // rather than only at load, or a page whose icons come from an external sheet
-  // -- which is every page that has any -- would never fetch one.
-  //
-  // Scoped because it resolves the cascade over the whole document a second
-  // time, and it is inside a function that already looked like it only parsed
-  // stylesheets. See TD-0005.
-  {
-    util::PerformanceTrace::Scope collect("engine::CollectImages");
-    CollectImages();
+  // Background images are queued during `EnsureBoxTree` at layout time, or
+  // during `RestyleWithoutLayout` when the box tree already exists -- TD-0005.
+  CollectImages();
+  if (boxes_ != nullptr) {
+    RestyleWithoutLayout();
+    layout_.box_tree_cascade_generation = resolver_.Generation();
+    layout_.document_version = document_->MutationVersion();
+  } else {
+    InvalidateBoxTree();
   }
+}
+
+void Page::InvalidateBoxTree() {
   boxes_.reset();
+  layout_.box_tree_cascade_generation = 0;
+}
+
+void Page::EnsureBoxTree() {
+  if (document_ == nullptr) {
+    InvalidateBoxTree();
+    return;
+  }
+  RefreshDocumentStates();
+  const std::uint64_t cascade = resolver_.Generation();
+  const std::uint64_t doc_ver = document_->MutationVersion();
+  if (boxes_ != nullptr && layout_.document_version == doc_ver &&
+      layout_.box_tree_cascade_generation == cascade) {
+    AddPerformanceCounter(PerfCounterId::BoxTreeBuildSkipped);
+    return;
+  }
+  const layout::LayoutEngine engine(resolver_, measurer_, this);
+  util::PerformanceTrace::Scope build("engine::BuildBoxTree");
+  boxes_ = engine.BuildBoxTree(*document_);
+  layout_.document_version = doc_ver;
+  layout_.box_tree_cascade_generation = cascade;
 }
 
 void Page::CollectImages() {
+  util::PerformanceTrace::Scope collect("engine::CollectImages");
   resources_.pending_images.clear();
   resources_.selected_image_urls.clear();
   resources_.deferred_images.clear();
@@ -364,14 +387,8 @@ void Page::CollectImages() {
     resources_.selected_image_urls[image] = std::move(selected);
   }
   // Background images are named by the *cascade*, not by an attribute, so
-  // finding them means resolving style -- which happens again at layout. The
-  // duplicate resolve is the price of loading before the first layout, and the
-  // alternative (laying out once with no backgrounds, then again) costs more
-  // and shows the page twice.
-  resolver_.ForEachStyledElement(*document_, [&want](const dom::Element&,
-                                                     const css::ComputedStyle& style) {
-    want(style.background.image);
-  });
+  // finding them means resolving style -- which happens in `EnsureBoxTree`
+  // during the same pass that builds the box tree. TD-0005.
 }
 
 namespace {
@@ -541,7 +558,7 @@ bool Page::AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes)
   // every line box on the page is wrong. This is what `font-display: swap` looks
   // like from the inside, and it is the whole reason a face arriving late is not
   // free.
-  boxes_.reset();
+  InvalidateBoxTree();
   return true;
 }
 
@@ -628,7 +645,22 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   }
   resources_.images[std::move(src)] = std::move(image);
   // The box tree sized its replaced boxes against what was available then.
-  boxes_.reset();
+  InvalidateBoxTree();
+}
+
+void Page::WantImage(std::string_view src) const {
+  if (src.empty()) {
+    return;
+  }
+  Page& self = const_cast<Page&>(*this);
+  if (std::find(self.resources_.pending_images.begin(), self.resources_.pending_images.end(),
+                src) != self.resources_.pending_images.end()) {
+    return;
+  }
+  if (!policy_.AllowsUrl(csp::Directive::Img, std::string(src))) {
+    return;
+  }
+  self.resources_.pending_images.push_back(std::string(src));
 }
 
 std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {

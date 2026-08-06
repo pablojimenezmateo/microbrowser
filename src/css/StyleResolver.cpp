@@ -422,6 +422,7 @@ void ForEachClassWord(std::string_view classes, Fn&& fn) {
 
 void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin,
                                   const dom::Node* scope) {
+  ++generation_;
   for (const StyleRule& rule : sheet.rules) {
     for (const Selector& selector : rule.selectors) {
       invalidation_.AddRule(selector, rule.declarations);

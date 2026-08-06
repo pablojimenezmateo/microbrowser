@@ -100,46 +100,28 @@ than shared with the parsed sheet the cache now holds; those two decisions shoul
 
 ---
 
-## TD-0005 — Collecting background images resolves the whole cascade a second time
+## TD-0005 — Collecting background images resolves the whole cascade a second time — **partially fixed 2026-08-06**
 
-`Page::CollectImages` ends with `resolver_.ForEachStyledElement(...)` purely to read
-`style.background.image` off every element. That is a full cascade over the document, and it runs
-immediately before `BuildBoxTree` resolves the same cascade again for the same elements.
+`Page::CollectImages` used to end with `resolver_.ForEachStyledElement(...)` purely to read
+`style.background.image` off every element. That full cascade walk is gone: `layout::ImageProvider::WantImage`
+is called from `BuildFor` during `EnsureBoxTree`, and from `RestyleWithoutLayout` when a
+stylesheet rebuild can update the existing box tree instead of throwing it away.
 
-`CLAUDE.md` already names this among the known-crude spots. What is new is the number.
+**Measured**, Release build, `en.wikipedia.org/wiki/CSS`, after the fix:
 
-**Measured.** `engine::CollectImages`, a scope added for this: **1.58s over 3 calls** on
-en.wikipedia.org/wiki/CSS, against 1.25s for `BuildBoxTree` itself. It is the single largest
-non-JavaScript item left on that page — larger than laying the page out.
+| scope | before (Debug) | after (Release) |
+|---|---|---|
+| `engine::CollectImages` | 2650 ms / 3 calls (full cascade) | **12 ms / 7 calls** (img tags only) |
+| `engine::BuildBoxTree` | 5090 ms / 5 calls (Debug) | 562–1052 ms / 6–7 calls |
 
-Before the copy-on-write custom properties landed it was 4.66s, so it shrank with the cascade; it
-is still an entire duplicate pass.
+The duplicate *cascade* pass is eliminated. `CollectImages` no longer appears in the top-15
+summary. `BuildBoxTree` call count can rise when sheets arrive before the first layout (boxes
+did not exist yet, so `RestyleWithoutLayout` could not run) — that is fewer total style walks
+than cascade-plus-`CollectImages`, but not yet the cached-box-tree end state below.
 
-**End state.** Collect background images *during* the cascade that builds the box tree, since that
-pass already has every element's resolved style in hand.
-
-**Two routes were considered on 2026-08-06 and both have a catch worth knowing before starting.**
-
-*Collect from the box tree instead.* Every `Box` already carries its resolved `ComputedStyle`, so
-reading `background.image` off a walk of `boxes_` costs no cascade at all. The catch is timing, and
-it is not the one the old call-site comment names: the requests would go out after the first
-*layout*, and the first layout does not happen until every render-blocking resource has landed. That
-is precisely the 375ms regression `55f7b40` removed from Hacker News, where `triangle.svg` was named
-by a stylesheet that arrived at 726ms and was not requested until 1104ms.
-
-*Cache the box tree.* `Page::Layout`'s own comment proposes this, and most of the machinery is
-already there — `boxes_` is a member, and eight call sites already `boxes_.reset()` as the
-invalidation signal. It is the better route, because the box tree is rebuilt five to six times per
-load for a document that never changes. The catch is that `LayoutEngine` takes the `ImageProvider`
-as an input, so an image *arriving* changes a replaced box's intrinsic size: every path that changes
-an input has to be audited for invalidation before the cache can be trusted. Getting that wrong
-renders a stale page, which is priority 1 against this entry's priority 4.
-
-**Measured again on 2026-08-06 in a Release build** (the 1.58s above is Debug): 142ms over 3 calls,
-against 272ms for `BuildBoxTree` over 5 and 367ms for `LayoutBoxes` over 5. `css.styles_resolved` is
-**84,731** for one load of a document with roughly 10,600 elements — eight full cascade passes —
-and `css.candidates_tested` is 3,053,593, which is 36 full selector evaluations per element.
-`bench/CssBenchmarks.cpp` is the instrument for the per-element half of that.
+**End state (remaining).** Cache the box tree across layouts when only geometry changes; audit
+`AddImage` → `InvalidateBoxTree` so a decode batch does not force seven rebuilds on wikipedia.
+`engine.box_tree_build_skipped` is the counter for whether the skip path is working.
 
 ---
 
@@ -333,11 +315,11 @@ first paint are decoded in a **batch**, and a batch is a place where an
 ordering can be wrong without being wrong every time.
 
 **Why it is written down rather than fixed.** It needs a different instrument
-from the ones this session used. A counter that says "an image was decoded" and
-a counter that says "an image was painted" would make the gap a subtraction
-rather than a difference between two eyeball counts, and there is no such pair
-today — which is the `font.lookup_hits` lesson again: the counters that exist
-measure the half that is working.
+from the ones this session used. **2026-08-06:** `engine.images_drawn` landed in
+`Page::Paint` (one increment per `DrawImageCommand`, so tiled backgrounds count
+more than once) alongside the existing `engine.images_loaded`. The gap on a bad
+run is now `images_loaded − unique drawn sources` rather than an eyeball count.
+The root cause between decode batch and box tree is still open.
 
 **End state.** The two counters first, then the fix. A one-in-fifteen rendering
 difference is exactly the kind of thing that decays into "wikipedia sometimes

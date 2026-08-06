@@ -212,7 +212,7 @@ bool Page::InsertTextIntoFocusedTextControl(std::string_view text) {
   const std::size_t room = limit - value.size();
   value.append(text.substr(0, room));
   control->SetAttribute("value", std::move(value));
-  boxes_.reset();
+  InvalidateBoxTree();
   return true;
 }
 
@@ -227,7 +227,7 @@ bool Page::DeleteBackwardFromFocusedTextControl() {
   }
   value.erase(PreviousUtf8Boundary(value));
   control->SetAttribute("value", std::move(value));
-  boxes_.reset();
+  InvalidateBoxTree();
   return true;
 }
 

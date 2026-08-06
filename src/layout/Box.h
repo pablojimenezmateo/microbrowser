@@ -332,6 +332,9 @@ class ImageProvider {
     return src == nullptr ? nullptr : ImageFor(*src);
   }
 
+  // Queues a background URL during box-tree build; default is a no-op.
+  virtual void WantImage(std::string_view /*src*/) const {}
+
  protected:
   ImageProvider() = default;
 };

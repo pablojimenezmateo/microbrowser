@@ -417,6 +417,8 @@ namespace microbrowser::util {
   X(EngineScriptsFailed, "engine.scripts_failed")                                  \
   X(EngineImagesLoaded, "engine.images_loaded")                                    \
   X(EngineImagesFailed, "engine.images_failed")                                    \
+  X(EngineImagesDrawn, "engine.images_drawn")                                      \
+  X(BoxTreeBuildSkipped, "engine.box_tree_build_skipped")                          \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
   X(GfxImagesTransformed, "gfx.images_transformed")                               \
   X(GfxImagesScaled, "gfx.images_scaled")                                         \

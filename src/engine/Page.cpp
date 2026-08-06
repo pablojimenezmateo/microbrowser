@@ -288,7 +288,7 @@ void Page::RunScripts(std::int64_t now_ms) {
   // A script can change the tree, so anything derived from it is stale. The
   // box tree is dropped rather than patched: incremental layout is a later
   // decision and a wrong one made early here would be invisible.
-  boxes_.reset();
+  InvalidateBoxTree();
   CollectImages();
 }
 
@@ -334,7 +334,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
     util::PerformanceTrace::Scope parse(label.View());
     document_ = html::ParseDocument(decoded);
   }
-  boxes_.reset();
+  InvalidateBoxTree();
   // A new document starts at the top, and the scroll offset goes with the
   // layout state rather than surviving it. So does every per-element offset:
   // the keys are pointers into the document that just went, and keeping them
@@ -352,7 +352,6 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   ApplyDocumentHeadPolicy();
 
   CollectStyleSheets();
-  CollectImages();
   // `:target` comes from the address rather than from the markup, so it is set
   // where the address arrives. ADR 0016 §2 -- one copy, and it cannot disagree
   // with what the URL bar says.
@@ -423,10 +422,9 @@ float Page::Layout(float width) {
     content_height_ = 0.0f;
     return 0.0f;
   }
-  // Recorded before the layout rather than after: nothing here mutates the
-  // document, and reading it afterwards would fold any future mutation made
+  // Recorded before layout rather than after: nothing here mutates the document,
+  // and reading it afterwards would fold any future mutation made
   // *during* layout into the version this claims to describe.
-  layout_.document_version = document_->MutationVersion();
   // A shadow root's `<style>` is unreachable from the document walk that collects
   // the rest, so it is collected here -- at the one point that runs after every
   // batch of mutations and before the cascade reads anything. The comparison is
@@ -435,34 +433,12 @@ float Page::Layout(float width) {
   if (CollectShadowStyleSheets()) {
     RebuildAuthorStyleSheets();
   }
-  // The dynamic states that are facts about the document rather than about the
-  // pointer, refreshed before the cascade reads them. Here rather than at the
-  // dozen places that can change one, for the reason Node::NoteMutation is
-  // where it is: missing a call is the failure mode, and a stale `:disabled`
-  // bit is a rule that silently stops applying. See ADR 0016 §2.
-  RefreshDocumentStates();
+  EnsureBoxTree();
   const layout::LayoutEngine engine(resolver_, measurer_, this);
-  // The box tree is rebuilt per layout for now. It depends only on the document
-  // and the cascade, neither of which changes here, so this is the obvious
-  // thing to cache -- and the split between BuildBoxTree and Layout is what
-  // makes caching it a change to this function alone.
-  // Two scopes rather than one. They are different kinds of work -- the first
-  // resolves the cascade for every element, the second places boxes -- and a
-  // single "layout is slow" row cannot tell them apart. On youtube.com the
-  // split was the whole diagnosis: 98% of it was the cascade.
+  // The box tree is rebuilt when the document or cascade changes. Background
+  // images are queued during that one cascade pass rather than in a second
+  // walk -- TD-0005.
   util::LoadTimeline::Mark("layout.start");
-  {
-    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
-      std::fprintf(stderr, "[load] BuildBoxTree enter\n");
-      std::fflush(stderr);
-    }
-    util::PerformanceTrace::Scope build("engine::BuildBoxTree");
-    boxes_ = engine.BuildBoxTree(*document_);
-    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
-      std::fprintf(stderr, "[load] BuildBoxTree end\n");
-      std::fflush(stderr);
-    }
-  }
   {
     if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
       std::fprintf(stderr, "[load] LayoutBoxes enter\n");
@@ -475,6 +451,7 @@ float Page::Layout(float width) {
       std::fflush(stderr);
     }
   }
+  layout_.document_version = document_->MutationVersion();
   util::LoadTimeline::Mark("layout.end");
   // The scroll offsets go back on, clamped against the overflow this layout
   // just measured. Layout consults them and does not own them -- ADR 0018 §1 --
@@ -612,6 +589,10 @@ void Page::SetStorageSource(bindings::StorageSource* storage) {
   script_.SetStorageSource(storage);
 }
 
+void Page::SetCookieSource(bindings::CookieSource* cookies) {
+  script_.SetCookieSource(cookies);
+}
+
 void Page::SetSocketSource(bindings::SocketSource* sockets) {
   script_.SetSocketSource(sockets);
 }
@@ -704,7 +685,7 @@ const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
 }
 
 void Page::InvalidateLayout() {
-  boxes_.reset();
+  InvalidateBoxTree();
   CollectImages();
 }
 
@@ -748,7 +729,7 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
     } else {
       input.SetAttribute("checked", "");
     }
-    boxes_.reset();
+    InvalidateBoxTree();
     return true;
   }
   if (input.HasAttribute("checked")) {
@@ -764,7 +745,7 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
     }
   });
   input.SetAttribute("checked", "");
-  boxes_.reset();
+  InvalidateBoxTree();
   return true;
 }
 
@@ -813,7 +794,7 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   if (!changed) {
     return false;
   }
-  boxes_.reset();
+  InvalidateBoxTree();
   return true;
 }
 

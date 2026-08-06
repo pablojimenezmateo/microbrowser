@@ -177,9 +177,11 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // Every box may carry one, replaced or not, so it is resolved before the
   // kinds diverge rather than in each branch.
   const auto attach_background = [this, &style](Box& box) {
-    if (images_ != nullptr && !style.background.image.empty()) {
-      box.SetBackgroundImage(images_->ImageFor(style.background.image));
+    if (style.background.image.empty() || images_ == nullptr) {
+      return;
     }
+    images_->WantImage(style.background.image);
+    box.SetBackgroundImage(images_->ImageFor(style.background.image));
   };
 
   if (IsReplacedElement(element)) {

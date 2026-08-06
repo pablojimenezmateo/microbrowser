@@ -151,7 +151,9 @@ class StyleResolver {
 
   std::size_t RuleCount() const { return rules_.size(); }
 
- public:
+  // Bumped on every `AddStyleSheet` -- lets the engine skip a stale box tree (TD-0005).
+  std::uint64_t Generation() const { return generation_; }
+
   // The shadow root `node` is in, or null for the document tree.
   static const dom::Node* ScopeOf(const dom::Node& node);
 
@@ -233,6 +235,7 @@ class StyleResolver {
   StyleInvalidation invalidation_;
   const StyleAdjuster* adjuster_ = nullptr;
   std::size_t next_order_ = 0;
+  std::uint64_t generation_ = 0;
 };
 
 // The built-in stylesheet. Every browser has one, and without it `<div>` is

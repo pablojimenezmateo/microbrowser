@@ -282,6 +282,9 @@ void Page::RestyleWithoutLayout() {
     // time, so a rule that changes one has to re-attach it. Clearing it when
     // the new style names none is the half that would otherwise leave the old
     // picture on screen.
+    if (!style.background.image.empty()) {
+      WantImage(style.background.image);
+    }
     found->second->SetBackgroundImage(style.background.image.empty()
                                           ? nullptr
                                           : ImageFor(style.background.image));

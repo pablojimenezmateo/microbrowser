@@ -219,6 +219,10 @@ class Page : private layout::ImageProvider,
   // arrived later would leave the first script of the first document without one, and
   // that first script is exactly where Plex looks for `sessionStorage`.
   void SetStorageSource(bindings::StorageSource* storage);
+  // ADR 0005. Borrowed and set before any script runs, for the reason the
+  // storage source is: `document.cookie` must answer on the first line of a
+  // page's inline script.
+  void SetCookieSource(bindings::CookieSource* cookies);
   // Hands one answer to the script that asked for it. False when nothing was
   // waiting -- an aborted request, or a second delivery -- which the caller
   // drops rather than repainting for.
@@ -565,8 +569,8 @@ class Page : private layout::ImageProvider,
   // What time an animation pass believes it is.
   //
   // **Every restyle uses it, and a restyle happens for more reasons than a frame does** -- a hover, a
-  // script write, a resize, and `InvalidateLayout`, which resolves the cascade again to collect
-  // background images. So this has to be set before *any* of them, not before painting: a transition
+  // script write, a resize, and `InvalidateLayout`, which drops the box tree and
+  // re-collects `<img>` sources. So this has to be set before *any* of them, not before painting: a transition
   // that started during a pass whose clock was stale begins at the wrong instant and is already over by
   // the time anything looks at it. That is exactly how the first version of this failed, and the
   // symptom was a transition that showed only its final value.
@@ -741,6 +745,7 @@ class Page : private layout::ImageProvider,
 
   // layout::ImageProvider. Private inheritance: layout asks the page for an
   // image, and nobody else has business calling this.
+  void WantImage(std::string_view src) const override;
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
   std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element) const override;
 
@@ -788,6 +793,9 @@ class Page : private layout::ImageProvider,
   void CollectStyleSheets();
   void RebuildAuthorStyleSheets();
   void CollectImages();
+  // One cascade pass builds the box tree and queues background URLs (TD-0005).
+  void EnsureBoxTree();
+  void InvalidateBoxTree();
   // Reads the document's `<meta http-equiv="Content-Security-Policy">` elements
   // and its `<base href>`, in that order, because a `<base>` is subject to the
   // `base-uri` a `<meta>` may have just declared.
@@ -861,6 +869,8 @@ class Page : private layout::ImageProvider,
     // each reader cleared would hide the change from the next.
     std::uint64_t document_version = 0;
     float scroll_y = 0.0f;
+    // `StyleResolver::Generation()` when `boxes_` was last built.
+    std::uint64_t box_tree_cascade_generation = 0;
   };
   LayoutState layout_;
   // Everything about scrolling that is not the viewport's own offset: where
