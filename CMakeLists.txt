@@ -375,6 +375,7 @@ microbrowser_module(platform
     src/platform/AppDirectories.cpp
     src/platform/SystemFonts.cpp
     src/platform/DescriptorWait.cpp
+    src/platform/Sandbox.cpp
     src/platform/SdlAudioDevice.cpp
     src/platform/SdlPresenter.cpp
     src/platform/SdlWindow.cpp
@@ -543,6 +544,7 @@ add_executable(microbrowser_tests
   tests/AudioRingTests.cpp
   tests/HlsPlaylistTests.cpp
   tests/MatroskaTests.cpp
+  tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
   tests/StorageTests.cpp

@@ -2,7 +2,7 @@ purpose: The only module that knows what a window is. SDL lives here and nowhere
 
 allow: util gfx media
 
-public: InputEvent.h SdlWindow.h SdlPresenter.h SdlAudioDevice.h AppDirectories.h SystemFonts.h DescriptorWait.h
+public: InputEvent.h SdlWindow.h SdlPresenter.h SdlAudioDevice.h Sandbox.h AppDirectories.h SystemFonts.h DescriptorWait.h
 
 extern: SDL3
 
