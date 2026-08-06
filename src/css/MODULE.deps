@@ -68,6 +68,15 @@ budget: Length           header_lines=45 public_methods=10 members=3
 # two halves of `transform-origin`. The list itself is `css::TransformList` in its own
 # header rather than fields here -- see Transform.h for why it stays a list of
 # operations instead of a matrix.
+# The custom properties in scope on one element, copy-on-write. One member and
+# it is a `shared_ptr`, which is the whole design: inheriting is the operation
+# that happens most -- every element takes its parent's whole set -- and a page
+# that declares its palette on `:root` was copying fifty string pairs into each
+# of 19,000 elements per cascade pass. That was 24 of the 30 seconds
+# en.wikipedia.org/wiki/CSS took after the font fix. The lines are the sharing
+# rule and the content-comparing `operator==` that keeps ComputedStyle's
+# defaulted one from silently becoming a pointer comparison.
+budget: CustomProperties header_lines=70 public_methods=8 members=1
 budget: ComputedStyle    header_lines=290 public_methods=25 members=35
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1

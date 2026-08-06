@@ -340,20 +340,20 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     parent.unicode_bidi = UnicodeBidi::Isolate;
     parent.text_align = TextAlign::Center;
     parent.font_size = 21.0f;
-    parent.custom_properties.emplace_back("--x", "1");
+    parent.SetCustomProperty("--x", "1");
     ComputedStyle child;
     InheritInto(parent, child);
     Expect(child.direction == Direction::Rtl, "direction inherits");
     Expect(child.unicode_bidi == UnicodeBidi::Isolate, "unicode-bidi inherits here, and not in CSS");
     Expect(child.text_align == TextAlign::Center, "text-align inherits");
     Expect(child.font_size == 21.0f, "font-size inherits");
-    Expect(child.custom_properties.size() == 1, "and so do custom properties");
+    Expect(child.custom_properties.Size() == 1, "and so do custom properties");
     Expect(child.position == Position::Static,
            "while a non-inherited property stays at its initial value");
     ComputedStyle text_child;
     InheritInto(parent, text_child, /*with_custom_properties=*/false);
     Expect(text_child.direction == Direction::Rtl, "the text-box form inherits the rest");
-    Expect(text_child.custom_properties.empty(),
+    Expect(text_child.custom_properties.Empty(),
            "and skips the custom-property table, because a text box never resolves a var()");
   });
 

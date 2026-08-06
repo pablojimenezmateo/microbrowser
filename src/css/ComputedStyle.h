@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -206,6 +207,90 @@ struct BackgroundLayer {
   Length position_y;
 
   friend bool operator==(const BackgroundLayer&, const BackgroundLayer&) = default;
+};
+
+// The custom properties in scope on one element, by name (with the leading
+// `--`), holding *unparsed* text.
+//
+// Unparsed is the whole point: a custom property's value is not a value until
+// it is substituted somewhere, and where it lands decides what it means.
+// `--x: 20px` is a length in `padding` and a piece of a shorthand in
+// `margin: var(--x) 0`, and parsing it on the way in would have to guess which.
+//
+// **Copy-on-write, because inheriting is by far the operation that happens
+// most.** Every element inherits its parent's whole set, and a modern
+// stylesheet declares its palette once on `:root` -- so a page with fifty
+// custom properties was copying fifty string pairs into each of its elements,
+// 19,000 of them on en.wikipedia.org/wiki/CSS, on every cascade pass. Sharing
+// makes inheriting a refcount bump, and the copy happens only where a
+// declaration actually writes one, which is a handful of elements on any real
+// page.
+//
+// A vector rather than a map because the counts are small per element and a
+// linear scan over a handful of short names beats a tree; that part of the
+// original reasoning was right, it was the copy that was not.
+class CustomProperties {
+ public:
+  const std::string* Find(std::string_view name) const {
+    if (entries_ == nullptr) {
+      return nullptr;
+    }
+    for (const auto& entry : *entries_) {
+      if (entry.first == name) {
+        return &entry.second;
+      }
+    }
+    return nullptr;
+  }
+
+  void Set(std::string_view name, std::string value) {
+    Entries& own = Mutable();
+    for (auto& entry : own) {
+      if (entry.first == name) {
+        entry.second = std::move(value);
+        return;
+      }
+    }
+    own.emplace_back(std::string(name), std::move(value));
+  }
+
+  bool Empty() const { return entries_ == nullptr || entries_->empty(); }
+  std::size_t Size() const { return entries_ == nullptr ? 0 : entries_->size(); }
+
+  // By content rather than by identity: two elements that inherited the same
+  // set and two that were given equal sets are the same style, and a
+  // pointer comparison would say otherwise. ComputedStyle's `operator==` is
+  // defaulted and would otherwise silently mean something else here.
+  friend bool operator==(const CustomProperties& a, const CustomProperties& b) {
+    if (a.entries_ == b.entries_) {
+      return true;  // shared, which is the common case and is free
+    }
+    if (a.Empty() || b.Empty()) {
+      return a.Empty() && b.Empty();
+    }
+    return *a.entries_ == *b.entries_;
+  }
+
+ private:
+  using Entries = std::vector<std::pair<std::string, std::string>>;
+
+  // The set this style may write to: its own, copied out of the shared one if
+  // anybody else is still holding it. `use_count` is a safe question here
+  // because the cascade is single-threaded and a style is never shared across
+  // one -- if that ever stops being true this needs a different mechanism, not
+  // a lock.
+  Entries& Mutable() {
+    if (entries_ == nullptr) {
+      entries_ = std::make_shared<Entries>();
+    } else if (entries_.use_count() > 1) {
+      entries_ = std::make_shared<Entries>(*entries_);
+    }
+    return *entries_;
+  }
+
+  // Null rather than an empty vector, so an element that inherits nothing costs
+  // a null pointer rather than an allocation. Most elements on most pages.
+  std::shared_ptr<Entries> entries_;
 };
 
 // The style of one element, after the cascade.
@@ -471,26 +556,13 @@ struct ComputedStyle {
   //
   // Inherited, which is what makes `--fg` set on `:root` reachable from every
   // element under it -- the way essentially every modern stylesheet is built.
-  // A vector rather than a map because the counts are small per element and
-  // the copy on inherit is the operation that happens most.
-  std::vector<std::pair<std::string, std::string>> custom_properties;
+  CustomProperties custom_properties;
 
   const std::string* CustomProperty(std::string_view name) const {
-    for (const auto& entry : custom_properties) {
-      if (entry.first == name) {
-        return &entry.second;
-      }
-    }
-    return nullptr;
+    return custom_properties.Find(name);
   }
   void SetCustomProperty(std::string_view name, std::string value) {
-    for (auto& entry : custom_properties) {
-      if (entry.first == name) {
-        entry.second = std::move(value);
-        return;
-      }
-    }
-    custom_properties.emplace_back(std::string(name), std::move(value));
+    custom_properties.Set(name, std::move(value));
   }
 
   friend bool operator==(const ComputedStyle&, const ComputedStyle&) = default;
