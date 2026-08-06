@@ -294,6 +294,14 @@ namespace microbrowser::util {
   X(MediaLoadsStarted, "media.loads_started")                                      \
   X(MediaLoadFailures, "media.load_failures")                                     \
   X(MediaAutoplayRefusals, "media.autoplay_refusals")                             \
+  X(MediaSourceAppends, "media.source_appends")                                   \
+  X(MediaSourceAppendFailures, "media.source_append_failures")                    \
+  X(MediaSourceQuotaRefusals, "media.source_quota_refusals")                      \
+  X(MediaSourceInitSegments, "media.source_init_segments")                        \
+  X(MediaSourceFramesBuffered, "media.source_frames_buffered")                    \
+  X(MediaSourceSegmentsEvicted, "media.source_segments_evicted")                  \
+  X(MediaSourceBuffersCreated, "media.source_buffers_created")                    \
+  X(MediaObjectUrlsCreated, "media.object_urls_created")                          \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \

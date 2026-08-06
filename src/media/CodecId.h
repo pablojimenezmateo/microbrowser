@@ -42,6 +42,16 @@ std::optional<CodecId> CodecFromContainerName(std::string_view name);
 // message name the same thing.
 std::string_view CodecName(CodecId codec);
 
+// Whether a full MSE type string is one this browser can play: `video/mp4; codecs="avc1.64001f,
+// mp4a.40.2"`.
+//
+// **Every** codec in the list must be supported, not any of them -- a page asking for a stream with
+// one codec this browser has and one it does not cannot play that stream, and answering yes would
+// mean accepting bytes nothing will ever decode. The container must be one there is a demuxer for,
+// which is the other half of the same question and the reason this lives beside the codec table
+// rather than in the MSE code: `addSourceBuffer` and `canPlayType` must not answer differently.
+bool IsSupportedMediaSourceType(std::string_view type);
+
 // Whether this codec is audio. Not a property of the decoder -- a property of the *stream*, which
 // decides which of the two pipelines a sample belongs to and therefore which clock it feeds.
 bool IsAudioCodec(CodecId codec);

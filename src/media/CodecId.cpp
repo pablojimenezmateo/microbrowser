@@ -87,6 +87,56 @@ std::string_view CodecName(CodecId codec) {
   return "unknown";
 }
 
+bool IsSupportedMediaSourceType(std::string_view type) {
+  // The container comes first, and an unknown one is refused before the codec list is even looked at.
+  // `video/mp4` and `audio/mp4` are the fragmented-MP4 path ADR 0007 measured; `video/webm` and
+  // `audio/webm` are the Matroska one. Everything else -- `video/mp2t`, `application/x-mpegurl`,
+  // anything a page invents -- has no demuxer behind it.
+  const std::size_t semicolon = type.find(';');
+  std::string container = util::AsciiLowerCase(util::TrimAscii(type.substr(0, semicolon)));
+  if (container != "video/mp4" && container != "audio/mp4" && container != "video/webm" &&
+      container != "audio/webm") {
+    return false;
+  }
+  if (semicolon == std::string_view::npos) {
+    // No codec list. Accepted: it is a legal type string, and it means "whatever is inside", which the
+    // demuxer will name for itself when the initialization segment arrives -- and `CodecId` refuses an
+    // unsupported codec at *that* point too. Two chances to refuse, neither of them a guess.
+    return true;
+  }
+  const std::string_view parameters = type.substr(semicolon + 1);
+  const std::size_t codecs_at = util::AsciiLowerCase(std::string(parameters)).find("codecs");
+  if (codecs_at == std::string_view::npos) {
+    return true;
+  }
+  const std::size_t equals = parameters.find('=', codecs_at);
+  if (equals == std::string_view::npos) {
+    return false;  // `codecs` with no value is not a parameter anybody wrote on purpose.
+  }
+  std::string_view list = util::TrimAscii(parameters.substr(equals + 1));
+  // The quotes are optional in the wild and always present in practice.
+  if (list.size() >= 2 && (list.front() == '"' || list.front() == '\'') && list.back() == list.front()) {
+    list = list.substr(1, list.size() - 2);
+  }
+  if (util::TrimAscii(list).empty()) {
+    return false;
+  }
+  std::size_t at = 0;
+  while (at <= list.size()) {
+    const std::size_t comma = list.find(',', at);
+    const std::string_view one =
+        util::TrimAscii(list.substr(at, comma == std::string_view::npos ? comma : comma - at));
+    if (one.empty() || !CodecFromContainerName(one).has_value()) {
+      return false;
+    }
+    if (comma == std::string_view::npos) {
+      break;
+    }
+    at = comma + 1;
+  }
+  return true;
+}
+
 bool IsAudioCodec(CodecId codec) { return codec == CodecId::Aac || codec == CodecId::Opus; }
 
 }  // namespace microbrowser::media

@@ -7,15 +7,12 @@
 #include "TestSupport.h"
 #include "media/BoxReader.h"
 #include "media/IsoBmff.h"
+#include "Mp4Fixtures.h"
 
 // The ISO-BMFF demuxer.
 //
-// Every fixture here is built byte by byte rather than checked in as a file,
-// for two reasons. A real MP4 is megabytes and asserts nothing in particular,
-// and -- more to the point -- the interesting inputs are the ones no encoder
-// produces: a box that declares a size smaller than its own header, a sample
-// table whose ranges leave the file, a nesting depth no player would emit.
-// Those cannot be recorded, only constructed.
+// Every fixture is built byte by byte rather than checked in as a file -- see Mp4Fixtures.h, which
+// holds the builder and the two whole-segment fixtures, and says why.
 
 namespace microbrowser::tests {
 
@@ -27,140 +24,6 @@ using media::ParseIsoBmff;
 using media::TrackKind;
 
 namespace {
-
-// Builds ISO-BMFF bytes. Sizes are back-patched on close, so a fixture states
-// its structure and never its lengths -- a fixture that had to state its own
-// lengths would be a second implementation of the thing under test.
-class BoxBuilder {
- public:
-  void U8(std::uint8_t value) { bytes_.push_back(static_cast<std::byte>(value)); }
-  void U16(std::uint16_t value) {
-    U8(static_cast<std::uint8_t>(value >> 8));
-    U8(static_cast<std::uint8_t>(value));
-  }
-  void U24(std::uint32_t value) {
-    U8(static_cast<std::uint8_t>(value >> 16));
-    U8(static_cast<std::uint8_t>(value >> 8));
-    U8(static_cast<std::uint8_t>(value));
-  }
-  void U32(std::uint32_t value) {
-    U16(static_cast<std::uint16_t>(value >> 16));
-    U16(static_cast<std::uint16_t>(value));
-  }
-  void U64(std::uint64_t value) {
-    U32(static_cast<std::uint32_t>(value >> 32));
-    U32(static_cast<std::uint32_t>(value));
-  }
-  void FourCC(std::string_view code) {
-    for (const char c : code) {
-      U8(static_cast<std::uint8_t>(c));
-    }
-  }
-  void Zeros(std::size_t count) {
-    for (std::size_t i = 0; i < count; ++i) {
-      U8(0);
-    }
-  }
-
-  // Opens a box and returns the offset its size must be written back to.
-  std::size_t Open(std::string_view type) {
-    const std::size_t at = bytes_.size();
-    U32(0);  // placeholder
-    FourCC(type);
-    return at;
-  }
-
-  void Close(std::size_t at) {
-    const auto size = static_cast<std::uint32_t>(bytes_.size() - at);
-    for (int i = 0; i < 4; ++i) {
-      bytes_[at + static_cast<std::size_t>(i)] =
-          static_cast<std::byte>((size >> (24 - 8 * i)) & 0xFFu);
-    }
-  }
-
-  // Closes a box with a size the builder was told rather than the one it
-  // measured. Only a malformed fixture wants this.
-  void CloseWithSize(std::size_t at, std::uint32_t size) {
-    for (int i = 0; i < 4; ++i) {
-      bytes_[at + static_cast<std::size_t>(i)] =
-          static_cast<std::byte>((size >> (24 - 8 * i)) & 0xFFu);
-    }
-  }
-
-  std::size_t Size() const { return bytes_.size(); }
-  const std::vector<std::byte>& Bytes() const { return bytes_; }
-
- private:
-  std::vector<std::byte> bytes_;
-};
-
-// A `moov` describing one video track: H.264, 640x360, timescale 1000.
-void AppendVideoMoov(BoxBuilder& b) {
-  const std::size_t moov = b.Open("moov");
-  const std::size_t trak = b.Open("trak");
-
-  const std::size_t tkhd = b.Open("tkhd");
-  b.U8(0);        // version
-  b.U24(0x0007);  // flags: enabled, in movie, in preview
-  b.U32(0);       // creation time
-  b.U32(0);       // modification time
-  b.U32(1);       // track id
-  b.Zeros(4);     // reserved
-  b.U32(0);       // duration
-  b.Zeros(60);    // the rest of tkhd, none of which this parser reads
-  b.Close(tkhd);
-
-  const std::size_t mdia = b.Open("mdia");
-  const std::size_t mdhd = b.Open("mdhd");
-  b.U8(0);
-  b.U24(0);
-  b.U32(0);     // creation
-  b.U32(0);     // modification
-  b.U32(1000);  // timescale
-  b.U32(5000);  // duration
-  b.U16(0);     // language
-  b.U16(0);     // pre_defined
-  b.Close(mdhd);
-
-  const std::size_t hdlr = b.Open("hdlr");
-  b.U8(0);
-  b.U24(0);
-  b.U32(0);  // pre_defined
-  b.FourCC("vide");
-  b.Zeros(12);  // reserved
-  b.U8(0);      // empty name
-  b.Close(hdlr);
-
-  const std::size_t minf = b.Open("minf");
-  const std::size_t stbl = b.Open("stbl");
-  const std::size_t stsd = b.Open("stsd");
-  b.U8(0);
-  b.U24(0);
-  b.U32(1);  // one entry
-  const std::size_t avc1 = b.Open("avc1");
-  b.Zeros(6);   // reserved
-  b.U16(1);     // data_reference_index
-  b.Zeros(16);  // pre_defined and reserved
-  b.U16(640);   // width
-  b.U16(360);   // height
-  b.Zeros(14);  // resolutions, reserved, frame_count
-  b.Zeros(32);  // compressorname
-  b.U16(24);    // depth
-  b.U16(0xFFFF);
-  const std::size_t avcC = b.Open("avcC");
-  b.U8(1);
-  b.U8(0x64);
-  b.U8(0x00);
-  b.U8(0x1F);
-  b.Close(avcC);
-  b.Close(avc1);
-  b.Close(stsd);
-  b.Close(stbl);
-  b.Close(minf);
-  b.Close(mdia);
-  b.Close(trak);
-  b.Close(moov);
-}
 
 std::vector<std::byte> BytesOf(std::string_view text) {
   std::vector<std::byte> out;

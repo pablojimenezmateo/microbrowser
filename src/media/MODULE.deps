@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h HlsPlaylist.h Matroska.h MediaState.h PlaybackClock.h
+public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h BufferedRanges.h HlsPlaylist.h Matroska.h MediaSourceState.h MediaState.h PlaybackClock.h
 
 extern:
 
@@ -51,3 +51,13 @@ budget: BoxHeader       header_lines=40 public_methods=6  members=4
 budget: MediaTrack      header_lines=70 public_methods=4  members=13
 budget: MediaSample     header_lines=35 public_methods=2  members=6
 budget: IsoBmffFile     header_lines=45 public_methods=8  members=4
+# ADR 0028 §3's buffer model. `buffered` is what a player's adaptive-bitrate logic reads to decide
+# what to fetch, so this fifty-line type is the most load-bearing small thing in MSE: a range set
+# that lies makes a player download the wrong bytes forever.
+budget: BufferedRanges  header_lines=60 public_methods=10 members=1
+budget: Range           header_lines=15 public_methods=2  members=2
+# The append algorithm as a pure object, for the reason MediaState is one: it is the part that is
+# easy to get subtly wrong, and only a pure object can be asserted.
+budget: SourceBufferState header_lines=85 public_methods=20 members=12
+budget: MediaSourceState  header_lines=60 public_methods=18 members=5
+budget: Segment         header_lines=15 public_methods=2  members=2
