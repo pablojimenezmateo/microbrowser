@@ -120,10 +120,12 @@ void DomBindings::ScheduleObserverDelivery(const js::Value& observer) {
     }
     records->object->SetElements({}, {});
     // (records, observer), which is the signature every page writes against.
-    (void)call.interpreter.CallFunction(*callback,
-                                        Value::Undefined(),
-                                        {call.interpreter.NewArrayValue(std::move(taken)),
-                                         *watcher});
+    const js::Result ran = call.interpreter.CallFunction(
+        *callback, Value::Undefined(),
+        {call.interpreter.NewArrayValue(std::move(taken)), *watcher});
+    if (ran.completion == js::Completion::Throw) {
+      call.interpreter.ReportUncaught(ran.value, "MutationObserver callback");
+    }
     return Value::Undefined();
   });
   if (!job.IsObject()) {

@@ -162,8 +162,23 @@ class Interpreter {
   // Public because the callers are in `src/bindings`, and it exists because discarding these was
   // silently losing whole scripts -- see EventDispatch.cpp. `where` is a fixed string chosen by the
   // caller, never derived from the page, so it cannot echo an attacker's text into a log.
+  // Carries the stack when the thrown value has one, which every error this
+  // engine makes does. A message names the fault and not the place, and on a
+  // page with a megabyte of minified script the place is the entire question --
+  // a stack reads `at HS (@1814415)` and the offset goes straight into the
+  // source. `PageScript::RunTiming` had this for a top-level throw and nothing
+  // reached from here did, so the errors that were hardest to find were the
+  // ones reported with the least.
   void ReportUncaught(const Value& error, const char* where) {
-    console_.push_back(std::string("Uncaught (in ") + where + ") " + ToString(error));
+    std::string line = std::string("Uncaught (in ") + where + ") " + ToString(error);
+    if (error.IsObject()) {
+      if (const Value* stack = error.object->Get("stack")) {
+        if (stack->type == ValueType::String) {
+          line += "\n    " + stack->AsString();
+        }
+      }
+    }
+    console_.push_back(std::move(line));
   }
 
   // The wall clock, in milliseconds since the epoch.

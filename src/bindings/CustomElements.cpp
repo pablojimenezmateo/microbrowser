@@ -167,7 +167,13 @@ void DomBindings::RunElementReaction(dom::Element& element, const char* callback
   if (handler == nullptr || !handler->IsObject() || !handler->object->IsCallable()) {
     return;  // a class need not define every reaction
   }
-  (void)interpreter_->CallFunction(*handler, wrapper, {});
+  // Reported rather than discarded, for the reason the constructor's throw now
+  // is: a reaction that throws is how a component stops halfway, and a silent
+  // one is indistinguishable from a component that had nothing to do.
+  const js::Result ran = interpreter_->CallFunction(*handler, wrapper, {});
+  if (ran.completion == js::Completion::Throw) {
+    interpreter_->ReportUncaught(ran.value, "custom element reaction");
+  }
 }
 
 void DomBindings::RunAttributeReaction(dom::Element& element, const std::string& name,
@@ -202,9 +208,11 @@ void DomBindings::RunAttributeReaction(dom::Element& element, const std::string&
   if (handler == nullptr || !handler->IsObject() || !handler->object->IsCallable()) {
     return;
   }
-  (void)interpreter_->CallFunction(*handler, wrapper,
-                                   {Value::String(name), old_value, new_value,
-                                    Value::Null()});
+  const js::Result ran = interpreter_->CallFunction(
+      *handler, wrapper, {Value::String(name), old_value, new_value, Value::Null()});
+  if (ran.completion == js::Completion::Throw) {
+    interpreter_->ReportUncaught(ran.value, "attributeChangedCallback");
+  }
 }
 
 void DomBindings::InstallCustomElements() {

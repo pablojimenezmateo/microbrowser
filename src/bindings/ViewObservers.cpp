@@ -312,8 +312,12 @@ bool DomBindings::DeliverViewObservations(double time_ms) {
     records->object->SetElements({}, {});
     ran = true;
     // (records, observer) -- the signature every page writes against.
-    (void)interpreter_->CallFunction(*callback, Value::Undefined(),
-                                     {interpreter_->NewArrayValue(std::move(taken)), observer});
+    const js::Result delivered =
+        interpreter_->CallFunction(*callback, Value::Undefined(),
+                                   {interpreter_->NewArrayValue(std::move(taken)), observer});
+    if (delivered.completion == js::Completion::Throw) {
+      interpreter_->ReportUncaught(delivered.value, "observer callback");
+    }
   }
   if (ran) {
     // A delivery is a turn of its own, so anything a callback queued settles
