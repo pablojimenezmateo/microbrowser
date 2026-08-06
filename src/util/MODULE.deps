@@ -29,7 +29,10 @@ allow:
 # in `net` -- where the TLS stack's already is -- would be one that two of those
 # three callers cannot reach, and reaching it would mean widening a policy
 # module's allow: line to a module that can open sockets. See Sha2.h.
-public: Base64.h Brotli.h Sha2.h Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
+# Sha1.h is here for exactly one caller -- RFC 6455's handshake check -- and its header
+# says so at length: SHA-1 is broken for anything that needs collision resistance, and a
+# second caller is a bug rather than a reuse.
+public: Base64.h Brotli.h Sha1.h Sha2.h Env.h Inflate.h Parse.h PercentEncoding.h StringUtil.h SaturatingMath.h TransparentStringHash.h TraceChannel.h StartupTrace.h PerformanceTrace.h PerformanceCounters.h UrlEncoded.h WaitDescriptor.h UserAgent.h
 
 # Brotli's decoder, and nothing else from it. ADR 0024 sanctions the dependency
 # and ADR 0001's rule is that one earns its place: this is `Content-Encoding: br`

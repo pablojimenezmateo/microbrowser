@@ -62,6 +62,7 @@ void RegisterStructuredCloneTests(std::vector<TestCase>& tests);
 void RegisterStorageTests(std::vector<TestCase>& tests);
 void RegisterStorageScriptTests(std::vector<TestCase>& tests);
 void RegisterWebFontTests(std::vector<TestCase>& tests);
+void RegisterWebSocketTests(std::vector<TestCase>& tests);
 void RegisterWoff2Tests(std::vector<TestCase>& tests);
 void RegisterXhrTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
@@ -210,6 +211,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterStorageTests(tests);
   microbrowser::tests::RegisterStorageScriptTests(tests);
   microbrowser::tests::RegisterWebFontTests(tests);
+  microbrowser::tests::RegisterWebSocketTests(tests);
   microbrowser::tests::RegisterWoff2Tests(tests);
   microbrowser::tests::RegisterXhrTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);

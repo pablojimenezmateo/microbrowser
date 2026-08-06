@@ -191,6 +191,7 @@ microbrowser_module(util
     src/util/PercentEncoding.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
+    src/util/Sha1.cpp
     src/util/Sha2.cpp
     src/util/StartupTrace.cpp
     src/util/TraceChannel.cpp
@@ -278,6 +279,7 @@ microbrowser_module(net
     src/net/HttpMessage.cpp
     src/net/RequestQueue.cpp
     src/net/SocketTransport.cpp
+    src/net/WebSocketFrames.cpp
   DEPS microbrowser_util microbrowser_url microbrowser_privacy
   EXTERN OpenSSL::SSL OpenSSL::Crypto)
 
@@ -520,6 +522,7 @@ add_executable(microbrowser_tests
   tests/StorageScriptTests.cpp
   tests/StorageTests.cpp
   tests/WebFontTests.cpp
+  tests/WebSocketTests.cpp
   tests/Woff2Tests.cpp
   tests/XhrTests.cpp
   tests/IpcMessageTests.cpp
@@ -605,6 +608,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(font_fuzzer fuzz/FontFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(woff2_fuzzer fuzz/Woff2Fuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(sfnt_fuzzer fuzz/SfntFuzzer.cpp microbrowser_gfx)
+  microbrowser_fuzzer(websocket_fuzzer fuzz/WebSocketFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(svg_fuzzer fuzz/SvgFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(http_fuzzer fuzz/HttpFuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(cookie_fuzzer fuzz/CookieFuzzer.cpp microbrowser_net)
