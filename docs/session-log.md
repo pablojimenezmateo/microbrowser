@@ -3595,3 +3595,32 @@ web assumed because six was how many sockets a polite HTTP/1.1 client opened. ol
 Raising it is not a one-line change — a hundred concurrent streams is a hundred response bodies
 accumulating, bounded individually at 64MB and not at all in aggregate — which is why it is written
 down with its measurement instead of done.
+
+---
+
+## 2026-08-06 — ADRs for script slicing and the module loader; TD for Plex/YouTube/Reddit
+
+**Status:** done
+
+**Landed:** documentation only — no code changes.
+
+**Written:**
+
+- **ADR 0036** — script time-slicing: defer `js::Execute` slicing until TD-0003 and ADR 0030 are
+  measured; if still needed, yield at bytecode safepoints with microtask-atomic checkpoints.
+- **ADR 0037** — ES module loader host design (session 50's split: static graph pre-fetch,
+  synchronous resolver; dynamic `import()` pending table). Records that Gate B still needs
+  TD-0016, not more loader work.
+- **TD-0014** — Plex main bundle `TypeError` @370 (~4.9s wall, 3 display-list commands).
+- **TD-0015** — YouTube gstatic font failures at ~39–58s on an ~87s load (56 commands, 0 images).
+- **TD-0016** — reddit feed blocked on `<suspense-replace>` hoisting + `requestIdleCallback`
+  (214 commands after spread-`super()` fix; `js.dynamic_imports` 0).
+
+**TD-0005** remains open — no commit closed the duplicate cascade in `CollectImages` during this
+pass. Wikipedia perf summary still shows `engine::CollectImages` at **3,846ms** self in the
+compatibility run.
+
+**TD-0007** now points at ADR 0036 instead of "wants an ADR".
+
+**Left for implementers:** Plex @370 needs offset context; youtube white page is still TD-0013 +
+Polymer/DI, with TD-0015 as a late font layer; reddit feed is TD-0016 first.

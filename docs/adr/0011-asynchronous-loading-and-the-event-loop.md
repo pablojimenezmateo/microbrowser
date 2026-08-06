@@ -154,3 +154,7 @@ being large — and feeds it to the same `next_deadline_ms` the timers use. That
 mechanism; it is the one this ADR already relies on, used for the case the ADR created.
 
 Measured on news.ycombinator.com, five requests: 4.3s to 2.1s.
+
+**The module loader's host half** — ADR 0011's one open design question — is answered in **ADR
+0037** (session 50): static graph closed before evaluation, dynamic `import()` settled on a later
+turn. `SetModuleResolver` stays synchronous because the pre-pass already fetched.

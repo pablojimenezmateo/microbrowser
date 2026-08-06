@@ -201,8 +201,9 @@ Each of the three is one uninterruptible call.
 **End state.** Not "make the loop preemptible" — the zero-idle-CPU invariant and the single-threaded
 design are both deliberate and neither should go. The honest answers are to make the three phases
 faster (TD-0003 is a quarter of the first one), and to reach ADR 0030's incremental parse and first
-paint so that something is on screen before the script runs at all. Worth an ADR of its own before
-anything is attempted: "a script yields" is a change to the execution model, not an optimisation.
+paint so that something is on screen before the script runs at all. **Design home: ADR 0036** — defer
+execution slicing until TD-0003 and ADR 0030 are measured; if still needed, yield at bytecode
+safepoints with microtask-atomic checkpoints, not a host poll.
 
 ---
 
@@ -424,6 +425,103 @@ a `RunLoadToCompletion` busy-wait, not a selector walk.
 (Polymer stamp + real `querySelector` answers), fix it, and close this when
 youtube.com finishes reliably under the real matcher with a command count that
 is not a white page.
+
+---
+
+## TD-0014 — Plex's main bundle dies at source offset 370
+
+`app.plex.tv/desktop/` is a 30KB shell — one empty `<div id="plex">`, two SRI-marked scripts totalling
+**5.47MB** (survey §4). Session 22 landed `sessionStorage`; the splash inline script runs. The
+vendor bundle loads; the **3.5MB main bundle** then throws before React mounts.
+
+**Measured**, Debug build, compatibility pass 2026-08-06:
+
+```
+microbrowser_snapshot https://app.plex.tv/desktop/
+  3 commands, 0 runs, 0 fonts, 0 images, title "Plex"
+  script error: TypeError:  is not a function (@370)
+```
+
+Load timeline: ~555ms to main JS start, **~2.9s** inside main-bundle execution, **~4.9s** wall.
+The callee name is empty in the reported error — typical of a missing global or a minified import
+the engine never bound. Session 22's note had the same shape with different wording; this pass pins
+the offset.
+
+**What is not known yet.** The symbol at offset 370 has not been minimised to a name. The survey's
+API table (`docs/surveys/2026-08-04-reddit-youtube-plex.md` §5) ranks `MediaSource` (33),
+`requestAnimationFrame` (113), and `localStorage` (44) on Plex's bundles; Gate D needs MSE and
+decoders, but this failure is earlier — the UI never mounts. `microbrowser_jsshell -p` on a pinned
+copy of the main bundle, or stack-at-offset via the youtube method (`python3 -c` around offset 370),
+is the next step.
+
+**End state.** Identify the callee at @370, implement the missing primitive honestly (ADR 0012) or
+fix the bug if a name exists but throws wrong, and close when the snapshot reports non-zero text runs
+and more than the three display-list commands of an empty shell.
+
+---
+
+## TD-0015 — YouTube's gstatic font fetches fail after a long load
+
+Web fonts are not what blocks youtube's white page — session 20 measured **11** registrations where
+there were **0**, and the page still drew **16** display-list commands with no text. After the
+2026-08-06 compatibility pass, the bundle runs (~13s script, ~87s wall) and the page draws **56**
+commands with **0 images** and near-white output; a separate class of failure appears **late** in
+the timeline.
+
+**Measured**, Debug build, `MICROBROWSER_LOAD_TIMELINE=1`, 2026-08-06:
+
+| Milestone | Time |
+|---|---|
+| kevlar bundle execution | ~9.3s |
+| layout passes (×2) | ~14.3s each (see TD-0013) |
+| gstatic font fetch failures | **~39–58s** |
+
+Console during the run: connect failures / "server stopped responding" on `fonts.gstatic.com`
+requests. `gfx.web_fonts_registered` can be non-zero while individual subset fetches still fail —
+unicode-range splits Roboto into many files (session 20: 23 `@font-face` blocks → 2 requests when
+working). Whether this is **connection exhaustion** after an ~87s load (TD-0010 fixed request
+deferral but not aggregate open sockets), **CDN rate limiting** (same shape as TD-0008 on
+wikimedia), or a **sandbox/network burst** has not been isolated — it was not reproduced with
+`curl` outside the browser in this pass.
+
+**End state.** Counters that pair `gfx.web_fonts_registered` with `gfx.font_load_failures` and
+`net.connections` at failure time, then either fix the exhaustion path or document a host limit.
+Rendering text in Roboto is necessary for a readable youtube.com but is not sufficient for thumbnails
+(Polymer/DI at @1323410 and TD-0013 are still the primary white-page causes).
+
+---
+
+## TD-0016 — reddit's feed waits on `<suspense-replace>` hoisting `for=` templates
+
+Session 14 fixed `<template>` parsing: reddit puts the feed and sidebar inside
+`<template for="s_8a5ed_0">` and `<template for="s_8a5ed_1">` (**729** and **1668** nodes) for its
+own `<suspense-replace>` custom element to hoist into the light DOM. Before that fix, the parser
+dropped template tags and the sidebar rendered by accident — **331 commands** dropped to **143**
+when templates became inert, which is correct.
+
+Session 50 landed `PerformanceObserver` and the module loader (ADR 0037). After spread-`super()`
+(`9689730`) the page draws **214 commands / 48 script runs / 1 image** — search box, user menu, and
+sidebar card render. **Gate B is still not met:** the feed does not fill in.
+
+**Measured**, www.reddit.com, 2026-08-06:
+
+```
+js.dynamic_imports          0
+js.compile_bailouts         0
+performance.observer_callbacks  3
+```
+
+`js.dynamic_imports` at zero means reddit's `import()` of the Navigation API polyfill never runs —
+those paths sit behind `window.Sentry?.…` and **`requestIdleCallback`**, which is absent. The feed
+content is not missing because the module loader failed; it is missing because **nothing hoists the
+`for=` templates** and the idle-scheduled import graph never starts.
+
+**End state.** Implement `<suspense-replace>` (or the minimal primitive it needs:
+`template.content` + `cloneNode` + insertion + `connectedCallback` ordering is already landed;
+the custom element's hoist algorithm is not), add `requestIdleCallback` if the bundle still will not
+reach `import()` without it, and close when the snapshot shows feed posts rather than an empty main
+region. ADR 0037 documents what the loader already does; this entry is what Gate B still needs
+beside it.
 
 ---
 
