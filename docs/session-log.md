@@ -3434,3 +3434,90 @@ undefined, so that is the first thing to check.
 `docs/tech-debt.md` is new and has seven entries, each with its measurement. TD-0007 is the honest
 statement of what is *not* fixed: the loop still runs a page's script to completion in one turn, so
 youtube is a single 9.7-second uninterruptible call. Six times faster, same shape.
+
+## 2026-08-06 — Latency: where a page actually waits, and the instrument that had to exist first
+
+**Status:** done
+**Check:** `tools/run-checks.sh tests` (all 24 shards, 0 failed) and `asan` (0 failed);
+`inflate_fuzzer` 108,781 executions with no crash; display-list counts unchanged on the three
+pages that have them (Hacker News 705 commands / 485 runs / 4 fonts, wikipedia 4713 / 4173 / 30).
+**Landed:** `566f7d9` the snapshot tool never ran a due timer · `fa423b2` resolve a name once per
+page · `55f7b40` a load timeline, and the first paint stops waiting for every image · `34b7842`
+TD-0008 and TD-0009 · `ddfcabf` inflate 2.5x · `343e6a4` apply a declaration by view.
+
+**Found — five things, and the ordering of them is the point.**
+
+**1. Every number in `CLAUDE.md` is from a Debug build, and the difference is 4-7x.** `build/` is
+`CMAKE_BUILD_TYPE=Debug`; `build/microbrowser-perf/` is Release+LTO. wikipedia is 6.36s in one and
+1.13s in the other. Nothing is wrong with the recorded numbers, but a reader comparing them to a
+browser is comparing the wrong build, and the process this machine had open at the time --
+`./build/microbrowser/microbrowser https://www.youtube.com/`, 172 minutes of CPU -- was the Debug
+one. Say which build a number came from.
+
+**2. The perf preset did not build at all.** Two bench files had rotted against
+`TextShaper::Shape` gaining a direction argument and `js::Compile` gaining a source length. So the
+one build that can produce an honest measurement was the one nobody could compile, which is
+probably why (1) went unnoticed.
+
+**3. A ranked scope summary cannot see latency, and these pages are latency.** Hacker News spends
+1.21s of a 1.41s load blocked on a socket and every scope in the table put together accounts for
+58ms. `util::LoadTimeline` (`MICROBROWSER_LOAD_TIMELINE=1`) is the answer: one navigation, one
+clock, printed in the order things happened with a **gap** column, because the row after a long gap
+is what the browser was waiting for. It found the next two items within minutes of existing, and it
+is the thing to reach for before optimising anything on a real page.
+
+**4. The snapshot tool was rendering a different page from the browser.** `RunLoadToCompletion`
+called `Advance()` and not `RunDueWork()`, so no page timer ever ran inside it -- and a page that
+armed one made `NextDeadlineMs()` answer zero, which span the loop **376,522 times** on youtube's
+front page. Both halves matter, and the second is worse: this repository's whole method is to
+render a real page and look at it, and what it was looking at was a document whose timers had never
+fired. With the fix youtube lays out 73 times rather than 17 and reaches its media host.
+
+**5. `wikipedia` renders between 4 and 17 of its images at random, and it is not our loop.**
+`upload.wikimedia.org` answers **429** to a burst of six parallel HTTP/1.1 connections. Reproduced
+with `curl --http1.1` outside this browser (`200 200 200 429 200 429`), and the obvious suspect was
+tested and cleared -- it is not the `User-Agent`, which gets 200 on its own. This is the first
+*rendering correctness* cost anybody has measured for the missing HTTP/2, as opposed to a latency
+cost. TD-0008.
+
+**What was fixed, and what it bought.**
+
+Name resolution was not cached at all: a connection is opened per concurrent request and every one
+of them called `getaddrinfo`, which is the one call in the stack that blocks the loop. Hacker News
+resolved one host four times, youtube thirteen times across three hosts, old.reddit about thirty.
+Now once each. **The cache is keyed by the ADR 0005 partition key and `Transport::StartConnect`
+grew a partition parameter to make that structural** -- a warm name answers in microseconds and a
+cold one in tens of milliseconds, so a host-keyed cache is a "has this browser been to that site?"
+oracle for every site on the web. Same argument as the connection pool, same argument as TLS
+tickets being off.
+
+`PendingLoad::MayPaint` required `images_outstanding == 0` -- the first frame waited for every
+image on the page. Hacker News painted at 1116ms and the last thing it waited for was `s.gif`, a
+spacer; wikipedia painted at 1058ms with its stylesheets in hand since 403ms. Images now stay owned
+by the load (so `load` still means the document *and* its subresources, and no response is dropped)
+but do not hold the frame, and ones arriving afterwards are decoded in a **batch** -- eleven of
+wikipedia's finish within 250 microseconds of each other, and one relayout each would be eleven.
+
+And `StartImageRequests` ran at the document and at each paint but not when a *stylesheet* landed,
+which is the moment the cascade first names a background image. Hacker News put `triangle.svg` on
+the wire at 1104ms for a sheet that arrived at 726ms. Now 734ms.
+
+**Two instruments earned their place immediately and should be extended rather than replaced.**
+`bench/CodecBenchmarks.cpp` and `bench/CssBenchmarks.cpp` are the first benchmarks for anything
+outside gfx and js, and both exist because the alternative was timing a page load on a shared
+machine -- where the same binary read three times slower while something else was linking, which is
+larger than any change either file was measuring. The codec one carries its own DEFLATE encoder,
+since `src/util` deliberately has none, and **verifies its corpus by decoding it before timing
+anything**: a benchmark measuring a decode that failed on the first symbol reports a wonderful
+number.
+
+**Left.** TD-0005 is still open and is now the largest non-JavaScript item on wikipedia: the
+duplicate cascade in `CollectImages`. Two routes were considered and both have a catch worth
+knowing before starting. Collecting backgrounds from the *box tree* instead removes the second
+cascade but pushes the requests after the first layout, which is exactly the 375ms regression the
+`StartImageRequests` fix above just removed. Caching the box tree -- which `Page::Layout`'s own
+comment proposes, and the `boxes_` member and the eight `boxes_.reset()` call sites are already
+most of the machinery -- is the better route, but `LayoutEngine` takes the `ImageProvider` as an
+input, so an image *arriving* changes the tree; every path that changes an input has to be audited
+for invalidation before it can be trusted, and getting it wrong renders a stale page, which is
+priority 1 rather than priority 4.
