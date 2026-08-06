@@ -252,8 +252,24 @@ void DomBindings::EnsureInterfaces() {
   // Text and Comment share a base, and it is not decoration: a polyfill that
   // patches `data` or `length` patches CharacterData once rather than both.
   const Value character_data = MakeInterface("CharacterData", node);
-  MakeInterface("Text", character_data);
+  const Value text_interface = MakeInterface("Text", character_data);
   MakeInterface("Comment", character_data);
+  // Two interfaces nothing here will ever be an instance of, and they are not
+  // stubs: **a real browser's HTML document has no instance of either.** An
+  // HTML parser turns `<![CDATA[…]]>` and `<?xml-stylesheet?>` into comments,
+  // so a CDATASection or a ProcessingInstruction only appears in an XML
+  // document, which this browser does not have. What every browser *does* have
+  // is the name, with CharacterData behind it -- and that is exactly what
+  // this declares, so nothing is being claimed that is not true.
+  //
+  // youtube is why they are here. `webcomponents-all-noPatch.js` does
+  // `["Text","Comment","CDATASection","ProcessingInstruction"].forEach(
+  //    function (a) { var b = window[a]; Object.create(b.prototype) ... })`
+  // and takes a TypeError on the third name. That is ADR 0012 read from the
+  // other side: the rule is about *behaviour* a page would branch on, and a
+  // missing interface object is not a fallback path, it is a wall.
+  MakeInterface("CDATASection", text_interface);
+  MakeInterface("ProcessingInstruction", character_data);
   // A fragment is a ParentNode: script queries the subtree it is building
   // before it inserts it, which is most of the reason to build it detached.
   const Value fragment = MakeInterface("DocumentFragment", node);
@@ -371,14 +387,16 @@ void DomBindings::EnsureInterfaces() {
   InstallWindowEvents();
 }
 
-js::Value DomBindings::DocumentInterface() {
+js::Value DomBindings::InterfaceNamed(const char* name) {
   EnsureInterfaces();
   if (!interfaces_.IsObject()) {
     return Value::Undefined();
   }
-  const Value* found = interfaces_.object->GetOwn("Document");
+  const Value* found = interfaces_.object->GetOwn(name);
   return found == nullptr ? Value::Undefined() : *found;
 }
+
+js::Value DomBindings::DocumentInterface() { return InterfaceNamed("Document"); }
 
 js::Value DomBindings::PrototypeFor(const dom::Node& node) {
   EnsureInterfaces();
