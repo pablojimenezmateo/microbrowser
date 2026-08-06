@@ -308,6 +308,7 @@ void DomBindings::InstallScroll(const js::Value& element_interface) {
   }
 
   InstallWindowScroll();
+  InstallMatchMedia();
 }
 
 // `window.scrollX`/`scrollY` and `window.scrollTo`/`scrollBy`, all four of

@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 
+#include "css/MediaQuery.h"
 #include "dom/FlatTree.h"
 #include "engine/Page.h"
 #include "util/PerformanceCounters.h"
@@ -473,6 +474,19 @@ bindings::GeometryRect Page::QueryViewport() {
   // that cannot have changed.
   return bindings::GeometryRect{0.0f, 0.0f, viewport_.viewport_width,
                                 viewport_.viewport_height};
+}
+
+bool Page::QueryMediaMatches(std::string_view query) {
+  // No EnsureLayoutClean, for the reason QueryViewport gives: a media query is
+  // a function of what the browser told this page it has, and running a layout
+  // could not change the answer.
+  //
+  // The same evaluator `@media`, `<source media>` and `sizes` go through, and
+  // the same `viewport_` -- which is the point of routing this through the
+  // geometry seam rather than giving the binding layer a context of its own.
+  // Two answers to "is this viewport narrow" is how a page's stylesheet and its
+  // script come to disagree about which layout it is in.
+  return css::MediaQueryListMatches(query, viewport_);
 }
 
 bool Page::IsViewportScroller(const dom::Element& element) const {

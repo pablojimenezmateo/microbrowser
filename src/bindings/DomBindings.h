@@ -210,6 +210,12 @@ class DomBindings {
   // animation frame is stamped with. See ADR 0018 §5 and ViewObservers.cpp.
   bool DeliverViewObservations(double time_ms);
 
+  // Fires `change` at every `matchMedia` list whose answer has moved since the
+  // last frame. Public and per-frame for the reason above: the browser is the
+  // only thing that knows the viewport changed, and re-evaluating on demand
+  // would let a page fire its own resize handlers.
+  bool DeliverMediaQueryChanges();
+
   // The document lifecycle. `readyState` moves loading -> interactive ->
   // complete, and the two events fire on the transitions rather than being
   // announced separately: a page that hears `DOMContentLoaded` and then reads
@@ -600,6 +606,12 @@ class DomBindings {
   void DispatchPortMessage(const js::Value& port, const js::Value& data);
   js::Value InterfaceNamed(const char* name);
   js::Value DocumentInterface();
+  // `window.matchMedia`, in MediaQueries.cpp. Through the geometry seam,
+  // because the evaluator is in `src/css` and because `matchMedia` and
+  // `innerWidth` must never disagree. Installed only when there is a
+  // GeometrySource, like the rest of that file's surface.
+  void InstallMatchMedia();
+  void TrackMediaQueryList(const js::Value& list);
   void InstallTreeWalkers(const js::Value& document);
 
   // --- HTML from script, in HtmlParsing.cpp ---------------------------------

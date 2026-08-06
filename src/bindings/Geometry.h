@@ -116,6 +116,24 @@ class GeometrySource {
   // reduced.
   virtual double QueryDevicePixelRatio() const = 0;
 
+  // Whether a media query list matches right now.
+  //
+  // Here rather than in the binding layer because the evaluator lives in
+  // `src/css`, which this module may not see -- the same inversion the rest of
+  // this interface is, and the same reason. A media query is a pure function of
+  // the environment, and the environment is what the engine has.
+  //
+  // It is on *this* interface rather than one of its own because the thing it
+  // is a function of is the viewport: `matchMedia('(max-width: 700px)')` and
+  // `window.innerWidth` are two spellings of one question, and answering them
+  // through two seams is how they come to disagree.
+  //
+  // False for a query this evaluator does not implement, which is what the
+  // specification says and is also the fingerprinting-safe answer: every media
+  // feature is something this browser tells a page about the machine it is
+  // running on. See ADR 0029.
+  virtual bool QueryMediaMatches(std::string_view query) = 0;
+
   // Scrolls every scrolling ancestor of `node` -- not just the nearest one --
   // until `node` is inside each of their scrollports. `scrollIntoView` on an
   // item in a menu inside a scrolled page has to move both, and an

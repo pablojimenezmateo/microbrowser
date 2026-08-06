@@ -679,6 +679,7 @@ class Page : private layout::ImageProvider,
                                             std::string_view property) override;
   bindings::GeometryRect QueryViewport() override;
   double QueryDevicePixelRatio() const override;
+  bool QueryMediaMatches(std::string_view query) override;
   void SetScrollOffset(const dom::Node& node, float x, float y) override;
   void ScrollIntoView(const dom::Node& node) override;
   // Records that `element` -- or the viewport, when null -- moved, so that one

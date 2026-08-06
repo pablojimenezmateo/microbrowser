@@ -389,6 +389,13 @@ bool PageScript::DeliverViewObservations(std::int64_t now_ms) {
   // ADR 0019 §2 -- assignment is the one piece of eager state in the flat-tree
   // design, and this is where the change in it is noticed.
   ran = bindings_->DeliverSlotChanges() || ran;
+  // And `matchMedia`, at the same one place and for the same reason: the
+  // browser is the only thing that knows the viewport moved, and a page that
+  // could make a `change` fire would be one that could run its own resize
+  // handlers on demand. It is last because a handler that rearranges the page
+  // wants the geometry observers to see the result on the next pass rather
+  // than half of it on this one.
+  ran = bindings_->DeliverMediaQueryChanges() || ran;
   return ran;
 }
 

@@ -329,6 +329,78 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 0), "function", "a page with a layout behind it has the name");
     ExpectEqString(Line(output, 1), "function", "and the window one too");
   });
+
+  AddTest(tests, "Geometry/MatchMediaAgreesWithTheStylesheetAndWithInnerWidth", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    // The point of routing `matchMedia` through the geometry seam rather than
+    // giving the binding layer a media context of its own: the stylesheet's
+    // answer, the script's answer and `window.innerWidth` are one answer. A
+    // page whose CSS thinks it is narrow and whose script thinks it is wide
+    // renders a layout neither of them describes.
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<style>@media (max-width: 700px) { #a { color: red } }"
+        "@media (min-width: 700px) { #a { color: green } }</style>"
+        "<body><p id=a>x</p><script>"
+        "console.log(matchMedia('(min-width: 700px)').matches);"
+        "console.log(matchMedia('(max-width: 700px)').matches);"
+        "console.log(getComputedStyle(document.getElementById('a')).color);"
+        "console.log(window.innerWidth);"
+        "console.log(matchMedia('(orientation: landscape)').matches);"
+        // A feature this evaluator does not implement is false rather than a
+        // guess -- every media feature is something this browser tells a page
+        // about the machine it is on. ADR 0029.
+        "console.log(matchMedia('(min-resolution: 2dppx)').matches);"
+        "console.log(matchMedia('(totally-invented-feature: 3)').matches);"
+        "console.log(matchMedia('(min-width: 700px)').media);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "true", "800 is at least 700");
+    ExpectEqString(Line(output, 1), "false", "and not at most 700");
+    ExpectEqString(Line(output, 2), "rgb(0, 128, 0)", "the cascade agrees with the script");
+    ExpectEqString(Line(output, 3), "800", "and so does innerWidth");
+    ExpectEqString(Line(output, 4), "true", "800x600 is landscape");
+    ExpectEqString(Line(output, 5), "false", "a 1x display is not 2dppx");
+    ExpectEqString(Line(output, 6), "false", "an unknown feature does not match");
+    ExpectEqString(Line(output, 7), "(min-width: 700px)", "the list remembers its query");
+  });
+
+  AddTest(tests, "Geometry/AMatchMediaListenerFiresWhenTheViewportCrossesIt", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body><script>"
+        "const narrow = matchMedia('(max-width: 700px)');"
+        "narrow.addEventListener('change', e => console.log('listener:' + e.matches));"
+        "narrow.onchange = e => console.log('onchange:' + e.matches);"
+        // The older spelling, which a great deal of shipped script still uses
+        // and which has to reach the same registry rather than a second one.
+        "matchMedia('(max-width: 700px)').addListener(e => console.log('legacy:' + e.matches));"
+        "</script></body>",
+        "https://example.org/");
+    page.SetViewport(css::MediaContext{800.0f, 600.0f, 1.0f});
+    page.Layout(800.0f);
+    page.RunScripts(0);
+    page.DeliverObservations(0);
+    ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 0,
+                "nothing fires while the answer has not moved");
+
+    // Across the boundary, which is the only thing that fires anything.
+    page.SetViewport(css::MediaContext{500.0f, 600.0f, 1.0f});
+    page.Layout(500.0f);
+    page.DeliverObservations(16);
+    ExpectEqString(Line(page.ConsoleOutput(), 0), "onchange:true",
+                   "the handler property fires first, with the new answer");
+    ExpectEqString(Line(page.ConsoleOutput(), 1), "listener:true", "then the listener");
+    ExpectEqString(Line(page.ConsoleOutput(), 2), "legacy:true",
+                   "and the older spelling reaches the same registry");
+
+    // And not again while it stays there, which is the property that makes
+    // this a *change* event rather than a per-frame callback.
+    page.DeliverObservations(32);
+    ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 3,
+                "and nothing fires again while it stays there");
+  });
 }
 
 }  // namespace microbrowser::tests
