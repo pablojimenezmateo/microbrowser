@@ -279,6 +279,7 @@ namespace microbrowser::util {
   X(CspViolations, "csp.violations")                                             \
   X(CspInlineBlocked, "csp.inline_blocked")                                      \
   X(SriChecks, "sri.checks")                                                     \
+  X(WebSocketInsecureRefusals, "websocket.insecure_refusals")                     \
   X(WebSocketConnectionsOpened, "websocket.connections_opened")                    \
   X(WebSocketHandshakeRefusals, "websocket.handshake_refusals")                    \
   X(WebSocketFailures, "websocket.failures")                                       \

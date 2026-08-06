@@ -346,6 +346,7 @@ microbrowser_module(engine
     src/engine/SessionHistory.cpp
     src/engine/Loader.cpp
     src/engine/ModuleLoader.cpp
+    src/engine/EngineSockets.cpp
     src/engine/EngineStorage.cpp
     src/engine/Page.cpp
     src/engine/PageEditing.cpp
@@ -385,6 +386,7 @@ microbrowser_module(bindings
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
     src/bindings/ShadowBindings.cpp
+    src/bindings/SocketBindings.cpp
     src/bindings/StorageBindings.cpp
     src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp

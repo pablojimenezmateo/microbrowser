@@ -22,7 +22,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # of bug ADR 0012 calls worse than an absence.
 allow: util js dom html
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h Network.h Performance.h Storage.h Timers.h ViewObservers.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h Network.h Performance.h Sockets.h Storage.h Timers.h ViewObservers.h
 
 extern:
 
@@ -153,7 +153,11 @@ max_tu_lines: 700
 # localStorage are answered through an interface this module declares, like geometry
 # and the network, so no partition key and no store appears here.
 budget: StorageSource header_lines=50 public_methods=11 members=0
-budget: DomBindings header_lines=485 public_methods=22 members=13
+budget: SocketSource  header_lines=40 public_methods=9  members=0
+# +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the
+# SocketSource this module declares, and the three delivery entry points -- C++-only,
+# because the only thing allowed to say a message arrived is the thing that read it.
+budget: DomBindings header_lines=515 public_methods=25 members=14
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

@@ -71,6 +71,24 @@ class PageScript {
   // And for `sessionStorage`/`localStorage`. Null leaves both names undeclared, which
   // is ADR 0012's rule and ADR 0021 §6's answer for a document with no keyed storage.
   void SetStorageSource(bindings::StorageSource* storage) { storage_ = storage; }
+  // And for `WebSocket`. Null leaves the name undeclared, which is what a page with no
+  // socket source must see rather than a constructor that never opens.
+  void SetSocketSource(bindings::SocketSource* sockets) { sockets_ = sockets; }
+
+  // A socket's events, forwarded to the bindings when there are any. False without an
+  // interpreter: a socket cannot outlive its document, but a completion can arrive on the
+  // same turn a navigation replaced it.
+  bool DeliverSocketOpen(std::uint64_t id) {
+    return bindings_ != nullptr && bindings_->DeliverSocketOpen(id);
+  }
+  bool DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text) {
+    return bindings_ != nullptr && bindings_->DeliverSocketMessage(id, data, text);
+  }
+  bool DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
+                          bool clean, bool failed) {
+    return bindings_ != nullptr &&
+           bindings_->DeliverSocketClose(id, code, reason, clean, failed);
+  }
   // Fires `popstate`, or `hashchange`, at the window. False before this page has
   // an interpreter, which is a traversal on a document that never ran a script.
   // Moves the address the binding layer answers with. Nothing before this page
@@ -348,6 +366,7 @@ class PageScript {
   bindings::NetworkSource* network_ = nullptr;
   bindings::HistorySource* history_ = nullptr;
   bindings::StorageSource* storage_ = nullptr;
+  bindings::SocketSource* sockets_ = nullptr;
 };
 
 }  // namespace microbrowser::engine

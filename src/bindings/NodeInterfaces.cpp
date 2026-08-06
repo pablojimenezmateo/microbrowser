@@ -255,6 +255,10 @@ void DomBindings::EnsureInterfaces() {
   // every write is worse than none, because `if (window.localStorage)` followed by an
   // unguarded write is the shape real code takes. InstallStorage answers that itself.
   InstallStorage();
+  // And once more for sockets: a `WebSocket` that never opens is worse than none,
+  // because a page waiting on `onopen` has no fallback left. InstallWebSocket answers
+  // that itself.
+  InstallWebSocket();
   // Absent for the same reason when there is nothing to traverse: a page that
   // finds `history.pushState` and gets nothing has already taken the branch that
   // assumes it works. InstallHistory answers that itself.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -8,8 +9,10 @@
 
 #include "bindings/History.h"
 #include "bindings/Network.h"
+#include "bindings/Sockets.h"
 #include "bindings/Storage.h"
 #include "engine/Loader.h"
+#include "net/WebSocketConnection.h"
 #include "engine/Page.h"
 #include "engine/PendingLoad.h"
 #include "engine/SessionHistory.h"
@@ -47,7 +50,8 @@ namespace microbrowser::engine {
 // Its budget in src/engine/MODULE.deps is the tripwire.
 class Engine : private bindings::NetworkSource,
                private bindings::HistorySource,
-               private bindings::StorageSource {
+               private bindings::StorageSource,
+               private bindings::SocketSource {
  public:
   // Fonts arrive from the caller because which fonts exist is a property of
   // the machine, and the engine is the half of the seam that does not know
@@ -250,6 +254,27 @@ class Engine : private bindings::NetworkSource,
   // Tells the chrome what its two buttons should look like, and nothing else.
   void SendHistoryState();
 
+  // bindings::SocketSource. ADR 0020 §5, in EngineSockets.cpp, and private for the
+  // reason the others are. Everything a policy decides -- the scheme, `connect-src`, the
+  // privacy verdict -- is on this side, because `src/bindings` may see none of `net`,
+  // `csp` or `url`.
+  std::uint64_t OpenSocket(std::string_view url) override;
+  bool SendSocket(std::uint64_t id, std::string_view data, bool text) override;
+  void CloseSocket(std::uint64_t id, std::uint16_t code, std::string_view reason) override;
+  std::uint64_t SocketBufferedAmount(std::uint64_t id) override;
+
+  // The loop's three questions about a long-lived connection. A socket with nothing
+  // queued is *not* runnable work -- it is a descriptor in the wait -- which is the
+  // whole of how an open connection costs nothing while idle.
+  void AppendSocketDescriptors(util::WaitDescriptorList& out) const;
+  bool SocketsHaveWork() const;
+  // Everything readable, and the events that follow. True when script ran, which is the
+  // caller's signal that the document may have changed under it.
+  bool AdvanceSockets();
+  // A navigation. Erasing is closing, because the connection's destructor closes its
+  // transport.
+  void CloseAllSockets();
+
   // bindings::StorageSource. ADR 0021, in EngineStorage.cpp, and private for the
   // reason the other two are.
   //
@@ -336,6 +361,11 @@ class Engine : private bindings::NetworkSource,
   // Neither reaches a disk. ADR 0021 §2 makes persistence a per-site user act that
   // lands together with encryption at rest, and a sign-in token in a plaintext file is
   // the worst outcome available here.
+  // The page's WebSockets, by id. The first thing this engine owns whose lifetime is a
+  // *document* rather than a request: a navigation clears it (ADR 0020 §5), and until
+  // then a connection sits in the idle wait costing nothing.
+  std::map<std::uint64_t, std::unique_ptr<net::WebSocketConnection>> sockets_;
+  std::uint64_t next_socket_id_ = 0;
   storage::PartitionedStorage session_storage_;
   storage::PartitionedStorage local_storage_;
   Page page_;

@@ -10,6 +10,7 @@
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
 #include "bindings/Network.h"
+#include "bindings/Sockets.h"
 #include "bindings/Storage.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
@@ -110,7 +111,8 @@ class DomBindings {
   // `navigator.storage.persist()`.
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
-              HistorySource* history = nullptr, StorageSource* storage = nullptr);
+              HistorySource* history = nullptr, StorageSource* storage = nullptr,
+              SocketSource* sockets = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -128,6 +130,15 @@ class DomBindings {
   // thing allowed to say a click happened is the thing that saw one. A page
   // that could dispatch its own trusted events could make a form submit itself.
   bool DispatchClick(dom::Element& target, const PointerInput& pointer);
+
+  // A socket's four events, from the engine. C++ entry points for the reason
+  // DispatchClick is one: the only thing allowed to say a message arrived is the thing
+  // that read it off the wire. True when a handler ran, which is the caller's signal that
+  // the document may have changed.
+  bool DeliverSocketOpen(std::uint64_t id);
+  bool DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text);
+  bool DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
+                          bool clean, bool failed);
 
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
@@ -406,6 +417,17 @@ class DomBindings {
   // element, so a property name nobody enumerated in advance still resolves.
   js::Value MakeComputedStyle(dom::Element& element);
 
+  // --- WebSocket, in SocketBindings.cpp -------------------------------------
+  // Installed only when there is a SocketSource, for ADR 0012's reason and its sharpest
+  // case: a page that finds `WebSocket` and gets a constructor that never fires `open`
+  // waits forever, where a page that finds nothing falls back to polling and works.
+  void InstallWebSocket();
+  // The live sockets, as a JavaScript array hung off the interfaces object -- which is
+  // already a GC root. A C++ table of `js::Value` would be invisible to the collector.
+  js::Value LiveSockets();
+  js::Value SocketWithId(std::uint64_t id);
+  void ForgetSocket(std::uint64_t id);
+
   // --- storage, in StorageBindings.cpp --------------------------------------
   // `sessionStorage` and `localStorage`, installed only when there is a
   // StorageSource. One function for both: they differ by a `Kind` and by nothing
@@ -553,6 +575,7 @@ class DomBindings {
   // `history` is not declared at all. Same rule as the two above.
   HistorySource* history_ = nullptr;
   StorageSource* storage_ = nullptr;
+  SocketSource* sockets_ = nullptr;
 };
 
 }  // namespace microbrowser::bindings

@@ -134,7 +134,18 @@ class Loader {
 
   // Swaps in a different socket layer. Tests use it to serve canned bytes;
   // there is no other way to exercise a fetch without a network.
-  void SetTransport(net::TransportFactory& transport) { queue_.SetTransport(transport); }
+  void SetTransport(net::TransportFactory& transport) {
+    queue_.SetTransport(transport);
+    factory_ = &transport;
+  }
+
+  // A transport for something that is *not* a request: a WebSocket, which lives outside
+  // the queue because it has no response and no completion. The factory rather than the
+  // queue, so that a test's scripted transport serves both -- and so that there is
+  // exactly one place in the engine that decides what a socket is made of.
+  std::unique_ptr<net::Transport> NewTransport() {
+    return factory_ != nullptr ? factory_->Create() : sockets_.Create();
+  }
 
  private:
   // The one place a request is actually started. Both entry points funnel
@@ -153,6 +164,9 @@ class Loader {
   net::CookieJar cookies_;
   net::HttpCache cache_;
   net::RequestQueue queue_;
+  // The factory a caller handed over, or null for the real one. Held because a
+  // long-lived connection is made outside the queue; see NewTransport.
+  net::TransportFactory* factory_ = nullptr;
   // Answers produced without a request. Kept apart from the queue's own
   // completions so that `CancelAll` clears both, and neither can outlive the
   // document that asked.

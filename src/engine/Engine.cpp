@@ -107,6 +107,8 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // the three: Plex's very first inline script, before any bundle loads, reads
   // `sessionStorage`.
   page_.SetStorageSource(this);
+  // And its sockets, same lifetime and same reason.
+  page_.SetSocketSource(this);
 }
 
 bool Engine::HandlePendingMessages() {
@@ -164,9 +166,18 @@ bool Engine::Advance() {
   // ask to keep open is not something to leave until the next navigation
   // happens along. It promotes nothing and starts nothing here.
   loader_.Advance(NowMilliseconds());
+  // The page's sockets, before the early return: a socket has no completion in the
+  // loader's queue, so nothing below this line would ever look at one. Its events run
+  // script, which is why it is here and not inside the paint.
+  bool socket_activity = AdvanceSockets();
   if (!load_.active && late_images_.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && !page_.HasPendingModules()) {
-    return false;
+    if (socket_activity) {
+      // A message ran a handler, which may have changed the document. Paint, for the
+      // reason a timer callback paints: the page a user is looking at is now stale.
+      LayoutAndPaint();
+    }
+    return socket_activity;
   }
   std::vector<Loader::Completion> completions = loader_.TakeCompletions();
   bool moved = false;
@@ -226,6 +237,10 @@ bool Engine::Advance() {
 
 void Engine::AppendWaitDescriptors(util::WaitDescriptorList& out) const {
   loader_.AppendDescriptors(out);
+  // An open socket is a descriptor here and nothing else -- no timer, no poll. That is
+  // the whole of how ADR 0020 §5's long-lived connection keeps the zero-idle-CPU
+  // invariant: the loop blocks on it, and a server that says nothing costs nothing.
+  AppendSocketDescriptors(out);
 }
 
 bool Engine::HasRunnableWork() const {
@@ -233,6 +248,14 @@ bool Engine::HasRunnableWork() const {
   // would ever come back to collect it. Not simply `loader_.HasRunnableWork()`
   // -- with nothing owed, that is always true for a canned transport and the
   // loop would spin instead of blocking, which is the zero-idle invariant.
+  // A socket with something *queued* is work; an open socket waiting on a server is not.
+  // Answering true for the second would make the loop spin for as long as a page held a
+  // connection, which is exactly what ADR 0020 §5 says this feature must not cause. It is
+  // outside the `loader_` conjunction because a socket is not a request and the loader
+  // knows nothing about it.
+  if (SocketsHaveWork()) {
+    return true;
+  }
   return (load_.active || !late_images_.empty() || !script_fetches_.empty() ||
           !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
@@ -543,6 +566,11 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // undeliverable rather than merely ignored -- ADR 0011 asked for it by
   // construction, and this is the construction.
   loader_.CancelAll();
+  // And the page's sockets. ADR 0020 §5: a connection dies with the document that opened
+  // it, and erasing the table *is* closing it -- the connection's destructor closes its
+  // transport. One line rather than a shutdown sequence, because that is a property of
+  // the type rather than a sequence someone has to remember.
+  CloseAllSockets();
   load_ = PendingLoad{};
   // The images the previous document was still fetching go with it, for the
   // reason `load_` does: a response for a page that is gone must be

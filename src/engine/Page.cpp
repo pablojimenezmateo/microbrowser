@@ -516,6 +516,21 @@ void Page::SetStorageSource(bindings::StorageSource* storage) {
   script_.SetStorageSource(storage);
 }
 
+void Page::SetSocketSource(bindings::SocketSource* sockets) {
+  script_.SetSocketSource(sockets);
+}
+
+bool Page::DeliverSocketOpen(std::uint64_t id) { return script_.DeliverSocketOpen(id); }
+
+bool Page::DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text) {
+  return script_.DeliverSocketMessage(id, data, text);
+}
+
+bool Page::DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
+                              bool clean, bool failed) {
+  return script_.DeliverSocketClose(id, code, reason, clean, failed);
+}
+
 void Page::UpdateUrl(std::string url) {
   url_ = std::move(url);
   policy_.UpdateDocumentUrl(url_);

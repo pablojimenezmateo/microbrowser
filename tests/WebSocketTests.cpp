@@ -8,16 +8,23 @@
 #include <cstring>
 #include <initializer_list>
 #include <memory>
+#include <utility>
 #include <optional>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "TestSupport.h"
+#include "engine/Engine.h"
+#include "gfx/FontCatalog.h"
+#include "ipc/InProcessTransport.h"
+#include "ipc/Message.h"
 #include "net/WebSocketConnection.h"
 #include "net/WebSocketFrames.h"
 #include "privacy/PrivacyPolicy.h"
+#include "support/DriveLoop.h"
 #include "support/ScriptedTransport.h"
+#include "support/SyntheticFont.h"
 #include "url/Url.h"
 #include "util/Sha1.h"
 
@@ -85,6 +92,29 @@ std::string Frame(std::initializer_list<std::uint8_t> bytes) {
 // connection wrote.
 class OpenTransport : public net::Transport {
  public:
+  // What a test can still look at after this object is gone.
+  //
+  // A closed socket is usually a *destroyed* one here -- the connection owns its
+  // transport and a navigation erases the connection -- so a test holding a raw pointer
+  // reads freed memory, which is how ASan caught the first version of this. The state is
+  // shared and outlives the transport, and `destroyed` counts as closed because the
+  // destructor closes.
+  struct Observed {
+    bool closed = false;
+    bool destroyed = false;
+
+    bool IsClosed() const { return closed || destroyed; }
+  };
+
+  explicit OpenTransport(std::shared_ptr<Observed> observed = nullptr)
+      : observed_(std::move(observed)) {}
+
+  ~OpenTransport() override {
+    if (observed_ != nullptr) {
+      observed_->destroyed = true;
+    }
+  }
+
   bool StartConnect(std::string_view, std::uint16_t, bool) override { return true; }
   net::IoStatus Advance() override { return net::IoStatus::Ready; }
 
@@ -97,6 +127,20 @@ class OpenTransport : public net::Transport {
     if (closed_) {
       return net::IoResult{net::IoStatus::Closed, 0};
     }
+    // A *server* answers the key it was actually sent. The engine generates its own
+    // `Sec-WebSocket-Key` per socket, so a fixture with a hard-coded accept value tests
+    // nothing but its own paste -- and fails, which is how this was found.
+    if (answer_handshake_ && pending_.empty()) {
+      const std::size_t at = written_.find("Sec-WebSocket-Key: ");
+      const std::size_t end = at == std::string::npos ? at : written_.find("\r\n", at);
+      if (end != std::string::npos) {
+        const std::string key = written_.substr(at + 19, end - at - 19);
+        pending_ = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                   "Connection: Upgrade\r\nSec-WebSocket-Accept: " +
+                   net::WebSocketAcceptFor(key) + "\r\n\r\n" + after_handshake_;
+        answer_handshake_ = false;
+      }
+    }
     if (pending_.empty()) {
       // Blocked, not Closed: the connection is open and the server has not spoken yet,
       // which is exactly the state an idle WebSocket spends its life in.
@@ -108,7 +152,12 @@ class OpenTransport : public net::Transport {
     return net::IoResult{net::IoStatus::Ready, take};
   }
 
-  void Close() override { closed_ = true; }
+  void Close() override {
+    closed_ = true;
+    if (observed_ != nullptr) {
+      observed_->closed = true;
+    }
+  }
 
   std::optional<util::WaitDescriptor> Interest() const override {
     if (closed_) {
@@ -122,12 +171,20 @@ class OpenTransport : public net::Transport {
 
   // What the server says next, appended so a test can deliver in stages.
   void Deliver(std::string_view bytes) { pending_ += bytes; }
+  // Answer whatever key this connection sends, then these bytes. What a server does.
+  void AnswerHandshake(std::string after) {
+    answer_handshake_ = true;
+    after_handshake_ = std::move(after);
+  }
   const std::string& Written() const { return written_; }
   bool IsClosed() const { return closed_; }
 
  private:
   std::string pending_;
   std::string written_;
+  std::string after_handshake_;
+  std::shared_ptr<Observed> observed_;
+  bool answer_handshake_ = false;
   bool closed_ = false;
 };
 
@@ -150,6 +207,45 @@ struct LiveSocket {
         std::move(owned), policy.Decide(request), "chat.example", 443, "/socket", true,
         std::string(kKey));
   }
+};
+
+// A page that opens a socket, over a factory whose transports stay open.
+//
+// The document response comes first and then every socket takes an `OpenTransport`, so
+// the page's `WebSocket` behaves the way one does on a real network: it opens, it waits,
+// and it is still there on the next turn.
+class PageFactory : public net::TransportFactory {
+ public:
+  std::unique_ptr<net::Transport> Create() override {
+    if (!document_taken_) {
+      document_taken_ = true;
+      auto scripted = std::make_unique<OpenTransport>();
+      scripted->Deliver(document_);
+      return scripted;
+    }
+    auto observed = std::make_shared<OpenTransport::Observed>();
+    auto socket = std::make_unique<OpenTransport>(observed);
+    socket->AnswerHandshake(frames_);
+    sockets_.push_back(std::move(observed));
+    return socket;
+  }
+
+  void SetDocument(std::string html) {
+    document_ = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " +
+                std::to_string(html.size()) + "\r\n\r\n" + html;
+  }
+  // What the socket says *after* its handshake. The handshake itself is computed from
+  // the key the connection sent, which is what a server does.
+  void SetFrames(std::string frames) { frames_ = std::move(frames); }
+  const std::vector<std::shared_ptr<OpenTransport::Observed>>& Sockets() const {
+    return sockets_;
+  }
+
+ private:
+  std::string document_;
+  std::string frames_;
+  bool document_taken_ = false;
+  std::vector<std::shared_ptr<OpenTransport::Observed>> sockets_;
 };
 
 struct Socket {
@@ -191,6 +287,128 @@ struct Socket {
 }  // namespace
 
 void RegisterWebSocketTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "WebSocket/APageOpensASocketAndItsHandlersRun", [] {
+    // The end of ADR 0020 §5's path: `new WebSocket(...)` through the binding, the
+    // engine's table, the connection, and back as `onopen` and `onmessage`.
+    gfx::FontLibrary library;
+    gfx::FontCatalog fonts{library};
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+    ipc::InProcessChannel channel;
+    engine::Engine engine{channel.Engine(), fonts};
+    PageFactory factory;
+    factory.SetFrames(Frame({0x81, 0x05, 'h', 'e', 'l', 'l', 'o'}));
+    factory.SetDocument(
+        "<html><body><script>"
+        "const s = new WebSocket('wss://page.example/live');"
+        "s.onopen = () => console.log('open:' + s.readyState);"
+        "s.onmessage = (e) => console.log('message:' + e.data);"
+        "s.onclose = (e) => console.log('close:' + e.code + ':' + e.wasClean);"
+        "console.log('ctor:' + s.readyState + ':' + s.url);"
+        "</script></body></html>");
+    engine.PageLoader().SetTransport(factory);
+    channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    engine.HandlePendingMessages();
+    channel.Ui().Send(ipc::NavigateMessage{"https://page.example/"});
+    engine.HandlePendingMessages();
+    RunEngineToIdle(engine);
+    // The load is over; the socket's turns are after it. On a real loop each of these is
+    // a wake from the descriptor the connection put in the wait -- which is what the next
+    // test asserts is there.
+    for (int turn = 0; turn < 4; ++turn) {
+      engine.Advance();
+    }
+
+    std::string console;
+    for (const std::string& line : engine.ConsoleOutput()) {
+      console += line + "|";
+    }
+    // CONNECTING at construction, which is what a page switches on before `onopen`.
+    Expect(console.find("ctor:0:wss://page.example/live") != std::string::npos,
+           "the constructor answers CONNECTING with the url it was given");
+    Expect(console.find("open:1") != std::string::npos, "onopen ran with readyState OPEN");
+    Expect(console.find("message:hello") != std::string::npos, "and the message arrived");
+  });
+
+  AddTest(tests, "WebSocket/AnIdlePageWithAnOpenSocketHasNoWorkToDo", [] {
+    // **This is session 23's check.** An open connection is a descriptor in the idle wait
+    // and nothing else: no timer, no poll, no keepalive. So a page with one open and a
+    // server saying nothing must report *no runnable work* -- if it reported work, the
+    // loop would spin for as long as the page held the socket, which is the failure ADR
+    // 0020 §5 exists to prevent.
+    gfx::FontLibrary library;
+    gfx::FontCatalog fonts{library};
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+    ipc::InProcessChannel channel;
+    engine::Engine engine{channel.Engine(), fonts};
+    PageFactory factory;
+    factory.SetFrames(std::string());
+    factory.SetDocument(
+        "<html><body><script>new WebSocket('wss://page.example/live');</script></body></html>");
+    engine.PageLoader().SetTransport(factory);
+    channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    engine.HandlePendingMessages();
+    channel.Ui().Send(ipc::NavigateMessage{"https://page.example/"});
+    engine.HandlePendingMessages();
+    RunEngineToIdle(engine);
+    for (int turn = 0; turn < 4; ++turn) {
+      engine.Advance();
+    }
+
+    Expect(!engine.HasRunnableWork(),
+           "an open socket with nothing queued is not work: it is a descriptor to wait on");
+    // And it *is* in the wait, which is the other half -- a connection nobody waits on is
+    // a connection whose messages arrive whenever something else happens to wake the loop.
+    util::WaitDescriptorList descriptors;
+    engine.AppendWaitDescriptors(descriptors);
+    Expect(!descriptors.empty(), "and the loop is told to watch it");
+    // A navigation closes it, which is what makes "no socket outlives its document" true.
+    // Asserted on the transport rather than on the descriptor list, because the new
+    // navigation puts a descriptor of its own in there: what matters is that the *socket*
+    // was closed, and the transport is what knows.
+    Expect(!factory.Sockets().empty(), "the page opened one");
+    Expect(!factory.Sockets().at(0)->IsClosed(), "and it is open before the navigation");
+    channel.Ui().Send(ipc::NavigateMessage{"https://page.example/second"});
+    engine.HandlePendingMessages();
+    Expect(factory.Sockets().at(0)->IsClosed(),
+           "and the navigation closed it: erasing the table is closing the connection");
+  });
+
+  AddTest(tests, "WebSocket/APlaintextSocketIsRefusedRatherThanOpened", [] {
+    // `ws://` is refused, and the reason is not squeamishness: the masking key and the
+    // handshake key are both counters in this implementation, and both are safe *because*
+    // the transport is TLS. Accepting a plaintext socket would quietly invalidate two
+    // decisions made elsewhere -- so the refusal is here, where they are relied on.
+    gfx::FontLibrary library;
+    gfx::FontCatalog fonts{library};
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+    ipc::InProcessChannel channel;
+    engine::Engine engine{channel.Engine(), fonts};
+    PageFactory factory;
+    factory.SetFrames(std::string());
+    factory.SetDocument(
+        "<html><body><script>"
+        "const s = new WebSocket('ws://page.example/live');"
+        "console.log('state:' + s.readyState);"
+        "</script></body></html>");
+    engine.PageLoader().SetTransport(factory);
+    channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    engine.HandlePendingMessages();
+    channel.Ui().Send(ipc::NavigateMessage{"https://page.example/"});
+    engine.HandlePendingMessages();
+    RunEngineToIdle(engine);
+    std::string console;
+    for (const std::string& line : engine.ConsoleOutput()) {
+      console += line;
+    }
+    // CLOSED, and the object still exists: a policy refusal is a socket that closes
+    // rather than a constructor that throws, which is what the specification says and
+    // what stops a page from probing the user's policy with a try/catch.
+    ExpectEqString(console, "state:3", "the socket exists and is closed");
+  });
+
   AddTest(tests, "WebSocket/Sha1MatchesThePublishedVectors", [] {
     // FIPS 180-4's examples plus the empty string, which is where a padding bug hides.
     ExpectEqString(Hex(util::Sha1("abc")), "a9993e364706816aba3e25717850c26c9cd0d89d", "abc");

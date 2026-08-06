@@ -198,6 +198,17 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // drops rather than repainting for.
   bool DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response);
 
+  // A socket's events. ADR 0020 §5, and they take the same road a fetch response does:
+  // the engine read the bytes, the page owns the script, and nothing between them can
+  // fabricate one.
+  bool DeliverSocketOpen(std::uint64_t id);
+  bool DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text);
+  bool DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
+                          bool clean, bool failed);
+  // Where a page's own sockets are answered, handed over for the life of the engine like
+  // the other sources.
+  void SetSocketSource(bindings::SocketSource* sockets);
+
   // --- web fonts, ADR 0024 --------------------------------------------------
 
   // One `@font-face` the document declared and the URL to fetch for it. The
