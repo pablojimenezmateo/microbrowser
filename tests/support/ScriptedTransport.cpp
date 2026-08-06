@@ -75,6 +75,13 @@ net::IoResult ScriptedTransport::Send(std::span<const std::byte> data) {
     return net::IoResult{net::IoStatus::Failed, 0};
   }
   request_.append(reinterpret_cast<const char*>(data.data()), data.size());
+  // The log is kept current on every write rather than snapshotted when the response is
+  // first read. It documents "what the code under test actually wrote", and a
+  // *long-lived* connection -- a WebSocket -- writes after its first response arrives:
+  // a pong, a close frame, a message a page sent. Snapshotting hid all of those.
+  if (index_ < factory_->log.requests.size()) {
+    factory_->log.requests[index_] = request_;
+  }
   return net::IoResult{net::IoStatus::Ready, data.size()};
 }
 
@@ -83,7 +90,6 @@ net::IoResult ScriptedTransport::Receive(std::span<std::byte> out) {
     return net::IoResult{net::IoStatus::Failed, 0};
   }
   if (!sent_) {
-    factory_->log.requests[index_] = request_;
     sent_ = true;
   }
   if (!released_) {

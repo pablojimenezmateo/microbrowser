@@ -5,12 +5,20 @@
 // codec that agrees with itself.
 
 #include <cstdint>
+#include <cstring>
+#include <initializer_list>
+#include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "TestSupport.h"
+#include "net/WebSocketConnection.h"
 #include "net/WebSocketFrames.h"
+#include "privacy/PrivacyPolicy.h"
+#include "support/ScriptedTransport.h"
+#include "url/Url.h"
 #include "util/Sha1.h"
 
 namespace microbrowser::tests {
@@ -43,6 +51,142 @@ std::string Hex(std::string_view raw) {
   }
   return out;
 }
+
+// A connection over a scripted transport. The handshake response has to carry the
+// accept value for the key the connection sent, so the key is fixed and the accept is
+// computed rather than pasted -- a test with a hard-coded pair would pass with a broken
+// digest.
+constexpr std::string_view kKey = "dGhlIHNhbXBsZSBub25jZQ==";
+
+std::string Handshake(std::string_view extra = {}) {
+  std::string response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                         "Connection: Upgrade\r\nSec-WebSocket-Accept: ";
+  response += net::WebSocketAcceptFor(kKey);
+  response += "\r\n\r\n";
+  response += extra;
+  return response;
+}
+
+std::string Frame(std::initializer_list<std::uint8_t> bytes) {
+  std::string out;
+  for (const std::uint8_t byte : bytes) {
+    out.push_back(static_cast<char>(byte));
+  }
+  return out;
+}
+
+// A transport that stays open.
+//
+// The shared `ScriptedTransport` hangs up as soon as its canned response has been read,
+// which is a real server behaviour and the wrong one for testing a connection whose
+// whole point is to *stay* open: with it, the socket is Closed by the end of the first
+// `Advance` and nothing about `send`, `close` or a second message can be observed. So
+// this one answers `Blocked` when it has nothing more to give and keeps everything the
+// connection wrote.
+class OpenTransport : public net::Transport {
+ public:
+  bool StartConnect(std::string_view, std::uint16_t, bool) override { return true; }
+  net::IoStatus Advance() override { return net::IoStatus::Ready; }
+
+  net::IoResult Send(std::span<const std::byte> data) override {
+    written_.append(reinterpret_cast<const char*>(data.data()), data.size());
+    return net::IoResult{net::IoStatus::Ready, data.size()};
+  }
+
+  net::IoResult Receive(std::span<std::byte> out) override {
+    if (closed_) {
+      return net::IoResult{net::IoStatus::Closed, 0};
+    }
+    if (pending_.empty()) {
+      // Blocked, not Closed: the connection is open and the server has not spoken yet,
+      // which is exactly the state an idle WebSocket spends its life in.
+      return net::IoResult{net::IoStatus::Blocked, 0};
+    }
+    const std::size_t take = std::min(out.size(), pending_.size());
+    std::memcpy(out.data(), pending_.data(), take);
+    pending_.erase(0, take);
+    return net::IoResult{net::IoStatus::Ready, take};
+  }
+
+  void Close() override { closed_ = true; }
+
+  std::optional<util::WaitDescriptor> Interest() const override {
+    if (closed_) {
+      return std::nullopt;
+    }
+    util::WaitDescriptor descriptor;
+    descriptor.descriptor = 7;  // a number, not a socket: nothing here waits on it
+    descriptor.readable = true;
+    return descriptor;
+  }
+
+  // What the server says next, appended so a test can deliver in stages.
+  void Deliver(std::string_view bytes) { pending_ += bytes; }
+  const std::string& Written() const { return written_; }
+  bool IsClosed() const { return closed_; }
+
+ private:
+  std::string pending_;
+  std::string written_;
+  bool closed_ = false;
+};
+
+struct LiveSocket {
+  OpenTransport* transport = nullptr;
+  std::unique_ptr<net::WebSocketConnection> connection;
+
+  explicit LiveSocket(std::string_view first) {
+    auto owned = std::make_unique<OpenTransport>();
+    transport = owned.get();
+    transport->Deliver(first);
+    const std::optional<url::Url> url = url::Url::Parse("wss://chat.example/socket");
+    privacy::PrivacyPolicy policy;
+    privacy::Request request;
+    request.url = *url;
+    request.container = url::ContainerId::Default();
+    request.top_level_site = url::Site::FromUrl(*url);
+    request.type = privacy::ResourceType::Other;
+    connection = std::make_unique<net::WebSocketConnection>(
+        std::move(owned), policy.Decide(request), "chat.example", 443, "/socket", true,
+        std::string(kKey));
+  }
+};
+
+struct Socket {
+  ScriptedFactory factory;
+  std::unique_ptr<net::WebSocketConnection> connection;
+
+  // Everything this connection wrote, in order. The harness gives a write after the
+  // canned response its own log slot, so the frames a socket sends later -- a pong, a
+  // close, a message -- are in the second one.
+  std::string Written() const {
+    std::string joined;
+    for (const std::string& written : factory.log.requests) {
+      joined += written;
+    }
+    return joined;
+  }
+
+  explicit Socket(std::string_view response) {
+    factory.script.push_back(
+        ScriptedTransport::Exchange{"chat.example", 443, true, std::string(response)});
+    // A second, empty exchange so that writes *after* the canned response -- a pong, a
+    // close frame, a message the page sent -- are absorbed rather than read as a
+    // connection that has run out of script. A real socket takes writes for as long as
+    // it is open; this is the harness's way of saying the same thing.
+    factory.script.push_back(ScriptedTransport::Exchange{"", 0, true, std::string()});
+    const std::optional<url::Url> url = url::Url::Parse("wss://chat.example/socket");
+    privacy::PrivacyPolicy policy;
+    privacy::Request request;
+    request.url = *url;
+    request.container = url::ContainerId::Default();
+    request.top_level_site = url::Site::FromUrl(*url);
+    request.type = privacy::ResourceType::Other;
+    const privacy::Verdict verdict = policy.Decide(request);
+    connection = std::make_unique<net::WebSocketConnection>(
+        factory.Create(), verdict, "chat.example", 443, "/socket", true, std::string(kKey));
+  }
+};
 
 }  // namespace
 
@@ -202,6 +346,149 @@ void RegisterWebSocketTests(std::vector<TestCase>& tests) {
       ExpectEqInt(static_cast<long long>(static_cast<std::uint8_t>(encoded[i])), expected[i],
                   "and the same bytes as the RFC's example");
     }
+  });
+
+
+  AddTest(tests, "WebSocket/OpensThroughTheHandshakeAndDeliversAMessage", [] {
+    // The whole path: connect, send the upgrade request, check the accept value, then
+    // frame whatever follows. A server is allowed to put the first frame in the same
+    // packet as the handshake, so the fixture does -- a reader that dropped the tail
+    // would lose the first message of every fast server.
+    Socket socket(Handshake(Frame({0x81, 0x02, 0x68, 0x69})));
+    const net::WebSocketConnection::Progress progress = socket.connection->Advance();
+    Expect(progress.opened, "the handshake was accepted");
+    // The scripted transport hangs up after its canned bytes, which is what a server
+    // that closes promptly does -- so the assertion is that the message arrived
+    // *before* the close was noticed, which is the bug this file had first.
+    Expect(progress.closed, "and the peer's hang-up was noticed on the same turn");
+    ExpectEqInt(static_cast<long long>(progress.messages.size()), 1, "one message");
+    Expect(progress.messages.at(0).first, "text");
+    ExpectEqString(progress.messages.at(0).second, "hi", "with its payload");
+    // The request it sent is the protocol's, including the version the server keys its
+    // accept value off.
+    Expect(socket.Written().find("Upgrade: websocket") != std::string::npos, "the upgrade header");
+    Expect(socket.Written().find("Sec-WebSocket-Version: 13") != std::string::npos,
+           "and the version");
+  });
+
+  AddTest(tests, "WebSocket/AWrongAcceptValueIsARefusalRatherThanAnOpenSocket", [] {
+    // A server that returns 101 with the right token headers but the wrong digest has
+    // not computed anything, which means something other than a WebSocket server
+    // answered -- a proxy, a cache, or a service that upgrades whatever asks.
+    Socket socket("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\n"
+                  "Connection: Upgrade\r\nSec-WebSocket-Accept: not-the-digest\r\n\r\n");
+    const net::WebSocketConnection::Progress progress = socket.connection->Advance();
+    Expect(!progress.opened, "not opened");
+    Expect(progress.failed, "and reported as a failure");
+    Expect(socket.connection->GetState() == net::WebSocketConnection::State::Closed, "closed");
+    ExpectEqInt(socket.connection->CloseCode(), 1006,
+                "with the code the specification reserves for a connection that never opened");
+  });
+
+  AddTest(tests, "WebSocket/AnswersAPingAndNeverOriginatesOne", [] {
+    // ADR 0020 §5's zero-idle-CPU clause, asserted rather than described: a keepalive on
+    // a timer is the one thing that would turn an idle page into a waking one, so the
+    // ping is *responsive only*. The pong echoes the ping's payload, per §5.5.3.
+    Socket socket(Handshake(Frame({0x89, 0x04, 0x70, 0x69, 0x6e, 0x67})));
+    socket.connection->Advance();
+    // The pong is in what went out, and nothing else did: no ping of our own.
+    const std::string sent = socket.Written();
+    Expect(sent.find("Upgrade: websocket") != std::string::npos, "the handshake went out");
+    // Opcode 0x8A is a pong; 0x89 would be a ping we originated.
+    Expect(sent.find(static_cast<char>(0x8A)) != std::string::npos, "a pong went out");
+    Expect(sent.find(static_cast<char>(0x89)) == std::string::npos,
+           "and no ping: we never originate one");
+  });
+
+  AddTest(tests, "WebSocket/ReassemblesAFragmentedMessageAndKeepsItsKind", [] {
+    // A continuation frame's opcode says nothing, so the *first* frame is the only place
+    // text-versus-binary is known. Guessing later is how a binary message becomes
+    // mojibake -- so the fixture fragments a *binary* message and the kind has to
+    // survive.
+    Socket socket(Handshake(Frame({0x02, 0x02, 0x01, 0x02, 0x80, 0x02, 0x03, 0x04})));
+    const net::WebSocketConnection::Progress progress = socket.connection->Advance();
+    ExpectEqInt(static_cast<long long>(progress.messages.size()), 1, "one message, not two");
+    Expect(!progress.messages.at(0).first, "and it is still binary");
+    ExpectEqInt(static_cast<long long>(progress.messages.at(0).second.size()), 4, "four bytes");
+  });
+
+  AddTest(tests, "WebSocket/ACloseFrameIsAnsweredAndReportsItsCode", [] {
+    // 1001 is "going away", which is what a server sends when it is shutting down. The
+    // closing handshake is their frame, then ours, then the transport.
+    Socket socket(Handshake(Frame({0x88, 0x07, 0x03, 0xE9, 'b', 'y', 'e', '!', '!'})));
+    const net::WebSocketConnection::Progress progress = socket.connection->Advance();
+    Expect(progress.closed, "closed");
+    Expect(socket.connection->ClosedCleanly(), "cleanly, because a close frame was exchanged");
+    ExpectEqInt(socket.connection->CloseCode(), 1001, "with the peer's code");
+    ExpectEqString(socket.connection->CloseReason(), "bye!!", "and its reason");
+    Expect(!socket.connection->Interest().has_value(),
+           "and it asks the idle wait for nothing, which is what takes it out of the wait");
+  });
+
+  AddTest(tests, "WebSocket/AFramingErrorClosesRatherThanResynchronises", [] {
+    // A masked server frame, which is refused by the codec -- and at the connection level
+    // a framing error has no recovery: the stream's structure is no longer trusted, so
+    // the specification closes and so does this. "Skip a byte and try again" is how a
+    // decoder is taught to accept a frame a proxy wrote.
+    Socket socket(Handshake(Frame({0x81, 0x85, 0x37, 0xfa, 0x21, 0x3d, 0x7f})));
+    const net::WebSocketConnection::Progress progress = socket.connection->Advance();
+    Expect(progress.opened, "the handshake still opened");
+    Expect(progress.closed && progress.failed, "then the frame closed it as a failure");
+  });
+
+  AddTest(tests, "WebSocket/SendRefusesBeforeOpenAndMasksAfterwards", [] {
+    LiveSocket socket(Handshake());
+    Expect(!socket.connection->Send("early", true),
+           "a send before the handshake is refused, which script sees as InvalidStateError");
+    Expect(socket.connection->Advance().opened, "the handshake completed");
+    Expect(socket.connection->GetState() == net::WebSocketConnection::State::Open,
+           "and the socket stays open with nothing outstanding, which is the whole point");
+    Expect(socket.connection->Send("hello", true), "a send is accepted");
+    // Masked, so the payload is not on the wire in the clear -- and this is the assertion
+    // that a client frame cannot be spelled unmasked here.
+    Expect(socket.transport->Written().find("hello") == std::string::npos,
+           "the payload is masked");
+    Expect(socket.transport->Written().find(static_cast<char>(0x81)) != std::string::npos,
+           "and it went out as a final text frame");
+  });
+
+  AddTest(tests, "WebSocket/AnOpenSocketWithNothingOutstandingStillAsksToBeWokenOnce", [] {
+    // ADR 0020 §5 against the zero-idle-CPU invariant. An open connection is *one
+    // descriptor* in the idle wait and nothing else: no timer, no poll, no keepalive. A
+    // server that says nothing therefore costs nothing, and the way to check that here is
+    // that the connection asks for a descriptor and produces no work.
+    LiveSocket socket(Handshake());
+    socket.connection->Advance();
+    Expect(socket.connection->Interest().has_value(), "it waits on its socket");
+    const net::WebSocketConnection::Progress quiet = socket.connection->Advance();
+    Expect(!quiet.opened && !quiet.closed && quiet.messages.empty(),
+           "a turn where the server said nothing produces nothing");
+    Expect(!socket.connection->HasPendingWrites(),
+           "and nothing is queued, so the loop has no reason to come back");
+    socket.connection->Close();
+    Expect(socket.connection->GetState() == net::WebSocketConnection::State::Closing,
+           "a close we started is a handshake rather than a hang-up");
+    socket.transport->Deliver(Frame({0x88, 0x02, 0x03, 0xE8}));
+    const net::WebSocketConnection::Progress done = socket.connection->Advance();
+    Expect(done.closed, "and the peer's answer finishes it");
+    Expect(socket.connection->ClosedCleanly(), "cleanly");
+    Expect(!socket.connection->Interest().has_value(), "with nothing left in the wait");
+  });
+
+  AddTest(tests, "WebSocket/TwoMessagesArriveInOrderAcrossTwoTurns", [] {
+    // A long-lived connection's real shape: bytes arrive on separate turns, and a frame
+    // split across them has to be held rather than dropped or re-read.
+    LiveSocket socket(Handshake());
+    socket.connection->Advance();
+    // The first frame, and *half* of the second.
+    socket.transport->Deliver(Frame({0x81, 0x01, 'a', 0x81, 0x03, 'b'}));
+    const net::WebSocketConnection::Progress first = socket.connection->Advance();
+    ExpectEqInt(static_cast<long long>(first.messages.size()), 1, "only the whole frame");
+    ExpectEqString(first.messages.at(0).second, "a", "which is the first");
+    socket.transport->Deliver("cd");
+    const net::WebSocketConnection::Progress second = socket.connection->Advance();
+    ExpectEqInt(static_cast<long long>(second.messages.size()), 1, "then the second");
+    ExpectEqString(second.messages.at(0).second, "bcd", "reassembled across the turn boundary");
   });
 
   AddTest(tests, "WebSocket/TheEncoderUsesTheShortestLengthFormTheDecoderAccepts", [] {

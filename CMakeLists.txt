@@ -279,6 +279,7 @@ microbrowser_module(net
     src/net/HttpMessage.cpp
     src/net/RequestQueue.cpp
     src/net/SocketTransport.cpp
+    src/net/WebSocketConnection.cpp
     src/net/WebSocketFrames.cpp
   DEPS microbrowser_util microbrowser_url microbrowser_privacy
   EXTERN OpenSSL::SSL OpenSSL::Crypto)
