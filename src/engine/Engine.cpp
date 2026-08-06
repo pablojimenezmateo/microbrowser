@@ -440,7 +440,7 @@ void Engine::OnDocument(Loader::Result result) {
   }
 
   page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url,
-             std::move(policies));
+             std::move(policies), result.content_type);
   if (traversing_) {
     // A traversal's entry is already in the list, at its own index. Its URL is
     // rewritten rather than pushed, because a redirect can land somewhere else

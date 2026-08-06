@@ -9,7 +9,10 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "engine/Page.h"
+#include "gfx/FontCatalog.h"
 #include "html/Encoding.h"
+#include "support/SyntheticFont.h"
 
 namespace microbrowser::tests {
 
@@ -30,6 +33,55 @@ std::string Decode(const std::string& bytes, Encoding encoding) {
 }  // namespace
 
 void RegisterEncodingTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Encoding/ADocumentsBytesBecomeTextBeforeTheTokenizerSeesThem", [] {
+    // The wiring, which is the difference between a decoder that exists and one that works: the
+    // bytes are decoded in `Page::Load`, so the tokenizer's input is code points. Without it every
+    // assertion above is about a function nothing calls.
+    gfx::FontLibrary library;
+    gfx::FontCatalog fonts{library};
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+
+    // A windows-1252 page with no declaration -- the fallback case, and the common one for old
+    // content. `caf\xE9` has to become `café` in the DOM rather than a replacement character.
+    engine::Page fallback(fonts);
+    fallback.Load("<html><body><p id=t>caf\xE9</p></body></html>", "https://example.org/");
+    Expect(fallback.CurrentDocument() != nullptr, "it parsed");
+    Expect(fallback.CurrentDocument()->Body() != nullptr, "with a body");
+    ExpectEqString(fallback.CurrentDocument()->Body()->TextContent(), "café",
+                   "windows-1252 without a declaration renders the word");
+
+    // And a `Content-Type` that says otherwise is obeyed: the same bytes are ill-formed UTF-8, so
+    // this is where a replacement character is the *right* answer.
+    engine::Page declared(fonts);
+    declared.Load("<html><body><p>caf\xE9</p></body></html>", "https://example.org/",
+                  csp::PolicyList{}, "text/html; charset=utf-8");
+    ExpectEqString(declared.CurrentDocument()->Body()->TextContent(), "caf\xEF\xBF\xBD",
+                   "a page that declares UTF-8 and is not gets U+FFFD, which is the honest answer");
+
+    // A `<meta charset>` in the document, which is how most pages say it.
+    engine::Page meta(fonts);
+    meta.Load("<html><head><meta charset=\"utf-8\"></head><body><p>caf\xC3\xA9</p></body></html>",
+              "https://example.org/");
+    ExpectEqString(meta.CurrentDocument()->Body()->TextContent(), "café",
+                   "and a meta-declared UTF-8 document decodes as UTF-8");
+
+    // A UTF-16 document, which is only reachable through its BOM -- and whose bytes are nothing like
+    // HTML until they are decoded.
+    std::string utf16;
+    const std::string source = "<p>hi</p>";
+    utf16 += "\xFF\xFE";
+    for (const char c : source) {
+      utf16.push_back(c);
+      utf16.push_back('\0');
+    }
+    engine::Page wide(fonts);
+    wide.Load(utf16, "https://example.org/");
+    Expect(wide.CurrentDocument()->Body() != nullptr, "a UTF-16 document parses at all");
+    ExpectEqString(wide.CurrentDocument()->Body()->TextContent(), "hi",
+                   "because the BOM was found before the tokenizer ran");
+  });
+
   AddTest(tests, "Encoding/AnIllFormedSequenceBecomesOneReplacementAndEatsNothingAfterIt", [] {
     // **The rule the whole file turns on.** The specification replaces a *maximal subpart* with one
     // U+FFFD and does not consume the byte that ended it -- so a character after a bad sequence

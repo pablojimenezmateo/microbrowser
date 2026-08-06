@@ -9,6 +9,7 @@
 #include "engine/ImageSelection.h"
 #include "html/Focus.h"
 #include "html/FormControl.h"
+#include "html/Encoding.h"
 #include "html/TreeBuilder.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
@@ -273,7 +274,8 @@ void Page::RunScripts(std::int64_t now_ms) {
   CollectImages();
 }
 
-void Page::Load(std::string_view html, std::string url, csp::PolicyList header_policy) {
+void Page::Load(std::string_view html, std::string url, csp::PolicyList header_policy,
+                std::string_view content_type) {
   util::PerformanceTrace::Scope scope("engine::Page::Load");
 
   url_ = std::move(url);
@@ -289,7 +291,16 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // carried them, and keeping the old one would let the previous page's CSS
   // style this one.
   resolver_ = css::StyleResolver{};
-  document_ = html::ParseDocument(html);
+  // **The bytes become text here, before the tokenizer sees them.** ADR 0025 §2: the encoding comes
+  // from the BOM, then `Content-Type`, then a prescan of the first 1024 bytes, then windows-1252 --
+  // and the tokenizer's input is code points rather than bytes, which is what makes an ill-formed
+  // sequence a U+FFFD rather than a byte it might read as markup.
+  //
+  // Decoded into a local that outlives the parse: `ParseDocument` takes a view, and a temporary here
+  // would be a dangling one.
+  const html::Encoding encoding = html::SniffEncoding(html, content_type);
+  const std::string decoded = html::DecodeToUtf8(html, encoding);
+  document_ = html::ParseDocument(decoded);
   boxes_.reset();
   // A new document starts at the top, and the scroll offset goes with the
   // layout state rather than surviving it. So does every per-element offset:

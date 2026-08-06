@@ -69,7 +69,11 @@ class Page : private layout::ImageProvider,
   // in force *before* the document's own scripts and stylesheets are collected
   // -- a blocked inline script that was collected and then filtered would be
   // one refusal away from running.
-  void Load(std::string_view html, std::string url, csp::PolicyList header_policy);
+  // `content_type` is the response header exactly as it arrived, and it is a parameter rather than
+  // something this class digs out because the *encoding* is decided from it (ADR 0025 §2) and the
+  // decision has to happen before a byte reaches the tokenizer.
+  void Load(std::string_view html, std::string url, csp::PolicyList header_policy,
+            std::string_view content_type = std::string_view());
   // The same for a document that arrived with no policy, which is most of them
   // and every test that does not care.
   void Load(std::string_view html, std::string url) {
