@@ -2931,3 +2931,62 @@ milliseconds into `slide` has moved 1.4px with its background interpolated `FF00
 properties from one `@keyframes` — while `#c`'s `steps(4)` correctly holds the first step on *both*,
 left still 0 and colour still pure red. A hover on `#b` starts exactly one transition, on the one
 property that changed.
+
+## Session 36 — Canvas 2D, and a comment that predicted its own bug
+
+`326aadd`. `getContext('2d')`, the state stack, paths, transforms, text, and `ImageData`.
+
+**ADR 0029 §2's claim was that this would be nearly free because `src/gfx` already is a 2D canvas, and
+that held better than expected.** Layout needed *one line*: a `<canvas>` is a replaced element whose
+pixels come from somewhere other than the network, and `ImageProvider::ImageForElement` was already the
+hook for exactly that — it exists because `<img>`'s URL is chosen from `srcset` and the viewport
+together, and "the element answers with its own pixels" turned out to be the same shape. The rasterizer,
+the stroker, the path type, the affine transforms and the shaper were all already there.
+
+**The seam is one command type rather than forty virtuals.** `src/bindings` may not see `gfx`, so a
+drawing call becomes a `bindings::CanvasOp` and `src/engine` executes it against a real `gfx::Painter`.
+A virtual per method would have made the seam as wide as the feature is; a command is *data*, so it can
+be counted, bounded and eventually sent to another process — the reasoning `gfx::DisplayList` is built
+on. And the graphics state lives with the painter rather than in the binding layer, because two copies
+of a graphics state is how a `restore()` ends up restoring something the painter never had.
+
+**Two bugs, and the interesting thing about both is that the feature looked like it worked.** Nothing
+threw, nothing crashed, and a page that drew a picture got a picture.
+
+The `width` and `height` **attributes** never sized the backing store — only the JavaScript property
+did. So `<canvas width=320 height=200>`, which is how nearly every page in the world sizes one, got the
+specification's default 300×150 store. And because the CSS box *is* the attribute size, the symptom was
+a canvas with a blank right edge: a layout quirk, not a bug in canvas. Drawing was silently clipped.
+
+`clearRect` cleared nothing. It was written as a fill of transparent black, and every fill path in `gfx`
+blends — `Canvas::FillRect` goes further and returns immediately for a fully transparent colour, so the
+call did precisely nothing. **The comment directly above that line had predicted this exact failure**
+("this one *writes* the colour where the painter blends it… which is the bug this comment exists to
+prevent") and the code underneath it did it anyway. That is the finding worth carrying: writing down
+the hazard is not the same as checking that the function you called avoids it. The comment was
+load-bearing prose attached to a call that did the opposite of what the prose said.
+
+Both were found by probing a real page, and one probe line named both at once:
+`read 265,125 -> 16,16,16,255 (canvas 300x150)` — the cleared region was not cleared, and the canvas was
+the wrong size. That is the third session running where a temporary print settled in one run what
+reading the rendering could not, and the pattern is now clear enough to state as a rule: **when the
+output is a picture, the diagnostic channel has to be something other than the picture.**
+
+The refusals are where the security content is, and they cluster the same way session 29's did.
+**Tainting is set at the *draw*, never at the read** — a flag computed at read time would have to
+re-derive what had been drawn, and getting that wrong means a page reading pixels of an image it was
+never allowed to see. A resize does **not** clear it, which would be a one-line bypass of the whole
+check. An unparseable `fillStyle` is *ignored* so the previous colour survives, and `lineWidth: 0`
+likewise — a page that computed a zero width meant nothing visible, and a hairline instead is a
+rendering nobody asked for. A canvas over 16 megapixels, or a document holding more than 64, is refused
+and keeps the size it had, because `canvas.width = 1e9` is one line and a loop making canvases is
+another.
+
+Two absences, both ADR 0012's rule. **`toDataURL` is not defined**: it needs a PNG *encoder* and this
+browser has a decoder, so a page saving an image would read an empty string as success. And
+`getContext('webgl')` returns **null**, which is how a page learns there is no WebGL and takes its 2D
+path — returning something would send it down a path that fails later and less clearly.
+
+One stated approximation: a non-rectangular `clip()` is intersected with its *bounding box*, because
+`gfx::Canvas`'s clip is a rectangle. That clips **less** than asked and never more, so nothing is hidden
+that should be visible — which is the safe direction, and the alternative is a coverage mask per clip.

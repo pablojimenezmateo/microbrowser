@@ -410,8 +410,9 @@
       "adr": "0029 §2",
       "anchor": "## Phase E — any page",
       "scope": "Over the existing rasterizer, with tainting on cross-origin draws. The cheapest capability per unit of compatibility on this roadmap.",
-      "check": null,
-      "status": "not_started"
+      "check": "./build/microbrowser/microbrowser_snapshot on a page that draws a rect, an arc, a stroked triangle, a save/rotate/restore, text, a clearRect hole and putImageData pixels renders all of them, and getImageData returns exactly the bytes that went in. Plus ./build/microbrowser/microbrowser_tests Canvas2D and Hacker News unchanged with zero canvas counters.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at 326aadd. ADR 0029 §2's claim held: layout needed ONE line, because ImageProvider::ImageForElement was already the hook for a replaced element whose pixels come from somewhere other than the network. TWO bugs, and both made the feature look like it worked -- no throw, no crash, a picture on screen. (1) The width/height ATTRIBUTES never sized the backing store, only the JS property did, so nearly every real page got a 300x150 store and merely clipped drawing. (2) clearRect cleared nothing: written as a fill of transparent black, which every gfx fill path blends and Canvas::FillRect refuses outright. The comment above that line had predicted the failure and the code did it anyway. Both found by probing a real page; one probe line named both. `toDataURL` is absent (needs a PNG encoder, and this browser has a decoder); `getContext('webgl')` returns null; a clip() path is approximated by its bounding box, which clips less than asked and never more."
     },
     {
       "id": 37,
