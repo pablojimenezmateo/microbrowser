@@ -257,6 +257,14 @@ void DomBindings::Install() {
   };
   element_accessor("body", "body");
   element_accessor("documentElement", "html");
+  // Empty when nothing is stored for script yet. Reading `undefined` makes
+  // `document.cookie.match(...)` throw before the page can handle a missing jar.
+  const Value cookie_getter = interpreter_->NewNativeValue(
+      "cookie", [](NativeCall& /*call*/) { return Value::String(std::string()); });
+  if (cookie_getter.IsObject()) {
+    cookie_getter.object->Set(kOwnerSlot, PointerValue(this));
+    target.object->DefineAccessor("cookie", cookie_getter.object, nullptr);
+  }
   InstallActiveElement(document);
 
   // `document.head`, `document.title` and the two element accessors, as

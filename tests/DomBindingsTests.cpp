@@ -267,6 +267,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // while its scripts run. The transitions are PageScript's -- see
     // DomBindings/TheDocumentLifecycleIsAStateMachine.
     ExpectScript(kPage, "document.readyState", "loading");
+    ExpectScript(kPage, "document.cookie", "");
+    ExpectScript(kPage, "document.cookie.match(/foo/) === null", "true");
     ExpectScript(kPage, "document.createComment('hi').nodeType", "8");
     ExpectScript(kPage, "document.createElementNS('http://www.w3.org/1999/xhtml','div').tagName",
                  "DIV");
