@@ -31,10 +31,54 @@ enum class Display : std::uint8_t {
   TableCell,
   Flex,
   InlineFlex,
+  Grid,
+  InlineGrid,
   None,
 };
 
 enum class FlexDirection : std::uint8_t { Row, RowReverse, Column, ColumnReverse };
+
+// One grid track's size.
+//
+// ADR 0014 §6, session 39. Four kinds and no more, because they are the four the specification's sizing
+// algorithm treats differently -- a fixed length, a percentage of the container, a share of what is left
+// (`fr`), and "as big as the content needs" (`auto`). `minmax()` is expressed as a track with both a
+// minimum and a maximum rather than as a fifth kind, because that is what it *is*: every other kind is a
+// minmax with the two ends equal, and collapsing them means one sizing pass rather than two.
+struct GridTrack {
+  enum class Kind : std::uint8_t { Fixed, Percent, Fraction, Auto };
+
+  Kind kind = Kind::Auto;
+  // Pixels for `Fixed`, a percentage for `Percent`, the flex factor for `Fraction`, unused for `Auto`.
+  float value = 0.0f;
+  // The floor from a `minmax()`'s first argument, in pixels. Zero for a track written without one --
+  // which is right: a `1fr` track's minimum is its content's minimum, and that is computed rather than
+  // declared.
+  float minimum = 0.0f;
+
+  static GridTrack Pixels(float pixels) { return GridTrack{Kind::Fixed, pixels, 0.0f}; }
+  static GridTrack Fr(float factor) { return GridTrack{Kind::Fraction, factor, 0.0f}; }
+
+  friend bool operator==(const GridTrack&, const GridTrack&) = default;
+};
+
+// Where an item sits, as `grid-column` / `grid-row`.
+//
+// Line numbers rather than cell indices, because that is what the property takes and the off-by-one
+// between them is the classic grid bug: `grid-column: 1 / 3` is two columns, not three, because those
+// are the *lines* either side of them.
+struct GridPlacement {
+  // 1-based, and *signed*: a negative line counts from the end, which is how `grid-column: 1 / -1`
+  // spans the whole row. Zero means `auto`.
+  int start_line = 0;
+  int end_line = 0;
+  // `span N`, which is a length rather than a position -- so it combines with either end.
+  int span = 0;
+
+  bool IsAuto() const { return start_line == 0 && end_line == 0 && span == 0; }
+
+  friend bool operator==(const GridPlacement&, const GridPlacement&) = default;
+};
 enum class FlexWrap : std::uint8_t { NoWrap, Wrap, WrapReverse };
 // One enum for `justify-content` and `align-content`, because the spec gives
 // them the same value set and a second copy would be a second thing to keep in
@@ -311,6 +355,38 @@ struct ComputedStyle {
     friend bool operator==(const FlexStyle&, const FlexStyle&) = default;
   };
   FlexStyle flex;
+
+  // `grid`. ADR 0014 §6, session 39: last of the layout features on the measurement and still real at
+  // 78 uses.
+  //
+  // Grouped for the reason `FlexStyle` is -- the container reads the tracks and the gaps, the item reads
+  // its placement, and loose on `ComputedStyle` they would say nothing about belonging together.
+  struct GridStyle {
+    // The explicit tracks, in order. Empty means "no explicit tracks", which is not the same as one
+    // auto track: a grid with no `grid-template-columns` puts everything in a single implicit column.
+    std::vector<GridTrack> columns;
+    std::vector<GridTrack> rows;
+    // The size for tracks the placement creates beyond the explicit ones -- `grid-auto-rows`. `auto` is
+    // the initial value and means "as tall as the content", which is what makes a grid with only
+    // columns declared work at all.
+    GridTrack auto_rows;
+    GridTrack auto_columns;
+    float row_gap = 0.0f;
+    float column_gap = 0.0f;
+    // `justify-items` and `align-items` on the container, and their `*-self` overrides on the item.
+    // Stretch is the initial value for both, which is why a grid item with no width fills its cell.
+    Alignment justify_items = Alignment::Stretch;
+    Alignment align_items = Alignment::Stretch;
+    Alignment justify_self = Alignment::Auto;
+    Alignment align_self = Alignment::Auto;
+    // Read by the item: its placement, as line numbers. Zero means `auto` -- the placement algorithm
+    // chooses -- and a negative number counts from the end, which is why this is signed.
+    GridPlacement column_placement;
+    GridPlacement row_placement;
+
+    friend bool operator==(const GridStyle&, const GridStyle&) = default;
+  };
+  GridStyle grid;
 
   bool IsFloating() const { return css_float != Float::None; }
 
