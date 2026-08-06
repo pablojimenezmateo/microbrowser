@@ -2137,3 +2137,50 @@ In the `EventSource` binding, one detail a page depends on: `readyState` goes ba
 CONNECTING on a retryable drop and to CLOSED only when the browser has given up. That is how
 a page tells "reconnecting" from "failed", and getting it backwards makes a page tear down a
 stream the browser is about to re-open.
+
+### The audio ring and the playback clock · 2026-08-06 (session 24, unfinished)
+
+`7ee58fb` and `ad6a4c2`. Two objects, both small, both with the property that their bugs
+are *audible* rather than visible — which is why the reasoning is in the headers.
+
+**The ownership statement came before the code**, as `AGENTS.md` requires of any thread, and
+writing it first is what decided the shape: the audio thread owns the device handle, the read
+cursor and the clock; the engine thread owns the write cursor and the storage; the ring
+borrows nothing, because samples arrive copied rather than pointed at — so the audio thread
+cannot reach a document, a decoder or the heap even by accident. Single producer, single
+consumer is not a simplification but the thing that makes it correct with two atomics and no
+lock, and a lock in an audio callback is a click in the output.
+
+Three decisions that are audible when wrong, and all three are the sort a single-threaded
+test would not force:
+
+- **A full buffer leaves one frame unused.** With `write == read` meaning empty, without the
+  spare frame full and empty are the same state and a consumer drains a full buffer as
+  silence.
+- **Cursors are in samples, not frames**, so a wrap cannot land mid-frame. If it could, one
+  channel would lead the other by a sample for the rest of the stream — a phase shift rather
+  than a failure.
+- **An underrun is silence plus a count**, never a short buffer: a device callback must fill
+  its whole block, and a short answer is a click. A count rather than a flag because "three
+  times" and "once" call for different responses.
+
+**The memory ordering is the part that cannot be tested into existence, so it is tested with
+two real threads under TSan.** The producer releases the write cursor after the samples; the
+consumer acquires it before reading them. A relaxed store would pass every single-threaded
+assertion in that file and tear on a machine with a weaker memory model — so the test hands
+20,000 frames of a *counting sequence* through a 64-frame ring, which makes a torn handoff a
+detectable discontinuity rather than merely wrong samples. TSan clean.
+
+The clock is driven by frames the device consumed rather than by wall time, and that is the
+whole design: a wall clock and an audio device drift apart, so a video synchronised to the
+wall clock loses lip-sync at a rate nobody can predict. It reports the **presented** position
+by subtracting the device's buffer occupancy — the arithmetic a naive clock omits, and
+omitting it runs video ahead of the sound by exactly the buffer depth. A seek restarts the
+frame count, which is the same bug in the other direction if forgotten.
+
+What is left of this session is the device and "no audio thread when nothing is playing".
+With SDL3's audio API the callback runs on *SDL's* thread, so "our thread" is really "the
+device is open" — which makes the session's check a question about whether a device handle
+exists, and is worth knowing before writing it. And an `<audio src="…mp3">` cannot actually
+play until session 27's codec decision lands, so the honest intermediate is a synthesised
+tone through the ring to a real device.
