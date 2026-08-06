@@ -458,6 +458,12 @@ namespace microbrowser::util {
   X(LayoutTreeBuilds, "layout.tree_builds")                                      \
   X(LayoutBoxesCreated, "layout.boxes_created")                                  \
   X(LayoutRuns, "layout.runs")                                                   \
+  /* One entry into Page::Layout -- the unit TD-0013 compares against            */ \
+  /* layout.forced_by_script and layout.pass_boxes.                              */ \
+  X(LayoutPasses, "layout.passes")                                               \
+  /* Boxes in the tree after each pass, summed across passes. Dividing by        */ \
+  /* layout.passes gives the tree size a hang is chewing on.                     */ \
+  X(LayoutPassBoxes, "layout.pass_boxes")                                        \
   /* A layout that ran in the middle of a script turn, because the page asked  */ \
   /* a geometry question the box tree could no longer answer. ADR 0015 makes   */ \
   /* this visible rather than cheap: a write-then-read loop can make the       */ \

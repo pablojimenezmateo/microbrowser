@@ -24,6 +24,14 @@ namespace microbrowser::engine {
 
 namespace {
 
+std::size_t CountBoxes(const layout::Box& box) {
+  std::size_t count = 1;
+  for (const std::unique_ptr<layout::Box>& child : box.Children()) {
+    count += CountBoxes(*child);
+  }
+  return count;
+}
+
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
@@ -425,6 +433,7 @@ void Page::ExtractTitle() {
 
 float Page::Layout(float width) {
   util::PerformanceTrace::Scope scope("engine::Page::Layout");
+  AddPerformanceCounter(PerfCounterId::LayoutPasses);
   layout_.width = width;
   if (document_ == nullptr) {
     content_height_ = 0.0f;
@@ -458,6 +467,7 @@ float Page::Layout(float width) {
       std::fprintf(stderr, "[load] LayoutBoxes end\n");
       std::fflush(stderr);
     }
+    AddPerformanceCounter(PerfCounterId::LayoutPassBoxes, CountBoxes(*boxes_));
   }
   layout_.document_version = document_->MutationVersion();
   util::LoadTimeline::Mark("layout.end");
