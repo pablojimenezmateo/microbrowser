@@ -408,9 +408,15 @@ spins without allocating (memory stable at ~3.6%) and without running enough
 JS bytecodes to hit `kMaxSteps` — which is the shape of a native-heavy loop or
 a `RunLoadToCompletion` busy-wait, not a selector walk.
 
-`MICROBROWSER_SELECTOR_TRACE=1` counts `Matches` / `MatchesSelectorList` calls
-for the next diagnosis. The next instrument should count turns of
-`RunLoadToCompletion` / `Advance` / `RunDueWork` the same way.
+**Update.** `MICROBROWSER_LOAD_TURN_TRACE=1` shows the hang is inside a single
+`Engine::Advance()` call (one turn enters Advance and never returns), after
+about a hundred quick network turns. That is a script (or a completion handler)
+running unboundedly — TD-0007's shape — entered only when selectors answer
+honestly. The next probe is which script, and which `querySelector` result
+steers it into the loop.
+
+`MICROBROWSER_SELECTOR_TRACE=1` counts `Matches` / `MatchesSelectorList` calls.
+`MICROBROWSER_LOAD_TURN_TRACE=1` prints turns and any Advance that takes ≥500ms.
 
 **End state.** Find the branch (likely after the first real stylesheet / script
 queries succeed), fix the engine bug or the missing API it is waiting on, and

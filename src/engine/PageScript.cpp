@@ -7,8 +7,11 @@
 #include <vector>
 
 #include "util/PerformanceCounters.h"
+#include "util/Env.h"
 #include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
+
+#include <cstdio>
 
 namespace microbrowser::engine {
 
@@ -218,9 +221,22 @@ bool PageScript::RunTiming(Timing timing) {
     if (util::LoadTimeline::Enabled()) {
       util::LoadTimeline::MarkWith("script.start", SourceName(slot));
     }
+    // Same question the load-turn trace asks from outside: which script is
+    // Advance stuck in? youtube.com under real querySelector (TD-0013) hangs
+    // inside one Advance, and without this line the only evidence is a turn
+    // that never returns.
+    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
+      std::fprintf(stderr, "[load] script.start %s bytes=%zu\n", SourceName(slot).c_str(),
+                   source.size());
+      std::fflush(stderr);
+    }
     const js::Result result = entry.module
                                   ? interpreter_->RunModule(source, SourceName(slot))
                                   : interpreter_->Run(source);
+    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
+      std::fprintf(stderr, "[load] script.end %s\n", SourceName(slot).c_str());
+      std::fflush(stderr);
+    }
     if (util::LoadTimeline::Enabled()) {
       util::LoadTimeline::MarkWith("script.end", SourceName(slot));
     }

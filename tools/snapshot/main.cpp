@@ -11,6 +11,7 @@
 // one to make a debugging tool prettier is the wrong order to do work in.
 // `pnmtopng` or ImageMagick converts it.
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -31,6 +32,7 @@
 #include "ipc/InProcessTransport.h"
 #include "platform/SystemFonts.h"
 #include "util/Parse.h"
+#include "util/Env.h"
 #include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
 #include "util/StartupTrace.h"
@@ -264,8 +266,29 @@ bool WritePpm(const microbrowser::gfx::Canvas& canvas, const std::string& path) 
 // sleep, which is why this is a faithful stand-in for the real loop rather than
 // a shortcut that only works because nothing else is happening.
 void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
+  std::uint64_t turns = 0;
+  const bool trace = microbrowser::util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE");
   while (engine.IsLoading()) {
-    if (engine.Advance() || engine.HasRunnableWork()) {
+    ++turns;
+    const auto turn_started = std::chrono::steady_clock::now();
+    if (trace) {
+      // Print before Advance every time: a hang inside Advance never reaches
+      // the after-line, and that missing pair is the diagnosis (TD-0013).
+      std::fprintf(stderr, "[load] turn=%llu enter Advance\n",
+                   static_cast<unsigned long long>(turns));
+      std::fflush(stderr);
+    }
+    const bool advanced = engine.Advance();
+    if (trace) {
+      const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::steady_clock::now() - turn_started)
+                          .count();
+      std::fprintf(stderr, "[load] turn=%llu Advance=%d HasRunnable=%d ms=%lld\n",
+                   static_cast<unsigned long long>(turns), advanced ? 1 : 0,
+                   engine.HasRunnableWork() ? 1 : 0, static_cast<long long>(ms));
+      std::fflush(stderr);
+    }
+    if (advanced || engine.HasRunnableWork()) {
       continue;
     }
     // Due timers, animation frames and worker messages. The real loop runs this
@@ -276,6 +299,11 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     // youtube.com's front page. And a snapshot showed a document whose timers
     // had never run, which is not the page the browser draws.
     if (engine.RunDueWork()) {
+      if (trace && (turns <= 20ULL || (turns % 10000ULL) == 0ULL)) {
+        std::fprintf(stderr, "[load] turn=%llu due_work\n",
+                     static_cast<unsigned long long>(turns));
+        std::fflush(stderr);
+      }
       continue;
     }
     microbrowser::util::WaitDescriptorList descriptors;
@@ -302,6 +330,10 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     microbrowser::platform::WaitOnDescriptors(
         descriptors,
         deadline.has_value() ? static_cast<std::int32_t>(*deadline) : -1);
+  }
+  if (trace) {
+    std::fprintf(stderr, "[load] finished after %llu turns\n",
+                 static_cast<unsigned long long>(turns));
   }
 }
 
