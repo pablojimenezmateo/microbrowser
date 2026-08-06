@@ -20,9 +20,12 @@
 #include "gfx/PngDecoder.h"
 #include "gfx/SvgDecoder.h"
 #include "util/LoadTimeline.h"
+#include "util/Env.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
+
+#include <cstdio>
 
 namespace microbrowser::engine {
 
@@ -776,15 +779,32 @@ int Engine::MaxScroll() const {
 }
 
 void Engine::LayoutAndPaint() {
+  const bool trace = util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE");
+  if (trace) {
+    std::fprintf(stderr, "[load] LayoutAndPaint enter\n");
+    std::fflush(stderr);
+  }
   // The instant this frame is at, set before anything restyles. Every restyle in a turn -- a hover, a
   // script, a resize -- must agree about what time it is, or two halves of one transition end up at
   // two different progresses on the same frame.
   page_.SetAnimationTime(NowMilliseconds());
   if (viewport_size_.width > 0) {
+    if (trace) {
+      std::fprintf(stderr, "[load] Layout enter\n");
+      std::fflush(stderr);
+    }
     page_.Layout(static_cast<float>(viewport_size_.width) / device_scale_);
+    if (trace) {
+      std::fprintf(stderr, "[load] Layout end\n");
+      std::fflush(stderr);
+    }
     page_.SetScrollOffsetY(static_cast<float>(std::clamp(ScrollY(), 0, MaxScroll())));
   }
   PaintAndSend();
+  if (trace) {
+    std::fprintf(stderr, "[load] LayoutAndPaint end\n");
+    std::fflush(stderr);
+  }
 }
 
 void Engine::PaintAndSend() { PaintAndSend(gfx::IntPoint{}, nullptr); }

@@ -408,20 +408,22 @@ spins without allocating (memory stable at ~3.6%) and without running enough
 JS bytecodes to hit `kMaxSteps` — which is the shape of a native-heavy loop or
 a `RunLoadToCompletion` busy-wait, not a selector walk.
 
-**Update.** `MICROBROWSER_LOAD_TURN_TRACE=1` shows the hang is inside a single
-`Engine::Advance()` call (one turn enters Advance and never returns), after
-about a hundred quick network turns. That is a script (or a completion handler)
-running unboundedly — TD-0007's shape — entered only when selectors answer
-honestly. The next probe is which script, and which `querySelector` result
-steers it into the loop.
+**Update.** `MICROBROWSER_LOAD_TURN_TRACE=1` shows:
 
-`MICROBROWSER_SELECTOR_TRACE=1` counts `Matches` / `MatchesSelectorList` calls.
-`MICROBROWSER_LOAD_TURN_TRACE=1` prints turns and any Advance that takes ≥500ms.
+1. The 10.7MB kevlar bundle **does** finish (`script.start` / `script.end`).
+2. Afterwards `Engine::Advance` calls `LayoutAndPaint` many times in one turn
+   (completions / module work), each of which usually completes.
+3. The hang that never returns is inside `page_.Layout()` — specifically after
+   `BuildBoxTree enter` or `LayoutBoxes enter` with no matching `end` — not in
+   the selector matcher and not in a top-level script.
+4. Loads are **flaky**: one traced run finished in ~22s with 39 display-list
+   commands; three untraced 60s timeouts on the same binary did not. Memory
+   stays flat (~3.6%), so this is a loop or a pathological layout, not a leak.
 
-**End state.** Find the branch (likely after the first real stylesheet / script
-queries succeed), fix the engine bug or the missing API it is waiting on, and
-close this when youtube.com finishes a load under the real matcher with a
-command count that is not 56.
+**End state.** Find why layout re-enters or diverges on the post-kevlar tree
+(Polymer stamp + real `querySelector` answers), fix it, and close this when
+youtube.com finishes reliably under the real matcher with a command count that
+is not a white page.
 
 ---
 

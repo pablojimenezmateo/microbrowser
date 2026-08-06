@@ -12,10 +12,13 @@
 #include "html/Encoding.h"
 #include "html/TreeBuilder.h"
 #include "util/Parse.h"
+#include "util/Env.h"
 #include "util/LoadTimeline.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceTrace.h"
+
+#include <cstdio>
 
 namespace microbrowser::engine {
 
@@ -449,12 +452,28 @@ float Page::Layout(float width) {
   // split was the whole diagnosis: 98% of it was the cascade.
   util::LoadTimeline::Mark("layout.start");
   {
+    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
+      std::fprintf(stderr, "[load] BuildBoxTree enter\n");
+      std::fflush(stderr);
+    }
     util::PerformanceTrace::Scope build("engine::BuildBoxTree");
     boxes_ = engine.BuildBoxTree(*document_);
+    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
+      std::fprintf(stderr, "[load] BuildBoxTree end\n");
+      std::fflush(stderr);
+    }
   }
   {
+    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
+      std::fprintf(stderr, "[load] LayoutBoxes enter\n");
+      std::fflush(stderr);
+    }
     util::PerformanceTrace::Scope place("engine::LayoutBoxes");
     content_height_ = engine.Layout(*boxes_, width);
+    if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
+      std::fprintf(stderr, "[load] LayoutBoxes end\n");
+      std::fflush(stderr);
+    }
   }
   util::LoadTimeline::Mark("layout.end");
   // The scroll offsets go back on, clamped against the overflow this layout
