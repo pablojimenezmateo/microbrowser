@@ -175,6 +175,10 @@ bool Page::CollectShadowStyleSheets() {
     return false;
   }
   resources_.shadow_sheets = std::move(found);
+  // The text moved, which is the one thing this function reports and the one
+  // thing that invalidates a parsed shadow sheet. Dropped here rather than in
+  // the rebuild so that the list and its parses cannot get out of step.
+  resources_.shadow_sheets_parsed.clear();
   return true;
 }
 
@@ -182,6 +186,10 @@ void Page::CollectStyleSheets() {
   resources_.pending_sheets.clear();
   resources_.pending_sheet_slots.clear();
   resources_.author_sheet_slots.clear();
+  // The slots are about to be re-derived from the document, so slot 3 need not
+  // still mean the sheet slot 3 meant -- a script that inserts a `<style>`
+  // renumbers everything after it. See DocumentResources::author_sheet_parsed.
+  resources_.author_sheet_parsed.clear();
   if (document_ == nullptr) {
     return;
   }
@@ -230,33 +238,61 @@ void Page::RebuildAuthorStyleSheets() {
   util::PerformanceTrace::Scope rebuild_scope("engine::RebuildAuthorStyleSheets");
   ResetResolver();
   resources_.font_faces.clear();
-  for (const std::optional<std::string>& css : resources_.author_sheet_slots) {
-    if (css.has_value()) {
+
+  // A sheet's text does not change once it has arrived, so its parse is kept.
+  // What *can* change under it is the viewport, because `@media` is evaluated
+  // at parse time -- TD-0002 -- so a resize throws the whole cache away rather
+  // than serving rules that were selected for a different width.
+  if (!(resources_.parsed_at_viewport == viewport_)) {
+    resources_.author_sheet_parsed.clear();
+    resources_.shadow_sheets_parsed.clear();
+    resources_.parsed_at_viewport = viewport_;
+  }
+  resources_.author_sheet_parsed.resize(resources_.author_sheet_slots.size());
+
+  for (std::size_t slot = 0; slot < resources_.author_sheet_slots.size(); ++slot) {
+    const std::optional<std::string>& css = resources_.author_sheet_slots[slot];
+    if (!css.has_value()) {
+      continue;
+    }
+    std::optional<css::StyleSheet>& cached = resources_.author_sheet_parsed[slot];
+    if (!cached.has_value()) {
       // With the viewport, so `@media (min-width: …)` is answered rather than
       // dropped. This is why SetViewport re-parses: the answer is baked in here.
-      const css::StyleSheet sheet = css::ParseStyleSheet(*css, viewport_);
-      // The faces before the rules, because a face is not a rule: it is kept for
-      // the loader rather than added to the cascade, and the parsed sheet is
-      // discarded here.
-      resources_.font_faces.insert(resources_.font_faces.end(), sheet.font_faces.begin(),
-                                   sheet.font_faces.end());
-      resolver_.AddStyleSheet(sheet, css::Origin::Author);
-      CollectKeyframes(sheet);
+      util::PerformanceTrace::Scope parse("css::ParseStyleSheet");
+      cached = css::ParseStyleSheet(*css, viewport_);
     }
+    // The faces before the rules, because a face is not a rule: it is kept for
+    // the loader rather than added to the cascade.
+    resources_.font_faces.insert(resources_.font_faces.end(), cached->font_faces.begin(),
+                                 cached->font_faces.end());
+    resolver_.AddStyleSheet(*cached, css::Origin::Author);
+    CollectKeyframes(*cached);
   }
   // And each shadow root's own sheets, *scoped* to it: a rule inside a component
   // applies within that component and nowhere else, which is the whole of what
   // ADR 0019 §3 asks for. Added after the document's, so document order still
   // decides between two rules of equal specificity in the same tree.
-  for (const auto& [scope, css] : resources_.shadow_sheets) {
-    const css::StyleSheet sheet = css::ParseStyleSheet(css, viewport_);
+  //
+  // Cached positionally against `shadow_sheets`, which is safe for exactly one
+  // reason: CollectShadowStyleSheets replaces that whole list when anything in
+  // it moved, and drops this one at the same moment. The two are read together
+  // and invalidated together.
+  resources_.shadow_sheets_parsed.resize(resources_.shadow_sheets.size());
+  for (std::size_t i = 0; i < resources_.shadow_sheets.size(); ++i) {
+    const auto& [scope, css] = resources_.shadow_sheets[i];
+    std::optional<css::StyleSheet>& cached = resources_.shadow_sheets_parsed[i];
+    if (!cached.has_value()) {
+      util::PerformanceTrace::Scope parse("css::ParseStyleSheet");
+      cached = css::ParseStyleSheet(css, viewport_);
+    }
     // A component's `@font-face` is *not* scoped: the font database is the
     // document's, which is what the specification says and is why a component can
     // ship a font at all.
-    resources_.font_faces.insert(resources_.font_faces.end(), sheet.font_faces.begin(),
-                                 sheet.font_faces.end());
-    resolver_.AddStyleSheet(sheet, css::Origin::Author, scope);
-    CollectKeyframes(sheet);
+    resources_.font_faces.insert(resources_.font_faces.end(), cached->font_faces.begin(),
+                                 cached->font_faces.end());
+    resolver_.AddStyleSheet(*cached, css::Origin::Author, scope);
+    CollectKeyframes(*cached);
   }
   // A background image is named by the cascade, so the set of images a document
   // wants is not known until its stylesheets have arrived. Re-collected here
@@ -613,6 +649,10 @@ void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {
     return;
   }
   resources_.author_sheet_slots[slot] = std::string(css);
+  // This slot's text has just arrived, so whatever was parsed for it is not it.
+  if (slot < resources_.author_sheet_parsed.size()) {
+    resources_.author_sheet_parsed[slot].reset();
+  }
   RebuildAuthorStyleSheets();
 }
 

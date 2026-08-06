@@ -276,7 +276,7 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=820 public_methods=152 members=22
+budget: Page   header_lines=825 public_methods=152 members=22
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
@@ -378,5 +378,13 @@ budget: ModuleLoader header_lines=70 public_methods=14 members=2
 # URLs already asked for. Kept here because RebuildAuthorStyleSheets throws the
 # parsed sheet away, and a face declared in the first sheet has to survive the
 # second arriving.
-budget: DocumentResources header_lines=45 public_methods=0 members=11
+# 14 members and 62 lines for the parsed-sheet cache. Three of them, and the
+# lines are the invalidation rule rather than decoration: a stylesheet's text
+# cannot change once it has arrived, so re-tokenizing it on every rebuild was
+# waste -- but the cache is keyed by *position* in two lists that are rebuilt
+# from the document, so where it is dropped is the whole correctness argument
+# and there are exactly three places plus the viewport. A missed one is not a
+# slow page, it is the wrong rules, which is why they are named here and at
+# each site.
+budget: DocumentResources header_lines=65 public_methods=0 members=14
 budget: PendingFontFace   header_lines=15 public_methods=0 members=4

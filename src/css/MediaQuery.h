@@ -24,6 +24,12 @@ struct MediaContext {
   // by preference, which is two bits for one feature.
   bool prefers_dark = false;
   bool prefers_reduced_motion = false;
+
+  // Comparable because `@media` is evaluated at *parse* time (TD-0002), which
+  // makes a parsed stylesheet valid only for the context it was parsed in --
+  // so anything that caches one has to be able to ask whether the context
+  // still matches.
+  friend bool operator==(const MediaContext&, const MediaContext&) = default;
 };
 
 // Whether a `<media-query-list>` matches: the grammar of an `@media` prelude, of
