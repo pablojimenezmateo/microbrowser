@@ -114,7 +114,18 @@ max_tu_lines: 900
 # +2 members and +40 header lines for ADR 0020 §5's WebSockets: the table and its next
 # id. The table is the *first* thing this engine owns that outlives a request and not a
 # document -- it is cleared by a navigation, which is what makes that true.
-budget: Engine header_lines=405 public_methods=15 members=22
+# The sixteenth public method is `EvaluateScript`, and it is a *diagnostic*
+# rather than a capability: it runs a string in the loaded page's own
+# interpreter and answers with what it evaluated to. Reachable only from C++ --
+# `microbrowser_snapshot -eval` is the one caller -- so nothing a page can see
+# is widened, and `js::Interpreter::Run` was already public.
+#
+# It earns the slot by what its absence costs. Three sessions of the log end at
+# a page that renders wrong with no way to ask it anything: did the custom
+# elements upgrade, is that response in the tree, what does this shadow root
+# contain. Each is one line of JavaScript, and each was previously answered by
+# adding an `fprintf` and rebuilding.
+budget: Engine header_lines=415 public_methods=16 members=22
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.

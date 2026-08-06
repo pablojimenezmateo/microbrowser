@@ -140,6 +140,9 @@ class Page : private layout::ImageProvider,
   const std::vector<std::string>& ConsoleOutput() const;
   // Every script on this page that ended on a throw. See PageScript.
   const std::vector<std::string>& ScriptErrors() const;
+  // A diagnostic probe against this page's own interpreter. See
+  // PageScript::Evaluate for why it exists and what it does not widen.
+  std::string EvaluateScript(std::string_view source);
 
   // Records the page into `out`, translated by the scroll offset. That offset
   // is baked into the geometry rather than expressed as a transform command,

@@ -370,6 +370,21 @@ bool PageScript::MoveFocus(dom::Element* target, bool visible) {
   return bindings_ != nullptr && bindings_->MoveFocus(target, visible);
 }
 
+std::string PageScript::Evaluate(std::string_view source) {
+  if (interpreter_ == nullptr) {
+    return {};
+  }
+  const js::Result result = interpreter_->Run(source);
+  // Microtasks too, so `await`-shaped probes and a promise a probe resolves
+  // settle before the answer is read -- which is what makes asking about
+  // anything asynchronous possible at all.
+  interpreter_->DrainMicrotasks();
+  if (result.completion == js::Completion::Throw) {
+    return "throw " + js::ToString(result.value);
+  }
+  return js::ToString(result.value);
+}
+
 bool PageScript::DispatchScroll(dom::Element* target) {
   return bindings_ != nullptr && bindings_->DispatchScroll(target);
 }

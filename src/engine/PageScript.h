@@ -325,6 +325,23 @@ class PageScript {
   // terminal the browser was started from.
   const std::vector<std::string>& ScriptErrors() const { return errors_; }
 
+  // Runs `source` in the *page's own* interpreter and answers what it
+  // evaluated to, or the thrown value prefixed with "throw ". Empty when no
+  // script has run, because there is no interpreter until one does.
+  //
+  // **A diagnostic entry point, and it earns its place by what it costs to be
+  // without one.** Three sessions of this repo's log end at a page that
+  // renders wrong with no way to ask it anything: did the custom elements
+  // upgrade, is that fetch's response in the tree, what does this shadow root
+  // contain. Each is one line of JavaScript and every one of them was
+  // previously answered by adding an `fprintf` and rebuilding.
+  //
+  // It is reachable only from C++ -- `microbrowser_snapshot -eval` is the one
+  // caller -- so it widens nothing a page can see. The page's own interpreter
+  // rather than a fresh one is the whole point: a probe against a new
+  // interpreter would answer about a page that never ran.
+  std::string Evaluate(std::string_view source);
+
  private:
   // One script in document order.
   //

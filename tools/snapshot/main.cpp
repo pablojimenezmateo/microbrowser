@@ -49,6 +49,14 @@ struct Options {
   // machine this runs on has no display at all.
   float device_scale = 1.0f;
   bool dump = false;
+  // Scripts to run against the loaded page, in order, each printed with what
+  // it evaluated to. `-eval` may be repeated.
+  //
+  // The reason it exists: a snapshot can show what a page *looks* like and had
+  // no way to ask it anything. "Did the custom elements upgrade", "is that
+  // response in the tree", "what is in this shadow root" are each one line of
+  // JavaScript, and each of them used to cost an `fprintf` and a rebuild.
+  std::vector<std::string> probes;
   // A click to deliver before the snapshot, in viewport pixels. Negative means
   // none -- 0,0 is a real point.
   int click_x = -1;
@@ -208,6 +216,10 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       const std::optional<float> parsed = microbrowser::util::ParseFloat(value());
       if (!parsed || !(*parsed > 0.0f) || *parsed > 8.0f) return false;
       out.device_scale = *parsed;
+    } else if (argument == "-eval") {
+      const std::string_view text = value();
+      if (text.empty()) return false;
+      out.probes.emplace_back(text);
     } else if (argument == "-v") {
       out.dump = true;
     } else if (argument == "-y") {
@@ -338,6 +350,18 @@ int main(int argc, char** argv) {
     // within reach of the scrollport -- and a snapshot that stopped here would
     // write out the frame from *before* the image arrived, which looks exactly
     // like a lazy loader that does not work.
+    RunLoadToCompletion(engine);
+  }
+
+  // The probes, after every input has been delivered and the page has settled,
+  // so they describe the page the snapshot is about to write out. Before the
+  // frame is taken rather than after, because a probe that changes the document
+  // should show up in it.
+  for (const std::string& probe : options.probes) {
+    const std::string answer = engine.EvaluateScript(probe);
+    std::printf("eval: %s\n", answer.c_str());
+  }
+  if (!options.probes.empty()) {
     RunLoadToCompletion(engine);
   }
 

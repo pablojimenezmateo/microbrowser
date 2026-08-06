@@ -102,6 +102,10 @@ class Engine : private bindings::NetworkSource,
   // a document rendered the way it did. Forwarded rather than exposing the
   // Page, which would put the whole engine on the wrong side of the seam.
   const std::vector<std::string>& ScriptErrors() const { return page_.ScriptErrors(); }
+  // A diagnostic probe against the loaded page's own interpreter, for a host
+  // that has no console -- `microbrowser_snapshot -eval` is the one caller. See
+  // PageScript::Evaluate.
+  std::string EvaluateScript(std::string_view source) { return page_.EvaluateScript(source); }
   // The other half of the same question, and forwarded for the same reason. A
   // page that ran correctly and said something is not distinguishable from one
   // that threw, from outside, without both.

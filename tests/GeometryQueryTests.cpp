@@ -330,6 +330,27 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 1), "function", "and the window one too");
   });
 
+  AddTest(tests, "Geometry/AProbeAsksThePageItsOwnQuestions", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    RunAndCollect(page, "<body><div id=a>x</div><script>globalThis.ran = 1;</script></body>");
+    // The page's *own* interpreter, which is the whole point: a probe against
+    // a fresh one would answer about a page that never ran.
+    ExpectEqString(page.EvaluateScript("'' + ran"), "1", "the probe sees what the page defined");
+    ExpectEqString(page.EvaluateScript("document.getElementById('a').textContent"), "x",
+                   "and the tree the page has");
+    // A throw is an answer rather than a crash, because most of what a probe
+    // asks about is something that may not be there.
+    ExpectEqString(page.EvaluateScript("nope.x"), "throw ReferenceError: nope is not defined",
+                   "a probe that throws says so");
+    // A probe that changes the page is laid out before the caller's next
+    // frame, so `-eval` followed by a snapshot shows what the probe did.
+    ExpectEqString(page.EvaluateScript(
+                       "document.getElementById('a').textContent = 'probed';"
+                       "document.getElementById('a').textContent"),
+                   "probed", "a probe may change the document");
+  });
+
   AddTest(tests, "Geometry/MatchMediaAgreesWithTheStylesheetAndWithInnerWidth", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
