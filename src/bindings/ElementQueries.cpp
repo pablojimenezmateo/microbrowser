@@ -213,6 +213,22 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
   // `nextSibling` stops on the whitespace between two tags, which is the
   // single most common way a hand-written tree walk goes wrong.
 
+  // Elements only, and a count rather than a live collection: `children.length`
+  // allocates an array of wrappers for a question that is an integer. youtube's
+  // Polymer path asks this of every host it stamps.
+  accessor("childElementCount", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr) {
+      return Value::Number(0);
+    }
+    double count = 0;
+    for (const std::unique_ptr<dom::Node>& child : self->Children()) {
+      if (child->IsElement()) {
+        count += 1.0;
+      }
+    }
+    return Value::Number(count);
+  });
   accessor("firstElementChild", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);

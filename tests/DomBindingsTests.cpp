@@ -2122,6 +2122,37 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const t = document.getElementById('title'); t.style.cssText = 'color: blue';"
                  "t.style.color",
                  "blue");
+    // CSSOM methods, not CSS properties. The Proxy used to answer every unknown
+    // name as a declaration and return "", so `typeof style.setProperty` was
+    // `"string"` and ShadyCSS's `style.setProperty(...)` threw. youtube.com.
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "typeof t.style.setProperty + ' ' + typeof t.style.getPropertyValue + ' ' +"
+                 " typeof t.style.removeProperty",
+                 "function function function");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.style.setProperty('background-color', 'green');"
+                 "t.style.getPropertyValue('background-color') + '|' + t.style.backgroundColor +"
+                 " '|' + t.getAttribute('style')",
+                 "green|green|background-color: green");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.style.setProperty('color', 'red');"
+                 "t.style.removeProperty('color') + '|' + t.style.color + '|' +"
+                 " (t.getAttribute('style') || '')",
+                 "red||");
+    ExpectScript(kPage,
+                 "const t = document.getElementById('title');"
+                 "t.style.setProperty('margin', '1px', 'important');"
+                 "t.getAttribute('style')",
+                 "margin: 1px !important");
+  });
+
+  AddTest(tests, "DomBindings/ChildElementCountSkipsTextNodes", [] {
+    ExpectScript("<div id=d>a<span></span>b<em></em>c</div>",
+                 "document.getElementById('d').childElementCount", "2");
+    ExpectScript("<div id=d></div>", "document.getElementById('d').childElementCount", "0");
   });
 
   AddTest(tests, "DomBindings/DatasetReadsTheDataAttributes", [] {
