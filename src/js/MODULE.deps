@@ -389,7 +389,15 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # And by three more for `InstallConsole`, which is a *file* moving out rather than
 # surface arriving: `console` is the host's diagnostic channel and not part of the
 # language, and Builtins.cpp going over the module cap is what said so.
-budget: Interpreter header_lines=1024 public_methods=60 members=21
+# And by 29 more for `ValueRoot`, which is a use-after-free fix rather than a
+# feature. A `js::Value` in a C++ local is invisible to the collector -- the
+# rule this whole class is written around -- and the *completion value* was
+# breaking it: RunCompiled took what a script threw, drained the microtask
+# queue, and returned it, and draining is where MaybeCollect runs. A page whose
+# script threw with enough allocation behind it read freed memory. The lines
+# are the class and the reason; the member and method counts did not move,
+# because it is a scope guard rather than state.
+budget: Interpreter header_lines=1056 public_methods=60 members=21
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

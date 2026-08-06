@@ -1062,6 +1062,36 @@ class Interpreter {
   std::size_t steps_ = 0;
   static constexpr std::size_t kMaxSteps = 20'000'000;
 
+  // Keeps a value alive for the collector while it is a C++ local.
+  //
+  // A `js::Value` in a C++ variable is invisible to the collector -- the rule
+  // this whole file is written around -- and the places that break it are the
+  // ones where a *completion* is carried across a collection: `RunCompiled`
+  // takes the value a script threw, drains the microtask queue, and returns
+  // it, and draining is where MaybeCollect runs. Nothing rooted that value, so
+  // a page whose script threw with enough allocation behind it read freed
+  // memory. youtube.com is where it showed, as a segfault reading `e.stack`.
+  class ValueRoot {
+   public:
+    ValueRoot(Interpreter& interpreter, const Value& value)
+        : interpreter_(interpreter), rooted_(value.IsObject() || value.IsSymbol()) {
+      if (rooted_) {
+        interpreter_.active_objects_.push_back(value.object);
+      }
+    }
+    ~ValueRoot() {
+      if (rooted_) {
+        interpreter_.active_objects_.pop_back();
+      }
+    }
+    ValueRoot(const ValueRoot&) = delete;
+    ValueRoot& operator=(const ValueRoot&) = delete;
+
+   private:
+    Interpreter& interpreter_;
+    bool rooted_;
+  };
+
   // Keeps a scope alive for the collector while it is on the C++ stack.
   class ScopeGuard {
    public:

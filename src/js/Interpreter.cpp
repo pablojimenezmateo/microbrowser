@@ -230,8 +230,29 @@ void Interpreter::MaybeCollect() {
       }
     }
   }
+  // Every module that has been loaded. Its namespace object and its own scope
+  // are reachable from the table and from nowhere else the collector walks --
+  // a module whose importer has finished is still live, because `import` of
+  // the same specifier again must answer with the same namespace rather than
+  // re-evaluate it. Without this the second import reads freed memory.
+  for (const auto& [specifier, module] : modules_) {
+    if (module == nullptr) {
+      continue;
+    }
+    if (module->exports != nullptr) {
+      object_roots.push_back(module->exports);
+    }
+    if (module->error.IsObject() || module->error.IsSymbol()) {
+      object_roots.push_back(module->error.object);
+    }
+  }
   std::vector<Environment*> environment_roots{global_scope_};
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());
+  for (const auto& [specifier, module] : modules_) {
+    if (module != nullptr && module->scope != nullptr) {
+      environment_roots.push_back(module->scope);
+    }
+  }
   // The machine's stacks. This is the addition that makes collection possible
   // while script is running rather than only between top-level statements: a
   // frame's scope and every value in flight are here, where a tree-walker's
@@ -953,6 +974,9 @@ Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* sc
   Result result = RunFrames(entry_depth);
   vm_.stack.resize(callee_slot);
 
+  // Rooted across the drain, because draining is where the collector runs and
+  // this value is a C++ local until the caller has it. See ValueRoot.
+  const ValueRoot rooted(*this, result.value);
   if (result.IsAbrupt()) {
     // The queue is drained even when the script threw. A promise settled before
     // the throw still has handlers owed to it, and dropping them would leave a
@@ -971,6 +995,7 @@ Result Interpreter::RunProgram(const Node& program) {
   // A script's top level is a function scope for `var`'s purposes.
   HoistVars(program, *global_scope_);
   Value last;
+  std::optional<ValueRoot> rooted_last;
   for (const NodePtr& statement : program.children) {
     if (statement == nullptr) {
       continue;
@@ -980,10 +1005,16 @@ Result Interpreter::RunProgram(const Node& program) {
       // The queue is drained even when the script threw. A promise settled
       // before the throw still has handlers owed to it, and dropping them
       // would leave a page half-run rather than merely broken.
+      const ValueRoot rooted_thrown(*this, result.value);
       DrainMicrotasks();
       return result;
     }
-    last = std::move(result.value);
+    last = result.value;
+    // Re-rooted every statement, because the completion value has to survive
+    // the *next* one: it is a C++ local, and the collection below is exactly
+    // where a C++ local goes missing. `emplace` drops the previous root first,
+    // which is the innermost one this function holds.
+    rooted_last.emplace(*this, last);
     // Only here, at the top level with nothing in progress, is every live
     // value reachable from the roots. See the note in Heap.h.
     MaybeCollect();
