@@ -473,6 +473,12 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
   if (target == nullptr) {
     return {};
   }
+  // ADR 0017's user activation, set here because here is where a *trusted* click is known to
+  // have happened -- a page dispatching its own click event reaches `DomBindings::DispatchEvent`
+  // and never this function, which is what keeps a page from licensing its own autoplay.
+  if (document_ != nullptr) {
+    document_->NoteUserActivation();
+  }
   DispatchOutcome outcome;
   outcome.ran = script_.HasListeners();
   outcome.prevented = script_.DispatchClick(*const_cast<dom::Element*>(target), pointer);

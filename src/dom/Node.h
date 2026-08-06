@@ -363,6 +363,26 @@ class Document : public Node {
   Element* Body() const;
   Element* Head() const;
 
+  // Whether the user has ever interacted with this document.
+  //
+  // ADR 0017 defines user activation and ADR 0028 §1 reads it: `play()` on an unmuted element
+  // without it is `NotAllowedError`, which is what makes autoplay refusable at all. It lives
+  // here, on the document, because that is its scope -- an interaction with one document does
+  // not license another, which is the entire point of the flag.
+  //
+  // **Sticky rather than transient**, and that is a deliberate simplification with a named
+  // consequence: the specification expires a *transient* activation after a few seconds so that
+  // a click cannot license a popup a minute later. Nothing here opens a window or a dialog, so
+  // the only consumer is media autoplay -- where sticky is what users expect ("I pressed play
+  // once, stop asking"). When the first transient consumer arrives, this becomes a timestamp
+  // and the comparison moves to the caller; it is written here so that change is a decision
+  // rather than a surprise.
+  //
+  // Only the engine sets it, and only from a trusted event. A page that could set it would be a
+  // page that could autoplay, which is the whole thing being prevented.
+  bool HasUserActivation() const { return user_activation_; }
+  void NoteUserActivation() { user_activation_ = true; }
+
   // How many times anything in this tree has changed.
   //
   // A version rather than a dirty bit, because the readers are not one: layout
@@ -408,6 +428,7 @@ class Document : public Node {
 
  private:
   bool quirks_ = false;
+  bool user_activation_ = false;
   std::uint64_t mutation_version_ = 0;
   FocusState focus_;
 };

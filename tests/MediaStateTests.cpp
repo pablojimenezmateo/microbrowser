@@ -11,7 +11,11 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "dom/Node.h"
+#include "engine/Page.h"
+#include "gfx/FontCatalog.h"
 #include "media/MediaState.h"
+#include "support/SyntheticFont.h"
 
 namespace microbrowser::tests {
 
@@ -189,6 +193,33 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
     Expect(state.Play(true) == MediaState::PlayRefusal::None, "play again");
     Expect(!state.Ended() && state.CurrentTime() == 0.0, "rewound to the start");
     ExpectEqString(Events(state), "play,playing", "and started");
+  });
+
+  AddTest(tests, "MediaState/APageCannotLicenseItsOwnAutoplay", [] {
+    // The property the whole refusal rests on, and it is about *where* activation is set rather
+    // than about media: a real click goes through `Page::DispatchClickAt`, and a click a page
+    // dispatches itself goes through the binding layer and never reaches that function. So a
+    // page that fires its own click events never gains activation, and its unmuted `play()` stays
+    // refused. ADR 0017 defines the flag; this is the test that it cannot be forged.
+    gfx::FontLibrary library;
+    gfx::FontCatalog fonts{library};
+    fonts.Register("Test", 400, false, BuildSyntheticFont());
+    fonts.SetDefaultFamily("Test");
+    engine::Page page(fonts);
+    page.Load(
+        "<body style='margin:0'><button id=b>go</button>"
+        "<script>document.getElementById('b').click();"
+        "document.body.dispatchEvent(new Event('click', {bubbles: true}));</script></body>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.CurrentDocument() != nullptr, "there is a document");
+    Expect(!page.CurrentDocument()->HasUserActivation(),
+           "a page clicking its own button is not the user interacting");
+
+    // A real click is, and it is sticky: "I pressed play once, stop asking".
+    bindings::PointerInput pointer;
+    page.DispatchClickAt(gfx::FloatPoint{5.0f, 5.0f}, pointer);
+    Expect(page.CurrentDocument()->HasUserActivation(), "a trusted click activates the document");
   });
 
   AddTest(tests, "MediaState/ChangingSourceIsAFreshElement", [] {

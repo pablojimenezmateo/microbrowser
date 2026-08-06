@@ -187,6 +187,12 @@ DispatchOutcome Page::DispatchKeyToFocus(const bindings::KeyInput& key) {
   // 0017 §4: focus is the input router, and hit testing is consulted only for
   // pointer events. That is the split that makes a text field work without a
   // second mechanism.
+  // A keystroke is user activation too -- ADR 0017's definition is about the user having
+  // interacted, not about the pointer. A page whose video plays on Enter is a page a keyboard
+  // user can operate.
+  if (document_ != nullptr) {
+    document_->NoteUserActivation();
+  }
   DispatchOutcome outcome;
   outcome.ran = script_.HasListeners();
   outcome.prevented = script_.DispatchKey(FocusedElement(), key);

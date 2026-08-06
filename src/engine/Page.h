@@ -411,6 +411,11 @@ class Page : private layout::ImageProvider, private bindings::GeometrySource {
   // a text field work without a second mechanism.
   dom::Element* FocusedElement() const;
 
+  // The document, read-only. Public because ADR 0017's user activation lives on it and a test
+  // has to be able to ask whether a *page's own* click set it -- which is the property that
+  // makes autoplay refusable at all. Const, so the only writer stays this class.
+  const dom::Document* CurrentDocument() const { return document_.get(); }
+
   // Whether the current focus came from the keyboard: the `:focus-visible`
   // heuristic every browser converged on. Set by Tab, cleared by a click or by
   // `element.focus()`. The state, and not the selector -- matching

@@ -64,7 +64,10 @@ budget: DocumentType header_lines=25 public_methods=6  members=1
 # are in different modules. A copy in either would be the pair that disagrees
 # about where the next keystroke goes. One member and not two, for the reason
 # Page::LayoutState is one: they are two facts about the same thing.
-budget: Document     header_lines=90 public_methods=16 members=3
+# +1 member for ADR 0017's user activation, read by ADR 0028 §1's autoplay refusal. On the
+# document because that is its scope: an interaction with one document does not license
+# another.
+budget: Document     header_lines=115 public_methods=18 members=4
 # A fragment, plus the one link back from a shadow root to its host. Deliberately
 # not the fragment's parent: a shadow root with a parent would be reachable by
 # every ordinary tree walk, and being unreachable that way is the whole point of

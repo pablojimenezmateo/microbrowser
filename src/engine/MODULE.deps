@@ -229,7 +229,7 @@ budget: PendingLoad header_lines=105 public_methods=8 members=19
 # belongs to is Engine's. `UpdateUrl` is the one worth naming -- it moves the
 # address, recomputes `:target` from the new fragment and moves the base with it,
 # which is the whole of what a `pushState` does to a document.
-budget: Page   header_lines=625 public_methods=80 members=15
+budget: Page   header_lines=635 public_methods=81 members=15
 # The script half of a page: the interpreter, the binding layer, and the
 # scripts themselves in document order.
 #
