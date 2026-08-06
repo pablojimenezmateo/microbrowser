@@ -421,8 +421,9 @@
       "adr": "0029 §1, §5-6",
       "anchor": "## Phase E — any page",
       "scope": "Permissions default-deny, and the lint that fails a new binding not on the table. The failure mode is a binding added next year that reports the truth because nobody looked.",
-      "check": null,
-      "status": "not_started"
+      "check": "./build/microbrowser/microbrowser_tests Privacy/ passes: every value on ADR 0029 §6's table is what the ADR says, and every one of nine named absences is undefined -- so restoring any of them fails a test. Plus a page reading the whole table end to end.",
+      "status": "done",
+      "notes": "Check run 2026-08-06 at ef7a0fa. The table lives in bindings/Fingerprint.h as constants, for the reason util::kUserAgent is one constant: a page may sniff several and two meant to agree eventually do not. `screen.*` reports the VIEWPORT, quantised down to a multiple of 8; devicePixelRatio quantised to {1,2,3}; performance.now floored to 100us (a security measure, not a privacy one). crypto.getRandomValues is the one entry NOT reduced, over util::FillRandomBytes with getrandom then /dev/urandom and no pseudo-random fallback -- both callers throw rather than proceed. Permissions: default deny, honest state, no prompt; clipboard-write granted on a real gesture and read refused. **A pre-existing bug the table exposed**: a bare identifier could not see an *accessor* on the global object, because the identifier path used GetOwn and an accessor has no stored value -- so `innerWidth` threw a ReferenceError while `window.innerWidth` answered. Fixed in both engines. What is still absent and stated: Intl (so no timeZone row), and toDataURL from session 36."
     },
     {
       "id": 38,

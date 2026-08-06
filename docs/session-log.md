@@ -2990,3 +2990,61 @@ path — returning something would send it down a path that fails later and less
 One stated approximation: a non-rectangular `clip()` is intersected with its *bounding box*, because
 `gfx::Canvas`'s clip is a rectangle. That clips **less** than asked and never more, so nothing is hidden
 that should be visible — which is the safe direction, and the alternative is a coverage mask per clip.
+
+## Session 37 — the answer table, and a bare identifier that could not see an accessor
+
+`ef7a0fa`. ADR 0029 §§1, 5 and 6: what a page is told when it asks about the machine.
+
+**The ADR had already done the hard part, which was deciding.** §6 is a table of answers with reasons
+attached, and this session's job was to put those answers in one place — `bindings/Fingerprint.h` — for
+exactly the reason `util::kUserAgent` is one constant rather than two: a page may sniff several of these,
+and two constants that were meant to agree eventually do not. The governing rule is worth restating
+because it is unusual: **constant, not randomised.** A jittered answer is still an answer, it is
+distinguishable *as* jittered, repeated sampling averages it away, and meanwhile it breaks every honest
+consumer.
+
+**The absences turned out to be the substantial part of the work**, and the test that names them is the
+real artifact. `deviceMemory`, `connection`, `getBattery`, `geolocation`, `mediaDevices`, `doNotTrack`,
+`globalPrivacyControl`, `fonts`, `userAgentData` — nine things a page can look for. Under ADR 0012's
+rule, a page that finds nothing takes whatever path it has for a browser without them; a page that finds
+a plausible-looking zero takes the path that assumes it works. Absence is not the *lack* of a decision
+here, it is the decision — so it needs a test, or it decays into "nobody has got round to it yet" and
+somebody adds one back as an obviously-harmless line.
+
+Two rows are worth the reasoning behind them. **`screen.*` reports the viewport, not the display**: a
+display's resolution is a strong, stable identifier readable with no interaction at all, and it is not a
+number any page needs — what a page actually wants from `screen.width` is "how much room do I have",
+which is the viewport. And **the viewport rounds *down***, not to nearest: a page laying out to the
+reported width has to fit inside the real one, and rounding up would make a page that filled it overflow
+by up to a quantum.
+
+**`crypto.getRandomValues` is the one entry on the table that is not reduced**, and the asymmetry is the
+interesting part: randomness carries no information *about* the machine. A page handed 32 random bytes
+learns nothing; a page handed predictable ones has its session tokens guessed. So weakening this would
+trade a privacy property for a security hole, which is the wrong direction on this project's priority
+order. `util::FillRandomBytes` is `getrandom(2)` then `/dev/urandom` and **never a pseudo-random
+fallback** — it returns false and both callers throw, because quietly weak bytes are the failure mode
+that ships and is never noticed.
+
+`performance.now()`'s coarsening is on the same table for a different reason, and the ADR says so: it is
+a *security* measure — high-resolution timers are what turn cache and speculative-execution side
+channels from papers into practical attacks — but the mechanism is identical, so it belongs beside the
+privacy answers rather than somewhere else. It floors rather than rounds, because rounding leaks which
+side of a boundary the true value was on and that is exactly what repeated sampling recovers.
+
+**And the session found a pre-existing bug in the JavaScript engine, in both engines.** `innerWidth`
+threw a `ReferenceError` as a bare identifier while `window.innerWidth` answered 1280. The identifier
+path checked the global object with `GetOwn` — which answers with a *stored value* — and an accessor has
+none. So **every global the host installs as a getter was unreachable by its own name**, silently, and
+had been since `innerWidth` landed. This session added three more such globals (`devicePixelRatio`,
+`screen`, and the quantised extents), which is how it surfaced: writing a page that reads the whole
+answer table meant writing bare identifiers, and one of them threw.
+
+That is the fourth session running where the finding was not in the feature being built. Sessions 34 and
+35 found a thing set in one place and clobbered in another; session 36 found a comment that predicted its
+own bug; this one found a lookup path that could not see half of what it was looking in. The common
+thread is narrower than "bugs exist": **each was a mechanism that worked for the shape of input it was
+written against and failed silently for a shape added later.** `GetOwn` was right when every global was
+a value. The inherited-property list was right when both copies were written on the same day. Neither
+announced itself when the assumption stopped holding, which is the argument for the architecture lint
+existing at all — and for tests that assert absences.
