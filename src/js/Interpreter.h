@@ -138,6 +138,12 @@ class Interpreter {
     return Construct(callee, arguments);
   }
 
+  // True when `self` is the instance Construct just allocated for this call --
+  // i.e. this native is the body of `new F(...)`. Bound functions need it:
+  // `new bound()` must Construct the target and ignore the bound `this`, and
+  // ConstructionTarget cannot tell because a bound function has no `.prototype`.
+  bool IsConstructCall(const Value& self) const;
+
   // The call stack as text, for an Error's `stack`.
   //
   // Built from the machine's frames, which is a thing only the machine can do

@@ -141,6 +141,16 @@ void Interpreter::InstallFunctionPrototype() {
       // what makes bind partial application rather than a receiver swap.
       std::vector<Value> arguments = ArrayElements(*bound_arguments);
       arguments.insert(arguments.end(), inner.arguments.begin(), inner.arguments.end());
+      // `new bound()` must Construct the target and ignore the bound `this`.
+      // That is ECMA-262 BoundFunction [[Construct]], and it is not optional:
+      // youtube's DI instantiates every provider with
+      // `new (Function.prototype.bind.apply(Class, [null].concat(deps)))`,
+      // and without this path `this` inside the class is the bound null --
+      // `cannot set property 'store' of null` -- so the injector never
+      // finishes registering and the page stays a white shell.
+      if (inner.interpreter.IsConstructCall(inner.self)) {
+        return Forward(inner, inner.interpreter.ConstructValue(*target_value, arguments));
+      }
       return Forward(inner, inner.interpreter.CallFunction(*target_value, *bound_this, arguments));
     });
     if (bound == nullptr) {

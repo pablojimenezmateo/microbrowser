@@ -834,6 +834,18 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("function f(){ return this.n } f.bind({ n: 1 }).bind({ n: 2 })()", "1");
     ExpectEval("function f(){} f.bind(null).name", "bound f");
     ExpectEval("const o = { n: 5, get(){ return this.n } }; const g = o.get.bind(o); g()", "5");
+    // `new bound()` Constructs the target and ignores the bound `this`. Without
+    // that, `new (f.bind(null, 1))` runs the body with `this === null` and every
+    // `this.x = …` throws -- which is exactly how youtube's DI instantiates a
+    // provider class (`Function.prototype.bind.apply(C, [null].concat(deps))`).
+    ExpectEval("function C(a){ this.a = a } const x = new (C.bind(null, 7)); x.a", "7");
+    ExpectEval("function C(a,b){ this.a=a; this.b=b } "
+               "const x = new (Function.prototype.bind.apply(C, [null].concat([1,2]))); "
+               "''+x.a+x.b",
+               "12");
+    ExpectEval("class D { constructor(n){ this.n = n } } "
+               "const x = new (D.bind(null, 9)); x.n + ':' + (x instanceof D)",
+               "9:true");
   });
 
   AddTest(tests, "JsInterpreter/BoundFunctionsSurviveCollection", [] {

@@ -798,6 +798,10 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
                                                      : Value::Obj(built));
 }
 
+bool Interpreter::IsConstructCall(const Value& self) const {
+  return !constructing_.empty() && self.IsObject() && constructing_.back() == self.object;
+}
+
 Result Interpreter::CallFunction(const Value& callee, const Value& self,
                                  const std::vector<Value>& arguments) {
   if (!callee.IsObject() || !callee.object->IsCallable()) {
