@@ -120,8 +120,54 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 
 ## Where To Pick Up
 
-**A performance pass on 2026-08-06 (`299a08f`..`1121b3b`) took every target page between 6x and 41x
-faster, and fixed the reason youtube rendered a white page.** Where things stand:
+**Read this first: `build/` is a *Debug* build.** `build/microbrowser-perf/` is Release+LTO and is
+between four and seven times faster on every page. Every number in the table below and in
+`docs/tech-debt.md` up to 2026-08-06 is a Debug number -- wikipedia is 6.36s in one build and 1.13s
+in the other -- so **say which build a measurement came from**, and use the perf preset for anything
+you intend to compare against a real browser. The perf preset had also rotted and did not compile
+at all until `566f7d9`, which is probably why nobody noticed.
+
+**A latency pass on 2026-08-06 (`566f7d9`..`343e6a4`) found that these pages are not CPU-bound at
+all, and built the instrument that says so.** Hacker News spends 1.21s of a 1.41s load blocked on a
+socket, against 58ms of scoped CPU. A ranked scope summary cannot see that, because the interesting
+quantity is not a duration -- it is *when* each milestone happened and how long the gaps are.
+
+**`MICROBROWSER_LOAD_TIMELINE=1` is the answer and is the first thing to reach for on a real page.**
+One navigation, one clock, printed in the order things happened with a **gap** column: the row after
+a long gap is what the browser was waiting for. It stamps the navigation, every request start and
+finish *with its status*, the document parse, every script, every layout and every paint. It found
+four separate bugs within minutes of existing, three of which are fixed:
+
+- **The snapshot tool never ran a due timer.** `RunLoadToCompletion` called `Advance()` and not
+  `RunDueWork()`, so no page timer ever ran inside it -- and a page that armed one made
+  `NextDeadlineMs()` answer zero, which span the loop **376,522 times** on youtube's front page.
+  The worse half is that a snapshot was showing a document whose timers had never fired, which is
+  not the page the browser draws. Fixed; youtube now lays out 73 times rather than 17.
+- **A name was resolved once per connection rather than once per page.** `getaddrinfo` is the one
+  call in the network stack that blocks the loop, and nothing cached it: Hacker News resolved one
+  host four times, youtube thirteen times, old.reddit about thirty. Now once each. The cache is
+  keyed by the **ADR 0005 partition key** and `Transport::StartConnect` grew a partition parameter
+  to make that structural -- a warm name answers in microseconds and a cold one in tens of
+  milliseconds, so a host-keyed cache is a "has this browser been to that site?" oracle.
+- **The first paint waited for every image.** Hacker News painted at 1116ms and the last thing it
+  waited for was `s.gif`, a spacer. Images no longer hold the frame (they still hold `load`, and
+  ones arriving after it are decoded in a *batch*), and a background image named by a stylesheet is
+  now requested when the sheet lands rather than at the next paint -- worth 375ms on Hacker News.
+- **Not fixed, and not ours: `upload.wikimedia.org` answers 429 to a burst of six parallel
+  HTTP/1.1 connections**, which is why wikipedia renders between 4 and 17 of its images at random.
+  Reproduced with `curl` outside this browser and cleared of the `User-Agent`. See **TD-0008** --
+  it is the first *rendering correctness* cost measured for the missing HTTP/2.
+
+**Two benchmark files landed and are the durable half of this.** `bench/CodecBenchmarks.cpp` and
+`bench/CssBenchmarks.cpp` are the first benchmarks for anything outside `gfx` and `js`, and both
+exist because the alternative -- timing a page load -- is worthless on a shared machine: the same
+binary read three times slower while something else was linking, which is larger than any change
+either file measures. Inflate came out 2.5x (TD-0006, closed) with `inflate_fuzzer` clean over
+108,781 runs. Add to these rather than timing pages.
+
+**An older performance pass on 2026-08-06 (`299a08f`..`1121b3b`) took every target page between 6x
+and 41x faster, and fixed the reason youtube rendered a white page.** Where things stand (Debug
+build):
 
 | page | before | after |
 |---|---|---|
@@ -445,8 +491,15 @@ MICROBROWSER_PERF_SUMMARY=1    # per-label scope table ranked by self time
 MICROBROWSER_PERF_TRACE=1      # one stderr line per scope (a firehose; distorts what it measures)
 MICROBROWSER_STARTUP_SUMMARY=1 # same, for startup scopes
 MICROBROWSER_TRACE_REDRAW=1    # one line per presented frame: full/partial, rects, coverage
+MICROBROWSER_LOAD_TIMELINE=1   # one navigation on one clock, in order, with a gap column
 MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the bytecode machine
 ```
+
+**A ranked summary ranks *work*; it cannot see *waiting*.** On a page whose cost is round trips it
+adds up to a tenth of the wall clock and says nothing about the other nine. `MICROBROWSER_LOAD_TIMELINE=1`
+is the instrument for that half, and `wait::Network` is the row that says the loop was blocked
+rather than busy -- the `wait::` prefix is the convention, and a `wait::` row must never be read as
+a hotspot.
 
 **Read `MICROBROWSER_PERF_SUMMARY=1` before believing anything about where time goes, and split any
 scope that covers two jobs.** Every fix in the 2026-08-06 performance pass came from one such split;
