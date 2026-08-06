@@ -182,30 +182,8 @@ void Interpreter::InstallGlobals() {
   global_scope_->Declare("NaN", Value::Number(std::nan("")), true);
   global_scope_->Declare("Infinity", Value::Number(HUGE_VAL), true);
 
-  // --- console --------------------------------------------------------------
-  // Collected rather than printed. A page must not be able to write to the
-  // terminal the browser was started from, and a test needs to read what was
-  // logged.
-  Object* console = NewObject();
-  const auto log = [this](NativeCall& call) {
-    std::string line;
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      if (i != 0) {
-        line.push_back(' ');
-      }
-      // The pure conversion, deliberately: a console line must not be able to
-      // run a page's `toString`. Logging is a thing the *host* does, often
-      // while inspecting a value it does not trust, and a getter that runs
-      // there would be a page choosing when the browser executes its code.
-      line += ToString(call.arguments[i]);
-    }
-    console_.push_back(std::move(line));
-    return Value::Undefined();
-  };
-  install(console, "log", log);
-  install(console, "warn", log);
-  install(console, "error", log);
-  global_scope_->Declare("console", Value::Obj(console), false);
+  InstallConsole();
+
 
   // --- Math -----------------------------------------------------------------
   Object* math = NewObject();

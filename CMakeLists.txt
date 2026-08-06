@@ -468,6 +468,7 @@ microbrowser_module(js
     src/js/Statements.cpp
     src/js/StatementsIteration.cpp
     src/js/Builtins.cpp
+    src/js/ConsoleBuiltins.cpp
     src/js/StringBuiltins.cpp
     src/js/StructuredClone.cpp
     src/js/FunctionBuiltins.cpp

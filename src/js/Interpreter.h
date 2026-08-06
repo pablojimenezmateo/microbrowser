@@ -714,6 +714,9 @@ class Interpreter {
   Object* NewNative(const char* name, NativeFunction function);
   void InstallNative(Object* target, const char* name, NativeFunction function);
   void InstallGlobals();
+  // `console`, in ConsoleBuiltins.cpp. Apart from the rest because it is the
+  // host's diagnostic surface rather than part of the language.
+  void InstallConsole();
   // String.prototype, in its own translation unit: it is the largest single
   // group of builtins and Builtins.cpp is already near the module's TU limit.
   void InstallStringPrototype(Object* string_constructor);
