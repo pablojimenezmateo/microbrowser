@@ -2296,3 +2296,45 @@ What is left of the session is the engine half — nothing fetches a media `src`
 drives `MetadataArrived`/`BufferedAhead`; that is where sessions 26 and 27 arrive — and default
 controls as user-agent boxes, which is the one part of this session that is layout work rather
 than plumbing.
+
+### Replaced media elements and controls that are boxes · 2026-08-06 (session 25 finished)
+
+`abc455e`. `<video>` and `<audio>` are replaced elements now, and `controls` paints a bar.
+
+**Replaced is what stops the fallback from rendering**, and that is the whole reason it matters
+before any decoder exists: a `<video>`'s children are content the element replaces, so without
+it a page's `<source>` list and its "your browser does not support video" paragraph lay out as
+page content. One line in a predicate, visible on any page with a fallback.
+
+The default sizes are load-bearing before anything loads. 300x150 for a video is what every
+browser uses, and a page laying out around one before it loads is laying out around that number
+— a wrong one moves the page when the video appears. An `<audio>` is 300x54 *with* controls and
+**nothing at all** without them, which is what keeps one used as a sound effect from pushing a
+page around.
+
+**The controls are boxes the user agent creates inside the page**, which is ADR 0028 §1 putting
+them in ADR 0018's category rather than making them `src/ui` widgets — and the consequences are
+the argument: they live in the page's coordinate space, so a transformed or clipped video
+transforms and clips its controls, and `display: none` removes them because it removes the box.
+Neither would be true of a widget layer above the page.
+
+They are **not interactive**, and the honest version is better than the plausible one: hit
+testing does not know about them, `src/layout` may not see `media` so the builder cannot read
+the state machine, and therefore the play glyph points right and the scrubber is empty. A pause
+bar would be a claim about state this code cannot check, and a bar that looked clickable and did
+nothing would be worse than one that plainly is not.
+
+`LayoutEngine.cpp` went over its module cap, and the cap was pointing at something real rather
+than at a line count: `src/layout/ReplacedBoxes.cpp` is the question that was hiding in it —
+"an element whose content comes from outside CSS: how big is it, and what text does the user
+agent put in it?" — asked by the box builder and nothing else, with `<img>`, the form controls
+and now the media elements each answering differently.
+
+One correction worth recording as method rather than as fact. The first version of that commit
+message explained old.reddit's display-list count moving from 1061 to 1076 as "the whitespace
+collapse moving". That was a guess, and checking it showed it was probably wrong: the page has no
+`<video>` or `<audio>` at all, it is a live feed whose content changed between the two
+measurements, and neither reading was a controlled comparison. Hacker News being unchanged at 705
+is the useful control. The message now records the reddit number as **unexplained** rather than
+explained away — a plausible cause in a commit log is worse than an admitted gap, because the next
+person reads it as evidence.
