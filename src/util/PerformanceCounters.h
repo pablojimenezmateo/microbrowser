@@ -128,6 +128,28 @@ namespace microbrowser::util {
   X(NetCorsOpaque, "net.cors_opaque")                                            \
   X(NetCorsPreflights, "net.cors_preflights")                                    \
   X(NetCorsPreflightsCached, "net.cors_preflights_cached")                       \
+  /* --- HTTP/2 (ADR 0032). The pair that says whether multiplexing is         */ \
+  /* happening at all is `h2_sessions` against `h2_streams`: one session       */ \
+  /* carrying nineteen streams is the whole point, and nineteen sessions       */ \
+  /* carrying one stream each is the HTTP/1.1 burst wearing a new protocol.    */ \
+  /* `h2_connect_waits` is the coalescing working -- a request that did not    */ \
+  /* open a second socket because one to the same origin was still deciding    */ \
+  /* which protocol it spoke.                                                  */ \
+  X(NetHttp2Sessions, "net.h2_sessions")                                         \
+  X(NetHttp2Streams, "net.h2_streams")                                           \
+  X(NetHttp2ConnectWaits, "net.h2_connect_waits")                                \
+  X(NetHttp2FramesReceived, "net.h2_frames_received")                            \
+  X(NetHttp2StreamResets, "net.h2_stream_resets")                                \
+  X(NetHttp2GoAways, "net.h2_goaways")                                           \
+  X(NetHttp2ProtocolErrors, "net.h2_protocol_errors")                            \
+  X(NetHttp2WindowUpdates, "net.h2_window_updates")                              \
+  /* HPACK, as the two halves of one ratio. On the wire against decoded, so    */ \
+  /* the compression the protocol claims is a division rather than a belief;   */ \
+  /* the failure count is beside them because a decoder that has failed has    */ \
+  /* ended a connection, and that is a load event rather than a statistic.     */ \
+  X(NetHpackBlockBytes, "net.hpack_block_bytes")                                 \
+  X(NetHpackDecodedBytes, "net.hpack_decoded_bytes")                             \
+  X(NetHpackFailures, "net.hpack_failures")                                      \
   /* --- html ---------------------------------------------------------------- */ \
   X(HtmlTokens, "html.tokens")                                                   \
   X(HtmlDocumentsParsed, "html.documents_parsed")                                \
