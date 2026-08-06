@@ -2594,3 +2594,71 @@ Measured: 14 fallbacks and 12 runs split for the Japanese paragraph, 139 glyphs 
 still in the Latin face *inside the same paragraph* — which is the mixed-script case the split exists
 for. Hacker News is unchanged at 705 display-list commands with **zero** fallbacks and zero splits,
 which is the assertion that the common path costs nothing.
+
+## Session 32 — the legacy multi-byte decoders
+
+`886e95d`. Five encodings, four generated indexes, and three bugs — every one of them found by a
+check written before the code passed it, and none of them by a test that failed on its own.
+
+**A wrong range in a legacy decoder produces plausible wrong characters, not a failure.** That is
+what makes this kind of code different from a parser: a Japanese page decoded with an off-by-one
+lead range renders as a *different Japanese sentence*, and nothing downstream — not the tokenizer,
+not layout, not a reader who does not read Japanese — can tell. Unit tests written by the same
+person who wrote the arithmetic test the same misunderstanding twice. So the verification was a
+sweep of the entire two-byte space of all five encodings, 27,972 sequences each, against two
+independent references: a from-the-spec reimplementation of the algorithm, and the platform's own
+`cp932`/`cp949`/`big5hkscs`/`gb18030` codecs. **EUC-KR agreed with cp949 on all 27,972.** Where the
+others disagree, the disagreement is the standard's index deliberately differing from the vendor
+table — GB18030 pointer 6555 is an ideographic space in the index and a private-use character in
+cp936, and it is the index a page was authored against in a browser.
+
+The three bugs are worth separating by *what found them*, because they are three different kinds of
+check:
+
+**The differential found that Shift_JIS byte 0x80 was passed through raw.** It is U+0080 — two
+bytes in UTF-8 — so pushing the byte emitted a lone continuation byte. A decoder whose entire job
+is to produce UTF-8 was producing output no UTF-8 decoder accepts, on all 66 sequences that reach
+it. It looked exactly like the ASCII pass-through one line above it, which is why it was written.
+
+**Designing the fuzz invariant found two deletion bugs before the fuzzer ran.** Writing down "every
+input byte below 0x40 survives" forced the question *can any sequence consume one?* — and the answer
+was yes, in two places I had written: EUC-JP's `0x8F` and GB18030's four-byte form are both
+*refusals* here (no JIS X 0212 index; no four-byte support), and both consumed the whole sequence
+without checking its shape. So `8F 3C` and `81 30 3C 3C` each deleted a `<`. **A decoder that
+deletes a `<` hides the character a sanitiser was looking for**, which is the encoding-confusion XSS
+family in one line. Both now check the byte ranges first and otherwise consume one byte — which is
+what the standard's pushback amounts to.
+
+**Then the fuzzer found the invariant itself was wrong**, on `cf 34 d6 32` as GB18030: the four-byte
+form's second and fourth bytes are ASCII digits *by construction*, so a well-formed one legitimately
+eats two of them. The fix was to the assertion, not the code, and the exemption is narrow on
+purpose — a digit cannot begin a tag, an attribute or an entity, so losing one cannot change how a
+document parses. 9,040,399 runs clean afterwards. The single-byte family keeps the stronger
+exact-equality form, because none of its trail bytes exist.
+
+**Flat arrays rather than sorted ranges**, and the measurement is why: the four indexes are 70–100%
+dense (0.70 / 0.72 / 0.94 / 1.00), so a range structure over them is a binary search to save
+nothing. 648KB of generated `.inc`, one pointer-indexed lookup, and the element width chosen *from
+the data* — which mattered: the generator asserted "no index maps above the BMP" and **the assertion
+fired**, on Big5 pointer 947 (U+27267). A uint16 table would have truncated that to U+7267 silently,
+and a wrong character is worse than a missing one.
+
+**Four of my own new expectations were wrong and the code right** — an EUC-KR syllable, a Big5
+sentence, and *both* of Big5's macron/caron pointers, where 1164 is the macron and 1166 the caron.
+Corrected in place with a note, because getting one of those four backwards is invisible by eye.
+
+**Two assertions in an existing test were changed, deliberately.**
+`AnUnknownLabelFallsThroughRatherThanToUtf8` used `shift_jis` and `gb18030` as its examples of labels
+this browser lacks. It now uses `iso-2022-jp` and `hz-gb-2312`: an example that has become supported
+proves nothing about the fall-through it exists to test.
+
+Measured on kakaku.com, which declares `shift_jis` in a `<meta>` and sends no charset in its
+`Content-Type`, so it exercises the prescan and the decoder together: title
+`価格.com - 「買ってよかった」をすべてのひとに。` exactly, 1136 commands, 704 runs, 34 images, and
+**`encoding.replacements` absent — not one U+FFFD on a whole real Shift_JIS page.** Before this the
+label was unrecognised and fell through to windows-1252.
+
+Found on the same pass and left for later, because it is not this session's: **aozora.gr.jp's first
+inline script fails with `SyntaxError: unexpected token '<'` on `<script type="text/javascript"><!--`.**
+That is Annex B HTML-like comments, a JavaScript lexer gap, and the pattern is on a great many older
+pages — where it costs the *whole* script rather than one line.
