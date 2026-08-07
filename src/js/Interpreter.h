@@ -542,6 +542,11 @@ class Interpreter {
   // may see it, and reaching the end of a generator's frame completes the
   // generator instead of letting the value out.
   bool UnwindToHandler(const Value& thrown, std::size_t entry_depth);
+  // Drop every frame above `entry_depth` without running catch/finally. Used
+  // when the step-budget hang guard aborts a turn that already absorbed one
+  // RangeError — leaving those frames made the next `Run` share a spent
+  // budget (`BeginHostTurn` sees non-empty frames and refuses to reset).
+  void AbandonFrames(std::size_t entry_depth);
   // The value a forced return travels as, carrying what the generator should
   // return. Null when the heap is full, which the caller turns into dropping
   // the frame -- the answer this was trying to improve on.

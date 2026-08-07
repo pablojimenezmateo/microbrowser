@@ -358,6 +358,21 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // (youtube / TD-0018). One absorption gets a fresh budget for the handler.
     ExpectEval("try { while (true) {} } catch (e) { e instanceof RangeError ? 'ok' : 'no' }",
                "ok");
+    // A second exhaustion in the same turn aborts and must leave the machine
+    // clean: otherwise the next Run on the same interpreter keeps the spent
+    // frames and BeginHostTurn refuses to reset the budget (youtube -eval).
+    {
+      Interpreter interpreter;
+      const Result first =
+          interpreter.Run("try { while (true) {} } catch (e) { while (true) {} }");
+      Expect(first.completion == Completion::Throw,
+             "second hang-guard exhaustion should throw");
+      ExpectEqString(js::ToString(first.value), "RangeError: script ran too long",
+                     "second exhaustion message");
+      const Result second = interpreter.Run("2 + 2");
+      Expect(second.completion == Completion::Normal, "Run after abort must succeed");
+      ExpectEqString(js::ToString(second.value), "4", "Run after abort result");
+    }
   });
 
   AddTest(tests, "JsInterpreter/ANodeThatIsNeitherExpressionNorStatementDoesNotLoop", [] {

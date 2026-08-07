@@ -325,6 +325,18 @@ bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) 
   return false;
 }
 
+void Interpreter::AbandonFrames(std::size_t entry_depth) {
+  while (vm_.frames.size() > entry_depth) {
+    const Frame done = vm_.frames.back();
+    CloseIterationsQuietly(done.iteration_base);
+    vm_.frames.pop_back();
+    vm_.iterations.resize(done.iteration_base);
+    vm_.scopes.resize(done.scope_base);
+    vm_.locals.resize(done.locals_base);
+    vm_.stack.resize(done.stack_base);
+  }
+}
+
 Result Interpreter::CallCompiled(Object* function, const Value& self,
                                  const std::vector<Value>& arguments) {
   if (vm_.stack.size() + arguments.size() + 2 > kValueStackCapacity) {

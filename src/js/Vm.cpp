@@ -78,15 +78,20 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
     // `try { while (true) {} } catch` miss the RangeError (TD-0018).
     if (++steps_ > kMaxSteps) {
       const Result out = ExhaustedSteps();
-      if (!UnwindToHandler(out.value, entry_depth)) {
+      // One catch/finally may absorb the hang-guard. A second exhaustion in
+      // the same host turn aborts — and must leave the machine empty above
+      // `entry_depth`, or the next Evaluate/`Run` shares a spent budget
+      // (BeginHostTurn skips reset while frames remain; youtube -eval).
+      if (!step_budget_absorbed_) {
+        if (UnwindToHandler(out.value, entry_depth)) {
+          step_budget_absorbed_ = true;
+          steps_ = 0;
+          continue;
+        }
         return out;
       }
-      if (step_budget_absorbed_) {
-        return out;
-      }
-      step_budget_absorbed_ = true;
-      steps_ = 0;
-      continue;
+      AbandonFrames(entry_depth);
+      return out;
     }
     const CompiledFunction& code = *frame->code;
     Result pending;
