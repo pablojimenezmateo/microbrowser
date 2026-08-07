@@ -525,19 +525,17 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "[[x]]|null|");
   });
 
-  AddTest(tests, "DomBindings/TemplateContentNotUpgradedByDefine", [] {
-    // `customElements.define` must not walk `<template>.content`. Binding
-    // tokens there stay until stamp (or until innerHTML upgrades — TD-0017
-    // still does that; flipping InsertFragmentChildren off IsTemplateContent
-    // is blocked on TD-0018's stamp storm).
+  AddTest(tests, "DomBindings/TemplateContentCustomElementsStayInert", [] {
+    // `template.innerHTML` must not upgrade custom elements inside `.content`.
+    // Doing so stripped Polymer `data="[[…]]"` before `_parseTemplate` ran.
     ExpectScript(
         "<html><body></body></html>",
-        "const t = document.createElement('template');"
-        "t.innerHTML = '<x-foo data=\"[[host.data]]\" id=\"primary\"></x-foo>';"
         "class XFoo extends HTMLElement {"
         "  constructor(){ super(); this.upgraded = true; }"
         "}"
         "customElements.define('x-foo', XFoo);"
+        "const t = document.createElement('template');"
+        "t.innerHTML = '<x-foo data=\"[[host.data]]\" id=\"primary\"></x-foo>';"
         "const el = t.content.firstElementChild;"
         "const before = (el.upgraded === true ? 'up' : 'plain') + '|' + el.getAttribute('data') + '|' + el.id;"
         "document.body.appendChild(document.importNode(t.content, true));"

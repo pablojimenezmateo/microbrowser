@@ -7,6 +7,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "html/TreeBuilder.h"
+#include "util/PerformanceCounters.h"
 
 // A string of markup becoming nodes: `innerHTML`, `outerHTML`,
 // `insertAdjacentHTML` and `<template>`'s contents.
@@ -91,15 +92,17 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
   // in the document, which is what `customElements.define` needs -- upgrading
   // after the move would fire it there and again below.
   //
-  // Custom elements inside `<template>.content` should stay inert until
-  // stamped (HTML; TD-0017). `DocumentFragment::IsTemplateContent()` marks
-  // those fragments. Skipping UpgradeSubtree when that bit is set preserves
-  // Polymer `[[…]]` for `_parseTemplate`, but on youtube.com the resulting
-  // stamp storm never finishes a snapshot even in Release (TD-0018). Keep
-  // upgrading until that storm is bounded — then gate this loop on
-  // `!parent.IsDocumentFragment() || !static_cast<...>(parent).IsTemplateContent()`.
-  for (std::size_t i = 0; i < fragment.Children().size(); ++i) {
-    UpgradeSubtree(*fragment.Children()[i]);
+  // Custom elements inside `<template>.content` stay inert until stamped
+  // (HTML; TD-0017). Upgrading them here stripped Polymer `[[…]]` before
+  // `_parseTemplate`. ShadyDOM roots are not template content — they set
+  // `Host()` and still upgrade. Stamp cost after this is TD-0018.
+  if (!(parent.GetKind() == dom::Node::Kind::DocumentFragment &&
+        static_cast<const dom::DocumentFragment&>(parent).IsTemplateContent())) {
+    for (std::size_t i = 0; i < fragment.Children().size(); ++i) {
+      UpgradeSubtree(*fragment.Children()[i]);
+    }
+  } else {
+    util::AddPerformanceCounter(util::PerfCounterId::DomTemplateContentUpgradeSkips);
   }
   std::vector<dom::Node*> added;
   while (dom::Node* first = fragment.FirstChild()) {

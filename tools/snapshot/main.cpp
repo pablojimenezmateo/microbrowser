@@ -309,6 +309,13 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     microbrowser::util::WaitDescriptorList descriptors;
     engine.AppendWaitDescriptors(descriptors);
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
+    if (trace && (turns % 50ULL) == 0ULL) {
+      std::fprintf(stderr,
+                   "[load] turn=%llu wait descriptors=%zu deadline=%s reason=%s\n",
+                   static_cast<unsigned long long>(turns), descriptors.size(),
+                   deadline.has_value() ? "yes" : "no", engine.LoadingReason().c_str());
+      std::fflush(stderr);
+    }
     if (descriptors.empty() && !deadline.has_value()) {
       break;  // nothing outstanding, nothing runnable, no timer: stuck
     }

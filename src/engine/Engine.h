@@ -100,6 +100,9 @@ class Engine : private bindings::NetworkSource,
            !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules() ||
            page_.HasOutstandingScriptFetches();
   }
+  // Why `IsLoading` is still true — for `MICROBROWSER_LOAD_TURN_TRACE` and
+  // snapshot hang diagnosis. Empty when nothing is outstanding.
+  std::string LoadingReason() const;
 
   // What the page's script threw, so a host that is debugging one can say why
   // a document rendered the way it did. Forwarded rather than exposing the

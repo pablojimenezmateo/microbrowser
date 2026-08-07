@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -295,6 +296,27 @@ bool Engine::HasRunnableWork() const {
           !module_fetches_.empty() || !font_fetches_.empty() || !worker_fetches_.empty() ||
           page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
+}
+
+std::string Engine::LoadingReason() const {
+  std::ostringstream out;
+  auto note = [&](bool on, const char* label) {
+    if (!on) {
+      return;
+    }
+    if (out.tellp() > 0) {
+      out << ',';
+    }
+    out << label;
+  };
+  note(load_.active, "load");
+  note(!late_images_.empty(), "late_images");
+  note(!script_fetches_.empty(), "script_fetches");
+  note(!module_fetches_.empty(), "module_fetches");
+  note(!font_fetches_.empty(), "font_fetches");
+  note(page_.HasPendingModules(), "pending_modules");
+  note(page_.HasOutstandingScriptFetches(), "outstanding_scripts");
+  return out.str();
 }
 
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {

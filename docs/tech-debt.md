@@ -625,19 +625,20 @@ host-less `DocumentFragment`. `InsertFragmentChildren` upgraded custom elements 
 `_parseTemplate` therefore saw bare tags with no host bindings — browse never pushed
 `twoColumnBrowseResultsRenderer` into the two-column host.
 
-**Fix (partial).** `DocumentFragment::IsTemplateContent()` marks `<template>.content`
-so the skip is one condition. Do **not** treat every host-less fragment as inert —
-ShadyDOM stamps into one without `Host()`. Live stamped hosts still strip binding
-tokens after the constructor.
+**Fix.** `DocumentFragment::IsTemplateContent()` marks `<template>.content` so
+`InsertFragmentChildren` skips `UpgradeSubtree` there (`dom.template_content_upgrade_skips`).
+Do **not** treat every host-less fragment as inert — ShadyDOM stamps into one without
+`Host()`. Live stamped hosts still strip binding tokens after the constructor until the
+stamp path is cheap enough to leave tokens alone.
 
-**Blocked.** Skipping upgrades in `InsertFragmentChildren` for template content
-makes Polymer parse browse host bindings, then the stamp storm never finishes a
-youtube snapshot (Debug or Release, >3 min at ~100% CPU). TD-0018's step budget
-does not bound it: each host turn stays under 20M while each step does heavy
-native work. Flip the skip when that storm is bounded.
+**Status** (2026-08-07, Release). Skip is enabled. A youtube home snapshot finishes
+(~3 min Release) with masthead and two-column hosts in the tree; `ytd-rich-item-renderer`
+is still **0** (server often serves only a `feedNudgeRenderer` when history is off, and
+stamp still burns `js.steps_exhausted`). Post-load hang was mostly reflow-on-every-rAF
+(see TD-0018 layout skip).
 
-**Close when** youtube home applies browse→two-column `data` without `-eval`, and the
-live-host strip can be deleted without a hang (related: TD-0018).
+**Close when** youtube home applies browse→two-column `data` without `-eval`, rich-grid
+stamps, and the live-host strip can be deleted without a hang (related: TD-0018).
 
 ---
 
@@ -677,8 +678,15 @@ iteration; (3) nested `RunCompiled` (module eval from dynamic `import()` while
 frames were still live) called `BeginHostTurn` and reset the budget — youtube's
 stamp storm never hit 20M. Check is after fetch; one absorption resets for
 `catch`/`finally`; nested RunCompiled shares the outer budget; a second
-exhaustion in the same host turn aborts. That lets TD-0017's inert-template fix
-finish a load; stamp may still abort mid-way until the stamp itself is cheap.
+exhaustion in the same host turn aborts **and abandons frames** — returning with
+frames still on the machine left every later `-eval`/`Run` sharing a spent budget
+(`BeginHostTurn` skips reset while frames remain).
+
+**Also** (same day). `Page::Layout` early-outs when the box tree, cascade and
+laid-out width already match (`layout.skipped_clean`). `LayoutAndPaint` used to
+reflow on every rAF after a settled stamp; that was why enabling TD-0017 never
+finished a snapshot even after the load loop exited. Snapshot still paints a
+sparse chrome (history-off nudge) until feed/stamp complete.
 
 **End state.** Find the reaction loop or O(n²) stamp that burns 20M before rich-grid attach (stack
 offsets pointed at CoW `connectedCallback` → `render` → ShadyDOM `appendChild` → page
