@@ -321,6 +321,10 @@ namespace microbrowser::util {
   /* kept whatever the construction left on it. Above zero means every          */ \
   /* component of that class renders as a plain element.                       */ \
   X(DomCustomElementPrototypeMissing, "dom.custom_element_prototype_missing")     \
+  /* Inserts into `template.content` that skipped custom-element upgrade.       */ \
+  /* Should rise with youtube Polymer `_template` fills; zero with bindings     */ \
+  /* still missing means the inert guard is not on the path that builds them.   */ \
+  X(DomTemplateContentUpgradeSkips, "dom.template_content_upgrade_skips")         \
   /* Web fonts. `refused` above zero means a face this browser cannot decode -- */ \
   /* a WOFF2 until ADR 0024's brotli lands -- and the page rendered in the next */ \
   /* family of its stack, which is what a stack is for.                        */ \
@@ -467,6 +471,9 @@ namespace microbrowser::util {
   /* One entry into Page::Layout -- the unit TD-0013 compares against            */ \
   /* layout.forced_by_script and layout.pass_boxes.                              */ \
   X(LayoutPasses, "layout.passes")                                               \
+  /* LayoutAndPaint when the box tree and width already match. Without this,     */ \
+  /* every rAF on a settled page reflowed (TD-0018 / youtube post-load storm).   */ \
+  X(LayoutSkippedClean, "layout.skipped_clean")                                  \
   /* Boxes in the tree after each pass, summed across passes. Dividing by        */ \
   /* layout.passes gives the tree size a hang is chewing on.                     */ \
   X(LayoutPassBoxes, "layout.pass_boxes")                                        \

@@ -396,7 +396,8 @@ void Page::EnsureLayoutClean() {
   if (document_ == nullptr) {
     return;
   }
-  if (boxes_ != nullptr && layout_.document_version == document_->MutationVersion()) {
+  if (boxes_ != nullptr && layout_.document_version == document_->MutationVersion() &&
+      layout_.laid_out_width == layout_.width) {
     return;
   }
   // A page can reach this in a loop -- write a style, read a rect, write

@@ -315,6 +315,7 @@ void Page::RebuildAuthorStyleSheets() {
 void Page::InvalidateBoxTree() {
   boxes_.reset();
   layout_.box_tree_cascade_generation = 0;
+  layout_.laid_out_width = -1.0f;
 }
 
 void Page::EnsureBoxTree() {

@@ -818,6 +818,10 @@ class Page : private layout::ImageProvider,
     // of a document has happened -- and laying that one out at zero would
     // answer with a page one column wide.
     float width = 0.0f;
+    // Width the last `LayoutBoxes` pass actually placed at. Distinct from
+    // `width` because `SetViewport` updates that without placing — comparing
+    // only `width` would skip a resize reflow (TD-0018).
+    float laid_out_width = -1.0f;
     // dom::Document::MutationVersion() as of the last layout. Anything that
     // changes the tree moves it, so a mismatch is the layout-clean flag of
     // ADR 0015 -- and it is a comparison rather than a bit because a bit that

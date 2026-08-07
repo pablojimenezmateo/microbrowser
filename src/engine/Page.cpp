@@ -433,10 +433,10 @@ void Page::ExtractTitle() {
 
 float Page::Layout(float width) {
   util::PerformanceTrace::Scope scope("engine::Page::Layout");
-  AddPerformanceCounter(PerfCounterId::LayoutPasses);
   layout_.width = width;
   if (document_ == nullptr) {
     content_height_ = 0.0f;
+    layout_.laid_out_width = width;
     return 0.0f;
   }
   // Recorded before layout rather than after: nothing here mutates the document,
@@ -450,6 +450,19 @@ float Page::Layout(float width) {
   if (CollectShadowStyleSheets()) {
     RebuildAuthorStyleSheets();
   }
+  // Same clean check `EnsureLayoutClean` uses, plus cascade and laid-out width.
+  // `LayoutAndPaint` used to reflow on every rAF even when the tree had not
+  // moved — on a stamped youtube tree each pass is seconds, and the snapshot's
+  // post-load `RunDueWork` loop never finished (TD-0018).
+  const std::uint64_t cascade = resolver_.Generation();
+  const std::uint64_t doc_ver = document_->MutationVersion();
+  if (boxes_ != nullptr && layout_.document_version == doc_ver &&
+      layout_.box_tree_cascade_generation == cascade &&
+      layout_.laid_out_width == width) {
+    AddPerformanceCounter(PerfCounterId::LayoutSkippedClean);
+    return content_height_;
+  }
+  AddPerformanceCounter(PerfCounterId::LayoutPasses);
   EnsureBoxTree();
   const layout::LayoutEngine engine(resolver_, text_ctx_.Measurer(), this);
   // The box tree is rebuilt when the document or cascade changes. Background
@@ -470,6 +483,7 @@ float Page::Layout(float width) {
     AddPerformanceCounter(PerfCounterId::LayoutPassBoxes, CountBoxes(*boxes_));
   }
   layout_.document_version = document_->MutationVersion();
+  layout_.laid_out_width = width;
   util::LoadTimeline::Mark("layout.end");
   // The scroll offsets go back on, clamped against the overflow this layout
   // just measured. Layout consults them and does not own them -- ADR 0018 §1 --
