@@ -412,16 +412,20 @@ ratio on a pathological tree).
 | `NotifyConnection` / upgrade `connectedCallback` use `OwnerDocument()` | custom elements inside a shadow tree get connection reactions |
 | `UpgradeSubtree` walks `<template>` contents | custom tags inside a template upgrade when a subtree is inserted |
 
-Measured after (Debug): **494** upgrades, **0** constructor throws, **81** display-list
-commands, **ytd-app** has **13** children / **650** descendants, partial text binding
-(**4** bound / **4** unbound `[[…]]` tokens). Feed still empty (`0`
-`ytd-rich-item-renderer`, **0** `ytimg` images). Display list still paints literal
-`[[getSimpleString(data.title)]]` — property effects not fully applying. Upgrading
-custom elements inside `<template>` at `define()` time was tried and **reverted**:
-**392** upgrades and **6** `dom.custom_element_constructor_throws` on youtube.com.
+**Update** (2026-08-07, session 56). Text bindings and attribute surface:
 
-**Next:** why Polymer property effects leave text/attribute bindings unresolved after
-`__data` is set; feed renderer stamping (`ytd-rich-item-renderer`).
+| fix | effect |
+|---|---|
+| `Node.textContent` setter on Text/Comment sets `data` | Polymer property-effects that write `textNode.textContent` no longer leave literal `[[…]]` in `Data()` |
+| `isConnected` uses `OwnerDocument()` | true inside shadow trees (Polymer gates on it) |
+| `getAttribute` / `attributes` / `cloneNode` / `setAttribute` keep binding tokens | Polymer can see `items="[[…]]"` to wire effects |
+| upgrade still strips `[[…]]`/`{{…}}` before the constructor | leaving them there made youtube hang (unbounded Polymer deserialize/reaction); documented below |
+
+Measured after (Debug, ~75s): **tokens:0** unbound text, **47** non-empty text nodes, **7** `dom-repeat` in the tree, **493** upgrades, **73** display-list commands. Feed still empty: **0** `ytd-rich-item-renderer`, every `dom-repeat.items` is `null`, **0** images drawn. Console warns `Polymer::Attributes: couldn't decode Array as JSON: [[computedBadges]]` / `[[shownItems]]` — tokens reach deserialize on some path after stamp.
+
+**TD-0017** (opened here): stripping binding tokens at upgrade is wrong-by-platform and kept only because full preservation hung youtube; the end state is leave attributes alone and fix whatever reaction loop that hang was.
+
+**Next:** why `dom-repeat.items` stays null despite browse `__data.data.contents.twoColumnBrowseResultsRenderer`; property path from browse data into the grid.
 
 | counter | value |
 |---|---|
@@ -606,6 +610,34 @@ needs a completed snapshot (feed articles > 0, `ac-render-template` registered) 
 **End state.** Let the challenge-interstitial polyfill chain run to completion and confirm
 `runtime-concat` fetches in the timeline; implement `<suspense-replace>` hoisting for the `for=`
 templates; close when the snapshot shows feed posts rather than an empty main region.
+
+---
+
+## TD-0017 — Upgrade still strips Polymer binding-token attributes
+
+`getAttribute`, `attributes`, `cloneNode`/`importNode` and `setAttribute` now keep `[[…]]` /
+`{{…}}` values (session 56). That is the platform-correct surface and what lets Polymer see
+`items="[[…]]"` on a stamp.
+
+`UpgradeElement` still removes those tokens **before** the custom-element constructor runs.
+Without that strip, youtube.com spins at ~99% CPU and never finishes a snapshot (measured
+2026-08-07: multi-minute hang, no counters dump). With it, the load finishes in ~75s and
+Polymer logs `couldn't decode Array as JSON: [[computedBadges]]` on other paths — so tokens
+still reach `_deserializeValue` after stamp, and `dom-repeat.items` stays `null`.
+
+**Measured**, Debug, after session 56's partial fix:
+
+| | strip at upgrade | preserve at upgrade too |
+|---|---|---|
+| snapshot | **~75s, finishes** | ≥3 min at 99% CPU, killed |
+| unbound `[[` text nodes | **0** | n/a |
+| `dom-repeat` in tree | **7** | n/a |
+| `dom-repeat.items` | all `null` | n/a |
+| `ytd-rich-item-renderer` | **0** | n/a |
+
+**End state.** No attribute stripping anywhere. Find the reaction/deserialize loop that hangs
+when tokens are present at upgrade, fix that, and close when youtube stamps feed items without
+the upgrade-time remove.
 
 ---
 

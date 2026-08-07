@@ -112,12 +112,14 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
   });
   // Whether the node is in the document rather than floating: script that made
   // an element and has not appended it yet reads false, which is what a
-  // framework checks before it does layout-dependent work.
+  // framework checks before it does layout-dependent work. OwnerDocument
+  // crosses shadow roots; parent-walking does not, and Polymer gates enable
+  // on `isConnected` inside stamped trees.
   accessor("isConnected", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     return Value::Bool(owner != nullptr && self != nullptr &&
-                       IsInclusiveDescendant(self, owner->document_));
+                       self->OwnerDocument() == owner->document_);
   });
 }
 
@@ -345,9 +347,8 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
                               const dom::Attribute& attribute) {
       const Value entry = interpreter.NewObjectValue();
       if (entry.IsObject()) {
-        const std::string value = ScriptAttributeValue(attribute.value);
         entry.object->Set("name", Value::String(attribute.name));
-        entry.object->Set("value", Value::String(value));
+        entry.object->Set("value", Value::String(attribute.value));
         // Attr's historical aliases. Cheap, and stops a page that probes
         // `nodeName` after getNamedItem from seeing undefined.
         entry.object->Set("nodeName", Value::String(attribute.name));

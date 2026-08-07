@@ -95,15 +95,25 @@ void DomBindings::UpgradeElement(dom::Element& element) {
   }
   wrapper.object->Set(kUpgradedSlot, Value::Bool(true));
 
-  // Unresolved `[[prop]]` / `[prop]` / `{{prop}}` tokens in attributes are not
-  // data — they are template binding syntax. Polymer's constructor reads
-  // `this.attributes` and JSON.parses Array/Object types; a literal
-  // `[[computedBadges]]` warns and leaves the property null, which is what
-  // stopped youtube's badge subtree from stamping.
-  for (const dom::Attribute& attribute : element.Attributes()) {
-    if (IsUnresolvedTemplateBindingValue(attribute.value)) {
+  // Binding tokens in attributes are real DOM values (getAttribute/clone keep
+  // them so Polymer can wire effects). At upgrade time only, strip ones that
+  // look like `[[…]]` / `{{…}}` before the constructor runs: Polymer's
+  // `_deserializeValue` JSON.parses Array/Object property types from
+  // `this.attributes`, and a literal token leaves the property null *and* on
+  // youtube.com drove an unbounded reaction loop when left in place here.
+  for (std::size_t i = 0; i < element.Attributes().size();) {
+    const dom::Attribute& attribute = element.Attributes()[i];
+    const std::string_view value = attribute.value;
+    const bool binding =
+        (value.size() >= 4 && value[0] == '[' && value[1] == '[' &&
+         value[value.size() - 2] == ']' && value[value.size() - 1] == ']') ||
+        (value.size() >= 4 && value[0] == '{' && value[1] == '{' &&
+         value[value.size() - 2] == '}' && value[value.size() - 1] == '}');
+    if (binding) {
       element.RemoveAttribute(attribute.name);
+      continue;
     }
+    ++i;
   }
 
   // The class's prototype goes on *before* the constructor runs, and that

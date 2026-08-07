@@ -39,9 +39,6 @@ std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep) {
       const auto& element = static_cast<const dom::Element&>(node);
       auto made = std::make_unique<dom::Element>(element.TagName());
       for (const dom::Attribute& attribute : element.Attributes()) {
-        if (IsUnresolvedTemplateBindingValue(attribute.value)) {
-          continue;
-        }
         made->SetAttribute(attribute.name, attribute.value);
       }
       copy = std::move(made);
@@ -105,10 +102,11 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     }
   };
 
-  // `textContent` both ways. Setting it drops every child and puts one text
-  // node in their place, which is the cheap and safe way a page replaces the
-  // contents of an element -- and the reason it could not exist until removal
-  // did.
+  // `textContent` both ways. On CharacterData it is `data`; on everything else
+  // it drops every child and puts one text node in their place. Polymer's text
+  // property-effects write `textNode.textContent`, and treating a Text like an
+  // Element left the original `[[binding]]` in `Data()` while appending a
+  // sibling -- which is how youtube.com painted literal tokens after effects ran.
   accessor(
       "textContent",
       [](NativeCall& call) {
@@ -121,8 +119,16 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
         if (owner == nullptr || self == nullptr) {
           return Value::Undefined();
         }
-        owner->ClearChildren(*self);
         const std::string text = js::ToString(Argument(call.arguments, 0));
+        if (self->IsText()) {
+          static_cast<dom::Text*>(self)->SetData(text);
+          return Value::Undefined();
+        }
+        if (self->GetKind() == dom::Node::Kind::Comment) {
+          static_cast<dom::Comment*>(self)->SetData(text);
+          return Value::Undefined();
+        }
+        owner->ClearChildren(*self);
         if (!text.empty()) {
           owner->AppendTextTo(*self, text);
         }

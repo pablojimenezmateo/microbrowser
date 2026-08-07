@@ -131,8 +131,9 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
                        "const r = h.attachShadow({mode: 'open'});"
                        "const e = document.createElement('x-in-shadow');"
                        "r.appendChild(e);"
-                       "console.log(seen);"),
-                   "in", "a custom element appended to a shadow root is connected");
+                       "console.log(seen + '|' + e.isConnected);"),
+                   "in|true",
+                   "a custom element appended to a shadow root is connected");
   });
 
   AddTest(tests, "ShadowDom/NodeTypeConstantsAreOnTheNodeInterface", [] {

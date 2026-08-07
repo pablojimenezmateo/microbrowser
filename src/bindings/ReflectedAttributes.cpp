@@ -148,12 +148,6 @@ void DomBindings::SetElementAttribute(dom::Element& element, const std::string& 
   // given and there is no second chance to ask.
   const std::string* previous = element.GetAttribute(name);
   const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
-  if (IsUnresolvedTemplateBindingValue(value)) {
-    element.RemoveAttribute(name);
-    RunAttributeReaction(element, name, old_value, Value::Null());
-    RecordMutation(element, "attributes", name, old_value, {}, {});
-    return;
-  }
   element.SetAttribute(name, value);
   // **A media element's `src` set to an object URL is an *attach*, not a fetch.** This is the one path
   // by which a `MediaSource` reaches an element -- `video.src = URL.createObjectURL(source)` -- and it

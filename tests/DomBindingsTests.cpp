@@ -320,11 +320,16 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.createComment('x') instanceof CharacterData", "true");
     ExpectScript(kPage, "document.createTextNode('x') instanceof Text", "true");
     ExpectScript(kPage, "document.createTextNode('x') instanceof Comment", "false");
-    // Polymer text bindings set `textNode.data` after stamping.
+    // Polymer text bindings set `textNode.data` and `textNode.textContent`.
     ExpectScript(kPage,
                  "const t = document.createTextNode('[[label]]');"
                  "t.data = 'bound'; t.data + '|' + t.length + '|' + t.nodeValue",
                  "bound|5|bound");
+    ExpectScript(kPage,
+                 "const t = document.createTextNode('[[label]]');"
+                 "t.textContent = 'bound';"
+                 "t.data + '|' + t.childNodes.length + '|' + t.textContent",
+                 "bound|0|bound");
     ExpectScript(kPage,
                  "const c = document.createComment('[[x]]'); c.data = 'ok'; c.nodeValue",
                  "ok");
@@ -467,21 +472,20 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "TypeError");
   });
 
-  AddTest(tests, "DomBindings/UnresolvedTemplateBindingAttributesAreAbsent", [] {
-    // Polymer stamps attributes like `[[computedBadges]]` and `[prop]`. They are
-    // binding syntax, not literal data — Polymer's `_deserializeValue` JSON.parses
-    // Array/Object types from `element.attributes`, and a literal token warns and
-    // leaves the property null, which blocked youtube's badge subtree from stamping.
+  AddTest(tests, "DomBindings/TemplateBindingAttributeValuesArePreserved", [] {
+    // Binding tokens are real attribute values until the framework replaces
+    // them. Hiding or stripping them blocked Polymer from wiring dom-repeat
+    // `items="[[…]]"` and every other attribute binding on youtube.com.
     ExpectScript(kPage,
                  "const el = document.createElement('div');"
-                 "el.setAttribute('badges', '[[computedBadges]]');"
-                 "el.getAttribute('badges')",
-                 "null");
+                 "el.setAttribute('items', '[[data]]');"
+                 "el.getAttribute('items')",
+                 "[[data]]");
     ExpectScript(kPage,
                  "const el = document.createElement('div');"
                  "el.setAttribute('prop', '[hostProp]');"
                  "el.getAttribute('prop')",
-                 "null");
+                 "[hostProp]");
     ExpectScript(kPage,
                  "const el = document.createElement('div');"
                  "el.setAttribute('items', '[1,2,3]');"
@@ -489,25 +493,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "[1,2,3]");
     ExpectScript(kPage,
                  "const t = document.createElement('template');"
-                 "t.innerHTML = '<span badges=\"[[computedBadges]]\"></span>';"
+                 "t.innerHTML = '<span items=\"[[items]]\">[[t]]</span>';"
                  "const stamp = document.importNode(t.content, true);"
-                 "stamp.querySelector('span').getAttribute('badges')",
-                 "null");
-    // Polymer's constructor reads `this.attributes` and JSON.parses Array types.
-    ExpectScript("<html><body><bind-host badges='[[computedBadges]]'></bind-host></body></html>",
-                 "class Host extends HTMLElement {"
-                 "  constructor(){ super();"
-                 "    for (const attr of this.attributes) {"
-                 "      try { this.parsed = JSON.parse(attr.value); }"
-                 "      catch (e) { this.parsed = 'bad'; }"
-                 "    }"
-                 "  }"
-                 "}"
-                 "customElements.define('bind-host', Host);"
-                 "document.querySelector('bind-host').parsed",
-                 "undefined");
+                 "const s = stamp.querySelector('span');"
+                 "s.getAttribute('items') + '|' + s.textContent",
+                 "[[items]]|[[t]]");
     // Observed attributes present at upgrade get attributeChangedCallback with a
-    // null old value, which Polymer uses to apply bindings deferred from literals.
+    // null old value. Binding tokens on the host are stripped at upgrade only
+    // (see UpgradeElement) so they do not reach `_deserializeValue`.
     ExpectScript("<html><body><x-t v='1'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -517,6 +510,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('x-t', T);"
                  "log.join('|')",
                  "v:null->1");
+    ExpectScript("<html><body><x-t v='[[x]]'></x-t></body></html>",
+                 "class T extends HTMLElement {"
+                 "  static get observedAttributes(){ return ['v'] }"
+                 "  constructor(){ super(); this.seen = this.getAttribute('v') }"
+                 "}"
+                 "customElements.define('x-t', T);"
+                 "document.querySelector('x-t').seen",
+                 "null");
   });
 
   // MutationObserver. The shape is the specification's and it is not the
