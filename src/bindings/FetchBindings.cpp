@@ -385,6 +385,11 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
   }
   pending->object->SetElements(kept, std::vector<bool>(kept.size(), true));
 
+  // A network answer is a new host task. Without this, kevlar can leave
+  // `steps_` past the hang-guard limit and every `then` / XHR handler throws
+  // `RangeError: script ran too long` before doing any stamp work (TD-0018).
+  interpreter_->BeginTask();
+
   if (xhr.IsObject()) {
     DeliverToXhr(xhr, response);
     return true;

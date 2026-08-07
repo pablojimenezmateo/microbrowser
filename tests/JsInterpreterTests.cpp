@@ -373,6 +373,24 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       Expect(second.completion == Completion::Normal, "Run after abort must succeed");
       ExpectEqString(js::ToString(second.value), "4", "Run after abort result");
     }
+    // A spent budget must not poison the next host *task*. Fetch delivery uses
+    // BeginTask(); CallFunction alone does not reset.
+    {
+      Interpreter interpreter;
+      const Result ready = interpreter.Run("globalThis.f = () => 42; 'ok'");
+      Expect(ready.completion == Completion::Normal, "install callback");
+      const js::Value* fn = interpreter.Global()->GetOwn("f");
+      Expect(fn != nullptr && fn->IsObject(), "callback is callable");
+      Expect(interpreter.Run("while (true) {}").completion == Completion::Throw,
+             "burn the budget");
+      const Result blocked =
+          interpreter.CallFunction(*fn, js::Value::Undefined(), {});
+      Expect(blocked.completion == Completion::Throw, "CallFunction keeps spent budget");
+      interpreter.BeginTask();
+      const Result after = interpreter.CallFunction(*fn, js::Value::Undefined(), {});
+      Expect(after.completion == Completion::Normal, "BeginTask clears the budget");
+      ExpectEqString(js::ToString(after.value), "42", "BeginTask result");
+    }
   });
 
   AddTest(tests, "JsInterpreter/ANodeThatIsNeitherExpressionNorStatementDoesNotLoop", [] {

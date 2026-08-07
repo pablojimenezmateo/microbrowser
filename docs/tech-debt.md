@@ -688,10 +688,21 @@ reflow on every rAF after a settled stamp; that was why enabling TD-0017 never
 finished a snapshot even after the load loop exited. Snapshot still paints a
 sparse chrome (history-off nudge) until feed/stamp complete.
 
+**Also** (same day). `DeliverFetchResponse` calls `Interpreter::BeginTask()` so a
+network answer is a fresh host turn. Timers/rAF still must **not** reset — that
+hang remains. Guide data (`/youtubei/v1/guide`) and search stamp continuations
+were dying on a spent budget after kevlar.
+
+**YouTube Gate C notes (same day).** Home `ytInitialData` for this visitor is
+nudge-only (`feedNudgeRenderer`, 0 `richItemRenderer`) under Chrome UA too —
+not a UA hole. Persistent `ytd-guide-renderer` is gated by Polymer `dom-if` on
+`renderGuide` (width threshold **1312**); at snapshot 1280 expect
+`ytd-mini-guide-renderer`. Prove thumbnails on `/results?search_query=…`.
+
 **End state.** Find the reaction loop or O(n²) stamp that burns 20M before rich-grid attach (stack
 offsets pointed at CoW `connectedCallback` → `render` → ShadyDOM `appendChild` → page
 `attachPage`). Close when `js.steps_exhausted` is 0 on a youtube home load and
-`ytd-rich-item-renderer` count is non-zero. Related: TD-0017 (binding-token strip), TD-0007 /
+thumbnails paint on a route that has them (search is enough while home is nudge-only). Related: TD-0017 (binding-token strip), TD-0007 /
 ADR 0036 (script monolith).
 
 ---

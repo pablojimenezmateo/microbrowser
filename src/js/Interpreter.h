@@ -363,6 +363,13 @@ class Interpreter {
   void DrainMicrotasks();
   bool HasPendingMicrotasks() const { return !microtasks_.empty(); }
 
+  // Fresh step budget for a host *task* (HTML event-loop task), when the
+  // machine is idle. Used for fetch/XHR delivery: after kevlar spends the
+  // budget, promise reactions must not start already past `kMaxSteps`
+  // (TD-0018 / youtube guide+search stamp). Do **not** call from timers or
+  // rAF — resetting those let a post-script storm run forever.
+  void BeginTask() { BeginHostTurn(); }
+
   // The `Symbol.iterator` cell, so a caller can ask for the protocol hook
   // without going through the global object -- which a page can reassign.
   Object* SymbolIterator() const { return well_known_.symbol_iterator; }
