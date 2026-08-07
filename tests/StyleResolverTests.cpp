@@ -145,6 +145,39 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(StyleOf("<p>x</p>", "p { background-size: calc(1rem + 4px) }", "p")
                    .background.size_x == Length::Pixels(20.0f),
            "and the same rule holds where the shorthand takes one or two lengths");
+
+    // Wikipedia's remaining session-4 calc failures were `max()` after rem
+    // folds to px. Compare only when both sides are the same absolute (or the
+    // same single relative dimension); refuse a used-value comparison.
+    Expect(ParseLength("max(1rem, 10px)") == Length::Pixels(16.0f),
+           "top-level max, rem folded at the root size before compare");
+    Expect(ParseLength("calc(max(1rem, 10px))") == Length::Pixels(16.0f),
+           "and the same nested in calc, which is the form the sheet writes");
+    Expect(ParseLength("calc(max(calc(1rem + 4px), 10px))") == Length::Pixels(20.0f),
+           "nested calc inside max, the padding form on vector");
+    Expect(ParseLength("calc(max(calc(1rem - 4px), 10px))") == Length::Pixels(12.0f),
+           "and the subtract form stays above the floor");
+    Expect(ParseLength("min(20px, 10px)") == Length::Pixels(10.0f), "min takes the lesser");
+    Expect(ParseLength("clamp(10px, 5px, 20px)") == Length::Pixels(10.0f),
+           "clamp is max(MIN, min(VAL, MAX)): below the floor rises to MIN");
+    Expect(ParseLength("clamp(10px, 15px, 20px)") == Length::Pixels(15.0f), "inside the range");
+    Expect(ParseLength("clamp(10px, 25px, 20px)") == Length::Pixels(20.0f), "above the ceiling");
+    Expect(ParseLength("max(0, 10px)") == Length::Pixels(10.0f),
+           "a bare 0 is a length zero in a math function");
+    Expect(ParseLength("MAX(5px, 12px)") == Length::Pixels(12.0f), "function names are not cased");
+    Expect(!ParseLength("min(50px, 70%)").has_value(),
+           "px against percent needs a used value; refuse rather than guess");
+    Expect(!ParseLength("max(0, 10%)").has_value(),
+           "and a bare 0 must not be retyped as 0% just to make the compare succeed");
+    Expect(!ParseLength("min(10%, 20%)").has_value(),
+           "percent-vs-percent is deferred in the spec; this Length has nowhere to put that");
+    Expect(!ParseLength("min(10px, 5vw)").has_value(), "and an unknown unit still drops it");
+    Expect(!ParseLength("max()").has_value(), "no empty argument list");
+    Expect(!ParseLength("clamp(1px, 2px)").has_value(), "clamp needs exactly three arguments");
+    Expect(SupportsDeclaration("width", "max(1rem, 10px)"),
+           "@supports follows ApplyDeclaration, so a working max says yes");
+    Expect(!SupportsDeclaration("width", "min(50px, 70%)"),
+           "and an unrepresentable min still says no");
   });
 
   // The half of `@supports` that has to stay true as the engine changes. A

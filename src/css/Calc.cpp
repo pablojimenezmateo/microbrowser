@@ -7,13 +7,20 @@
 #include "css/CssText.h"
 #include "util/Parse.h"
 
-// `calc()`, per CSS Values and Units 3 §8.
+// `calc()`, `min()`, `max()` and `clamp()`, per CSS Values and Units 4 §8.
 //
 // Its own translation unit rather than another branch in Declarations.cpp,
 // because it is a recursive-descent parser over attacker-controlled text and
 // that is a different kind of thing from the table of properties which reads
 // its answer. The module's line cap would have said the same eventually; this
 // is the same reason stated earlier.
+//
+// `min`/`max`/`clamp` share the expression grammar with `calc`. Wikipedia's
+// remaining failed length declarations after session 4 were almost all
+// `calc(max(...))` / bare `max(...)` with rem and px — comparable absolutes
+// once rem folds. Incomparable pairs (`min(50px, 70%)`, anything with `vw`)
+// stay nullopt: a Length cannot hold two competing relative answers, and
+// guessing would be worse than dropping the declaration.
 
 namespace microbrowser::css {
 
@@ -49,15 +56,61 @@ bool Finite(const Sum& sum) {
          std::isfinite(sum.percent);
 }
 
+// A bare `0` is a length in CSS math functions. Anywhere else a non-zero
+// unitless number is not comparable to a length, so leave those alone.
+Sum CanonicalLengthZero(Sum sum) {
+  if (sum.IsPureNumber() && sum.number == 0.0) {
+    sum.px = 0.0;
+  }
+  return sum;
+}
+
+// -1 / 0 / 1 when both sides are resolved absolutes (px / rem / pt, and a bare
+// `0`); nullopt when the comparison needs a used value. Relative-vs-relative
+// (`min(10%, 20%)`) is deliberately refused too: a Length can store one answer,
+// not a deferred comparison, and accepting `max(0, 10%)` as `10%` by treating
+// zero as `0%` would be wrong. Wikipedia's failing forms are all rem/px.
+std::optional<int> CompareSums(Sum left, Sum right) {
+  left = CanonicalLengthZero(left);
+  right = CanonicalLengthZero(right);
+  if (left.number != 0.0 || right.number != 0.0 || left.em != 0.0 || right.em != 0.0 ||
+      left.percent != 0.0 || right.percent != 0.0) {
+    return std::nullopt;
+  }
+  if (left.px < right.px) {
+    return -1;
+  }
+  if (left.px > right.px) {
+    return 1;
+  }
+  return 0;
+}
+
 class CalcParser {
  public:
   explicit CalcParser(std::string_view text) : text_(text) {}
 
-  // The whole expression, which must consume the text: trailing junk is a
-  // syntax error rather than something to ignore, or `calc(1px) blue` would
-  // read as a length.
-  std::optional<Sum> ParseAll() {
-    const std::optional<Sum> sum = ParseSum(0);
+  // One top-level math function — `calc(...)`, `min(...)`, `max(...)` or
+  // `clamp(...)` — consuming the whole text.
+  std::optional<Sum> ParseMathFunction() {
+    SkipWhitespace();
+    std::optional<Sum> sum;
+    if (TakeFunction("calc")) {
+      sum = ParseSum(0);
+      SkipWhitespace();
+      if (!sum.has_value() || !Peek(')')) {
+        return std::nullopt;
+      }
+      ++at_;
+    } else if (TakeFunction("min")) {
+      sum = ParseMinMaxArgs(0, false);
+    } else if (TakeFunction("max")) {
+      sum = ParseMinMaxArgs(0, true);
+    } else if (TakeFunction("clamp")) {
+      sum = ParseClampArgs(0);
+    } else {
+      return std::nullopt;
+    }
     SkipWhitespace();
     if (!sum.has_value() || at_ != text_.size()) {
       return std::nullopt;
@@ -73,6 +126,19 @@ class CalcParser {
   }
 
   bool Peek(char c) const { return at_ < text_.size() && text_[at_] == c; }
+
+  // True when `name(` begins at `at_`, case-insensitive. Advances past the
+  // opening parenthesis on a match.
+  bool TakeFunction(std::string_view name) {
+    if (at_ + name.size() >= text_.size()) {
+      return false;
+    }
+    if (Lowered(text_.substr(at_, name.size())) != name || text_[at_ + name.size()] != '(') {
+      return false;
+    }
+    at_ += name.size() + 1;
+    return true;
+  }
 
   // `+` and `-` are only operators when surrounded by whitespace. The
   // requirement is in the specification because it is what separates
@@ -95,6 +161,69 @@ class CalcParser {
     const char op = text_[ahead];
     at_ = ahead + 1;
     return op;
+  }
+
+  std::optional<Sum> ParseMinMaxArgs(int depth, bool want_max) {
+    std::optional<Sum> best;
+    while (true) {
+      const std::optional<Sum> arg = ParseSum(depth);
+      if (!arg.has_value()) {
+        return std::nullopt;
+      }
+      if (!best.has_value()) {
+        best = arg;
+      } else {
+        const std::optional<int> cmp = CompareSums(*best, *arg);
+        if (!cmp.has_value()) {
+          return std::nullopt;
+        }
+        if (want_max ? *cmp < 0 : *cmp > 0) {
+          best = arg;
+        }
+      }
+      SkipWhitespace();
+      if (Peek(')')) {
+        ++at_;
+        return Finite(*best) ? best : std::nullopt;
+      }
+      if (!Peek(',')) {
+        return std::nullopt;
+      }
+      ++at_;
+    }
+  }
+
+  std::optional<Sum> ParseClampArgs(int depth) {
+    const std::optional<Sum> lower = ParseSum(depth);
+    SkipWhitespace();
+    if (!lower.has_value() || !Peek(',')) {
+      return std::nullopt;
+    }
+    ++at_;
+    const std::optional<Sum> value = ParseSum(depth);
+    SkipWhitespace();
+    if (!value.has_value() || !Peek(',')) {
+      return std::nullopt;
+    }
+    ++at_;
+    const std::optional<Sum> upper = ParseSum(depth);
+    SkipWhitespace();
+    if (!upper.has_value() || !Peek(')')) {
+      return std::nullopt;
+    }
+    ++at_;
+    // CSS Values 4: clamp(MIN, VAL, MAX) ≡ max(MIN, min(VAL, MAX)).
+    const std::optional<int> inner = CompareSums(*value, *upper);
+    if (!inner.has_value()) {
+      return std::nullopt;
+    }
+    const Sum capped = *inner > 0 ? *upper : *value;
+    const std::optional<int> outer = CompareSums(*lower, capped);
+    if (!outer.has_value()) {
+      return std::nullopt;
+    }
+    const Sum result = *outer > 0 ? *lower : capped;
+    return Finite(result) ? std::optional<Sum>(result) : std::nullopt;
   }
 
   std::optional<Sum> ParseSum(int depth) {
@@ -172,16 +301,10 @@ class CalcParser {
     if (at_ >= text_.size()) {
       return std::nullopt;
     }
-    // A parenthesised sum, and the nested `calc()` the specification also
-    // allows — `calc(calc(1px) * 2)` is legal and means what it looks like.
-    std::size_t open = std::string_view::npos;
+    // Parentheses, nested `calc()`, and the other math functions that share
+    // its grammar — `calc(max(1rem, 10px))` is what wikipedia writes.
     if (text_[at_] == '(') {
-      open = at_ + 1;
-    } else if (Lowered(text_.substr(at_, 5)) == "calc(") {
-      open = at_ + 5;
-    }
-    if (open != std::string_view::npos) {
-      at_ = open;
+      ++at_;
       const std::optional<Sum> inner = ParseSum(depth + 1);
       SkipWhitespace();
       if (!inner.has_value() || !Peek(')')) {
@@ -189,6 +312,24 @@ class CalcParser {
       }
       ++at_;
       return inner;
+    }
+    if (TakeFunction("calc")) {
+      const std::optional<Sum> inner = ParseSum(depth + 1);
+      SkipWhitespace();
+      if (!inner.has_value() || !Peek(')')) {
+        return std::nullopt;
+      }
+      ++at_;
+      return inner;
+    }
+    if (TakeFunction("min")) {
+      return ParseMinMaxArgs(depth + 1, false);
+    }
+    if (TakeFunction("max")) {
+      return ParseMinMaxArgs(depth + 1, true);
+    }
+    if (TakeFunction("clamp")) {
+      return ParseClampArgs(depth + 1);
     }
     return ParseNumeric();
   }
@@ -320,12 +461,11 @@ std::optional<Length> ToLength(const Sum& sum) {
 
 std::optional<Length> ParseCalc(std::string_view text) {
   const std::string_view trimmed = Trim(text);
-  if (trimmed.size() < 6 || trimmed.back() != ')' ||
-      Lowered(trimmed.substr(0, 5)) != "calc(") {
+  if (trimmed.size() < 4) {
     return std::nullopt;
   }
-  CalcParser parser(trimmed.substr(5, trimmed.size() - 6));
-  const std::optional<Sum> sum = parser.ParseAll();
+  CalcParser parser(trimmed);
+  const std::optional<Sum> sum = parser.ParseMathFunction();
   if (!sum.has_value()) {
     return std::nullopt;
   }

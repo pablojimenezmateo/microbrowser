@@ -204,10 +204,13 @@ std::optional<Length> ParseLength(std::string_view text) {
   if (lowered == "auto") {
     return Length::Auto();
   }
-  // Every property that takes a length takes a `calc()` of one, so the funnel
-  // is here rather than at each of them. A calc this engine cannot represent
-  // returns nullopt and drops its declaration, exactly as an unknown unit does.
-  if (lowered.compare(0, 5, "calc(") == 0) {
+  // Every property that takes a length takes a math function of one, so the
+  // funnel is here rather than at each of them. A calc/min/max/clamp this
+  // engine cannot represent returns nullopt and drops its declaration, exactly
+  // as an unknown unit does. Top-level `max(...)` is what wikipedia writes
+  // alongside `calc(max(...))`.
+  if (lowered.compare(0, 5, "calc(") == 0 || lowered.compare(0, 4, "min(") == 0 ||
+      lowered.compare(0, 4, "max(") == 0 || lowered.compare(0, 6, "clamp(") == 0) {
     return ParseCalc(lowered);
   }
 
