@@ -57,7 +57,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
     // A page can write `while (true) {}`. A step budget makes that a thrown
     // error rather than a hung browser, which is the only difference a user
     // would notice between the two.
-    return Throw("RangeError", "script ran too long");
+    return ExhaustedSteps();
   }
 
   switch (node.kind) {
@@ -640,7 +640,7 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
     return Throw("RangeError", "maximum call stack size exceeded");
   }
   if (++steps_ > kMaxSteps) {
-    return Throw("RangeError", "script ran too long");
+    return ExhaustedSteps();
   }
 
   // A label reaches the statement it was written on and no further.

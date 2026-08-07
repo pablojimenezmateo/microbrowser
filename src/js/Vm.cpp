@@ -50,7 +50,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       // A page can write `while (true) {}`. A step budget makes that a thrown
       // error rather than a hung browser, which is the only difference a user
       // would notice between the two.
-      const Result out = Throw("RangeError", "script ran too long");
+      const Result out = ExhaustedSteps();
       if (!UnwindToHandler(out.value, entry_depth)) {
         return out;
       }

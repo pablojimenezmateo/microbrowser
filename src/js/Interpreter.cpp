@@ -9,6 +9,7 @@
 #include "js/BuiltinSupport.h"
 #include "js/StringUnits.h"
 #include "util/Env.h"
+#include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
 
 namespace microbrowser::js {
@@ -21,6 +22,17 @@ namespace {
 constexpr std::size_t kCollectionThreshold = 4096;
 
 }  // namespace
+
+void Interpreter::BeginHostTurn() {
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  steps_ = 0;
+}
+
+Result Interpreter::ExhaustedSteps() {
+  util::AddPerformanceCounter(util::PerfCounterId::JsStepsExhausted);
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  return Throw("RangeError", "script ran too long");
+}
 
 Interpreter::Interpreter() {
   // Reserved once, and never allowed to grow past it. The machine takes
@@ -971,7 +983,11 @@ Result Interpreter::Run(std::string_view source) {
 }
 
 Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* scope) {
-  steps_ = 0;
+  // A top-level script is a host turn. Microtasks and nested CallCompiled
+  // (custom-element reactions during appendChild) share this budget — resetting
+  // per CallCompiled let a youtube.com microtask storm run forever (each job
+  // got a fresh 20M after kevlar spent the first one).
+  BeginHostTurn();
   const std::size_t entry_depth = vm_.frames.size();
   const std::size_t callee_slot = vm_.stack.size();
   // The top level gets the same frame shape as a call, so that one set of
@@ -1010,7 +1026,7 @@ Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* sc
 }
 
 Result Interpreter::RunProgram(const Node& program) {
-  steps_ = 0;
+  BeginHostTurn();
   HoistDeclarations(program, *global_scope_);
   // A script's top level is a function scope for `var`'s purposes.
   HoistVars(program, *global_scope_);

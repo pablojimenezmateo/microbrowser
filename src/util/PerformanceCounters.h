@@ -281,6 +281,12 @@ namespace microbrowser::util {
   /* page: youtube's kevlar bundle is 10.7MB and was refused by a flat cap.    */ \
   X(JsCompiledSourceBytes, "js.compiled_source_bytes")                            \
   X(JsCompiledInstructions, "js.compiled_instructions")                           \
+  /* Peak steps_ inside one host turn, and how often the hang budget threw. A  */ \
+  /* non-zero `js.steps_exhausted` on youtube.com meant custom-element         */ \
+  /* reactions nested under kevlar shared one 20M budget and aborted mid-      */ \
+  /* stamp — browse `__data` arrived, `ytd-rich-grid-renderer` never did.     */ \
+  X(JsStepsPeak, "js.steps_peak")                                                 \
+  X(JsStepsExhausted, "js.steps_exhausted")                                       \
   /* Hits on the hard heap cell limit. A non-zero count that coincides with an */ \
   /* `out of memory` throw means the live set does not fit, or safepoints are  */ \
   /* not collecting -- the youtube Polymer-upgrade OOM of 2026-08-06 was the   */ \

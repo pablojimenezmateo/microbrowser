@@ -644,6 +644,42 @@ tokens before the constructor **remains** — removing it still hangs youtube.
 
 ---
 
+## TD-0018 — youtube.com's kevlar turn exhausts the JS step budget mid-stamp
+
+`js::Interpreter::kMaxSteps` (20M) is a hang guard for `while (true) {}`, shared by one
+top-level script turn and every nested custom-element reaction / microtask. On
+`https://www.youtube.com/` (Debug, 2026-08-07) the kevlar bundle spends that budget before
+page attach finishes, then dozens of `connectedCallback`s throw `RangeError: script ran too long`
+(~88 console lines; `js.steps_exhausted` **343**, `js.steps_peak` **20 000 343** on one Debug run).
+
+**What the page looks like afterwards.** Browse `__data.data.contents.twoColumnBrowseResultsRenderer`
+is present (selected tab has `richGridRenderer`). `ytd-two-column-browse-results-renderer` is in
+the tree with empty `#primary` / `#secondary`. **0** `ytd-rich-grid-renderer`. The two-column
+host stamps via `YtRendererstamperBehavior` on computed `content` from `data` — that path is
+what the aborted reactions never finish.
+
+**What does not fix it.**
+
+| Attempt | Result |
+|---|---|
+| Raise `kMaxSteps` to 100M+ | Multi-minute 99% CPU hang (unmasks a reaction/layout loop; not "just more budget") |
+| Reset `steps_` on every empty-frame `CallCompiled` | Hang: each microtask got a fresh 20M after kevlar spent the first |
+| Skip native CE reactions when `usePatchedLifecycles` | Hang: ShadyDOM's `aY` does not replace native connect for these hosts here |
+
+**What did land.** `BeginHostTurn()` resets the budget at top-level script entry
+(`RunCompiled` / `RunProgram`) and records `js.steps_peak` / `js.steps_exhausted`.
+Timer / event resets were tried and pulled: after kevlar spends the budget, a fresh
+per-timer budget lets a post-script storm run forever. Nested `CallCompiled` must
+not reset either (same hang via microtasks).
+
+**End state.** Find the reaction loop or O(n²) stamp that burns 20M before rich-grid attach (stack
+offsets pointed at CoW `connectedCallback` → `render` → ShadyDOM `appendChild` → page
+`attachPage`). Close when `js.steps_exhausted` is 0 on a youtube home load and
+`ytd-rich-item-renderer` count is non-zero. Related: TD-0017 (binding-token strip), TD-0007 /
+ADR 0036 (script monolith).
+
+---
+
 ## Closed
 
 - **TD-0005 — `CollectImages` duplicated the cascade** (2026-08-06). Background URLs are queued

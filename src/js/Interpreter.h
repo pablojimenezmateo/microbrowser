@@ -1089,7 +1089,17 @@ class Interpreter {
   // chances to forget.
   Value pending_new_target_;
   std::size_t steps_ = 0;
+  // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036). One
+  // budget per top-level script turn; nested custom-element reactions and
+  // microtasks share it. youtube.com's kevlar turn exhausts this and aborts
+  // late `connectedCallback`s (`js.steps_exhausted`) — that is a stamp/loop
+  // bug to fix, not a reason to reset per CallCompiled (that hung the load).
   static constexpr std::size_t kMaxSteps = 20'000'000;
+
+  // Fresh step budget for a top-level script turn (RunCompiled / RunProgram).
+  // Not for CallCompiled — microtasks and nested reactions share the caller.
+  void BeginHostTurn();
+  Result ExhaustedSteps();
 
   // Keeps a value alive for the collector while it is a C++ local.
   //
