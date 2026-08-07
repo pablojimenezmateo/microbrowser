@@ -404,10 +404,24 @@ hang with flat memory shows `layout.passes` climbing while `layout.pass_boxes`
 stays high and `layout.block_passes` / `layout.boxes_created` diverge (TD-0001
 ratio on a pathological tree).
 
-**Update** (2026-08-07, session 53). The infinite hang is **not reproduced** on
-`dd76d5c`: kevlar finishes (~18s script), load completes in **~100–150s** wall
-(Debug), **78–81** display-list commands, **309** custom-element upgrades, **0**
-constructor throws. Layout is still expensive but bounded:
+**Update** (2026-08-07, session 55). Shadow-root / connection fixes landed:
+
+| fix | effect |
+|---|---|
+| `PrototypeFor` reads live `constructor.prototype` | `attachShadow` wrappers pass `instanceof ShadowRoot` after ShadyDOM replaces `window.ShadowRoot` |
+| `NotifyConnection` / upgrade `connectedCallback` use `OwnerDocument()` | custom elements inside a shadow tree get connection reactions |
+| `UpgradeSubtree` walks `<template>` contents | custom tags inside a template upgrade when a subtree is inserted |
+
+Measured after (Debug): **494** upgrades, **0** constructor throws, **81** display-list
+commands, **ytd-app** has **13** children / **650** descendants, partial text binding
+(**4** bound / **4** unbound `[[…]]` tokens). Feed still empty (`0`
+`ytd-rich-item-renderer`, **0** `ytimg` images). Display list still paints literal
+`[[getSimpleString(data.title)]]` — property effects not fully applying. Upgrading
+custom elements inside `<template>` at `define()` time was tried and **reverted**:
+**392** upgrades and **6** `dom.custom_element_constructor_throws` on youtube.com.
+
+**Next:** why Polymer property effects leave text/attribute bindings unresolved after
+`__data` is set; feed renderer stamping (`ytd-rich-item-renderer`).
 
 | counter | value |
 |---|---|

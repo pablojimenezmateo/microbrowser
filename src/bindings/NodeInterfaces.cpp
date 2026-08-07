@@ -493,6 +493,19 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
     return Value::Undefined();
   }
   const auto named = [this](const char* name) -> Value {
+    // `instanceof` reads the live constructor's `.prototype`. `interfaces_`
+    // holds ours from `MakeInterface`, which diverges the moment a polyfill
+    // replaces `window.ShadowRoot` -- attachShadow wrappers then fail
+    // `instanceof ShadowRoot` and ShadyDOM keeps the shady path on youtube.com.
+    if (js::Value* constructor = interpreter_->GlobalScope()->Lookup(name)) {
+      if (constructor->IsObject()) {
+        if (const Value* prototype = constructor->object->Get("prototype")) {
+          if (prototype->IsObject()) {
+            return *prototype;
+          }
+        }
+      }
+    }
     const Value* found = interfaces_.object->GetOwn(name);
     return found == nullptr ? Value::Undefined() : *found;
   };

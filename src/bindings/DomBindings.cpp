@@ -262,6 +262,15 @@ js::Value DomBindings::WrapperFor(dom::Node* node) {
   // breaks both quietly.
   const std::string key = std::to_string(reinterpret_cast<std::uintptr_t>(node));
   if (const Value* cached = wrappers_.object->GetOwn(key)) {
+    // Shadow-root wrappers created before ShadyDOM replaced `window.ShadowRoot`
+    // keep the stale native prototype until reconciled here.
+    if (node->IsDocumentFragment() &&
+        static_cast<const dom::DocumentFragment&>(*node).Host() != nullptr) {
+      const Value prototype = PrototypeFor(*node);
+      if (prototype.IsObject() && cached->IsObject()) {
+        cached->object->SetPrototype(prototype.object);
+      }
+    }
     return *cached;
   }
 

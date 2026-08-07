@@ -108,6 +108,31 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
                        " ShadowRoot.prototype.za());"),
                    "true function 1",
                    "bare ShadowRoot and window.ShadowRoot stay one namespace");
+    // ShadyDOM replaces the constructor after our interfaces are built. Wrappers
+    // from attachShadow must inherit the live prototype so instanceof and the
+    // polyfill's native probe agree.
+    ExpectEqString(Run("",
+                       "function Yc(){}"
+                       "window.ShadowRoot = Yc;"
+                       "const r = document.createElement('div').attachShadow({mode: 'open'});"
+                       "console.log((r instanceof ShadowRoot) + ' ' +"
+                       " (ShadowRoot.prototype === Object.getPrototypeOf(r)));"),
+                   "true true",
+                   "attachShadow wrappers use the live ShadowRoot.prototype");
+  });
+
+  AddTest(tests, "ShadowDom/ConnectedCallbackFiresInsideAShadowTree", [] {
+    ExpectEqString(Run("<div id=h></div>",
+                       "let seen = '';"
+                       "customElements.define('x-in-shadow', class extends HTMLElement {"
+                       "  connectedCallback() { seen = 'in'; }"
+                       "});"
+                       "const h = document.getElementById('h');"
+                       "const r = h.attachShadow({mode: 'open'});"
+                       "const e = document.createElement('x-in-shadow');"
+                       "r.appendChild(e);"
+                       "console.log(seen);"),
+                   "in", "a custom element appended to a shadow root is connected");
   });
 
   AddTest(tests, "ShadowDom/NodeTypeConstantsAreOnTheNodeInterface", [] {

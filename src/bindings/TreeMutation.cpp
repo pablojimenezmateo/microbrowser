@@ -436,14 +436,10 @@ void DomBindings::NotifyConnection(dom::Node& node, bool connected) {
   if (!registry.IsObject() || registry.object->Keys().empty()) {
     return;  // no custom elements defined: nothing to tell, and no walk to do
   }
-  bool in_document = false;
-  for (const dom::Node* at = &node; at != nullptr; at = at->Parent()) {
-    in_document = in_document || at == document_;
-  }
-  // For a connect, the node has to be in the document now. For a disconnect,
-  // it has to be in it *still* -- this runs before the detach, so a node being
-  // removed from a detached subtree correctly gets no reaction at all.
-  if (!in_document) {
+  // Parent-walking misses nodes inside a shadow root: the root has no parent.
+  // OwnerDocument crosses through the host, which is what makes a stamped
+  // custom element in a component tree count as connected.
+  if (node.OwnerDocument() != document_) {
     return;
   }
   // The node and everything under it, because a reaction is owed to each.

@@ -174,12 +174,10 @@ void DomBindings::UpgradeElement(dom::Element& element) {
       }
     }
   }
-  // Already in the document at upgrade time means connected now.
-  for (const dom::Node* at = &element; at != nullptr; at = at->Parent()) {
-    if (at == document_) {
-      RunElementReaction(element, "connectedCallback");
-      break;
-    }
+  // Already in the document at upgrade time means connected now -- including
+  // inside a shadow root, where parent-walking never reaches the document.
+  if (element.OwnerDocument() == document_) {
+    RunElementReaction(element, "connectedCallback");
   }
 }
 

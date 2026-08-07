@@ -69,6 +69,14 @@ void DomBindings::UpgradeSubtree(dom::Node& node) {
   }
   if (node.IsElement()) {
     UpgradeElement(static_cast<dom::Element&>(node));
+    // A `<template>`'s markup lives in its contents fragment, not in its
+    // children -- `customElements.define` must upgrade those nodes too, or a
+    // component whose template holds custom tags stays plain HTML forever.
+    if (dom::DocumentFragment* content = static_cast<dom::Element&>(node).Content()) {
+      for (std::size_t i = 0; i < content->Children().size(); ++i) {
+        UpgradeSubtree(*content->Children()[i]);
+      }
+    }
   }
   // By index, re-reading the child list each time: an upgrade runs the page's
   // constructor, and a constructor that moves a node out of this subtree would
