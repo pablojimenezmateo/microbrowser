@@ -135,10 +135,41 @@ bool IsRadioGroupPeer(const dom::Element& candidate,
 
 using ElementPredicate = bool (*)(const dom::Element&);
 
+// CSS 2.1 Appendix E: non-positioned floats (and out-of-flow positioned boxes)
+// paint above in-flow block-level boxes. Hit testing must match that order.
+//
+// Tree order alone is not enough. A float does not shrink a later sibling's
+// block box -- only its line boxes -- so the sibling's border box still covers
+// the float's rectangle. Walking last-child-first then returns the later block
+// for every click in that rectangle. old.reddit.com's `.side` search field is
+// the case that showed it: `.content` is a later sibling that spans the full
+// width, and a click on the search focused nothing.
+bool PaintsAboveInFlowBlocks(const layout::Box& box) {
+  return box.IsFloating() || box.IsAbsolutelyPositioned();
+}
+
+// Children front-to-back for hit testing: elevated boxes first (still last
+// sibling among themselves), then the in-flow rest.
+template <typename Visit>
+bool VisitChildrenFrontToBack(const layout::Box& box, Visit&& visit) {
+  const auto& children = box.Children();
+  for (std::size_t i = children.size(); i-- > 0;) {
+    if (PaintsAboveInFlowBlocks(*children[i]) && visit(*children[i])) {
+      return true;
+    }
+  }
+  for (std::size_t i = children.size(); i-- > 0;) {
+    if (!PaintsAboveInFlowBlocks(*children[i]) && visit(*children[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // The one hit-test walk over form controls: submit, reset, checkbox, radio and
 // text field differ only in the predicate.
 //
-// Last child first, because a later sibling paints over an earlier one and the
+// Front-to-back among siblings (see VisitChildrenFrontToBack), because the
 // topmost box under the point is the one that was clicked. A disabled control
 // is never a target, which is a property of every control rather than of any
 // one predicate -- so it is checked here, once, instead of being re-derived in
@@ -157,10 +188,13 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
   }
   point = *local;
   if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    for (std::size_t i = box.Children().size(); i-- > 0;) {
-      if (dom::Element* hit = HitTestFormControl(*box.Children()[i], *inside, predicate)) {
-        return hit;
-      }
+    dom::Element* hit = nullptr;
+    VisitChildrenFrontToBack(box, [&](const layout::Box& child) {
+      hit = HitTestFormControl(child, *inside, predicate);
+      return hit != nullptr;
+    });
+    if (hit != nullptr) {
+      return hit;
     }
   }
   const dom::Element* element = box.Origin();
@@ -175,9 +209,8 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
 
 // The innermost element whose box contains `point`, or null.
 //
-// Deepest-first, and the last child first within a level: a box painted over
-// another is the one a click lands on, and the paint order is child-after-
-// parent and later-sibling-after-earlier.
+// Deepest-first, and front-to-back within a level (floats and abspos before
+// in-flow blocks; later siblings before earlier ones inside each group).
 //
 // `enclosing` is the nearest ancestor that came from an element, and it is
 // what makes this work at all. A text box has no element of its own, and an
@@ -197,10 +230,13 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
     enclosing = box.Origin();
   }
   if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    for (std::size_t i = box.Children().size(); i-- > 0;) {
-      if (const dom::Element* hit = HitTestElement(*box.Children()[i], *inside, enclosing)) {
-        return hit;
-      }
+    const dom::Element* hit = nullptr;
+    VisitChildrenFrontToBack(box, [&](const layout::Box& child) {
+      hit = HitTestElement(child, *inside, enclosing);
+      return hit != nullptr;
+    });
+    if (hit != nullptr) {
+      return hit;
     }
   }
   if (box.GetKind() == layout::Box::Kind::Text) {
@@ -229,10 +265,13 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
   }
 
   if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    for (std::size_t i = box.Children().size(); i-- > 0;) {
-      if (std::optional<std::string> hit = HitTestLink(*box.Children()[i], *inside, active_href)) {
-        return hit;
-      }
+    std::optional<std::string> hit;
+    VisitChildrenFrontToBack(box, [&](const layout::Box& child) {
+      hit = HitTestLink(child, *inside, active_href);
+      return hit.has_value();
+    });
+    if (hit.has_value()) {
+      return hit;
     }
   }
 

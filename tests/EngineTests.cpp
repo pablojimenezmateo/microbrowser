@@ -319,6 +319,34 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!elsewhere.prevented, "a click on nothing prevents nothing");
   });
 
+  AddTest(tests, "Page/AClickReachesAFloatOverAnOverlappingBlock", [] {
+    // CSS keeps a later in-flow block's border box full-width under a float;
+    // only its line boxes shrink. Hit testing that walked last-sibling-first
+    // then returned the block for every point in the float's rectangle.
+    // old.reddit.com's `.side` search field is that shape.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<style>"
+        "body { margin: 0 }"
+        ".side { float: right; width: 100px; height: 40px; margin: 0 }"
+        "input { width: 100px; height: 20px; margin: 0; padding: 0; border: 0 }"
+        ".content { margin: 0; width: 300px; height: 80px }"
+        "</style>"
+        "<body>"
+        "<div class='side'><input name='q'></div>"
+        "<div class='content'>article</div>"
+        "</body>",
+        "https://example.org/");
+    page.Layout(300.0f);
+
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{220.0f, 10.0f}),
+           "a click on the floated search field focuses it, not the overlapping content block");
+    const dom::Element* focused = page.FocusedElement();
+    Expect(focused != nullptr && focused->TagName() == "input",
+           "focus landed on the input inside the float");
+  });
+
   AddTest(tests, "Page/AScriptChangesWhatIsLaidOut", [] {
     // The point of all of it: what a script builds is what gets laid out.
     TestFonts fonts;

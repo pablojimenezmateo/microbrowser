@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "bindings/Cookies.h"
@@ -753,6 +754,9 @@ class Page : private layout::ImageProvider,
   // One cascade pass builds the box tree and queues background URLs (TD-0005).
   void EnsureBoxTree();
   void InvalidateBoxTree();
+  // First generated box per element, in tree order. Built with the box tree so
+  // `QueryBox` is O(1) rather than a walk of every box (session 7 / Gate C).
+  void RebuildElementBoxIndex();
   // Reads the document's `<meta http-equiv="Content-Security-Policy">` elements
   // and its `<base href>`, in that order, because a `<base>` is subject to the
   // `base-uri` a `<meta>` may have just declared.
@@ -831,6 +835,10 @@ class Page : private layout::ImageProvider,
     float scroll_y = 0.0f;
     // `StyleResolver::Generation()` when `boxes_` was last built.
     std::uint64_t box_tree_cascade_generation = 0;
+    // Element → first box in tree order. Cleared with `boxes_`; rebuilt in
+    // `EnsureBoxTree`. One element can generate several boxes — only the first
+    // is stored, matching what `BoxFor` used to return by walking.
+    std::unordered_map<const dom::Element*, layout::Box*> box_by_element;
   };
   LayoutState layout_;
   // Everything about scrolling that is not the viewport's own offset: where
