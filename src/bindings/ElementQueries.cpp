@@ -218,6 +218,27 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
   // `nextSibling` stops on the whitespace between two tags, which is the
   // single most common way a hand-written tree walk goes wrong.
 
+  // ParentNode.children -- elements only, unlike Node.childNodes. Must be an
+  // *own* property of Element/Document/DocumentFragment.prototype: ShadyDOM
+  // (webcomponents-all-noPatch) does
+  // `Object.getOwnPropertyDescriptor(Element.prototype, "children")` and
+  // reinstalls it as `__shady_native_children`. An inherited descriptor from
+  // Node.prototype is invisible to that capture, so Polymer.dom(node).children
+  // stayed undefined and youtube's stamper crashed on `I.children[index]`.
+  accessor("children", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    std::vector<Value> children;
+    if (owner != nullptr && self != nullptr) {
+      for (const std::unique_ptr<dom::Node>& child : self->Children()) {
+        if (child->IsElement()) {
+          children.push_back(owner->WrapperFor(child.get()));
+        }
+      }
+    }
+    return call.interpreter.NewArrayValue(std::move(children));
+  });
+
   // Elements only, and a count rather than a live collection: `children.length`
   // allocates an array of wrappers for a question that is an integer. youtube's
   // Polymer path asks this of every host it stamps.

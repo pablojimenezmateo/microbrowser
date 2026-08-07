@@ -657,6 +657,23 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "o.takeRecords().length",
                  "0");
 
+    // characterData: Polymer's ASAP (`_.Ub` / youtube lazy-list autofill) bumps
+    // a detached text node's textContent under a characterData observer.
+    ExpectScript(kPage,
+                 "var t = document.createTextNode('');"
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(t, { characterData: true });"
+                 "t.textContent = '1';"
+                 "var r = o.takeRecords(); r.length + ':' + r[0].type",
+                 "1:characterData");
+    ExpectScript(kPage,
+                 "var t = document.createTextNode('a');"
+                 "var o = new MutationObserver(() => {});"
+                 "o.observe(t, { characterData: true });"
+                 "t.data = 'b';"
+                 "o.takeRecords()[0].type",
+                 "characterData");
+
     // `disconnect` does both halves: watches nothing, and drops what was
     // queued. An observer that fired once more after disconnecting would be
     // the worst of both.
@@ -879,6 +896,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript("<div id=d>text</div>",
                  "document.getElementById('d').childNodes[0].nodeType", "3");
     ExpectScript(kPage, "document.getElementById('title').nodeType", "1");
+    // ParentNode mixin surface: own on Element/Document, absent on Node/Text.
+    // ShadyDOM's noPatch capture requires the Element.prototype own descriptor.
+    ExpectScript(kPage,
+                 "Object.prototype.hasOwnProperty.call(Element.prototype, 'children') && "
+                 "!Object.prototype.hasOwnProperty.call(Node.prototype, 'children') && "
+                 "Object.prototype.hasOwnProperty.call(Document.prototype, 'children') && "
+                 "document.createTextNode('x').children === undefined",
+                 "true");
   });
 
   AddTest(tests, "DomBindings/ScriptCanBuildAndAttachNodes", [] {
@@ -1978,6 +2003,23 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     Expect(!frames.NextDelay(0).has_value(), "the request is gone");
     Expect(!frames.RunDue(interpreter, 100), "and nothing runs");
     ExpectEqString(js::ToString(interpreter.Run("String(n)").value), "0", "the callback did not");
+  });
+
+  AddTest(tests, "AnimationFrames/AFrameCallbackClearsASpentStepBudget", [] {
+    // TD-0018: youtube autofill chains through requestAnimationFrame after
+    // kevlar has already burned kMaxSteps. Same BeginTask contract as idle
+    // callbacks and MessageChannel tasks.
+    js::Interpreter interpreter;
+    bindings::AnimationFrames frames;
+    frames.Install(interpreter, 0);
+    Expect(interpreter.Run("globalThis.got = 0;"
+                           "requestAnimationFrame(() => { got = 42 });"
+                           "while (true) {}")
+               .completion == js::Completion::Throw,
+           "burn the hang guard without absorbing it");
+    Expect(frames.RunDue(interpreter, 0), "deliver the frame callback");
+    ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "42",
+                   "frame callback ran after a spent budget");
   });
 
   AddTest(tests, "IdleCallbacks/NothingScheduledMeansTheLoopMayBlock", [] {

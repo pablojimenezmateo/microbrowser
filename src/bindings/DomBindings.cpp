@@ -340,21 +340,11 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
     }
     return call.interpreter.NewArrayValue(std::move(children));
   });
-  accessor("children", [](NativeCall& call) {
-    // Elements only, unlike `childNodes` -- the distinction that trips up
-    // anyone who indexes into the wrong one and gets a whitespace text node.
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    std::vector<Value> children;
-    if (owner != nullptr && self != nullptr) {
-      for (const std::unique_ptr<dom::Node>& child : self->Children()) {
-        if (child->IsElement()) {
-          children.push_back(owner->WrapperFor(child.get()));
-        }
-      }
-    }
-    return call.interpreter.NewArrayValue(std::move(children));
-  });
+  // `children` is ParentNode, not Node -- see InstallParentQueries. Putting it
+  // on Node.prototype looked equivalent (Element inherits it) until ShadyDOM's
+  // noPatch path copied only *own* descriptors off Element.prototype into
+  // `__shady_native_children`; a missing own `children` left Polymer.dom's
+  // wrapper answering undefined and stampDomArraySplices_ throwing on youtube.
   const auto sibling = [&accessor](const char* name, int step) {
     accessor(name, [step](NativeCall& call) {
       DomBindings* owner = OwnerOf(call);
@@ -432,18 +422,14 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
         return Value::Null();
       },
       [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
         dom::Node* self = NodeOf(call.self);
-        if (self == nullptr) {
+        if (owner == nullptr || self == nullptr) {
           return Value::Undefined();
         }
         const std::string value = js::ToString(Argument(call.arguments, 0));
-        if (self->IsText()) {
-          static_cast<dom::Text*>(self)->SetData(value);
-          return Value::Undefined();
-        }
-        if (self->GetKind() == dom::Node::Kind::Comment) {
-          static_cast<dom::Comment*>(self)->SetData(value);
-          return Value::Undefined();
+        if (self->IsText() || self->GetKind() == dom::Node::Kind::Comment) {
+          owner->SetCharacterData(self, value);
         }
         return Value::Undefined();
       });

@@ -120,12 +120,8 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
           return Value::Undefined();
         }
         const std::string text = js::ToString(Argument(call.arguments, 0));
-        if (self->IsText()) {
-          static_cast<dom::Text*>(self)->SetData(text);
-          return Value::Undefined();
-        }
-        if (self->GetKind() == dom::Node::Kind::Comment) {
-          static_cast<dom::Comment*>(self)->SetData(text);
+        if (self->IsText() || self->GetKind() == dom::Node::Kind::Comment) {
+          owner->SetCharacterData(self, text);
           return Value::Undefined();
         }
         owner->ClearChildren(*self);
@@ -535,22 +531,28 @@ std::string CharacterDataOf(const dom::Node* node) {
   return {};
 }
 
-bool SetCharacterData(dom::Node* node, std::string data) {
+}  // namespace
+
+bool DomBindings::SetCharacterData(dom::Node* node, std::string data) {
   if (node == nullptr) {
     return false;
   }
+  if (!node->IsText() && node->GetKind() != dom::Node::Kind::Comment) {
+    return false;
+  }
+  // Polymer (and youtube's kevlar) schedules ASAP work by observing a detached
+  // text node with `{characterData:true}` and bumping its `textContent`. Without
+  // a characterData record that observer never fires, `_.Ub` never runs, and
+  // the lazy-list autofill chain stops after the initial `shownItems` slice.
+  const Value old_value = Value::String(CharacterDataOf(node));
   if (node->IsText()) {
     static_cast<dom::Text*>(node)->SetData(std::move(data));
-    return true;
-  }
-  if (node->GetKind() == dom::Node::Kind::Comment) {
+  } else {
     static_cast<dom::Comment*>(node)->SetData(std::move(data));
-    return true;
   }
-  return false;
+  RecordMutation(*node, "characterData", {}, old_value, {}, {});
+  return true;
 }
-
-}  // namespace
 
 void DomBindings::InstallCharacterData(const js::Value& target) {
   const auto accessor = [this, &target](const char* name, js::NativeFunction get,
@@ -579,7 +581,7 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
         if (owner == nullptr || self == nullptr) {
           return Value::Undefined();
         }
-        if (!SetCharacterData(self, js::ToString(Argument(call.arguments, 0)))) {
+        if (!owner->SetCharacterData(self, js::ToString(Argument(call.arguments, 0)))) {
           return call.Throw("TypeError", "data can only be set on a text or comment node");
         }
         return Value::Undefined();

@@ -454,6 +454,10 @@ class DomBindings {
   void RecordMutation(dom::Node& node, const char* type, const std::string& name,
                       const js::Value& old_value, const std::vector<dom::Node*>& added,
                       const std::vector<dom::Node*>& removed);
+  // Text/Comment data write, with a characterData mutation record. Polymer's
+  // ASAP scheduler (and youtube's lazy-list autofill) depends on observing a
+  // detached text node and seeing every `textContent`/`data` bump.
+  bool SetCharacterData(dom::Node* node, std::string data);
 
   // Writing an attribute, once: the old value read first, the write, the
   // custom-element reaction and the mutation record. `setAttribute` and every

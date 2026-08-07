@@ -127,6 +127,12 @@ bool AnimationFrames::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) 
     }
     const Value callback = *handler;
     callbacks->Delete(key);
+    // TD-0018: youtube's lazy list drains via `_.Ot` → rAF → setTimeout →
+    // `tryRenderChunk_` → another rAF. Without a fresh hang-guard budget those
+    // frames inherit kevlar's spent `kMaxSteps` and abort before `fillRange_`
+    // stamps the remaining `shownItems` (same reason timers/idle/MessageChannel
+    // call BeginTask).
+    interpreter.BeginTask();
     (void)interpreter.CallFunction(callback, Value::Undefined(), {timestamp});
   }
   // A frame is a turn of its own, so anything its callbacks queued settles

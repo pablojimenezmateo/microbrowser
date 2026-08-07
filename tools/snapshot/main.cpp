@@ -349,10 +349,24 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   // Cap is moderate: TimerQueue batches up to 64 host tasks per RunDue
   // (TD-0018), so a few hundred passes cover a large stamp. Finite so a
   // forever-posting channel cannot hang the snapshot tool.
+  //
+  // Sleep when the next deadline is in the future. A tight `RunDueWork`-only
+  // loop finishes in a few milliseconds and sees every pending rAF as "not
+  // due yet" (16ms frame spacing), then breaks — which left youtube's lazy
+  // list stuck at `initialCount` (Ot → rAF → tryRenderChunk_ → rAF…) even
+  // after Polymer.dom.children and BeginTask-on-rAF were fixed.
   for (int pass = 0; pass < 512; ++pass) {
-    if (!engine.RunDueWork()) {
+    if (engine.RunDueWork()) {
+      continue;
+    }
+    const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
+    if (!deadline.has_value()) {
       break;
     }
+    microbrowser::util::WaitDescriptorList descriptors;
+    microbrowser::util::PerformanceTrace::Scope wait("wait::Deadline");
+    microbrowser::platform::WaitOnDescriptors(
+        descriptors, static_cast<std::int32_t>(*deadline));
   }
 }
 
