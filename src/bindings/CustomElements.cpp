@@ -95,21 +95,15 @@ void DomBindings::UpgradeElement(dom::Element& element) {
   }
   wrapper.object->Set(kUpgradedSlot, Value::Bool(true));
 
-  // Binding tokens in attributes are real DOM values (getAttribute/clone keep
-  // them so Polymer can wire effects). At upgrade time only, strip ones that
-  // look like `[[…]]` / `{{…}}` before the constructor runs: Polymer's
-  // `_deserializeValue` JSON.parses Array/Object property types from
-  // `this.attributes`, and a literal token leaves the property null *and* on
-  // youtube.com drove an unbounded reaction loop when left in place here.
+  // Binding tokens stay visible to getAttribute/clone (annotation parsing), but
+  // Polymer's constructor walks `this.attributes` and `_deserializeValue`s
+  // Array/Object types — a literal `[[items]]` nulls the property and, without
+  // this remove, loops on youtube.com (TD-0017). attributeChangedCallback is
+  // separately skipped for tokens in SetElementAttribute / the post-upgrade
+  // observed loop.
   for (std::size_t i = 0; i < element.Attributes().size();) {
     const dom::Attribute& attribute = element.Attributes()[i];
-    const std::string_view value = attribute.value;
-    const bool binding =
-        (value.size() >= 4 && value[0] == '[' && value[1] == '[' &&
-         value[value.size() - 2] == ']' && value[value.size() - 1] == ']') ||
-        (value.size() >= 4 && value[0] == '{' && value[1] == '{' &&
-         value[value.size() - 2] == '}' && value[value.size() - 1] == '}');
-    if (binding) {
+    if (IsTemplateBindingToken(attribute.value)) {
       element.RemoveAttribute(attribute.name);
       continue;
     }
@@ -179,6 +173,14 @@ void DomBindings::UpgradeElement(dom::Element& element) {
           watched = watched || js::ToString(observed->object->GetElement(i)) == attribute.name;
         }
         if (watched) {
+          // Binding tokens are not serial attribute values. Firing
+          // attributeChangedCallback with `[[items]]` makes Polymer
+          // `_deserializeValue` null an Array property and can loop with
+          // setAttribute (TD-0017). Annotation parsing still sees them via
+          // getAttribute.
+          if (IsTemplateBindingToken(attribute.value)) {
+            continue;
+          }
           RunAttributeReaction(element, attribute.name, Value::Null(), Value::String(attribute.value));
         }
       }

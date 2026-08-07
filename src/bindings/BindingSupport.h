@@ -122,4 +122,22 @@ std::string NodeNameOf(const dom::Node& node);
 // trees. `cloneNode` and `importNode` must describe the same tree.
 std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep);
 
+// Polymer / Lit binding tokens left in attribute values until effects replace
+// them. Kept visible to getAttribute/clone so annotation parsing can see them;
+// attributeChangedCallback must not treat them as serial values (TD-0017).
+inline bool IsTemplateBindingToken(std::string_view value) {
+  if (value.size() < 4) {
+    return false;
+  }
+  if (value[0] == '[' && value[1] == '[' && value[value.size() - 2] == ']' &&
+      value[value.size() - 1] == ']') {
+    return true;
+  }
+  if (value[0] == '{' && value[1] == '{' && value[value.size() - 2] == '}' &&
+      value[value.size() - 1] == '}') {
+    return true;
+  }
+  return false;
+}
+
 }  // namespace microbrowser::bindings

@@ -635,9 +635,12 @@ still reach `_deserializeValue` after stamp, and `dom-repeat.items` stays `null`
 | `dom-repeat.items` | all `null` | n/a |
 | `ytd-rich-item-renderer` | **0** | n/a |
 
-**End state.** No attribute stripping anywhere. Find the reaction/deserialize loop that hangs
-when tokens are present at upgrade, fix that, and close when youtube stamps feed items without
-the upgrade-time remove.
+**Update** (2026-08-07, session 56b). Also landed: `Reflect.set` goes through
+`SetProperty` (was `object->Set`, which shadowed Polymer accessors and left
+`dom-repeat.items` unnotified); `UpgradeSubtree` no longer walks `<template>`
+contents (browsers leave those inert); `attributeChangedCallback` skips binding
+tokens on `setAttribute` / post-upgrade observed attrs. Upgrade-time strip of
+tokens before the constructor **remains** — removing it still hangs youtube.
 
 ---
 

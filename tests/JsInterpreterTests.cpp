@@ -2281,6 +2281,15 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
   AddTest(tests, "JsInterpreter/ReflectNamesWhatTheLanguageDoesImplicitly", [] {
     ExpectEval("Reflect.get({ a: 1 }, 'a')", "1");
     ExpectEval("const o = {}; Reflect.set(o, 'b', 2); o.b", "2");
+    // Accessors on the prototype must run — Polymer property effects and
+    // reflected DOM attributes live there. `object->Set` would store a data
+    // slot instead and leave the effect unnotified.
+    ExpectEval("let seen = 0; const proto = {};"
+               "Object.defineProperty(proto, 'a', { set(v){ seen = v }, get(){ return seen },"
+               "  configurable: true });"
+               "const t = Object.create(proto); Reflect.set(t, 'a', 7);"
+               "[seen, t.a, Object.getOwnPropertyDescriptor(t, 'a') == null].join(' ')",
+               "7 7 true");
     // `has` is `in`, which walks the prototype chain -- unlike
     // hasOwnProperty, and keeping the two straight is why both exist.
     ExpectEval("[Reflect.has({ a: 1 }, 'a'), Reflect.has({}, 'toString')].join(' ')",

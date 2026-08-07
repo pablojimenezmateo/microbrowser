@@ -510,14 +510,19 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('x-t', T);"
                  "log.join('|')",
                  "v:null->1");
+    // Binding tokens are stripped at upgrade before the constructor (TD-0017),
+    // so getAttribute after upgrade is null; setAttribute/clone still keep them
+    // for stamps that have not been upgraded yet.
     ExpectScript("<html><body><x-t v='[[x]]'></x-t></body></html>",
+                 "var log = [];"
                  "class T extends HTMLElement {"
                  "  static get observedAttributes(){ return ['v'] }"
+                 "  attributeChangedCallback(n, o, v){ log.push(n + ':' + o + '->' + v) }"
                  "  constructor(){ super(); this.seen = this.getAttribute('v') }"
                  "}"
                  "customElements.define('x-t', T);"
-                 "document.querySelector('x-t').seen",
-                 "null");
+                 "document.querySelector('x-t').seen + '|' + log.join('|')",
+                 "null|");
   });
 
   // MutationObserver. The shape is the specification's and it is not the

@@ -159,7 +159,12 @@ void DomBindings::SetElementAttribute(dom::Element& element, const std::string& 
       media_->IsMedia(element) && media_->AttachMediaSource(element, value)) {
     DeliverMediaSourceOpenedFor(value);
   }
-  RunAttributeReaction(element, name, old_value, Value::String(value));
+  // Keep binding tokens in the attribute map for getAttribute / Polymer
+  // annotation parsing, but do not deliver attributeChangedCallback — that
+  // path JSON.parses Array/Object types and is what hung youtube (TD-0017).
+  if (!IsTemplateBindingToken(value)) {
+    RunAttributeReaction(element, name, old_value, Value::String(value));
+  }
   RecordMutation(element, "attributes", name, old_value, {}, {});
 }
 

@@ -842,7 +842,17 @@ void Interpreter::InstallGlobals() {
       if (!target.IsObject()) {
         return call.Throw("TypeError", "Reflect.set called on a non-object");
       }
-      target.object->Set(KeyFrom(Argument(call.arguments, 1)), Argument(call.arguments, 2));
+      // Through SetProperty rather than `object->Set`, for the same reason
+      // Object.assign is: a setter on the prototype (Polymer property effects,
+      // reflected DOM attributes) must run. `object->Set` stores a data slot
+      // and clears accessors, so `Reflect.set(el, 'items', arr)` left
+      // `dom-repeat.items` null while ordinary assignment would have worked.
+      const Result written =
+          call.interpreter.SetProperty(target, KeyFrom(Argument(call.arguments, 1)),
+                                       Argument(call.arguments, 2));
+      if (written.IsAbrupt()) {
+        return call.ThrowValue(written.value);
+      }
       return Value::Bool(true);
     });
     install(reflect, "has", [](NativeCall& call) {
