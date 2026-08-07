@@ -483,6 +483,10 @@ namespace microbrowser::util {
   /* browser do unbounded work, and the count going up per iteration is the    */ \
   /* only way to tell that page apart from a slow one.                         */ \
   X(LayoutForcedByScript, "layout.forced_by_script")                             \
+  /* Element→box map lookups from geometry queries. Hits should track lookups  */ \
+  /* once the index is built; the O(boxes) walk is gone (Gate C stamp depth).  */ \
+  X(LayoutBoxLookups, "layout.box_lookups")                                      \
+  X(LayoutBoxLookupHits, "layout.box_lookup_hits")                               \
   X(LayoutDisplayListsBuilt, "layout.display_lists_built")                       \
   /* Every entry into LayoutBlock, against the boxes that exist. This is the    */ \
   /* ratio that matters and the one nothing was reporting: a layout algorithm   */ \

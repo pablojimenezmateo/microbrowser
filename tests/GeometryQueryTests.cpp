@@ -330,6 +330,37 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 1), "function", "and the window one too");
   });
 
+  AddTest(tests, "Geometry/BoxLookupsUseTheElementIndex", [] {
+    // Session 7 left BoxFor as a tree walk; Gate C's stamp depth depends on
+    // QueryBox being O(1). A hundred queries against a hundred siblings must
+    // hit the map once each, not walk the whole tree a hundred times.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    std::string html = "<body style='margin:0'>";
+    for (int i = 0; i < 100; ++i) {
+      html += "<div id='d" + std::to_string(i) + "' style='width:10px;height:10px'></div>";
+    }
+    html += "<script>var n = 0;"
+            "for (var i = 0; i < 100; i++) {"
+            "  n += document.getElementById('d' + i).getBoundingClientRect().width;"
+            "}"
+            "console.log(n);"
+            "</script></body>";
+    const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
+    const std::vector<std::string> output = RunAndCollect(page, html);
+    ExpectEqString(Line(output, 0), "1000", "each of the hundred boxes is ten wide");
+    const util::PerfCounterSnapshot after = util::CapturePerformanceCounters();
+    const std::uint64_t lookups =
+        after[static_cast<std::size_t>(util::PerfCounterId::LayoutBoxLookups)] -
+        before[static_cast<std::size_t>(util::PerfCounterId::LayoutBoxLookups)];
+    const std::uint64_t hits =
+        after[static_cast<std::size_t>(util::PerfCounterId::LayoutBoxLookupHits)] -
+        before[static_cast<std::size_t>(util::PerfCounterId::LayoutBoxLookupHits)];
+    Expect(lookups >= 100, "every query consults the element→box index");
+    ExpectEqInt(static_cast<long long>(hits), static_cast<long long>(lookups),
+                "every lookup for a laid-out element is a hit");
+  });
+
   AddTest(tests, "Geometry/AProbeAsksThePageItsOwnQuestions", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

@@ -317,8 +317,32 @@ void Page::RebuildAuthorStyleSheets() {
 
 void Page::InvalidateBoxTree() {
   boxes_.reset();
+  layout_.box_by_element.clear();
   layout_.box_tree_cascade_generation = 0;
   layout_.laid_out_width = -1.0f;
+}
+
+void Page::RebuildElementBoxIndex() {
+  layout_.box_by_element.clear();
+  if (boxes_ == nullptr) {
+    return;
+  }
+  // Preorder: the first box an element generates wins, matching the old
+  // `BoxFor` walk. Anonymous and text boxes have no origin and are skipped.
+  const auto consider = [this](layout::Box& box) {
+    if (const dom::Element* origin = box.Origin()) {
+      layout_.box_by_element.emplace(origin, &box);
+    }
+  };
+  consider(*boxes_);
+  // ForEachDescendant is const; the map needs mutable Box* for scroll writes.
+  std::function<void(layout::Box&)> walk = [&](layout::Box& box) {
+    for (std::unique_ptr<layout::Box>& child : box.MutableChildren()) {
+      consider(*child);
+      walk(*child);
+    }
+  };
+  walk(*boxes_);
 }
 
 void Page::EnsureBoxTree() {
@@ -339,6 +363,7 @@ void Page::EnsureBoxTree() {
   boxes_ = engine.BuildBoxTree(*document_);
   layout_.document_version = doc_ver;
   layout_.box_tree_cascade_generation = cascade;
+  RebuildElementBoxIndex();
 }
 
 void Page::CollectImages() {
