@@ -162,6 +162,13 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     if (!child->Style().GeneratesBox()) {
       continue;
     }
+    // Absolutely positioned children are not flex items (CSS Flexbox §4).
+    // youtube's masthead keeps `#search-container` absolute inside the flex
+    // row; treating it as an item left `#masthead-skeleton-icons { flex: 1 }`
+    // with no free space and packed the end chips past the viewport.
+    if (child->IsAbsolutelyPositioned()) {
+      continue;
+    }
     Item item;
     item.box = child.get();
     items.push_back(item);

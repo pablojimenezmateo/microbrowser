@@ -290,11 +290,13 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   attach_background(*box);
   produced_inline = inline_level;
 
-  // Every child of a flex container is an item, so a run of inline children
-  // has to become one box rather than a line inside the container. That is the
-  // same anonymous-block wrapping mixed content already needs, applied
-  // unconditionally.
-  const bool wrap_inline_runs = style.IsFlexContainer() ? any_inline : (any_inline && any_block);
+  // Block containers wrap mixed inline/block runs in anonymous blocks. Flex
+  // containers must not: each in-flow child is already a flex item (CSS Flexbox
+  // §4), and inventing one anonymous sibling that copies the container's style
+  // — including its `width` — steals the whole main size from a `flex: 1`
+  // neighbour. That is how youtube's masthead packed its end chips past the
+  // viewport: the menu/logo inlines became one 1280px anonymous item.
+  const bool wrap_inline_runs = !style.IsFlexContainer() && any_inline && any_block;
   // `kind != Inline` rather than `!inline_level`: an atomic inline is
   // inline-level on the outside and a block container on the inside, so it
   // needs the anonymous wrapping that a block container needs and an inline box

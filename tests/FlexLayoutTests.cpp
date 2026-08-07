@@ -605,6 +605,31 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
                 "auto margin eats the free space");
   });
 
+  AddTest(tests, "Flex/AbsolutelyPositionedChildrenAreNotFlexItems", [] {
+    // Masthead shell: absolute search beside inline menu and `flex:1` end
+    // icons. Two failure modes pack the chip past the row: (1) treating the
+    // absolute child as a flex item, (2) wrapping the inline menu into an
+    // anonymous block that inherits the row's width and leaves the grower at 0.
+    const Flexed result = Run(
+        "<div class=row><i id=menu></i><s id=search></s><b id=end><u id=chip></u></b></div>",
+        "body, div, i, s, b, u { margin: 0 } "
+        ".row { display: flex; width: 400px; height: 40px } "
+        "#menu { width: 40px; height: 40px } "
+        "#search { position: absolute; left: 50px; width: 200px; height: 30px } "
+        "#end { flex: 1; display: flex; justify-content: flex-end; height: 40px } "
+        "#chip { width: 32px; height: 32px }");
+    const std::vector<const Box*> ends = Items(*result.root, "b");
+    const std::vector<const Box*> chips = Items(*result.root, "u");
+    ExpectEqInt(static_cast<long long>(ends.size()), 1, "end cluster");
+    ExpectEqInt(static_cast<long long>(chips.size()), 1, "chip");
+    ExpectEqInt(static_cast<long long>(ends[0]->Geometry().content.width + 0.5f), 360,
+                "flex:1 takes the space the absolute sibling does not");
+    Expect(chips[0]->Geometry().content.x + chips[0]->Geometry().content.width <= 400.5f,
+           "chip stays inside the row");
+    ExpectEqInt(static_cast<long long>(chips[0]->Geometry().content.x + 0.5f), 368,
+                "flex-end packs the chip to the row's right edge");
+  });
+
   AddTest(tests, "Flex/AContainerIsAsTallAsItsLines", [] {
     const Flexed result = Run(
         "<div class=flex><p>a</p><p>b</p><p>c</p></div>",
