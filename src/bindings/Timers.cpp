@@ -40,8 +40,12 @@ constexpr std::int64_t kMaxDelayMs = 2'147'483'647;
 // rendering"; youtube's kevlar scheduler posts one stamp slice per channel
 // message, and one LayoutAndPaint per slice made the post-load drain
 // unusable (TD-0018). setTimeout(0) still waits for the next turn — that
-// rule is what stops a busy page spinning forever inside one RunDue.
+// rule is what stops a busy page spinning forever inside one RunDue. Nested
+// timeouts then clamp to 4ms (HTML), so the loop sleeps rather than spins.
 constexpr int kMaxHostTasksPerTurn = 64;
+// HTML: after five nested timer tasks, force at least 4ms.
+constexpr std::uint32_t kTimerNestingClamp = 5;
+constexpr std::int64_t kNestedTimerMinMs = 4;
 
 js::Object* Callbacks(js::Interpreter& interpreter) {
   const Value* slot = interpreter.Global()->GetOwn(kCallbacksSlot);
@@ -106,14 +110,22 @@ void TimerQueue::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       // A negative or absent delay is zero, which means "after this turn"
       // rather than "now" -- the callback still waits for the queue.
       const double requested = js::ToNumber(Argument(call.arguments, 1));
-      const std::int64_t delay = std::clamp<std::int64_t>(
+      std::int64_t delay = std::clamp<std::int64_t>(
           std::isfinite(requested) ? static_cast<std::int64_t>(requested) : 0, 0, kMaxDelayMs);
+      // Nested timer clamping (HTML): once five timer tasks deep, a sub-4ms
+      // delay becomes 4ms. Without this, BeginTask-on-every-timeout plus
+      // setTimeout(0) chains spun the loop at zero idle (TD-0018 hang).
+      const std::uint32_t nesting = queue->active_nesting_;
+      if (nesting > kTimerNestingClamp && delay < kNestedTimerMinMs) {
+        delay = kNestedTimerMinMs;
+      }
 
       Timer timer;
       timer.id = queue->next_id_++;
       timer.due_ms = static_cast<std::int64_t>(now_slot->number) + delay;
       timer.interval_ms = repeating ? std::max<std::int64_t>(delay, 1) : 0;
       timer.repeating = repeating;
+      timer.nesting_level = nesting + 1;
       queue->timers_.push_back(timer);
       callbacks_object->Set(js::NumberToString(timer.id), handler);
       return Value::Number(timer.id);
@@ -203,6 +215,7 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
       for (Timer& live : timers_) {
         if (live.id == timer.id) {
           live.due_ms = now_ms + live.interval_ms;
+          live.nesting_level = timer.nesting_level + 1;
         }
       }
     } else {
@@ -211,14 +224,13 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
                     timers_.end());
       callbacks->Delete(key);
     }
-    // A queued task is a new host turn (HTML event-loop task). youtube's
-    // kevlar scheduler posts through MessageChannel; without a fresh budget
-    // those continuations inherit kevlar's spent `kMaxSteps` and abort mid-
-    // stamp (TD-0018). Timers must not BeginTask — that hang remains.
-    if (timer.host_task) {
-      interpreter.BeginTask();
-    }
+    // Every macrotask is a fresh host turn (TD-0018). Nested setTimeout(0)
+    // chains are kept from spinning by the 4ms clamp above, not by sharing
+    // a spent step budget.
+    interpreter.BeginTask();
+    active_nesting_ = timer.host_task ? 0 : timer.nesting_level;
     (void)interpreter.CallFunction(callback, Value::Undefined(), {});
+    active_nesting_ = 0;
   };
 
   for (const Timer& timer : due) {

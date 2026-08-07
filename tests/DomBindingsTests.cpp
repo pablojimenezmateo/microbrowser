@@ -1194,7 +1194,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "DomBindings/SetTimeoutZeroDoesNotBatchInsideRunDue", [] {
     // The host-task drain must not apply to setTimeout(0): that is the rule
-    // that stops a busy page owning the turn forever.
+    // that stops a busy page owning the turn forever. Nested clamp then
+    // forces 4ms so the loop sleeps rather than spins.
     Bound bound = Bind("<body></body>");
     bindings::TimerQueue timers;
     timers.Install(*bound.interpreter, 0);
@@ -1207,6 +1208,49 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     Expect(timers.RunDue(*bound.interpreter, 0), "first timeout runs");
     ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "1",
                    "only the timers due at the start of the pass");
+  });
+
+  AddTest(tests, "DomBindings/NestedSetTimeoutClampsToFourMs", [] {
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter
+               ->Run("globalThis.n = 0;"
+                     "function tick() {"
+                     "  if (++n > 10) return;"
+                     "  setTimeout(tick, 0);"
+                     "}"
+                     "setTimeout(tick, 0);")
+               .completion == js::Completion::Normal,
+           "arm a nested zero-delay chain");
+    // Walk nesting with synthetic now. Clamp applies when scheduling from a
+    // task whose nesting_level is already > 5.
+    std::int64_t now = 0;
+    for (int i = 0; i < 8; ++i) {
+      Expect(timers.RunDue(*bound.interpreter, now), "timer fires");
+      const auto delay = timers.NextDelay(now);
+      Expect(delay.has_value(), "another timeout was scheduled");
+      if (i < 5) {
+        ExpectEqInt(static_cast<long long>(*delay), 0, "sub-clamp nesting stays immediate");
+      } else {
+        Expect(*delay >= 4, "past five nestings the delay is ≥4ms");
+        now += static_cast<std::int64_t>(*delay);
+      }
+    }
+  });
+
+  AddTest(tests, "DomBindings/SetTimeoutClearsASpentStepBudget", [] {
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter->Run("globalThis.got = 0;"
+                                  "setTimeout(() => { got = 7 }, 0);"
+                                  "while (true) {}")
+               .completion == js::Completion::Throw,
+           "burn the hang guard");
+    Expect(timers.RunDue(*bound.interpreter, 0), "deliver setTimeout");
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + got").value), "7",
+                   "setTimeout ran after a spent budget");
   });
 
   AddTest(tests, "DomBindings/BlobUrlAndWindowPostMessage", [] {

@@ -45,10 +45,10 @@ class TimerQueue {
   // before the current turn ends, so a page using `MessageChannel` to yield to
   // the event loop -- which is exactly what it is for -- would never yield.
   //
-  // Delivery calls `Interpreter::BeginTask()` so the callback is a fresh host
-  // turn (TD-0018): youtube's kevlar scheduler posts through MessageChannel,
-  // and a spent step budget must not poison those continuations. `setTimeout`
-  // deliberately does not reset.
+  // Delivery calls `Interpreter::BeginTask()` so every macrotask is a fresh
+  // host turn (TD-0018). Nested `setTimeout(0)` chains clamp to 4ms after
+  // five nestings (HTML), which is what keeps a busy page from spinning the
+  // loop at zero delay forever once every task also resets the step budget.
   //
   // `RunDue` also drains newly queued host tasks in the same turn (capped), so
   // stamp slices share one layout rather than one LayoutAndPaint each.
@@ -67,13 +67,18 @@ class TimerQueue {
     // itself by this much.
     std::int64_t interval_ms = 0;
     bool repeating = false;
-    // `QueueTask` (MessageChannel): BeginTask on delivery. Timers stay false
-    // — resetting those hung youtube after kevlar (TD-0018).
+    // `QueueTask` (MessageChannel): drained in-turn; nesting clamp does not
+    // apply (not the timer algorithm).
     bool host_task = false;
+    // HTML timer nesting level for this task. Used when *scheduling* the next
+    // timeout from inside it.
+    std::uint32_t nesting_level = 0;
   };
 
   std::vector<Timer> timers_;
   double next_id_ = 1.0;
+  // Nesting level of the timer callback currently running, or 0.
+  std::uint32_t active_nesting_ = 0;
 };
 
 }  // namespace microbrowser::bindings
