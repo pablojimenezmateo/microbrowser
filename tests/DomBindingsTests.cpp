@@ -1964,6 +1964,22 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "a timed-out callback is told it timed out and gets a budget");
   });
 
+  AddTest(tests, "IdleCallbacks/AnIdleCallbackClearsASpentStepBudget", [] {
+    // TD-0018: youtube's scheduler.js stamps through requestIdleCallback.
+    // After kevlar spends kMaxSteps those callbacks must BeginTask.
+    js::Interpreter interpreter;
+    bindings::IdleCallbacks idle;
+    idle.Install(interpreter, 0);
+    Expect(interpreter.Run("globalThis.got = 0;"
+                           "requestIdleCallback(() => { got = 42 });"
+                           "while (true) {}")
+               .completion == js::Completion::Throw,
+           "burn the hang guard without absorbing it");
+    Expect(idle.RunDue(interpreter, 0), "deliver the idle callback");
+    ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "42",
+                   "idle callback ran after a spent budget");
+  });
+
   AddTest(tests, "DomBindings/SuspenseReplaceHoistsTemplateForMarkup", [] {
     // reddit's shape: feed markup lives in `<template for="…">` and a
     // `<suspense-replace>` custom element hoists it on connect.

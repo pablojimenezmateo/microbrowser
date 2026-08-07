@@ -699,6 +699,23 @@ delivery, and `RunDue` drains newly queued host tasks in the same turn (capped a
 `InvalidateLayout`s when the document and cascade did not move — that was why
 `layout.skipped_clean` never fired and every MessageChannel turn rebuilt tens of
 thousands of boxes. Counters: `timers.host_tasks_batched`, `layout.due_work_clean`.
+`requestIdleCallback` also `BeginTask`s (youtube's `scheduler.js` stamps through
+it). `setTimeout` still must not — that hang remains.
+
+**Measured** (2026-08-07, Release, `/results?search_query=cats` after the above):
+
+| metric | value |
+|---|---|
+| `ytInitialData` `videoRenderer` nodes | **20** |
+| first `ytd-item-section-renderer.__data.contents` | **21** (15 `videoRenderer`) |
+| stamped `ytd-video-renderer` | **2–3** |
+| `js.steps_exhausted` | **1** |
+| snapshot wall | **~35–45 s** (was hang / multi-minute) |
+| display-list commands | **~300–360** |
+
+Slot assignment also fixed (only the first same-named `<slot>` receives light
+children) — without it labels painted twice (`YouYouTube`). Residual overlap on
+channel names is likely absolute/flex layout, not a second slot fill.
 
 **YouTube Gate C notes (same day).** Home `ytInitialData` for this visitor is
 nudge-only (`feedNudgeRenderer`, 0 `richItemRenderer`) under Chrome UA too —
@@ -706,11 +723,11 @@ not a UA hole. Persistent `ytd-guide-renderer` is gated by Polymer `dom-if` on
 `renderGuide` (width threshold **1312**); at snapshot 1280 expect
 `ytd-mini-guide-renderer`. Prove thumbnails on `/results?search_query=…`.
 
-**End state.** Find the reaction loop or O(n²) stamp that burns 20M before rich-grid attach (stack
-offsets pointed at CoW `connectedCallback` → `render` → ShadyDOM `appendChild` → page
-`attachPage`). Close when `js.steps_exhausted` is 0 on a youtube home load and
-thumbnails paint on a route that has them (search is enough while home is nudge-only). Related: TD-0017 (binding-token strip), TD-0007 /
-ADR 0036 (script monolith).
+**End state.** Close when `js.steps_exhausted` is 0 on a youtube load, search
+stamps the section's `contents` (≈15+ `ytd-video-renderer`), and thumbnails
+paint. Related: TD-0017 (binding-token strip), TD-0007 / ADR 0036 (script
+monolith), TD-0001 (flex measure/place walks; `layout.block_passes` ~16M on
+search).
 
 ---
 

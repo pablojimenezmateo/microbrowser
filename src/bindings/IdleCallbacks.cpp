@@ -178,6 +178,11 @@ bool IdleCallbacks::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
     callbacks->Delete(key);
     const bool timed_out = entry.has_timeout && now_ms >= entry.timeout_at_ms;
     const Value deadline = MakeIdleDeadline(interpreter, now_ms, timed_out);
+    // Idle callbacks are host tasks (HTML event-loop), like MessageChannel.
+    // youtube's scheduler.js stamps through requestIdleCallback; without a
+    // fresh step budget they inherit kevlar's spent kMaxSteps and abort after
+    // a handful of items (TD-0018: 15 videoRenderer in data, 3 in the DOM).
+    interpreter.BeginTask();
     (void)interpreter.CallFunction(callback, Value::Undefined(), {deadline});
     AddPerformanceCounter(PerfCounterId::IdleCallbacksRun);
   }
