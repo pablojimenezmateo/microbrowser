@@ -188,16 +188,21 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     auto box = std::make_unique<Box>(Box::Kind::Replaced, style);
     box->SetOrigin(&element);
     attach_background(*box);
-    if ((element.TagName() == "img" || element.TagName() == "canvas") && images_ != nullptr) {
+    const float width = ReplacedWidth(*box);
+    const float height = ReplacedHeight(*box);
+    if ((element.TagName() == "img" || element.TagName() == "canvas" ||
+         element.TagName() == "svg") &&
+        images_ != nullptr) {
       // A `<canvas>` answers with the bitmap the page drew, through the same hook an `<img>` uses --
       // which is why canvas needed no layout code at all: it is a replaced element whose intrinsic size
-      // comes from its backing store.
-      box->SetImage(images_->ImageForElement(element));
+      // comes from its backing store. Inline `<svg>` is the same hook with a rasterized document.
+      box->SetImage(images_->ImageForElement(element, static_cast<int>(width + 0.5f),
+                                             static_cast<int>(height + 0.5f)));
     } else if (element.TagName() == "input" || element.TagName() == "button" ||
                element.TagName() == "textarea" || element.TagName() == "select") {
       box->SetText(FormControlText(element));
     }
-    box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, ReplacedWidth(*box), ReplacedHeight(*box)};
+    box->Geometry().content = gfx::FloatRect{0.0f, 0.0f, width, height};
     // Not unconditionally inline: the box answers with its own display, so
     // `img { display: block }` puts the picture on a line of its own and a
     // floated or absolutely positioned one leaves the flow. See

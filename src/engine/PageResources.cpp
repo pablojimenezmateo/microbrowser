@@ -15,8 +15,11 @@
 
 #include <algorithm>
 #include <functional>
+#include <memory>
 #include <set>
+#include <span>
 #include <utility>
+#include <vector>
 
 #include "css/StyleSheet.h"
 #include "gfx/SvgDecoder.h"
@@ -669,12 +672,24 @@ std::shared_ptr<const gfx::Image> Page::ImageFor(std::string_view src) const {
   return found == resources_.images.end() ? nullptr : found->second;
 }
 
-std::shared_ptr<const gfx::Image> Page::ImageForElement(const dom::Element& element) const {
+std::shared_ptr<const gfx::Image> Page::ImageForElement(const dom::Element& element, int css_width,
+                                                       int css_height) const {
   // A `<canvas>` is its own image source (ADR 0029 §2): the bitmap the page drew, taken through the same
   // hook an `<img>` uses. That is the whole of what canvas cost layout -- a replaced element whose
   // pixels come from somewhere other than the network.
   if (element.TagName() == "canvas") {
     return canvases_.Snapshot(element);
+  }
+  // Inline `<svg>`: serialize the element and rasterize at the used size. Same
+  // decoder an `<img src="….svg">` uses; without this the logo is a 0×0 box.
+  if (element.TagName() == "svg") {
+    const std::string markup = element.Serialize();
+    const auto bytes = std::as_bytes(std::span<const char>(markup.data(), markup.size()));
+    gfx::SvgDecodeResult decoded = gfx::DecodeSvg(bytes, css_width, css_height);
+    if (!decoded.Ok() || !decoded.image.IsValid()) {
+      return nullptr;
+    }
+    return std::make_shared<gfx::Image>(std::move(decoded.image));
   }
   const auto selected = resources_.selected_image_urls.find(&element);
   if (selected == resources_.selected_image_urls.end()) {

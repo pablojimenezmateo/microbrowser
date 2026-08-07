@@ -586,6 +586,25 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
                 "and the inline-block still starts at the left edge of its line");
   });
 
+  AddTest(tests, "Flex/MarginLeftAutoPushesAnItemToTheEnd", [] {
+    // youtube.com's masthead puts `margin-left: auto` on the end button cluster.
+    // Without absorbing free space into that margin, the search box's
+    // max-content width pushes the buttons past the viewport.
+    const Flexed result = Run(
+        "<div class=flex><i id=a></i><b id=b></b></div>",
+        std::string(kReset) +
+            "i { width: 40px; height: 20px } b { width: 40px; height: 20px; margin-left: auto } "
+            ".flex { width: 400px }");
+    const std::vector<const Box*> first = Items(*result.root, "i");
+    const std::vector<const Box*> second = Items(*result.root, "b");
+    ExpectEqInt(static_cast<long long>(first.size()), 1, "leading item");
+    ExpectEqInt(static_cast<long long>(second.size()), 1, "trailing item");
+    ExpectEqInt(static_cast<long long>(first[0]->Geometry().content.x + 0.5f), 0,
+                "first stays at start");
+    ExpectEqInt(static_cast<long long>(second[0]->Geometry().content.x + 0.5f), 360,
+                "auto margin eats the free space");
+  });
+
   AddTest(tests, "Flex/AContainerIsAsTallAsItsLines", [] {
     const Flexed result = Run(
         "<div class=flex><p>a</p><p>b</p><p>c</p></div>",

@@ -703,7 +703,8 @@ class Page : private layout::ImageProvider,
   // image, and nobody else has business calling this.
   void WantImage(std::string_view src) const override;
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
-  std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element) const override;
+  std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element, int css_width = 0,
+                                                   int css_height = 0) const override;
 
   // One route from "this form is being submitted" to a submission: fire the
   // `submit` event, and build the data set only if nothing prevented it. A

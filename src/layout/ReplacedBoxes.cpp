@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "css/ComputedStyle.h"
 #include "dom/Node.h"
@@ -127,6 +128,41 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
     }
     return style.font_size * 20.0f * 0.6f + 12.0f;
   }
+  // Inline `<svg>` is a replaced element (CSS 2.1 / SVG). Without an intrinsic
+  // size it collapses to 0×0 and youtube's masthead logo disappears — width and
+  // height from CSS only apply to replaced inlines.
+  if (box.Origin() != nullptr && box.Origin()->TagName() == "svg") {
+    if (const std::string* view_box = box.Origin()->GetAttribute("viewbox")) {
+      // `min-x min-y width height`, whitespace-separated.
+      float numbers[4] = {};
+      std::size_t count = 0;
+      std::size_t i = 0;
+      while (i < view_box->size() && count < 4) {
+        while (i < view_box->size() && IsSpace((*view_box)[i])) {
+          ++i;
+        }
+        if (i >= view_box->size()) {
+          break;
+        }
+        const std::size_t begin = i;
+        while (i < view_box->size() && !IsSpace((*view_box)[i]) && (*view_box)[i] != ',') {
+          ++i;
+        }
+        if (const std::optional<double> parsed =
+                util::ParseDouble(std::string_view(view_box->data() + begin, i - begin))) {
+          numbers[count++] = static_cast<float>(*parsed);
+        } else {
+          break;
+        }
+        if (i < view_box->size() && (*view_box)[i] == ',') {
+          ++i;
+        }
+      }
+      if (count == 4 && numbers[2] > 0.0f && numbers[3] > 0.0f) {
+        return horizontal ? numbers[2] : numbers[3];
+      }
+    }
+  }
   return 0.0f;
 }
 
@@ -142,10 +178,14 @@ bool IsReplacedElement(const dom::Element& element) {
   // `<canvas>` too (ADR 0029 §2): its content is a bitmap the page drew, and its children are fallback
   // it replaces -- without this, the "your browser does not support canvas" paragraph inside one is
   // laid out as page content.
+  // Inline `<svg>` too: same replaced model as `<img>`, with intrinsic size from
+  // width/height attributes or `viewBox`. Left as a normal box it ignores CSS
+  // width/height (non-replaced inline) and paints nothing of its own.
   return element.TagName() == "img" || element.TagName() == "input" ||
          element.TagName() == "button" || element.TagName() == "textarea" ||
          element.TagName() == "select" || element.TagName() == "video" ||
-         element.TagName() == "audio" || element.TagName() == "canvas";
+         element.TagName() == "audio" || element.TagName() == "canvas" ||
+         element.TagName() == "svg";
 }
 
 float ReplacedWidth(const Box& box) { return ReplacedIntrinsic(box, true); }

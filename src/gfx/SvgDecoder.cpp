@@ -287,7 +287,9 @@ bool ElementScanner::Next(Element& out) {
 
 const std::string_view* Find(const std::vector<Attribute>& attributes, std::string_view name) {
   for (const Attribute& attribute : attributes) {
-    if (attribute.name == name) {
+    // HTML parsers lowercase attribute names (`viewbox`); XML/SVG files keep
+    // camelCase (`viewBox`). Both reach this decoder.
+    if (util::EqualsAsciiCaseInsensitive(attribute.name, name)) {
       return &attribute.value;
     }
   }

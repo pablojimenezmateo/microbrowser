@@ -1311,6 +1311,23 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(silent->Geometry().content.height == 0.0f, "and no height without controls");
   });
 
+  AddTest(tests, "Layout/AnInlineSvgIsAReplacedBoxSizedByViewBox", [] {
+    // youtube.com's masthead logo is an inline `<svg>`. As a non-replaced inline
+    // it ignored CSS width/height and collapsed to 0×0.
+    const LaidOut from_box =
+        Run(R"(<svg viewBox="0 0 40 20"></svg>)", "body { margin: 0 }", 400.0f);
+    const Box* svg = FindBox(*from_box.root, "svg");
+    Expect(svg != nullptr && svg->GetKind() == Box::Kind::Replaced, "replaced");
+    Expect(svg->Geometry().content.width == 40.0f, "viewBox width");
+    Expect(svg->Geometry().content.height == 20.0f, "viewBox height");
+    const LaidOut from_css = Run(
+        R"(<svg viewBox="0 0 100 100"></svg>)",
+        "body { margin: 0 } svg { width: 24px; height: 24px }", 400.0f);
+    const Box* sized = FindBox(*from_css.root, "svg");
+    Expect(sized != nullptr && sized->Geometry().content.width == 24.0f, "CSS width wins");
+    Expect(sized->Geometry().content.height == 24.0f, "CSS height wins");
+  });
+
   AddTest(tests, "Layout/DefaultControlsArePaintedBoxesRatherThanWidgets", [] {
     // ADR 0028 §1 puts them in ADR 0018's category: boxes the *user agent* creates inside a page,
     // not widgets `src/ui` owns. So they are in the display list, in the page's coordinate space

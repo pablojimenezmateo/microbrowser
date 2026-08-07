@@ -327,7 +327,14 @@ class ImageProvider {
   //
   // The default is the URL the element wrote, which is what every caller had
   // before selection existed and is right for a provider that does not select.
-  virtual std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element) const {
+  // `css_width`/`css_height` are the used content size in CSS pixels; inline
+  // `<svg>` needs them because its intrinsic size may be absent and DecodeSvg
+  // refuses a zero surface.
+  virtual std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element,
+                                                           int css_width = 0,
+                                                           int css_height = 0) const {
+    (void)css_width;
+    (void)css_height;
     const std::string* src = element.GetAttribute("src");
     return src == nullptr ? nullptr : ImageFor(*src);
   }

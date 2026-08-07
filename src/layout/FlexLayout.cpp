@@ -20,11 +20,10 @@
 // is how the two drift apart, and the second one is always the one that is
 // wrong.
 //
-// What is deliberately not here: `min-width`/`max-width` clamping of a
-// resolved length (the properties do not exist yet), baseline alignment
-// (`align-items: baseline` falls back to flex-start, because a box's baseline
-// is a property of its first line and the line boxes are not exposed), and
-// percentage gaps.
+// What is deliberately not here: baseline alignment (`align-items: baseline`
+// falls back to flex-start, because a box's baseline is a property of its first
+// line and the line boxes are not exposed), and percentage gaps. Main-axis
+// `margin: auto` *is* here — youtube's masthead depends on it.
 
 namespace microbrowser::layout {
 
@@ -39,6 +38,10 @@ struct Item {
   // where a sign error lives.
   float main_extra = 0.0f;
   float cross_extra = 0.0f;
+  // Auto margins on the main axis (0–2). Free space after flexing goes to
+  // these equally; without that, youtube's masthead end-cluster (`margin-left:
+  // auto`) sits after a max-content search box and overflows the viewport.
+  int auto_main_margins = 0;
   // The size the item would take if nothing flexed, and the size it was given.
   float base_main = 0.0f;
   float outer_main = 0.0f;
@@ -181,24 +184,29 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   for (Item& item : items) {
     const css::ComputedStyle& item_style = item.box->Style();
     const css::Edges& border = item_style.has_border ? item_style.border_width : css::Edges{};
-    const auto extra = [&](bool horizontal) {
+    const auto extra = [&](bool horizontal, int* auto_margins) {
       const css::Edges& margin = item_style.margin;
       const css::Edges& padding = item_style.padding;
-      // An auto margin resolves to zero here. Distributing free space into it
-      // is a separate rule, and one this does not implement -- justify-content
-      // covers what pages use it for.
+      // An auto margin contributes zero to the base outer size; free space is
+      // assigned to it after flexing (see the place loop below).
       const auto resolve = [font_size](const css::Length& length) {
         return length.IsAuto() ? 0.0f : length.Resolve(font_size);
       };
       if (horizontal) {
+        if (auto_margins != nullptr) {
+          *auto_margins = (margin.left.IsAuto() ? 1 : 0) + (margin.right.IsAuto() ? 1 : 0);
+        }
         return resolve(margin.left) + resolve(margin.right) + resolve(padding.left) +
                resolve(padding.right) + resolve(border.left) + resolve(border.right);
+      }
+      if (auto_margins != nullptr) {
+        *auto_margins = (margin.top.IsAuto() ? 1 : 0) + (margin.bottom.IsAuto() ? 1 : 0);
       }
       return resolve(margin.top) + resolve(margin.bottom) + resolve(padding.top) +
              resolve(padding.bottom) + resolve(border.top) + resolve(border.bottom);
     };
-    item.main_extra = extra(row);
-    item.cross_extra = extra(!row);
+    item.main_extra = extra(row, &item.auto_main_margins);
+    item.cross_extra = extra(!row, nullptr);
 
     // The flex base size: `flex-basis` if it says something, then the size
     // property on the main axis, then the content. The order is the spec's and
@@ -370,11 +378,19 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   for (const Line& line : lines) {
     const std::size_t count = line.end - line.begin;
     float used = std::max(0.0f, static_cast<float>(count) - 1.0f) * main_gap;
+    int auto_margins = 0;
     for (std::size_t i = line.begin; i < line.end; ++i) {
       used += items[i].outer_main;
+      auto_margins += items[i].auto_main_margins;
     }
-    const Spacing spacing =
-        row ? Distribute(flex.justify_content, main_size - used, count) : Spacing{};
+    // Auto margins absorb free space before justify-content. Spec: if any
+    // main-axis margin is auto, justify-content does not distribute that space.
+    const float free_space = row ? main_size - used : 0.0f;
+    const float auto_share =
+        (row && auto_margins > 0 && free_space > 0.0f) ? free_space / static_cast<float>(auto_margins)
+                                                      : 0.0f;
+    const float justify_free = auto_share > 0.0f ? 0.0f : free_space;
+    const Spacing spacing = row ? Distribute(flex.justify_content, justify_free, count) : Spacing{};
 
     // Positions first, then layout. A reversed direction is a mirror of the
     // whole line rather than a backwards walk over it: `row-reverse` moves the
@@ -384,8 +400,19 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     // the free space on the wrong side, which looks right until there is any.
     float main_cursor = spacing.leading;
     for (std::size_t i = line.begin; i < line.end; ++i) {
+      const css::Edges& margin = items[i].box->Style().margin;
+      if (row && auto_share > 0.0f) {
+        if ((IsReversed(flex.direction) ? margin.right : margin.left).IsAuto()) {
+          main_cursor += auto_share;
+        }
+      }
       items[i].main_position = main_cursor;
       main_cursor += items[i].outer_main + main_gap + spacing.between;
+      if (row && auto_share > 0.0f) {
+        if ((IsReversed(flex.direction) ? margin.left : margin.right).IsAuto()) {
+          main_cursor += auto_share;
+        }
+      }
     }
     if (IsReversed(flex.direction)) {
       // Mirrored against the line's own extent for a column, whose main size
