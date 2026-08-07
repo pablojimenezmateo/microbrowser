@@ -353,6 +353,11 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // step budget -- reporting the wrong reason for the right refusal.
     ExpectEval("while (true) {}", "throw RangeError: script ran too long");
     ExpectEval("for (;;) { }", "throw RangeError: script ran too long");
+    // A catch that absorbs the hang-guard must not loop forever: continuing
+    // RunFrames with steps_ still past the limit rethrows on every iteration
+    // (youtube / TD-0018). One absorption gets a fresh budget for the handler.
+    ExpectEval("try { while (true) {} } catch (e) { e instanceof RangeError ? 'ok' : 'no' }",
+               "ok");
   });
 
   AddTest(tests, "JsInterpreter/ANodeThatIsNeitherExpressionNorStatementDoesNotLoop", [] {

@@ -25,7 +25,15 @@ constexpr std::size_t kCollectionThreshold = 4096;
 
 void Interpreter::BeginHostTurn() {
   util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  // Nested RunCompiled — a module body evaluated from dynamic `import()` while
+  // another script's frames are still on the machine — must share the outer
+  // budget. Resetting here let a stamp storm run forever: each import got a
+  // fresh 20M and TD-0018's hang guard never fired.
+  if (!vm_.frames.empty()) {
+    return;
+  }
   steps_ = 0;
+  step_budget_absorbed_ = false;
 }
 
 Result Interpreter::ExhaustedSteps() {

@@ -613,36 +613,31 @@ templates; close when the snapshot shows feed posts rather than an empty main re
 
 ---
 
-## TD-0017 — Upgrade still strips Polymer binding-token attributes
+## TD-0017 — Template contents were upgraded (binding tokens lost before parse)
 
-`getAttribute`, `attributes`, `cloneNode`/`importNode` and `setAttribute` now keep `[[…]]` /
-`{{…}}` values (session 56). That is the platform-correct surface and what lets Polymer see
-`items="[[…]]"` on a stamp.
+`getAttribute`, `attributes`, `cloneNode`/`importNode` and `setAttribute` keep `[[…]]` /
+`{{…}}` values. `attributeChangedCallback` skips binding-token values so Polymer does not
+`_deserializeValue` them as JSON.
 
-`UpgradeElement` still removes those tokens **before** the custom-element constructor runs.
-Without that strip, youtube.com spins at ~99% CPU and never finishes a snapshot (measured
-2026-08-07: multi-minute hang, no counters dump). With it, the load finishes in ~75s and
-Polymer logs `couldn't decode Array as JSON: [[computedBadges]]` on other paths — so tokens
-still reach `_deserializeValue` after stamp, and `dom-repeat.items` stays `null`.
+**Root cause (2026-08-07).** `template.innerHTML = …` inserts into `template.content`, a
+host-less `DocumentFragment`. `InsertFragmentChildren` upgraded custom elements there, and
+`UpgradeElement`'s post-constructor strip removed every `data="[[…]]"`. Polymer's
+`_parseTemplate` therefore saw bare tags with no host bindings — browse never pushed
+`twoColumnBrowseResultsRenderer` into the two-column host.
 
-**Measured**, Debug, after session 56's partial fix:
+**Fix (partial).** `DocumentFragment::IsTemplateContent()` marks `<template>.content`
+so the skip is one condition. Do **not** treat every host-less fragment as inert —
+ShadyDOM stamps into one without `Host()`. Live stamped hosts still strip binding
+tokens after the constructor.
 
-| | strip at upgrade | preserve at upgrade too |
-|---|---|---|
-| snapshot | **~75s, finishes** | ≥3 min at 99% CPU, killed |
-| unbound `[[` text nodes | **0** | n/a |
-| `dom-repeat` in tree | **7** | n/a |
-| `dom-repeat.items` | all `null` | n/a |
-| `ytd-rich-item-renderer` | **0** | n/a |
+**Blocked.** Skipping upgrades in `InsertFragmentChildren` for template content
+makes Polymer parse browse host bindings, then the stamp storm never finishes a
+youtube snapshot (Debug or Release, >3 min at ~100% CPU). TD-0018's step budget
+does not bound it: each host turn stays under 20M while each step does heavy
+native work. Flip the skip when that storm is bounded.
 
-**Update** (2026-08-07). Removing tokens for the whole upgrade hung outside the JS
-step budget (empty log, 99% CPU). **Moving the strip to after the constructor**
-lets Polymer see `data="[[…]]"` during construction (test:
-`seen === '[[x]]'`) and still finishes a youtube snapshot (~85s Debug,
-`js.steps_exhausted` **166** vs **343** with pre-constructor strip). Feed still
-empty: `twoData` false, **0** rich-grid — host binding from browse into
-two-column `data` is not applied yet. Tokens are still removed before
-post-upgrade ACC and `connectedCallback`.
+**Close when** youtube home applies browse→two-column `data` without `-eval`, and the
+live-host strip can be deleted without a hang (related: TD-0018).
 
 ---
 
@@ -673,6 +668,17 @@ what the aborted reactions never finish.
 Timer / event resets were tried and pulled: after kevlar spends the budget, a fresh
 per-timer budget lets a post-script storm run forever. Nested `CallCompiled` must
 not reset either (same hang via microtasks).
+
+**Update** (2026-08-07). Three hang-guard bugs stacked: (1) the step check ran
+*before* instruction fetch, so `UnwindToHandler`'s `ip - 1` pointed outside the
+`try` range and `catch` never saw `RangeError: script ran too long`; (2) after a
+caught exhaustion, `continue` with `steps_` still past the limit rethrew every
+iteration; (3) nested `RunCompiled` (module eval from dynamic `import()` while
+frames were still live) called `BeginHostTurn` and reset the budget — youtube's
+stamp storm never hit 20M. Check is after fetch; one absorption resets for
+`catch`/`finally`; nested RunCompiled shares the outer budget; a second
+exhaustion in the same host turn aborts. That lets TD-0017's inert-template fix
+finish a load; stamp may still abort mid-way until the stamp itself is cheap.
 
 **End state.** Find the reaction loop or O(n²) stamp that burns 20M before rich-grid attach (stack
 offsets pointed at CoW `connectedCallback` → `render` → ShadyDOM `appendChild` → page

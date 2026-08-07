@@ -46,16 +46,6 @@ namespace microbrowser::js {
 
 Result Interpreter::RunFrames(std::size_t entry_depth) {
   while (vm_.frames.size() > entry_depth) {
-    if (++steps_ > kMaxSteps) {
-      // A page can write `while (true) {}`. A step budget makes that a thrown
-      // error rather than a hung browser, which is the only difference a user
-      // would notice between the two.
-      const Result out = ExhaustedSteps();
-      if (!UnwindToHandler(out.value, entry_depth)) {
-        return out;
-      }
-      continue;
-    }
     if (vm_.stack.size() + 8 > kValueStackCapacity) {
       const Result out = Throw("RangeError", "maximum call stack size exceeded");
       if (!UnwindToHandler(out.value, entry_depth)) {
@@ -84,6 +74,20 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
     }
 
     const Instruction instruction = frame->code->code[frame->ip++];
+    // After fetch: UnwindToHandler uses `ip - 1`. A pre-fetch check made
+    // `try { while (true) {} } catch` miss the RangeError (TD-0018).
+    if (++steps_ > kMaxSteps) {
+      const Result out = ExhaustedSteps();
+      if (!UnwindToHandler(out.value, entry_depth)) {
+        return out;
+      }
+      if (step_budget_absorbed_) {
+        return out;
+      }
+      step_budget_absorbed_ = true;
+      steps_ = 0;
+      continue;
+    }
     const CompiledFunction& code = *frame->code;
     Result pending;
     bool threw = false;

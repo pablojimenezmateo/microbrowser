@@ -1089,6 +1089,9 @@ class Interpreter {
   // chances to forget.
   Value pending_new_target_;
   std::size_t steps_ = 0;
+  // After a step-budget RangeError is caught inside RunFrames, further
+  // exhaustion in the same turn aborts rather than looping (TD-0018).
+  bool step_budget_absorbed_ = false;
   // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036). One
   // budget per top-level script turn; nested custom-element reactions and
   // microtasks share it. youtube.com's kevlar turn exhausts this and aborts
