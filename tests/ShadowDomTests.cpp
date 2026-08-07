@@ -258,6 +258,31 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
     ExpectEqString(through_slot.at(0)->TextContent(), "once", "once");
   });
 
+  AddTest(tests, "ShadowDom/OnlyTheFirstSlotWithANameReceivesAssignment", [] {
+    // DOM: later same-named slots get nothing. Without this, youtube painted
+    // every label twice ("YouYouTube", stacked channel names).
+    dom::Element host("div");
+    dom::DocumentFragment* root = host.AttachShadow(true);
+    auto first = std::make_unique<dom::Element>("slot");
+    auto second = std::make_unique<dom::Element>("slot");
+    second->Append(std::make_unique<dom::Text>("fallback"));
+    dom::Element* first_ptr = first.get();
+    dom::Element* second_ptr = second.get();
+    root->Append(std::move(first));
+    root->Append(std::move(second));
+    host.Append(std::make_unique<dom::Text>("YouTube"));
+
+    const std::vector<dom::Node*> through_first = dom::AssignedNodes(*first_ptr);
+    ExpectEqInt(static_cast<long long>(through_first.size()), 1, "the first slot is filled");
+    ExpectEqString(through_first.at(0)->TextContent(), "YouTube", "with the light text");
+
+    const std::vector<dom::Node*> through_second = dom::AssignedNodes(*second_ptr);
+    Expect(through_second.empty(), "the second same-named slot gets nothing");
+    const std::vector<dom::Node*> flat_second = dom::FlatChildren(*second_ptr);
+    ExpectEqInt(static_cast<long long>(flat_second.size()), 1, "so it shows fallback");
+    ExpectEqString(flat_second.at(0)->TextContent(), "fallback", "not a second copy");
+  });
+
   AddTest(tests, "ShadowDom/TheHostOfAShadowNodeIsReachableAndOfALightNodeIsNot", [] {
     dom::Element host("div");
     dom::DocumentFragment* root = host.AttachShadow(true);

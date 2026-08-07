@@ -25,6 +25,24 @@ std::string_view NameOf(const Element& slot) {
   return name == nullptr ? std::string_view{} : std::string_view(*name);
 }
 
+// First `<slot>` with `name` in tree order under `root`, or null.
+const Element* FirstSlotWithName(const Node& root, std::string_view name) {
+  if (root.IsElement()) {
+    const auto& el = static_cast<const Element&>(root);
+    if (IsSlot(el) && NameOf(el) == name) {
+      return &el;
+    }
+    for (const std::unique_ptr<Node>& child : el.Children()) {
+      if (child != nullptr) {
+        if (const Element* found = FirstSlotWithName(*child, name)) {
+          return found;
+        }
+      }
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 const Element* ShadowHostOf(const Node& node) {
@@ -44,7 +62,26 @@ std::vector<Node*> AssignedNodes(const Element& slot) {
   if (host == nullptr) {
     return assigned;
   }
+  // Only the *first* slot with this name in the shadow tree receives matching
+  // light children (DOM). Assigning to every same-named slot painted youtube's
+  // labels twice — "YouYouTube", channel names stacked on themselves.
+  const DocumentFragment* shadow = host->ShadowRoot();
+  if (shadow == nullptr) {
+    return assigned;
+  }
   const std::string_view wanted = NameOf(slot);
+  const Element* first = nullptr;
+  for (const std::unique_ptr<Node>& child : shadow->Children()) {
+    if (child != nullptr) {
+      first = FirstSlotWithName(*child, wanted);
+      if (first != nullptr) {
+        break;
+      }
+    }
+  }
+  if (first != &slot) {
+    return assigned;
+  }
   for (const std::unique_ptr<Node>& child : host->Children()) {
     if (child == nullptr) {
       continue;
