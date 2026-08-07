@@ -1152,6 +1152,24 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "function true function", "MessagePort is an EventTarget with a name");
   });
 
+  AddTest(tests, "DomBindings/AMessageChannelTaskClearsASpentStepBudget", [] {
+    // TD-0018: after a host turn burns `kMaxSteps`, MessageChannel delivery
+    // must BeginTask or kevlar's scheduler continuations abort mid-stamp.
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter->Run("globalThis.got = 0;"
+                                  "const c = new MessageChannel();"
+                                  "c.port1.onmessage = () => { got = 42 };"
+                                  "c.port2.postMessage(0);"
+                                  "while (true) {}")
+               .completion == js::Completion::Throw,
+           "burn the hang guard without absorbing it");
+    Expect(timers.RunDue(*bound.interpreter, 0), "deliver the queued task");
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + got").value), "42",
+                   "MessageChannel task ran after a spent budget");
+  });
+
   AddTest(tests, "DomBindings/BlobUrlAndWindowPostMessage", [] {
   struct StubNetwork final : bindings::NetworkSource {
     std::uint64_t StartFetch(const bindings::ScriptRequest&) override { return 0; }

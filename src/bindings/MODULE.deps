@@ -248,8 +248,11 @@ budget: GeometrySource header_lines=75 public_methods=8 members=0
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it
 # cannot see is one it frees while the timer still points at it.
-budget: TimerQueue  header_lines=50 public_methods=6 members=2
-budget: Timer       header_lines=20 public_methods=0 members=4
+# header_lines 55: QueueTask's BeginTask contract (TD-0018) needs a paragraph.
+budget: TimerQueue  header_lines=55 public_methods=6 members=2
+# members 5: `host_task` marks MessageChannel tasks so delivery BeginTask()s
+# without giving setTimeout the same reset (that hung youtube).
+budget: Timer       header_lines=25 public_methods=0 members=5
 # requestAnimationFrame, and deliberately not part of TimerQueue. A timer is a
 # deadline the page chose; a frame is one the browser chose, shared by every
 # callback, and existing only while something has asked for it. Four members:

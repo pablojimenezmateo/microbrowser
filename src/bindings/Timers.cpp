@@ -59,6 +59,7 @@ bool TimerQueue::QueueTask(js::Interpreter& interpreter, const js::Value& callba
   // the same thing `setTimeout(f, 0)` gets, and the same thing the loop wakes
   // for.
   timer.due_ms = static_cast<std::int64_t>(now_slot->number);
+  timer.host_task = true;
   queue->timers_.push_back(timer);
   callbacks->Set(js::NumberToString(timer.id), callback);
   return true;
@@ -199,6 +200,13 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
                                    [&timer](const Timer& each) { return each.id == timer.id; }),
                     timers_.end());
       callbacks->Delete(key);
+    }
+    // A queued task is a new host turn (HTML event-loop task). youtube's
+    // kevlar scheduler posts through MessageChannel; without a fresh budget
+    // those continuations inherit kevlar's spent `kMaxSteps` and abort mid-
+    // stamp (TD-0018). Timers must not BeginTask — that hang remains.
+    if (timer.host_task) {
+      interpreter.BeginTask();
     }
     (void)interpreter.CallFunction(callback, Value::Undefined(), {});
   }

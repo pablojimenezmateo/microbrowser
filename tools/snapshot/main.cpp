@@ -342,9 +342,16 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     std::fprintf(stderr, "[load] finished after %llu turns\n",
                  static_cast<unsigned long long>(turns));
   }
-  // A page's last script turn often registers a timer or `requestIdleCallback`;
-  // if `Advance()` returned true that same iteration, `RunDueWork` never ran.
-  for (int pass = 0; pass < 64; ++pass) {
+  // A page's last script turn often registers a timer, MessageChannel task, or
+  // `requestIdleCallback`; if `Advance()` returned true that same iteration,
+  // `RunDueWork` never ran inside the load loop. Drain until idle.
+  //
+  // Cap is high because youtube's kevlar scheduler yields through MessageChannel
+  // one stamp slice per task (TD-0018): 64 left search results at a handful of
+  // `ytd-video-renderer`s. Each pass runs every *currently* due task; a task that
+  // queues another due-now item needs a later pass. Finite so a forever-
+  // posting channel cannot hang the snapshot tool.
+  for (int pass = 0; pass < 4096; ++pass) {
     if (!engine.RunDueWork()) {
       break;
     }

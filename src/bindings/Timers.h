@@ -45,6 +45,11 @@ class TimerQueue {
   // before the current turn ends, so a page using `MessageChannel` to yield to
   // the event loop -- which is exactly what it is for -- would never yield.
   //
+  // Delivery calls `Interpreter::BeginTask()` so the callback is a fresh host
+  // turn (TD-0018): youtube's kevlar scheduler posts through MessageChannel,
+  // and a spent step budget must not poison those continuations. `setTimeout`
+  // deliberately does not reset.
+  //
   // Static, and reaches the queue through the interpreter's globals the way
   // `setTimeout` itself does, so a caller that has neither a TimerQueue nor a
   // way to get one can still post a task. False when there is no queue
@@ -59,6 +64,9 @@ class TimerQueue {
     // itself by this much.
     std::int64_t interval_ms = 0;
     bool repeating = false;
+    // `QueueTask` (MessageChannel): BeginTask on delivery. Timers stay false
+    // — resetting those hung youtube after kevlar (TD-0018).
+    bool host_task = false;
   };
 
   std::vector<Timer> timers_;
