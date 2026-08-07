@@ -395,6 +395,13 @@ struct ComputedStyle {
   // remember to check.
   float aspect_ratio = 0.0f;
 
+  // `content`, for `::before` / `::after` only. `Normal`/`None` generate no box;
+  // `Empty` is `content: ""`, which is what youtube's thumbnail aspect hack uses
+  // -- a block with percentage padding and no text. Strings, urls and counters
+  // are absent rather than stubbed (ADR 0012).
+  enum class Content : std::uint8_t { Normal, None, Empty };
+  Content content = Content::Normal;
+
   // A used size, clamped by its bounds. Applied after a size is decided by
   // whatever decided it -- the block model, shrink-to-fit, or the flex
   // algorithm -- which is what lets one rule serve all three.

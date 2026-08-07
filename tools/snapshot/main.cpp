@@ -388,20 +388,36 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     microbrowser::platform::WaitOnDescriptors(descriptors, wait_ms);
   }
   // Stamp finishes on rAF; IntersectionObservers sample on paint. Schedule one
-  // frame so youtube's lazy imgs can assign `src` after the last stamp chunk.
+  // frame so youtube's lazy imgs can assign `src` after the last stamp chunk,
+  // then keep turning until idle so the fetches that assignment starts can land.
   (void)engine.EvaluateScript("requestAnimationFrame(() => {});");
-  for (int pass = 0; pass < 32; ++pass) {
+  for (int pass = 0; pass < 64; ++pass) {
     if (std::chrono::steady_clock::now() >= drain_deadline) {
       break;
     }
     if (engine.RunDueWork()) {
-      break;
+      continue;
     }
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
     if (!deadline.has_value()) {
-      break;
+      // Still waiting on sockets the last frame opened (thumbnail `src`s).
+      microbrowser::util::WaitDescriptorList descriptors;
+      engine.AppendWaitDescriptors(descriptors);
+      if (descriptors.empty()) {
+        break;
+      }
+      const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                 drain_deadline - std::chrono::steady_clock::now())
+                                 .count();
+      if (remaining <= 0) {
+        break;
+      }
+      microbrowser::platform::WaitOnDescriptors(
+          descriptors, static_cast<std::int32_t>(std::min<std::int64_t>(remaining, 50)));
+      continue;
     }
     microbrowser::util::WaitDescriptorList descriptors;
+    engine.AppendWaitDescriptors(descriptors);
     const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                                drain_deadline - std::chrono::steady_clock::now())
                                .count();

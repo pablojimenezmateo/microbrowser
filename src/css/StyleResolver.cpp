@@ -380,6 +380,10 @@ Bucket BucketFor(const Selector& selector) {
         // itself. Filing them by the tag beside them would hide a component's
         // `:host` from its own host.
         return {};
+      case SelectorPart::Kind::PseudoElement:
+        // Does not name the originating element; the other parts of the subject
+        // still do, so keep searching.
+        break;
       case SelectorPart::Kind::Universal:
       case SelectorPart::Kind::Attribute:
       case SelectorPart::Kind::PseudoClass:
@@ -611,6 +615,10 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   for (const std::uint32_t position : candidates) {
     const Entry& entry = rules_[position];
     AddPerformanceCounter(PerfCounterId::CssCandidatesTested);
+    if (entry.selector.SubjectPseudoElement() != PseudoElement::None) {
+      // `div::before` styles the generated box, not the `div`.
+      continue;
+    }
     if (!ScopeAdmits(entry, element, element_scope)) {
       continue;
     }
@@ -731,6 +739,78 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   // which is every test about selectors.
   if (adjuster_ != nullptr) {
     adjuster_->AdjustStyle(element, style);
+  }
+  return style;
+}
+
+ComputedStyle StyleResolver::StyleForPseudo(const dom::Element& element, PseudoElement which,
+                                            const ComputedStyle& originating) const {
+  ComputedStyle style;
+  InheritInto(originating, style);
+  if (which == PseudoElement::None) {
+    return style;
+  }
+
+  struct Candidate {
+    const Declaration* declaration;
+    Origin origin;
+    Specificity specificity;
+    std::size_t order;
+  };
+
+  const dom::Node* element_scope = ScopeOf(element);
+  std::vector<std::uint32_t> candidates;
+  CandidateRules(element, candidates);
+
+  std::vector<Candidate> ordered;
+  for (const std::uint32_t position : candidates) {
+    const Entry& entry = rules_[position];
+    if (entry.selector.SubjectPseudoElement() != which) {
+      continue;
+    }
+    if (!ScopeAdmits(entry, element, element_scope)) {
+      continue;
+    }
+    for (const Declaration& declaration : entry.declarations) {
+      ordered.push_back(Candidate{&declaration, entry.origin, entry.specificity, entry.order});
+    }
+  }
+
+  std::stable_sort(ordered.begin(), ordered.end(), [](const Candidate& a, const Candidate& b) {
+    const int rank_a = (a.declaration->important ? 10 : 0) + static_cast<int>(a.origin);
+    const int rank_b = (b.declaration->important ? 10 : 0) + static_cast<int>(b.origin);
+    if (rank_a != rank_b) {
+      return rank_a < rank_b;
+    }
+    if (!(a.specificity == b.specificity)) {
+      return a.specificity < b.specificity;
+    }
+    return a.order < b.order;
+  });
+
+  for (const Candidate& candidate : ordered) {
+    const Declaration& declaration = *candidate.declaration;
+    if (declaration.property.rfind("--", 0) == 0) {
+      style.SetCustomProperty(declaration.property, Trim(declaration.value).empty()
+                                                        ? std::string()
+                                                        : declaration.value);
+    }
+  }
+  for (const Candidate& candidate : ordered) {
+    const Declaration& declaration = *candidate.declaration;
+    if (declaration.property.rfind("--", 0) == 0) {
+      continue;
+    }
+    // Generated content rarely uses `var()`; substitute only when needed so a
+    // missing var still unsets rather than applying the literal text.
+    if (declaration.value.find("var(") == std::string::npos) {
+      ApplyDeclaration(declaration.property, declaration.value, originating, style);
+      continue;
+    }
+    std::string out;
+    if (SubstituteVarsDepth(declaration.value, style, 0, out)) {
+      ApplyDeclaration(declaration.property, out, originating, style);
+    }
   }
   return style;
 }

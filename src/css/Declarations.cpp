@@ -415,6 +415,20 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     }
     return true;
   }
+  if (property == "content") {
+    // Only the forms `::before`/`::after` need for the aspect-ratio hack and
+    // "generate nothing". Quoted empty string is Empty; `none`/`normal` suppress
+    // the box. Anything richer is refused rather than approximated (ADR 0012).
+    if (value == "none" || value == "normal") {
+      style.content = ComputedStyle::Content::None;
+      return true;
+    }
+    if (value == "\"\"" || value == "''") {
+      style.content = ComputedStyle::Content::Empty;
+      return true;
+    }
+    return false;
+  }
   if (property == "color") {
     const auto color = ParseColor(raw_value);
     if (!color.has_value()) {

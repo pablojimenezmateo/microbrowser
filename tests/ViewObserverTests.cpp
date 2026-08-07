@@ -160,6 +160,24 @@ void RegisterViewObserverTests(std::vector<TestCase>& tests) {
                    "zero-height placeholders in the viewport get a one-pixel intersection height");
   });
 
+  AddTest(tests, "IntersectionObserver/ACallbackClearsASpentStepBudget", [] {
+    // TD-0018: DeliverObservations runs after the rAF that stamped youtube's
+    // list. Without BeginTask the lazy-img callback inherits a spent budget and
+    // never assigns `src`.
+    Observed session;
+    session.Load(
+        "<body style='margin:0'><div id='a' style='height:100px'></div>"
+        "<script>"
+        "var got = 0;"
+        "var o = new IntersectionObserver(function () { got = 42; });"
+        "o.observe(document.getElementById('a'));"
+        "while (true) {}"
+        "</script></body>");
+    Expect(session.Frame(), "delivered despite the spent budget");
+    ExpectEqString(session.page.EvaluateScript("'' + got"), "42",
+                   "observer callback ran after a spent step budget");
+  });
+
   AddTest(tests, "IntersectionObserver/ASettledPageDeliversNothing", [] {
     Observed session;
     session.Load(

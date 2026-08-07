@@ -322,6 +322,11 @@ bool DomBindings::DeliverViewObservations(double time_ms) {
     }
     records->object->SetElements({}, {});
     ran = true;
+    // A fresh host turn: observer callbacks often run in the same Engine turn
+    // as the rAF that stamped the nodes they watch (LayoutAndPaint follows
+    // RunDueWork). Without BeginTask, youtube's lazy-img callback inherits a
+    // spent step budget and never assigns `src`.
+    interpreter_->BeginTask();
     // (records, observer) -- the signature every page writes against.
     const js::Result delivered =
         interpreter_->CallFunction(*callback, Value::Undefined(),
@@ -616,6 +621,20 @@ void DomBindings::InstallViewObservers() {
               }
             }
             targets->object->PushElement(registration);
+            // `observe()` promises an initial sample, and Lit/Polymer often
+            // call it from a post-paint effect after the stamp rAF has already
+            // ended. Without scheduling a frame here, nothing wakes the loop
+            // and youtube's lazy imgs keep `onViewportEntered` forever.
+            if (js::Object* global = inner.interpreter.Global()) {
+              if (const Value* raf = global->Get("requestAnimationFrame");
+                  raf != nullptr && raf->IsObject() && raf->object->IsCallable()) {
+                const Value noop = inner.interpreter.NewNativeValue(
+                    "observationFrame", [](NativeCall&) { return Value::Undefined(); });
+                if (noop.IsObject()) {
+                  (void)inner.interpreter.CallFunction(*raf, Value::Undefined(), {noop});
+                }
+              }
+            }
             return Value::Undefined();
           });
 

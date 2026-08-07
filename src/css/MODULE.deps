@@ -28,7 +28,8 @@ budget: Token            header_lines=75 public_methods=2  members=8
 # turns matching from a loop into a recursion.
 # Two more kinds for ADR 0019: `:host`/`:host(sel)` and `::slotted(sel)`, which
 # are the only two selectors that reach out of the tree they were written in.
-budget: SelectorPart header_lines=60 public_methods=2 members=8
+# +1 kind for `::before`/`::after` generated content (youtube thumbnail aspect hack).
+budget: SelectorPart header_lines=70 public_methods=2 members=8
 budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3
@@ -36,7 +37,8 @@ budget: Specificity      header_lines=30 public_methods=4  members=3
 # under. A method on the selector rather than a walk inside the index, so that
 # the two cannot disagree about which pseudo-class name means which state --
 # a rule filed under a name nothing sets is a rule that never re-applies.
-budget: Selector         header_lines=40 public_methods=6  members=1
+# +SubjectPseudoElement for ::before/::after.
+budget: Selector         header_lines=50 public_methods=7  members=1
 # Three members for `calc()`: a coefficient, the unit it is a coefficient of,
 # and the absolute pixels added to it. `calc(100% - 20px)` is the form the
 # feature is overwhelmingly used in and it is two terms, so a one-term Length
@@ -77,7 +79,7 @@ budget: Length           header_lines=45 public_methods=10 members=3
 # rule and the content-comparing `operator==` that keeps ComputedStyle's
 # defaulted one from silently becoming a pointer comparison.
 budget: CustomProperties header_lines=70 public_methods=8 members=1
-budget: ComputedStyle    header_lines=290 public_methods=25 members=35
+budget: ComputedStyle    header_lines=310 public_methods=25 members=36
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3
@@ -102,7 +104,7 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # explanation of what may be filed where, which is the part that has to be
 # right, since a rule filed under a key its element never asks for does not
 # render *sometimes* -- it stops applying.
-budget: StyleResolver header_lines=135 public_methods=20 members=6
+budget: StyleResolver header_lines=150 public_methods=21 members=6
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not

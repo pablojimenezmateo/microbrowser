@@ -135,6 +135,13 @@ class StyleResolver {
   // inheritance a single pass down the tree instead of a walk up per property.
   ComputedStyle StyleFor(const dom::Element& element, const ComputedStyle& parent) const;
 
+  // The style of `element::before` or `element::after`. Inheritance is from the
+  // originating element's computed style; there is no style attribute and no
+  // presentational hint on a generated box. Returns a style with
+  // `content: normal` when nothing matched -- layout treats that as "no box".
+  ComputedStyle StyleForPseudo(const dom::Element& element, PseudoElement which,
+                               const ComputedStyle& originating) const;
+
   // Computes styles for the whole document, in tree order, and hands each one
   // to `visit(element, style)`.
   template <typename Visitor>

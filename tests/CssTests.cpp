@@ -182,11 +182,24 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
   AddTest(tests, "CssParser/DropsARuleWhoseSelectorItCannotParse", [] {
     // Applying the declarations to something else would be worse than losing
     // them, which is why an unparsable selector drops the whole rule.
-    const StyleSheet sheet = ParseStyleSheet("p::before { color: red } a { color: blue }");
+    // `::before` parses now; `:has()` is still refused.
+    const StyleSheet sheet = ParseStyleSheet("p:has(span) { color: red } a { color: blue }");
     ExpectEqInt(static_cast<long long>(sheet.rules.size()), 1, "only the parsable rule remains");
     ExpectEqString(sheet.rules.at(0).selectors.at(0).compounds.at(0).parts.at(0).name, "a",
                    "and it is the right one");
     Expect(sheet.skipped > 0, "the drop is counted rather than silent");
+  });
+
+  AddTest(tests, "CssParser/ParsesBeforeAndAfterPseudoElements", [] {
+    const StyleSheet sheet =
+        ParseStyleSheet("div::before { content: \"\"; display: block; padding-top: 56% } "
+                        "span:after { content: none }");
+    ExpectEqInt(static_cast<long long>(sheet.rules.size()), 2, "both pseudo-element rules parse");
+    ExpectEqInt(static_cast<long long>(sheet.skipped), 0, "and neither is skipped");
+    Expect(sheet.rules.at(0).selectors.at(0).SubjectPseudoElement() == css::PseudoElement::Before,
+           "double-colon before");
+    Expect(sheet.rules.at(1).selectors.at(0).SubjectPseudoElement() == css::PseudoElement::After,
+           "legacy single-colon after");
   });
 
   AddTest(tests, "CssParser/AppliesSupportedMediaBlocks", [] {

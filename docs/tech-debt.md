@@ -732,22 +732,29 @@ metadata `dom-repeat`. Three platform holes blocked autofill:
 
 After those: **`shownCount` reaches `length_` (~18–20), ~12–14 `ytd-video-renderer`
 stamp**, `canShowMore` false. Residual: `js.steps_exhausted` still 1 mid-stamp
-on some runs; thumbnails stay `src`-less because hosts lay out at ~500×0 and
-youtube filters `intersectionRect.height > 0` before assigning `src` (IO now
-inflates a 1px height for zero-height targets — verify Lit `_.Ny`/`jh2` still
-arms `onViewportEntered`). Snapshot drain is wall-clock capped (~20s).
+on some runs.
 
-**YouTube Gate C notes (same day).** Home `ytInitialData` for this visitor is
-nudge-only (`feedNudgeRenderer`, 0 `richItemRenderer`) under Chrome UA too —
-not a UA hole. Persistent `ytd-guide-renderer` is gated by Polymer `dom-if` on
-`renderGuide` (width threshold **1312**); at snapshot 1280 expect
-`ytd-mini-guide-renderer`. Prove thumbnails on `/results?search_query=…`.
+**Update** (2026-08-08). Thumbnail hosts were **500×0** because youtube sizes
+search thumbnails with
+
+`ytd-video-renderer[use-standard-config-width] ytd-thumbnail…:before {
+  content:""; display:block; padding-top:56.11% }`
+
+and this engine **dropped every `::before`/`::after` rule**, then resolved
+percentage padding against font size (→ 0). Landed: parse + cascade
+`StyleForPseudo`, empty `content:""` generated boxes, and padding `%` of
+containing-block width written back as used pixels. Search results now lay out
+at **500×280**; above-the-fold lazy imgs get `src` via IntersectionObserver
+(observe schedules a frame; zero-height intersection inflate remains for imgs
+that are still 0×0 until load; observer callbacks `BeginTask` so they do not
+inherit a spent stamp budget). Below-fold stays `src`-less until scrolled —
+correct lazy behaviour. Snapshot's post-stamp drain keeps turning after the
+observation rAF so thumbnail fetches can finish.
 
 **End state.** Close when `js.steps_exhausted` is 0, search results show
-painted thumbnails (not only stamped hosts), and home is honest about nudge
-vs UA. Related: TD-0017 (binding-token strip), TD-0007 / ADR 0036, TD-0001
-(`layout.block_passes` still huge on search), aspect-ratio CSS for
-`ytd-thumbnail` (~500×0 until image loads).
+painted thumbnails for every in-view row without `-eval` force, and home is
+honest about nudge vs UA. Related: TD-0017 (binding-token strip), TD-0007 /
+ADR 0036, TD-0001 (`layout.block_passes` still huge on search).
 
 ---
 

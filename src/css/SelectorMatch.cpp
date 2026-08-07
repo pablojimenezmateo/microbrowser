@@ -107,6 +107,10 @@ Specificity Selector::ComputeSpecificity() const {
           ++result.types;
           AddSpecificity(result, MostSpecific(part.arguments));
           break;
+        case SelectorPart::Kind::PseudoElement:
+          // Same bucket as `::slotted`: a type, not a class.
+          ++result.types;
+          break;
         case SelectorPart::Kind::Is:
         case SelectorPart::Kind::Not:
           AddSpecificity(result, MostSpecific(part.arguments));
@@ -122,6 +126,24 @@ Specificity Selector::ComputeSpecificity() const {
     }
   }
   return result;
+}
+
+PseudoElement Selector::SubjectPseudoElement() const {
+  const CompoundSelector* subject = Subject();
+  if (subject == nullptr) {
+    return PseudoElement::None;
+  }
+  for (const SelectorPart& part : subject->parts) {
+    if (part.kind == SelectorPart::Kind::PseudoElement) {
+      if (part.name == "before") {
+        return PseudoElement::Before;
+      }
+      if (part.name == "after") {
+        return PseudoElement::After;
+      }
+    }
+  }
+  return PseudoElement::None;
 }
 
 bool operator==(const SelectorPart& a, const SelectorPart& b) {
@@ -348,6 +370,10 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
         // the resolver did not strip the part, so it matches nothing rather than
         // everything.
         return false;
+      case SelectorPart::Kind::PseudoElement:
+        // The cascade filters on SubjectPseudoElement(); matching ignores the
+        // part so `div::before` still asks whether `div` matches.
+        break;
       case SelectorPart::Kind::Id: {
         const std::string* id = element.GetAttribute("id");
         if (id == nullptr || *id != part.name) {

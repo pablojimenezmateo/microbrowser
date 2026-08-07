@@ -269,6 +269,20 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
   const auto finish_selector = [&] {
     finish_compound();
     if (!current.compounds.empty()) {
+      // `::before` / `::after` are only legal on the subject, and only once.
+      for (std::size_t c = 0; c < current.compounds.size(); ++c) {
+        int pseudos = 0;
+        for (const SelectorPart& part : current.compounds[c].parts) {
+          if (part.kind == SelectorPart::Kind::PseudoElement) {
+            ++pseudos;
+          }
+        }
+        if (pseudos > 1 || (pseudos > 0 && c + 1 != current.compounds.size())) {
+          failed = true;
+          current = Selector{};
+          return;
+        }
+      }
       selectors.push_back(current);
     }
     current = Selector{};
@@ -348,15 +362,12 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
         }
         break;
       }
-      case Token::Kind::Colon: {
-        // `::before` is a pseudo-*element*, which needs box generation rather
-        // than matching. Unsupported means the rule is dropped.
+        case Token::Kind::Colon: {
+        // `::before` / `::after` are pseudo-*elements*: they style a generated
+        // box, so the rest of the subject still matches the originating element
+        // and layout invents the box. `::slotted(sel)` is the other
+        // double-colon form and is different -- it selects a real light-DOM node.
         if (i + 1 < to && tokens[i + 1].kind == Token::Kind::Colon) {
-          // `::slotted(sel)` is the one pseudo-element this engine matches, and
-          // it is here rather than with the others because it is not box
-          // generation at all: it selects a real element -- a node the light DOM
-          // assigned into this scope. Every other `::` needs a box that does not
-          // exist, so the rule is still dropped.
           if (i + 2 < to && tokens[i + 2].kind == Token::Kind::Function &&
               Lowered(tokens[i + 2].value) == "slotted") {
             const std::size_t close = FindFunctionEnd(tokens, i + 2, to);
@@ -376,6 +387,21 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             saw_part = true;
             i = close;
             break;
+          }
+          if (i + 2 < to && tokens[i + 2].kind == Token::Kind::Ident) {
+            const std::string name = Lowered(tokens[i + 2].value);
+            if (name == "before" || name == "after") {
+              // Only on the subject compound, and only once: `div::before::after`
+              // and `div::before span` are invalid. Enforced when the compound is
+              // finished, by rejecting a non-subject that carries one.
+              SelectorPart part;
+              part.kind = SelectorPart::Kind::PseudoElement;
+              part.name = name;
+              compound.parts.push_back(std::move(part));
+              saw_part = true;
+              i += 2;
+              break;
+            }
           }
           failed = true;
           break;
@@ -449,8 +475,16 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
         // qualified one and is parsed above. Its own kind rather than a
         // pseudo-class name the matcher special-cases, because *which root the
         // rule came from* is not a question the matcher may ask. ADR 0019 §3.
-        part.kind = part.name == "host" ? SelectorPart::Kind::Host
-                                        : SelectorPart::Kind::PseudoClass;
+        //
+        // Legacy single-colon `:before` / `:after` are still in the wild (and
+        // on youtube's sheet): same generated boxes as the double-colon form.
+        if (part.name == "host") {
+          part.kind = SelectorPart::Kind::Host;
+        } else if (part.name == "before" || part.name == "after") {
+          part.kind = SelectorPart::Kind::PseudoElement;
+        } else {
+          part.kind = SelectorPart::Kind::PseudoClass;
+        }
         compound.parts.push_back(part);
         saw_part = true;
         break;

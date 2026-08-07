@@ -61,6 +61,12 @@ struct SelectorPart {
     // again an element from the light DOM, reached from a sheet inside the shadow
     // tree. A pseudo-element in the grammar and a scope question in practice.
     Slotted,
+    // `::before` / `::after` (and the legacy single-colon spellings). They style a
+    // box that is not a DOM node -- the originating element still matches the
+    // rest of the subject, and layout invents the box when `content` is not
+    // `none`/`normal`. youtube's thumbnail aspect hack is empty `::before` with
+    // `padding-top` as a percentage of width.
+    PseudoElement,
   };
 
   enum class AttributeMatch : std::uint8_t {
@@ -133,6 +139,11 @@ struct Specificity {
 // maximum, and far below the stack a recursive descent needs.
 inline constexpr int kMaxSelectorNestingDepth = 8;
 
+// Which generated box a selector's subject names, if any. `None` is an ordinary
+// element rule; `Before`/`After` are `::before`/`::after`. Layout asks, and the
+// cascade filters on it so a `div::before` rule never paints the `div`.
+enum class PseudoElement : std::uint8_t { None, Before, After };
+
 // A full selector: compounds, leftmost first.
 struct Selector {
   std::vector<CompoundSelector> compounds;
@@ -147,6 +158,10 @@ struct Selector {
   const CompoundSelector* Subject() const {
     return compounds.empty() ? nullptr : &compounds.back();
   }
+
+  // `::before` / `::after` on the subject compound, or `None`. Only legal on the
+  // subject; a parse that put one elsewhere failed the selector.
+  PseudoElement SubjectPseudoElement() const;
 
   // Every dynamic state whose value this selector's match depends on, ORed
   // together -- including the ones inside `:is()`, `:where()` and `:not()`, and

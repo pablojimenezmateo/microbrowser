@@ -223,6 +223,30 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   std::vector<std::unique_ptr<Box>> children;
   bool any_inline = false;
   bool any_block = false;
+
+  const auto append_generated = [&](css::PseudoElement which, bool prepend) {
+    const css::ComputedStyle pseudo = resolver_->StyleForPseudo(element, which, style);
+    if (pseudo.content != css::ComputedStyle::Content::Empty || !pseudo.GeneratesBox()) {
+      return;
+    }
+    const bool atomic = pseudo.IsAtomicInline();
+    const bool inline_level = atomic || pseudo.IsInlineLevel();
+    const Box::Kind kind = atomic         ? Box::Kind::InlineBlock
+                           : inline_level ? Box::Kind::Inline
+                                          : Box::Kind::Block;
+    auto generated = std::make_unique<Box>(kind, pseudo);
+    // No Origin: a generated box is not a DOM node, and hit-testing /
+    // script geometry must not pretend otherwise.
+    any_inline = any_inline || inline_level;
+    any_block = any_block || generated->IsBlockLevel();
+    if (prepend) {
+      children.insert(children.begin(), std::move(generated));
+    } else {
+      children.push_back(std::move(generated));
+    }
+  };
+
+  append_generated(css::PseudoElement::Before, true);
   // The flattened tree, not the node tree: ADR 0019 §2.
   for (dom::Node* child : dom::FlatChildren(node)) {
     bool child_inline = false;
@@ -234,6 +258,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     any_block = any_block || child_box->IsBlockLevel();
     children.push_back(std::move(child_box));
   }
+  append_generated(css::PseudoElement::After, false);
 
   // Whitespace between two blocks generates no box -- keeping it would put a
   // blank line between every pair of paragraphs -- but whitespace between two
@@ -411,14 +436,22 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   const css::ComputedStyle& style = box.Style();
   BoxGeometry& geometry = box.Geometry();
   geometry.margin = style.margin;
-  geometry.padding = style.padding;
   geometry.border = style.has_border ? style.border_width : css::Edges{};
 
   // Not const: an auto margin is resolved below, once the used width is known.
   float margin_left = style.margin.left.Resolve(style.font_size);
   const float margin_right = style.margin.right.Resolve(style.font_size);
-  const float padding_left = style.padding.left.Resolve(style.font_size);
-  const float padding_right = style.padding.right.Resolve(style.font_size);
+  // Padding percentages are of the containing-block *width*, including
+  // padding-top/bottom -- CSS 2.1 §8.4. That is what makes
+  // `::before { content:""; display:block; padding-top:56% }` reserve an
+  // aspect-ratio box. Resolving against font size left every such box at 0.
+  const float padding_left = style.padding.left.Used(available_width, style.font_size);
+  const float padding_right = style.padding.right.Used(available_width, style.font_size);
+  const float padding_top = style.padding.top.Used(available_width, style.font_size);
+  const float padding_bottom = style.padding.bottom.Used(available_width, style.font_size);
+  // Store used pixels so PaddingBox()/paint do not re-Resolve percentages to 0.
+  geometry.padding = css::Edges{css::Length::Pixels(padding_top), css::Length::Pixels(padding_right),
+                                css::Length::Pixels(padding_bottom), css::Length::Pixels(padding_left)};
   const float border_left = geometry.border.left.Resolve(style.font_size);
   const float border_right = geometry.border.right.Resolve(style.font_size);
 
@@ -519,9 +552,8 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // already threaded through `cursor_y`; horizontal was not, and every nested
   // block painted at its parent's left margin instead of past it.
   const float content_left = container_left + margin_left + border_left + padding_left;
-  const float content_top =
-      cursor_y + style.margin.top.Resolve(style.font_size) +
-      geometry.border.top.Resolve(style.font_size) + style.padding.top.Resolve(style.font_size);
+  const float content_top = cursor_y + style.margin.top.Resolve(style.font_size) +
+                            geometry.border.top.Resolve(style.font_size) + padding_top;
 
   // A float establishes a formatting context of its own, so a float inside a
   // sidebar does not shorten the lines of the article beside it. An atomic
@@ -606,7 +638,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   content_height = style.ClampHeight(content_height, content_height);
 
   geometry.content = gfx::FloatRect{content_left, content_top, content_width, content_height};
-  cursor_y = content_top + content_height + style.padding.bottom.Resolve(style.font_size) +
+  cursor_y = content_top + content_height + padding_bottom +
              geometry.border.bottom.Resolve(style.font_size) +
              style.margin.bottom.Resolve(style.font_size);
 

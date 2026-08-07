@@ -115,6 +115,25 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "and the content starts inside all three: 10 margin + 2 border + 5 padding");
   });
 
+  AddTest(tests, "Layout/EmptyBeforeWithPercentPaddingSetsAspectHeight", [] {
+    // youtube's thumbnail hack: an empty ::before whose padding-top is a
+    // percentage of the containing-block width reserves the media box.
+    const LaidOut result =
+        Run("<div id=\"host\"><span>x</span></div>",
+            "body { margin: 0 } "
+            "#host { width: 200px; position: relative } "
+            "#host::before { content: \"\"; display: block; padding-top: 50% }",
+            400.0f);
+    const Box* host = FindBox(*result.root, "div");
+    Expect(host != nullptr, "the host exists");
+    Expect(host->Geometry().content.width == 200.0f, "host width is the declared 200px");
+    Expect(host->Geometry().content.height >= 99.0f, "host is tall enough for 50% of 200");
+    Expect(host->Children().size() >= 1, "generated ::before is a child box");
+    Expect(host->Children().front()->Origin() == nullptr, "generated box has no DOM origin");
+    Expect(std::abs(host->Children().front()->Geometry().PaddingBox().height - 100.0f) < 0.5f,
+           "::before padding-top is 50% of the 200px containing-block width");
+  });
+
   AddTest(tests, "Layout/NestedBlocksAccumulateTheirAncestorsLeftEdges", [] {
     // Geometry is absolute: the painter walks the box tree with no ancestor
     // stack. Vertical position was threaded through the layout cursor from the
