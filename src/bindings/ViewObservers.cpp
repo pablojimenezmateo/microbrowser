@@ -112,6 +112,17 @@ Overlap Intersect(const GeometryRect& target, const GeometryRect& root) {
   out.rect = GeometryRect{left, top, right - left, bottom - top};
   out.intersects = (out.rect.width > 0.0f || target.width == 0.0f) &&
                    (out.rect.height > 0.0f || target.height == 0.0f);
+  // A laid-out box with no height is still "on screen" for lazy media.
+  // youtube's thumbnail loader observes the <img> (often 0×0 inside a
+  // 500×0 host) and filters `intersectionRect.height > 0` before assigning
+  // `src`. Inflate a one-pixel intersection for any intersecting zero-height
+  // target so that callback runs; a box that missed the root stays at 0.
+  if (out.intersects && out.rect.height <= 0.0f) {
+    out.rect.height = 1.0f;
+    if (out.rect.width <= 0.0f) {
+      out.rect.width = 1.0f;
+    }
+  }
   return out;
 }
 

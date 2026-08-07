@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstddef>
+#include <algorithm>
 #include <optional>
 #include <variant>
 #include <string>
@@ -355,7 +356,17 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   // due yet" (16ms frame spacing), then breaks — which left youtube's lazy
   // list stuck at `initialCount` (Ot → rAF → tryRenderChunk_ → rAF…) even
   // after Polymer.dom.children and BeginTask-on-rAF were fixed.
+  //
+  // Wall-clock budget: youtube's stamp can keep `RunDueWork` returning true
+  // for hundreds of passes (each a layout), which turned a 40s snapshot into
+  // six minutes. Autofill that needs more than a few seconds of post-load
+  // time is still owed frames; the interactive loop keeps going.
+  const auto drain_deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(20);
   for (int pass = 0; pass < 512; ++pass) {
+    if (std::chrono::steady_clock::now() >= drain_deadline) {
+      break;
+    }
     if (engine.RunDueWork()) {
       continue;
     }
@@ -365,8 +376,42 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     }
     microbrowser::util::WaitDescriptorList descriptors;
     microbrowser::util::PerformanceTrace::Scope wait("wait::Deadline");
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               drain_deadline - std::chrono::steady_clock::now())
+                               .count();
+    if (remaining <= 0) {
+      break;
+    }
+    const std::int32_t wait_ms =
+        static_cast<std::int32_t>(std::min<std::int64_t>(
+            remaining, static_cast<std::int64_t>(*deadline)));
+    microbrowser::platform::WaitOnDescriptors(descriptors, wait_ms);
+  }
+  // Stamp finishes on rAF; IntersectionObservers sample on paint. Schedule one
+  // frame so youtube's lazy imgs can assign `src` after the last stamp chunk.
+  (void)engine.EvaluateScript("requestAnimationFrame(() => {});");
+  for (int pass = 0; pass < 32; ++pass) {
+    if (std::chrono::steady_clock::now() >= drain_deadline) {
+      break;
+    }
+    if (engine.RunDueWork()) {
+      break;
+    }
+    const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
+    if (!deadline.has_value()) {
+      break;
+    }
+    microbrowser::util::WaitDescriptorList descriptors;
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               drain_deadline - std::chrono::steady_clock::now())
+                               .count();
+    if (remaining <= 0) {
+      break;
+    }
     microbrowser::platform::WaitOnDescriptors(
-        descriptors, static_cast<std::int32_t>(*deadline));
+        descriptors,
+        static_cast<std::int32_t>(std::min<std::int64_t>(
+            remaining, static_cast<std::int64_t>(*deadline))));
   }
 }
 

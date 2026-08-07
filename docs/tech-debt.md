@@ -716,16 +716,38 @@ stamp it only ever sees two items — incomplete binding/observer application,
 not “stamp sliced and drained short”. Slot assignment also fixed (only the
 first same-named `<slot>` receives light children).
 
+**Update** (2026-08-08). The “2 of 16” reading was wrong about *which* repeater:
+section contents use `YtRendererstamperBehavior` + `YtLazyListBehavior`
+(`initialCount` 4, autofill via `_.Ot` → rAF → `tryRenderChunk_`), not the
+metadata `dom-repeat`. Three platform holes blocked autofill:
+
+1. `children` lived on `Node.prototype`; ShadyDOM noPatch only captures *own*
+   `Element.prototype.children` into `__shady_native_children`, so
+   `polymerDom(container).children` was `undefined` and
+   `stampDomArraySplices_` threw on expand.
+2. `characterData` MutationObserver records were never emitted; Polymer’s ASAP
+   (`_.Ub` / text-node bump) never ran, so `tryRenderChunk_` never reached rAF.
+3. Snapshot’s post-load drain stopped when nothing was due *now*, skipping the
+   16ms rAF spacing the chunk chain needs; rAF also lacked `BeginTask`.
+
+After those: **`shownCount` reaches `length_` (~18–20), ~12–14 `ytd-video-renderer`
+stamp**, `canShowMore` false. Residual: `js.steps_exhausted` still 1 mid-stamp
+on some runs; thumbnails stay `src`-less because hosts lay out at ~500×0 and
+youtube filters `intersectionRect.height > 0` before assigning `src` (IO now
+inflates a 1px height for zero-height targets — verify Lit `_.Ny`/`jh2` still
+arms `onViewportEntered`). Snapshot drain is wall-clock capped (~20s).
+
 **YouTube Gate C notes (same day).** Home `ytInitialData` for this visitor is
 nudge-only (`feedNudgeRenderer`, 0 `richItemRenderer`) under Chrome UA too —
 not a UA hole. Persistent `ytd-guide-renderer` is gated by Polymer `dom-if` on
 `renderGuide` (width threshold **1312**); at snapshot 1280 expect
 `ytd-mini-guide-renderer`. Prove thumbnails on `/results?search_query=…`.
 
-**End state.** Close when `js.steps_exhausted` is 0, the section
-`dom-repeat.items` matches `contents` (≈15+), and thumbnails paint. Related:
-TD-0017 (binding-token strip), TD-0007 / ADR 0036, TD-0001 (`layout.block_passes`
-~16M on search).
+**End state.** Close when `js.steps_exhausted` is 0, search results show
+painted thumbnails (not only stamped hosts), and home is honest about nudge
+vs UA. Related: TD-0017 (binding-token strip), TD-0007 / ADR 0036, TD-0001
+(`layout.block_passes` still huge on search), aspect-ratio CSS for
+`ytd-thumbnail` (~500×0 until image loads).
 
 ---
 

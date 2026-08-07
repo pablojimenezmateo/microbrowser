@@ -135,6 +135,31 @@ void RegisterViewObserverTests(std::vector<TestCase>& tests) {
                    "the element in the viewport intersects and the one 2000px down does not");
   });
 
+  AddTest(tests, "IntersectionObserver/AZeroHeightWideBoxStillReportsATallIntersection", [] {
+    // youtube's thumbnail lazy-loader filters `intersectionRect.height > 0`.
+    // Search results lay the thumbnail host out at ~500×0 and the <img>
+    // itself at 0×0 until the image (or an aspect-ratio rule) gives them
+    // height, so a literal zero-height rect never assigned `src`.
+    Observed session;
+    session.Load(
+        "<body style='margin:0'>"
+        "<div id='flat' style='width:400px;height:0'></div>"
+        "<div id='point' style='width:0;height:0'></div>"
+        "<script>"
+        "var o = new IntersectionObserver(function (entries) {"
+        "  for (var i = 0; i < entries.length; i++) {"
+        "    console.log(entries[i].target.id + ':' + entries[i].isIntersecting + ':' +"
+        "      Math.round(entries[i].intersectionRect.height));"
+        "  }"
+        "});"
+        "o.observe(document.getElementById('flat'));"
+        "o.observe(document.getElementById('point'));"
+        "</script></body>");
+    Expect(session.Frame(), "delivered");
+    ExpectEqString(session.Log(), "flat:true:1|point:true:1",
+                   "zero-height placeholders in the viewport get a one-pixel intersection height");
+  });
+
   AddTest(tests, "IntersectionObserver/ASettledPageDeliversNothing", [] {
     Observed session;
     session.Load(
