@@ -474,6 +474,14 @@ namespace microbrowser::util {
   /* LayoutAndPaint when the box tree and width already match. Without this,     */ \
   /* every rAF on a settled page reflowed (TD-0018 / youtube post-load storm).   */ \
   X(LayoutSkippedClean, "layout.skipped_clean")                                  \
+  /* RunDueWork returned true but the document/cascade did not move, so the box  */ \
+  /* tree was left standing. The counter that says MessageChannel/rAF churn is   */ \
+  /* no longer paying InvalidateLayout per turn (TD-0018).                       */ \
+  X(LayoutDueWorkClean, "layout.due_work_clean")                                 \
+  /* MessageChannel (host) tasks run inside one TimerQueue::RunDue after the     */ \
+  /* initial due set. Cooperative schedulers post one slice per task; without    */ \
+  /* this drain each slice forced its own LayoutAndPaint.                        */ \
+  X(TimersHostTasksBatched, "timers.host_tasks_batched")                         \
   /* Boxes in the tree after each pass, summed across passes. Dividing by        */ \
   /* layout.passes gives the tree size a hang is chewing on.                     */ \
   X(LayoutPassBoxes, "layout.pass_boxes")                                        \

@@ -693,6 +693,13 @@ network answer is a fresh host turn. Timers/rAF still must **not** reset — tha
 hang remains. Guide data (`/youtubei/v1/guide`) and search stamp continuations
 were dying on a spent budget after kevlar.
 
+**Also** (same day). `TimerQueue::QueueTask` (MessageChannel) calls `BeginTask` on
+delivery, and `RunDue` drains newly queued host tasks in the same turn (capped at
+64) so stamp slices share one layout. `Page::RunDueWork` no longer
+`InvalidateLayout`s when the document and cascade did not move — that was why
+`layout.skipped_clean` never fired and every MessageChannel turn rebuilt tens of
+thousands of boxes. Counters: `timers.host_tasks_batched`, `layout.due_work_clean`.
+
 **YouTube Gate C notes (same day).** Home `ytInitialData` for this visitor is
 nudge-only (`feedNudgeRenderer`, 0 `richItemRenderer`) under Chrome UA too —
 not a UA hole. Persistent `ytd-guide-renderer` is gated by Polymer `dom-if` on

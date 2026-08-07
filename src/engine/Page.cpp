@@ -630,21 +630,35 @@ std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
 }
 
 bool Page::RunDueWork(std::int64_t now_ms) {
+  // Invalidate only when the document/cascade moved, or a CSS animation is in
+  // flight. Dropping the box tree on every due-work turn defeated
+  // `layout.skipped_clean` (TD-0018 / youtube MessageChannel stamp).
+  const std::uint64_t ver_before =
+      document_ != nullptr ? document_->MutationVersion() : 0;
+  const std::uint64_t cascade_before = resolver_.Generation();
   bool ran = DispatchPendingScrollEvents();
   ran = script_.RunDueWork(now_ms) || ran;
-  // A frame for whatever is animating. `Running()` before `Advance` because a frame is owed while
-  // something is in flight -- the value moved even if nothing *finished* -- and `Advance` is what drops
-  // the finished ones so that the next `NextWakeDelay` can answer nothing.
+  // `Running()` before `Advance`: a frame is owed while something is in flight,
+  // and `Advance` drops the finished ones so `NextWakeDelay` can answer nothing.
+  bool animating = false;
   if (animations_.Running()) {
     animations_.Advance(now_ms);
     animation_time_ms_ = now_ms;
     ran = true;
+    animating = animations_.Running();
     AddPerformanceCounter(PerfCounterId::AnimationFramesProduced);
   }
   if (!ran) {
     return false;
   }
-  InvalidateLayout();
+  const bool mutated =
+      document_ != nullptr && document_->MutationVersion() != ver_before;
+  const bool cascade_changed = resolver_.Generation() != cascade_before;
+  if (mutated || cascade_changed || animating) {
+    InvalidateLayout();
+  } else {
+    AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);
+  }
   return true;
 }
 

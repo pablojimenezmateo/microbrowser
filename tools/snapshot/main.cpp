@@ -346,12 +346,10 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   // `requestIdleCallback`; if `Advance()` returned true that same iteration,
   // `RunDueWork` never ran inside the load loop. Drain until idle.
   //
-  // Cap is high because youtube's kevlar scheduler yields through MessageChannel
-  // one stamp slice per task (TD-0018): 64 left search results at a handful of
-  // `ytd-video-renderer`s. Each pass runs every *currently* due task; a task that
-  // queues another due-now item needs a later pass. Finite so a forever-
-  // posting channel cannot hang the snapshot tool.
-  for (int pass = 0; pass < 4096; ++pass) {
+  // Cap is moderate: TimerQueue batches up to 64 host tasks per RunDue
+  // (TD-0018), so a few hundred passes cover a large stamp. Finite so a
+  // forever-posting channel cannot hang the snapshot tool.
+  for (int pass = 0; pass < 512; ++pass) {
     if (!engine.RunDueWork()) {
       break;
     }

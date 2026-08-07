@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "bindings/BindingSupport.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
 
@@ -33,6 +34,14 @@ constexpr const char* kNowSlot = "#timerNow";
 // millisecond count stops fitting the shapes browsers historically used, and a
 // page that asks for a year is a page that has computed a delay wrong.
 constexpr std::int64_t kMaxDelayMs = 2'147'483'647;
+
+// Host tasks (MessageChannel) queued during this RunDue may run in the same
+// turn, up to this many. HTML separates "run a task" from "update the
+// rendering"; youtube's kevlar scheduler posts one stamp slice per channel
+// message, and one LayoutAndPaint per slice made the post-load drain
+// unusable (TD-0018). setTimeout(0) still waits for the next turn — that
+// rule is what stops a busy page spinning forever inside one RunDue.
+constexpr int kMaxHostTasksPerTurn = 64;
 
 js::Object* Callbacks(js::Interpreter& interpreter) {
   const Value* slot = interpreter.Global()->GetOwn(kCallbacksSlot);
@@ -167,9 +176,10 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
   }
 
   // Everything due now, oldest deadline first, decided before any of them
-  // runs: a callback may schedule another, and one scheduled with a zero delay
-  // during this pass must wait for the next one or a page could spin the loop
-  // forever inside a single turn.
+  // runs: a callback may schedule another, and a *timer* scheduled with a zero
+  // delay during this pass must wait for the next one or a page could spin the
+  // loop forever inside a single turn. Host tasks (MessageChannel) are
+  // different — see the drain below.
   std::vector<Timer> due;
   for (const Timer& timer : timers_) {
     if (timer.due_ms <= now_ms) {
@@ -182,11 +192,11 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
   std::stable_sort(due.begin(), due.end(),
                    [](const Timer& a, const Timer& b) { return a.due_ms < b.due_ms; });
 
-  for (const Timer& timer : due) {
+  const auto run_one = [&](const Timer& timer) {
     const std::string key = js::NumberToString(timer.id);
     const Value* handler = callbacks->GetOwn(key);
     if (handler == nullptr || !handler->IsObject()) {
-      continue;  // cancelled by an earlier callback in this same pass
+      return;  // cancelled by an earlier callback in this same pass
     }
     const Value callback = *handler;
     if (timer.repeating) {
@@ -209,7 +219,41 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
       interpreter.BeginTask();
     }
     (void)interpreter.CallFunction(callback, Value::Undefined(), {});
+  };
+
+  for (const Timer& timer : due) {
+    run_one(timer);
   }
+
+  // Drain host tasks that the callbacks above just queued. Cooperative
+  // schedulers post the next slice with due_ms == now; without this they each
+  // force a LayoutAndPaint in the engine. Cap so a forever-posting channel
+  // cannot own the turn — the rest wait for the next RunDue, which is when
+  // the loop may paint.
+  int batched = 0;
+  while (batched < kMaxHostTasksPerTurn) {
+    const Timer* next = nullptr;
+    for (const Timer& timer : timers_) {
+      if (!timer.host_task || timer.due_ms > now_ms) {
+        continue;
+      }
+      if (next == nullptr || timer.due_ms < next->due_ms ||
+          (timer.due_ms == next->due_ms && timer.id < next->id)) {
+        next = &timer;
+      }
+    }
+    if (next == nullptr) {
+      break;
+    }
+    const Timer copy = *next;
+    run_one(copy);
+    ++batched;
+  }
+  if (batched > 0) {
+    util::AddPerformanceCounter(util::PerfCounterId::TimersHostTasksBatched,
+                                static_cast<std::uint64_t>(batched));
+  }
+
   // A timer's callback is a turn of its own, so anything it queued settles
   // before the timer is over -- the same rule a script and an event get.
   interpreter.DrainMicrotasks();

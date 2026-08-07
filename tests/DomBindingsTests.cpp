@@ -1170,6 +1170,45 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "MessageChannel task ran after a spent budget");
   });
 
+  AddTest(tests, "DomBindings/MessageChannelHostTasksBatchInOneRunDue", [] {
+    // TD-0018: a cooperative scheduler posts the next slice from inside the
+    // previous one. Without draining those in the same RunDue, each slice
+    // forces its own LayoutAndPaint.
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter
+               ->Run("globalThis.n = 0;"
+                     "const c = new MessageChannel();"
+                     "c.port1.onmessage = () => {"
+                     "  if (++n < 20) c.port2.postMessage(0);"
+                     "};"
+                     "c.port2.postMessage(0);")
+               .completion == js::Completion::Normal,
+           "queue the first host task");
+    Expect(timers.RunDue(*bound.interpreter, 0), "one RunDue drains the chain");
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "20",
+                   "all twenty host tasks ran in one turn");
+    Expect(!timers.RunDue(*bound.interpreter, 0), "nothing left for a second turn");
+  });
+
+  AddTest(tests, "DomBindings/SetTimeoutZeroDoesNotBatchInsideRunDue", [] {
+    // The host-task drain must not apply to setTimeout(0): that is the rule
+    // that stops a busy page owning the turn forever.
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter
+               ->Run("globalThis.n = 0;"
+                     "function tick() { if (++n < 5) setTimeout(tick, 0); }"
+                     "setTimeout(tick, 0);")
+               .completion == js::Completion::Normal,
+           "arm the zero-delay chain");
+    Expect(timers.RunDue(*bound.interpreter, 0), "first timeout runs");
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + n").value), "1",
+                   "only the timers due at the start of the pass");
+  });
+
   AddTest(tests, "DomBindings/BlobUrlAndWindowPostMessage", [] {
   struct StubNetwork final : bindings::NetworkSource {
     std::uint64_t StartFetch(const bindings::ScriptRequest&) override { return 0; }

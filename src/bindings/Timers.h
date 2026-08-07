@@ -50,6 +50,9 @@ class TimerQueue {
   // and a spent step budget must not poison those continuations. `setTimeout`
   // deliberately does not reset.
   //
+  // `RunDue` also drains newly queued host tasks in the same turn (capped), so
+  // stamp slices share one layout rather than one LayoutAndPaint each.
+  //
   // Static, and reaches the queue through the interpreter's globals the way
   // `setTimeout` itself does, so a caller that has neither a TimerQueue nor a
   // way to get one can still post a task. False when there is no queue
