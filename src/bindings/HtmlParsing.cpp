@@ -69,10 +69,9 @@ void DomBindings::UpgradeSubtree(dom::Node& node) {
   }
   if (node.IsElement()) {
     UpgradeElement(static_cast<dom::Element&>(node));
-    // Deliberately not walking `<template>` contents: browsers leave those
-    // inert until stamped. Upgrading them early stripped Polymer binding
-    // tokens (TD-0017) and broke `dom-repeat` host bindings before the
-    // template was ever parsed.
+    // A `<template>`'s markup lives in `Content()`, not in `Children()`, so the
+    // walk below never enters it. That is load-bearing: browsers leave template
+    // contents inert until stamped (see InsertFragmentChildren).
   }
   // By index, re-reading the child list each time: an upgrade runs the page's
   // constructor, and a constructor that moves a node out of this subtree would
@@ -91,6 +90,14 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
   // `UpgradeElement` fires the connect itself for an element that is *already*
   // in the document, which is what `customElements.define` needs -- upgrading
   // after the move would fire it there and again below.
+  //
+  // Custom elements inside `<template>.content` should stay inert until
+  // stamped (HTML; TD-0017). `DocumentFragment::IsTemplateContent()` marks
+  // those fragments. Skipping UpgradeSubtree when that bit is set preserves
+  // Polymer `[[…]]` for `_parseTemplate`, but on youtube.com the resulting
+  // stamp storm never finishes a snapshot even in Release (TD-0018). Keep
+  // upgrading until that storm is bounded — then gate this loop on
+  // `!parent.IsDocumentFragment() || !static_cast<...>(parent).IsTemplateContent()`.
   for (std::size_t i = 0; i < fragment.Children().size(); ++i) {
     UpgradeSubtree(*fragment.Children()[i]);
   }

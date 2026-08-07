@@ -279,6 +279,7 @@ Element::Element(std::string tag_name)
   // depending on where the element came from.
   if (tag_name_ == "template") {
     content_ = std::make_unique<DocumentFragment>();
+    content_->SetTemplateContent(true);
   }
 }
 

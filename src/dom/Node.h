@@ -353,8 +353,16 @@ class DocumentFragment : public Node {
   Element* Host() const { return host_; }
   void SetHost(Element* host) { host_ = host; }
 
+  // True for a `<template>`'s `.content` only. Custom elements inside one stay
+  // inert until stamped (HTML). ShadyDOM roots and page-made fragments are
+  // *not* this — they share "no Host()" with template content and must still
+  // upgrade, or Polymer stamps into a host-less root and never constructs.
+  bool IsTemplateContent() const { return template_content_; }
+  void SetTemplateContent(bool value) { template_content_ = value; }
+
  private:
   Element* host_ = nullptr;
+  bool template_content_ = false;
 };
 
 class Document : public Node {

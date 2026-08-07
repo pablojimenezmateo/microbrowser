@@ -499,8 +499,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "s.getAttribute('items') + '|' + s.textContent",
                  "[[items]]|[[t]]");
     // Observed attributes present at upgrade get attributeChangedCallback with a
-    // null old value. Binding tokens on the host are stripped at upgrade only
-    // (see UpgradeElement / TD-0017) so they do not reach `_deserializeValue`.
+    // null old value. Binding tokens on a *live* host are stripped after the
+    // constructor (TD-0017) so they do not reach `_deserializeValue`; inert
+    // template contents keep them for Polymer annotation parsing.
     ExpectScript("<html><body><x-t v='1'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -510,8 +511,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('x-t', T);"
                  "log.join('|')",
                  "v:null->1");
-    // Binding tokens remain through the constructor (annotation wiring) and are
-    // stripped before post-upgrade ACC / connectedCallback (TD-0017).
+    // Constructor sees the token; strip runs before ACC / connectedCallback.
     ExpectScript("<html><body><x-t v='[[x]]'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -523,6 +523,28 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.querySelector('x-t').seen + '|' + "
                  "document.querySelector('x-t').getAttribute('v') + '|' + log.join('|')",
                  "[[x]]|null|");
+  });
+
+  AddTest(tests, "DomBindings/TemplateContentNotUpgradedByDefine", [] {
+    // `customElements.define` must not walk `<template>.content`. Binding
+    // tokens there stay until stamp (or until innerHTML upgrades — TD-0017
+    // still does that; flipping InsertFragmentChildren off IsTemplateContent
+    // is blocked on TD-0018's stamp storm).
+    ExpectScript(
+        "<html><body></body></html>",
+        "const t = document.createElement('template');"
+        "t.innerHTML = '<x-foo data=\"[[host.data]]\" id=\"primary\"></x-foo>';"
+        "class XFoo extends HTMLElement {"
+        "  constructor(){ super(); this.upgraded = true; }"
+        "}"
+        "customElements.define('x-foo', XFoo);"
+        "const el = t.content.firstElementChild;"
+        "const before = (el.upgraded === true ? 'up' : 'plain') + '|' + el.getAttribute('data') + '|' + el.id;"
+        "document.body.appendChild(document.importNode(t.content, true));"
+        "const stamped = document.querySelector('x-foo');"
+        "before + '|' + (stamped.upgraded === true ? 'up' : 'plain') + '|' + "
+        "(stamped.getAttribute('data') === null ? 'stripped' : stamped.getAttribute('data'))",
+        "plain|[[host.data]]|primary|up|stripped");
   });
 
   // MutationObserver. The shape is the specification's and it is not the

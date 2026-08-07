@@ -72,4 +72,6 @@ budget: Document     header_lines=115 public_methods=18 members=4
 # not the fragment's parent: a shadow root with a parent would be reachable by
 # every ordinary tree walk, and being unreachable that way is the whole point of
 # it. ADR 0019 §2.
-budget: DocumentFragment header_lines=25 public_methods=6 members=1
+# members=2: `template_content_` distinguishes `<template>.content` from ShadyDOM
+# roots and `createDocumentFragment()` — all three are host-less fragments.
+budget: DocumentFragment header_lines=40 public_methods=8 members=2

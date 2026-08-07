@@ -146,10 +146,11 @@ void DomBindings::UpgradeElement(dom::Element& element) {
     return;
   }
   // After construction, drop binding-token attribute values before the
-  // observed-attribute ACC pass and connectedCallback (TD-0017). The
-  // constructor must still see `data="[[…]]"` so Polymer can wire host
-  // bindings; leaving tokens into connectedCallback hangs youtube outside
-  // the JS step budget.
+  // observed-attribute ACC pass and connectedCallback. Template *contents*
+  // never reach this path (InsertFragmentChildren leaves them inert), so
+  // Polymer `_parseTemplate` still sees `data="[[…]]"` on `_template`. Live
+  // stamped hosts must not keep tokens into connectedCallback — that hung
+  // youtube outside the JS step budget (TD-0017).
   for (std::size_t i = 0; i < element.Attributes().size();) {
     const dom::Attribute& attribute = element.Attributes()[i];
     if (IsTemplateBindingToken(attribute.value)) {
@@ -175,7 +176,7 @@ void DomBindings::UpgradeElement(dom::Element& element) {
           // attributeChangedCallback with `[[items]]` makes Polymer
           // `_deserializeValue` null an Array property and can loop with
           // setAttribute (TD-0017). Annotation parsing still sees them via
-          // getAttribute.
+          // getAttribute on inert template contents.
           if (IsTemplateBindingToken(attribute.value)) {
             continue;
           }

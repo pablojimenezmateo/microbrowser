@@ -125,6 +125,8 @@ std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep);
 // Polymer / Lit binding tokens left in attribute values until effects replace
 // them. Kept visible to getAttribute/clone so annotation parsing can see them;
 // attributeChangedCallback must not treat them as serial values (TD-0017).
+// Template contents must stay un-upgraded so these tokens survive until
+// `_parseTemplate` (see InsertFragmentChildren).
 inline bool IsTemplateBindingToken(std::string_view value) {
   if (value.size() < 4) {
     return false;
