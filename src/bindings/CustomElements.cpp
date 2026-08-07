@@ -95,21 +95,6 @@ void DomBindings::UpgradeElement(dom::Element& element) {
   }
   wrapper.object->Set(kUpgradedSlot, Value::Bool(true));
 
-  // Binding tokens stay visible to getAttribute/clone (annotation parsing), but
-  // Polymer's constructor walks `this.attributes` and `_deserializeValue`s
-  // Array/Object types — a literal `[[items]]` nulls the property and, without
-  // this remove, loops on youtube.com (TD-0017). attributeChangedCallback is
-  // separately skipped for tokens in SetElementAttribute / the post-upgrade
-  // observed loop.
-  for (std::size_t i = 0; i < element.Attributes().size();) {
-    const dom::Attribute& attribute = element.Attributes()[i];
-    if (IsTemplateBindingToken(attribute.value)) {
-      element.RemoveAttribute(attribute.name);
-      continue;
-    }
-    ++i;
-  }
-
   // The class's prototype goes on *before* the constructor runs, and that
   // ordering is the whole of whether a component works.
   //
@@ -159,6 +144,19 @@ void DomBindings::UpgradeElement(dom::Element& element) {
     // EventDispatch.cpp lost whole scripts to the same omission.
     interpreter_->ReportUncaught(constructed.value, "custom element constructor");
     return;
+  }
+  // After construction, drop binding-token attribute values before the
+  // observed-attribute ACC pass and connectedCallback (TD-0017). The
+  // constructor must still see `data="[[…]]"` so Polymer can wire host
+  // bindings; leaving tokens into connectedCallback hangs youtube outside
+  // the JS step budget.
+  for (std::size_t i = 0; i < element.Attributes().size();) {
+    const dom::Attribute& attribute = element.Attributes()[i];
+    if (IsTemplateBindingToken(attribute.value)) {
+      element.RemoveAttribute(attribute.name);
+      continue;
+    }
+    ++i;
   }
   // Observed attributes present before upgrade: the specification queues one
   // attributeChangedCallback per attribute after construction, with a null old

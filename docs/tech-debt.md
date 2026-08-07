@@ -635,12 +635,14 @@ still reach `_deserializeValue` after stamp, and `dom-repeat.items` stays `null`
 | `dom-repeat.items` | all `null` | n/a |
 | `ytd-rich-item-renderer` | **0** | n/a |
 
-**Update** (2026-08-07, session 56b). Also landed: `Reflect.set` goes through
-`SetProperty` (was `object->Set`, which shadowed Polymer accessors and left
-`dom-repeat.items` unnotified); `UpgradeSubtree` no longer walks `<template>`
-contents (browsers leave those inert); `attributeChangedCallback` skips binding
-tokens on `setAttribute` / post-upgrade observed attrs. Upgrade-time strip of
-tokens before the constructor **remains** — removing it still hangs youtube.
+**Update** (2026-08-07). Removing tokens for the whole upgrade hung outside the JS
+step budget (empty log, 99% CPU). **Moving the strip to after the constructor**
+lets Polymer see `data="[[…]]"` during construction (test:
+`seen === '[[x]]'`) and still finishes a youtube snapshot (~85s Debug,
+`js.steps_exhausted` **166** vs **343** with pre-constructor strip). Feed still
+empty: `twoData` false, **0** rich-grid — host binding from browse into
+two-column `data` is not applied yet. Tokens are still removed before
+post-upgrade ACC and `connectedCallback`.
 
 ---
 

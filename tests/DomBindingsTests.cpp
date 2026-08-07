@@ -500,7 +500,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "[[items]]|[[t]]");
     // Observed attributes present at upgrade get attributeChangedCallback with a
     // null old value. Binding tokens on the host are stripped at upgrade only
-    // (see UpgradeElement) so they do not reach `_deserializeValue`.
+    // (see UpgradeElement / TD-0017) so they do not reach `_deserializeValue`.
     ExpectScript("<html><body><x-t v='1'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -510,9 +510,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('x-t', T);"
                  "log.join('|')",
                  "v:null->1");
-    // Binding tokens are stripped at upgrade before the constructor (TD-0017),
-    // so getAttribute after upgrade is null; setAttribute/clone still keep them
-    // for stamps that have not been upgraded yet.
+    // Binding tokens remain through the constructor (annotation wiring) and are
+    // stripped before post-upgrade ACC / connectedCallback (TD-0017).
     ExpectScript("<html><body><x-t v='[[x]]'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -521,8 +520,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "  constructor(){ super(); this.seen = this.getAttribute('v') }"
                  "}"
                  "customElements.define('x-t', T);"
-                 "document.querySelector('x-t').seen + '|' + log.join('|')",
-                 "null|");
+                 "document.querySelector('x-t').seen + '|' + "
+                 "document.querySelector('x-t').getAttribute('v') + '|' + log.join('|')",
+                 "[[x]]|null|");
   });
 
   // MutationObserver. The shape is the specification's and it is not the
