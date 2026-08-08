@@ -930,6 +930,41 @@ report `audio.devices_opened` 0 when SDL has no playback device — that is
 
 ---
 
+## TD-0021 — BuildBoxTree is still whole-document after every stamp/font turn
+
+After TD-0001, youtube search's wall moved to `engine::BuildBoxTree`: **~2.0 s
+self over ~95 calls** (Release, 2026-08-09), against **~0.45 s** of
+`LayoutBoxes`. Each rebuild walks the flattened tree, resolves style, allocates
+boxes, and rebuilds the element→box index.
+
+**What already landed** (same day):
+
+| change | counter |
+|---|---|
+| `RunScripts` invalidates only when `MutationVersion` or cascade generation moved | `engine.box_tree_script_skipped` / `_invalidated_by_script` |
+| `AddImage` attaches pixels in place when both axes are definite without the bitmap | `engine.box_tree_image_paint_only` / `_invalidated_by_image` |
+
+On youtube search those counters show the script skip path is rare (Polymer
+mutates) and most thumbnails are percent-sized (still invalidate). The remaining
+~95 rebuilds are real DOM/font/cascade churn, not the unconditional script drop.
+
+**End state.** Either (a) dirty-subtree box rebuild keyed on mutation provenance,
+or (b) a computed-style cache keyed by cascade generation + element identity so
+unchanged subtrees are not re-cascaded. Whole-tree drop stays correct but is the
+wrong cost model once layout itself is cheap. Instrument invalidation *call
+sites* (font / sheet / observer / `InvalidateLayout`) before picking (a) vs (b).
+
+**Measured** (Release, `/results?search_query=cats`, after TD-0001 + the two
+guards above):
+
+| metric | value |
+|---|---|
+| `engine::BuildBoxTree` | ~2.0 s / ~95 calls |
+| `engine::LayoutBoxes` | ~0.45 s / ~95 calls |
+| snapshot wall | ~18 s |
+
+---
+
 ## TD-0020 — youtube's `playVideo()` is a stub that never reaches `<video>.play()`
 
 **Update** (2026-08-08). Root cause split in two:
