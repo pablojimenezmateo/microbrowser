@@ -672,9 +672,31 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   if (image == nullptr || !image->IsValid()) {
     return;
   }
+  const std::string key = src;
   resources_.images[std::move(src)] = std::move(image);
   // The box tree sized its replaced boxes against what was available then.
   InvalidateBoxTree();
+  DeliverImageLoad(key);
+}
+
+void Page::DeliverImageLoad(const std::string& src) {
+  if (document_ == nullptr) {
+    return;
+  }
+  document_->ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    const auto& element = static_cast<const dom::Element&>(node);
+    if (element.TagName() != "img") {
+      return;
+    }
+    const auto selected = resources_.selected_image_urls.find(&element);
+    if (selected == resources_.selected_image_urls.end() || selected->second != src) {
+      return;
+    }
+    script_.NotifyElementEvent(element, "load");
+  });
 }
 
 std::optional<gfx::SurfaceId> Page::SurfaceForElement(const dom::Element& element) const {

@@ -533,6 +533,7 @@ class DomBindings {
 
  private:
   void InstallCanvas(const js::Value& target);
+  void InstallImageElement(const js::Value& target);
   js::Value MakeCanvasContext(const js::Value& canvas);
   void InstallImageData(const js::Value& context);
   js::Value MakeImageData(int width, int height, const std::vector<std::uint8_t>& rgba);

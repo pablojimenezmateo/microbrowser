@@ -214,7 +214,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # Raised by fourteen header lines and two members for `document.scripts` /
 # `document.images` / `document.links` and the selector-list matcher those APIs
 # share with `querySelector`.
-budget: DomBindings header_lines=775 public_methods=38 members=23
+budget: DomBindings header_lines=780 public_methods=39 members=23
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page
@@ -232,7 +232,7 @@ budget: HistorySource header_lines=45 public_methods=6 members=0
 # it is `window.innerWidth`, which was simply missing, and it is the
 # `rootBounds` every IntersectionObserver with no `root` measures against. It is
 # the one answer here that is not about a node, which is why it takes none.
-budget: GeometrySource header_lines=75 public_methods=8 members=0
+budget: GeometrySource header_lines=90 public_methods=9 members=0
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

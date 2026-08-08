@@ -728,10 +728,47 @@ dom::Node* DomBindings::DocumentOf(const js::Value& self) const {
   return document_;
 }
 
-
-
-
-
-
+void DomBindings::InstallImageElement(const js::Value& target) {
+  if (!target.IsObject() || geometry_ == nullptr) {
+    return;
+  }
+  const auto install = [this, &target](const char* name, auto read) {
+    const Value getter = interpreter_->NewNativeValue(name, std::move(read));
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->DefineAccessor(name, getter.object, nullptr);
+    }
+  };
+  install("naturalWidth", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || owner->geometry_ == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Number(0.0);
+    }
+    const std::optional<ImageState> state =
+        owner->geometry_->QueryImageState(static_cast<const dom::Element&>(*self));
+    return Value::Number(state.has_value() ? static_cast<double>(state->natural_width) : 0.0);
+  });
+  install("naturalHeight", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || owner->geometry_ == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Number(0.0);
+    }
+    const std::optional<ImageState> state =
+        owner->geometry_->QueryImageState(static_cast<const dom::Element&>(*self));
+    return Value::Number(state.has_value() ? static_cast<double>(state->natural_height) : 0.0);
+  });
+  install("complete", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || owner->geometry_ == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Bool(false);
+    }
+    const std::optional<ImageState> state =
+        owner->geometry_->QueryImageState(static_cast<const dom::Element&>(*self));
+    return Value::Bool(state.has_value() && state->complete);
+  });
+}
 
 }  // namespace microbrowser::bindings

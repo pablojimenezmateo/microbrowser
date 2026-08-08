@@ -274,6 +274,9 @@ void DomBindings::EnsureInterfaces() {
       InstallMediaElement(*found);
     }
   }
+  if (const Value* image_interface = interfaces_.object->GetOwn("HTMLImageElement")) {
+    InstallImageElement(*image_interface);
+  }
   // `<canvas>`, on its own interface. ADR 0029 §2: `getContext` and the size attributes, and nothing
   // when there is no surface behind the layer -- a `getContext` returning an object whose methods did
   // nothing would make a page draw into nothing and show it.

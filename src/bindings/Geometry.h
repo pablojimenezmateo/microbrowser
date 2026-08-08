@@ -51,6 +51,14 @@ struct BoxGeometry {
   float scroll_height = 0.0f;
 };
 
+// Intrinsic dimensions of a decoded `<img>`, or nothing when the element is not
+// an image or has no selected URL yet.
+struct ImageState {
+  int natural_width = 0;
+  int natural_height = 0;
+  bool complete = false;
+};
+
 // Where a geometry question is answered.
 //
 // Declared *here*, in the module that asks, and implemented by `src/engine`,
@@ -139,6 +147,10 @@ class GeometrySource {
   // item in a menu inside a scrolled page has to move both, and an
   // implementation that moved one is the one that looks right in a demo.
   virtual void ScrollIntoView(const dom::Node& node) = 0;
+
+  // Whether an `<img>`'s selected URL has been decoded and its intrinsic size.
+  // Nothing when the node is not an image or has no `src`/`srcset` selection.
+  virtual std::optional<ImageState> QueryImageState(const dom::Element& element) = 0;
 };
 
 }  // namespace microbrowser::bindings

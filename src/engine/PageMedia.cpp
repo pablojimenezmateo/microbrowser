@@ -51,7 +51,7 @@ bindings::MediaController::PlayResult Page::Play(dom::Element& element) {
     return bindings::MediaController::PlayResult::NotSupported;
   }
   // The activation the state machine asks about is the document's, and only a trusted event
-  // sets it -- see Page::DispatchClickAt. This is the line ADR 0028 §1's autoplay refusal
+  // sets it -- see Page::DispatchPointerDownAt. This is the line ADR 0028 §1's autoplay refusal
   // actually turns on.
   const bool activated = document_ != nullptr && document_->HasUserActivation();
   const media::MediaState::PlayRefusal refusal = state->Play(activated);

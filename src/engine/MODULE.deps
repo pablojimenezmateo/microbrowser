@@ -276,7 +276,7 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=850 public_methods=172 members=23
+budget: Page   header_lines=855 public_methods=174 members=23
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
 # the display list is byte-identical.
@@ -355,7 +355,7 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # plus the three private ones in PageModules.cpp. The split is the point -- a
 # fetch needs a privacy verdict and a connection pool, and deciding *what* to
 # fetch needs to know what a module graph is.
-budget: PageScript header_lines=425 public_methods=58 members=27
+budget: PageScript header_lines=425 public_methods=59 members=27
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

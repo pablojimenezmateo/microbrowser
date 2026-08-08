@@ -496,6 +496,12 @@ bool PageScript::DispatchPointerMouse(dom::Element& target, std::string_view typ
   return bindings_ != nullptr && bindings_->DispatchPointerMouse(target, type, pointer);
 }
 
+void PageScript::NotifyElementEvent(const dom::Element& element, const char* type) {
+  if (bindings_ != nullptr) {
+    bindings_->NotifyScriptElementEvent(element, type);
+  }
+}
+
 bool PageScript::DispatchKey(dom::Node* target, const bindings::KeyInput& key) {
   return bindings_ != nullptr && bindings_->DispatchKey(target, key);
 }

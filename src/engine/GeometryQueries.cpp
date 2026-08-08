@@ -629,6 +629,25 @@ std::optional<std::string> Page::QueryUsedValue(const dom::Element& element,
   return ComputedValueOf(StyleWithoutBox(element), name);
 }
 
+std::optional<bindings::ImageState> Page::QueryImageState(const dom::Element& element) {
+  if (element.TagName() != "img") {
+    return std::nullopt;
+  }
+  const auto selected = resources_.selected_image_urls.find(&element);
+  if (selected == resources_.selected_image_urls.end()) {
+    return std::nullopt;
+  }
+  const std::shared_ptr<const gfx::Image> image = ImageFor(selected->second);
+  if (image == nullptr || !image->IsValid()) {
+    return bindings::ImageState{};
+  }
+  bindings::ImageState state;
+  state.natural_width = image->Width();
+  state.natural_height = image->Height();
+  state.complete = true;
+  return state;
+}
+
 css::ComputedStyle Page::StyleWithoutBox(const dom::Element& element) const {
   // The ancestors, root first, so inheritance runs the one direction it can:
   // StyleFor takes the parent's already-computed style, and walking up per

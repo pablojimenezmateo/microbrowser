@@ -314,7 +314,7 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "MediaState/APageCannotLicenseItsOwnAutoplay", [] {
     // The property the whole refusal rests on, and it is about *where* activation is set rather
-    // than about media: a real click goes through `Page::DispatchClickAt`, and a click a page
+    // than about media: a real click goes through `Page::DispatchPointerDownAt`, and a click a page
     // dispatches itself goes through the binding layer and never reaches that function. So a
     // page that fires its own click events never gains activation, and its unmuted `play()` stays
     // refused. ADR 0017 defines the flag; this is the test that it cannot be forged.

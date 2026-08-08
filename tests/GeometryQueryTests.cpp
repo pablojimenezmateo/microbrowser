@@ -18,6 +18,7 @@
 #include "html/TreeBuilder.h"
 #include "js/Interpreter.h"
 #include "gfx/FontCatalog.h"
+#include "gfx/Image.h"
 #include "util/PerformanceCounters.h"
 #include "support/SyntheticFont.h"
 
@@ -452,6 +453,22 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     page.DeliverObservations(32);
     ExpectEqInt(static_cast<long long>(page.ConsoleOutput().size()), 3,
                 "and nothing fires again while it stays there");
+  });
+
+  AddTest(tests, "Geometry/ImageNaturalDimensionsAfterDecode", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body><img id=i src='x.png'><script>0</script></body>", "https://example.org/");
+    page.SetViewport(css::MediaContext{800.0f, 600.0f, 1.0f});
+    page.Layout(800.0f);
+    page.RunScripts(0);
+    auto image = std::make_shared<gfx::Image>();
+    Expect(image->Adopt(32, 18, std::vector<std::uint32_t>(32 * 18, 0xFF0000FFu)), "built");
+    page.AddImage("x.png", image);
+    const std::string answer = page.EvaluateScript(
+        "var i=document.getElementById('i');"
+        "i.complete + ',' + i.naturalWidth + 'x' + i.naturalHeight");
+    ExpectEqString(answer, "true,32x18", "complete and natural dimensions after decode");
   });
 }
 

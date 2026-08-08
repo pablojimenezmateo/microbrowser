@@ -360,6 +360,7 @@ class Page : private layout::ImageProvider,
   // says and what layout has to look up -- resolving is the loader's job, and
   // doing it twice in two places is how the two disagree.
   void AddImage(std::string src, std::shared_ptr<const gfx::Image> image);
+  void DeliverImageLoad(const std::string& src);
 
   // The link whose laid-out box contains `document_point`, or nullopt.
   // Document coordinates, not viewport coordinates: scrolling is state owned
@@ -692,6 +693,7 @@ class Page : private layout::ImageProvider,
   bool QueryMediaMatches(std::string_view query) override;
   void SetScrollOffset(const dom::Node& node, float x, float y) override;
   void ScrollIntoView(const dom::Node& node) override;
+  std::optional<bindings::ImageState> QueryImageState(const dom::Element& element) override;
   // Records that `element` -- or the viewport, when null -- moved, so that one
   // `scroll` event fires at the next frame rather than one per wheel notch.
   // ADR 0018 §3: a page with twelve `scroll` listeners must not run them twelve
