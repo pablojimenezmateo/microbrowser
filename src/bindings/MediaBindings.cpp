@@ -152,6 +152,12 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
       if (what == "ended") {
         return Value::Bool(owner->media_->Ended(element));
       }
+      if (what == "videoWidth") {
+        return Value::Number(static_cast<double>(owner->media_->VideoWidth(element)));
+      }
+      if (what == "videoHeight") {
+        return Value::Number(static_cast<double>(owner->media_->VideoHeight(element)));
+      }
       return Value::Bool(owner->media_->Muted(element));
     });
     const Value setter = interpreter_->NewNativeValue(name, [](NativeCall& call) -> Value {
@@ -195,6 +201,8 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
   accessor("paused");
   accessor("ended");
   accessor("muted");
+  accessor("videoWidth");
+  accessor("videoHeight");
 
   // `buffered` as a TimeRanges snapshot of whatever MediaSource ranges are
   // attached. Absent rather than always-empty when there is no media controller

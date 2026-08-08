@@ -479,6 +479,8 @@ class Page : private layout::ImageProvider,
   bool Paused(const dom::Element& element) const override;
   bool Ended(const dom::Element& element) const override;
   bool Muted(const dom::Element& element) const override;
+  int VideoWidth(const dom::Element& element) const override;
+  int VideoHeight(const dom::Element& element) const override;
   bool IsMedia(const dom::Element& element) const override;
   // --- MSE, in PageMediaSource.cpp (ADR 0028 §3) -----------------------------
   //

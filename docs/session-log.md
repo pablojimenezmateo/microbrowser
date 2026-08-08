@@ -3624,3 +3624,38 @@ compatibility run.
 
 **Left for implementers:** Plex @370 needs offset context; youtube white page is still TD-0013 +
 Polymer/DI, with TD-0015 as a late font layer; reddit feed is TD-0016 first.
+
+---
+
+## 2026-08-08 — youtube.com watch plays decoded frames
+
+**Status:** done (watch playback path; home feed still sparse)
+
+**Landed:**
+
+- Root thrown script completions across `error` event dispatch (`ValueRoot`) — flaky watch
+  SIGSEGV reading `e.stack` after GC (same UAF ValueRoot already documented for RunCompiled).
+- `canPlayType` answers `"probably"` from the MediaSource allowlist (was always `""`).
+- `PageVideo` recreates surfaces from decoded frame size; track metadata was often `0x0` and
+  `Surface::Update` rejected every VP9 frame.
+- `currentTime` advances from frame `timestamp_us`; wake pacing stops when samples are exhausted.
+- `videoWidth` / `videoHeight` from the last applied frame.
+- Decoder counters: `media.video_sessions`, `media.decoder_samples_fed`,
+  `media.decoder_frames` / `_applied` / `_errors`, `media.video_configure_failures`.
+- Snapshot drains between `-eval` probes.
+
+**Measured** (Release, `/watch?v=jNQXAC9IVRw`, click + muted `play()`):
+
+| metric | value |
+|---|---|
+| `media.decoder_frames_applied` | 30–60 |
+| `video.currentTime` | ~2 s |
+| `videoWidth`×`videoHeight` | **320×240** |
+| player-region unique colours | ~240 |
+
+**Home** still ~82 commands / 5 images (history-off nudge / incomplete stamp). Search paints
+(~969 commands) with few thumbnails. `js.steps_exhausted` still open on some loads (TD-0018).
+
+**Left:** Opus → audio ring, codec-lib architecture lint, home-feed stamp, search thumbnail
+coverage, TD-0001 layout passes, TD-0003 JS AST arena.
+

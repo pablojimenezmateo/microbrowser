@@ -789,6 +789,33 @@ automatic `preparePlayer` path leaves a stub `player_` API
 empty `src` (playback / MSE / googlevideo still open). `js.steps_exhausted`
 still fires in MutationObserver / CE reactions on some watch loads.
 
+**Update** (2026-08-08, watch plays). MSE appends were already succeeding
+(UMP + bare WebM clusters). Three playback gaps stacked on top:
+
+1. `PageScript::RunTiming` read `e.stack` after the script `error` event
+   drained microtasks and collected the thrown Error — flaky SIGSEGV on
+   watch (ValueRoot; same UAF the class already documented for RunCompiled).
+2. `canPlayType` still returned `""` while `MediaSource.isTypeSupported`
+   returned true; wired to the same allowlist, answers `"probably"`.
+3. Decoded VP9 frames were rejected by `Surface::Update` because the
+   surface was sized from track metadata (often `0×0` → guessed `640×360`)
+   while the bitstream was another size. Recreate from the frame; advance
+   `currentTime` from `timestamp_us`.
+
+Measured (Release, `/watch?v=jNQXAC9IVRw`, click player, `muted` + `play()`):
+
+| metric | value |
+|---|---|
+| `media.video_sessions` | 1 |
+| `media.decoder_samples_fed` | ~130 |
+| `media.decoder_frames_applied` | 30–60 |
+| `video.currentTime` after drain | **~2 s** |
+| player-region unique colours in ppm | **~240** (was near-uniform) |
+
+Gate C's "no video plays" is therefore out of date for watch after a gesture.
+Remaining: `videoWidth`/`videoHeight` bindings, audio out through the ring,
+home-feed stamp (history-off nudge), and `js.steps_exhausted` on some loads.
+
 **End state.** Close when `js.steps_exhausted` is 0, search results show
 painted thumbnails for every in-view row without `-eval` force, watch plays
 (or honestly shows chrome without a skeleton that never upgrades), and home is

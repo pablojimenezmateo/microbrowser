@@ -34,6 +34,10 @@ class PageVideo {
 
   std::optional<gfx::SurfaceId> SurfaceFor(const dom::Element& element) const;
 
+  // Intrinsic size of the last applied video frame, or 0 before any frame.
+  int VideoWidth(const dom::Element& element) const;
+  int VideoHeight(const dom::Element& element) const;
+
   // Called when `play()` succeeds on an element attached to a `MediaSource`.
   void StartPlayback(dom::Element& element, media::MediaState& state);
 
@@ -67,6 +71,8 @@ class PageVideo {
     TrackDecoder audio;
     double frame_duration = 1.0 / 30.0;
     std::int64_t last_advance_ms = 0;
+    int frame_width = 0;
+    int frame_height = 0;
   };
 
   media::MediaSourceState* SourceFor(const dom::Element& element) const;

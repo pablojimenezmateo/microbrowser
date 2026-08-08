@@ -135,6 +135,10 @@ bool Page::Muted(const dom::Element& element) const {
   return state != nullptr && state->Muted();
 }
 
+int Page::VideoWidth(const dom::Element& element) const { return video_.VideoWidth(element); }
+
+int Page::VideoHeight(const dom::Element& element) const { return video_.VideoHeight(element); }
+
 void Page::FlushMediaEvents(dom::Element& element) {
   media::MediaState* state = MediaStateFor(element);
   if (state == nullptr) {

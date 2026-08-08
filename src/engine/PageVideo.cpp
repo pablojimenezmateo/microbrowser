@@ -75,6 +75,16 @@ std::optional<gfx::SurfaceId> PageVideo::SurfaceFor(const dom::Element& element)
   return found->second.surface_id;
 }
 
+int PageVideo::VideoWidth(const dom::Element& element) const {
+  const auto found = sessions_.find(&element);
+  return found == sessions_.end() ? 0 : found->second.frame_width;
+}
+
+int PageVideo::VideoHeight(const dom::Element& element) const {
+  const auto found = sessions_.find(&element);
+  return found == sessions_.end() ? 0 : found->second.frame_height;
+}
+
 media::MediaSourceState* PageVideo::SourceFor(const dom::Element& element) const {
   const std::uint64_t source_id = media_.SourceOf(element);
   return media_.Source(source_id);
@@ -253,6 +263,8 @@ bool PageVideo::ApplyVideoFrame(Session& session, const ipc::FrameMessage& frame
   if (!surface->Update(pixels)) {
     return false;
   }
+  session.frame_width = static_cast<int>(frame.width);
+  session.frame_height = static_cast<int>(frame.height);
   AddPerformanceCounter(PerfCounterId::MediaDecoderFramesApplied);
   return true;
 }

@@ -52,6 +52,10 @@ class MediaController {
   virtual bool Paused(const dom::Element& element) const = 0;
   virtual bool Ended(const dom::Element& element) const = 0;
   virtual bool Muted(const dom::Element& element) const = 0;
+  // Intrinsic decoded size. Zero until a frame has arrived; pages size the
+  // element from these (youtube's player chrome reads them after `loadedmetadata`).
+  virtual int VideoWidth(const dom::Element& element) const = 0;
+  virtual int VideoHeight(const dom::Element& element) const = 0;
   // Whether this element is a media element at all. Asked before anything else, so that
   // `document.body.play` is undefined rather than a function that answers about nothing.
   virtual bool IsMedia(const dom::Element& element) const = 0;
