@@ -73,7 +73,8 @@ std::optional<Alignment> ParseAlignment(std::string_view value) {
 }  // namespace
 
 bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
-                         const ComputedStyle& parent, ComputedStyle& style) {
+                         const ComputedStyle& parent, ComputedStyle& style,
+                         const MediaContext& context) {
   if (property == "position") {
     if (value == "static") {
       style.position = Position::Static;
@@ -157,7 +158,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     // rule undoing an earlier one is ordinary cascade.
     Length parsed = Length::Auto();
     if (value != "auto") {
-      const std::optional<Length> length = ParseLength(value);
+      const std::optional<Length> length = ParseLength(value, context);
       if (!length.has_value()) {
         return false;
       }
@@ -187,7 +188,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
                              : parts.size() == 2 ? side % 2
                              : parts.size() == 3 ? (side == 3 ? 1 : side)
                                                  : side;
-      applied = ApplyBoxDeclaration(kSides[side], std::string(parts[at]), parent, style) &&
+      applied = ApplyBoxDeclaration(kSides[side], std::string(parts[at]), parent, style, context) &&
                 applied;
     }
     return applied;
@@ -200,7 +201,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     // as "no bound".
     css::Length parsed = Length::Auto();
     if (value != "none" && value != "auto") {
-      const std::optional<Length> length = ParseLength(value);
+      const std::optional<Length> length = ParseLength(value, context);
       if (!length.has_value()) {
         return false;
       }
@@ -301,8 +302,8 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     bool applied = true;
     for (const std::string_view part : parts) {
       const bool direction = ApplyBoxDeclaration("flex-direction", std::string(part), parent,
-                                                 style);
-      const bool wrap = ApplyBoxDeclaration("flex-wrap", std::string(part), parent, style);
+                                                 style, context);
+      const bool wrap = ApplyBoxDeclaration("flex-wrap", std::string(part), parent, style, context);
       applied = (direction || wrap) && applied;
     }
     return applied;
@@ -348,7 +349,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
   if (property == "flex-basis") {
     if (value == "auto" || value == "content") {
       style.flex.basis = Length::Auto();
-    } else if (const std::optional<Length> length = ParseLength(value)) {
+    } else if (const std::optional<Length> length = ParseLength(value, context)) {
       style.flex.basis = *length;
     } else {
       return false;
@@ -388,12 +389,12 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
       const bool numeric = util::ParseDouble(part).has_value();
       if (numeric && numbers < 2) {
         applied = ApplyBoxDeclaration(numbers == 0 ? "flex-grow" : "flex-shrink",
-                                      std::string(part), parent, style) &&
+                                    std::string(part), parent, style, context) &&
                   applied;
         ++numbers;
         continue;
       }
-      applied = ApplyBoxDeclaration("flex-basis", std::string(part), parent, style) && applied;
+      applied = ApplyBoxDeclaration("flex-basis", std::string(part), parent, style, context) && applied;
       saw_basis = true;
     }
     if (numbers > 0 && !saw_basis) {
@@ -408,8 +409,8 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
   }
   if (property == "gap" || property == "row-gap" || property == "column-gap") {
     const std::vector<std::string_view> parts = SplitWords(value);
-    const auto pixels = [&style](std::string_view text) -> std::optional<float> {
-      const std::optional<Length> length = ParseLength(text);
+    const auto pixels = [&style, &context](std::string_view text) -> std::optional<float> {
+      const std::optional<Length> length = ParseLength(text, context);
       if (!length.has_value() || length->IsAuto() || length->IsPercent()) {
         return std::nullopt;  // a percentage gap resolves against a size we do not have yet
       }

@@ -4,6 +4,8 @@
 #include <string_view>
 
 #include "css/ComputedStyle.h"
+#include "css/MediaQuery.h"
+#include "css/MediaQuery.h"
 
 // Math functions evaluated to a Length: `calc()`, `min()`, `max()`, `clamp()`.
 //
@@ -22,6 +24,6 @@ namespace microbrowser::css {
 // one; `min(50px, 70%)` needs a used value to compare); or it is invalid
 // outright — a unit mismatch, a division by zero, a multiplication of two
 // lengths, or a result that is not a finite number.
-std::optional<Length> ParseCalc(std::string_view text);
+std::optional<Length> ParseCalc(std::string_view text, const MediaContext& context = {});
 
 }  // namespace microbrowser::css

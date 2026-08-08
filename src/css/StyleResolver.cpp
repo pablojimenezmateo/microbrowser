@@ -741,7 +741,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
         continue;
       }
     }
-    ApplyDeclaration(declaration.property, substituted[i], parent, style);
+    ApplyDeclaration(declaration.property, substituted[i], parent, style, media_context_);
   }
   // The animation pass, last, because a running transition's value is what everything downstream must
   // see -- layout, paint and `getComputedStyle` alike. Null for a resolver with no engine behind it,
@@ -813,12 +813,12 @@ ComputedStyle StyleResolver::StyleForPseudo(const dom::Element& element, PseudoE
     // Generated content rarely uses `var()`; substitute only when needed so a
     // missing var still unsets rather than applying the literal text.
     if (declaration.value.find("var(") == std::string::npos) {
-      ApplyDeclaration(declaration.property, declaration.value, originating, style);
+      ApplyDeclaration(declaration.property, declaration.value, originating, style, media_context_);
       continue;
     }
     std::string out;
     if (SubstituteVarsDepth(declaration.value, style, 0, out)) {
-      ApplyDeclaration(declaration.property, out, originating, style);
+      ApplyDeclaration(declaration.property, out, originating, style, media_context_);
     }
   }
   return style;

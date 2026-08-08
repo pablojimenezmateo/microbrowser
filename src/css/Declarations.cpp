@@ -12,6 +12,7 @@
 
 #include "css/Calc.h"
 #include "css/CssText.h"
+#include "css/MediaQuery.h"
 #include "gfx/ColorText.h"
 #include "gfx/Font.h"
 #include "util/Parse.h"
@@ -121,7 +122,8 @@ std::optional<BackgroundRepeat> ParseBackgroundRepeat(std::string_view word) {
 // A `background-position` component. The keywords are percentages of the space
 // the image does not fill, which is what makes `center` centre rather than
 // offset by half the box.
-std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizontal) {
+std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizontal,
+                                              const MediaContext& context) {
   const std::string lowered = Lowered(Trim(word));
   if (lowered == "center") {
     return Length{50.0f, Length::Unit::Percent};
@@ -132,7 +134,7 @@ std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizo
   if (lowered == (horizontal ? "right" : "bottom")) {
     return Length{100.0f, Length::Unit::Percent};
   }
-  return ParseLength(word);
+  return ParseLength(word, context);
 }
 
 // Splits a `font-family` value into its candidates, in order.
@@ -198,7 +200,7 @@ std::optional<gfx::Color> ParseColor(std::string_view text) {
   return gfx::ParseColorText(text);
 }
 
-std::optional<Length> ParseLength(std::string_view text) {
+std::optional<Length> ParseLength(std::string_view text, const MediaContext& context) {
   const std::string lowered = Lowered(Trim(text));
   if (lowered.empty()) {
     return std::nullopt;
@@ -213,7 +215,7 @@ std::optional<Length> ParseLength(std::string_view text) {
   // alongside `calc(max(...))`.
   if (lowered.compare(0, 5, "calc(") == 0 || lowered.compare(0, 4, "min(") == 0 ||
       lowered.compare(0, 4, "max(") == 0 || lowered.compare(0, 6, "clamp(") == 0) {
-    return ParseCalc(lowered);
+    return ParseCalc(lowered, context);
   }
 
   std::size_t at = 0;
@@ -266,6 +268,9 @@ std::optional<Length> ParseLength(std::string_view text) {
     // actually needs.
     return Length::Pixels(static_cast<float>(value * 4.0 / 3.0));
   }
+  if (const std::optional<float> absolute = AbsoluteLengthFromUnit(value, unit, context)) {
+    return Length::Pixels(*absolute);
+  }
   return std::nullopt;
 }
 
@@ -283,14 +288,14 @@ bool EdgeLengthAllowed(const Length& length, bool allow_negative, bool allow_aut
 }
 
 bool ApplyEdges(std::string_view value, Edges& edges, bool allow_negative, bool allow_auto,
-                bool allow_percent) {
+                bool allow_percent, const MediaContext& context) {
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty() || parts.size() > 4) {
     return false;
   }
   std::array<Length, 4> lengths;
   for (std::size_t i = 0; i < parts.size(); ++i) {
-    const auto length = ParseLength(parts[i]);
+    const auto length = ParseLength(parts[i], context);
     if (!length.has_value() ||
         !EdgeLengthAllowed(*length, allow_negative, allow_auto, allow_percent)) {
       return false;  // one bad component invalidates the whole shorthand
@@ -321,7 +326,7 @@ bool IsBorderStyleKeyword(std::string_view value) {
          value == "inset" || value == "outset";
 }
 
-bool ApplyBorder(std::string_view value, ComputedStyle& style) {
+bool ApplyBorder(std::string_view value, ComputedStyle& style, const MediaContext& context) {
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty()) {
     return false;
@@ -332,7 +337,7 @@ bool ApplyBorder(std::string_view value, ComputedStyle& style) {
   bool saw_style = false;
   bool style_disables_border = false;
   for (const std::string_view part : parts) {
-    if (const auto length = ParseLength(part)) {
+    if (const auto length = ParseLength(part, context)) {
       if (width.has_value() || !EdgeLengthAllowed(*length, false, false, false)) {
         return false;
       }
@@ -368,7 +373,8 @@ bool ApplyBorder(std::string_view value, ComputedStyle& style) {
 }  // namespace
 
 bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
-                      const ComputedStyle& parent, ComputedStyle& style) {
+                      const ComputedStyle& parent, ComputedStyle& style,
+                      const MediaContext& context) {
   // Lowered only when it has to be. A CSS value is nearly always already
   // lower case, and this used to allocate and copy one per applied declaration
   // -- 393,210 of them on en.wikipedia.org/wiki/CSS, for a string that in the
@@ -521,12 +527,12 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     if (words.empty() || words.size() > 2) {
       return false;
     }
-    const std::optional<Length> first = ParseLength(words.front());
+    const std::optional<Length> first = ParseLength(words.front(), context);
     if (!first.has_value()) {
       return false;  // `contain` and `cover` land here, and are honestly a no
     }
     const std::optional<Length> second =
-        words.size() == 2 ? ParseLength(words[1]) : std::optional<Length>(Length::Auto());
+        words.size() == 2 ? ParseLength(words[1], context) : std::optional<Length>(Length::Auto());
     if (!second.has_value()) {
       return false;
     }
@@ -542,9 +548,9 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     // A single value sets the horizontal position and centres the vertical,
     // which is what CSS says and is the difference between an icon on the left
     // edge and one halfway down it.
-    const std::optional<Length> x = ParseBackgroundPosition(words.front(), true);
+    const std::optional<Length> x = ParseBackgroundPosition(words.front(), true, context);
     const std::optional<Length> y =
-        words.size() == 2 ? ParseBackgroundPosition(words[1], false)
+        words.size() == 2 ? ParseBackgroundPosition(words[1], false, context)
                           : std::optional<Length>(Length{50.0f, Length::Unit::Percent});
     if (!x.has_value() || !y.has_value()) {
       return false;
@@ -565,7 +571,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       style.font_size = parent.font_size * 1.25f;
       return true;
     }
-    const auto length = ParseLength(raw_value);
+    const auto length = ParseLength(raw_value, context);
     if (!length.has_value()) {
       return false;
     }
@@ -613,7 +619,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
   if (ApplyTransformDeclaration(property, value, parent, style)) {
     return true;
   }
-  if (ApplyBoxDeclaration(property, value, parent, style)) {
+  if (ApplyBoxDeclaration(property, value, parent, style, context)) {
     return true;
   }
 
@@ -759,13 +765,13 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (property == "margin") {
-    return ApplyEdges(raw_value, style.margin, true, true, true);
+    return ApplyEdges(raw_value, style.margin, true, true, true, context);
   }
   if (property == "padding") {
-    return ApplyEdges(raw_value, style.padding, false, false, true);
+    return ApplyEdges(raw_value, style.padding, false, false, true, context);
   }
   if (property == "width" || property == "height") {
-    const auto length = ParseLength(raw_value);
+    const auto length = ParseLength(raw_value, context);
     if (!length.has_value() || !EdgeLengthAllowed(*length, false, true, true)) {
       return false;
     }
@@ -782,14 +788,14 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (property == "border-width") {
-    if (!ApplyEdges(raw_value, style.border_width, false, false, false)) {
+    if (!ApplyEdges(raw_value, style.border_width, false, false, false, context)) {
       return false;
     }
     style.has_border = true;
     return true;
   }
   if (property == "border") {
-    return ApplyBorder(raw_value, style);
+    return ApplyBorder(raw_value, style, context);
   }
 
   // Individual edge properties. Written as a loop rather than sixteen branches.
@@ -798,7 +804,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     const std::string margin_name = "margin-" + std::string(kSides[i]);
     const std::string padding_name = "padding-" + std::string(kSides[i]);
     if (property == margin_name || property == padding_name) {
-      const auto length = ParseLength(raw_value);
+      const auto length = ParseLength(raw_value, context);
       const bool is_margin = property == margin_name;
       if (!length.has_value() ||
           !EdgeLengthAllowed(*length, is_margin, is_margin, true)) {
@@ -815,11 +821,15 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
 }
 
 bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
-                      ComputedStyle& style) {
-  return ApplyDeclaration(declaration.property, declaration.value, parent, style);
+                      ComputedStyle& style, const MediaContext& context) {
+  return ApplyDeclaration(declaration.property, declaration.value, parent, style, context);
 }
 
-bool SupportsDeclaration(std::string_view property, std::string_view value) {
+bool SupportsDeclaration(std::string_view property, std::string_view value,
+                         const MediaContext& context) {
+  static constexpr MediaContext kProbe{100.0f, 100.0f, 1.0f};
+  const MediaContext& resolved =
+      context.viewport_width == 0.0f && context.viewport_height == 0.0f ? kProbe : context;
   const std::string name = Lowered(Trim(property));
   if (name.rfind("--", 0) == 0) {
     // A custom property has no grammar to fail: any token stream is a legal
@@ -828,7 +838,7 @@ bool SupportsDeclaration(std::string_view property, std::string_view value) {
   }
   const ComputedStyle initial;
   ComputedStyle scratch;
-  return ApplyDeclaration(name, Trim(value), initial, scratch);
+  return ApplyDeclaration(name, Trim(value), initial, scratch, resolved);
 }
 
 }  // namespace microbrowser::css

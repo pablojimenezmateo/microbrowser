@@ -53,4 +53,11 @@ bool MediaQueryListMatches(std::string_view text, const MediaContext& context);
 // survive from the cascade to a layout that may happen at a different size.
 std::optional<float> ResolveAbsoluteLength(std::string_view text, const MediaContext& context);
 
+// One magnitude in one CSS unit, as absolute pixels. `em` and `rem` fold at
+// `kRootFontSize` because there is no element here. Viewport units need a
+// non-zero dimension on the axis they read; a zero viewport yields nullopt so
+// a length is not guessed before the viewport is known.
+std::optional<float> AbsoluteLengthFromUnit(double magnitude, std::string_view unit,
+                                            const MediaContext& context);
+
 }  // namespace microbrowser::css

@@ -11,6 +11,7 @@
 
 #include "css/Animation.h"
 #include "css/Length.h"
+#include "css/MediaQuery.h"
 #include "css/Transform.h"
 #include "gfx/Color.h"
 
@@ -606,7 +607,7 @@ bool SubstituteVars(std::string_view value, const ComputedStyle& style, std::str
 std::optional<gfx::Color> ParseColor(std::string_view text);
 
 // Parses a length. Nullopt when the text is not one.
-std::optional<Length> ParseLength(std::string_view text);
+std::optional<Length> ParseLength(std::string_view text, const MediaContext& context = {});
 
 // The flex properties and the sizing bounds. True when the declaration was
 // *applied* -- which means both that `property` is one of these and that its
@@ -624,7 +625,8 @@ bool ApplyTransformDeclaration(std::string_view property, std::string_view value
                                const ComputedStyle& parent, ComputedStyle& style);
 
 bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
-                         const ComputedStyle& parent, ComputedStyle& style);
+                         const ComputedStyle& parent, ComputedStyle& style,
+                         const MediaContext& context = {});
 
 // `transition-*` and `animation-*`. Their own entry points for the reason `transform`'s is: a
 // comma-separated list of space-separated lists, where the order inside an item is mostly free and one

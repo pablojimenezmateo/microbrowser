@@ -106,7 +106,10 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # explanation of what may be filed where, which is the part that has to be
 # right, since a rule filed under a key its element never asks for does not
 # render *sometimes* -- it stops applying.
-budget: StyleResolver header_lines=150 public_methods=21 members=6
+# +1 member for the viewport lengths in declarations resolve against. Folded at
+# cascade time rather than stored on Length, because a length that survives a
+# resize would be wrong — the same reason @media re-parses on SetViewport.
+budget: StyleResolver header_lines=150 public_methods=22 members=7
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not

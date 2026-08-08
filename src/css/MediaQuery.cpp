@@ -477,6 +477,49 @@ bool MediaQueryListMatches(std::string_view text, const MediaContext& context) {
   return false;
 }
 
+std::optional<float> AbsoluteLengthFromUnit(double magnitude, std::string_view unit,
+                                            const MediaContext& context) {
+  double per_unit = 0.0;
+  if (util::EqualsAsciiCaseInsensitive(unit, "px")) {
+    per_unit = 1.0;
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "em") ||
+             util::EqualsAsciiCaseInsensitive(unit, "rem")) {
+    per_unit = static_cast<double>(kRootFontSize);
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "pt")) {
+    per_unit = 4.0 / 3.0;
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "vw")) {
+    if (context.viewport_width == 0.0f) {
+      return std::nullopt;
+    }
+    per_unit = static_cast<double>(context.viewport_width) / 100.0;
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "vh")) {
+    if (context.viewport_height == 0.0f) {
+      return std::nullopt;
+    }
+    per_unit = static_cast<double>(context.viewport_height) / 100.0;
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "vmin")) {
+    if (context.viewport_width == 0.0f || context.viewport_height == 0.0f) {
+      return std::nullopt;
+    }
+    per_unit = static_cast<double>(std::min(context.viewport_width, context.viewport_height)) /
+               100.0;
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "vmax")) {
+    if (context.viewport_width == 0.0f || context.viewport_height == 0.0f) {
+      return std::nullopt;
+    }
+    per_unit = static_cast<double>(std::max(context.viewport_width, context.viewport_height)) /
+               100.0;
+  } else {
+    return std::nullopt;
+  }
+  const double pixels = magnitude * per_unit;
+  constexpr double kFloatLimit = 3.0e38;
+  if (!(pixels >= -kFloatLimit && pixels <= kFloatLimit)) {
+    return std::nullopt;
+  }
+  return static_cast<float>(pixels);
+}
+
 std::optional<float> ResolveAbsoluteLength(std::string_view text, const MediaContext& context) {
   const std::vector<Token> tokens = Tokenize(text);
   Cursor cursor{tokens, 0};

@@ -130,6 +130,10 @@ class StyleResolver {
   // before animations existed.
   void SetAdjuster(const StyleAdjuster* adjuster) { adjuster_ = adjuster; }
 
+  // The viewport lengths in declarations resolve against. Set by the engine on
+  // every resize; a zero viewport leaves `vw`/`vh` unparsed rather than guessed.
+  void SetMediaContext(const MediaContext& context) { media_context_ = context; }
+
   // The style of one element, given its parent's already-computed style.
   // Passing the parent style rather than looking it up is what makes
   // inheritance a single pass down the tree instead of a walk up per property.
@@ -241,6 +245,7 @@ class StyleResolver {
   RuleIndex index_;
   StyleInvalidation invalidation_;
   const StyleAdjuster* adjuster_ = nullptr;
+  MediaContext media_context_;
   std::size_t next_order_ = 0;
   std::uint64_t generation_ = 0;
 };
@@ -263,7 +268,7 @@ std::string_view UserAgentStyleSheet();
 // no for both. This return value is what makes SupportsDeclaration honest: it
 // cannot drift from the property table because it *is* the property table.
 bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& parent,
-                      ComputedStyle& style);
+                      ComputedStyle& style, const MediaContext& context = {});
 
 // The same, without a `Declaration` to build first. This is the form the
 // cascade uses and the one the other is written in terms of: a declaration that
@@ -273,7 +278,8 @@ bool ApplyDeclaration(const Declaration& declaration, const ComputedStyle& paren
 // views must outlive the call, which they trivially do -- the rule owns one and
 // the substitution buffer owns the other.
 bool ApplyDeclaration(std::string_view property, std::string_view value,
-                      const ComputedStyle& parent, ComputedStyle& style);
+                      const ComputedStyle& parent, ComputedStyle& style,
+                      const MediaContext& context = {});
 
 // Whether this engine supports `property: value` -- the question `@supports`
 // asks, answered by trying it.
@@ -284,6 +290,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view value,
 // obvious alternative and is the trap ADR 0014 §3 names: it starts correct and
 // then a property is added without it, and the page is told no about something
 // that works -- or, worse, yes about something that does not.
-bool SupportsDeclaration(std::string_view property, std::string_view value);
+bool SupportsDeclaration(std::string_view property, std::string_view value,
+                         const MediaContext& context = {});
 
 }  // namespace microbrowser::css

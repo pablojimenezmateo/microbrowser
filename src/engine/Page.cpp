@@ -218,6 +218,7 @@ void Page::SetViewport(const css::MediaContext& viewport) {
                              viewport.viewport_height != viewport_.viewport_height ||
                              viewport.device_pixel_ratio != viewport_.device_pixel_ratio;
   viewport_ = viewport;
+  resolver_.SetMediaContext(viewport_);
   // So that a layout forced by a geometry query before the engine's first
   // Layout still runs at the width the document will be shown at.
   layout_.width = viewport.viewport_width;

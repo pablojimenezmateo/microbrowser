@@ -5,6 +5,7 @@
 #include <string>
 
 #include "css/CssText.h"
+#include "css/MediaQuery.h"
 #include "util/Parse.h"
 
 // `calc()`, `min()`, `max()` and `clamp()`, per CSS Values and Units 4 §8.
@@ -88,7 +89,8 @@ std::optional<int> CompareSums(Sum left, Sum right) {
 
 class CalcParser {
  public:
-  explicit CalcParser(std::string_view text) : text_(text) {}
+  CalcParser(std::string_view text, const MediaContext& context)
+      : text_(text), context_(context) {}
 
   // One top-level math function — `calc(...)`, `min(...)`, `max(...)` or
   // `clamp(...)` — consuming the whole text.
@@ -409,16 +411,18 @@ class CalcParser {
       sum.px = magnitude * static_cast<double>(kRootFontSize);
     } else if (unit == "em") {
       sum.em = magnitude;
+    } else if (const std::optional<float> absolute =
+                   AbsoluteLengthFromUnit(magnitude, unit, context_)) {
+      sum.px = static_cast<double>(*absolute);
     } else {
-      // `vw`, `ch`, `ex` and the rest. Not supported, so the calc is invalid
-      // and the declaration is dropped — which is the same outcome the unit
-      // gets outside a calc, and is why `@supports (width: 1vw)` answers no.
+      // `ch`, `ex` and the rest, or a viewport unit before the viewport is known.
       return std::nullopt;
     }
     return Finite(sum) ? std::optional<Sum>(sum) : std::nullopt;
   }
 
   std::string_view text_;
+  const MediaContext& context_;
   std::size_t at_ = 0;
 };
 
@@ -459,12 +463,12 @@ std::optional<Length> ToLength(const Sum& sum) {
 
 }  // namespace
 
-std::optional<Length> ParseCalc(std::string_view text) {
+std::optional<Length> ParseCalc(std::string_view text, const MediaContext& context) {
   const std::string_view trimmed = Trim(text);
   if (trimmed.size() < 4) {
     return std::nullopt;
   }
-  CalcParser parser(trimmed);
+  CalcParser parser(trimmed, context);
   const std::optional<Sum> sum = parser.ParseMathFunction();
   if (!sum.has_value()) {
     return std::nullopt;

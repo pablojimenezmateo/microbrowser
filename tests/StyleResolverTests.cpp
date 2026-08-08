@@ -6,6 +6,7 @@
 
 #include "TestSupport.h"
 #include "css/ComputedStyle.h"
+#include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "dom/Node.h"
@@ -171,7 +172,17 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "and a bare 0 must not be retyped as 0% just to make the compare succeed");
     Expect(!ParseLength("min(10%, 20%)").has_value(),
            "percent-vs-percent is deferred in the spec; this Length has nowhere to put that");
-    Expect(!ParseLength("min(10px, 5vw)").has_value(), "and an unknown unit still drops it");
+    constexpr css::MediaContext kViewport{1280.0f, 900.0f, 1.0f};
+    Expect(ParseLength("10vh", kViewport) == Length::Pixels(90.0f),
+           "vh folds against the viewport height");
+    Expect(ParseLength("50vw", kViewport) == Length::Pixels(640.0f),
+           "vw folds against the viewport width");
+    Expect(ParseLength("calc(10vh + 5px)", kViewport) == Length::Pixels(95.0f),
+           "viewport units work inside calc");
+    Expect(ParseLength("min(10px, 5vw)", kViewport) == Length::Pixels(10.0f),
+           "vw resolves when the viewport is known");
+    Expect(!ParseLength("min(10px, 5vw)").has_value(),
+           "and stays unparsed before the viewport is");
     Expect(!ParseLength("max()").has_value(), "no empty argument list");
     Expect(!ParseLength("clamp(1px, 2px)").has_value(), "clamp needs exactly three arguments");
     Expect(SupportsDeclaration("width", "max(1rem, 10px)"),
@@ -196,7 +207,7 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "a value's own grammar is part of the question");
     Expect(!SupportsDeclaration("width", "calc(100% - 1em)"),
            "including the calc forms this engine cannot represent");
-    Expect(!SupportsDeclaration("width", "1vw"), "and the units it does not have");
+    Expect(SupportsDeclaration("width", "1vw"), "viewport units are supported");
     Expect(SupportsDeclaration("aspect-ratio", "16 / 9"), "aspect-ratio, in both spellings");
     Expect(SupportsDeclaration("aspect-ratio", "16/9"), "of the same ratio");
     Expect(!SupportsDeclaration("aspect-ratio", "auto 16/9"),
