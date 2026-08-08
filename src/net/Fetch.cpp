@@ -1,9 +1,11 @@
 #include "net/Fetch.h"
 
+#include <algorithm>
 #include <array>
 #include <utility>
 
 #include "net/ContentEncoding.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 #include "util/UserAgent.h"
@@ -282,6 +284,20 @@ bool FetchRequest::BeginExchange() {
           ? cookies_.HeaderFor(verdict_.Partition(), url, same_site,
                                remaining_.is_top_level_navigation, now_)
           : std::string();
+  if (util::LoadTimeline::Enabled()) {
+    std::string cookie_detail = url.Serialize();
+    if (cookie_header.empty()) {
+      cookie_detail += " cookies=0";
+    } else {
+      const std::size_t cookie_count =
+          1 + static_cast<std::size_t>(std::count(cookie_header.begin(), cookie_header.end(), ';'));
+      cookie_detail += " cookies=" + std::to_string(cookie_count);
+      if (cookie_header.find("edgebucket") != std::string::npos) {
+        cookie_detail += " edgebucket=yes";
+      }
+    }
+    util::LoadTimeline::MarkWith("request.cookies", cookie_detail);
+  }
   may_use_cache_ = MayUseHttpCache(remaining_, cookie_header, verdict_.Referrer());
   if (may_use_cache_ && !remaining_.bypass_cache) {
     if (const HttpCache::Entry* cached = cache_.Lookup(verdict_.Partition(), url, now_)) {

@@ -2067,6 +2067,7 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
     factory.script.push_back(ScriptedTransport::Exchange{
         "www.reddit.com", 443, true,
         "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+        "Set-Cookie: edgebucket=livebucket; Path=/; Domain=reddit.com; Secure\r\n"
         "Set-Cookie: csv=2; Path=/; Domain=.reddit.com\r\n"
         "Set-Cookie: token_v2=fake; Path=/; Domain=.reddit.com\r\n"
         "Content-Length: " + std::to_string(interstitial.size()) + "\r\n\r\n" + interstitial});
@@ -2092,6 +2093,8 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
     Expect(submitted.find("token=7afd7253") != std::string::npos, "token travels with the submission");
     Expect(submitted.find("Cookie:") != std::string::npos,
            "cookies from the first response ride on the challenge answer");
+    Expect(submitted.find("edgebucket=livebucket") != std::string::npos,
+           "edgebucket from the live Set-Cookie shape is forwarded on the submission");
   });
 
   AddTest(tests, "Engine/DocumentCookieReadsSetCookie", [] {

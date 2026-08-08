@@ -261,8 +261,18 @@ bool WritePpm(const microbrowser::gfx::Canvas& canvas, const std::string& path) 
   return std::fclose(file) == 0;
 }
 
-bool UrlHasJsChallenge(std::string_view url) {
-  return url.find("js_challenge=1") != std::string_view::npos;
+// reddit's challenge interstitial is served at the bare homepage URL; after
+// `requestSubmit()` the committed URL carries `solution=` and still has
+// `js_challenge=1` on the real feed — so `js_challenge` alone is not a reliable
+// interstitial signal (70993b7).
+bool SnapshotAwaitingRedditChallenge(std::string_view url) {
+  if (url.find("solution=") != std::string_view::npos) {
+    return false;
+  }
+  if (url.find("js_challenge=1") != std::string_view::npos) {
+    return true;
+  }
+  return url == "https://www.reddit.com" || url == "https://www.reddit.com/";
 }
 
 // Turns the loop's crank until the navigation is finished.
@@ -275,9 +285,9 @@ bool UrlHasJsChallenge(std::string_view url) {
 void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   std::uint64_t turns = 0;
   const bool trace = microbrowser::util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE");
-  // reddit's interstitial marks `load` finished while the concat polyfill still
-  // runs on timers and only then submits the challenge form. Stay in the load
-  // loop until that URL clears or fifteen minutes pass (Gate B measurement).
+  // reddit's interstitial marks `load` finished while its inline async handler
+  // still runs and only then submits the challenge form. Stay in the load loop
+  // until the URL carries `solution=` or fifteen minutes pass (Gate B measurement).
   const auto settle_deadline =
       std::chrono::steady_clock::now() + std::chrono::minutes(15);
   const auto should_turn = [&]() {
@@ -287,7 +297,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     if (engine.IsLoading()) {
       return true;
     }
-    return UrlHasJsChallenge(engine.Url());
+    return SnapshotAwaitingRedditChallenge(engine.Url());
   };
   while (should_turn()) {
     ++turns;
@@ -339,8 +349,8 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     }
     if (descriptors.empty() && !deadline.has_value()) {
       // A reddit challenge can be CPU-bound between timer arms; do not treat
-      // "no deadline yet" as stuck while the interstitial URL is still showing.
-      if (!UrlHasJsChallenge(engine.Url())) {
+      // "no deadline yet" as stuck while the interstitial has not submitted yet.
+      if (!SnapshotAwaitingRedditChallenge(engine.Url())) {
         break;  // nothing outstanding, nothing runnable, no timer: stuck
       }
       microbrowser::util::PerformanceTrace::Scope wait("wait::Deadline");
