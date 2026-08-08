@@ -226,6 +226,8 @@ class Page : private layout::ImageProvider,
   // absence rather than a stub: `fetch` is then not declared at all. See
   // bindings/Network.h and ADR 0012.
   void SetNetworkSource(bindings::NetworkSource* network);
+  // Borrowed audio device from `src/app`. Null keeps video silent (snapshot/tests).
+  void SetAudioSink(media::AudioSink* sink) { video_.SetAudioSink(sink); }
   void SetTrustedInsertionFlush(std::function<void()> hook);
   // The same, for `window.history`. Borrowed and set before any script runs, for
   // the reason the network source is: a source that arrived later would leave the

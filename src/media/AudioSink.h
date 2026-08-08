@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 namespace microbrowser::media {
 
@@ -41,6 +42,14 @@ class AudioSink {
   virtual void Stop() = 0;
 
   virtual bool IsRunning() const = 0;
+
+  // Device parameters after a successful `Start`. Zero when not running -- a clock built
+  // from these before Start would be at the wrong rate (ADR 0028 §4).
+  virtual int SampleRate() const = 0;
+  virtual int Channels() const = 0;
+
+  // Frames sitting in the device buffer, for `PlaybackClock::SetBufferedFrames`.
+  virtual std::uint64_t QueuedFrames() const = 0;
 };
 
 }  // namespace microbrowser::media

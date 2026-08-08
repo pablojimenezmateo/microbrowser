@@ -122,6 +122,10 @@ class Engine : private bindings::NetworkSource,
   // snapshot does the same so a watch page's first frame is in the PPM.
   const gfx::SurfaceRegistry& VideoSurfaces() const { return page_.VideoSurfaces(); }
 
+  // Borrowed device from `src/app`. Null (tests, snapshot) keeps playback silent.
+  // Must outlive every Start; clear before the sink is destroyed (ADR 0028 §4).
+  void SetAudioSink(media::AudioSink* sink) { page_.SetAudioSink(sink); }
+
   // What has focus, as one line: its tag, its `id` or `name`, and whether the
   // keyboard put it there. Forwarded rather than exposing the Page, for the
   // reason ScriptErrors is -- and here at all because every check from ADR

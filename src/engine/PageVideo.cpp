@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <string_view>
 #include <utility>
 
 #include "dom/Node.h"
@@ -61,7 +62,28 @@ std::int64_t NowMs() {
 
 }  // namespace
 
+void PageVideo::SetAudioSink(media::AudioSink* sink) {
+  if (sink_ == sink) {
+    return;
+  }
+  StopOutput();
+  sink_ = sink;
+}
+
+void PageVideo::StopOutput() {
+  if (sink_ != nullptr && sink_->IsRunning()) {
+    sink_->Stop();
+  }
+  pending_pcm_.clear();
+  clock_.reset();
+  // Ring outlives only while the sink is stopped; recreate on next Start.
+  ring_.reset();
+}
+
+void PageVideo::UpdateOutput(const media::MediaState& state) { EnsureOutputRunning(state); }
+
 void PageVideo::Clear() {
+  StopOutput();
   sessions_.clear();
   last_generations_.clear();
   surfaces_ = gfx::SurfaceRegistry{};
@@ -175,6 +197,7 @@ void PageVideo::StartPlayback(dom::Element& element, media::MediaState& state) {
   sessions_[&element] = std::move(session);
   AddPerformanceCounter(PerfCounterId::MediaVideoSessions);
   state.AdvanceTo(state.CurrentTime());
+  EnsureOutputRunning(state);
 }
 
 bool PageVideo::FeedSamples(TrackDecoder& decoder, double current_time, double horizon) {
@@ -269,6 +292,81 @@ bool PageVideo::ApplyVideoFrame(Session& session, const ipc::FrameMessage& frame
   return true;
 }
 
+void PageVideo::EnsureOutputRunning(const media::MediaState& state) {
+  if (sink_ == nullptr || state.Muted() || state.Paused()) {
+    StopOutput();
+    return;
+  }
+  if (sink_->IsRunning()) {
+    return;
+  }
+  // ~250 ms at 48 kHz stereo -- enough to absorb a decode burst without a
+  // multi-second buffer that would lag A/V sync (audiotone uses 12k frames).
+  constexpr std::size_t kRingFrames = 12000;
+  ring_ = std::make_unique<media::AudioRing>(kRingFrames, 2);
+  pending_pcm_.clear();
+  if (!sink_->Start(*ring_)) {
+    ring_.reset();
+    return;
+  }
+  clock_ = media::PlaybackClock(sink_->SampleRate());
+}
+
+void PageVideo::SyncClockFromRing() {
+  if (!clock_.has_value() || ring_ == nullptr || sink_ == nullptr || !sink_->IsRunning()) {
+    return;
+  }
+  clock_->SetFramesConsumed(ring_->FramesRead());
+  clock_->SetBufferedFrames(sink_->QueuedFrames());
+}
+
+bool PageVideo::ApplyAudioFrame(const ipc::FrameMessage& frame, double volume) {
+  if (frame.sample_count == 0 || frame.channels == 0) {
+    return false;
+  }
+  const std::size_t expected_bytes =
+      static_cast<std::size_t>(frame.sample_count) * static_cast<std::size_t>(frame.channels) * 2u;
+  if (frame.bytes.size() != expected_bytes) {
+    return false;
+  }
+  if (ring_ == nullptr || sink_ == nullptr || !sink_->IsRunning()) {
+    // Still "handled": muted / no-device play must drain the decoder pipe.
+    return true;
+  }
+
+  const int out_channels = ring_->Channels();
+  const float gain = static_cast<float>(std::clamp(volume, 0.0, 1.0));
+  std::vector<float> interleaved;
+  interleaved.reserve(static_cast<std::size_t>(frame.sample_count) *
+                      static_cast<std::size_t>(out_channels));
+  for (std::uint32_t sample = 0; sample < frame.sample_count; ++sample) {
+    for (int out = 0; out < out_channels; ++out) {
+      const std::uint32_t src_ch =
+          frame.channels == 1 ? 0u
+                              : static_cast<std::uint32_t>(std::min(out, static_cast<int>(frame.channels) - 1));
+      const std::size_t at =
+          (static_cast<std::size_t>(sample) * frame.channels + src_ch) * 2u;
+      const std::int16_t s16 = static_cast<std::int16_t>(
+          static_cast<std::uint16_t>(frame.bytes[at]) |
+          (static_cast<std::uint16_t>(frame.bytes[at + 1u]) << 8));
+      interleaved.push_back((static_cast<float>(s16) / 32768.0f) * gain);
+    }
+  }
+
+  if (!pending_pcm_.empty()) {
+    interleaved.insert(interleaved.begin(), pending_pcm_.begin(), pending_pcm_.end());
+    pending_pcm_.clear();
+  }
+  const std::size_t wrote = ring_->Write(interleaved);
+  const std::size_t wrote_samples = wrote * static_cast<std::size_t>(out_channels);
+  if (wrote_samples < interleaved.size()) {
+    pending_pcm_.assign(interleaved.begin() + static_cast<std::ptrdiff_t>(wrote_samples),
+                        interleaved.end());
+  }
+  AddPerformanceCounter(PerfCounterId::MediaAudioFramesWritten);
+  return true;
+}
+
 bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state) {
   const auto found = sessions_.find(&element);
   if (found == sessions_.end() || state.Paused()) {
@@ -278,6 +376,8 @@ bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state)
   if (session.video.client == nullptr) {
     return false;
   }
+
+  EnsureOutputRunning(state);
 
   const std::int64_t now_ms = NowMs();
   const std::int64_t frame_ms =
@@ -313,12 +413,26 @@ bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state)
     AddPerformanceCounter(PerfCounterId::MediaDecoderErrors);
   }
   if (session.audio.client != nullptr) {
-    (void)session.audio.client->PollFrames();
+    std::string audio_error;
+    const double volume = media_.Volume(element);
+    for (const ipc::FrameMessage& frame : session.audio.client->PollFrames(&audio_error)) {
+      AddPerformanceCounter(PerfCounterId::MediaDecoderFrames);
+      (void)ApplyAudioFrame(frame, volume);
+    }
+    if (!audio_error.empty()) {
+      AddPerformanceCounter(PerfCounterId::MediaDecoderErrors);
+    }
   }
 
-  // Prefer the frame's own timestamp. Advancing only on the paced tick left
-  // currentTime at 0 while media.decoder_frames_applied climbed -- early
-  // arrivals updated the surface and returned without touching the clock.
+  SyncClockFromRing();
+  // Audio clock when the sink is running (ADR 0028 §4); otherwise video PTS.
+  if (clock_.has_value() && sink_ != nullptr && sink_->IsRunning()) {
+    const double heard = clock_->CurrentTimeSeconds();
+    if (heard > current) {
+      state.AdvanceTo(heard);
+      return true;
+    }
+  }
   if (updated) {
     if (latest_time > current) {
       state.AdvanceTo(latest_time);

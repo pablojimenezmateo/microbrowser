@@ -18,7 +18,9 @@ max_tu_lines: 800
 # database, and the shaped-run cache. They are here because the engine takes a
 # gfx::FontProvider rather than finding one -- which is what keeps "the engine
 # does not know what machine it is on" true.
-budget: Application header_lines=115 public_methods=6 members=18
+# Application owns the SDL audio device and injects it into the engine (TD-0019).
+# Declared before Engine so ~Engine / ~PageVideo can Stop while the device lives.
+budget: Application header_lines=125 public_methods=6 members=19
 # Damage for the surface holes in a frame, which the display-list diff cannot
 # compute: two frames of a playing video are byte-identical as commands, so the
 # only thing that says the pixels changed is the surface's generation counter.

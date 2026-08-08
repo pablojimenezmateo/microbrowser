@@ -32,7 +32,7 @@ max_tu_lines: 800
 # "never a codec" line true.
 budget: AudioRing       header_lines=125 public_methods=11 members=6
 budget: PlaybackClock   header_lines=75  public_methods=8  members=6
-budget: AudioSink       header_lines=45  public_methods=8  members=0
+budget: AudioSink       header_lines=60  public_methods=11 members=0
 # ADR 0028 §1's two state machines, as state and nothing else -- no samples, no element, no
 # network. That is what lets the transitions be driven and asserted without a decoder, which
 # is the only way to know they are the specification's rather than an approximation.

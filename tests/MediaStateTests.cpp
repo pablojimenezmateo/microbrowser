@@ -14,10 +14,14 @@
 #include "TestSupport.h"
 #include "dom/Node.h"
 #include "engine/Engine.h"
+#include "engine/MediaElements.h"
 #include "engine/Page.h"
+#include "engine/PageVideo.h"
 #include "gfx/FontCatalog.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "media/AudioRing.h"
+#include "media/AudioSink.h"
 #include "media/MediaState.h"
 #include "support/DriveLoop.h"
 #include "support/ScriptedTransport.h"
@@ -350,6 +354,64 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
     Expect(state.CurrentTime() == 0.0, "at the start");
     Expect(state.ReadyState() == MediaState::Ready::Nothing, "and nothing is ready");
     ExpectEqString(Events(state), "loadstart", "with a fresh loadstart");
+  });
+
+  AddTest(tests, "PageVideo/TheSinkFollowsMuteAndPauseWithoutDecoding", [] {
+    // TD-0019: the device is opened only for unmuted play, and Stop joins before the
+    // ring dies. Decode is orthogonal -- UpdateOutput is the half that owns idle CPU.
+    // Sink before PageVideo: ~PageVideo clears the sink pointer and must not
+    // call Stop on an already-destroyed device (ADR 0028 §4 lifetime).
+    struct RecordingSink : media::AudioSink {
+      int starts = 0;
+      int stops = 0;
+      bool running = false;
+      bool Start(media::AudioRing& ring) override {
+        (void)ring;
+        ++starts;
+        running = true;
+        return true;
+      }
+      void Stop() override {
+        ++stops;
+        running = false;
+      }
+      bool IsRunning() const override { return running; }
+      int SampleRate() const override { return running ? 48000 : 0; }
+      int Channels() const override { return running ? 2 : 0; }
+      std::uint64_t QueuedFrames() const override { return 0; }
+    } sink;
+    engine::MediaElements media;
+    engine::PageVideo video(media);
+    video.SetAudioSink(&sink);
+
+    media::MediaState muted;
+    muted.BeginLoad();
+    muted.MetadataArrived(10.0);
+    muted.BufferedAhead(10.0);
+    muted.SetMuted(true);
+    Expect(muted.Play(false) == media::MediaState::PlayRefusal::None, "muted autoplay");
+    video.UpdateOutput(muted);
+    Expect(!sink.running && sink.starts == 0, "muted play never opens a device");
+
+    media::MediaState playing;
+    playing.BeginLoad();
+    playing.MetadataArrived(10.0);
+    playing.BufferedAhead(10.0);
+    Expect(playing.Play(true) == media::MediaState::PlayRefusal::None, "gestured play");
+    video.UpdateOutput(playing);
+    Expect(sink.running && sink.starts == 1, "unmuted play starts the sink");
+
+    playing.SetMuted(true);
+    video.UpdateOutput(playing);
+    Expect(!sink.running && sink.stops == 1, "mute stops and joins");
+
+    playing.SetMuted(false);
+    video.UpdateOutput(playing);
+    Expect(sink.running && sink.starts == 2, "unmute starts again");
+
+    playing.Pause();
+    video.UpdateOutput(playing);
+    Expect(!sink.running && sink.stops == 2, "pause stops the device");
   });
 }
 

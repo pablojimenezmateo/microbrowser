@@ -75,6 +75,9 @@ void Page::Pause(dom::Element& element) {
     state->Pause();
     FlushMediaEvents(element);
   }
+  // Stop the device even if this element had no MediaState yet -- a playing
+  // session's sink must not outlive Pause (zero-idle-CPU / ADR 0028 §4).
+  video_.StopOutput();
 }
 
 void Page::Seek(dom::Element& element, double seconds) {
@@ -87,6 +90,7 @@ void Page::Seek(dom::Element& element, double seconds) {
 void Page::SetMuted(dom::Element& element, bool muted) {
   if (media::MediaState* state = MediaStateFor(element)) {
     state->SetMuted(muted);
+    video_.UpdateOutput(*state);
   }
 }
 

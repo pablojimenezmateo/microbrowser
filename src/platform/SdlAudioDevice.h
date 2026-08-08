@@ -38,12 +38,12 @@ class SdlAudioDevice : public media::AudioSink {
 
   // What the device asked for, once it is open. Zero when it is not: a caller that built a
   // clock from this before starting would have built one at the wrong rate.
-  int SampleRate() const { return sample_rate_; }
-  int Channels() const { return channels_; }
+  int SampleRate() const override { return sample_rate_; }
+  int Channels() const override { return channels_; }
 
   // How many frames the device is holding, for `PlaybackClock::SetBufferedFrames` -- the
   // difference between the position written and the position heard.
-  std::uint64_t QueuedFrames() const;
+  std::uint64_t QueuedFrames() const override;
 
  private:
   SDL_AudioStream* stream_ = nullptr;

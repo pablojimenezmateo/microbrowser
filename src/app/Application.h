@@ -10,6 +10,7 @@
 #include "ipc/InProcessTransport.h"
 #include "platform/AppDirectories.h"
 #include "platform/InputEvent.h"
+#include "platform/SdlAudioDevice.h"
 #include "platform/SdlPresenter.h"
 #include "platform/SdlWindow.h"
 #include "platform/SystemFonts.h"
@@ -69,6 +70,9 @@ class Application {
   platform::SdlWindow window_;
   platform::SdlPresenter presenter_;
   platform::AppDirectories directories_;
+  // Before the engine: destruction stops the sink (via ~Application / ~PageVideo)
+  // while this device still exists (ADR 0028 §4).
+  platform::SdlAudioDevice audio_device_;
 
   gfx::Canvas canvas_;
   gfx::DirtyRegion dirty_;

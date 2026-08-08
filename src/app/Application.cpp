@@ -128,8 +128,9 @@ ipc::KeyInputMessage KeyMessageFor(const platform::KeyEvent& event) {
 
 }  // namespace
 
-Application::Application() = default;
-Application::~Application() = default;
+Application::Application() { engine_.SetAudioSink(&audio_device_); }
+
+Application::~Application() { engine_.SetAudioSink(nullptr); }
 
 int Application::Run(const AppStartupOptions& options) {
   util::StartupTrace::Reset();

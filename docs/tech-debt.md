@@ -846,10 +846,21 @@ not a one-liner in `PageVideo`.
 **End state.** A gestured unmuted watch plays sound; an idle page with no media
 still has no audio thread; `audio.devices_opened` tracks the sink lifetime.
 
+**Closed 2026-08-08.** `PageVideo` owns the ring and clock, converts decoder
+s16 PCM to float, and `Start`s the borrowed `AudioSink` only while unmuted and
+playing. `Application` owns `SdlAudioDevice` and injects it; mute/pause/`Clear`
+call `Stop`. Counter `media.audio_frames_written`; test
+`PageVideo/TheSinkFollowsMuteAndPauseWithoutDecoding`. Headless hosts may still
+report `audio.devices_opened` 0 when SDL has no playback device — that is
+`AudioDeviceUnavailable`, not this debt.
+
 ---
 
 ## Closed
 
+- **TD-0019 — Decoded Opus frames never reach the audio ring** (2026-08-08). See open
+  entry above for the measurement; closed by wiring `PageVideo` → `AudioRing` →
+  `SdlAudioDevice` per ADR 0028 §4.
 - **TD-0005 — `CollectImages` duplicated the cascade** (2026-08-06). Background URLs are queued
   through `ImageProvider::WantImage` during the one `EnsureBoxTree` pass; `CollectImages` walks
   `<img>` tags only. `EnsureBoxTree` caches the box tree by mutation version and

@@ -385,6 +385,7 @@ namespace microbrowser::util {
   X(MediaDecoderSamplesFed, "media.decoder_samples_fed")                          \
   X(MediaDecoderFrames, "media.decoder_frames")                                   \
   X(MediaDecoderFramesApplied, "media.decoder_frames_applied")                    \
+  X(MediaAudioFramesWritten, "media.audio_frames_written")                        \
   X(MediaDecoderErrors, "media.decoder_errors")                                   \
   X(MpegTsPacketsParsed, "media.mpegts_packets")                                  \
   X(MpegTsSamples, "media.mpegts_samples")                                        \

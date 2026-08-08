@@ -3656,6 +3656,13 @@ Polymer/DI, with TD-0015 as a late font layer; reddit feed is TD-0016 first.
 **Home** still ~82 commands / 5 images (history-off nudge / incomplete stamp). Search paints
 (~969 commands) with few thumbnails. `js.steps_exhausted` still open on some loads (TD-0018).
 
-**Left:** Opus → audio ring, codec-lib architecture lint, home-feed stamp, search thumbnail
-coverage, TD-0001 layout passes, TD-0003 JS AST arena.
+**Also landed (same day):** TD-0019 closed — `PageVideo` writes Opus PCM into `AudioRing`,
+`Application` owns `SdlAudioDevice`, mute/pause stop the device. Prefer audio
+`PlaybackClock` when the sink is running. Test
+`PageVideo/TheSinkFollowsMuteAndPauseWithoutDecoding`. Headless may still show
+`audio.devices_opened` 0 (`AudioDeviceUnavailable`).
+
+**Left:** codec-lib architecture lint, home-feed stamp, search thumbnail
+coverage, TD-0001 layout passes, TD-0003 JS AST arena, A/V sync polish if Opus
+rate ≠ device rate.
 
