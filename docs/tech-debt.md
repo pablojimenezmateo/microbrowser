@@ -816,11 +816,21 @@ Gate C's "no video plays" is therefore out of date for watch after a gesture.
 Remaining: `videoWidth`/`videoHeight` bindings, audio out through the ring,
 home-feed stamp (history-off nudge), and `js.steps_exhausted` on some loads.
 
+**Update** (2026-08-08, pointer press/release). The engine now dispatches
+`pointerdown`/`mousedown` on press and `pointerup`/`mouseup`/`click` on
+release (ADR 0017 §1). User activation moves to press. youtube's
+`getPlayer().playVideo()` after a click still returns state `-1` — the stub
+player path does not wire through to `<video>.play()` even though a gestured
+`video.play()` succeeds (MSE + VP9 paints ~2s). **HTMLImageElement**
+`complete`/`naturalWidth`/`naturalHeight` and `load` events on decode landed
+the same day; search `loaded` images went from **0 → 4+** in snapshot probes.
+
 **End state.** Close when `js.steps_exhausted` is 0, search results show
-painted thumbnails for every in-view row without `-eval` force, watch plays
-(or honestly shows chrome without a skeleton that never upgrades), and home is
+painted thumbnails for every in-view row without `-eval` force, watch plays via
+the page's own click handler (not only `-eval video.play()`), and home is
 honest about nudge vs UA. Related: TD-0017 (binding-token strip), TD-0007 /
-ADR 0036, TD-0001 (`layout.block_passes` still huge on search).
+ADR 0036, TD-0001 (`layout.block_passes` still huge on search), **TD-0020**
+(youtube `playVideo` stub).
 
 ---
 
@@ -853,6 +863,35 @@ call `Stop`. Counter `media.audio_frames_written`; test
 `PageVideo/TheSinkFollowsMuteAndPauseWithoutDecoding`. Headless hosts may still
 report `audio.devices_opened` 0 when SDL has no playback device — that is
 `AudioDeviceUnavailable`, not this debt.
+
+---
+
+## TD-0020 — youtube's `playVideo()` is a stub that never reaches `<video>.play()`
+
+After MSE playback works for a gestured `video.play()` (TD-0018 watch update),
+a click on `#movie_player` still leaves `getPlayer().getPlayerState()` at **-1**
+and `video.paused` true. `playVideo()` returns without error (`getLastError()`
+null, `isReady()` true) but does not start the media element. The automatic
+`preparePlayer` path stamps `#movie_player` and a `<video>` with blob `src`,
+`readyState` 4, and `duration` ~19s — the bytes are there; only the player
+facade's play entry point is disconnected.
+
+**Measured**, Release, `/watch?v=jNQXAC9IVRw`, after `-click 440,280`:
+
+| call | `getPlayerState()` | `video.paused` | `video.currentTime` |
+|---|---|---|---|
+| click only | -1 | true | 0 |
+| click + `video.play()` (muted) | n/a | false | ~2s |
+| click + `playVideo()` | -1 | true | 0 |
+
+Pointer press/release synthesis landed the same session (commit `5e0593b`);
+youtube listens on `pointerdown`, which now fires, so the gap is not missing
+DOM events.
+
+**End state.** `playVideo()` after a trusted click reaches the same
+`Page::Play` path as `video.play()`, or the stub is replaced by the full
+player module init without hanging on `initPlayer_()`. Close when watch
+click-to-play works without `-eval`.
 
 ---
 

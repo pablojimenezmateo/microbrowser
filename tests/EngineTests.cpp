@@ -83,6 +83,14 @@ ipc::PointerInputMessage ClickAt(float x, float y) {
   return pointer;
 }
 
+ipc::PointerInputMessage ClickReleaseAt(float x, float y) {
+  ipc::PointerInputMessage pointer;
+  pointer.kind = ipc::PointerInputMessage::Kind::Up;
+  pointer.position = gfx::FloatPoint{x, y};
+  pointer.buttons = 0;
+  return pointer;
+}
+
 ipc::KeyInputMessage TypedKey(const std::string& character) {
   ipc::KeyInputMessage key;
   key.key = character;
@@ -122,6 +130,12 @@ struct Session {
     for (const char c : text) {
       Send(TypedKey(std::string(1, c)));
     }
+  }
+
+  // Down then up: default actions (link navigation, form submit) run on release.
+  void Click(float x, float y) {
+    Send(ClickAt(x, y));
+    Send(ClickReleaseAt(x, y));
   }
 
   const ipc::PaintFrameMessage* LastFrame() const {
@@ -1843,7 +1857,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/next",
                    "the relative href was resolved against the document URL");
@@ -1955,7 +1969,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(45.0f, 5.0f));
+    session.Click(45.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(),
                    "https://example.org/search?q=hello+world&go=Search",
@@ -1986,7 +2000,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(45.0f, 5.0f));
+    session.Click(45.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?keep=1",
                    "POST form navigation commits the action URL without moving controls into it");
@@ -2024,7 +2038,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(45.0f, 5.0f));
+    session.Click(45.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/plain",
                    "POST text/plain commits the action URL");
@@ -2057,9 +2071,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
     session.Type("hi");
-    session.Send(ClickAt(45.0f, 5.0f));
+    session.Click(45.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/search?q=hi",
                    "submitted GET forms use the current focused input value");
@@ -2084,7 +2098,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
     session.Type("a@b");
     session.Send(NamedKey("Enter"));
 
@@ -2118,7 +2132,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
     session.Type("axb");
 
     ExpectEqString(Joined(session.engine.ConsoleOutput()), "key a|key x|key b",
@@ -2173,7 +2187,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
     session.Type("abc");
     session.Send(NamedKey("Backspace"));
     session.Send(NamedKey("Delete"));
@@ -2206,9 +2220,9 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
-    session.Send(ClickAt(25.0f, 5.0f));
-    session.Send(ClickAt(35.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
+    session.Click(25.0f, 5.0f);
+    session.Click(35.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/filter?seen=on&mode=new",
                    "submitted GET forms use clicked checkable state");
@@ -2238,11 +2252,11 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
 
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
     session.Send(ipc::NavigateMessage{"https://example.org/start"});
-    session.Send(ClickAt(5.0f, 5.0f));
+    session.Click(5.0f, 5.0f);
     session.Type("abc");
-    session.Send(ClickAt(25.0f, 5.0f));
-    session.Send(ClickAt(45.0f, 5.0f));
-    session.Send(ClickAt(65.0f, 5.0f));
+    session.Click(25.0f, 5.0f);
+    session.Click(45.0f, 5.0f);
+    session.Click(65.0f, 5.0f);
 
     ExpectEqString(session.LastCommittedUrl(), "https://example.org/filter?q=&seen=on",
                    "submitted GET forms use reset defaults");

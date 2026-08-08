@@ -128,11 +128,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // The entire semantic difference between the two forms.
     ExpectEval("const o = { n: 7, get(){ return this.n } }; o.get()", "7");
     ExpectEval("const o = { n: 7, get(){ return (() => this.n)() } }; o.get()", "7");
-    // An ordinary function called plainly gets no receiver, so the outer
-    // `this` does not reach it -- which is the half of the difference the two
-    // lines above do not show.
+    // An ordinary function called plainly gets the global object in non-strict
+    // code (youtube's player IIFE), so `this` inside it is not undefined.
     ExpectEval("const o = { n: 7, get(){ return (function(){ return this })() } }; typeof o.get()",
-               "undefined");
+               "object");
   });
 
   AddTest(tests, "JsInterpreter/DefaultsAndRestParameters", [] {
@@ -374,7 +373,8 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       ExpectEqString(js::ToString(second.value), "4", "Run after abort result");
     }
     // A spent budget must not poison the next host *task*. Fetch delivery uses
-    // BeginTask(); CallFunction alone does not reset.
+    // BeginTask(); a bare CallFunction after an abort starts a fresh host turn
+    // because CallCompiled calls BeginHostTurn when the machine is empty.
     {
       Interpreter interpreter;
       const Result ready = interpreter.Run("globalThis.f = () => 42; 'ok'");
@@ -383,13 +383,15 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       Expect(fn != nullptr && fn->IsObject(), "callback is callable");
       Expect(interpreter.Run("while (true) {}").completion == Completion::Throw,
              "burn the budget");
-      const Result blocked =
+      const Result after_abort =
           interpreter.CallFunction(*fn, js::Value::Undefined(), {});
-      Expect(blocked.completion == Completion::Throw, "CallFunction keeps spent budget");
+      Expect(after_abort.completion == Completion::Normal,
+             "CallFunction after abort starts a fresh host turn");
+      ExpectEqString(js::ToString(after_abort.value), "42", "CallFunction result");
       interpreter.BeginTask();
-      const Result after = interpreter.CallFunction(*fn, js::Value::Undefined(), {});
-      Expect(after.completion == Completion::Normal, "BeginTask clears the budget");
-      ExpectEqString(js::ToString(after.value), "42", "BeginTask result");
+      const Result after_task = interpreter.CallFunction(*fn, js::Value::Undefined(), {});
+      Expect(after_task.completion == Completion::Normal, "BeginTask still works");
+      ExpectEqString(js::ToString(after_task.value), "42", "BeginTask result");
     }
   });
 
