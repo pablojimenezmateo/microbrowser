@@ -2192,25 +2192,54 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "DomBindings/SuspenseReplaceHoistsTemplateForMarkup", [] {
-    // reddit's shape: feed markup lives in `<template for="…">` and a
-    // `<suspense-replace>` custom element hoists it on connect.
+    // reddit's inline boot script (feed HTML): `<suspense-replace
+    // target="#s_…" template="template[for=s_…]">` adopts the template
+    // contents, upgrades custom elements on the fragment, then replaceWith.
     static constexpr const char* kPage =
         "<html><body>"
+        "<suspense-placeholder id=\"s_feed\" name=\"feed\"></suspense-placeholder>"
         "<template for=\"s_feed\"><article class=\"post\">feed</article></template>"
-        "<suspense-replace for=\"s_feed\"></suspense-replace>"
+        "<suspense-replace target=\"#s_feed\" template=\"template[for=s_feed]\">"
+        "</suspense-replace>"
         "</body></html>";
     ExpectScript(kPage,
+                 "async function hoist(target, tpl) {"
+                 "  const frag = document.adoptNode(tpl.content);"
+                 "  customElements.upgrade(frag);"
+                 "  target.replaceWith(frag);"
+                 "  tpl.remove();"
+                 "}"
                  "class SuspenseReplace extends HTMLElement {"
                  "  connectedCallback() {"
-                 "    const id = this.getAttribute('for');"
-                 "    const tpl = document.querySelector('template[for=\"' + id + '\"]');"
-                 "    if (tpl) this.replaceChildren(tpl.content.cloneNode(true));"
+                 "    const root = this.getRootNode();"
+                 "    const target = root.querySelector(this.getAttribute('target'));"
+                 "    const tpl = root.querySelector(this.getAttribute('template'));"
+                 "    if (target && tpl) hoist(target, tpl);"
+                 "    this.remove();"
                  "  }"
                  "}"
                  "customElements.define('suspense-replace', SuspenseReplace);"
                  "document.querySelectorAll('.post').length + ':' +"
-                 " document.querySelector('suspense-replace').childNodes.length",
-                 "1:1");
+                 " document.querySelectorAll('suspense-replace').length + ':' +"
+                 " document.querySelectorAll('template[for]').length",
+                 "1:0:0");
+  });
+
+  AddTest(tests, "DomBindings/CustomElementsUpgradeWalksAFragment", [] {
+    static constexpr const char* kPage =
+        "<html><body><div id='host'></div></body></html>";
+    ExpectScript(kPage,
+                 "class XFoo extends HTMLElement {"
+                 "  connectedCallback() { this.dataset.up = '1'; }"
+                 "}"
+                 "customElements.define('x-foo', XFoo);"
+                 "const t = document.createElement('template');"
+                 "t.content.appendChild(document.createElement('x-foo'));"
+                 "const frag = document.adoptNode(t.content);"
+                 "customElements.upgrade(frag);"
+                 "document.getElementById('host').appendChild(frag);"
+                 "document.querySelector('x-foo').dataset.up",
+                 "1");
   });
 
   AddTest(tests, "Timers/NothingScheduledMeansTheLoopMayBlock", [] {

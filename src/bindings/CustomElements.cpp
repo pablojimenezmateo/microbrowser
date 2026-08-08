@@ -442,6 +442,21 @@ void DomBindings::InstallCustomElements() {
     return constructor == nullptr ? Value::Undefined() : *constructor;
   });
 
+  method("upgrade", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    dom::Node* root = NodeOf(Argument(call.arguments, 0));
+    if (root == nullptr) {
+      return call.Throw("TypeError", "upgrade called on a non-Node");
+    }
+    // reddit's `<suspense-replace>` hoists with `document.adoptNode(tpl.content)`
+    // then `customElements.upgrade(fragment)` before `target.replaceWith(fragment)`.
+    owner->UpgradeSubtree(*root);
+    return Value::Undefined();
+  });
+
   if (api.IsObject()) {
     interpreter_->Global()->Set("customElements", api);
     interpreter_->GlobalScope()->Declare("customElements", api, false);

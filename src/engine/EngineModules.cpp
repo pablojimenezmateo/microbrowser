@@ -59,6 +59,15 @@ bool Engine::OnModuleFetch(Loader::Completion completion) {
   // closes and a promise nobody settles.
   page_.AddModuleSource(url, completion.result.ok ? std::move(completion.result.body)
                                                  : std::string());
+  // A closed graph lets a deferred `<script type=module>` or a pending dynamic
+  // `import()` run; without this, post-load module arrivals only settle imports
+  // and never reach `RunPendingScripts` (Gate B concat chain).
+  if (load_.scripts_ran || post_load_.document_interactive) {
+    if (ProcessDynamicScripts()) {
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+    }
+  }
   return true;
 }
 

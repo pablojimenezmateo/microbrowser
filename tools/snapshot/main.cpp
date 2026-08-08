@@ -318,11 +318,16 @@ bool RedditFeedLooksReady(microbrowser::engine::Engine& engine, std::size_t comm
   }
   const std::string articles =
       engine.EvaluateScript("document.querySelectorAll('article').length");
-  const std::string render_template =
-      engine.EvaluateScript("customElements.get('ac-render-template') ? '1' : '0'");
-  const std::optional<int> count = ParseLeadingInt(articles);
-  return count.has_value() && *count > 3 && command_count > 1000 &&
-         render_template == "1";
+  const std::string posts =
+      engine.EvaluateScript("document.querySelectorAll('shreddit-post').length");
+  const std::optional<int> article_count = ParseLeadingInt(articles);
+  const std::optional<int> post_count = ParseLeadingInt(posts);
+  const int feed_posts =
+      std::max(article_count.value_or(0), post_count.value_or(0));
+  // `ac-render-template` on reddit is a faceplate *action* name, not the
+  // hoisting custom element; feed readiness is light-DOM posts after
+  // `<suspense-replace>` stamps `<template for=…>` markup.
+  return feed_posts > 3 && command_count > 1000;
 }
 
 void DrainOutgoingPaints(microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
