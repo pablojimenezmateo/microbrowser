@@ -689,6 +689,15 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   resources_.images[std::move(src)] = std::move(image);
   const std::shared_ptr<const gfx::Image>& stored = resources_.images[key];
 
+  // No laid-out tree: the next EnsureBoxTree picks the bitmap up through
+  // ImageFor. Invalidating here only existed to force a rebuild of boxes that
+  // had already measured at 0×0 — and there are none.
+  if (boxes_ == nullptr) {
+    util::AddPerformanceCounter(util::PerfCounterId::BoxTreeImagePaintOnly);
+    DeliverImageLoad(key);
+    return;
+  }
+
   // Attach pixels to any laid-out box that already names this URL. When both
   // axes of a replaced box are definite without the bitmap (CSS length, HTML
   // attribute, or aspect-ratio + the other axis), layout size cannot change
@@ -698,18 +707,33 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   // If nothing in the current tree names this URL, fall back to invalidating:
   // the image may belong to a box built before CollectImages saw it, and
   // leaving the pixels only in the resource table would never draw them.
-  bool layout_may_change = boxes_ == nullptr;
-  bool attached = boxes_ == nullptr;
-  if (boxes_ != nullptr) {
-    const auto axis_definite = [](const layout::Box& box, bool horizontal) {
-      const css::ComputedStyle& style = box.Style();
-      const css::Length& declared = horizontal ? style.width : style.height;
-      if (!declared.IsAuto() && !declared.IsPercent()) {
+  bool layout_may_change = false;
+  bool attached = false;
+  const auto axis_definite = [](const layout::Box& box, bool horizontal) {
+    const css::ComputedStyle& style = box.Style();
+    const css::Length& declared = horizontal ? style.width : style.height;
+    if (!declared.IsAuto() && !declared.IsPercent()) {
+      return true;
+    }
+    if (box.Origin() != nullptr) {
+      const std::string* attribute =
+          box.Origin()->GetAttribute(horizontal ? "width" : "height");
+      if (attribute != nullptr) {
+        if (const std::optional<double> value = util::ParseDouble(*attribute)) {
+          if (*value >= 0.0 && *value < 1e6) {
+            return true;
+          }
+        }
+      }
+    }
+    if (style.aspect_ratio > 0.0f) {
+      const css::Length& other = horizontal ? style.height : style.width;
+      if (!other.IsAuto() && !other.IsPercent()) {
         return true;
       }
       if (box.Origin() != nullptr) {
         const std::string* attribute =
-            box.Origin()->GetAttribute(horizontal ? "width" : "height");
+            box.Origin()->GetAttribute(horizontal ? "height" : "width");
         if (attribute != nullptr) {
           if (const std::optional<double> value = util::ParseDouble(*attribute)) {
             if (*value >= 0.0 && *value < 1e6) {
@@ -718,47 +742,37 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
           }
         }
       }
-      if (style.aspect_ratio > 0.0f) {
-        const css::Length& other = horizontal ? style.height : style.width;
-        if (!other.IsAuto() && !other.IsPercent()) {
-          return true;
-        }
-        if (box.Origin() != nullptr) {
-          const std::string* attribute =
-              box.Origin()->GetAttribute(horizontal ? "height" : "width");
-          if (attribute != nullptr) {
-            if (const std::optional<double> value = util::ParseDouble(*attribute)) {
-              if (*value >= 0.0 && *value < 1e6) {
-                return true;
-              }
-            }
-          }
-        }
-      }
-      return false;
-    };
+    }
+    return false;
+  };
 
-    std::function<void(layout::Box&)> walk = [&](layout::Box& box) {
-      if (box.GetKind() == layout::Box::Kind::Replaced && box.Origin() != nullptr) {
-        const auto selected = resources_.selected_image_urls.find(box.Origin());
-        if (selected != resources_.selected_image_urls.end() && selected->second == key) {
-          box.SetImage(stored);
-          attached = true;
-          if (!axis_definite(box, true) || !axis_definite(box, false)) {
-            layout_may_change = true;
-          }
+  std::function<void(layout::Box&)> walk = [&](layout::Box& box) {
+    if (box.GetKind() == layout::Box::Kind::Replaced && box.Origin() != nullptr) {
+      const auto selected = resources_.selected_image_urls.find(box.Origin());
+      if (selected != resources_.selected_image_urls.end() && selected->second == key) {
+        const gfx::FloatRect& content = box.Geometry().content;
+        const bool used_size_without_bitmap =
+            box.Image() == nullptr && content.width > 0.0f && content.height > 0.0f;
+        box.SetImage(stored);
+        attached = true;
+        // A non-zero used size established before any bitmap arrived came from
+        // CSS, HTML attributes, aspect-ratio, or abspos fill — youtube's
+        // thumbnails are the last of those. The decode cannot change geometry.
+        if (!used_size_without_bitmap &&
+            (!axis_definite(box, true) || !axis_definite(box, false))) {
+          layout_may_change = true;
         }
       }
-      if (!box.Style().background.image.empty() && box.Style().background.image == key) {
-        box.SetBackgroundImage(stored);
-        attached = true;
-      }
-      for (std::unique_ptr<layout::Box>& child : box.MutableChildren()) {
-        walk(*child);
-      }
-    };
-    walk(*boxes_);
-  }
+    }
+    if (!box.Style().background.image.empty() && box.Style().background.image == key) {
+      box.SetBackgroundImage(stored);
+      attached = true;
+    }
+    for (std::unique_ptr<layout::Box>& child : box.MutableChildren()) {
+      walk(*child);
+    }
+  };
+  walk(*boxes_);
 
   if (!attached || layout_may_change) {
     InvalidateBoxTree();

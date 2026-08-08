@@ -945,8 +945,10 @@ boxes, and rebuilds the element→box index.
 | `AddImage` attaches pixels in place when both axes are definite without the bitmap | `engine.box_tree_image_paint_only` / `_invalidated_by_image` |
 
 On youtube search those counters show the script skip path is rare (Polymer
-mutates) and most thumbnails are percent-sized (still invalidate). The remaining
-~95 rebuilds are real DOM/font/cascade churn, not the unconditional script drop.
+mutates) and most in-flight thumbnails still take `_invalidated_by_image`
+(attach misses or 0×0 lazy hosts). Declared-size and abspos-filled images are
+covered by tests and take the paint-only path. The remaining ~95–110 rebuilds
+are real DOM/font/cascade churn, not the unconditional script drop.
 
 **End state.** Either (a) dirty-subtree box rebuild keyed on mutation provenance,
 or (b) a computed-style cache keyed by cascade generation + element identity so

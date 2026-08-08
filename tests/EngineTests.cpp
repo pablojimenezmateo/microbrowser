@@ -1697,6 +1697,29 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(list.Bounds().width >= 40 && list.Bounds().height >= 30, "still the declared size");
   });
 
+  AddTest(tests, "Page/AbsPosFilledImageAttachesWithoutRebuildingTheBoxTree", [] {
+    // Youtube thumbnails: the host sizes via padding-top, the <img> is
+    // position:absolute; inset 0. Used size is non-zero before decode.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'>"
+              "<div style='position:relative;width:200px;height:100px'>"
+              "<img src='x.png' style='position:absolute;left:0;top:0;width:100%;height:100%'>"
+              "</div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    util::ResetPerformanceCounters();
+    auto image = std::make_shared<gfx::Image>();
+    Expect(image->Adopt(16, 16, std::vector<std::uint32_t>(256, 0xFF00FF00u)), "built");
+    page.AddImage("x.png", image);
+    ExpectEqInt(static_cast<long long>(
+                    util::ReadPerformanceCounter(util::PerfCounterId::BoxTreeImagePaintOnly)),
+                1, "abspos fill already has used size");
+    ExpectEqInt(static_cast<long long>(
+                    util::ReadPerformanceCounter(util::PerfCounterId::BoxTreeInvalidatedByImage)),
+                0, "decode must not rebuild");
+  });
+
   AddTest(tests, "Page/ScriptTurnWithoutMutationKeepsTheBoxTree", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
