@@ -195,6 +195,39 @@ class Interpreter {
     console_.push_back(std::move(line));
   }
 
+  // Keeps a value alive for the collector while it is a C++ local.
+  //
+  // A `js::Value` in a C++ variable is invisible to the collector -- the rule
+  // this whole file is written around -- and the places that break it are the
+  // ones where a *completion* is carried across a collection: `RunCompiled`
+  // takes the value a script threw, drains the microtask queue, and returns
+  // it, and draining is where MaybeCollect runs. Nothing rooted that value, so
+  // a page whose script threw with enough allocation behind it read freed
+  // memory. youtube.com is where it showed, as a segfault reading `e.stack`.
+  //
+  // Public because `PageScript::RunTiming` holds a thrown completion across
+  // `error` event dispatch (another drain), and must root the same way.
+  class ValueRoot {
+   public:
+    ValueRoot(Interpreter& interpreter, const Value& value)
+        : interpreter_(interpreter), rooted_(value.IsObject() || value.IsSymbol()) {
+      if (rooted_) {
+        interpreter_.active_objects_.push_back(value.object);
+      }
+    }
+    ~ValueRoot() {
+      if (rooted_) {
+        interpreter_.active_objects_.pop_back();
+      }
+    }
+    ValueRoot(const ValueRoot&) = delete;
+    ValueRoot& operator=(const ValueRoot&) = delete;
+
+   private:
+    Interpreter& interpreter_;
+    bool rooted_;
+  };
+
   // The wall clock, in milliseconds since the epoch.
   //
   // Public and in one place because it is a *privacy* surface rather than a
@@ -1119,36 +1152,6 @@ class Interpreter {
   // Not for CallCompiled — microtasks and nested reactions share the caller.
   void BeginHostTurn();
   Result ExhaustedSteps();
-
-  // Keeps a value alive for the collector while it is a C++ local.
-  //
-  // A `js::Value` in a C++ variable is invisible to the collector -- the rule
-  // this whole file is written around -- and the places that break it are the
-  // ones where a *completion* is carried across a collection: `RunCompiled`
-  // takes the value a script threw, drains the microtask queue, and returns
-  // it, and draining is where MaybeCollect runs. Nothing rooted that value, so
-  // a page whose script threw with enough allocation behind it read freed
-  // memory. youtube.com is where it showed, as a segfault reading `e.stack`.
-  class ValueRoot {
-   public:
-    ValueRoot(Interpreter& interpreter, const Value& value)
-        : interpreter_(interpreter), rooted_(value.IsObject() || value.IsSymbol()) {
-      if (rooted_) {
-        interpreter_.active_objects_.push_back(value.object);
-      }
-    }
-    ~ValueRoot() {
-      if (rooted_) {
-        interpreter_.active_objects_.pop_back();
-      }
-    }
-    ValueRoot(const ValueRoot&) = delete;
-    ValueRoot& operator=(const ValueRoot&) = delete;
-
-   private:
-    Interpreter& interpreter_;
-    bool rooted_;
-  };
 
   // Keeps a scope alive for the collector while it is on the C++ stack.
   class ScopeGuard {

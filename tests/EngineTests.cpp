@@ -2489,6 +2489,31 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(errors.at(1).find("/d.js") != std::string::npos, "and the deferred one runs after");
   });
 
+  // The thrown completion is a C++ local after Run returns. Firing `error` on
+  // the script element drains microtasks and can collect it; reading `.stack`
+  // afterwards was the youtube.com watch-page segfault (ValueRoot).
+  AddTest(tests, "Engine/AThrowingScriptsErrorEventDoesNotCollectItsStack", [] {
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<script id='boom'>"
+        "document.getElementById('boom').addEventListener('error', function () {"
+        "  const a = [];"
+        "  for (let i = 0; i < 8000; i++) a.push({i: i});"
+        "});"
+        "throw new Error('boom');"
+        "</" "script>")});
+
+    const std::vector<std::string>& errors = session.engine.ScriptErrors();
+    ExpectEqInt(static_cast<long long>(errors.size()), 1, "the throw was recorded");
+    Expect(errors.at(0).find("boom") != std::string::npos, "the message survived the error event: " +
+                                                               errors.at(0));
+    Expect(errors.at(0).find("at ") != std::string::npos,
+           "and so did the stack — collecting the Error under the error listener "
+           "used to segfault here: " +
+               errors.at(0));
+  });
+
   AddTest(tests, "Engine/AnAsyncScriptDoesNotHoldTheFirstFrame", [] {
     Session session;
     ScriptedFactory factory;

@@ -322,9 +322,10 @@ bool PageScript::RunTiming(Timing timing) {
       }
       continue;
     }
-    if (element != nullptr && bindings_ != nullptr) {
-      bindings_->NotifyScriptElementEvent(*element, "error");
-    }
+    // Root across `error` dispatch: that path drains microtasks and can collect
+    // the thrown value. Reading `e.stack` afterwards was the youtube.com
+    // segfault ValueRoot documents — Run() unroots on return, then we allocate.
+    const js::Interpreter::ValueRoot rooted(*interpreter_, result.value);
     std::string report = SourceName(slot) + ": " + js::ToString(result.value);
     // The stack when the thrown value carries one, which every error the
     // engine makes now does. "undefined is not a function" names the fault
@@ -336,6 +337,9 @@ bool PageScript::RunTiming(Timing timing) {
           report += "\n    " + stack->AsString();
         }
       }
+    }
+    if (element != nullptr && bindings_ != nullptr) {
+      bindings_->NotifyScriptElementEvent(*element, "error");
     }
     errors_.push_back(std::move(report));
   }
@@ -500,6 +504,9 @@ std::string PageScript::Evaluate(std::string_view source) {
     return {};
   }
   const js::Result result = interpreter_->Run(source);
+  // Root across this second drain: Run() already drained once under a ValueRoot
+  // that ended when Run returned. Same shape as the script-error UAF above.
+  const js::Interpreter::ValueRoot rooted(*interpreter_, result.value);
   // Microtasks too, so `await`-shaped probes and a promise a probe resolves
   // settle before the answer is read -- which is what makes asking about
   // anything asynchronous possible at all.
