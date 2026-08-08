@@ -246,4 +246,29 @@ Result Interpreter::InitializeFields(Object* instance, Object* constructor) {
   return Result::Normal();
 }
 
+Value Interpreter::BoundThisAfterSuper(const Value& instance, const Result& super_result,
+                                       Value* rebind_self) {
+  Value bound = instance;
+  if (super_result.IsAbrupt()) {
+    return bound;
+  }
+  if (super_result.value.IsObject() &&
+      (!instance.IsObject() || super_result.value.object != instance.object)) {
+    bound = super_result.value;
+  } else if (!constructing_.empty() && instance.IsObject() &&
+             constructing_.back() != instance.object) {
+    bound = Value::Obj(constructing_.back());
+  }
+  if (!bound.IsObject() || !instance.IsObject() || bound.object == instance.object) {
+    return bound;
+  }
+  if (rebind_self != nullptr) {
+    *rebind_self = bound;
+  }
+  if (!constructing_.empty()) {
+    constructing_.back() = bound.object;
+  }
+  return bound;
+}
+
 }  // namespace microbrowser::js

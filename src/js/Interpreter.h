@@ -500,6 +500,8 @@ class Interpreter {
   // Separate from the constructor because fields run *before* the constructor
   // body and after any super() call, and folding them in loses that ordering.
   Result InitializeFields(Object* instance, Object* constructor);
+  Value BoundThisAfterSuper(const Value& instance, const Result& super_result,
+                            Value* rebind_self = nullptr);  // after super()
 
   // Declares the function declarations in a statement list before running it,
   // which is what makes a function callable above where it is written.

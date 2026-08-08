@@ -499,21 +499,8 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     if (constructed.IsAbrupt()) {
       return constructed;
     }
-    // A base constructor that returns an object *is* what this class is: the
-    // derived `this` is whatever super() produced. Custom elements are built
-    // on it -- HTMLElement hands back the element the document already has,
-    // and the page's class runs on that rather than on a second object.
-    Value bound = instance;
-    if (constructed.value.IsObject() &&
-        (!instance.IsObject() || constructed.value.object != instance.object)) {
-      bound = constructed.value;
-      if (self_binding != nullptr) {
-        *self_binding = bound;
-      }
-      if (!constructing_.empty()) {
-        constructing_.back() = bound.object;
-      }
-    }
+    const Value bound =
+        BoundThisAfterSuper(instance, constructed, self_binding);
     // Fields of *this* class initialize after the super call, which is the
     // ordering that makes a derived field see a base one -- and on whatever
     // the class turned out to be.

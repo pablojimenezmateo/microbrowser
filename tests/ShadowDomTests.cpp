@@ -542,6 +542,90 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
         "rgb(17, 18, 19)|rgb(17, 18, 19)",
         "one sheet shared by two roots updates both when replaceSync runs");
   });
+
+  AddTest(tests, "ShadowDom/CommaSuperSkipsPostSuperAssignmentsOnUpgrade", [] {
+    ExpectEqString(
+        Run("<x-mid></x-mid>",
+            "class A extends HTMLElement { constructor() { super(); this.a = 1; } }"
+            "class B extends A { constructor() { super(...arguments), this.b = 2; } }"
+            "customElements.define('x-mid', B);"
+            "const el = document.querySelector('x-mid');"
+            "console.log('a=' + el.a + ' b=' + el.b);"),
+        "a=1 b=2",
+        "comma-super runs post-super assignments on upgrade");
+  });
+
+  AddTest(tests, "ShadowDom/SemicolonSuperRunsPostSuperAssignmentsOnUpgrade", [] {
+    ExpectEqString(
+        Run("<x-mid2></x-mid2>",
+            "class A extends HTMLElement { constructor() { super(); this.a = 1; } }"
+            "class B extends A { constructor() { super(...arguments); this.b = 2; } }"
+            "customElements.define('x-mid2', B);"
+            "const el = document.querySelector('x-mid2');"
+            "console.log('in-doc a=' + el.a + ' b=' + el.b);"
+            "const made = document.createElement('x-mid2');"
+            "console.log('created a=' + made.a + ' b=' + made.b);"),
+        "in-doc a=1 b=2|created a=1 b=2",
+        "semicolon super runs post-super assignments on upgrade");
+  });
+
+  AddTest(tests, "ShadowDom/LitLikeSuperSpreadAndRenderOptionsSurviveUpgrade", [] {
+    ExpectEqString(
+        Run("<x-loader></x-loader>",
+            "const f = !!(window.ShadowRoot && 'adoptedStyleSheets' in Document.prototype"
+            " && 'replace' in CSSStyleSheet.prototype);"
+            "class ReactiveElement extends HTMLElement {"
+            "  constructor() { super(); this._$AL = new Map(); this._$Eu = true; }"
+            "  connectedCallback() {"
+            "    if (this.renderRoot === undefined) {"
+            "      this.renderRoot = this.createRenderRoot();"
+            "    }"
+            "  }"
+            "  createRenderRoot() {"
+            "    const t = this.attachShadow({mode: 'open'});"
+            "    if (f) {"
+            "      const sheet = new CSSStyleSheet();"
+            "      sheet.replaceSync(':host { display: block }');"
+            "      t.adoptedStyleSheets = [sheet];"
+            "    }"
+            "    return t;"
+            "  }"
+            "  static createProperty(name) {"
+            "    const key = '__' + name;"
+            "    Object.defineProperty(this.prototype, name, {"
+            "      get() { return this[key]; },"
+            "      set(v) {"
+            "        const old = this[key];"
+            "        this[key] = v;"
+            "        if (this._$AL) { this._$AL.set(name, old); }"
+            "      },"
+            "      configurable: true, enumerable: true"
+            "    });"
+            "  }"
+            "  static finalize() { this.createProperty('src'); }"
+            "}"
+            "class LitElement extends ReactiveElement {"
+            "  constructor() { super(...arguments), this.renderOptions = {host: this}; }"
+            "  createRenderRoot() {"
+            "    const n = super.createRenderRoot();"
+            "    if (this.renderOptions.renderBefore === undefined) {"
+            "      this.renderOptions.renderBefore = n.firstChild;"
+            "    }"
+            "    return n;"
+            "  }"
+            "}"
+            "class LoaderElement extends LitElement {"
+            "  constructor() { super(...arguments), this.src = ''; }"
+            "}"
+            "ReactiveElement.finalize();"
+            "customElements.define('x-loader', LoaderElement);"
+            "const el = document.querySelector('x-loader');"
+            "console.log('opts=' + (el.renderOptions ? 'ok' : 'no'));"
+            "console.log('shadow=' + (el.shadowRoot ? 'ok' : 'no'));"
+            "console.log('al=' + (el._$AL instanceof Map ? 'ok' : 'no'));"),
+        "opts=ok|shadow=ok|al=ok",
+        "Lit-like comma-super constructors leave renderOptions and _$AL intact");
+  });
 }
 
 }  // namespace microbrowser::tests
