@@ -751,8 +751,22 @@ inherit a spent stamp budget). Below-fold stays `src`-less until scrolled —
 correct lazy behaviour. Snapshot's post-stamp drain keeps turning after the
 observation rAF so thumbnail fetches can finish.
 
+**Update** (2026-08-08, later). Search result clicks now navigate. Three hit-test
+gaps stacked on top of the sized thumbnail: (1) closed `tp-yt-app-drawer` covers
+the viewport with `visibility: hidden` and we did not implement visibility;
+(2) `yt-interaction` ink layers sit above `#thumbnail` and want
+`pointer-events: none`; (3) abspos descendants under an `overflow: hidden`
+ancestor whose padding box does not cover them were gated out of the hit walk
+even though their border boxes covered the point (flat scan found
+`covering_links=1` while `LinkAt` answered none). Landed visibility +
+pointer-events, elevated-child visit without the clip gate, `LinkAt` /
+form hit-tests `EnsureLayoutClean` after script, and `translate3d(x,y,0)` as
+2D translate. Check: `-click` on a cats result focuses `a#thumbnail` and the
+URL becomes `/watch?v=…`.
+
 **End state.** Close when `js.steps_exhausted` is 0, search results show
-painted thumbnails for every in-view row without `-eval` force, and home is
+painted thumbnails for every in-view row without `-eval` force, watch plays
+(or honestly shows chrome without a skeleton that never upgrades), and home is
 honest about nudge vs UA. Related: TD-0017 (binding-token strip), TD-0007 /
 ADR 0036, TD-0001 (`layout.block_passes` still huge on search).
 
