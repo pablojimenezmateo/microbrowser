@@ -437,6 +437,13 @@ namespace microbrowser::util {
   X(EngineImagesFailed, "engine.images_failed")                                    \
   X(EngineImagesDrawn, "engine.images_drawn")                                      \
   X(BoxTreeBuildSkipped, "engine.box_tree_build_skipped")                          \
+  /* Why the box tree was dropped. Script turns that mutate nothing used to     */ \
+  /* invalidate unconditionally; hits here vs layout.passes show whether the    */ \
+  /* stamp storm is real DOM work or wasted rebuilds.                           */ \
+  X(BoxTreeInvalidatedByScript, "engine.box_tree_invalidated_by_script")           \
+  X(BoxTreeScriptSkipped, "engine.box_tree_script_skipped")                        \
+  X(BoxTreeInvalidatedByImage, "engine.box_tree_invalidated_by_image")             \
+  X(BoxTreeImagePaintOnly, "engine.box_tree_image_paint_only")                    \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
   X(GfxImagesTransformed, "gfx.images_transformed")                               \
   X(GfxImagesScaled, "gfx.images_scaled")                                         \

@@ -116,12 +116,24 @@ void Page::RunScripts(std::int64_t now_ms) {
   if (document_ == nullptr) {
     return;
   }
+  // Snapshot before the turn: a script that only schedules work (timers, rAF,
+  // fetch) must not drop a laid-out tree. Polymer's stamp path used to pay a
+  // full BuildBoxTree per such turn even when MutationVersion was unchanged.
+  const std::uint64_t doc_before = document_->MutationVersion();
+  const std::uint64_t cascade_before = resolver_.Generation();
   script_.Run(*document_, url_, now_ms);
-  // A script can change the tree, so anything derived from it is stale. The
-  // box tree is dropped rather than patched: incremental layout is a later
-  // decision and a wrong one made early here would be invisible.
-  InvalidateBoxTree();
-  CollectImages();
+  if (document_->MutationVersion() != doc_before ||
+      resolver_.Generation() != cascade_before) {
+    // A script can change the tree or the cascade, so anything derived from
+    // either is stale. The box tree is dropped rather than patched: incremental
+    // layout is a later decision and a wrong one made early here would be
+    // invisible.
+    InvalidateBoxTree();
+    CollectImages();
+    util::AddPerformanceCounter(util::PerfCounterId::BoxTreeInvalidatedByScript);
+  } else {
+    util::AddPerformanceCounter(util::PerfCounterId::BoxTreeScriptSkipped);
+  }
 }
 
 void Page::Load(std::string_view html, std::string url, csp::PolicyList header_policy,

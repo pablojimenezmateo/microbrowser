@@ -23,6 +23,7 @@
 #include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
 #include "support/SyntheticPng.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::tests {
 
@@ -1670,6 +1671,47 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(list.Bounds().width >= 40 && list.Bounds().height >= 30,
            "the width and height attributes are where most of the web still puts an image's "
            "size, and the cascade never sees them");
+  });
+
+  AddTest(tests, "Page/DeclaredSizeImageAttachesWithoutRebuildingTheBoxTree", [] {
+    // Youtube search thumbnails are sized by attributes / CSS before the
+    // bitmap arrives. Dropping the whole tree per decode was the bulk of
+    // BuildBoxTree after TD-0001 closed the layout half.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><img src='x.png' width='40' height='30'></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    util::ResetPerformanceCounters();
+    auto image = std::make_shared<gfx::Image>();
+    Expect(image->Adopt(8, 8, std::vector<std::uint32_t>(64, 0xFFFF0000u)), "built");
+    page.AddImage("x.png", image);
+    ExpectEqInt(static_cast<long long>(
+                    util::ReadPerformanceCounter(util::PerfCounterId::BoxTreeImagePaintOnly)),
+                1, "declared size: attach pixels, do not rebuild");
+    ExpectEqInt(static_cast<long long>(
+                    util::ReadPerformanceCounter(util::PerfCounterId::BoxTreeInvalidatedByImage)),
+                0, "and do not count an invalidation");
+    gfx::DisplayList list;
+    page.Paint(list);
+    Expect(list.Bounds().width >= 40 && list.Bounds().height >= 30, "still the declared size");
+  });
+
+  AddTest(tests, "Page/ScriptTurnWithoutMutationKeepsTheBoxTree", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><div id=a>x</div>"
+              "<script>void 0;</script></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    util::ResetPerformanceCounters();
+    page.RunScripts(0);
+    ExpectEqInt(static_cast<long long>(
+                    util::ReadPerformanceCounter(util::PerfCounterId::BoxTreeScriptSkipped)),
+                1, "a script that changes nothing must not drop the tree");
+    ExpectEqInt(static_cast<long long>(
+                    util::ReadPerformanceCounter(util::PerfCounterId::BoxTreeInvalidatedByScript)),
+                0, "so the invalidation counter stays quiet");
   });
 
   AddTest(tests, "Layout/AnImageThatNeverArrivesStillOccupiesItsDeclaredSize", [] {

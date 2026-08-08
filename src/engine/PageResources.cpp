@@ -687,8 +687,85 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   }
   const std::string key = src;
   resources_.images[std::move(src)] = std::move(image);
-  // The box tree sized its replaced boxes against what was available then.
-  InvalidateBoxTree();
+  const std::shared_ptr<const gfx::Image>& stored = resources_.images[key];
+
+  // Attach pixels to any laid-out box that already names this URL. When both
+  // axes of a replaced box are definite without the bitmap (CSS length, HTML
+  // attribute, or aspect-ratio + the other axis), layout size cannot change
+  // and a full BuildBoxTree is wasted paint work — youtube search paid that
+  // per thumbnail. Background images never size their box from the bitmap.
+  //
+  // If nothing in the current tree names this URL, fall back to invalidating:
+  // the image may belong to a box built before CollectImages saw it, and
+  // leaving the pixels only in the resource table would never draw them.
+  bool layout_may_change = boxes_ == nullptr;
+  bool attached = boxes_ == nullptr;
+  if (boxes_ != nullptr) {
+    const auto axis_definite = [](const layout::Box& box, bool horizontal) {
+      const css::ComputedStyle& style = box.Style();
+      const css::Length& declared = horizontal ? style.width : style.height;
+      if (!declared.IsAuto() && !declared.IsPercent()) {
+        return true;
+      }
+      if (box.Origin() != nullptr) {
+        const std::string* attribute =
+            box.Origin()->GetAttribute(horizontal ? "width" : "height");
+        if (attribute != nullptr) {
+          if (const std::optional<double> value = util::ParseDouble(*attribute)) {
+            if (*value >= 0.0 && *value < 1e6) {
+              return true;
+            }
+          }
+        }
+      }
+      if (style.aspect_ratio > 0.0f) {
+        const css::Length& other = horizontal ? style.height : style.width;
+        if (!other.IsAuto() && !other.IsPercent()) {
+          return true;
+        }
+        if (box.Origin() != nullptr) {
+          const std::string* attribute =
+              box.Origin()->GetAttribute(horizontal ? "height" : "width");
+          if (attribute != nullptr) {
+            if (const std::optional<double> value = util::ParseDouble(*attribute)) {
+              if (*value >= 0.0 && *value < 1e6) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    std::function<void(layout::Box&)> walk = [&](layout::Box& box) {
+      if (box.GetKind() == layout::Box::Kind::Replaced && box.Origin() != nullptr) {
+        const auto selected = resources_.selected_image_urls.find(box.Origin());
+        if (selected != resources_.selected_image_urls.end() && selected->second == key) {
+          box.SetImage(stored);
+          attached = true;
+          if (!axis_definite(box, true) || !axis_definite(box, false)) {
+            layout_may_change = true;
+          }
+        }
+      }
+      if (!box.Style().background.image.empty() && box.Style().background.image == key) {
+        box.SetBackgroundImage(stored);
+        attached = true;
+      }
+      for (std::unique_ptr<layout::Box>& child : box.MutableChildren()) {
+        walk(*child);
+      }
+    };
+    walk(*boxes_);
+  }
+
+  if (!attached || layout_may_change) {
+    InvalidateBoxTree();
+    util::AddPerformanceCounter(util::PerfCounterId::BoxTreeInvalidatedByImage);
+  } else {
+    util::AddPerformanceCounter(util::PerfCounterId::BoxTreeImagePaintOnly);
+  }
   DeliverImageLoad(key);
 }
 
