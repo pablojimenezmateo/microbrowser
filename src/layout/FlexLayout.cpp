@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "layout/LayoutEngine.h"
+#include "util/PerformanceCounters.h"
 
 // Flex layout.
 //
@@ -24,6 +25,11 @@
 // falls back to flex-start, because a box's baseline is a property of its first
 // line and the line boxes are not exposed), and percentage gaps. Main-axis
 // `margin: auto` *is* here — youtube's masthead depends on it.
+//
+// Placement reuses the measured subtree when the final forced sizes match the
+// measuring ones (TD-0001): geometry is absolute, so a change of origin is an
+// OffsetLaidOutSubtree rather than a second LayoutBlock. Stretch still
+// re-lays out, because it changes a cross-axis content size.
 
 namespace microbrowser::layout {
 
@@ -48,6 +54,11 @@ struct Item {
   float outer_cross = 0.0f;
   float main_position = 0.0f;
   float cross_position = 0.0f;
+  // Where the measuring LayoutBlock placed the margin box. Placement is a
+  // translation from here when the forced sizes did not change.
+  float measure_left = 0.0f;
+  float measure_top = 0.0f;
+  bool measured = false;
 };
 
 // A run of items that fit on one line, and how tall that line is.
@@ -232,10 +243,15 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     } else {
       // A column's base size is a height, and the only way to know a box's
       // height is to lay it out. Measured against the container's cross size,
-      // which is the width it will actually have.
+      // which is the width it will actually have. Kept as the measuring pass
+      // when flexing does not change the height (a column with auto height
+      // never grows or shrinks -- see the resolve loop below).
       float probe = 0.0f;
+      item.measure_left = content_left;
+      item.measure_top = probe;
       LayoutBlock(*item.box, content_left, cross_size, probe, floats);
       item.base_main = probe;
+      item.measured = true;
     }
     // Clamped as an *outer* size, which is what the rest of the algorithm
     // distributes: the bound is on the content box, so the extras go back on
@@ -247,6 +263,11 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
                                                        item.base_main - item.main_extra);
     item.base_main = std::max(0.0f, bounded + item.main_extra);
     item.outer_main = item.base_main;
+    if (!row && item.measured && item.outer_main != item.box->Geometry().MarginBox().height) {
+      // A min/max-height changed the outer size: the probe's geometry is for
+      // the unclamped height and must be redone under the forced size.
+      item.measured = false;
+    }
   }
 
   // --- Break into lines -----------------------------------------------------
@@ -346,8 +367,17 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   for (Line& line : lines) {
     for (std::size_t i = line.begin; i < line.end; ++i) {
       Item& item = items[i];
+      if (!row && item.measured) {
+        // Column probe above already laid the item out at the final main size
+        // (no grow/shrink on an auto-height column). Reuse it.
+        item.outer_cross = item.box->Geometry().MarginBox().width;
+        line.cross_size = std::max(line.cross_size, item.outer_cross);
+        continue;
+      }
       ForcedSize forced;
       float cursor = 0.0f;
+      item.measure_left = content_left;
+      item.measure_top = cursor;
       if (row) {
         forced.content_width = std::max(0.0f, item.outer_main - item.main_extra);
         LayoutBlock(*item.box, content_left, item.outer_main, cursor, floats, false, &forced);
@@ -355,6 +385,7 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
         forced.content_height = std::max(0.0f, item.outer_main - item.main_extra);
         LayoutBlock(*item.box, content_left, cross_size, cursor, floats, false, &forced);
       }
+      item.measured = true;
       // What the item actually occupies across the axis it was not sized on.
       item.outer_cross = row ? cursor : item.box->Geometry().MarginBox().width;
       line.cross_size = std::max(line.cross_size, item.outer_cross);
@@ -450,17 +481,29 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
 
       ForcedSize forced;
       float cursor = row ? start_y + item.cross_position : start_y + item.main_position;
-      if (row) {
-        forced.content_width = std::max(0.0f, item.outer_main - item.main_extra);
-        if (stretches) {
-          forced.content_height = std::max(0.0f, used_cross - item.cross_extra);
-        }
-        LayoutBlock(*item.box, content_left + item.main_position, item.outer_main, cursor,
-                    floats, false, &forced);
+      const float place_left =
+          row ? content_left + item.main_position : content_left + item.cross_position;
+      // Stretch that does not change the measured cross size is still a
+      // translation: the tallest item on a line, every item on a one-item line,
+      // and any row whose children already share a height. Only a short item
+      // being forced taller (or a narrow column item being forced wider) needs
+      // another LayoutBlock.
+      const bool size_changed = stretches && used_cross != item.outer_cross;
+      if (item.measured && !size_changed) {
+        OffsetLaidOutSubtree(*item.box, place_left - item.measure_left, cursor - item.measure_top);
+        util::AddPerformanceCounter(util::PerfCounterId::LayoutMeasureCacheHits);
       } else {
-        forced.content_height = std::max(0.0f, item.outer_main - item.main_extra);
-        LayoutBlock(*item.box, content_left + item.cross_position, used_cross, cursor, floats,
+        if (row) {
+          forced.content_width = std::max(0.0f, item.outer_main - item.main_extra);
+          if (stretches) {
+            forced.content_height = std::max(0.0f, used_cross - item.cross_extra);
+          }
+        } else {
+          forced.content_height = std::max(0.0f, item.outer_main - item.main_extra);
+        }
+        LayoutBlock(*item.box, place_left, row ? item.outer_main : used_cross, cursor, floats,
                     false, &forced);
+        util::AddPerformanceCounter(util::PerfCounterId::LayoutMeasureCacheMisses);
       }
       item.outer_cross = used_cross;
     }

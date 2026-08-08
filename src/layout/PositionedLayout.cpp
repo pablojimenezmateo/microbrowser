@@ -25,10 +25,14 @@ namespace microbrowser::layout {
 
 namespace {
 
-// Moves a laid-out subtree. Geometry is stored in absolute coordinates -- the
-// painter walks the tree without an ancestor stack -- so a box that moves
-// takes everything under it with it, fragments included.
-void OffsetSubtree(Box& box, float dx, float dy) {
+// An inset, against the containing block extent it resolves against.
+float Inset(const css::Length& length, float font_size, float extent) {
+  return length.Used(extent, font_size);
+}
+
+}  // namespace
+
+void OffsetLaidOutSubtree(Box& box, float dx, float dy) {
   if (dx == 0.0f && dy == 0.0f) {
     return;
   }
@@ -40,16 +44,9 @@ void OffsetSubtree(Box& box, float dx, float dy) {
     fragment.baseline += dy;
   }
   for (std::unique_ptr<Box>& child : box.MutableChildren()) {
-    OffsetSubtree(*child, dx, dy);
+    OffsetLaidOutSubtree(*child, dx, dy);
   }
 }
-
-// An inset, against the containing block extent it resolves against.
-float Inset(const css::Length& length, float font_size, float extent) {
-  return length.Used(extent, font_size);
-}
-
-}  // namespace
 
 void LayoutEngine::ApplyRelativeOffset(Box& box) const {
   const css::ComputedStyle& style = box.Style();
@@ -78,7 +75,7 @@ void LayoutEngine::ApplyRelativeOffset(Box& box) const {
   } else if (!style.inset.bottom.IsAuto()) {
     dy = -Inset(style.inset.bottom, font_size, content.height);
   }
-  OffsetSubtree(box, dx, dy);
+  OffsetLaidOutSubtree(box, dx, dy);
 }
 
 void LayoutEngine::LayoutAbsoluteDescendants(Box& container,
@@ -181,7 +178,7 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   if (!has_top && has_bottom) {
     const float height = cursor - y;
     const float wanted = containing_block.y + containing_block.height - bottom - height;
-    OffsetSubtree(box, 0.0f, wanted - y);
+    OffsetLaidOutSubtree(box, 0.0f, wanted - y);
   }
 }
 

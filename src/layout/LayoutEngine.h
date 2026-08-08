@@ -39,6 +39,15 @@ struct ForcedSize {
   std::optional<float> content_height;
 };
 
+// Moves a laid-out subtree by `(dx, dy)`.
+//
+// Geometry is stored in absolute coordinates -- the painter walks the tree
+// without an ancestor stack -- so a box that moves takes everything under it,
+// text fragments included. This is the operation TD-0001 was waiting on: the
+// flex place pass, a float's second LayoutBlock, and an atomic-inline's
+// place-on-line all used to re-run the whole algorithm just to change origin.
+void OffsetLaidOutSubtree(Box& box, float dx, float dy);
+
 // Builds a box tree from a styled document and lays it out.
 //
 // Two phases, deliberately separate. Building the tree is where anonymous

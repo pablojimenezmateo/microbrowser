@@ -352,18 +352,19 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
                                            ? fragment.rect
                                            : item.box->Geometry().content.United(fragment.rect);
       } else if (item.is_atomic) {
-        // Laid out again, at the place the line gave it, rather than moved
-        // there. Geometry is absolute, so moving the box alone would leave
-        // every descendant at the coordinates the measuring pass produced --
-        // the same reason PlaceFloat runs LayoutBlock twice instead of
-        // translating the subtree it already has.
+        // Measured earlier against the containing block; the line only chose
+        // an origin. Geometry is absolute, so translate the measured subtree
+        // rather than LayoutBlock again (TD-0001 / same reason PlaceFloat
+        // stopped probing twice).
         //
         // The origin handed over is the *margin box* corner, because that is
         // what LayoutBlock adds its own margins to. `item.x` was advanced by
         // the margin box width for exactly this reason.
-        float top = baseline - item.above;
-        FloatContext inner;
-        LayoutBlock(*item.box, item.x + align_offset, content_width, top, inner);
+        const gfx::FloatRect margin_box = item.box->Geometry().MarginBox();
+        const float top = baseline - item.above;
+        OffsetLaidOutSubtree(*item.box, item.x + align_offset - margin_box.x,
+                             top - margin_box.y);
+        util::AddPerformanceCounter(util::PerfCounterId::LayoutMeasureCacheHits);
       } else {
         // A replaced element's baseline is its bottom edge, per CSS 2.1
         // §10.8.1. That is why an image on a line of text sits *on* the text
@@ -559,14 +560,5 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
   finish_line();
   return y - start_y;
 }
-
-// Places one float and lays out its contents where it landed.
-//
-// Two passes over the child, and the reason is circular: a float's position
-// depends on how wide it is, and its width depends on its content. So it is
-// laid out once against a detached context to learn its size, placed, then laid
-// out again at the position it got. Re-laid out rather than translated,
-// because a box tree of absolute coordinates has no translate operation and
-// inventing one here would be a second way to position a subtree.
 
 }  // namespace microbrowser::layout

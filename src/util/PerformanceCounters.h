@@ -510,8 +510,10 @@ namespace microbrowser::util {
   /* youtube.com the ratio was 1200:1 -- a box laid out twelve hundred times    */ \
   /* -- and every scope-level timing said only "layout is slow".                */ \
   X(LayoutBlockPasses, "layout.block_passes")                                    \
-  /* The passes a memoised measurement did not have to do. The difference       */ \
-  /* between this and the one above is the whole of what the cache is worth.    */ \
+  /* Subtree translations that replaced a second LayoutBlock (TD-0001): flex    */ \
+  /* place with unchanged forced sizes, float place after probe, and atomic     */ \
+  /* inline place-on-line. Hits are the walks we no longer do; misses are the   */ \
+  /* stretch / constraint-change cases that still re-lay out.                   */ \
   X(LayoutMeasureCacheHits, "layout.measure_cache_hits")                         \
   X(LayoutMeasureCacheMisses, "layout.measure_cache_misses")                     \
   /* Text handed to the shaper by layout rather than by paint. Intrinsic width  */ \

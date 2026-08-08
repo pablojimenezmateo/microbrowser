@@ -428,9 +428,11 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
       floats.Place(style.css_float, margin_box.width, margin_box.height, cursor_y, content_left,
                    content_left + content_width);
 
-  float final_cursor = placed.y;
-  FloatContext inner;
-  LayoutBlock(child, placed.x, content_width, final_cursor, inner);
+  // Same available width as the probe; only the origin changed. Translating
+  // the measured subtree is TD-0001's float half -- a second LayoutBlock was
+  // walking every descendant just to move them.
+  OffsetLaidOutSubtree(child, placed.x - margin_box.x, placed.y - margin_box.y);
+  AddPerformanceCounter(PerfCounterId::LayoutMeasureCacheHits);
 }
 
 void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_width,

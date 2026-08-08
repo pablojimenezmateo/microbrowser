@@ -15,30 +15,40 @@ fixing it is a design change, not a faster loop.
 
 ---
 
-## TD-0001 — A layout algorithm that measures a subtree then places it walks it twice
+## TD-0001 — A layout algorithm that measures a subtree then places it walks it twice — **fixed 2026-08-09**
 
-`layout::LayoutFlexChildren` lays every item out to measure it (`FlexLayout.cpp`, the "lay each item
-out at its resolved main size" loop) and then lays the same item out again to place it. A column
-container does it a third time, to get a base size. `PlaceFloat` does the same pair — a detached
-probe, then the real placement. Nested, these multiply: a flex container inside a flex container
-inside a float walks its leaves eight times.
+`layout::LayoutFlexChildren` laid every item out to measure it and then laid the same item out
+again to place it. A column container did it a third time for a base size. `PlaceFloat` and
+atomic-inline placement did the same probe-then-place pair. Nested, these multiplied: a flex
+container inside a flex container inside a float walked its leaves eight times.
 
-**Measured.** `layout.block_passes` against `layout.boxes_created`, both added for this:
+**Measured before** (Release, youtube search, 2026-08-08):
 
-| page | boxes | block passes | ratio |
-|---|---|---|---|
-| youtube.com | 5,288 | 53,196 | **10.1x** |
-| en.wikipedia.org/wiki/CSS | 19,116 | 13,622 | 0.7x |
+| metric | value |
+|---|---|
+| `layout.block_passes` | **189 863 331** over 128 passes |
+| `engine::LayoutBoxes` | **127 644 ms** self (101 calls, avg 1.26 s) |
+| snapshot wall | **~157–272 s** |
 
-Wikipedia is under 1.0 because most of its boxes are text and inline, which are laid out by the line
-breaker rather than by `LayoutBlock`. Youtube's 10x is the real number, and it is *not* currently
-the bottleneck on that page — its layout is 340ms against 9.7 seconds of JavaScript — which is
-exactly why this is written down rather than fixed. It becomes the bottleneck the moment the
-JavaScript does.
+**Fix.** Geometry is already absolute, and `OffsetLaidOutSubtree` already existed for relative /
+absolute placement. Wire it through the three probe-then-place sites: flex place when the final
+forced sizes match the measuring ones (including stretch that does not change the measured cross
+size), float place after the size probe, and atomic-inline place-on-line. Stretch that *does*
+change a cross size still re-lays out. Counters `layout.measure_cache_hits` /
+`layout.measure_cache_misses` now mean translations vs forced re-layouts.
 
-**End state.** Measurement and placement are different questions and should not both be "run the
-whole layout algorithm". Intrinsic sizing already has a memo (`Box::Intrinsic()`); the flex base
-size and the float probe want the same treatment, keyed on the same per-pass invalidation.
+**Measured after** (Release, same URL, 2026-08-09):
+
+| metric | value |
+|---|---|
+| `layout.block_passes` | **138 558** |
+| `layout.measure_cache_hits` | **62 997** |
+| `layout.measure_cache_misses` | **7 583** |
+| `engine::LayoutBoxes` | **732 ms** self (103 calls, avg 7 ms) |
+| snapshot wall | **~28 s** |
+
+Layout is no longer the wall. Next on that page: `engine::BuildBoxTree` (~3 s) and the JS
+compile/execute of the kevlar bundle.
 
 ---
 
@@ -883,7 +893,7 @@ the same day; search `loaded` images went from **0 → 4+** in snapshot probes.
 painted thumbnails for every in-view row without `-eval` force, watch plays via
 the page's own click handler (not only `-eval video.play()`), and home is
 honest about nudge vs UA. Related: TD-0017 (binding-token strip), TD-0007 /
-ADR 0036, TD-0001 (`layout.block_passes` still huge on search), **TD-0020**
+ADR 0036, **TD-0001 closed** (search layout no longer the wall), **TD-0020**
 (youtube `playVideo` stub).
 
 ---
@@ -959,6 +969,10 @@ the default media click path satisfies Gate C watch.
 
 ## Closed
 
+- **TD-0001 — Measure-then-place walked every flex/float/atomic subtree twice** (2026-08-09).
+  `OffsetLaidOutSubtree` replaces the second `LayoutBlock` when constraints are unchanged.
+  Youtube search: `layout.block_passes` 189M → 139k; `engine::LayoutBoxes` 128 s → 0.7 s;
+  wall ~3–10× faster. See open entry above for the full before/after table.
 - **TD-0019 — Decoded Opus frames never reach the audio ring** (2026-08-08). See open
   entry above for the measurement; closed by wiring `PageVideo` → `AudioRing` →
   `SdlAudioDevice` per ADR 0028 §4.
