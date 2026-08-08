@@ -261,6 +261,10 @@ bool WritePpm(const microbrowser::gfx::Canvas& canvas, const std::string& path) 
   return std::fclose(file) == 0;
 }
 
+bool UrlHasJsChallenge(std::string_view url) {
+  return url.find("js_challenge=1") != std::string_view::npos;
+}
+
 // Turns the loop's crank until the navigation is finished.
 //
 // This is the whole of what a host has to do since ADR 0011, minus a window: it
@@ -271,7 +275,21 @@ bool WritePpm(const microbrowser::gfx::Canvas& canvas, const std::string& path) 
 void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   std::uint64_t turns = 0;
   const bool trace = microbrowser::util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE");
-  while (engine.IsLoading()) {
+  // reddit's interstitial marks `load` finished while the concat polyfill still
+  // runs on timers and only then submits the challenge form. Stay in the load
+  // loop until that URL clears or fifteen minutes pass (Gate B measurement).
+  const auto settle_deadline =
+      std::chrono::steady_clock::now() + std::chrono::minutes(15);
+  const auto should_turn = [&]() {
+    if (std::chrono::steady_clock::now() >= settle_deadline) {
+      return false;
+    }
+    if (engine.IsLoading()) {
+      return true;
+    }
+    return UrlHasJsChallenge(engine.Url());
+  };
+  while (should_turn()) {
     ++turns;
     const auto turn_started = std::chrono::steady_clock::now();
     if (trace) {
@@ -320,7 +338,14 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
       std::fflush(stderr);
     }
     if (descriptors.empty() && !deadline.has_value()) {
-      break;  // nothing outstanding, nothing runnable, no timer: stuck
+      // A reddit challenge can be CPU-bound between timer arms; do not treat
+      // "no deadline yet" as stuck while the interstitial URL is still showing.
+      if (!UrlHasJsChallenge(engine.Url())) {
+        break;  // nothing outstanding, nothing runnable, no timer: stuck
+      }
+      microbrowser::util::PerformanceTrace::Scope wait("wait::Deadline");
+      microbrowser::platform::WaitOnDescriptors(descriptors, 1);
+      continue;
     }
     if (descriptors.empty()) {
       // A timer or animation frame is due later. Sleep until then rather than

@@ -98,6 +98,12 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
   // `Host()` and still upgrade. Stamp cost after this is TD-0018.
   if (!(parent.GetKind() == dom::Node::Kind::DocumentFragment &&
         static_cast<const dom::DocumentFragment&>(parent).IsTemplateContent())) {
+    const Value registry = CustomElementRegistry();
+    if (registry.IsObject() && !registry.object->Keys().empty() && interpreter_ != nullptr) {
+      // TD-0018: a macrotask that inserts markup after a long stamp must not
+      // inherit a spent step budget into every `connectedCallback`.
+      interpreter_->BeginTask();
+    }
     for (std::size_t i = 0; i < fragment.Children().size(); ++i) {
       UpgradeSubtree(*fragment.Children()[i]);
     }

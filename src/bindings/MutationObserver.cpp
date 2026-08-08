@@ -120,6 +120,8 @@ void DomBindings::ScheduleObserverDelivery(const js::Value& observer) {
     }
     records->object->SetElements({}, {});
     // (records, observer), which is the signature every page writes against.
+    // TD-0018: Polymer's ASAP observer runs here after kevlar spends the budget.
+    call.interpreter.BeginTask();
     const js::Result ran = call.interpreter.CallFunction(
         *callback, Value::Undefined(),
         {call.interpreter.NewArrayValue(std::move(taken)), *watcher});

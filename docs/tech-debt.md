@@ -613,13 +613,13 @@ templates; close when the snapshot shows feed posts rather than an empty main re
 
 **Measured**, www.reddit.com post-challenge (Gate A passes), Release build, 2026-08-08:
 
-| metric | before late-script fix | after (`31e78e4`) | after CSP trust (`46ddc28`) | after connect-src + `whenDefined` (this session) |
-|---|---|---|---|---|
-| snapshot wall time | ~726 s | ~608 s | **~731 s** | **~581 s** (challenge interstitial; post-challenge not reached) |
-| `display_list.commands` (final frame) | 210 | 210 | **3150** | **212** (challenge URL; peak **4026** mid-load) |
-| `csp.violations` | 72 | 95 (`script-src`) | **3** (`connect-src` `data:` only) | **0** |
-| `js.modules_loaded` | — | 3 | **8** | **7** |
-| `js.steps_exhausted` | 2 | 2 | 3 | **2** |
+| metric | before late-script fix | after (`31e78e4`) | after CSP trust (`46ddc28`) | after connect-src + `whenDefined` (this session) | after BeginTask + challenge settle (this session) |
+|---|---|---|---|---|---|
+| snapshot wall time | ~726 s | ~608 s | **~731 s** | **~581 s** (challenge interstitial; post-challenge not reached) | **~597 s** (still interstitial; one run) |
+| `display_list.commands` (final frame) | 210 | 210 | **3150** | **212** (challenge URL; peak **4026** mid-load) | **210** (challenge URL; peak **4407** mid-load) |
+| `csp.violations` | 72 | 95 (`script-src`) | **3** (`connect-src` `data:` only) | **0** | **0** |
+| `js.modules_loaded` | — | 3 | **8** | **7** | **8** |
+| `js.steps_exhausted` | 2 | 2 | 3 | **2** | **3** |
 | small `js/concat` `script.start` | yes | yes | yes |
 | large `runtime-concat` `script.start` | no | no | **yes** (concat chain runs) |
 
@@ -631,8 +631,15 @@ callbacks (`TrustedScript` + `Interpreter` microtask tagging). That cleared the 
 `data:text/javascript,…` bootstrap URLs from `fetch()`, which is not a network connection --
 `Engine::StartFetch` now skips `connect-src` for `data:` and `blob:` the way `Loader` already
 answers them locally. **`customElements.whenDefined`** landed (reddit waits on several names);
-`define` batch-upgrade gets a fresh step budget via `BeginTask`. Gate B still needs feed
-articles in the snapshot if hoisting is not yet firing.
+`define` batch-upgrade gets a fresh step budget via `BeginTask`. **TD-0018 host-turn gaps:**
+`InsertFragmentChildren` custom-element upgrades, `MutationObserver` delivery, and
+`PerformanceObserver` callbacks each `BeginTask` so a spent concat-polyfill budget does not
+abort the next DOM reaction. Snapshot keeps turning while `js_challenge=1` is in the URL (15 min
+cap). Gate B still needs a reliable post-challenge feed snapshot (`article` count > 3,
+`display_list.commands` >> 212): one Release run after these fixes still landed on the
+interstitial (210 commands, `eval: true:0:undefined`) despite `engine.script_navigations` 1 and
+`js.modules_loaded` 8 — the second navigation returned interstitial-sized HTML, so the next
+investigation is whether the computed `solution` is wrong or the response is being mishandled.
 
 ---
 

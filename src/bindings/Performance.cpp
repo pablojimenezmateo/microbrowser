@@ -598,6 +598,9 @@ bool Performance::DeliverObservations(js::Interpreter& interpreter) {
       continue;
     }
     const Value list = MakeEntryList(interpreter, std::move(records));
+    // TD-0018: reddit's perf bundle observes from a callback after the concat
+    // polyfill spends the step budget.
+    interpreter.BeginTask();
     interpreter.CallFunction(*callback, observer, {list, observer});
     AddPerformanceCounter(PerfCounterId::PerformanceObserverCallbacks);
     ran = true;

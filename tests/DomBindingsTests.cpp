@@ -2145,6 +2145,52 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "idle callback ran after a spent budget");
   });
 
+  AddTest(tests, "DomBindings/AMutationObserverCallbackClearsASpentStepBudget", [] {
+    // TD-0018: Polymer's ASAP observer is a MutationObserver microtask.
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter
+               ->Run("globalThis.got = 0;"
+                     "const o = new MutationObserver(() => { got = 42 });"
+                     "o.observe(document.body, { childList: true });"
+                     "setTimeout(() => document.body.appendChild(document.createElement('i')), 0);")
+               .completion == js::Completion::Normal,
+           "arm the observer delivery");
+    Expect(bound.interpreter->Run("while (true) {}").completion == js::Completion::Throw,
+           "burn the hang guard without absorbing it");
+    Expect(timers.RunDue(*bound.interpreter, 0), "deliver the timeout");
+    ExpectEqString(js::ToString(bound.interpreter->Run("'' + got").value), "42",
+                   "MutationObserver callback ran after a spent budget");
+  });
+
+  AddTest(tests, "DomBindings/InsertFragmentUpgradeClearsASpentStepBudget", [] {
+    // TD-0018: DOM insertion upgrades custom elements after a long stamp.
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    Expect(bound.interpreter
+               ->Run("globalThis.got = 0;"
+                     "class X extends HTMLElement {"
+                     "  connectedCallback() { this.dataset.ok = '1'; }"
+                     "}"
+                     "customElements.define('x-el', X);"
+                     "setTimeout(() => {"
+                     "  const f = document.createDocumentFragment();"
+                     "  f.innerHTML = '<x-el></x-el>';"
+                     "  document.body.appendChild(f);"
+                     "}, 0);")
+               .completion == js::Completion::Normal,
+           "arm the fragment insert");
+    Expect(bound.interpreter->Run("while (true) {}").completion == js::Completion::Throw,
+           "burn the hang guard without absorbing it");
+    Expect(timers.RunDue(*bound.interpreter, 0), "deliver the timeout");
+    ExpectEqString(js::ToString(bound.interpreter
+                                    ->Run("document.querySelector('x-el').dataset.ok")
+                                    .value),
+                   "1", "connectedCallback ran after a spent budget");
+  });
+
   AddTest(tests, "DomBindings/SuspenseReplaceHoistsTemplateForMarkup", [] {
     // reddit's shape: feed markup lives in `<template for="…">` and a
     // `<suspense-replace>` custom element hoists it on connect.
