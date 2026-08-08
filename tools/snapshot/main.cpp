@@ -512,11 +512,13 @@ int main(int argc, char** argv) {
   // so they describe the page the snapshot is about to write out. Before the
   // frame is taken rather than after, because a probe that changes the document
   // should show up in it.
+  //
+  // Drain between probes: `v.play()` schedules decoder work on the next wake,
+  // and a second `-eval` that reads `currentTime` must see that work -- the
+  // same reason a click drains before the next `-type`.
   for (const std::string& probe : options.probes) {
     const std::string answer = engine.EvaluateScript(probe);
     std::printf("eval: %s\n", answer.c_str());
-  }
-  if (!options.probes.empty()) {
     RunLoadToCompletion(engine);
   }
 

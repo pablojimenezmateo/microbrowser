@@ -125,20 +125,23 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "MediaElement/ThePlayMethodIsAbsentOnAnythingThatIsNotMedia", [] {
     // `document.body.play` must not exist. A media API on every element would make a typo look
-    // like a player that does nothing, and `canPlayType` answering "maybe" would be a lie a page
-    // acts on -- so it answers the empty string until a decoder exists.
+    // like a player that does nothing. `canPlayType` shares the MediaSource allowlist --
+    // `video/mp4` is accepted (codecs named at the init segment); an unknown container is not.
     ScriptedPage page(
         "<body><video id=v></video><script>"
         "console.log('body:' + typeof document.body.play + ' video:' + typeof document.getElementById('v').play);"
         "console.log('type:[' + document.getElementById('v').canPlayType('video/mp4') + ']');"
+        "console.log('bogus:[' + document.getElementById('v').canPlayType('video/unknown') + ']');"
         "document.getElementById('v').play().catch(e => console.log('empty:' + e.name));"
         "</script></body>");
 
     const std::string console = page.Console();
     Expect(console.find("body:undefined video:function") != std::string::npos,
            "only a media element has the media API");
-    Expect(console.find("type:[]") != std::string::npos,
-           "canPlayType is honest: nothing can be played yet");
+    Expect(console.find("type:[probably]") != std::string::npos,
+           "canPlayType agrees with MediaSource.isTypeSupported for video/mp4");
+    Expect(console.find("bogus:[]") != std::string::npos,
+           "and an unknown container is still cannot-play");
     // No `src` is NO_SOURCE, so this is NotSupportedError rather than NotAllowedError -- a page
     // shows an error for one and a play button for the other.
     Expect(console.find("empty:NotSupportedError") != std::string::npos,

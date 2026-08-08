@@ -91,9 +91,19 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
         // visible.
         return call.Throw("NotSupportedError", "load() is not implemented");
       }
-      // `canPlayType`. The honest answer for every type is the empty string -- "cannot play" --
-      // until a decoder exists, and that is exactly what the API is for: a page asks and picks
-      // another source. `"maybe"` here would be a lie a page acts on.
+      // `canPlayType`. Same allowlist `MediaSource.isTypeSupported` uses
+      // (AddSourceBuffer with a zero source id), because two answers to "can we
+      // play this" is the bug CodecId.h forbids. "probably" once a type is on
+      // that list -- the decoder process exists (ADR 0031); "" otherwise.
+      if (what == "canPlayType") {
+        const std::string type = js::ToString(Argument(call.arguments, 0));
+        MediaController::AddBufferError error = MediaController::AddBufferError::None;
+        owner->media_->AddSourceBuffer(0, type, error);
+        if (error == MediaController::AddBufferError::NotSupported) {
+          return Value::String(std::string());
+        }
+        return Value::String(std::string("probably"));
+      }
       return Value::String(std::string());
     });
     if (native.IsObject()) {

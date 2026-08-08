@@ -380,6 +380,12 @@ namespace microbrowser::util {
   X(MediaSourceSegmentsEvicted, "media.source_segments_evicted")                  \
   X(MediaSourceBuffersCreated, "media.source_buffers_created")                    \
   X(MediaObjectUrlsCreated, "media.object_urls_created")                          \
+  X(MediaVideoSessions, "media.video_sessions")                                   \
+  X(MediaVideoConfigureFailures, "media.video_configure_failures")                \
+  X(MediaDecoderSamplesFed, "media.decoder_samples_fed")                          \
+  X(MediaDecoderFrames, "media.decoder_frames")                                   \
+  X(MediaDecoderFramesApplied, "media.decoder_frames_applied")                    \
+  X(MediaDecoderErrors, "media.decoder_errors")                                   \
   X(MpegTsPacketsParsed, "media.mpegts_packets")                                  \
   X(MpegTsSamples, "media.mpegts_samples")                                        \
   X(MpegTsResyncs, "media.mpegts_resyncs")                                        \

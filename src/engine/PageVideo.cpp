@@ -10,10 +10,14 @@
 #include "gfx/DisplayList.h"
 #include "ipc/DecoderMessage.h"
 #include "media/CodecId.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::engine {
 
 namespace {
+
+using util::AddPerformanceCounter;
+using util::PerfCounterId;
 
 ipc::WireCodec ToWireCodec(media::CodecId codec) {
   switch (codec) {
@@ -80,15 +84,18 @@ bool PageVideo::ConfigureTrack(TrackDecoder& decoder, media::SourceBufferState& 
                                const media::MediaTrack& track) {
   const std::optional<media::CodecId> codec = media::CodecFromContainerName(track.codec);
   if (!codec.has_value()) {
+    AddPerformanceCounter(PerfCounterId::MediaVideoConfigureFailures);
     return false;
   }
   std::vector<std::uint8_t> extra;
   if (!buffer.CopyCodecExtraData(track, extra)) {
+    AddPerformanceCounter(PerfCounterId::MediaVideoConfigureFailures);
     return false;
   }
   decoder.client = std::make_unique<DecoderClient>();
   if (!decoder.client->Configure(ToWireCodec(*codec), extra)) {
     decoder.client.reset();
+    AddPerformanceCounter(PerfCounterId::MediaVideoConfigureFailures);
     return false;
   }
   decoder.track = &track;
@@ -130,6 +137,7 @@ void PageVideo::StartPlayback(dom::Element& element, media::MediaState& state) {
   }
 
   if (video_track == nullptr || video_buffer == nullptr) {
+    AddPerformanceCounter(PerfCounterId::MediaVideoConfigureFailures);
     return;
   }
 
@@ -155,6 +163,7 @@ void PageVideo::StartPlayback(dom::Element& element, media::MediaState& state) {
   }
 
   sessions_[&element] = std::move(session);
+  AddPerformanceCounter(PerfCounterId::MediaVideoSessions);
   state.AdvanceTo(state.CurrentTime());
 }
 
@@ -200,23 +209,37 @@ bool PageVideo::FeedSamples(TrackDecoder& decoder, double current_time, double h
     }
     decoder.next_sample = i + 1;
     fed = true;
+    AddPerformanceCounter(PerfCounterId::MediaDecoderSamplesFed);
   }
   return fed;
 }
 
 bool PageVideo::ApplyVideoFrame(Session& session, const ipc::FrameMessage& frame) {
-  if (session.surface_id == gfx::kNoSurface || frame.sample_count != 0) {
-    return false;
-  }
-  gfx::Surface* surface = surfaces_.Find(session.surface_id);
-  if (surface == nullptr) {
+  // Audio frames carry sample_count; one DecoderClient is one stream (ADR 0031).
+  if (frame.sample_count != 0 || frame.width == 0 || frame.height == 0) {
     return false;
   }
   const std::uint64_t expected =
       static_cast<std::uint64_t>(frame.width) * static_cast<std::uint64_t>(frame.height);
-  if (expected == 0 || frame.bytes.size() != expected * 4u) {
+  if (frame.bytes.size() != expected * 4u) {
     return false;
   }
+
+  gfx::Surface* surface = surfaces_.Find(session.surface_id);
+  // Track metadata width/height is often missing or wrong (youtube WebM inits
+  // report 0; we then guessed 640x360). The decoded frame is authoritative, and
+  // Surface::Update refuses any other pixel count -- which left currentTime at 0
+  // despite media.decoder_frames climbing.
+  if (surface == nullptr || surface->Size().width != static_cast<int>(frame.width) ||
+      surface->Size().height != static_cast<int>(frame.height)) {
+    surface = surfaces_.Create(
+        gfx::IntSize{static_cast<int>(frame.width), static_cast<int>(frame.height)});
+    if (surface == nullptr) {
+      return false;
+    }
+    session.surface_id = surface->Id();
+  }
+
   std::vector<std::uint32_t> pixels(expected);
   for (std::size_t i = 0; i < expected; ++i) {
     const std::size_t o = i * 4u;
@@ -227,7 +250,11 @@ bool PageVideo::ApplyVideoFrame(Session& session, const ipc::FrameMessage& frame
     pixels[i] = (static_cast<std::uint32_t>(a) << 24) | (static_cast<std::uint32_t>(r) << 16) |
                 (static_cast<std::uint32_t>(g) << 8) | static_cast<std::uint32_t>(b);
   }
-  return surface->Update(pixels);
+  if (!surface->Update(pixels)) {
+    return false;
+  }
+  AddPerformanceCounter(PerfCounterId::MediaDecoderFramesApplied);
+  return true;
 }
 
 bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state) {
@@ -244,8 +271,18 @@ bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state)
   if (session.last_advance_ms != 0 &&
       now_ms - session.last_advance_ms <
           static_cast<std::int64_t>(session.frame_duration * 1000.0)) {
-    (void)session.video.client->PollFrames();
-    return false;
+    // Still apply frames that arrive early -- dropping them here left the
+    // surface blank while the clock waited for the next tick.
+    bool updated = false;
+    std::string decode_error;
+    for (const ipc::FrameMessage& frame : session.video.client->PollFrames(&decode_error)) {
+      AddPerformanceCounter(PerfCounterId::MediaDecoderFrames);
+      updated = ApplyVideoFrame(session, frame) || updated;
+    }
+    if (!decode_error.empty()) {
+      AddPerformanceCounter(PerfCounterId::MediaDecoderErrors);
+    }
+    return updated;
   }
   session.last_advance_ms = now_ms;
 
@@ -257,8 +294,13 @@ bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state)
   }
 
   bool updated = false;
-  for (const ipc::FrameMessage& frame : session.video.client->PollFrames()) {
+  std::string decode_error;
+  for (const ipc::FrameMessage& frame : session.video.client->PollFrames(&decode_error)) {
+    AddPerformanceCounter(PerfCounterId::MediaDecoderFrames);
     updated = ApplyVideoFrame(session, frame) || updated;
+  }
+  if (!decode_error.empty()) {
+    AddPerformanceCounter(PerfCounterId::MediaDecoderErrors);
   }
   if (session.audio.client != nullptr) {
     (void)session.audio.client->PollFrames();
