@@ -641,6 +641,30 @@ interstitial (210 commands, `eval: true:0:undefined`) despite `engine.script_nav
 `js.modules_loaded` 8 — the second navigation returned interstitial-sized HTML, so the next
 investigation is whether the computed `solution` is wrong or the response is being mishandled.
 
+**Investigated 2026-08-08 (session after `81f476d`).** Verdict: **the challenge algorithm and
+form-submission path are correct in isolation; the live failure is the second HTTP response
+body (~8 KB interstitial, not ~405 KB feed), so the server is rejecting the submission.**
+
+Evidence:
+- `Engine/RedditInterstitialHtmlSubmitsDoubledSeed` and
+  `Engine/AsyncDomContentLoadedChallengeSubmitsAfterAwait` pass with the exact inline script and
+  form shape from a live `GET https://www.reddit.com/` interstitial (seed doubled via
+  `await (async e => e + e)(seed)`, GET `action="/"`, `requestSubmit()` after `onsubmit` copies
+  `location.search`).
+- `curl -A microbrowser` with the same doubled-seed URL returns **511 KB / 3 `<article>`** — the
+  honest UA is not the blocker.
+- Interstitial HTML is **one inline script + one hidden form**; there is no concat polyfill on the
+  challenge page. The ~600 s wall clock is the **feed** page's scripts, not the interstitial.
+- `js_challenge=1` remains in the feed URL too (curl lands there with 3 articles) — do not use
+  that query param alone to detect interstitial vs feed; use body size or `article` count.
+- `LoadTimeline` now stamps `navigation.form` (submission URL) and `document.arrived` (byte size +
+  final URL) for the next live run.
+
+Still open on the wire: why the browser's second request gets ~8 KB again while the scripted test
+and curl agree on the correct GET shape. Next checks: `navigation.form` solution param in timeline,
+`document.arrived` byte count on nav 2, and whether `edgebucket` from the first response is on the
+submission request.
+
 ---
 
 ## TD-0017 — Template contents were upgraded (binding tokens lost before parse)

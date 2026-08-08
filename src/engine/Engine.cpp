@@ -548,6 +548,10 @@ void Engine::OnDocument(Loader::Result result) {
   page_.Load(result.body, result.final_url.empty() ? load_.url : result.final_url,
              std::move(policies), result.content_type);
 
+  util::LoadTimeline::MarkWith("document.arrived",
+                               std::to_string(result.body.size()) + " bytes " +
+                                   (result.final_url.empty() ? load_.url : result.final_url));
+
   // The document's bytes are complete, which is the last moment
   // `performance.timing` needs before a page can read it: the next thing that
   // runs a script is `AdvanceLoad`, and youtube.com's first inline script reads
@@ -819,6 +823,7 @@ bool Engine::Navigate(const FormSubmission& submission) {
   if (!resolved.has_value()) {
     return false;
   }
+  util::LoadTimeline::MarkWith("navigation.form", *resolved);
   NavigateFromCurrentDocument(*resolved, FetchOptionsForSubmission(submission));
   return true;
 }

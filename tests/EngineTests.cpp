@@ -2003,6 +2003,97 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "and the cookie the first response set");
   });
 
+  AddTest(tests, "Engine/AsyncDomContentLoadedChallengeSubmitsAfterAwait", [] {
+    Session session;
+    ScriptedFactory factory;
+    const std::string interstitial =
+        "<title>Please wait</title><form method='GET' action='/'>"
+        "<input type='hidden' name='solution'>"
+        "<input type='hidden' name='js_challenge' value='1'>"
+        "<input type='hidden' name='token' value='t0'>"
+        "<input type='hidden' name='jsc_orig_r' value=''>"
+        "</form><script>"
+        "document.addEventListener('DOMContentLoaded', async function () {"
+        "  var f = document.forms[0];"
+        "  f.onsubmit = function (e) {"
+        "    new URLSearchParams(document.location.search).forEach((v, n) =>"
+        "      e.target.appendChild(Object.assign(document.createElement('input'),"
+        "        {name: n, type: 'hidden', value: v})));"
+        "    return true;"
+        "  };"
+        "  var n = await (async e => e + e)('a4c1');"
+        "  f.elements.namedItem('solution').value = n;"
+        "  f.requestSubmit();"
+        "}, {once: true});"
+        "</script>";
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+        "Set-Cookie: gate=passed; Path=/\r\nContent-Length: " +
+            std::to_string(interstitial.size()) + "\r\n\r\n" + interstitial});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>The real page</title><body>content</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/"});
+
+    ExpectEqString(session.LastTitle(), "The real page",
+                   "reddit's async DOMContentLoaded handler submits after await");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "one request for the interstitial and one for its answer");
+    const std::string& submitted = factory.log.requests.at(1);
+    Expect(submitted.find("solution=a4c1a4c1") != std::string::npos,
+           "the doubled seed from await (async e => e + e) reaches the server");
+    Expect(submitted.find("js_challenge=1") != std::string::npos,
+           "the form's own hidden fields travel with the submission");
+  });
+
+  AddTest(tests, "Engine/RedditInterstitialHtmlSubmitsDoubledSeed", [] {
+    Session session;
+    ScriptedFactory factory;
+    const std::string interstitial = R"(<!DOCTYPE html>
+<html lang="en"><head><title>Reddit</title>
+<script>
+document.addEventListener("DOMContentLoaded",async function(){var e=document.forms[0],n=(e.onsubmit=function(t){return new URLSearchParams(document.location.search).forEach((e,n)=>t.target.appendChild(Object.assign(document.createElement("input"),{name:n,type:"hidden",value:e}))),!0},await(async e=>e+e)("a4c1c97a5208ca7e"));e.elements.namedItem("solution").value=n,e.requestSubmit()},{once:!0});
+</script></head><body>
+<form hidden method="GET" action="/">
+<input type="hidden" name="solution" />
+<input type="hidden" name="js_challenge" value="1"/>
+<input type="hidden" name="token" value="7afd7253fec22262ff1c52b1703fe9ece2867a7ef7c264433b54326a11af38ba"/>
+<input type="hidden" name="jsc_orig_r" value=""/>
+</form></body></html>)";
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "www.reddit.com", 443, true,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+        "Set-Cookie: csv=2; Path=/; Domain=.reddit.com\r\n"
+        "Set-Cookie: token_v2=fake; Path=/; Domain=.reddit.com\r\n"
+        "Content-Length: " + std::to_string(interstitial.size()) + "\r\n\r\n" + interstitial});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "www.reddit.com", 443, true,
+        OkResponse("text/html",
+                   "<title>Reddit - The heart of the internet</title>"
+                   "<article>one</article><article>two</article><article>three</article>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{1280, 900}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://www.reddit.com/"});
+
+    ExpectEqString(session.LastTitle(), "Reddit - The heart of the internet",
+                   "the live interstitial shape submits and the feed commits");
+    ExpectEqInt(static_cast<long long>(factory.log.requests.size()), 2,
+                "one request for the interstitial and one for the answer");
+    const std::string& submitted = factory.log.requests.at(1);
+    Expect(submitted.find("solution=a4c1c97a5208ca7ea4c1c97a5208ca7e") != std::string::npos,
+           "the doubled seed from reddit's inline script is in the GET line");
+    Expect(submitted.find("js_challenge=1") != std::string::npos,
+           "js_challenge travels with the submission");
+    Expect(submitted.find("token=7afd7253") != std::string::npos, "token travels with the submission");
+    Expect(submitted.find("Cookie:") != std::string::npos,
+           "cookies from the first response ride on the challenge answer");
+  });
+
   AddTest(tests, "Engine/DocumentCookieReadsSetCookie", [] {
     Session session;
     ScriptedFactory factory;
