@@ -357,8 +357,29 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
   return SubmitForm(*form, submitter);
 }
 
-DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
-                                   const bindings::PointerInput& pointer) {
+bool Page::DispatchPointerDownAt(gfx::FloatPoint document_point,
+                                 const bindings::PointerInput& pointer) {
+  if (boxes_ == nullptr) {
+    return false;
+  }
+  const dom::Element* target = ElementAt(document_point);
+  if (target == nullptr) {
+    return false;
+  }
+  // User activation on press, not on click: `play()` and fullscreen gates read
+  // it from the gesture that started here (ADR 0017 §3, ADR 0028 §1).
+  if (document_ != nullptr) {
+    document_->NoteUserActivation();
+  }
+  auto& element = *const_cast<dom::Element*>(target);
+  (void)script_.DispatchPointerMouse(element, "pointerdown", pointer);
+  (void)script_.DispatchPointerMouse(element, "mousedown", pointer);
+  (void)FocusFromClickAt(document_point);
+  return true;
+}
+
+DispatchOutcome Page::DispatchPointerReleaseAt(gfx::FloatPoint document_point,
+                                               const bindings::PointerInput& pointer) {
   if (boxes_ == nullptr) {
     return {};
   }
@@ -366,16 +387,19 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
   if (target == nullptr) {
     return {};
   }
-  // ADR 0017's user activation, set here because here is where a *trusted* click is known to
-  // have happened -- a page dispatching its own click event reaches `DomBindings::DispatchEvent`
-  // and never this function, which is what keeps a page from licensing its own autoplay.
-  if (document_ != nullptr) {
-    document_->NoteUserActivation();
-  }
+  auto& element = *const_cast<dom::Element*>(target);
   DispatchOutcome outcome;
   outcome.ran = script_.HasListeners();
-  outcome.prevented = script_.DispatchClick(*const_cast<dom::Element*>(target), pointer);
+  (void)script_.DispatchPointerMouse(element, "pointerup", pointer);
+  (void)script_.DispatchPointerMouse(element, "mouseup", pointer);
+  outcome.prevented = script_.DispatchClick(element, pointer);
   return outcome;
+}
+
+DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
+                                      const bindings::PointerInput& pointer) {
+  (void)DispatchPointerDownAt(document_point, pointer);
+  return DispatchPointerReleaseAt(document_point, pointer);
 }
 
 

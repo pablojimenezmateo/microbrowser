@@ -231,6 +231,8 @@ class PageScript {
   // Runs the click handlers registered on `target` and its ancestors. True
   // when one called `preventDefault`.
   bool DispatchClick(dom::Element& target, const bindings::PointerInput& pointer);
+  bool DispatchPointerMouse(dom::Element& target, std::string_view type,
+                            const bindings::PointerInput& pointer);
   // Fires `keydown` or `keyup` at `target`, or at the document when it is null.
   // True when a handler called `preventDefault`, which is the caller's signal
   // not to run the key's default action -- ADR 0017 §2 makes that action a step

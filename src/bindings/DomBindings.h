@@ -142,6 +142,11 @@ class DomBindings {
   // thing allowed to say a click happened is the thing that saw one. A page
   // that could dispatch its own trusted events could make a form submit itself.
   bool DispatchClick(dom::Element& target, const PointerInput& pointer);
+  // Trusted `pointerdown`/`pointerup`/`mousedown`/`mouseup`, synthesized from
+  // a real `PointerInputMessage`. youtube's player listens on `pointerdown`
+  // rather than `click`, which is why this exists beside DispatchClick.
+  bool DispatchPointerMouse(dom::Element& target, std::string_view type,
+                            const PointerInput& pointer);
 
   // A socket's four events, from the engine. C++ entry points for the reason
   // DispatchClick is one: the only thing allowed to say a message arrived is the thing

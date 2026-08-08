@@ -395,16 +395,17 @@ class Page : private layout::ImageProvider,
     return script_.NotifyHashChange(old_url, new_url);
   }
 
-  // Runs the page's click handlers for whatever is at `document_point`, from
-  // that element up to the root. Returns true when a handler called
-  // `preventDefault`, which is the caller's signal not to follow the link or
-  // submit the form it would otherwise have.
-  // Deliberately does not invalidate the layout: the hit tests that follow a
-  // click run against the tree as it was when the click landed, which is one
-  // hit test per click rather than one per question asked about it. The caller
-  // relays out afterwards.
+  // Primary-button press: `pointerdown`, `mousedown`, then focus. Sets user
+  // activation. True when an element was hit.
+  bool DispatchPointerDownAt(gfx::FloatPoint document_point,
+                             const bindings::PointerInput& pointer);
+  // Primary-button release: `pointerup`, `mouseup`, then `click`. Returns
+  // whether a handler called `preventDefault` on the click.
+  DispatchOutcome DispatchPointerReleaseAt(gfx::FloatPoint document_point,
+                                           const bindings::PointerInput& pointer);
+  // Press and release in one call -- what tests and `DispatchClickAt` use.
   DispatchOutcome DispatchClickAt(gfx::FloatPoint document_point,
-                               const bindings::PointerInput& pointer);
+                                  const bindings::PointerInput& pointer);
 
   // Fires `keydown` or `keyup` at whatever has focus. `prevented` is the
   // caller's signal not to run the key's default action; `ran` says a handler

@@ -491,6 +491,11 @@ bool PageScript::DispatchClick(dom::Element& target, const bindings::PointerInpu
   return bindings_ != nullptr && bindings_->DispatchClick(target, pointer);
 }
 
+bool PageScript::DispatchPointerMouse(dom::Element& target, std::string_view type,
+                                      const bindings::PointerInput& pointer) {
+  return bindings_ != nullptr && bindings_->DispatchPointerMouse(target, type, pointer);
+}
+
 bool PageScript::DispatchKey(dom::Node* target, const bindings::KeyInput& key) {
   return bindings_ != nullptr && bindings_->DispatchKey(target, key);
 }

@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "util/PerformanceCounters.h"
@@ -264,36 +265,16 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
   return prevented != nullptr && js::ToBoolean(*prevented);
 }
 
-bool DomBindings::DispatchClick(dom::Element& target, const PointerInput& pointer) {
-  if (interpreter_ == nullptr) {
-    return false;
-  }
-  // Trusted, because the only caller is the thing that saw a real click. A
-  // page's own `dispatchEvent` produces an untrusted one, which is why this
-  // stayed a C++ entry point with no script-facing counterpart: an event a
-  // page can forge must not be able to make a form submit itself.
-  const Value event = MakeEvent("click", true, true, true);
+namespace {
+
+void PopulatePointerMouseFields(const Value& event, const PointerInput& pointer) {
   if (!event.IsObject()) {
-    return false;
+    return;
   }
-  // A click is a MouseEvent, and a page tests for that: `e instanceof
-  // MouseEvent` is how a handler tells a pointer event from a keyboard one.
-  const Value mouse = EventPrototype("MouseEvent", "Event");
-  if (mouse.IsObject()) {
-    event.object->SetPrototype(mouse.object);
-  }
-  // Where, and with what held. A handler that positions a menu at the pointer
-  // reads `clientX`; one that opens a link in a background tab reads `ctrlKey`.
-  // Both were unreachable while the message this comes from carried a position
-  // and nothing else.
   event.object->Set("clientX", Value::Number(static_cast<double>(pointer.client_x)));
   event.object->Set("clientY", Value::Number(static_cast<double>(pointer.client_y)));
   event.object->Set("pageX", Value::Number(static_cast<double>(pointer.page_x)));
   event.object->Set("pageY", Value::Number(static_cast<double>(pointer.page_y)));
-  // `screenX`/`screenY` are deliberately the client coordinates rather than a
-  // real screen position. The engine has no window and no screen, and where the
-  // user's window sits on their desktop is a fingerprinting bit (ADR 0029) that
-  // no page on the compatibility list needs.
   event.object->Set("screenX", Value::Number(static_cast<double>(pointer.client_x)));
   event.object->Set("screenY", Value::Number(static_cast<double>(pointer.client_y)));
   event.object->Set("button", Value::Number(pointer.button));
@@ -302,8 +283,43 @@ bool DomBindings::DispatchClick(dom::Element& target, const PointerInput& pointe
   event.object->Set("shiftKey", Value::Bool(pointer.shift));
   event.object->Set("altKey", Value::Bool(pointer.alt));
   event.object->Set("metaKey", Value::Bool(pointer.meta));
-  event.object->Set("detail", Value::Number(1));
+}
+
+bool IsPointerEventType(std::string_view type) {
+  return type == "pointerdown" || type == "pointerup" || type == "pointermove" ||
+         type == "pointercancel";
+}
+
+}  // namespace
+
+bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view type,
+                                       const PointerInput& pointer) {
+  if (interpreter_ == nullptr) {
+    return false;
+  }
+  const Value event = MakeEvent(std::string(type), true, true, true);
+  if (!event.IsObject()) {
+    return false;
+  }
+  const char* prototype_name = IsPointerEventType(type) ? "PointerEvent" : "MouseEvent";
+  const Value prototype = EventPrototype(prototype_name, "Event");
+  if (prototype.IsObject()) {
+    event.object->SetPrototype(prototype.object);
+  }
+  PopulatePointerMouseFields(event, pointer);
+  if (IsPointerEventType(type)) {
+    event.object->Set("pointerId", Value::Number(1.0));
+    event.object->Set("pointerType", Value::String("mouse"));
+    event.object->Set("isPrimary", Value::Bool(true));
+  }
+  if (type == "click") {
+    event.object->Set("detail", Value::Number(1.0));
+  }
   return DispatchEventTo(target, event);
+}
+
+bool DomBindings::DispatchClick(dom::Element& target, const PointerInput& pointer) {
+  return DispatchPointerMouse(target, "click", pointer);
 }
 
 

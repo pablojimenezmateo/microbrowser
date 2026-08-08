@@ -78,15 +78,9 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   // and a paint has already done everything a restyle would ask for -- and
   // painting twice for one click is a frame the user sees flicker.
   const css::StyleChangeEffect effect = UpdatePointerState(pointer);
-  // The primary button, going down. `button` is the DOM's numbering, where the
-  // primary button is zero.
-  if (pointer.kind != ipc::PointerInputMessage::Kind::Down || pointer.button != 0) {
+  if (pointer.button != 0) {
     return ApplyStyleChange(effect);
   }
-  // Already in CSS pixels: the host divided the device scale out at the seam,
-  // because that is the coordinate system every answer given back about this
-  // point is in. Only the scroll offset is added, which is what turns a
-  // viewport coordinate into a document one.
   const gfx::FloatPoint document_point{pointer.position.x,
                                        pointer.position.y + static_cast<float>(ScrollY())};
   bindings::PointerInput input;
@@ -100,19 +94,23 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   input.shift = pointer.modifiers.shift;
   input.alt = pointer.modifiers.alt;
   input.meta = pointer.modifiers.meta;
-  // Focus moves first, before the click is dispatched. That is the order the
-  // specification runs them in -- focus is the *pointer-down* default action --
-  // and it is what makes a `click` handler that reads `document.activeElement`
-  // see the element that was clicked rather than the one that had focus before.
-  const bool focus_moved = page_.FocusFromClickAt(document_point);
-  // The page's own handlers run first, and a `preventDefault` stops everything
-  // below. That ordering is the whole contract of the method: a script that
-  // intercepts a click on a link expects the link not to be followed, and
-  // deciding to navigate before asking would make `preventDefault` a lie.
-  const DispatchOutcome click = page_.DispatchClickAt(document_point, input);
-  // Before the default action, and before `preventDefault` is consulted: a
-  // handler that submitted a form asked for a navigation of its own, and that
-  // is what happens whether or not it also stopped the click.
+
+  if (pointer.kind == ipc::PointerInputMessage::Kind::Down) {
+    const bool pressed = page_.DispatchPointerDownAt(document_point, input);
+    if (pressed) {
+      page_.InvalidateLayout();
+      LayoutAndPaint();
+      return true;
+    }
+    return ApplyStyleChange(effect);
+  }
+  if (pointer.kind != ipc::PointerInputMessage::Kind::Up) {
+    return ApplyStyleChange(effect);
+  }
+
+  // Release: `pointerup`, `mouseup`, `click`, then default actions. Focus moved
+  // on the corresponding down; the specification runs activation there.
+  const DispatchOutcome click = page_.DispatchPointerReleaseAt(document_point, input);
   if (FollowScriptNavigation()) {
     return true;
   }
@@ -135,11 +133,7 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   }
   const std::optional<std::string> href = page_.LinkAt(document_point);
   if (!href.has_value()) {
-    // Nothing to navigate to, but a handler may still have changed the
-    // document -- which is the case that used to run the handler and leave the
-    // screen alone. A focus move counts: it fired four events, any of which
-    // could have rewritten the tree.
-    if (click.ran || focus_moved) {
+    if (click.ran) {
       page_.InvalidateLayout();
       LayoutAndPaint();
       return true;
@@ -150,10 +144,6 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   if (!resolved.has_value()) {
     return ApplyStyleChange(effect);
   }
-  // An in-page anchor is a same-document navigation: a history entry, the
-  // fragment applied, `hashchange`, and no request at all. Every documentation
-  // site's table of contents depends on it, and before ADR 0026 §2 this was a
-  // full reload of the page you were already on.
   if (NavigateToFragment(*resolved)) {
     return true;
   }

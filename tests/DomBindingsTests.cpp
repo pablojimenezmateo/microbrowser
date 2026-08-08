@@ -1729,6 +1729,36 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "inner:click:true outer:true:true", "both ran, target first");
   });
 
+  AddTest(tests, "DomBindings/PointerDownIsTrustedAndBubbles", [] {
+    Bound bound = Bind("<div id=outer><button id=inner>go</button></div>");
+    const js::Result setup = bound.interpreter->Run(
+        "globalThis.seen = [];"
+        "document.getElementById('inner').addEventListener('pointerdown', function(e) {"
+        "  seen.push('inner:' + e.type + ':' + e.isTrusted);"
+        "});"
+        "document.getElementById('outer').addEventListener('pointerdown', function(e) {"
+        "  seen.push('outer:' + e.pointerType);"
+        "});"
+        "'ready'");
+    Expect(!setup.IsAbrupt(), "the listeners registered");
+    dom::Element* inner = nullptr;
+    bound.document->ForEachDescendant([&](const dom::Node& node) {
+      const std::string* id = node.IsElement()
+                                  ? static_cast<const dom::Element&>(node).GetAttribute("id")
+                                  : nullptr;
+      if (id != nullptr && *id == "inner") {
+        inner = const_cast<dom::Element*>(&static_cast<const dom::Element&>(node));
+      }
+    });
+    Expect(inner != nullptr, "the inner element exists");
+    bindings::PointerInput pointer;
+    pointer.buttons = 1;
+    Expect(!bound.dom_bindings->DispatchPointerMouse(*inner, "pointerdown", pointer),
+           "nothing called preventDefault");
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen.join(' ')").value),
+                   "inner:pointerdown:true outer:mouse", "pointerdown bubbled as PointerEvent");
+  });
+
   AddTest(tests, "DomBindings/PreventDefaultAndStopPropagationDoDifferentThings", [] {
     // One stops the browser's own behaviour and the other stops the walk. A
     // page uses them for opposite purposes and confusing them is silent.
