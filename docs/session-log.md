@@ -3666,3 +3666,38 @@ Polymer/DI, with TD-0015 as a late font layer; reddit feed is TD-0016 first.
 coverage, TD-0001 layout passes, TD-0003 JS AST arena, A/V sync polish if Opus
 rate ≠ device rate.
 
+---
+
+## 2026-08-09 — TD-0001 closed; youtube search layout ceases to be the wall
+
+**Status:** done for the layout half; BuildBoxTree remains (TD-0021)
+
+**Landed:**
+
+- **TD-0001 closed.** `OffsetLaidOutSubtree` (already used for relative/absolute
+  placement) now serves flex place, float place, and atomic-inline place-on-line
+  when forced sizes match the measuring pass — including stretch that does not
+  change the measured cross size. Counters `layout.measure_cache_hits` /
+  `layout.measure_cache_misses` mean translations vs forced re-layouts.
+- Box-tree invalidation guards: `RunScripts` only drops the tree when
+  `MutationVersion` or cascade generation moved; `AddImage` attaches in place
+  for declared-size and abspos-filled images, and does not invalidate when there
+  is no tree yet. Tests cover both. Opens **TD-0021**.
+
+**Measured** (Release, `/results?search_query=cats`):
+
+| metric | before TD-0001 | after |
+|---|---|---|
+| `engine::LayoutBoxes` | **127 644 ms** / 101 calls | **~0.45–0.9 s** |
+| `layout.block_passes` | **189 M** | **~139 k** |
+| snapshot wall | **~157–272 s** | **~18–28 s** |
+| `engine::BuildBoxTree` | hidden under layout | **~2–3 s** / ~95–110 calls (new wall) |
+
+**Home** still history-off nudge only (`ytd-feed-nudge-renderer`, 0 rich items) —
+server response, not a stamp failure. Search stamps ~10–14 `ytd-video-renderer`
+and navigates; watch click-to-play path unchanged in intent.
+
+**Left:** TD-0021 (dirty-subtree or style cache), home feed when the server
+sends one, search lazy-thumbnail attach rate, TD-0003, TD-0020 facade
+`playVideo`.
+
