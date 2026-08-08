@@ -153,6 +153,13 @@ void Page::ApplyDocumentHeadPolicy() {
 bool Page::CollectShadowStyleSheets() {
   std::vector<std::pair<const dom::Node*, std::string>> found;
   if (document_ != nullptr) {
+    for (const dom::SharedConstructableSheet& sheet : document_->AdoptedStyleSheets()) {
+      if (sheet != nullptr && !sheet->empty()) {
+        // Null scope: document-wide adopted sheets use the same scope as author
+        // sheets (nullptr), not the document node pointer.
+        found.emplace_back(nullptr, *sheet);
+      }
+    }
     document_->ForEachDescendant([&found](const dom::Node& node) {
       if (!node.IsElement()) {
         return;
@@ -168,6 +175,12 @@ bool Page::CollectShadowStyleSheets() {
           found.emplace_back(root, DirectText(static_cast<const dom::Element&>(inner)));
         }
       });
+      for (const dom::SharedConstructableSheet& sheet :
+           static_cast<const dom::DocumentFragment*>(root)->AdoptedStyleSheets()) {
+        if (sheet != nullptr && !sheet->empty()) {
+          found.emplace_back(root, *sheet);
+        }
+      }
     });
   }
   if (found == resources_.shadow_sheets) {

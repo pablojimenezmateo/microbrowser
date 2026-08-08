@@ -12,6 +12,11 @@ class Document;
 class DocumentFragment;
 class Element;
 
+// Parsed CSS text held by reference. A constructable stylesheet is shared by
+// every root that adopts it; the cascade reads this rather than cloning text
+// per root. ADR 0019 §4.
+using SharedConstructableSheet = std::shared_ptr<std::string>;
+
 // A DOM node.
 //
 // A class hierarchy with a vtable, which the repo reserves for durable
@@ -360,9 +365,19 @@ class DocumentFragment : public Node {
   bool IsTemplateContent() const { return template_content_; }
   void SetTemplateContent(bool value) { template_content_ = value; }
 
+  // Constructable stylesheets adopted by this root. Empty on every fragment
+  // that is not a shadow root or the document.
+  const std::vector<SharedConstructableSheet>& AdoptedStyleSheets() const {
+    return adopted_style_sheets_;
+  }
+  void SetAdoptedStyleSheets(std::vector<SharedConstructableSheet> sheets) {
+    adopted_style_sheets_ = std::move(sheets);
+  }
+
  private:
   Element* host_ = nullptr;
   bool template_content_ = false;
+  std::vector<SharedConstructableSheet> adopted_style_sheets_;
 };
 
 class Document : public Node {
@@ -442,11 +457,21 @@ class Document : public Node {
   Element* FirstElementByTagName(std::string_view tag_name) const;
   std::vector<Element*> ElementsByTagName(std::string_view tag_name) const;
 
+  // `document.adoptedStyleSheets` — document-wide author rules, held by
+  // reference like a shadow root's adopted sheets. ADR 0019 §4.
+  const std::vector<SharedConstructableSheet>& AdoptedStyleSheets() const {
+    return adopted_style_sheets_;
+  }
+  void SetAdoptedStyleSheets(std::vector<SharedConstructableSheet> sheets) {
+    adopted_style_sheets_ = std::move(sheets);
+  }
+
  private:
   bool quirks_ = false;
   bool user_activation_ = false;
   std::uint64_t mutation_version_ = 0;
   FocusState focus_;
+  std::vector<SharedConstructableSheet> adopted_style_sheets_;
 };
 
 // Whether an element cannot have children — `br`, `img`, `meta` and the rest.

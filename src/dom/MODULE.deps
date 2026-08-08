@@ -67,11 +67,11 @@ budget: DocumentType header_lines=25 public_methods=6  members=1
 # +1 member for ADR 0017's user activation, read by ADR 0028 §1's autoplay refusal. On the
 # document because that is its scope: an interaction with one document does not license
 # another.
-budget: Document     header_lines=115 public_methods=18 members=4
+budget: Document     header_lines=115 public_methods=20 members=5
 # A fragment, plus the one link back from a shadow root to its host. Deliberately
 # not the fragment's parent: a shadow root with a parent would be reachable by
 # every ordinary tree walk, and being unreachable that way is the whole point of
 # it. ADR 0019 §2.
 # members=2: `template_content_` distinguishes `<template>.content` from ShadyDOM
 # roots and `createDocumentFragment()` — all three are host-less fragments.
-budget: DocumentFragment header_lines=40 public_methods=8 members=2
+budget: DocumentFragment header_lines=55 public_methods=10 members=3

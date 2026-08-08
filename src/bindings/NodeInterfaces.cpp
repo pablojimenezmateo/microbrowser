@@ -441,6 +441,13 @@ void DomBindings::EnsureInterfaces() {
 
   InstallFormApis();
   InstallCustomElements();
+  if (const Value* document_interface = interfaces_.object->GetOwn("Document")) {
+    const Value* shadow_root_interface = interfaces_.object->GetOwn("ShadowRoot");
+    const Value empty;
+    InstallConstructableStylesheets(*document_interface,
+                                    shadow_root_interface != nullptr ? *shadow_root_interface
+                                                                     : empty);
+  }
   InstallMutationObserver();
   if (geometry_ != nullptr) {
     // Absent, not stubbed, when nothing can answer a geometry question. An

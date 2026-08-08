@@ -34,6 +34,10 @@ inline constexpr const char* kBlobMarkerSlot = "#isBlob";
 // than a C++ member, because the collector can see a property and cannot see a
 // `js::Value` in a field -- the same rule the wrapper cache follows.
 inline constexpr const char* kReadyStateSlot = "#readyState";
+inline constexpr const char* kCSSStyleSheetMarkerSlot = "#isCSSStyleSheet";
+// A heap-allocated `std::shared_ptr<std::string>` holding the parsed text.
+// Shared by every root that adopts the sheet; `replaceSync` mutates it in place.
+inline constexpr const char* kCSSSheetStorageSlot = "#cssSheetStorage";
 
 // A C++ pointer, as a value script can hold but not usefully forge. It travels
 // as a double, which holds a 53-bit integer exactly -- more than any address on

@@ -502,6 +502,46 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
         "before false|after rgb(6, 6, 6)",
         "a sheet appended to a live shadow root takes effect");
   });
+
+  AddTest(tests, "ShadowDom/AdoptedStyleSheetStylesAShadowTree", [] {
+    ExpectEqString(
+        Run("<div id=h></div>",
+            "const sheet = new CSSStyleSheet();"
+            "sheet.replaceSync('p { color: rgb(11, 12, 13) }');"
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.innerHTML = '<p>inside</p>';"
+            "r.adoptedStyleSheets = [sheet];"
+            "console.log(getComputedStyle(r.querySelector('p')).color);"),
+        "rgb(11, 12, 13)", "adoptedStyleSheets on a shadow root apply inside it");
+  });
+
+  AddTest(tests, "ShadowDom/AdoptedStyleSheetDoesNotLeakOutOfShadow", [] {
+    ExpectEqString(
+        Run("<div id=h></div><p>outside</p>",
+            "const sheet = new CSSStyleSheet();"
+            "sheet.replaceSync('p { color: rgb(14, 15, 16) }');"
+            "const r = document.getElementById('h').attachShadow({mode: 'open'});"
+            "r.adoptedStyleSheets = [sheet];"
+            "console.log(getComputedStyle(document.querySelector('p')).color ==="
+            " 'rgb(14, 15, 16)');"),
+        "false", "a shadow adopted sheet does not reach the document tree");
+  });
+
+  AddTest(tests, "ShadowDom/ReplaceSyncOnASharedSheetUpdatesEveryAdopter", [] {
+    ExpectEqString(
+        Run("<div id=a></div><div id=b></div>",
+            "const sheet = new CSSStyleSheet();"
+            "const ra = document.getElementById('a').attachShadow({mode:'open'});"
+            "const rb = document.getElementById('b').attachShadow({mode:'open'});"
+            "ra.innerHTML = '<p>a</p>'; rb.innerHTML = '<p>b</p>';"
+            "ra.adoptedStyleSheets = [sheet];"
+            "rb.adoptedStyleSheets = [sheet];"
+            "sheet.replaceSync('p { color: rgb(17, 18, 19) }');"
+            "console.log(getComputedStyle(ra.querySelector('p')).color);"
+            "console.log(getComputedStyle(rb.querySelector('p')).color);"),
+        "rgb(17, 18, 19)|rgb(17, 18, 19)",
+        "one sheet shared by two roots updates both when replaceSync runs");
+  });
 }
 
 }  // namespace microbrowser::tests

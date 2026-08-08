@@ -691,6 +691,10 @@ class DomBindings {
   // `attachShadow`, `shadowRoot`, `assignedSlot` and a slot's assignment. On
   // Element because that is where the specification puts them. ADR 0019 §1-2.
   void InstallShadowDom(const js::Value& element_interface);
+  // `CSSStyleSheet`, `replaceSync`, and `adoptedStyleSheets` on Document and
+  // ShadowRoot. ADR 0019 §4.
+  void InstallConstructableStylesheets(const js::Value& document_interface,
+                                       const js::Value& shadow_root_interface);
   // Parses `markup` with `context_tag_name` as the fragment parsing
   // algorithm's context element and inserts what it produced into `parent`
   // before `reference`. The one place a page's string becomes tree, so that

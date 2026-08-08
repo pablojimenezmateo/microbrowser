@@ -448,6 +448,7 @@ microbrowser_module(bindings
     src/bindings/WorkerBindings.cpp
     src/bindings/PrivacyAnswers.cpp
     src/bindings/CustomElements.cpp
+    src/bindings/ConstructableStylesheets.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
     src/bindings/Performance.cpp
