@@ -611,6 +611,25 @@ needs a completed snapshot (feed articles > 0, `ac-render-template` registered) 
 `runtime-concat` fetches in the timeline; implement `<suspense-replace>` hoisting for the `for=`
 templates; close when the snapshot shows feed posts rather than an empty main region.
 
+**Measured**, www.reddit.com post-challenge (Gate A passes), Release build, 2026-08-08:
+
+| metric | before late-script fix | after (`31e78e4`) |
+|---|---|---|
+| snapshot wall time | ~726 s | ~608 s |
+| `display_list.commands` (final frame) | 210 | 210 |
+| `csp.violations` | 72 | 95 |
+| `js.steps_exhausted` | 2 | 2 |
+| small `js/concat` (`CnaNYihf7r,…`) `script.start` | yes | yes |
+| large `runtime-concat` `script.start` | no | no |
+
+Late-script completions that arrive after `load_` clears now run (regression test
+`Engine/ALateScriptRunsAfterTheLoadHasFinished`). Snapshot prints per-directive CSP refusals; on
+this page they are almost entirely **`script-src` refusals of `redditstatic.com/js/concat?…`**
+runtime bundles inserted after the trusted-insertion window closes — not `connect-src`. The large
+concat downloads (~80 s) but never reaches `script.start`. Next fix is CSP transitive trust for
+those inserts (`strict-dynamic`, `script.nonce`, or trusted insertion during the polyfill's async
+callbacks), not another loader change.
+
 ---
 
 ## TD-0017 — Template contents were upgraded (binding tokens lost before parse)
