@@ -312,22 +312,24 @@ std::optional<int> ParseLeadingInt(std::string_view text) {
 // Gate B wants the feed, not the chrome-only frame that lands when `load`
 // fires before concat/hoisting finishes. Probe the DOM rather than URL shape:
 // `js_challenge=1` stays on the feed URL after a successful solve (70993b7).
+int RedditFeedPostCount(microbrowser::engine::Engine& engine) {
+  if (!IsRedditHomepage(engine.Url()) || !RedditChallengeSolved(engine.Url())) {
+    return -1;
+  }
+  const std::string count = engine.EvaluateScript(
+      "Math.max(document.querySelectorAll('article').length,"
+      "document.querySelectorAll('shreddit-post').length)");
+  return ParseLeadingInt(count).value_or(0);
+}
+
 bool RedditFeedLooksReady(microbrowser::engine::Engine& engine, std::size_t command_count) {
   if (!IsRedditHomepage(engine.Url()) || !RedditChallengeSolved(engine.Url())) {
     return true;
   }
-  const std::string articles =
-      engine.EvaluateScript("document.querySelectorAll('article').length");
-  const std::string posts =
-      engine.EvaluateScript("document.querySelectorAll('shreddit-post').length");
-  const std::optional<int> article_count = ParseLeadingInt(articles);
-  const std::optional<int> post_count = ParseLeadingInt(posts);
-  const int feed_posts =
-      std::max(article_count.value_or(0), post_count.value_or(0));
   // `ac-render-template` on reddit is a faceplate *action* name, not the
   // hoisting custom element; feed readiness is light-DOM posts after
   // `<suspense-replace>` stamps `<template for=…>` markup.
-  return feed_posts > 3 && command_count > 1000;
+  return RedditFeedPostCount(engine) > 3 && command_count > 1000;
 }
 
 void DrainOutgoingPaints(microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
@@ -681,15 +683,15 @@ int main(int argc, char** argv) {
     RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   }
 
-  // Paints were drained during the load loop. If the last frame regressed after
-  // a larger feed paint (TD-0016: peak mid-load, 210 final), keep the best one
-  // that still looks like a feed when the latest does not.
+  // Paints were drained during the load loop. Hoist and late script can leave
+  // the DOM ahead of the last IPC frame; settle once before choosing a frame.
+  microbrowser::engine::SettleForSnapshot(engine);
   DrainOutgoingPaints(channel.Ui(), latest, &best, options.width, options.height);
+  const std::size_t peak_cmds = best.painted ? best.display_list.Size() : 0;
+  const std::size_t final_cmds = latest.painted ? latest.display_list.Size() : 0;
   SnapshotFrame frame = latest;
   if (latest.painted && best.painted && best.display_list.Size() > latest.display_list.Size() &&
-      IsRedditHomepage(latest.url.empty() ? engine.Url() : latest.url) &&
-      RedditChallengeSolved(latest.url.empty() ? engine.Url() : latest.url) &&
-      best.display_list.Size() > 1000) {
+      IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url())) {
     frame = best;
     std::fprintf(stderr, "feed settle: kept peak frame %zu commands over final %zu\n",
                  best.display_list.Size(), latest.display_list.Size());
@@ -724,6 +726,10 @@ int main(int argc, char** argv) {
                url.c_str(), display_list.Size(), display_list.Texts().size(),
                display_list.Fonts().size(), display_list.Images().size(), title.c_str(),
                options.output.c_str());
+  if (IsRedditHomepage(url) && RedditChallengeSolved(url)) {
+    std::fprintf(stderr, "  feed settle: peak=%zu final=%zu using=%zu\n", peak_cmds, final_cmds,
+                 display_list.Size());
+  }
   // Always, not behind -v. A script that threw is the most likely reason a
   // page rendered less than it should have, and a debugging tool that makes
   // you pass a flag to learn that is one you find out about too late.

@@ -35,6 +35,7 @@ class Engine : private bindings::NetworkSource,
                private bindings::SocketSource,
                private bindings::CookieSource {
   friend const std::vector<std::string>& CspViolations(const Engine&);
+  friend void SettleForSnapshot(Engine& engine);
 
  public:
   // Fonts arrive from the caller because which fonts exist is a property of

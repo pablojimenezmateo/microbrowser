@@ -220,7 +220,13 @@ bool Engine::ProcessDynamicScripts() {
     if (FollowScriptNavigation()) {
       return true;
     }
-    return ProcessDynamicScripts();
+    // Scripts ran but the recursive pass may find nothing left to do and return
+    // false without painting -- which left reddit's feed hoisted in the DOM while
+    // the last IPC frame was still chrome-only (Gate B / TD-0016).
+    (void)ProcessDynamicScripts();
+    page_.InvalidateLayout();
+    LayoutAndPaint();
+    return true;
   }
   if (changed) {
     page_.InvalidateLayout();

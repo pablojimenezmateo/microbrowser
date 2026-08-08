@@ -870,4 +870,13 @@ const std::vector<std::string>& CspViolations(const Engine& engine) {
   return engine.page_.Policy().Violations();
 }
 
+void SettleForSnapshot(Engine& engine) {
+  if (!engine.post_load_.document_interactive) {
+    return;
+  }
+  (void)engine.ProcessDynamicScripts();
+  engine.page_.InvalidateLayout();
+  engine.LayoutAndPaint();
+}
+
 }  // namespace microbrowser::engine
