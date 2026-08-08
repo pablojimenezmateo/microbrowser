@@ -613,22 +613,23 @@ templates; close when the snapshot shows feed posts rather than an empty main re
 
 **Measured**, www.reddit.com post-challenge (Gate A passes), Release build, 2026-08-08:
 
-| metric | before late-script fix | after (`31e78e4`) |
-|---|---|---|
-| snapshot wall time | ~726 s | ~608 s |
-| `display_list.commands` (final frame) | 210 | 210 |
-| `csp.violations` | 72 | 95 |
-| `js.steps_exhausted` | 2 | 2 |
-| small `js/concat` (`CnaNYihf7r,…`) `script.start` | yes | yes |
-| large `runtime-concat` `script.start` | no | no |
+| metric | before late-script fix | after (`31e78e4`) | after CSP trust (this session) |
+|---|---|---|---|
+| snapshot wall time | ~726 s | ~608 s | **~731 s** |
+| `display_list.commands` (final frame) | 210 | 210 | **3150** |
+| `csp.violations` | 72 | 95 (`script-src`) | **3** (`connect-src` `data:` only) |
+| `js.modules_loaded` | — | 3 | **8** |
+| `js.steps_exhausted` | 2 | 2 | 3 |
+| small `js/concat` `script.start` | yes | yes | yes |
+| large `runtime-concat` `script.start` | no | no | **yes** (concat chain runs) |
 
 Late-script completions that arrive after `load_` clears now run (regression test
-`Engine/ALateScriptRunsAfterTheLoadHasFinished`). Snapshot prints per-directive CSP refusals; on
-this page they are almost entirely **`script-src` refusals of `redditstatic.com/js/concat?…`**
-runtime bundles inserted after the trusted-insertion window closes — not `connect-src`. The large
-concat downloads (~80 s) but never reaches `script.start`. Next fix is CSP transitive trust for
-those inserts (`strict-dynamic`, `script.nonce`, or trusted insertion during the polyfill's async
-callbacks), not another loader change.
+`Engine/ALateScriptRunsAfterTheLoadHasFinished`). **CSP transitive trust** propagates from
+permitted scripts through promise microtasks, `fetch` continuations, timers, rAF, and idle
+callbacks (`TrustedScript` + `Interpreter` microtask tagging). That cleared the 64
+`script-src` concat refusals; the three remaining violations are `connect-src` refusals of
+`data:text/javascript,…` bootstrap URLs, not missing runtime bundles. Gate B still needs
+`<suspense-replace>` hoisting and feed articles in the snapshot.
 
 ---
 

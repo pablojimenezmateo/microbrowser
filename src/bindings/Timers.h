@@ -67,14 +67,13 @@ class TimerQueue {
     // itself by this much.
     std::int64_t interval_ms = 0;
     bool repeating = false;
-    // `QueueTask` (MessageChannel): drained in-turn; nesting clamp does not
-    // apply (not the timer algorithm).
-    bool host_task = false;
+    // `kHostTask`: MessageChannel task. `kTrustScripts`: queued during CSP trust.
+    std::uint8_t flags = 0;
+    static constexpr std::uint8_t kHostTask = 1;
+    static constexpr std::uint8_t kTrustScripts = 2;
     // HTML timer nesting level for this task. Used when *scheduling* the next
     // timeout from inside it.
     std::uint32_t nesting_level = 0;
-    // Queued while a CSP-trusted script was running.
-    bool trust_scripts = false;
   };
 
   std::vector<Timer> timers_;

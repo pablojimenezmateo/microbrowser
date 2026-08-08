@@ -73,8 +73,8 @@ bool TimerQueue::QueueTask(js::Interpreter& interpreter, const js::Value& callba
   // the same thing `setTimeout(f, 0)` gets, and the same thing the loop wakes
   // for.
   timer.due_ms = static_cast<std::int64_t>(now_slot->number);
-  timer.host_task = true;
-  timer.trust_scripts = TrustedScriptContextActive(interpreter);
+  timer.flags = Timer::kHostTask |
+                (TrustedScriptContextActive(interpreter) ? Timer::kTrustScripts : 0);
   queue->timers_.push_back(timer);
   callbacks->Set(js::NumberToString(timer.id), callback);
   return true;
@@ -128,7 +128,9 @@ void TimerQueue::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       timer.interval_ms = repeating ? std::max<std::int64_t>(delay, 1) : 0;
       timer.repeating = repeating;
       timer.nesting_level = nesting + 1;
-      timer.trust_scripts = TrustedScriptContextActive(call.interpreter);
+      if (TrustedScriptContextActive(call.interpreter)) {
+        timer.flags |= Timer::kTrustScripts;
+      }
       queue->timers_.push_back(timer);
       callbacks_object->Set(js::NumberToString(timer.id), handler);
       return Value::Number(timer.id);
@@ -231,8 +233,8 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
     // chains are kept from spinning by the 4ms clamp above, not by sharing
     // a spent step budget.
     interpreter.BeginTask();
-    active_nesting_ = timer.host_task ? 0 : timer.nesting_level;
-    TrustedScriptInvocation trust(interpreter, timer.trust_scripts);
+    active_nesting_ = (timer.flags & Timer::kHostTask) != 0 ? 0 : timer.nesting_level;
+    TrustedScriptInvocation trust(interpreter, (timer.flags & Timer::kTrustScripts) != 0);
     (void)interpreter.CallFunction(callback, Value::Undefined(), {});
     active_nesting_ = 0;
   };
@@ -250,7 +252,7 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
   while (batched < kMaxHostTasksPerTurn) {
     const Timer* next = nullptr;
     for (const Timer& timer : timers_) {
-      if (!timer.host_task || timer.due_ms > now_ms) {
+      if ((timer.flags & Timer::kHostTask) == 0 || timer.due_ms > now_ms) {
         continue;
       }
       if (next == nullptr || timer.due_ms < next->due_ms ||

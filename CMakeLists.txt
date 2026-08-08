@@ -471,6 +471,7 @@ microbrowser_module(bindings
     src/bindings/StyleBindings.cpp
     src/bindings/Timers.cpp
     src/bindings/TrustedScript.cpp
+    src/bindings/TrustedScriptHooks.cpp
     src/bindings/TreeMutation.cpp
     src/bindings/TreeWalkers.cpp
     src/bindings/MessageChannels.cpp

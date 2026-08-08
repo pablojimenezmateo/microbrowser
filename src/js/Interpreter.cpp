@@ -37,10 +37,10 @@ void Interpreter::BeginHostTurn() {
 }
 
 void Interpreter::SetTrustedScriptHooks(void* context, bool (*active)(void* context),
-                                        TrustedScriptHook apply) {
-  trusted_script_context_ = context;
-  trusted_script_active_ = active;
-  trusted_script_apply_ = apply;
+                                        void (*apply)(void* context, bool push)) {
+  trusted_script_hooks_.context = context;
+  trusted_script_hooks_.active = active;
+  trusted_script_hooks_.apply = apply;
 }
 
 Result Interpreter::ExhaustedSteps() {

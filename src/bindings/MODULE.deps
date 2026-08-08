@@ -214,7 +214,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # Raised by fourteen header lines and two members for `document.scripts` /
 # `document.images` / `document.links` and the selector-list matcher those APIs
 # share with `querySelector`.
-budget: DomBindings header_lines=780 public_methods=39 members=23
+budget: DomBindings header_lines=780 public_methods=40 members=23
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

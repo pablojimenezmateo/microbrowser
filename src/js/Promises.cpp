@@ -268,8 +268,8 @@ void Interpreter::EnqueueMicrotask(Microtask task) {
   if (microtasks_.size() >= kMaxAllocationLength) {
     return;  // saturated rather than unbounded; the drain below is what bounds it
   }
-  if (!task.trust_scripts && trusted_script_active_ != nullptr &&
-      trusted_script_active_(trusted_script_context_)) {
+  if (!task.trust_scripts && trusted_script_hooks_.active != nullptr &&
+      trusted_script_hooks_.active(trusted_script_hooks_.context)) {
     task.trust_scripts = true;
   }
   microtasks_.push_back(std::move(task));
@@ -321,12 +321,12 @@ void Interpreter::DrainMicrotasks() {
     const ValueRoot root_derived(*this, task.derived);
 
     const auto with_trust = [&](const auto& run) {
-      if (task.trust_scripts && trusted_script_apply_ != nullptr) {
-        trusted_script_apply_(trusted_script_context_, true);
+      if (task.trust_scripts && trusted_script_hooks_.apply != nullptr) {
+        trusted_script_hooks_.apply(trusted_script_hooks_.context, true);
       }
       run();
-      if (task.trust_scripts && trusted_script_apply_ != nullptr) {
-        trusted_script_apply_(trusted_script_context_, false);
+      if (task.trust_scripts && trusted_script_hooks_.apply != nullptr) {
+        trusted_script_hooks_.apply(trusted_script_hooks_.context, false);
       }
     };
 

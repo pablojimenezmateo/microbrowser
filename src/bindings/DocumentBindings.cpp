@@ -458,6 +458,7 @@ void DomBindings::InstallPageVisibility(const js::Value& document_interface) {
     element_from_point.object->Set(kOwnerSlot, PointerValue(this));
     document_interface.object->Set("elementFromPoint", element_from_point);
   }
+  WireTrustedScriptHooks();
 }
 
 }  // namespace microbrowser::bindings

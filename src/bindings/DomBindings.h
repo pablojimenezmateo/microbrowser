@@ -297,6 +297,8 @@ class DomBindings {
   }
   void NotifyScriptElementEvent(const dom::Element& element, const char* type);
 
+  void WireTrustedScriptHooks();
+
  private:
   // Where an event is on its way through the propagation path. The numbers are
   // the DOM's own, because a page reads them back as `event.eventPhase`.
