@@ -163,6 +163,17 @@ enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed, Sticky }
 // clipping half is layout's.
 enum class Overflow : std::uint8_t { Visible, Hidden, Scroll, Auto };
 
+// Whether the box is painted and hit-tested. Inherited; a descendant may set
+// `visible` under a `hidden` ancestor and become a target again. `Collapse` is
+// accepted as `Hidden` for now (no table-row collapsing yet).
+enum class Visibility : std::uint8_t { Visible, Hidden };
+
+// Whether the box is a pointer-event target. Inherited. `None` skips the box
+// for hit testing while still walking descendants that may set `auto` — what
+// youtube's `yt-interaction` ink layers use so the thumbnail link underneath
+// receives the click (ADR 0017 §5).
+enum class PointerEvents : std::uint8_t { Auto, None };
+
 // The font size `rem` is a multiple of. A constant rather than the root
 // element's resolved size, because carrying the root style into every Resolve
 // call would put a parameter on a function called once per edge per element per
@@ -363,6 +374,11 @@ struct ComputedStyle {
   // a vertical scroller.
   Overflow overflow_x = Overflow::Visible;
   Overflow overflow_y = Overflow::Visible;
+  // Inherited. youtube's closed `tp-yt-app-drawer` covers the viewport with
+  // `visibility: hidden` so clicks pass through; without this the scrim steals
+  // every hit (ADR 0017 §5).
+  Visibility visibility = Visibility::Visible;
+  PointerEvents pointer_events = PointerEvents::Auto;
   // `top`/`right`/`bottom`/`left`. All four default to `auto`, which for a
   // relative box means "no offset" and for an absolute one means "wherever the
   // flow would have put it" -- two different meanings for the same value, and

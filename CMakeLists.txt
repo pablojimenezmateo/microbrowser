@@ -384,6 +384,7 @@ microbrowser_module(engine
     src/engine/EngineStorage.cpp
     src/engine/EngineCookies.cpp
     src/engine/Page.cpp
+    src/engine/PageHitTest.cpp
     src/engine/PageEditing.cpp
     src/engine/Animations.cpp
     src/engine/CanvasSurfaces.cpp

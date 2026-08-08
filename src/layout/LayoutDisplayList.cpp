@@ -373,6 +373,9 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     // painter says so too: this is the kind of invariant that is cheap to
     // assert here and expensive to rediscover from a screenshot.
     if (box.GetKind() == Box::Kind::Text) {
+      if (style.visibility != css::Visibility::Visible) {
+        return;
+      }
       const gfx::FontRequest font = FontRequestFor(style);
       for (const TextFragment& fragment : box.Fragments()) {
         const std::string_view piece(box.Text().data() + fragment.begin, fragment.length);
@@ -427,7 +430,12 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
       }
     };
 
-    if (!style.background_color.IsFullyTransparent() && !border_box.IsEmpty()) {
+    // `visibility: hidden` still generates boxes and still paints *visible*
+    // descendants, but skips its own ink. youtube's closed guide drawer relies
+    // on that for both painting and hit-testing (ADR 0017 §5).
+    const bool paints_self = style.visibility == css::Visibility::Visible;
+
+    if (paints_self && !style.background_color.IsFullyTransparent() && !border_box.IsEmpty()) {
       gfx::Path background;
       background.AddRect(border_box);
       out.FillPath(background, style.background_color);
@@ -435,8 +443,10 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     // Over the colour and under the border, which is the order CSS paints a
     // background in and the reason a page can put a translucent image over a
     // solid colour and get both.
-    PaintBackgroundImage(box, border_box, out);
-    if (style.has_border && !border_box.IsEmpty()) {
+    if (paints_self) {
+      PaintBackgroundImage(box, border_box, out);
+    }
+    if (paints_self && style.has_border && !border_box.IsEmpty()) {
       const float width = style.border_width.top.Resolve(style.font_size);
       if (width > 0.0f) {
         gfx::Path outline;
@@ -452,24 +462,26 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     }
 
     if (box.GetKind() == Box::Kind::Replaced) {
-      const gfx::FloatRect content = box.Geometry().content;
-      if (box.Image() != nullptr && box.Image()->IsValid()) {
-        // The used size, not the intrinsic one: a declared width scales the
-        // image, which is what an <img width=40> on a 400px file means.
-        out.DrawImage(box.Image(),
-                      gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
-                                                           content.y + offset.y, content.width,
-                                                           content.height}));
+      if (paints_self) {
+        const gfx::FloatRect content = box.Geometry().content;
+        if (box.Image() != nullptr && box.Image()->IsValid()) {
+          // The used size, not the intrinsic one: a declared width scales the
+          // image, which is what an <img width=40> on a 400px file means.
+          out.DrawImage(box.Image(),
+                        gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
+                                                             content.y + offset.y, content.width,
+                                                             content.height}));
+        }
+        if (!box.Text().empty()) {
+          const gfx::FontRequest font = FontRequestFor(style);
+          const float baseline = content.y + content.height * 0.5f + style.font_size * 0.3f;
+          out.DrawText(box.Text(), std::max(0.0f, content.width - 8.0f), font,
+                       gfx::FloatPoint{content.x + offset.x + 4.0f, baseline + offset.y},
+                       style.color);
+        }
+        PaintCheckedInputIndicator(box, out, offset);
+        PaintMediaControls(box, out, offset);
       }
-      if (!box.Text().empty()) {
-        const gfx::FontRequest font = FontRequestFor(style);
-        const float baseline = content.y + content.height * 0.5f + style.font_size * 0.3f;
-        out.DrawText(box.Text(), std::max(0.0f, content.width - 8.0f), font,
-                     gfx::FloatPoint{content.x + offset.x + 4.0f, baseline + offset.y},
-                     style.color);
-      }
-      PaintCheckedInputIndicator(box, out, offset);
-      PaintMediaControls(box, out, offset);
       pop_transform();
       return;
     }

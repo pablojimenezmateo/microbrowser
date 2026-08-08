@@ -649,6 +649,20 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     Expect(!ApplyDeclaration(Declaration{"transform", "translate3d(1px, 2px, 3px)"}, parent, style),
            "including the translate that looks 2D");
     Expect(style.transform.IsNone(), "and none of it applied");
+    Expect(ApplyDeclaration(Declaration{"transform", "translate3d(-100%, 0, 0)"}, parent, style),
+           "Z of zero is a 2D translate (Polymer drawers)");
+    Expect(!style.transform.IsNone(), "drawer translate kept");
+  });
+
+  AddTest(tests, "CssParser/VisibilityInheritsAndApplies", [] {
+    css::ComputedStyle parent = css::StyleResolver::InitialStyle();
+    css::ComputedStyle child = css::StyleResolver::InitialStyle();
+    Expect(ApplyDeclaration(Declaration{"visibility", "hidden"}, parent, parent), "host hidden");
+    Expect(parent.visibility == css::Visibility::Hidden, "applied");
+    css::InheritInto(parent, child);
+    Expect(child.visibility == css::Visibility::Hidden, "inherited");
+    Expect(ApplyDeclaration(Declaration{"visibility", "visible"}, parent, child), "descendant");
+    Expect(child.visibility == css::Visibility::Visible, "can re-show under hidden");
   });
 
   AddTest(tests, "Css/ATransformResolvesAboutItsOriginAndNotTheBoxCorner", [] {

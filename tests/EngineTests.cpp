@@ -524,6 +524,105 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "and focuses the link");
   });
 
+  AddTest(tests, "Page/VisibilityHiddenSkipsHitTesting", [] {
+    // Polymer app-drawer (youtube's #guide): host covers the viewport with
+    // visibility:hidden when closed so clicks reach content underneath.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "#cover{position:fixed;inset:0;visibility:hidden;z-index:1}"
+              "a{display:block;width:100px;height:40px}"
+              "</style>"
+              "<body style='margin:0'>"
+              "<a href='/under'>link</a>"
+              "<div id=cover></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.LinkAt(gfx::FloatPoint{10.0f, 10.0f}).has_value(),
+           "a hidden overlay does not steal the link under it");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{10.0f, 10.0f}), "/under", "href");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{10.0f, 10.0f}), "and focuses that link");
+  });
+
+  AddTest(tests, "Page/LinkAtSurvivesInvalidateDuringClick", [] {
+    // After a click handler runs, the box tree may have been cleared
+    // (InvalidateBoxTree). LinkAt must rebuild before answering — otherwise the
+    // engine's link default action sees href=none and youtube search never
+    // navigates.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><a id=t href='/watch' style='display:block;width:100px;height:40px'>x</a></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.LinkAt(gfx::FloatPoint{10.0f, 10.0f}).has_value(), "link is there");
+    page.InvalidateLayout();
+    Expect(page.LinkAt(gfx::FloatPoint{10.0f, 10.0f}).has_value(),
+           "LinkAt rebuilds after InvalidateLayout cleared boxes_");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{10.0f, 10.0f}), "/watch", "href");
+  });
+
+  AddTest(tests, "Page/LinkAtThroughOverflowHiddenAncestor", [] {
+    // Abspos descendants stay under a DOM parent in the box tree. If that parent
+    // clips (overflow:hidden) with a padding box that does not cover them, a
+    // PointInside gate would never visit the link — youtube search thumbnails.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "#clip{overflow:hidden;height:0;position:relative;width:200px}"
+              "a{position:absolute;top:0;left:0;width:200px;height:100px}"
+              "</style>"
+              "<body style='margin:0'><div id=clip><a href='/watch'></a></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}).has_value(),
+           "abspos link outside clipped parent's padding box is still hit");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}), "/watch", "href");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "and focuses");
+  });
+
+  AddTest(tests, "Page/LinkAtFindsLinkUnderAbsposOverlay", [] {
+    // youtube: yt-interaction is an absolute sibling covering the thumbnail
+    // link. LinkAt must still find the href (paint order != "only the top box").
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "#card{position:relative;width:800px;height:280px}"
+              "#thumb{position:relative;width:500px;height:280px}"
+              "a{position:absolute;top:0;right:0;bottom:0;left:0}"
+              "#ink{position:absolute;top:0;left:0;width:815px;height:288px}"
+              "</style>"
+              "<body style='margin:0'><div id=card>"
+              "<div id=thumb><a href='/watch'></a></div>"
+              "<div id=ink><div></div></div>"
+              "</div></body>",
+              "https://example.org/");
+    page.Layout(900.0f);
+    Expect(page.LinkAt(gfx::FloatPoint{274.0f, 252.0f}).has_value(),
+           "link under abspos overlay is still found");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{274.0f, 252.0f}), "/watch", "href");
+  });
+
+  AddTest(tests, "Page/PointerEventsNoneSkipsHitTesting", [] {
+    // youtube's yt-interaction ink layer sits above the thumbnail link with
+    // pointer-events:none so the link receives the click.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "#host{position:relative;width:200px;height:100px}"
+              "a{position:absolute;inset:0}"
+              "#ink{position:absolute;inset:0;pointer-events:none}"
+              "</style>"
+              "<body style='margin:0'>"
+              "<div id=host><a href='/watch'></a><div id=ink></div></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}).has_value(),
+           "pointer-events:none overlay does not steal the link");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "and focuses the link");
+  });
+
   AddTest(tests, "Page/HitTestsThroughATransform", [] {
     // ADR 0014 §4's other half. A transform moves what is *painted* and nothing
     // else, so the box stays where layout put it and the hit test has to un-map the

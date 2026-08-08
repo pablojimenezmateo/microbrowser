@@ -361,6 +361,15 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
       case css::Clear::Both: return std::string("both");
     }
   }
+  if (property == "visibility") {
+    switch (style.visibility) {
+      case css::Visibility::Visible: return std::string("visible");
+      case css::Visibility::Hidden: return std::string("hidden");
+    }
+  }
+  if (property == "pointer-events") {
+    return std::string(style.pointer_events == css::PointerEvents::None ? "none" : "auto");
+  }
   if (property == "top") return LengthText(style.inset.top, font_size);
   if (property == "right") return LengthText(style.inset.right, font_size);
   if (property == "bottom") return LengthText(style.inset.bottom, font_size);

@@ -104,6 +104,34 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     style.z_index = *parsed;
     return true;
   }
+  if (property == "visibility") {
+    if (value == "visible") {
+      style.visibility = Visibility::Visible;
+    } else if (value == "hidden" || value == "collapse") {
+      // `collapse` is table-specific; until rows collapse it is `hidden`.
+      style.visibility = Visibility::Hidden;
+    } else if (value == "inherit") {
+      style.visibility = parent.visibility;
+    } else {
+      return false;
+    }
+    return true;
+  }
+  if (property == "pointer-events") {
+    if (value == "auto" || value == "visiblepainted" || value == "visiblefill" ||
+        value == "visiblestroke" || value == "visible" || value == "painted" ||
+        value == "fill" || value == "stroke" || value == "all") {
+      // HTML hit-testing only distinguishes none vs not-none here.
+      style.pointer_events = PointerEvents::Auto;
+    } else if (value == "none") {
+      style.pointer_events = PointerEvents::None;
+    } else if (value == "inherit") {
+      style.pointer_events = parent.pointer_events;
+    } else {
+      return false;
+    }
+    return true;
+  }
   if (property == "overflow" || property == "overflow-x" || property == "overflow-y") {
     Overflow parsed = Overflow::Visible;
     if (value == "hidden" || value == "clip") {

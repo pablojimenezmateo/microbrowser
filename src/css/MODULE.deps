@@ -79,7 +79,9 @@ budget: Length           header_lines=45 public_methods=10 members=3
 # rule and the content-comparing `operator==` that keeps ComputedStyle's
 # defaulted one from silently becoming a pointer comparison.
 budget: CustomProperties header_lines=70 public_methods=8 members=1
-budget: ComputedStyle    header_lines=310 public_methods=25 members=36
+# +2 members for `visibility` and `pointer-events` (youtube closed drawer +
+# yt-interaction ink layers that must not steal clicks from the thumbnail link).
+budget: ComputedStyle    header_lines=330 public_methods=25 members=38
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

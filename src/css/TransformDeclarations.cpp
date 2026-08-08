@@ -256,11 +256,31 @@ bool ParseFunction(std::string_view name, const std::vector<Token>& arguments,
     out.f = values[5];
     return true;
   }
-  // Everything 3D -- `translate3d`, `rotateX`, `perspective`, `matrix3d` -- is
-  // *refused* rather than flattened. Flattening is what a 2D engine is tempted to
-  // do, and `rotateY(90deg)` flattened to 2D is a box at full width where the page
-  // meant an edge-on sliver: a wrong page rather than a missing effect. A dropped
-  // `transform` leaves the box where layout put it, which is the honest answer.
+  // `translate3d(x, y, 0)` is a 2D translate Polymer writes for every closed
+  // drawer (youtube's guide). Z of exactly zero adds nothing a 2D painter would
+  // see, so accepting it is not flattening -- unlike `rotateY(90deg)`, which
+  // would invent a width the page never meant. A non-zero Z is still refused.
+  if (name == "translate3d") {
+    if (arguments.size() != 3) {
+      return false;
+    }
+    const std::optional<Length> x = translation(0);
+    const std::optional<Length> y = translation(1);
+    const std::optional<float> z = number(2);
+    if (!x.has_value() || !y.has_value() || !z.has_value() || *z != 0.0f) {
+      return false;
+    }
+    out.kind = TransformOperation::Kind::Translate;
+    out.length_x = *x;
+    out.length_y = *y;
+    return true;
+  }
+  // Everything else 3D -- `rotateX`, `perspective`, `matrix3d`, `translate3d`
+  // with a non-zero Z -- is *refused* rather than flattened. Flattening is what
+  // a 2D engine is tempted to do, and `rotateY(90deg)` flattened to 2D is a box
+  // at full width where the page meant an edge-on sliver: a wrong page rather
+  // than a missing effect. A dropped `transform` leaves the box where layout
+  // put it, which is the honest answer.
   return false;
 }
 

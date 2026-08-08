@@ -47,73 +47,6 @@ std::string DirectText(const dom::Element& element) {
   return text;
 }
 
-bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
-  return point.x >= rect.x && point.x < rect.Right() && point.y >= rect.y &&
-         point.y < rect.Bottom();
-}
-
-// Where a point lands inside `box`'s children, or nothing when it lands
-// outside them entirely.
-//
-// A scroll container does two things to a point, and they are the same fact
-// stated twice: it displaces its content, so what is under the pointer is that
-// much further down; and it clips, so a point outside its padding box hits
-// nothing inside it however far the geometry extends. Hit testing has to walk
-// the paint rather than the flow, and this is the whole of the difference.
-// The point a transformed box actually sees.
-//
-// ADR 0014 §4's other half: a transform moves what is *painted* and nothing else, so
-// the box's geometry stays where layout put it and every hit test has to un-map the
-// pointer instead. Without this, a rotated menu is clicked by pointing at where it
-// would have been -- which is invisible, and looks like the click handler is broken
-// rather than the hit test.
-//
-// Nothing when the matrix has no inverse: the box has been collapsed to a line and
-// has no interior to hit. This is the same answer the painter gives for the same
-// reason.
-std::optional<gfx::FloatPoint> UntransformedPoint(const layout::Box& box,
-                                                  gfx::FloatPoint point) {
-  const css::ComputedStyle& style = box.Style();
-  if (style.transform.IsNone() || box.Origin() == nullptr) {
-    return point;
-  }
-  const gfx::FloatRect border_box = box.Geometry().BorderBox();
-  // Document coordinates on both sides, which is why the origin has no paint offset
-  // added to it here and does in the display-list builder: the two callers work in
-  // different spaces and the matrix is built for whichever one is asking.
-  const gfx::FloatPoint origin{
-      border_box.x + style.transform_origin_x.Used(border_box.width, style.font_size),
-      border_box.y + style.transform_origin_y.Used(border_box.height, style.font_size)};
-  const std::optional<gfx::AffineTransform> inverse =
-      style.transform
-          .ToMatrix(gfx::FloatSize{border_box.width, border_box.height}, origin,
-                    style.font_size)
-          .Inverted();
-  if (!inverse.has_value()) {
-    return std::nullopt;
-  }
-  return inverse->MapPoint(point);
-}
-
-std::optional<gfx::FloatPoint> PointInside(const layout::Box& box, gfx::FloatPoint point) {
-  if (!box.IsScrollContainer()) {
-    return point;
-  }
-  if (!Contains(box.Geometry().PaddingBox(), point)) {
-    return std::nullopt;
-  }
-  return gfx::FloatPoint{point.x + box.ScrollOffset().x, point.y + box.ScrollOffset().y};
-}
-
-const std::string* AnchorHref(const dom::Element* element) {
-  if (element == nullptr || element->TagName() != "a") {
-    return nullptr;
-  }
-  const std::string* href = element->GetAttribute("href");
-  return href != nullptr && !href->empty() ? href : nullptr;
-}
-
-
 bool IsValueResettableControl(const dom::Element& element) {
   return html::IsTextControl(element);
 }
@@ -131,165 +64,6 @@ bool IsRadioGroupPeer(const dom::Element& candidate,
     return false;
   }
   return html::FormOwner(candidate, document) == html::FormOwner(activated, document);
-}
-
-using ElementPredicate = bool (*)(const dom::Element&);
-
-// CSS 2.1 Appendix E: non-positioned floats (and out-of-flow positioned boxes)
-// paint above in-flow block-level boxes. Hit testing must match that order.
-//
-// Tree order alone is not enough. A float does not shrink a later sibling's
-// block box -- only its line boxes -- so the sibling's border box still covers
-// the float's rectangle. Walking last-child-first then returns the later block
-// for every click in that rectangle. old.reddit.com's `.side` search field is
-// the case that showed it: `.content` is a later sibling that spans the full
-// width, and a click on the search focused nothing.
-bool PaintsAboveInFlowBlocks(const layout::Box& box) {
-  return box.IsFloating() || box.IsAbsolutelyPositioned();
-}
-
-// Children front-to-back for hit testing: elevated boxes first (still last
-// sibling among themselves), then the in-flow rest.
-template <typename Visit>
-bool VisitChildrenFrontToBack(const layout::Box& box, Visit&& visit) {
-  const auto& children = box.Children();
-  for (std::size_t i = children.size(); i-- > 0;) {
-    if (PaintsAboveInFlowBlocks(*children[i]) && visit(*children[i])) {
-      return true;
-    }
-  }
-  for (std::size_t i = children.size(); i-- > 0;) {
-    if (!PaintsAboveInFlowBlocks(*children[i]) && visit(*children[i])) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// The one hit-test walk over form controls: submit, reset, checkbox, radio and
-// text field differ only in the predicate.
-//
-// Front-to-back among siblings (see VisitChildrenFrontToBack), because the
-// topmost box under the point is the one that was clicked. A disabled control
-// is never a target, which is a property of every control rather than of any
-// one predicate -- so it is checked here, once, instead of being re-derived in
-// each caller.
-//
-// The box tree is const because hit testing does not change layout, and
-// `Origin()` hands out a const element to preserve that. The element itself is
-// not const: activating a control mutates it -- a checkbox flips `checked`, a
-// text field takes focus -- and the document it belongs to is mutable. That is
-// what the cast crosses, and why it lives here rather than at four call sites.
-dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
-                                 ElementPredicate predicate) {
-  const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
-  if (!local.has_value()) {
-    return nullptr;
-  }
-  point = *local;
-  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    dom::Element* hit = nullptr;
-    VisitChildrenFrontToBack(box, [&](const layout::Box& child) {
-      hit = HitTestFormControl(child, *inside, predicate);
-      return hit != nullptr;
-    });
-    if (hit != nullptr) {
-      return hit;
-    }
-  }
-  const dom::Element* element = box.Origin();
-  if (element == nullptr || html::IsDisabledFormControl(*element) || !predicate(*element)) {
-    return nullptr;
-  }
-  if (!Contains(box.Geometry().BorderBox(), point)) {
-    return nullptr;
-  }
-  return const_cast<dom::Element*>(element);
-}
-
-// The innermost element whose box contains `point`, or null.
-//
-// Deepest-first, and front-to-back within a level (floats and abspos before
-// in-flow blocks; later siblings before earlier ones inside each group).
-//
-// `enclosing` is the nearest ancestor that came from an element, and it is
-// what makes this work at all. A text box has no element of its own, and an
-// *inline* box has no useful geometry -- its text fragments carry the
-// rectangles. So a click on the words inside `<a>hello</a>` hits a text box
-// with no origin, inside a box with no area, and testing either alone finds
-// nothing. Carrying the enclosing element down is the same shape HitTestLink
-// uses to carry an href.
-const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point,
-                                   const dom::Element* enclosing) {
-  const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
-  if (!local.has_value()) {
-    return nullptr;
-  }
-  point = *local;
-  if (box.Origin() != nullptr) {
-    enclosing = box.Origin();
-  }
-  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    const dom::Element* hit = nullptr;
-    VisitChildrenFrontToBack(box, [&](const layout::Box& child) {
-      hit = HitTestElement(child, *inside, enclosing);
-      return hit != nullptr;
-    });
-    if (hit != nullptr) {
-      return hit;
-    }
-  }
-  if (box.GetKind() == layout::Box::Kind::Text) {
-    for (const layout::TextFragment& fragment : box.Fragments()) {
-      if (Contains(fragment.rect, point)) {
-        return enclosing;
-      }
-    }
-    return nullptr;
-  }
-  if (enclosing != nullptr && Contains(box.Geometry().BorderBox(), point)) {
-    return enclosing;
-  }
-  return nullptr;
-}
-
-std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
-                                       const std::string* active_href) {
-  const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
-  if (!local.has_value()) {
-    return std::nullopt;
-  }
-  point = *local;
-  if (const std::string* href = AnchorHref(box.Origin())) {
-    active_href = href;
-  }
-
-  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    std::optional<std::string> hit;
-    VisitChildrenFrontToBack(box, [&](const layout::Box& child) {
-      hit = HitTestLink(child, *inside, active_href);
-      return hit.has_value();
-    });
-    if (hit.has_value()) {
-      return hit;
-    }
-  }
-
-  if (active_href == nullptr) {
-    return std::nullopt;
-  }
-  if (box.GetKind() == layout::Box::Kind::Text) {
-    for (const layout::TextFragment& fragment : box.Fragments()) {
-      if (Contains(fragment.rect, point)) {
-        return *active_href;
-      }
-    }
-    return std::nullopt;
-  }
-  if (Contains(box.Geometry().BorderBox(), point)) {
-    return *active_href;
-  }
-  return std::nullopt;
 }
 
 }  // namespace
@@ -542,13 +316,6 @@ void Page::Paint(gfx::DisplayList& out) const {
   AddPerformanceCounter(PerfCounterId::DisplayListBuilds);
 }
 
-std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
-  if (boxes_ == nullptr) {
-    return std::nullopt;
-  }
-  return HitTestLink(*boxes_, document_point, nullptr);
-}
-
 std::optional<FormSubmission> Page::SubmitForm(const dom::Element& form,
                                                const dom::Element* submitter) {
   // The event first. A page that adds fields in `onsubmit` -- which is what
@@ -572,11 +339,12 @@ std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
 }
 
 std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) {
+  EnsureLayoutClean();
   if (boxes_ == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
   const dom::Element* submitter =
-      HitTestFormControl(*boxes_, document_point, html::IsSubmitControl);
+      HitTestFormControlAt(*boxes_, document_point, html::IsSubmitControl);
   if (submitter == nullptr) {
     return std::nullopt;
   }
@@ -772,13 +540,6 @@ bool Page::DeliverObservations(std::int64_t now_ms) {
   return ran;
 }
 
-const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
-  if (boxes_ == nullptr) {
-    return nullptr;
-  }
-  return HitTestElement(*boxes_, document_point, nullptr);
-}
-
 void Page::InvalidateLayout() {
   InvalidateBoxTree();
   CollectImages();
@@ -810,10 +571,11 @@ bool Page::FocusFromClickAt(gfx::FloatPoint document_point) {
 }
 
 bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
+  EnsureLayoutClean();
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  dom::Element* hit = HitTestFormControl(*boxes_, document_point, html::IsCheckableInput);
+  dom::Element* hit = HitTestFormControlAt(*boxes_, document_point, html::IsCheckableInput);
   if (hit == nullptr) {
     return false;
   }
@@ -845,10 +607,11 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
 }
 
 bool Page::ResetFormAt(gfx::FloatPoint document_point) {
+  EnsureLayoutClean();
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  const dom::Element* reset = HitTestFormControl(*boxes_, document_point, html::IsResetControl);
+  const dom::Element* reset = HitTestFormControlAt(*boxes_, document_point, html::IsResetControl);
   if (reset == nullptr) {
     return false;
   }

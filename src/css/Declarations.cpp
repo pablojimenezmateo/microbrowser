@@ -38,6 +38,8 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
   child.direction = parent.direction;
   child.unicode_bidi = parent.unicode_bidi;
   child.white_space = parent.white_space;
+  child.visibility = parent.visibility;
+  child.pointer_events = parent.pointer_events;
   if (with_custom_properties) {
     // Custom properties inherit, which is the entire basis of how a modern stylesheet is written:
     // set on `:root` once, referenced everywhere below.

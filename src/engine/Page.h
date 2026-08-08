@@ -861,4 +861,9 @@ class Page : private layout::ImageProvider,
   util::BlobUrlRegistry blob_urls_;
 };
 
+// Form-control hit test shared by Page's click default actions. Lives in
+// PageHitTest.cpp with LinkAt / ElementAt so visibility:hidden is one walk.
+dom::Element* HitTestFormControlAt(const layout::Box& root, gfx::FloatPoint document_point,
+                                   bool (*predicate)(const dom::Element&));
+
 }  // namespace microbrowser::engine

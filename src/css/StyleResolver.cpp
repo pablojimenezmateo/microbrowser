@@ -300,6 +300,7 @@ bool PropertyAffectsLayout(std::string_view property) {
       // already occupied.
       "z-index",
       "visibility",
+      "pointer-events",
   };
   return std::find(std::begin(kPaintOnly), std::end(kPaintOnly), property) ==
          std::end(kPaintOnly);
