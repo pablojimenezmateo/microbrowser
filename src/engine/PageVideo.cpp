@@ -268,36 +268,34 @@ bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state)
   }
 
   const std::int64_t now_ms = NowMs();
-  if (session.last_advance_ms != 0 &&
-      now_ms - session.last_advance_ms <
-          static_cast<std::int64_t>(session.frame_duration * 1000.0)) {
-    // Still apply frames that arrive early -- dropping them here left the
-    // surface blank while the clock waited for the next tick.
-    bool updated = false;
-    std::string decode_error;
-    for (const ipc::FrameMessage& frame : session.video.client->PollFrames(&decode_error)) {
-      AddPerformanceCounter(PerfCounterId::MediaDecoderFrames);
-      updated = ApplyVideoFrame(session, frame) || updated;
-    }
-    if (!decode_error.empty()) {
-      AddPerformanceCounter(PerfCounterId::MediaDecoderErrors);
-    }
-    return updated;
-  }
-  session.last_advance_ms = now_ms;
+  const std::int64_t frame_ms =
+      std::max<std::int64_t>(1, static_cast<std::int64_t>(session.frame_duration * 1000.0));
+  const bool due =
+      session.last_advance_ms == 0 || now_ms - session.last_advance_ms >= frame_ms;
 
   const double current = state.CurrentTime();
-  const double horizon = current + 2.0;
-  (void)FeedSamples(session.video, current, horizon);
-  if (session.audio.configured && session.audio.client != nullptr) {
-    (void)FeedSamples(session.audio, current, horizon);
+  if (due) {
+    session.last_advance_ms = now_ms;
+    const double horizon = current + 2.0;
+    (void)FeedSamples(session.video, current, horizon);
+    if (session.audio.configured && session.audio.client != nullptr) {
+      (void)FeedSamples(session.audio, current, horizon);
+    }
   }
 
   bool updated = false;
+  double latest_time = current;
   std::string decode_error;
   for (const ipc::FrameMessage& frame : session.video.client->PollFrames(&decode_error)) {
     AddPerformanceCounter(PerfCounterId::MediaDecoderFrames);
-    updated = ApplyVideoFrame(session, frame) || updated;
+    if (!ApplyVideoFrame(session, frame)) {
+      continue;
+    }
+    updated = true;
+    const double at = static_cast<double>(frame.timestamp_us) / 1'000'000.0;
+    if (at > latest_time) {
+      latest_time = at;
+    }
   }
   if (!decode_error.empty()) {
     AddPerformanceCounter(PerfCounterId::MediaDecoderErrors);
@@ -306,8 +304,15 @@ bool PageVideo::AdvancePlayback(dom::Element& element, media::MediaState& state)
     (void)session.audio.client->PollFrames();
   }
 
+  // Prefer the frame's own timestamp. Advancing only on the paced tick left
+  // currentTime at 0 while media.decoder_frames_applied climbed -- early
+  // arrivals updated the surface and returned without touching the clock.
   if (updated) {
-    state.AdvanceTo(current + session.frame_duration);
+    if (latest_time > current) {
+      state.AdvanceTo(latest_time);
+    } else if (due) {
+      state.AdvanceTo(current + session.frame_duration);
+    }
   }
   return updated;
 }
@@ -334,7 +339,24 @@ std::optional<std::uint32_t> PageVideo::NextDelayMs(std::int64_t now_ms) const {
   std::optional<std::uint32_t> soonest;
   for (const auto& [element, session] : sessions_) {
     (void)element;
-    if (session.video.client == nullptr) {
+    if (session.video.client == nullptr || !session.video.configured ||
+        session.video.track == nullptr || session.video.buffer == nullptr) {
+      continue;
+    }
+    // No more coded frames to push: do not pace the loop on an empty pump.
+    // The decoder pipe stays in AppendDecoderDescriptors, so a late Frame still
+    // wakes. Without this, play() held microbrowser_snapshot's post-load drain
+    // for the full 20s wall budget after every sample was already fed.
+    std::size_t sample_count = 0;
+    for (const media::SourceBufferState::RetainedSegment& segment :
+         session.video.buffer->Segments()) {
+      for (const media::MediaSample& sample : segment.samples) {
+        if (sample.track_id == session.video.track->id) {
+          ++sample_count;
+        }
+      }
+    }
+    if (session.video.next_sample >= sample_count) {
       continue;
     }
     const std::int64_t frame_ms =
