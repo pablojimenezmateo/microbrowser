@@ -119,10 +119,18 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   page_.SetCookieSource(this);
   loader_.SetBlobRegistry(&page_.BlobUrls());
   page_.SetTrustedInsertionFlush([this]() {
-    if (load_.scripts_ran) {
+    if (load_.scripts_ran || post_load_.document_interactive) {
       ProcessDynamicScripts();
     }
   });
+}
+
+std::string Engine::EvaluateScript(std::string_view source) {
+  const std::string answer = page_.EvaluateScript(source);
+  if (post_load_.document_interactive) {
+    ProcessDynamicScripts();
+  }
+  return answer;
 }
 
 bool Engine::HandlePendingMessages() {
@@ -185,7 +193,7 @@ bool Engine::Advance() {
   // script, which is why it is here and not inside the paint.
   bool socket_activity = AdvanceSockets();
   socket_activity = AdvanceEventSources() || socket_activity;
-  if (!load_.active && late_images_.empty() && script_fetches_.empty() &&
+  if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && worker_fetches_.empty() &&
       !page_.HasPendingModules()) {
     if (socket_activity) {
@@ -199,8 +207,17 @@ bool Engine::Advance() {
   bool moved = false;
   bool font_changed = false;
   for (Loader::Completion& completion : completions) {
-    if (late_images_.find(completion.id) != late_images_.end()) {
+    if (post_load_.images.find(completion.id) != post_load_.images.end()) {
       moved = OnLateImage(std::move(completion)) || moved;
+      continue;
+    }
+    if (post_load_.scripts.find(completion.id) != post_load_.scripts.end()) {
+      if (OnLateScript(std::move(completion))) {
+        moved = true;
+        if (FollowScriptNavigation()) {
+          return true;
+        }
+      }
       continue;
     }
     if (worker_fetches_.find(completion.id) != worker_fetches_.end()) {
@@ -293,7 +310,8 @@ bool Engine::HasRunnableWork() const {
   if (page_.WorkersHaveWork()) {
     return true;
   }
-  return (load_.active || !late_images_.empty() || !script_fetches_.empty() ||
+  return (load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
+          !script_fetches_.empty() ||
           !module_fetches_.empty() || !font_fetches_.empty() || !worker_fetches_.empty() ||
           page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
@@ -311,7 +329,8 @@ std::string Engine::LoadingReason() const {
     out << label;
   };
   note(load_.active, "load");
-  note(!late_images_.empty(), "late_images");
+  note(!post_load_.images.empty(), "late_images");
+  note(!post_load_.scripts.empty(), "late_scripts");
   note(!script_fetches_.empty(), "script_fetches");
   note(!module_fetches_.empty(), "module_fetches");
   note(!font_fetches_.empty(), "font_fetches");
@@ -591,6 +610,7 @@ void Engine::AdvanceLoad() {
   if (load_.MayRunScripts()) {
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
+    post_load_.document_interactive = true;
     // When the document's own scripts finished, which is what a page reads as
     // `domContentLoadedEventStart`. The counter for it is fired by the binding
     // layer that dispatches the event; this is only the number.
@@ -642,6 +662,14 @@ void Engine::AdvanceLoad() {
     };
     page_.SetNavigationTiming(since_start(load_.dom_content_loaded_ms), since_start(finished_ms),
                               since_start(finished_ms));
+    // Script fetches still in flight move to `post_load_.scripts` rather than being
+    // dropped when `load_.resources` goes. A completion that arrives after this
+    // point must still reach the slot it was started for.
+    for (const auto& [id, resource] : load_.resources) {
+      if (resource.kind == ResourceKind::Script) {
+        post_load_.scripts[id] = resource.index;
+      }
+    }
     // Only now is the navigation over. It stayed alive past the first frame
     // for the `async` scripts the page said it would not wait for, which is
     // the difference between not blocking on one and dropping it.
@@ -721,7 +749,7 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // The images the previous document was still fetching go with it, for the
   // reason `load_` does: a response for a page that is gone must be
   // undeliverable rather than merely ignored.
-  late_images_.clear();
+  post_load_.Clear();
   // And so do the requests its script made. A `fetch` belongs to the document
   // that asked for it: ADR 0020 §1 says a request that outlives its navigation
   // is what `AbortController` exists to prevent, and a navigation is the one
@@ -831,6 +859,10 @@ void Engine::SetViewport(const gfx::IntSize& size, float device_scale) {
   // A resize changes the containing block, so it relays out. This is the one
   // input that does.
   LayoutAndPaint();
+}
+
+const std::vector<std::string>& CspViolations(const Engine& engine) {
+  return engine.page_.Policy().Violations();
 }
 
 }  // namespace microbrowser::engine

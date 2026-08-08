@@ -76,18 +76,18 @@ void Engine::StartImageRequests() {
       load_.resources[id] = PendingResource{ResourceKind::Image, 0, src};
       ++load_.images_outstanding;
     } else {
-      late_images_[id] = src;
+      post_load_.images[id] = src;
     }
   }
 }
 
 bool Engine::OnLateImage(Loader::Completion completion) {
-  const auto found = late_images_.find(completion.id);
-  if (found == late_images_.end()) {
+  const auto found = post_load_.images.find(completion.id);
+  if (found == post_load_.images.end()) {
     return false;
   }
   const std::string src = found->second;
-  late_images_.erase(found);
+  post_load_.images.erase(found);
   if (!completion.result.ok) {
     AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
     return false;

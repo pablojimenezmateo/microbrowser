@@ -510,7 +510,9 @@ bool PageScript::MoveFocus(dom::Element* target, bool visible) {
   return bindings_ != nullptr && bindings_->MoveFocus(target, visible);
 }
 
-std::string PageScript::Evaluate(std::string_view source) {
+std::string PageScript::Evaluate(dom::Document& document, const std::string& url,
+                                 std::string_view source) {
+  EnsureInterpreter(document, url, 0);
   if (interpreter_ == nullptr) {
     return {};
   }

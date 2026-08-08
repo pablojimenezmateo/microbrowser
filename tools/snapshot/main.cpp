@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "engine/Engine.h"
+#include "engine/EngineDiagnostics.h"
 #include "platform/DescriptorWait.h"
 #include "util/WaitDescriptor.h"
 #include "gfx/Canvas.h"
@@ -598,6 +599,13 @@ int main(int argc, char** argv) {
   }
   for (const std::string& error : engine.ScriptErrors()) {
     std::fprintf(stderr, "  script error: %s\n", error.c_str());
+  }
+  if (!microbrowser::engine::CspViolations(engine).empty()) {
+    std::fprintf(stderr, "  csp violations (%zu):\n",
+                 microbrowser::engine::CspViolations(engine).size());
+    for (const std::string& line : microbrowser::engine::CspViolations(engine)) {
+      std::fprintf(stderr, "    %s\n", line.c_str());
+    }
   }
   // Only when something was driven at the page, and then always -- for the
   // reason above. Every check from ADR 0017 on is phrased as an interaction,

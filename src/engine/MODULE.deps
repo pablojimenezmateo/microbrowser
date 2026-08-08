@@ -12,7 +12,7 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # each of the four resource paths deciding for itself. See ADR 0020 §3.
 allow: util gfx ipc url privacy csp net dom html css layout js bindings storage media
 
-public: DocumentPolicy.h Engine.h ImageSelection.h Loader.h ModuleLoader.h Page.h PendingLoad.h SessionHistory.h Subresource.h
+public: DocumentPolicy.h Engine.h EngineDiagnostics.h ImageSelection.h Loader.h ModuleLoader.h Page.h PendingLoad.h SessionHistory.h Subresource.h
 
 extern:
 

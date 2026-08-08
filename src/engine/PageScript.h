@@ -359,7 +359,7 @@ class PageScript {
   // caller -- so it widens nothing a page can see. The page's own interpreter
   // rather than a fresh one is the whole point: a probe against a new
   // interpreter would answer about a page that never ran.
-  std::string Evaluate(std::string_view source);
+  std::string Evaluate(dom::Document& document, const std::string& url, std::string_view source);
 
  private:
   // One script in document order.

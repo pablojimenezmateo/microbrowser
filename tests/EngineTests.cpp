@@ -301,6 +301,31 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(pending[0].url, "late.js", "named as written");
   });
 
+  AddTest(tests, "Engine/ALateScriptRunsAfterTheLoadHasFinished", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html", "<html><head></head><body>ok</body></html>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/javascript", "console.log('late ran')")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    Expect(!session.engine.IsLoading(), "the initial navigation finished");
+
+    session.engine.EvaluateScript(
+        "const s = document.createElement('script');"
+        "s.src = '/late.js';"
+        "document.head.appendChild(s);");
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "late ran",
+                   "a script inserted after load still runs when it arrives");
+  });
+
   AddTest(tests, "Page/AClickReachesTheElementUnderIt", [] {
     // An inline element has no box geometry of its own -- its text fragments
     // carry the rectangles -- and a text box has no element. So a click on the

@@ -134,8 +134,17 @@ void Engine::StartSubresources() {
 }
 
 void Engine::StartPendingScriptRequests() {
-  if (!load_.active || !load_.base.has_value()) {
-    return;
+  std::optional<url::Url> parsed;
+  const url::Url* document = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
+  if (document == nullptr) {
+    parsed = page_.BaseUrl();
+    if (!parsed.has_value()) {
+      parsed = url::Url::Parse(page_.Url());
+    }
+    if (!parsed.has_value()) {
+      return;
+    }
+    document = &*parsed;
   }
   const std::size_t first_index = page_.PendingScripts().size();
   std::vector<SubresourceRequest> pending = page_.TakeUnrequestedScripts();
@@ -143,7 +152,6 @@ void Engine::StartPendingScriptRequests() {
     return;
   }
   const std::size_t base_index = first_index - pending.size();
-  const url::Url& document = *load_.base;
   for (std::size_t i = 0; i < pending.size(); ++i) {
     const std::size_t index = base_index + i;
     const std::optional<net::FetchOptions> options = OptionsForSubresource(pending[i]);
@@ -151,16 +159,42 @@ void Engine::StartPendingScriptRequests() {
       continue;
     }
     const Loader::RequestId id = loader_.StartSubresource(
-        pending[i].url, document, privacy::ResourceType::Script, NowSeconds(), *options);
-    load_.resources[id] = PendingResource{ResourceKind::Script, index, {}};
-    ++load_.total_resources;
-    ++(page_.PendingScriptIsAsync(index) ? load_.async_scripts_outstanding
-                                         : load_.scripts_outstanding);
+        pending[i].url, *document, privacy::ResourceType::Script, NowSeconds(), *options);
+    if (load_.active) {
+      load_.resources[id] = PendingResource{ResourceKind::Script, index, {}};
+      ++load_.total_resources;
+      ++(page_.PendingScriptIsAsync(index) ? load_.async_scripts_outstanding
+                                           : load_.scripts_outstanding);
+    } else {
+      post_load_.scripts[id] = index;
+    }
   }
 }
 
+bool Engine::OnLateScript(Loader::Completion completion) {
+  const auto found = post_load_.scripts.find(completion.id);
+  if (found == post_load_.scripts.end()) {
+    return false;
+  }
+  const std::size_t index = found->second;
+  post_load_.scripts.erase(found);
+  if (!completion.result.ok ||
+      !IntegrityHolds(page_.PendingScripts(), index, completion.result.body)) {
+    AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+    return true;
+  }
+  page_.AddScript(index, std::move(completion.result.body));
+  AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
+  if (ProcessDynamicScripts()) {
+    return true;
+  }
+  page_.InvalidateLayout();
+  LayoutAndPaint();
+  return true;
+}
+
 bool Engine::ProcessDynamicScripts() {
-  if (!load_.scripts_ran) {
+  if (!load_.scripts_ran && !post_load_.document_interactive) {
     return false;
   }
   bool changed = false;

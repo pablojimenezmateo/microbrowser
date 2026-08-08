@@ -29,33 +29,13 @@
 namespace microbrowser::engine {
 
 // The engine half of the seam.
-//
-// It loads a URL, parses it into a document, resolves its styles, lays it out,
-// and paints it into a display list. The properties that matter are structural:
-//
-//   * It talks to the outside world only through ipc::EngineEndpoint. It has no
-//     window handle, no renderer, no canvas, and no way to acquire one.
-//   * It is driven, never driving. HandlePendingMessages() and Advance() run to
-//     completion and return; neither owns a loop or a thread. A future process
-//     split gives it its own loop without changing anything above.
-//   * Painting is producing a display list. It never touches a pixel.
-//
-// Since ADR 0011 a navigation *starts* rather than happens: `Navigate` sends the
-// document request and returns, and the load moves forward one turn at a time
-// through `Advance()`. What that buys is a browser whose loop is not blocked for
-// the length of a fetch, and what it costs is the state below -- which a
-// navigation has to be able to throw away, because a response for a document
-// that is gone must be dropped.
-//
-// The temptation this class must resist for the next year is becoming the place
-// where "the browser" lives. Document, navigation history, network, and script
-// each get their own type; Engine stays the thing that routes messages to them.
-// Its budget in src/engine/MODULE.deps is the tripwire.
 class Engine : private bindings::NetworkSource,
                private bindings::HistorySource,
                private bindings::StorageSource,
                private bindings::SocketSource,
                private bindings::CookieSource {
+  friend const std::vector<std::string>& CspViolations(const Engine&);
+
  public:
   // Fonts arrive from the caller because which fonts exist is a property of
   // the machine, and the engine is the half of the seam that does not know
@@ -97,9 +77,9 @@ class Engine : private bindings::NetworkSource,
   // far as everything else is concerned, and a browser that stopped turning
   // there would show a page with holes where its visible images go.
   bool IsLoading() const {
-    return load_.active || !late_images_.empty() || !script_fetches_.empty() ||
-           !module_fetches_.empty() || !font_fetches_.empty() || page_.HasPendingModules() ||
-           page_.HasOutstandingScriptFetches();
+    return load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
+           !script_fetches_.empty() || !module_fetches_.empty() || !font_fetches_.empty() ||
+           page_.HasPendingModules() || page_.HasOutstandingScriptFetches();
   }
   // Why `IsLoading` is still true — for `MICROBROWSER_LOAD_TURN_TRACE` and
   // snapshot hang diagnosis. Empty when nothing is outstanding.
@@ -112,7 +92,7 @@ class Engine : private bindings::NetworkSource,
   // A diagnostic probe against the loaded page's own interpreter, for a host
   // that has no console -- `microbrowser_snapshot -eval` is the one caller. See
   // PageScript::Evaluate.
-  std::string EvaluateScript(std::string_view source) { return page_.EvaluateScript(source); }
+  std::string EvaluateScript(std::string_view source);
   // The other half of the same question, and forwarded for the same reason. A
   // page that ran correctly and said something is not distinguishable from one
   // that threw, from outside, without both.
@@ -240,6 +220,7 @@ class Engine : private bindings::NetworkSource,
   // One image that arrived with no navigation behind it. True when the page
   // changed and a frame should go out.
   bool OnLateImage(Loader::Completion completion);
+  bool OnLateScript(Loader::Completion completion);
 
   // Fetches whatever the module graph is missing, and settles the dynamic imports
   // whose graph has closed. True when a promise settled, which means a page's
@@ -429,24 +410,23 @@ class Engine : private bindings::NetworkSource,
   gfx::IntSize viewport_size_;
   float device_scale_ = 1.0f;
   PendingLoad load_;
-  // Images requested after the navigation that carried the document finished:
-  // an `<img loading="lazy">` the user scrolled towards. They cannot live in
-  // `load_`, which is cleared the moment a navigation is over and exists to
-  // make a response for a document that is gone undeliverable.
-  //
-  // This is the first resource this browser fetches outside a navigation, and
-  // it is the seam `fetch` and `XMLHttpRequest` arrive on -- so the two rules
-  // it establishes are worth stating here. A navigation clears it, for the
-  // reason it clears `load_`. And a request in it keeps the loop turning:
-  // HasRunnableWork says so, or a canned transport would hand the answer to
-  // nobody.
-  std::map<Loader::RequestId, std::string> late_images_;
+  // Subresources and script phase that outlive `load_`. A navigation clears it.
+  struct PostLoad {
+    bool document_interactive = false;
+    std::map<Loader::RequestId, std::string> images;
+    std::map<Loader::RequestId, std::size_t> scripts;
+    void Clear() {
+      document_interactive = false;
+      images.clear();
+      scripts.clear();
+    }
+  } post_load_;
   // The requests this page's own script made and has not been answered for.
   //
   // A set rather than a map: everything about a `fetch` -- the promise waiting
   // on it, the signal that may cancel it -- lives in the JavaScript heap where
   // the collector can see it, and all the engine needs is to recognise the id
-  // when the answer arrives. Same two rules as `late_images_`: a navigation
+  // when the answer arrives. Same two rules as `post_load_`: a navigation
   // clears it, and something in it keeps the loop turning.
   std::set<Loader::RequestId> script_fetches_;
   // The modules in flight, and which URL each is. A map rather than a set because

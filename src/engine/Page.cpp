@@ -90,7 +90,10 @@ const std::vector<std::string>& Page::ConsoleOutput() const { return script_.Con
 const std::vector<std::string>& Page::ScriptErrors() const { return script_.ScriptErrors(); }
 
 std::string Page::EvaluateScript(std::string_view source) {
-  const std::string answer = script_.Evaluate(source);
+  if (document_ == nullptr) {
+    return {};
+  }
+  const std::string answer = script_.Evaluate(*document_, url_, source);
   // A probe can mutate the document -- and a probe that *renders* something is
   // the useful kind. Laying out afterwards means the caller's next frame shows
   // what it did rather than what the page looked like before it.
