@@ -131,6 +131,26 @@ if(MICROBROWSER_SDL3_TARGET STREQUAL "")
     "Expected either an SDL3 CMake package or a pkg-config entry named 'sdl3'.")
 endif()
 
+set(MICROBROWSER_CODEC_TARGETS "")
+if(PkgConfig_FOUND)
+  pkg_check_modules(DAV1D QUIET IMPORTED_TARGET dav1d)
+  pkg_check_modules(VPX QUIET IMPORTED_TARGET vpx)
+  pkg_check_modules(OPUS QUIET IMPORTED_TARGET opus)
+  pkg_check_modules(LIBAVCODEC QUIET IMPORTED_TARGET libavcodec)
+  pkg_check_modules(LIBAVUTIL QUIET IMPORTED_TARGET libavutil)
+  if(TARGET PkgConfig::DAV1D AND TARGET PkgConfig::VPX AND TARGET PkgConfig::OPUS AND
+     TARGET PkgConfig::LIBAVCODEC AND TARGET PkgConfig::LIBAVUTIL)
+    set(MICROBROWSER_CODEC_TARGETS
+        PkgConfig::DAV1D PkgConfig::VPX PkgConfig::OPUS PkgConfig::LIBAVCODEC
+        PkgConfig::LIBAVUTIL)
+  endif()
+endif()
+if(MICROBROWSER_CODEC_TARGETS STREQUAL "")
+  message(FATAL_ERROR
+    "ADR 0031 codec libraries were not found. Install dav1d, libvpx, opus, libavcodec and "
+    "libavutil development packages and rerun CMake.")
+endif()
+
 # --- Shared compile settings -------------------------------------------------
 
 add_library(microbrowser_settings INTERFACE)
@@ -285,6 +305,7 @@ microbrowser_module(media
     src/media/CodecId.cpp
     src/media/IsoBmff.cpp
     src/media/Matroska.cpp
+    src/media/Ump.cpp
   DEPS microbrowser_util)
 
 microbrowser_module(net
@@ -358,6 +379,7 @@ microbrowser_module(gfx
 
 microbrowser_module(ipc
   SOURCES
+    src/ipc/DecoderMessage.cpp
     src/ipc/DisplayListCodec.cpp
     src/ipc/InProcessTransport.cpp
     src/ipc/Message.cpp
@@ -393,6 +415,8 @@ microbrowser_module(engine
     src/engine/PageWorkers.cpp
     src/engine/PageAnimations.cpp
     src/engine/MediaElements.cpp
+    src/engine/DecoderClient.cpp
+    src/engine/PageVideo.cpp
     src/engine/PageMedia.cpp
     src/engine/PageMediaSource.cpp
     src/engine/PageModules.cpp
@@ -545,6 +569,16 @@ target_link_libraries(microbrowser_snapshot PRIVATE microbrowser_engine microbro
 add_executable(microbrowser_audiotone tools/audiotone/main.cpp)
 target_link_libraries(microbrowser_audiotone PRIVATE microbrowser_media microbrowser_platform)
 
+# ADR 0031: one sandboxed process per codec instance. Reads framed messages on stdin,
+# writes Frame/Error on stdout. Codec libraries link here only -- never into the engine.
+add_executable(microbrowser_decoder
+  tools/decoder/main.cpp
+  tools/decoder/Codecs.cpp
+  src/ipc/DecoderMessage.cpp
+  src/platform/Sandbox.cpp)
+target_include_directories(microbrowser_decoder PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools/decoder")
+target_link_libraries(microbrowser_decoder PRIVATE microbrowser_settings ${MICROBROWSER_CODEC_TARGETS})
+
 # The bidi conformance runner. Not a test target: it needs Unicode's data files, which are not
 # vendored (6MB, versioned upstream) -- so it is a tool a session runs, the same arrangement
 # tools/unicode/generate.py has. See tools/bidiconf/main.cpp for why hand-written tests are not
@@ -618,6 +652,8 @@ add_executable(microbrowser_tests
   tests/WebSocketTests.cpp
   tests/Woff2Tests.cpp
   tests/XhrTests.cpp
+  tests/DecoderMessageTests.cpp
+  tests/DecoderClientTests.cpp
   tests/IpcMessageTests.cpp
   tests/IsoBmffTests.cpp
   tests/JpegDecoderTests.cpp
@@ -726,6 +762,7 @@ if(MICROBROWSER_FUZZ)
     microbrowser_engine microbrowser_css microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(root_margin_fuzzer fuzz/RootMarginFuzzer.cpp
     microbrowser_bindings microbrowser_js microbrowser_dom microbrowser_html)
+  microbrowser_fuzzer(decoder_message_fuzzer fuzz/DecoderMessageFuzzer.cpp microbrowser_ipc)
   microbrowser_fuzzer(ipc_fuzzer fuzz/IpcFuzzer.cpp microbrowser_ipc microbrowser_gfx)
   microbrowser_fuzzer(js_lexer_fuzzer fuzz/JsLexerFuzzer.cpp microbrowser_js)
   microbrowser_fuzzer(js_parser_fuzzer fuzz/JsParserFuzzer.cpp microbrowser_js)

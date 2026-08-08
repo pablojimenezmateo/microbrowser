@@ -471,6 +471,11 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
                         gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
                                                              content.y + offset.y, content.width,
                                                              content.height}));
+        } else if (box.VideoSurface() != gfx::kNoSurface) {
+          out.DrawSurface(box.VideoSurface(),
+                          gfx::EnclosingIntRect(gfx::FloatRect{content.x + offset.x,
+                                                               content.y + offset.y, content.width,
+                                                               content.height}));
         }
         if (!box.Text().empty()) {
           const gfx::FontRequest font = FontRequestFor(style);

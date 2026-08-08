@@ -68,7 +68,8 @@ bool IsRadioGroupPeer(const dom::Element& candidate,
 
 }  // namespace
 
-Page::Page(gfx::FontProvider& fonts) : text_ctx_(fonts), canvases_(text_ctx_.Text()) {
+Page::Page(gfx::FontProvider& fonts)
+    : text_ctx_(fonts), canvases_(text_ctx_.Text()), video_(media_) {
   // The binding layer asks its geometry questions here. Handed over in the
   // constructor rather than per navigation because it is this object for the
   // life of the page, and a source that arrived later would leave the first
@@ -142,6 +143,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // A canvas is the largest thing a document can hold, so one that outlived its page would be up to
   // 64MB leaked per navigation.
   canvases_.Clear();
+  video_.Clear();
   // ADR 0022 §1's "joined when its document dies, before the document's objects are destroyed". Every
   // worker thread is stopped and joined here, on the main thread, while the document is still alive.
   workers_.Clear();
@@ -385,6 +387,9 @@ std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
   if (const std::optional<std::uint32_t> frame = animations_.NextDelayMs(now_ms)) {
     from_script = from_script.has_value() ? std::min(*from_script, *frame) : frame;
   }
+  if (const std::optional<std::uint32_t> video = video_.NextDelayMs(now_ms)) {
+    from_script = from_script.has_value() ? std::min(*from_script, *video) : video;
+  }
   if (scroll_.pending_events.empty()) {
     return from_script;
   }
@@ -416,13 +421,16 @@ bool Page::RunDueWork(std::int64_t now_ms) {
     animating = animations_.Running();
     AddPerformanceCounter(PerfCounterId::AnimationFramesProduced);
   }
+  const bool video_updated =
+      video_.AdvanceAll([this](dom::Element& element) { return MediaStateFor(element); });
+  ran = video_updated || ran;
   if (!ran) {
     return false;
   }
   const bool mutated =
       document_ != nullptr && document_->MutationVersion() != ver_before;
   const bool cascade_changed = resolver_.Generation() != cascade_before;
-  if (mutated || cascade_changed || animating) {
+  if (mutated || cascade_changed || animating || video_updated) {
     InvalidateLayout();
   } else {
     AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);

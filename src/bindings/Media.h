@@ -116,6 +116,12 @@ class MediaController {
   // and because `TimeRanges` is an index-based API on the page's side anyway.
   virtual std::vector<double> SourceBufferBuffered(std::uint64_t buffer_id) const = 0;
 
+  // `HTMLMediaElement.buffered` — the union of every attached SourceBuffer's
+  // ranges. Flat start/end pairs, same shape as `SourceBufferBuffered`. Empty
+  // when the element is not attached to a MediaSource (a plain `src=` file has
+  // no MSE ranges here yet).
+  virtual std::vector<double> MediaBuffered(const dom::Element& element) const = 0;
+
   // Whether an id still names something. A page can hold a `SourceBuffer` after its `MediaSource`
   // closed, and every method on it must then throw `InvalidStateError` rather than answer.
   virtual bool IsLiveSourceBuffer(std::uint64_t buffer_id) const = 0;
@@ -125,6 +131,12 @@ class MediaController {
   // neither can be wrong about the other's job.
   virtual std::vector<std::string> TakeSourceBufferEvents(std::uint64_t buffer_id) = 0;
   virtual std::vector<std::string> TakeMediaSourceEvents(std::uint64_t source_id) = 0;
+
+  // Deliver any media-element readiness events queued by a SourceBuffer append (`canplay`, …).
+  // Called from the same microtask that fires `updateend`, never from inside `appendBuffer` itself:
+  // a sync flush runs `DispatchEventTo` → `DrainMicrotasks`, which would re-enter deferred
+  // `updateend` handlers before `appendBuffer` returns.
+  virtual void FlushMediaEventsForBuffer(std::uint64_t buffer_id) = 0;
 };
 
 }  // namespace microbrowser::bindings

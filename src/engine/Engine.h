@@ -20,6 +20,7 @@
 #include "engine/SessionHistory.h"
 #include "gfx/DisplayList.h"
 #include "gfx/Geometry.h"
+#include "gfx/Surface.h"
 #include "ipc/Message.h"
 #include "ipc/Transport.h"
 #include "storage/PartitionedStorage.h"
@@ -116,6 +117,10 @@ class Engine : private bindings::NetworkSource,
   // page that ran correctly and said something is not distinguishable from one
   // that threw, from outside, without both.
   const std::vector<std::string>& ConsoleOutput() const { return page_.ConsoleOutput(); }
+
+  // Surfaces backing `<video>` DrawSurface holes. The presenter composites them after Execute;
+  // snapshot does the same so a watch page's first frame is in the PPM.
+  const gfx::SurfaceRegistry& VideoSurfaces() const { return page_.VideoSurfaces(); }
 
   // What has focus, as one line: its tag, its `id` or `name`, and whether the
   // keyboard put it there. Forwarded rather than exposing the Page, for the

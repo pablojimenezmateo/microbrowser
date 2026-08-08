@@ -8,10 +8,12 @@
 // is the difference between a check and a curtain, and it is why there is no
 // same-origin comparison in this file at all.
 //
-// One absence is deliberate and is ADR 0012's rule about stubs:
-// `response.body` is not declared. A `ReadableStream` is real work with no
-// target-site requirement, and a `body` that was present and buffering would
-// make `if (response.body)` lie to every page that streams.
+// `response.body` is a `ReadableStream` that yields the buffered body as one
+// chunk. That is not progressive delivery -- the bytes are already in hand --
+// but it is the honest shape SABR and every `getReader()` consumer need, and
+// ADR 0020's "absent rather than buffering" rule no longer holds once a
+// target site requires the stream. A page that streams still sees one chunk
+// rather than a lie that nothing arrived.
 
 #include <algorithm>
 #include <cstddef>
@@ -39,6 +41,152 @@ using util::PerfCounterId;
 // `headers.get('Content-Type')` and `headers.get('content-type')` the same
 // question. The value keeps its case: only the name is case-insensitive.
 std::string FoldName(const Value& value) { return LowerCase(js::ToString(value)); }
+
+// A promise that is already settled. Body methods and the one-chunk reader
+// both answer with one of these: the bytes are in hand, and a promise is the
+// shape of the API rather than a claim that anything is still happening.
+Value SettledPromise(js::Interpreter& interpreter, const Value& value, bool rejected) {
+  const Value promise = interpreter.NewPromiseValue();
+  if (promise.IsObject()) {
+    interpreter.SettleAsyncResult(promise.object, value, rejected);
+  }
+  return promise;
+}
+
+// The body bytes as a `Uint8Array`, which is what `ReadableStreamDefaultReader`
+// yields and what YouTube's SABR buffer (`qU.append`) indexes by `.buffer` /
+// `.byteOffset` / `.length`.
+Value BytesToUint8Array(js::Interpreter& interpreter, const std::string& body) {
+  const Value* buffer_ctor = interpreter.GlobalScope()->Lookup("ArrayBuffer");
+  const Value* view_ctor = interpreter.GlobalScope()->Lookup("Uint8Array");
+  if (buffer_ctor == nullptr || view_ctor == nullptr) {
+    return interpreter.MakeError("TypeError", "Uint8Array is unavailable");
+  }
+  const js::Result buffer = interpreter.ConstructValue(
+      *buffer_ctor, {Value::Number(static_cast<double>(body.size()))});
+  if (buffer.IsAbrupt() || !buffer.value.IsObject()) {
+    return buffer.value;
+  }
+  const js::BufferView* view = buffer.value.object->View();
+  if (view != nullptr && view->bytes != nullptr && view->bytes->size() >= body.size()) {
+    std::copy(body.begin(), body.end(), view->bytes->begin());
+  }
+  const js::Result array = interpreter.ConstructValue(*view_ctor, {buffer.value});
+  if (array.IsAbrupt() || !array.value.IsObject()) {
+    return array.value;
+  }
+  return array.value;
+}
+
+Value MakeBodyStream(js::Interpreter& interpreter, const Value& response) {
+  const Value stream = interpreter.NewObjectValue();
+  if (!stream.IsObject() || !response.IsObject()) {
+    return Value::Undefined();
+  }
+  stream.object->SetHidden(kStreamResponseSlot, response);
+
+  const Value get_reader =
+      interpreter.NewNativeValue("getReader", [](NativeCall& stream_call) -> Value {
+        const Value* response_value = stream_call.self.IsObject()
+                                          ? stream_call.self.object->GetOwn(kStreamResponseSlot)
+                                          : nullptr;
+        if (response_value == nullptr || !response_value->IsObject()) {
+          return stream_call.Throw("TypeError", "not a ReadableStream");
+        }
+        const Value* locked = response_value->object->GetOwn(kBodyLockedSlot);
+        if (locked != nullptr && js::ToBoolean(*locked)) {
+          return stream_call.Throw("TypeError", "ReadableStream is locked");
+        }
+        const Value* used = response_value->object->GetOwn(kBodyUsedSlot);
+        if (used != nullptr && js::ToBoolean(*used)) {
+          return stream_call.Throw("TypeError", "body already read");
+        }
+        response_value->object->SetHidden(kBodyLockedSlot, Value::Bool(true));
+
+        const Value reader = stream_call.interpreter.NewObjectValue();
+        if (!reader.IsObject()) {
+          return Value::Undefined();
+        }
+        reader.object->SetHidden(kStreamResponseSlot, *response_value);
+        reader.object->SetHidden(kReaderDoneSlot, Value::Bool(false));
+
+        const Value read =
+            stream_call.interpreter.NewNativeValue("read", [](NativeCall& reader_call) -> Value {
+              if (!reader_call.self.IsObject() ||
+                  reader_call.self.object->GetOwn(kStreamResponseSlot) == nullptr) {
+                return SettledPromise(
+                    reader_call.interpreter,
+                    reader_call.interpreter.MakeError("TypeError", "not a reader"), true);
+              }
+              const Value result = reader_call.interpreter.NewObjectValue();
+              if (!result.IsObject()) {
+                return SettledPromise(reader_call.interpreter, Value::Undefined(), false);
+              }
+              const Value* done_flag = reader_call.self.object->GetOwn(kReaderDoneSlot);
+              if (done_flag != nullptr && js::ToBoolean(*done_flag)) {
+                result.object->Set("done", Value::Bool(true));
+                result.object->Set("value", Value::Undefined());
+                return SettledPromise(reader_call.interpreter, result, false);
+              }
+              reader_call.self.object->SetHidden(kReaderDoneSlot, Value::Bool(true));
+
+              const Value* owning_response =
+                  reader_call.self.object->GetOwn(kStreamResponseSlot);
+              if (owning_response == nullptr || !owning_response->IsObject()) {
+                return SettledPromise(
+                    reader_call.interpreter,
+                    reader_call.interpreter.MakeError("TypeError", "not a reader"), true);
+              }
+              owning_response->object->SetHidden(kBodyUsedSlot, Value::Bool(true));
+              const Value* body = owning_response->object->GetOwn(kBodySlot);
+              const std::string bytes =
+                  body == nullptr ? std::string() : js::ToString(*body);
+              if (bytes.empty()) {
+                result.object->Set("done", Value::Bool(true));
+                result.object->Set("value", Value::Undefined());
+                return SettledPromise(reader_call.interpreter, result, false);
+              }
+              const Value chunk = BytesToUint8Array(reader_call.interpreter, bytes);
+              if (!chunk.IsObject() || chunk.object->GetKind() != js::Object::Kind::TypedArray) {
+                return SettledPromise(
+                    reader_call.interpreter,
+                    chunk.IsObject()
+                        ? chunk
+                        : reader_call.interpreter.MakeError("TypeError",
+                                                           "failed to build body chunk"),
+                    true);
+              }
+              result.object->Set("done", Value::Bool(false));
+              result.object->Set("value", chunk);
+              return SettledPromise(reader_call.interpreter, result, false);
+            });
+        if (read.IsObject()) {
+          reader.object->Set("read", read);
+        }
+
+        const Value cancel = stream_call.interpreter.NewNativeValue(
+            "cancel", [](NativeCall& reader_call) -> Value {
+              if (reader_call.self.IsObject()) {
+                reader_call.self.object->SetHidden(kReaderDoneSlot, Value::Bool(true));
+                if (const Value* owning_response =
+                        reader_call.self.object->GetOwn(kStreamResponseSlot)) {
+                  if (owning_response->IsObject()) {
+                    owning_response->object->SetHidden(kBodyUsedSlot, Value::Bool(true));
+                  }
+                }
+              }
+              return SettledPromise(reader_call.interpreter, Value::Undefined(), false);
+            });
+        if (cancel.IsObject()) {
+          reader.object->Set("cancel", cancel);
+        }
+        return reader;
+      });
+  if (get_reader.IsObject()) {
+    stream.object->Set("getReader", get_reader);
+  }
+  return stream;
+}
 
 }  // namespace
 
@@ -282,6 +430,7 @@ js::Value DomBindings::MakeResponse(const ScriptResponse& response) {
   made.object->Set("headers", MakeHeaders(response.headers));
   made.object->SetHidden(kBodySlot, Value::String(response.body));
   made.object->SetHidden(kBodyUsedSlot, Value::Bool(false));
+  made.object->SetHidden(kBodyLockedSlot, Value::Bool(false));
   return made;
 }
 
@@ -307,10 +456,17 @@ void DomBindings::InstallResponse() {
   // A body may be read once. The flag is set before the value is produced, so
   // the second `text()` on the same response rejects rather than handing out a
   // buffer a stream would already have consumed -- which is the behaviour a
-  // page written against a streaming implementation depends on.
+  // page written against a streaming implementation depends on. A locked
+  // stream (a reader outstanding) is the same refusal: the bytes have a single
+  // consumer.
   const auto take_body = [](NativeCall& call, std::string& out) -> bool {
     if (!HasSlot(call.self, kBodySlot)) {
       call.Throw("TypeError", "not a Response");
+      return false;
+    }
+    const Value* locked = call.self.object->GetOwn(kBodyLockedSlot);
+    if (locked != nullptr && js::ToBoolean(*locked)) {
+      call.Throw("TypeError", "body is locked");
       return false;
     }
     const Value* used = call.self.object->GetOwn(kBodyUsedSlot);
@@ -324,28 +480,17 @@ void DomBindings::InstallResponse() {
     return true;
   };
 
-  // A promise that is already settled. Every body method answers with one of
-  // these: the bytes are in hand, and a promise is the shape of the API rather
-  // than a claim that anything is still happening.
-  const auto settled = [](js::Interpreter& interpreter, const Value& value, bool rejected) {
-    const Value promise = interpreter.NewPromiseValue();
-    if (promise.IsObject()) {
-      interpreter.SettleAsyncResult(promise.object, value, rejected);
-    }
-    return promise;
-  };
-
-  method("text", [take_body, settled](NativeCall& call) {
+  method("text", [take_body](NativeCall& call) {
     std::string body;
     if (!take_body(call, body)) {
-      return settled(call.interpreter, call.ThrownValue(), true);
+      return SettledPromise(call.interpreter, call.ThrownValue(), true);
     }
-    return settled(call.interpreter, Value::String(std::move(body)), false);
+    return SettledPromise(call.interpreter, Value::String(std::move(body)), false);
   });
-  method("json", [take_body, settled](NativeCall& call) {
+  method("json", [take_body](NativeCall& call) {
     std::string body;
     if (!take_body(call, body)) {
-      return settled(call.interpreter, call.ThrownValue(), true);
+      return SettledPromise(call.interpreter, call.ThrownValue(), true);
     }
     // The page's own `JSON.parse`, not a second parser. A browser with two
     // JSON implementations has two answers for a duplicate key, and the one
@@ -358,27 +503,29 @@ void DomBindings::InstallResponse() {
     const Value* parse =
         json != nullptr && json->IsObject() ? json->object->Get("parse") : nullptr;
     if (parse == nullptr) {
-      return settled(call.interpreter,
-                     call.interpreter.MakeError("TypeError", "JSON.parse is unavailable"), true);
+      return SettledPromise(call.interpreter,
+                            call.interpreter.MakeError("TypeError", "JSON.parse is unavailable"),
+                            true);
     }
     const js::Result parsed =
         call.interpreter.CallFunction(*parse, Value::Undefined(), {Value::String(body)});
-    return settled(call.interpreter, parsed.value, parsed.IsAbrupt());
+    return SettledPromise(call.interpreter, parsed.value, parsed.IsAbrupt());
   });
-  method("arrayBuffer", [take_body, settled](NativeCall& call) {
+  method("arrayBuffer", [take_body](NativeCall& call) {
     std::string body;
     if (!take_body(call, body)) {
-      return settled(call.interpreter, call.ThrownValue(), true);
+      return SettledPromise(call.interpreter, call.ThrownValue(), true);
     }
     const Value* constructor = call.interpreter.GlobalScope()->Lookup("ArrayBuffer");
     if (constructor == nullptr) {
-      return settled(call.interpreter,
-                     call.interpreter.MakeError("TypeError", "ArrayBuffer is unavailable"), true);
+      return SettledPromise(
+          call.interpreter,
+          call.interpreter.MakeError("TypeError", "ArrayBuffer is unavailable"), true);
     }
     const js::Result buffer = call.interpreter.ConstructValue(
         *constructor, {Value::Number(static_cast<double>(body.size()))});
     if (buffer.IsAbrupt() || !buffer.value.IsObject()) {
-      return settled(call.interpreter, buffer.value, true);
+      return SettledPromise(call.interpreter, buffer.value, true);
     }
     // Copied straight into the buffer's bytes rather than through a typed array
     // one element at a time: a megabyte of response would otherwise be a
@@ -387,7 +534,7 @@ void DomBindings::InstallResponse() {
     if (view != nullptr && view->bytes != nullptr && view->bytes->size() >= body.size()) {
       std::copy(body.begin(), body.end(), view->bytes->begin());
     }
-    return settled(call.interpreter, buffer.value, false);
+    return SettledPromise(call.interpreter, buffer.value, false);
   });
   method("clone", [](NativeCall& call) {
     if (!HasSlot(call.self, kBodySlot)) {
@@ -396,6 +543,10 @@ void DomBindings::InstallResponse() {
     const Value* used = call.self.object->GetOwn(kBodyUsedSlot);
     if (used != nullptr && js::ToBoolean(*used)) {
       return call.Throw("TypeError", "body already read");
+    }
+    const Value* locked = call.self.object->GetOwn(kBodyLockedSlot);
+    if (locked != nullptr && js::ToBoolean(*locked)) {
+      return call.Throw("TypeError", "body is locked");
     }
     const Value made = call.interpreter.NewObjectValue();
     if (!made.IsObject()) {
@@ -410,6 +561,7 @@ void DomBindings::InstallResponse() {
     const Value* body = call.self.object->GetOwn(kBodySlot);
     made.object->SetHidden(kBodySlot, body == nullptr ? Value::String("") : *body);
     made.object->SetHidden(kBodyUsedSlot, Value::Bool(false));
+    made.object->SetHidden(kBodyLockedSlot, Value::Bool(false));
     return made;
   });
 
@@ -420,6 +572,47 @@ void DomBindings::InstallResponse() {
   });
   if (used.IsObject()) {
     prototype.object->DefineAccessor("bodyUsed", used.object, nullptr);
+  }
+
+  // One-chunk stream over the buffered body. Opaque responses keep `null`: the
+  // bytes were discarded in `net`, and a stream here would invent an empty
+  // body a page could mistake for a successful read of cross-origin content.
+  const Value body_getter = interpreter_->NewNativeValue("body", [](NativeCall& call) -> Value {
+    if (!HasSlot(call.self, kBodySlot)) {
+      return Value::Undefined();
+    }
+    if (const Value* type = call.self.object->Get("type")) {
+      if (js::ToString(*type) == "opaque") {
+        return Value::Null();
+      }
+    }
+    if (const Value* cached = call.self.object->GetOwn(kBodyStreamSlot)) {
+      if (cached->IsObject()) {
+        return *cached;
+      }
+    }
+    const Value stream = MakeBodyStream(call.interpreter, call.self);
+    if (stream.IsObject()) {
+      call.self.object->SetHidden(kBodyStreamSlot, stream);
+    }
+    return stream;
+  });
+  if (body_getter.IsObject()) {
+    prototype.object->DefineAccessor("body", body_getter.object, nullptr);
+  }
+
+  // Feature detection for innertube / SABR: `window.ReadableStream && ...`.
+  // Construction is refused -- pages that `new ReadableStream({start})` need
+  // the full controller model, and inventing a half of it is ADR 0012's stub.
+  if (interpreter_->GlobalScope()->Lookup("ReadableStream") == nullptr) {
+    const Value stream_ctor = interpreter_->NewNativeValue(
+        "ReadableStream", [](NativeCall& call) -> Value {
+          return call.Throw("TypeError", "Illegal constructor");
+        });
+    if (stream_ctor.IsObject()) {
+      interpreter_->Global()->Set("ReadableStream", stream_ctor);
+      interpreter_->GlobalScope()->Declare("ReadableStream", stream_ctor, false);
+    }
   }
 
   // `new Response(body, init)`, which a page uses to hand a synthesised answer
@@ -490,16 +683,36 @@ void DomBindings::InstallRequest() {
         const Value input = Argument(call.arguments, 0);
         std::string url;
         std::string method = "GET";
+        std::string mode = "cors";
+        std::string credentials = "same-origin";
         std::vector<ScriptHeader> headers;
+        std::string body_bytes;
+        bool body_from_string = false;
+        Value signal;
         if (input.IsObject() && input.object->GetOwn("url") != nullptr) {
           url = js::ToString(*input.object->Get("url"));
           if (const Value* existing = input.object->Get("method")) {
             method = js::ToString(*existing);
           }
+          if (const Value* existing = input.object->Get("mode")) {
+            mode = js::ToString(*existing);
+          }
+          if (const Value* existing = input.object->Get("credentials")) {
+            credentials = js::ToString(*existing);
+          }
           if (const Value* existing = input.object->Get("headers")) {
             for (const Value& pair : ReadPairs(*existing, kHeaderPairsSlot)) {
               headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
             }
+          }
+          if (const Value* existing = input.object->GetOwn(kRequestBodySlot)) {
+            body_bytes =
+                existing->IsString() ? existing->AsString() : js::ToString(*existing);
+            const Value* from_string = input.object->GetOwn(kRequestBodyFromStringSlot);
+            body_from_string = from_string != nullptr && js::ToBoolean(*from_string);
+          }
+          if (const Value* existing = input.object->GetOwn(kRequestSignalSlot)) {
+            signal = *existing;
           }
         } else {
           url = js::ToString(input);
@@ -511,13 +724,16 @@ void DomBindings::InstallRequest() {
           }
           if (const Value* given = init.object->Get("body")) {
             if (!given->IsUndefined() && !given->IsNull()) {
-              made.object->Set("body", Value::String(js::ToString(*given)));
+              if (!ExtractRequestBody(*given, body_bytes, body_from_string)) {
+                return call.Throw("TypeError", "failed to read request body");
+              }
             }
           }
-          for (const char* name : {"mode", "credentials"}) {
-            if (const Value* given = init.object->Get(name)) {
-              made.object->Set(name, Value::String(js::ToString(*given)));
-            }
+          if (const Value* given = init.object->Get("mode")) {
+            mode = js::ToString(*given);
+          }
+          if (const Value* given = init.object->Get("credentials")) {
+            credentials = js::ToString(*given);
           }
           if (const Value* given = init.object->Get("headers")) {
             if (given->IsObject() && given->object->GetOwn(kHeaderPairsSlot) != nullptr) {
@@ -534,10 +750,22 @@ void DomBindings::InstallRequest() {
               }
             }
           }
+          if (const Value* given = init.object->Get("signal")) {
+            signal = *given;
+          }
         }
         made.object->Set("url", Value::String(std::move(url)));
         made.object->Set("method", Value::String(std::move(method)));
+        made.object->Set("mode", Value::String(std::move(mode)));
+        made.object->Set("credentials", Value::String(std::move(credentials)));
         made.object->Set("headers", MakeHeaders(headers));
+        if (!body_bytes.empty() || body_from_string) {
+          made.object->SetHidden(kRequestBodySlot, Value::String(std::move(body_bytes)));
+          made.object->SetHidden(kRequestBodyFromStringSlot, Value::Bool(body_from_string));
+        }
+        if (signal.IsObject()) {
+          made.object->SetHidden(kRequestSignalSlot, signal);
+        }
         return made;
       });
   if (constructor.IsObject()) {

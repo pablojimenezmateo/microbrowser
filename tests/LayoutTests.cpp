@@ -457,6 +457,26 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(std::abs(fill->Geometry().BorderBox().height - 100.0f) < 0.5f, "stretched height");
   });
 
+  AddTest(tests, "Layout/PercentHeightResolvesAgainstDefiniteParent", [] {
+    // youtube: abspos `#player-container` (top/bottom stretch) hosts
+    // `ytd-player { height: 100% }`. A normal-flow percentage height is
+    // indefinite when the parent sizes to content, but definite when the
+    // parent already has a specified height — and that is the case that must
+    // not stay at zero.
+    const LaidOut sized = Run(
+        "<body style='margin:0'><div id='host'><div id='child'>x</div></div></body>",
+        "body { margin: 0 } "
+        "#host { position: relative; width: 200px; height: 150px } "
+        "#child { height: 100%; width: 100% }",
+        400.0f);
+    const Box* host = FindBox(*sized.root, "div");
+    Expect(host != nullptr && !host->Children().empty(), "host has a child");
+    const Box* fill = host->Children().front().get();
+    Expect(std::abs(fill->Geometry().content.height - 150.0f) < 0.5f,
+           "height:100% uses the parent's definite content height");
+    Expect(std::abs(fill->Geometry().content.width - 200.0f) < 0.5f, "and width:100% still works");
+  });
+
   AddTest(tests, "Layout/InputControlsGenerateVisibleInlineBoxes", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input size='10'><span>after</span></body>",

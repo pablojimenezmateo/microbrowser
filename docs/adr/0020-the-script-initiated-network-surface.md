@@ -57,9 +57,13 @@ terms of it. `AbortController` / `AbortSignal` is part of it and not an extra: 1
 request that cannot be cancelled is a request that outlives the navigation that made it, which
 ADR 0011 already says must be impossible.
 
-**Streaming bodies are deferred and the deferral is honest.** `response.body` returning a
-`ReadableStream` is real work with no target-site requirement; it is left *absent* rather than
-present-and-buffering, so `if (response.body)` tells the truth.
+**Streaming bodies are deferred for progressive delivery; a one-chunk stream is
+not.** `response.body` returns a `ReadableStream` that yields the already-buffered
+body as a single `Uint8Array` chunk. That is enough for SABR / `getReader()`
+consumers (youtube.com) without claiming bytes arrive before the fetch settles.
+`new ReadableStream({start})` remains an illegal constructor until the controller
+model exists — feature detection sees the global; construction does not invent a
+stub.
 
 ### 2. CORS is enforced where the attacker is not, and that is the network process
 

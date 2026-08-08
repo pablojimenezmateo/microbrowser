@@ -53,6 +53,10 @@ void Compiler::Hoist(const Node& list) {
 
 void Compiler::Program(const Node& program) {
   is_program_ = true;
+  if (HasUseStrictDirective(&program)) {
+    strict_ = true;
+  }
+  function_.is_strict = strict_;
   // Slot zero of the frame is the script's completion value.
   Emit(Op::PushUndefined, 0, 1);
   Hoist(program);

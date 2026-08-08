@@ -96,9 +96,40 @@ class SourceBufferState {
   // `MediaState::TakeEvents`: nothing here dispatches anything.
   std::vector<std::string_view> TakeEvents();
 
+  // How many retained appends, and the bytes/samples of one. The decoder reads sample ranges out of
+  // these; the offsets in a MediaSample are relative to that append's bytes.
+  std::size_t SegmentCount() const { return segments_.size(); }
+  const std::vector<std::byte>& SegmentBytes(std::size_t index) const {
+    static const std::vector<std::byte> kEmpty;
+    return index < segments_.size() ? segments_[index].bytes : kEmpty;
+  }
+  const std::vector<MediaSample>& SegmentSamples(std::size_t index) const {
+    static const std::vector<MediaSample> kEmpty;
+    return index < segments_.size() ? segments_[index].samples : kEmpty;
+  }
+
   // Whether the last append's frames were retained. Exposed for the media element's readiness ladder,
   // which is driven by whether the buffer holds the current time.
   bool Contains(double time) const { return buffered_.Contains(time); }
+
+  // Read-only view of one retained append. Sample `offset`/`size` are relative to `bytes`.
+  struct RetainedSegment {
+    std::span<const std::byte> bytes;
+    std::span<const MediaSample> samples;
+  };
+  std::span<const RetainedSegment> Segments() const;
+
+  // The initialization segment's bytes, when one has arrived. Codec configuration records are
+  // offsets into this span rather than copies, which is what `MediaTrack::codec_config_offset` names.
+  std::span<const std::byte> InitSegmentBytes() const {
+    return init_segment_.empty() ? std::span<const std::byte>{} : init_segment_;
+  }
+
+  // Copies one sample's payload. False when the range is out of bounds or the sample is unknown.
+  bool CopySampleBytes(const MediaSample& sample, std::vector<std::uint8_t>& out) const;
+
+  // Copies a track's codec configuration record from the initialization segment.
+  bool CopyCodecExtraData(const MediaTrack& track, std::vector<std::uint8_t>& out) const;
 
  private:
   void AddFrame(double start, double end);
@@ -114,6 +145,8 @@ class SourceBufferState {
     std::vector<MediaSample> samples;
   };
   std::vector<Segment> segments_;
+  std::vector<std::byte> init_segment_;
+  mutable std::vector<RetainedSegment> segment_views_;
   std::vector<std::string_view> events_;
   double timestamp_offset_ = 0.0;
   double append_window_start_ = 0.0;
@@ -158,6 +191,7 @@ class MediaSourceState {
 
   std::size_t BufferCount() const { return buffers_.size(); }
   SourceBufferState* BufferAt(std::size_t index);
+  const SourceBufferState* BufferAt(std::size_t index) const;
 
   // `duration`. Explicitly set by a page, or derived from what is buffered when it has not been.
   double Duration() const;

@@ -49,12 +49,16 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # geometry being rebuilt. Correct only behind ADR 0016's invalidation index,
 # which is what establishes that nothing that changed can move it -- the comment
 # on the method says so, because the method alone cannot.
-budget: Box             header_lines=225 public_methods=48 members=12
+# 225 and 49 for `VideoSurface`: a `<video>` carries a surface id the same way an `<img>` carries
+# pixels, and layout paints the hole before the synthetic controls.
+budget: Box             header_lines=230 public_methods=50 members=13
 # The kinds are documented rather than listed, because each one exists to make
 # a distinction some pass would otherwise have to rediscover from style. The
 # budget is here so that growth in the vocabulary is a decision.
 budget: Kind            header_lines=40 public_methods=0 members=0
-budget: ImageProvider   header_lines=40 public_methods=7  members=0
+# +1 method for ADR 0013's video surface hole: layout asks whether a replaced element has decoded
+# frames without learning how they were produced.
+budget: ImageProvider   header_lines=45 public_methods=8  members=0
 # Raised to 5 for `right_to_left`: bidi resolves a direction per *fragment*, because one text box
 # can put a left-to-right and a right-to-left fragment on the same line, and paint needs it for
 # rule L4 and for telling the shaper rather than letting it guess.

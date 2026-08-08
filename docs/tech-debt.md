@@ -764,6 +764,31 @@ form hit-tests `EnsureLayoutClean` after script, and `translate3d(x,y,0)` as
 2D translate. Check: `-click` on a cats result focuses `a#thumbnail` and the
 URL becomes `/watch?v=…`.
 
+**Update** (2026-08-08, watch geometry). The watch player shell is no longer
+`880×0`. Three platform gaps stacked:
+
+1. `var()` after `/` or `*` was not recognised (`calc(var(--h)/var(--w)*100%)`),
+   so youtube's `#player-container-inner` padding-top never applied even though
+   the `/_/ss/` bundle and the default `--ytd-watch-flexy-*-ratio` customs were
+   present. Fixed in `SubstituteVarsDepth`.
+2. Normal-flow `height: 100%` ignored a parent's definite height, so
+   `ytd-player` stayed 0 inside the abspos `#player-container`. Fixed in
+   `LayoutBlock`.
+3. Non-strict bare calls bound `this` to `undefined`, so the player IIFE's
+   `var window=this` left `window` undefined and threw
+   `Context has not been set and window is undefined`. OrdinaryCallBindThis
+   now uses the global object for non-strict functions; `'use strict'` on a
+   function (or enclosing script) still gets `undefined`.
+
+After those, `#player-container-inner` / `#player-container` / `ytd-player` /
+`#container` are **880×495**. `setAttributeNS` (namespace ignored, like
+`createElementNS`) removed the bootstrap TypeError. Remaining watch gap: the
+automatic `preparePlayer` path leaves a stub `player_` API
+(`isReady`/`destroy`/`getLastError` only) with an empty `#container`; forcing
+`ytd-player.initPlayer_()` stamps `#movie_player` + `<video>` at 880×495 with
+empty `src` (playback / MSE / googlevideo still open). `js.steps_exhausted`
+still fires in MutationObserver / CE reactions on some watch loads.
+
 **End state.** Close when `js.steps_exhausted` is 0, search results show
 painted thumbnails for every in-view row without `-eval` force, watch plays
 (or honestly shows chrome without a skeleton that never upgrades), and home is

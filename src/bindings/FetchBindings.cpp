@@ -227,18 +227,36 @@ void DomBindings::InstallFetch() {
 
     ScriptRequest request;
     const Value input = Argument(call.arguments, 0);
+    Value signal;
     if (input.IsObject() && input.object->GetOwn("url") != nullptr) {
-      // A `Request`, or anything shaped like one. Its own `method` and headers
-      // are the defaults an `init` then overrides, which is what makes
-      // `fetch(new Request(url, a), b)` mean what a page expects.
+      // A `Request`, or anything shaped like one. Its own `method`, headers,
+      // body and credentials are the defaults an `init` then overrides, which
+      // is what makes `fetch(new Request(url, a), b)` mean what a page expects.
+      // YouTube SABR is exactly that shape: `fetch(new Request(url, {method,
+      // body, credentials}))` with no second argument.
       request.url = js::ToString(*input.object->Get("url"));
       if (const Value* method = input.object->Get("method")) {
         request.method = js::ToString(*method);
+      }
+      if (const Value* mode = input.object->Get("mode")) {
+        request.mode = js::ToString(*mode);
+      }
+      if (const Value* credentials = input.object->Get("credentials")) {
+        request.credentials = js::ToString(*credentials);
       }
       if (const Value* headers = input.object->Get("headers")) {
         for (const Value& pair : ReadPairs(*headers, kHeaderPairsSlot)) {
           request.headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
         }
+      }
+      if (const Value* body = input.object->GetOwn(kRequestBodySlot)) {
+        request.body = body->IsString() ? body->AsString() : js::ToString(*body);
+        const Value* from_string = input.object->GetOwn(kRequestBodyFromStringSlot);
+        request.body_from_string =
+            from_string != nullptr && js::ToBoolean(*from_string);
+      }
+      if (const Value* given = input.object->GetOwn(kRequestSignalSlot)) {
+        signal = *given;
       }
     } else {
       request.url = js::ToString(input);
@@ -247,7 +265,6 @@ void DomBindings::InstallFetch() {
       return reject("fetch requires a URL");
     }
 
-    Value signal;
     const Value init = Argument(call.arguments, 1);
     if (init.IsObject()) {
       if (const Value* method = init.object->Get("method")) {
@@ -261,7 +278,11 @@ void DomBindings::InstallFetch() {
       }
       if (const Value* body = init.object->Get("body")) {
         if (!body->IsUndefined() && !body->IsNull()) {
-          request.body = js::ToString(*body);
+          bool from_string = false;
+          if (!ExtractRequestBody(*body, request.body, from_string)) {
+            return reject("failed to read request body");
+          }
+          request.body_from_string = from_string;
         }
       }
       if (const Value* headers = init.object->Get("headers")) {

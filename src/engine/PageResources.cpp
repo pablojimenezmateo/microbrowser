@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "css/StyleSheet.h"
-#include "gfx/SvgDecoder.h"
 #include "engine/ImageSelection.h"
+#include "gfx/SvgDecoder.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
@@ -675,6 +675,13 @@ void Page::AddImage(std::string src, std::shared_ptr<const gfx::Image> image) {
   resources_.images[std::move(src)] = std::move(image);
   // The box tree sized its replaced boxes against what was available then.
   InvalidateBoxTree();
+}
+
+std::optional<gfx::SurfaceId> Page::SurfaceForElement(const dom::Element& element) const {
+  if (element.TagName() != "video") {
+    return std::nullopt;
+  }
+  return video_.SurfaceFor(element);
 }
 
 void Page::WantImage(std::string_view src) const {

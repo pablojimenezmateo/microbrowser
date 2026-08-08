@@ -4,9 +4,12 @@
 #include <string>
 #include <vector>
 
-// `element.style`.
+#include "dom/Node.h"
+#include "util/StringUtil.h"
+
+// `element.style` and `element.dataset`.
 //
-// Backed by the `style` attribute rather than by a parsed copy, because the
+// Style is backed by the `style` attribute rather than by a parsed copy, because the
 // attribute is the state: the cascade reads it, `setAttribute` can rewrite it,
 // and a copy held here would go stale the moment either did.
 //
@@ -21,6 +24,10 @@
 // `typeof style.setProperty === "string"` and ShadyCSS's `style.setProperty(...)`
 // becomes "X is not a function". youtube.com hits that on every styled
 // component.
+//
+// Dataset is the same Proxy shape for `data-*`: a write must reach the attribute
+// table, or youtube's `movie_player.dataset.version = jsUrl` is a no-op and the
+// player proxy's version check clears the stamp.
 
 namespace microbrowser::bindings {
 
@@ -294,6 +301,160 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
   }
   const js::Result made = interpreter_->CallFunction(*constructor, Value::Undefined(),
                                                      {target, handler});
+  return made.IsAbrupt() ? Value::Undefined() : made.value;
+}
+
+js::Value DomBindings::MakeDataset(dom::Element& element) {
+  // Same Proxy shape as `style`: a page writes `el.dataset.foo = 'bar'` and
+  // that must become `data-foo` on the element, not a property on a throwaway
+  // object. The previous snapshot implementation dropped every write.
+  const Value target = interpreter_->NewObjectValue();
+  if (!target.IsObject()) {
+    return target;
+  }
+  target.object->Set(kNodeSlot, PointerValue(&element));
+
+  const Value handler = interpreter_->NewObjectValue();
+  if (!handler.IsObject()) {
+    return handler;
+  }
+  const auto trap = [this, &handler](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      handler.object->Set(name, native);
+    }
+  };
+
+  const auto to_data_attr = [](const std::string& camel) {
+    std::string out = "data-";
+    for (const char c : camel) {
+      if (c >= 'A' && c <= 'Z') {
+        out.push_back('-');
+        out.push_back(static_cast<char>(c - 'A' + 'a'));
+      } else {
+        out.push_back(c);
+      }
+    }
+    return out;
+  };
+
+  trap("get", [to_data_attr](NativeCall& call) {
+    dom::Node* self = NodeOf(Argument(call.arguments, 0));
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    const Value key = Argument(call.arguments, 1);
+    if (key.IsSymbol()) {
+      return Value::Undefined();
+    }
+    const std::string written = js::ToString(key);
+    if (written == "toJSON" || written == "toString" || written == "valueOf") {
+      return Value::Undefined();
+    }
+    const std::string* found =
+        static_cast<dom::Element*>(self)->GetAttribute(to_data_attr(written));
+    return found == nullptr ? Value::Undefined() : Value::String(*found);
+  });
+
+  trap("set", [to_data_attr](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(Argument(call.arguments, 0));
+    if (owner == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Bool(true);
+    }
+    const Value key = Argument(call.arguments, 1);
+    if (key.IsSymbol()) {
+      return Value::Bool(true);
+    }
+    owner->SetElementAttribute(static_cast<dom::Element&>(*self),
+                               to_data_attr(js::ToString(key)),
+                               js::ToString(Argument(call.arguments, 2)));
+    return Value::Bool(true);
+  });
+
+  trap("has", [to_data_attr](NativeCall& call) {
+    dom::Node* self = NodeOf(Argument(call.arguments, 0));
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Bool(false);
+    }
+    const Value key = Argument(call.arguments, 1);
+    if (key.IsSymbol()) {
+      return Value::Bool(false);
+    }
+    return Value::Bool(static_cast<dom::Element*>(self)->GetAttribute(
+                           to_data_attr(js::ToString(key))) != nullptr);
+  });
+
+  trap("deleteProperty", [to_data_attr](NativeCall& call) {
+    dom::Node* self = NodeOf(Argument(call.arguments, 0));
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Bool(true);
+    }
+    const Value key = Argument(call.arguments, 1);
+    if (key.IsSymbol()) {
+      return Value::Bool(true);
+    }
+    static_cast<dom::Element*>(self)->RemoveAttribute(to_data_attr(js::ToString(key)));
+    return Value::Bool(true);
+  });
+
+  trap("ownKeys", [](NativeCall& call) {
+    dom::Node* self = NodeOf(Argument(call.arguments, 0));
+    std::vector<Value> keys;
+    if (self != nullptr && self->IsElement()) {
+      for (const dom::Attribute& attribute :
+           static_cast<dom::Element*>(self)->Attributes()) {
+        if (attribute.name.rfind("data-", 0) != 0) {
+          continue;
+        }
+        std::string name;
+        bool upper = false;
+        for (const char c : attribute.name.substr(5)) {
+          if (c == '-') {
+            upper = true;
+            continue;
+          }
+          name.push_back(upper ? util::detail::AsciiToUpper(c) : c);
+          upper = false;
+        }
+        keys.push_back(Value::String(std::move(name)));
+      }
+    }
+    return call.interpreter.NewArrayValue(std::move(keys));
+  });
+
+  trap("getOwnPropertyDescriptor", [to_data_attr](NativeCall& call) {
+    dom::Node* self = NodeOf(Argument(call.arguments, 0));
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    const Value key = Argument(call.arguments, 1);
+    if (key.IsSymbol()) {
+      return Value::Undefined();
+    }
+    const std::string* found =
+        static_cast<dom::Element*>(self)->GetAttribute(to_data_attr(js::ToString(key)));
+    if (found == nullptr) {
+      return Value::Undefined();
+    }
+    const Value descriptor = call.interpreter.NewObjectValue();
+    if (!descriptor.IsObject()) {
+      return Value::Undefined();
+    }
+    descriptor.object->Set("value", Value::String(*found));
+    descriptor.object->Set("writable", Value::Bool(true));
+    descriptor.object->Set("enumerable", Value::Bool(true));
+    descriptor.object->Set("configurable", Value::Bool(true));
+    return descriptor;
+  });
+
+  js::Value* constructor = interpreter_->GlobalScope()->Lookup("Proxy");
+  if (constructor == nullptr || !constructor->IsObject()) {
+    return Value::Undefined();
+  }
+  const js::Result made =
+      interpreter_->CallFunction(*constructor, Value::Undefined(), {target, handler});
   return made.IsAbrupt() ? Value::Undefined() : made.value;
 }
 

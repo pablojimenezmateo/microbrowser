@@ -881,7 +881,18 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   // An arrow function has no `this` of its own: it uses the one captured where
   // it was written. That is the whole difference between the two forms, and it
   // is why the binding is decided here rather than by the caller.
-  scope->Declare("this", function->IsArrow() ? function->BoundThis() : self, true);
+  Value this_value = self;
+  if (!function->IsArrow()) {
+    // Compiled functions carry `is_strict`. Tree-walker bodies are treated as
+    // non-strict here: the differential path is not where youtube's player
+    // runs, and OrdinaryCallBindThis for a strict AST function under
+    // MICROBROWSER_JS_TREEWALK is a known approximation.
+    const bool strict = function->Code() != nullptr && function->Code()->is_strict;
+    if (!strict && (this_value.IsUndefined() || this_value.IsNull())) {
+      this_value = Value::Obj(global_);
+    }
+  }
+  scope->Declare("this", function->IsArrow() ? function->BoundThis() : this_value, true);
   // What `super` needs: the object the method was defined on, and the function
   // itself (for its superclass). Bound here rather than looked up later,
   // because by the time super runs the C++ frame that knew them is gone.

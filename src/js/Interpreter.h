@@ -1104,6 +1104,10 @@ class Interpreter {
   // After a step-budget RangeError is caught inside RunFrames, further
   // exhaustion in the same turn aborts rather than looping (TD-0018).
   bool step_budget_absorbed_ = false;
+  // Re-entrancy depth for `DrainMicrotasks`. Nested drains must not refresh
+  // the hang-guard budget (that is the microtask-storm hang TD-0018 forbids);
+  // the outermost entry may, when the parent turn already spent most of it.
+  int microtask_drain_depth_ = 0;
   // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036). One
   // budget per top-level script turn; nested custom-element reactions and
   // microtasks share it. youtube.com's kevlar turn exhausts this and aborts

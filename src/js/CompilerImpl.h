@@ -12,6 +12,9 @@
 
 namespace microbrowser::js {
 
+// Declared in CompilerFunctions.cpp; used by Program and Function compilers.
+bool HasUseStrictDirective(const Node* body);
+
 // The compiler's shared state, split across two translation units the way the
 // parser is: expressions in Compiler.cpp and statements in
 // CompilerStatements.cpp. Private to those two.
@@ -337,6 +340,10 @@ class Compiler {
   // Set for the top-level chunk, where an expression statement's value is the
   // script's result.
   bool is_program_ = false;
+  // Whether this function (and nested ones that do not opt out) is strict.
+  // Inherited from the enclosing compiler; a `'use strict'` directive in this
+  // body turns it on for the rest of the compile of this function.
+  bool strict_ = false;
 };
 
 // Counts compile depth for as long as it is in scope, and fails the whole

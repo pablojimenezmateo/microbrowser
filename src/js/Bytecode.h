@@ -487,6 +487,11 @@ struct CompiledFunction {
   // two are independent bits of the same question -- what a call gives its
   // caller, and what suspends the frame.
   bool is_generator = false;
+  // Whether this function's code is strict. Drives OrdinaryCallBindThis: a
+  // non-strict bare call gets the global object as `this`, and a strict one
+  // gets `undefined`. youtube's player is `(function(g){var window=this;...})(_yt_player)`
+  // and without the non-strict half `window` is undefined forever.
+  bool is_strict = false;
   // How many slots this function needs. The four reserved above plus one per
   // parameter binding -- and, when `frame_locals` is set, one per binding
   // every block in the body declares as well, because those live here too.

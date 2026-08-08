@@ -11,6 +11,9 @@
 
 namespace microbrowser::gfx {
 
+class Canvas;
+class DisplayList;
+
 // A rectangle of pixels the compositor owns, whose contents change without the
 // display list changing.
 //
@@ -135,5 +138,9 @@ struct SurfacePlacement {
 
   friend bool operator==(const SurfacePlacement&, const SurfacePlacement&) = default;
 };
+
+// Paints every surface hole named by `list` into `canvas`. Called after `gfx::Execute`, which
+// deliberately leaves holes empty.
+void CompositeSurfaces(Canvas& canvas, const DisplayList& list, const SurfaceRegistry& surfaces);
 
 }  // namespace microbrowser::gfx

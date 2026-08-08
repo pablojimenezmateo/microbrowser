@@ -153,7 +153,13 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
 
   // An arrow function has no `this` of its own: it uses the one captured where
   // it was written. That is the whole difference between the two forms.
-  const Value self = vm_.stack[callee_slot + 1];
+  Value self = vm_.stack[callee_slot + 1];
+  // OrdinaryCallBindThis: a non-strict function called with null/undefined
+  // `this` gets the global object. youtube's player begins
+  // `(function(g){var window=this;...})(_yt_player)` and needs that.
+  if (!function->IsArrow() && !code->is_strict && (self.IsUndefined() || self.IsNull())) {
+    self = Value::Obj(global_);
+  }
   const auto declare = [&](std::uint32_t index, const char* name, Value value, bool is_const) {
     if (code->frame_locals) {
       vm_.locals[locals_base + index] = Binding{std::move(value), is_const, true};

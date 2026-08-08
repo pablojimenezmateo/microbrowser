@@ -456,6 +456,57 @@ void DomBindings::InstallEventConstructors() {
   // ErrorEvent yet -- a script that throws gets a console line -- so this is the
   // constructor and the prototype and no more, which is what the page uses.
   EventPrototype("ErrorEvent", "Event");
+
+  // `DOMException`. Web APIs throw these with a `.name` a page switches on
+  // (`QuotaExceededError`, `NotAllowedError`, …). youtube's player writes
+  // `err instanceof DOMException` in catch clauses; with no binding that
+  // expression is a ReferenceError and aborts the media pipeline before the
+  // `instanceof Error` fallback can run.
+  {
+    const Value prototype = interpreter_->NewObjectValue();
+    if (prototype.IsObject()) {
+      js::Object* error_prototype = nullptr;
+      if (Value* error_ctor = interpreter_->GlobalScope()->Lookup("Error")) {
+        if (error_ctor->IsObject()) {
+          if (const Value* declared = error_ctor->object->GetOwn("prototype")) {
+            if (declared->IsObject()) {
+              error_prototype = declared->object;
+            }
+          }
+        }
+      }
+      if (error_prototype != nullptr) {
+        prototype.object->SetPrototype(error_prototype);
+      }
+      const Value constructor =
+          interpreter_->NewNativeValue("DOMException", [prototype](NativeCall& call) -> Value {
+            const std::string message = js::ToString(Argument(call.arguments, 0));
+            const std::string name = call.arguments.size() > 1
+                                         ? js::ToString(Argument(call.arguments, 1))
+                                         : std::string("Error");
+            const Value exception = call.interpreter.NewObjectValue();
+            if (!exception.IsObject()) {
+              return Value::Undefined();
+            }
+            if (prototype.IsObject()) {
+              exception.object->SetPrototype(prototype.object);
+            }
+            exception.object->Set("name", Value::String(name));
+            exception.object->Set("message", Value::String(message));
+            // Legacy numeric codes exist on the platform; pages that still read
+            // `.code` get zero rather than a wrong mapping for a name we do not
+            // keep a table of.
+            exception.object->Set("code", Value::Number(0.0));
+            return exception;
+          });
+      if (constructor.IsObject()) {
+        constructor.object->Set("prototype", prototype);
+        prototype.object->Set("constructor", constructor);
+        interpreter_->Global()->Set("DOMException", constructor);
+        interpreter_->GlobalScope()->Declare("DOMException", constructor, false);
+      }
+    }
+  }
 }
 
 js::Value DomBindings::CreateLegacyEvent() {

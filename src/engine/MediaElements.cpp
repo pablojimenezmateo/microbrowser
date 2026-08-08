@@ -66,6 +66,7 @@ void MediaElements::Clear() {
   buffers_.clear();
   object_urls_.clear();
   attached_.clear();
+  playback_.clear();
 }
 
 
@@ -180,6 +181,34 @@ dom::Element* MediaElements::ElementForSource(std::uint64_t source_id) const {
     }
   }
   return nullptr;
+}
+
+dom::Element* MediaElements::RebindElementToSource(std::uint64_t source_id) {
+  if (Source(source_id) == nullptr) {
+    return nullptr;
+  }
+  if (dom::Element* existing = ElementForSource(source_id)) {
+    return existing;
+  }
+  // Prefer an element that already has some MediaSource attachment — that is the player, not an
+  // untouched poster `<video>`. Always overwrite: a successful append is stronger evidence of which
+  // source is live than a speculative `video.src = createObjectURL(new MediaSource())`.
+  for (auto& [element, id] : attached_) {
+    if (element != nullptr) {
+      attached_[element] = source_id;
+      return element;
+    }
+  }
+  return nullptr;
+}
+
+void MediaElements::SetPlaybackSource(dom::Element& element, std::uint64_t source_id) {
+  playback_[&element] = source_id;
+}
+
+std::uint64_t MediaElements::PlaybackSourceOf(const dom::Element& element) const {
+  const auto found = playback_.find(const_cast<dom::Element*>(&element));
+  return found == playback_.end() ? 0 : found->second;
 }
 
 std::uint64_t MediaElements::SourceOfBuffer(std::uint64_t buffer_id) const {

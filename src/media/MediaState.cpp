@@ -76,9 +76,17 @@ void MediaState::FailNoSource() {
 }
 
 void MediaState::MetadataArrived(double duration_seconds) {
-  duration_ = duration_seconds > 0.0 ? duration_seconds : 0.0;
-  events_.push_back("durationchange");
-  SetReady(Ready::Metadata);
+  const double next = duration_seconds > 0.0 ? duration_seconds : 0.0;
+  // Only signal when the number changes. UpdateMediaReadiness asks this after every append, and
+  // firing `durationchange` (and worse, dropping `readyState` back to HAVE_METADATA) on each one
+  // is what made youtube tear down a working MediaSource and attach an empty replacement.
+  if (next != duration_) {
+    duration_ = next;
+    events_.push_back("durationchange");
+  }
+  if (ready_ < Ready::Metadata) {
+    SetReady(Ready::Metadata);
+  }
 }
 
 void MediaState::BufferedAhead(double seconds) {

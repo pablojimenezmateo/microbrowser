@@ -130,7 +130,7 @@ budget: Op              header_lines=255 public_methods=0  members=0
 # function expression neither engine bound. The method is the sparse lookup;
 # it is on the struct because the table's shape is the struct's business and
 # a caller doing its own binary search would be a second one to get wrong.
-budget: CompiledFunction header_lines=135 public_methods=1 members=19
+budget: CompiledFunction header_lines=135 public_methods=1 members=20
 # One call in progress. Every field is something a resumed frame would need, and
 # that is the test for adding another -- this is the record `await` will have to
 # be able to copy somewhere and put back.
@@ -169,7 +169,7 @@ budget: Frame           header_lines=56 public_methods=0  members=12
 # the spine compiles and merged once at the end. The member is where they are
 # collected, and it is suspended around a computed key and around call
 # arguments, because an optional chain written inside one of those is its own.
-budget: Compiler        header_lines=205 public_methods=5  members=15
+budget: Compiler        header_lines=205 public_methods=5  members=16
 # One scope the compiler created, and therefore one whose layout it knows. A map
 # and a count; if it ever needs a third field, what it is modelling has changed.
 # Grew by one, and what it is modelling did change, which is what that line
@@ -411,7 +411,7 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # cannot allocate an Error object it falls back to a bare string, and that
 # string still needs CaptureStack appended or youtube's eight heap_oom throws
 # report with no place. See 94317dd and TD-0012.
-budget: Interpreter header_lines=1115 public_methods=61 members=22
+budget: Interpreter header_lines=1115 public_methods=61 members=23
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

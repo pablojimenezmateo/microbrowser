@@ -115,19 +115,17 @@ void Engine::PaintAndSend(gfx::IntPoint scroll_delta, const gfx::IntRect* only) 
   } else {
     gfx::DirtyRegion damage;
     const bool bounded = gfx::ComputeDamage(display_list_, pending_, viewport, damage);
-    if (bounded && damage.IsEmpty()) {
-      // Nothing on screen would change. Sending the frame anyway would make the
-      // UI upload a texture to draw the same picture, which is most of what a
-      // browser wastes power on.
-      AddPerformanceCounter(PerfCounterId::EnginePaintsSkipped);
-      return;
-    }
-    // Empty damage means "the whole viewport", which is what the diff reports
-    // when it cannot bound the change -- a clip moved, and every command after a
-    // clip reads it as state.
     if (bounded) {
       frame.damage = damage.Rects();
     }
+    page_.AddVideoSurfaceDamage(pending_, frame.damage);
+    if (bounded && frame.damage.empty()) {
+      AddPerformanceCounter(PerfCounterId::EnginePaintsSkipped);
+      return;
+    }
+  }
+  if (scroll_delta != gfx::IntPoint{} || only != nullptr) {
+    page_.AddVideoSurfaceDamage(pending_, frame.damage);
   }
   frame.display_list = pending_;
   display_list_ = pending_;

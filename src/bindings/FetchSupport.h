@@ -30,6 +30,55 @@ inline constexpr const char* kHeaderPairsSlot = "#headers";
 // A Response's body and whether it has been read.
 inline constexpr const char* kBodySlot = "#body";
 inline constexpr const char* kBodyUsedSlot = "#bodyUsed";
+// A `ReadableStream` over that body (one chunk: the whole buffer), and whether
+// a reader has locked it. Both live on the Response so `text()` and
+// `getReader()` agree about consumption.
+inline constexpr const char* kBodyStreamSlot = "#bodyStream";
+inline constexpr const char* kBodyLockedSlot = "#bodyLocked";
+// The Response a body stream / reader answers for, and whether the reader's
+// one chunk has already been handed out.
+inline constexpr const char* kStreamResponseSlot = "#streamResponse";
+inline constexpr const char* kReaderDoneSlot = "#readerDone";
+// A `Request`'s body bytes and whether they came from a JS string (see
+// `ScriptRequest::body_from_string`). Hidden so `ToString` on a typed array
+// cannot turn SABR's protobuf into `"1,2,3,..."`.
+inline constexpr const char* kRequestBodySlot = "#requestBody";
+inline constexpr const char* kRequestBodyFromStringSlot = "#requestBodyFromString";
+inline constexpr const char* kRequestSignalSlot = "#requestSignal";
+
+// Bytes a page handed to `fetch` / `new Request` as a body. Strings stay
+// strings; ArrayBuffer and typed-array views are copied as raw bytes.
+inline bool ExtractRequestBody(const js::Value& value, std::string& out, bool& from_string) {
+  from_string = false;
+  out.clear();
+  if (value.IsUndefined() || value.IsNull()) {
+    return true;
+  }
+  if (value.IsString()) {
+    out = value.AsString();
+    from_string = true;
+    return true;
+  }
+  if (!value.IsObject()) {
+    out = js::ToString(value);
+    from_string = true;
+    return true;
+  }
+  const js::BufferView* view = value.object->View();
+  if (view == nullptr || view->bytes == nullptr) {
+    out = js::ToString(value);
+    from_string = true;
+    return true;
+  }
+  const std::size_t element_size = js::ElementSize(view->kind);
+  const std::size_t byte_length = view->length * element_size;
+  if (view->offset > view->bytes->size() || byte_length > view->bytes->size() - view->offset) {
+    return false;
+  }
+  out.assign(reinterpret_cast<const char*>(view->bytes->data() + view->offset), byte_length);
+  from_string = false;
+  return true;
+}
 // A fetch in flight: the id `NetworkSource` gave it, the promise it will
 // settle, and the signal that may cancel it.
 inline constexpr const char* kPendingFetchSlot = "#fetches";

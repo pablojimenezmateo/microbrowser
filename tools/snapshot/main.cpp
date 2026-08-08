@@ -28,6 +28,7 @@
 #include "util/WaitDescriptor.h"
 #include "gfx/Canvas.h"
 #include "gfx/DisplayList.h"
+#include "gfx/Surface.h"
 #include "gfx/Painter.h"
 #include "gfx/TextRenderer.h"
 #include "ipc/InProcessTransport.h"
@@ -335,9 +336,11 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     // whose whole cost is round trips shows a summary that adds up to a tenth
     // of the wall clock and says nothing about the other nine.
     microbrowser::util::PerformanceTrace::Scope wait("wait::Network");
+    // Never block forever: a decoder pipe that is open but quiet would hang the tool after
+    // `video.play()` started a session (session 27). Cap matches the post-load drain budget.
     microbrowser::platform::WaitOnDescriptors(
         descriptors,
-        deadline.has_value() ? static_cast<std::int32_t>(*deadline) : -1);
+        deadline.has_value() ? static_cast<std::int32_t>(*deadline) : 200);
   }
   if (trace) {
     std::fprintf(stderr, "[load] finished after %llu turns\n",
@@ -565,6 +568,7 @@ int main(int argc, char** argv) {
   canvas.Clear(microbrowser::gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
   microbrowser::gfx::Painter painter{canvas};
   microbrowser::gfx::Execute(display_list, painter, canvas.Bounds(), &text);
+  microbrowser::gfx::CompositeSurfaces(canvas, display_list, engine.VideoSurfaces());
 
   if (!WritePpm(canvas, options.output)) {
     std::fprintf(stderr, "could not write %s\n", options.output.c_str());

@@ -2013,6 +2013,33 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
            "and left the rest of the work queued rather than dropping it");
   });
 
+  AddTest(tests, "JsInterpreter/OuterDrainRefreshesASpentBudgetForThenHandlers", [] {
+    // youtube's player does `NZU().then(initPlayer_)` with NZU already resolved
+    // (`Promise.resolve([])`), so Application.create runs as a microtask on
+    // kevlar's spent budget and aborts. The outermost DrainMicrotasks refreshes
+    // once when steps are already past half the hang guard — not per job.
+    //
+    // Model: burn the budget on one Run, queue a then via CallFunction (no
+    // BeginHostTurn), then DrainMicrotasks explicitly.
+    Interpreter interpreter;
+    Expect(interpreter
+               .Run("globalThis.got = 0;"
+                    "globalThis.enqueue = () => { Promise.resolve().then(() => { got = 7 }); };"
+                    "'ok'")
+               .completion == Completion::Normal,
+           "install");
+    Expect(interpreter.Run("while (true) {}").completion == Completion::Throw, "burn budget");
+    const js::Value* enqueue = interpreter.Global()->GetOwn("enqueue");
+    Expect(enqueue != nullptr && enqueue->IsObject(), "enqueue is callable");
+    Expect(interpreter.CallFunction(*enqueue, js::Value::Undefined(), {}).completion ==
+               Completion::Normal,
+           "queue then without resetting the budget");
+    Expect(interpreter.HasPendingMicrotasks(), "then is waiting");
+    interpreter.DrainMicrotasks();
+    ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "7",
+                   "outer drain refreshed the budget so the then could run");
+  });
+
   AddTest(tests, "JsInterpreter/AThenHandlerThatAllocatesStillSettlesItsDerivedPromise", [] {
     // The drain pops a job before running it. CallCompiled does not raise
     // call_depth_, so a safepoint inside the handler can collect anything that

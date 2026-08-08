@@ -11,9 +11,10 @@
 // also what makes it safe.
 //
 // **`appendBuffer` is asynchronous to a page and synchronous underneath.** The algorithm is not
-// asynchronous; only its observable sequencing is. So the far side runs it immediately and this side
-// reports `updating` and fires `updatestart`/`update`/`updateend` around it as a microtask. Mixing the
-// two would make the algorithm untestable, which is the thing session 28's first half was for.
+// asynchronous; only its observable sequencing is. Events are delivered before `appendBuffer`
+// returns, but a re-entrancy gate flattens `updateend` → `appendBuffer` → `updateend` into one
+// loop rather than nested C++ frames -- nesting blew the stack on youtube's SABR pump, and a
+// microtask/macrotask deferral either starved the pump or raced readiness.
 //
 // **A refused append is not a failure to hide.** `QuotaExceededError` is the signal a player is
 // waiting for -- it is how a player is told to evict -- so it is thrown with that name, and the
@@ -45,6 +46,9 @@ using js::Value;
 constexpr const char* kSourceIdSlot = "#media-source-id";
 constexpr const char* kBufferIdSlot = "#source-buffer-id";
 constexpr const char* kMediaSourcesKey = "media-sources";
+// Page-visible `SourceBuffer.updating`: true from `appendBuffer`/`abort` return until the
+// microtask that fires `updateend`. The media algorithm itself clears its own flag before return.
+constexpr const char* kBufferUpdatingSlot = "#sb-updating";
 
 // `Object::Get` answers with a pointer, which is null for a property that is not there. Every read
 // here wants a value, and undefined is the right answer for absent -- so the dereference happens once,
@@ -55,6 +59,19 @@ Value Read(const Value& object, const std::string& key) {
   }
   const Value* found = object.object->Get(key);
   return found == nullptr ? Value::Undefined() : *found;
+}
+
+// A `DOMException` with the web-API name a page switches on (`QuotaExceededError`,
+// `InvalidStateError`, …). `MakeError("DOMException", …)` alone would leave `.name`
+// as `"DOMException"`, which is not what `e.name === "QuotaExceededError"` reads.
+// youtube's player catches with `instanceof DOMException` first; without a real
+// `DOMException` that expression is a ReferenceError and aborts the media path.
+Value ThrowDomException(NativeCall& call, const char* name, const char* message) {
+  Value error = call.interpreter.MakeError("DOMException", message);
+  if (error.IsObject()) {
+    error.object->Set("name", Value::String(name));
+  }
+  return call.ThrowValue(error);
 }
 
 std::uint64_t IdIn(const Value& object, const char* slot) {
@@ -115,6 +132,22 @@ void DomBindings::InstallMediaSource() {
   }
   interfaces_.object->Set("SourceBuffer", buffer_prototype);
 
+  // `SourceBuffer` on the global, so `typeof SourceBuffer` and `x instanceof SourceBuffer`
+  // resolve. Calling `new SourceBuffer()` is an Illegal constructor TypeError in every
+  // browser; the name exists for `instanceof` and for feature detection, not construction.
+  {
+    const Value buffer_ctor = interpreter_->NewNativeValue(
+        "SourceBuffer", [](NativeCall& call) -> Value {
+          return call.Throw("TypeError", "Illegal constructor: SourceBuffer");
+        });
+    if (buffer_ctor.IsObject()) {
+      buffer_ctor.object->Set("prototype", buffer_prototype);
+      buffer_prototype.object->Set("constructor", buffer_ctor);
+      interpreter_->Global()->Set("SourceBuffer", buffer_ctor);
+      interpreter_->GlobalScope()->Declare("SourceBuffer", buffer_ctor, false);
+    }
+  }
+
   const auto buffer_method = [this, &buffer_prototype](const char* name) {
     const Value native = interpreter_->NewNativeValue(name, [](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
@@ -127,7 +160,8 @@ void DomBindings::InstallMediaSource() {
       // Throwing is the specified answer and it is also the safe one: answering would mean answering
       // about whatever now holds that id.
       if (id == 0 || !owner->media_->IsLiveSourceBuffer(id)) {
-        return call.Throw("Error", "InvalidStateError: the SourceBuffer has been removed");
+        return ThrowDomException(call, "InvalidStateError",
+                                 "InvalidStateError: the SourceBuffer has been removed");
       }
       const std::string what = js::ToString(*which);
       if (what == "appendBuffer") {
@@ -136,20 +170,20 @@ void DomBindings::InstallMediaSource() {
           return call.Throw("TypeError", "appendBuffer expects an ArrayBuffer or a view of one");
         }
         const int result = owner->media_->AppendToSourceBuffer(id, bytes);
+        if (result == 4) {
+          return ThrowDomException(call, "InvalidStateError",
+                                   "InvalidStateError: an append is already in progress");
+        }
+        call.self.object->SetHidden(kBufferUpdatingSlot, Value::Bool(true));
         owner->DeliverSourceBufferEvents(call.self, id);
         switch (result) {
           case 0:
             return Value::Undefined();
           case 1:
-            // The name is what a player switches on, and it is the whole point of the refusal.
-            return call.Throw("Error",
-                              "QuotaExceededError: the SourceBuffer is full; remove some data");
-          case 4:
-            return call.Throw("Error", "InvalidStateError: an append is already in progress");
+            return ThrowDomException(
+                call, "QuotaExceededError",
+                "QuotaExceededError: the SourceBuffer is full; remove some data");
           default:
-            // A parse failure is *not* an exception. The specification puts it on the `error` event,
-            // and a player that expected an event and got a throw stops mid-algorithm with its own
-            // state half-updated.
             return Value::Undefined();
         }
       }
@@ -162,6 +196,7 @@ void DomBindings::InstallMediaSource() {
       }
       if (what == "abort") {
         owner->media_->AbortSourceBuffer(id);
+        call.self.object->SetHidden(kBufferUpdatingSlot, Value::Bool(true));
         owner->DeliverSourceBufferEvents(call.self, id);
         return Value::Undefined();
       }
@@ -196,6 +231,12 @@ void DomBindings::InstallMediaSource() {
   const Value updating = interpreter_->NewNativeValue("updating", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     const std::uint64_t id = IdIn(call.self, kBufferIdSlot);
+    if (call.self.IsObject()) {
+      if (const Value* pending = call.self.object->GetOwn(kBufferUpdatingSlot);
+          pending != nullptr && pending->type == js::ValueType::Boolean && pending->boolean) {
+        return Value::Bool(true);
+      }
+    }
     return Value::Bool(owner != nullptr && owner->media_ != nullptr && id != 0 &&
                        owner->media_->SourceBufferUpdating(id));
   });
@@ -287,9 +328,11 @@ void DomBindings::InstallMediaSource() {
           // means try another codec, and `InvalidStateError` means the source is not open. A single
           // error name would make a page retry the thing that cannot work.
           if (error == MediaController::AddBufferError::NotSupported) {
-            return call.Throw("Error", "NotSupportedError: unsupported MIME type or codec");
+            return ThrowDomException(call, "NotSupportedError",
+                                     "NotSupportedError: unsupported MIME type or codec");
           }
-          return call.Throw("Error", "InvalidStateError: the MediaSource is not open");
+          return ThrowDomException(call, "InvalidStateError",
+                                   "InvalidStateError: the MediaSource is not open");
         }
         const Value wrapper = call.interpreter.NewObjectValue();
         if (!wrapper.IsObject()) {
@@ -323,7 +366,8 @@ void DomBindings::InstallMediaSource() {
           return Value::Undefined();
         }
         if (owner->media_->SourceReadyState(source) != 1) {
-          return call.Throw("Error", "InvalidStateError: the MediaSource is not open");
+          return ThrowDomException(call, "InvalidStateError",
+                                   "InvalidStateError: the MediaSource is not open");
         }
         owner->media_->EndOfStream(source);
         owner->DeliverMediaSourceEvents(call.self, source);
@@ -411,6 +455,11 @@ void DomBindings::InstallMediaSource() {
       });
   if (constructor.IsObject()) {
     constructor.object->Set(kOwnerSlot, PointerValue(this));
+    // Without this, `MediaSource.prototype` is undefined while instances still carry the
+    // methods via SetPrototype — feature detection that walks the constructor fails and
+    // youtube's player takes a different path than the one that appends.
+    constructor.object->Set("prototype", source_prototype);
+    source_prototype.object->Set("constructor", constructor);
     const Value is_supported =
         interpreter_->NewNativeValue("isTypeSupported", [](NativeCall& call) -> Value {
           DomBindings* owner = OwnerOf(call);
@@ -542,9 +591,11 @@ namespace {
 
 // One event, delivered to an `on<type>` handler and to `addEventListener` listeners alike.
 //
-// Both, because both are used: a player written against `sourceopen` uses the property and one
-// written against `updateend` usually uses the listener, and a MediaSource that fired only one of the
-// two would work for half the players on the web.
+// Both paths intentionally: youtube's player wires `onupdateend` and other code uses
+// `addEventListener('updateend')`. `dispatchEvent` alone would cover both *if* the property
+// handler is found through `Get`, but delivering `on*` first matches the previous behaviour a
+// successful SABR pump was measured against. Duplicate appends from a double-fire are prevented
+// by the per-buffer deliver gate (the second append queues events for the same loop).
 void FireOn(js::Interpreter& interpreter, const Value& target, const std::string& type) {
   if (!target.IsObject()) {
     return;
@@ -553,9 +604,11 @@ void FireOn(js::Interpreter& interpreter, const Value& target, const std::string
   if (event.IsObject()) {
     event.object->Set("type", Value::String(type));
     event.object->Set("target", target);
+    event.object->Set("bubbles", Value::Bool(false));
+    event.object->Set("cancelable", Value::Bool(false));
   }
-  if (const Value* handler = target.object->GetOwn("on" + type);
-      handler != nullptr && handler->IsObject()) {
+  if (const Value* handler = target.object->Get("on" + type);
+      handler != nullptr && handler->IsObject() && handler->object->IsCallable()) {
     interpreter.CallFunction(*handler, target, {event});
   }
   if (const Value* dispatch = target.object->GetOwn("dispatchEvent");
@@ -597,12 +650,30 @@ js::Value DomBindings::MediaSourceWrapper(std::uint64_t id) const {
 }
 
 void DomBindings::DeliverSourceBufferEvents(const js::Value& buffer, std::uint64_t id) {
-  if (media_ == nullptr || interpreter_ == nullptr) {
+  if (media_ == nullptr || interpreter_ == nullptr || !buffer.IsObject()) {
     return;
   }
-  for (const std::string& type : media_->TakeSourceBufferEvents(id)) {
-    FireOn(*interpreter_, buffer, type);
+  // Per-buffer re-entrancy gate. A *global* gate orphaned the other SourceBuffer's events: video's
+  // updateend often appends audio (or the reverse), and that nested Deliver must run. Flattening
+  // only same-buffer updateend → appendBuffer is what stops the C++ stack from growing with SABR.
+  if (const Value* gate = buffer.object->GetOwn("#sb-delivering");
+      gate != nullptr && gate->type == js::ValueType::Boolean && gate->boolean) {
+    return;
   }
+  buffer.object->SetHidden("#sb-delivering", Value::Bool(true));
+  for (;;) {
+    const std::vector<std::string> events = media_->TakeSourceBufferEvents(id);
+    if (events.empty()) {
+      break;
+    }
+    // Spec order: updating becomes false before update/updateend, so the pump may append again.
+    buffer.object->SetHidden("#sb-updating", Value::Bool(false));
+    for (const std::string& type : events) {
+      FireOn(*interpreter_, buffer, type);
+    }
+  }
+  buffer.object->SetHidden("#sb-delivering", Value::Bool(false));
+  media_->FlushMediaEventsForBuffer(id);
 }
 
 void DomBindings::DeliverMediaSourceEvents(const js::Value& source, std::uint64_t id) {

@@ -28,6 +28,11 @@ struct ScriptRequest {
   std::string method = "GET";
   std::vector<ScriptHeader> headers;
   std::string body;
+  // True when `body` came from a JavaScript string. Fetch's extract-MIME step
+  // invents `text/plain;charset=UTF-8` only for strings; an ArrayBuffer /
+  // typed-array body leaves Content-Type unset so a cross-origin POST stays a
+  // simple request (YouTube SABR depends on that).
+  bool body_from_string = false;
   // The strings the specification uses: "cors", "no-cors", "same-origin", and
   // "omit"/"same-origin"/"include". Strings rather than an enum this module
   // declares, because the implementation has to turn them into `net::CorsParams`

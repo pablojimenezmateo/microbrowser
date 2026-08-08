@@ -24,6 +24,35 @@
 
 namespace microbrowser::js {
 
+// Whether a statement list begins with a `'use strict'` / `"use strict"`
+// directive prologue. Only leading ExpressionStatements whose expression is
+// exactly that string count; anything else ends the prologue (ES5 §14.1).
+bool HasUseStrictDirective(const Node* body) {
+  if (body == nullptr) {
+    return false;
+  }
+  if (body->kind != NodeKind::Block && body->kind != NodeKind::Program) {
+    return false;
+  }
+  for (const NodePtr& statement : body->children) {
+    if (statement == nullptr) {
+      continue;
+    }
+    if (statement->kind != NodeKind::ExpressionStatement) {
+      return false;
+    }
+    const Node* expression = statement->Child(0);
+    if (expression == nullptr || expression->kind != NodeKind::StringLiteral) {
+      return false;
+    }
+    if (expression->string == "use strict") {
+      return true;
+    }
+    // Another string directive (e.g. `"use asm"`) keeps the prologue open.
+  }
+  return false;
+}
+
 namespace {
 
 // Whether a subtree names `arguments`, so the array is built only where
@@ -98,6 +127,10 @@ void Compiler::Function(const Node& node, bool arrow) {
   const auto flags = static_cast<std::uint8_t>(node.number);
   function_.is_async = (flags & kFunctionAsync) != 0;
   function_.is_generator = (flags & kFunctionGenerator) != 0;
+  if (HasUseStrictDirective(body)) {
+    strict_ = true;
+  }
+  function_.is_strict = strict_;
   // What `fn.length` reports, which stops at the first default and at a rest
   // element -- not how many bindings the prologue makes, which is all of them.
   function_.parameter_count = DeclaredArity(parameters);

@@ -11,6 +11,7 @@
 #include "gfx/Font.h"
 #include "gfx/Image.h"
 #include "gfx/Geometry.h"
+#include "gfx/Surface.h"
 
 namespace microbrowser::layout {
 
@@ -254,6 +255,9 @@ class Box {
     background_image_ = std::move(image);
   }
 
+  gfx::SurfaceId VideoSurface() const { return video_surface_; }
+  void SetVideoSurface(gfx::SurfaceId surface) { video_surface_ = surface; }
+
   // The intrinsic widths this box was last measured at, cached because the
   // answer depends only on the subtree and its styles -- both fixed for the
   // duration of a layout pass. Without it every ancestor table re-walks every
@@ -298,6 +302,7 @@ class Box {
   std::vector<TextFragment> fragments_;
   std::shared_ptr<const gfx::Image> image_;
   std::shared_ptr<const gfx::Image> background_image_;
+  gfx::SurfaceId video_surface_ = gfx::kNoSurface;
   gfx::FloatPoint scroll_offset_;
   gfx::FloatSize scrollable_overflow_;
   // Mutable: measuring a box does not change it, and the measurement is a pure
@@ -341,6 +346,12 @@ class ImageProvider {
 
   // Queues a background URL during box-tree build; default is a no-op.
   virtual void WantImage(std::string_view /*src*/) const {}
+
+  // The surface hole for a playing `<video>`. `kNoSurface` when nothing is decoded yet.
+  virtual std::optional<gfx::SurfaceId> SurfaceForElement(const dom::Element& element) const {
+    (void)element;
+    return std::nullopt;
+  }
 
  protected:
   ImageProvider() = default;

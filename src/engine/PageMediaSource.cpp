@@ -44,14 +44,13 @@ bool Page::AttachMediaSource(dom::Element& element, const std::string& url) {
   // Attaching is what opens a source -- not construction. That is the specification's rule and it is
   // load-bearing: a page appends only after `sourceopen`, so a source that opened on construction
   // would let a page append before an element existed to play it.
+  //
+  // `BeginLoad` is deliberately *not* here. youtube points `video.src` at a fresh MediaSource before
+  // it has any SourceBuffers; wiping `readyState` on that speculative attach made every successful
+  // SABR session look empty the moment the player allocated the next source. The load starts when
+  // the first `addSourceBuffer` commits the new source (see `AddSourceBuffer`).
   media_.AttachSource(element, id);
   source->Attach();
-  // The element now has a source, which is what takes its `networkState` out of NO_SOURCE. The
-  // readiness ladder is the state machine's business and it climbs as `buffered` fills.
-  if (media::MediaState* state = MediaStateFor(element)) {
-    state->BeginLoad();
-    FlushMediaEvents(element);
-  }
   return true;
 }
 
@@ -102,6 +101,16 @@ std::uint64_t Page::AddSourceBuffer(std::uint64_t source_id, const std::string& 
     error = bindings::MediaController::AddBufferError::InvalidState;
     return 0;
   }
+  // First buffer on this source is when the resource is committed. Until then a speculative
+  // `video.src = createObjectURL(new MediaSource())` must not wipe a working readyState.
+  if (source->BufferCount() == 1) {
+    if (dom::Element* element = media_.ElementForSource(source_id)) {
+      if (media::MediaState* state = MediaStateFor(*element)) {
+        state->BeginLoad();
+        FlushMediaEvents(*element);
+      }
+    }
+  }
   return media_.RegisterBuffer(source_id, buffer);
 }
 
@@ -136,8 +145,19 @@ int Page::AppendToSourceBuffer(std::uint64_t buffer_id, std::string_view bytes) 
   const std::span<const std::byte> span(reinterpret_cast<const std::byte*>(bytes.data()),
                                         bytes.size());
   const media::AppendResult result = buffer->Append(span, buffer->BytesHeld() + remaining);
+  // Point the element at the source that is receiving data. A player that swapped `video.src` to a
+  // newer MediaSource while still appending to this one must see `buffered`/`readyState` on these
+  // buffers -- otherwise it keeps recreating empty sources forever.
+  if (result == media::AppendResult::Ok) {
+    if (dom::Element* element = media_.RebindElementToSource(source_id)) {
+      media_.SetPlaybackSource(*element, source_id);
+    }
+  } else if (media_.ElementForSource(source_id) == nullptr) {
+    (void)media_.RebindElementToSource(source_id);
+  }
   // A successful append may have made enough data available to play. Asked here rather than inside the
   // buffer because readiness is the *element's* and one source can feed only one element.
+  // Events are *not* flushed here: see `FlushMediaEventsForBuffer`, reached after updateend delivery.
   UpdateMediaReadinessFromSource(source_id);
   return static_cast<int>(result);
 }
@@ -188,6 +208,39 @@ std::vector<double> Page::SourceBufferBuffered(std::uint64_t buffer_id) const {
     flat.push_back(range.start);
     flat.push_back(range.end);
   }
+  return flat;
+}
+
+std::vector<double> Page::MediaBuffered(const dom::Element& element) const {
+  std::vector<double> flat;
+  auto flatten = [&](std::uint64_t source_id) {
+    flat.clear();
+    const media::MediaSourceState* source = media_.Source(source_id);
+    if (source == nullptr) {
+      return;
+    }
+    media::BufferedRanges merged;
+    for (std::size_t i = 0; i < source->BufferCount(); ++i) {
+      const media::SourceBufferState* buffer = source->BufferAt(i);
+      if (buffer == nullptr) {
+        continue;
+      }
+      for (const media::BufferedRanges::Range& range : buffer->Buffered().Ranges()) {
+        merged.Add(range.start, range.end);
+      }
+    }
+    for (const media::BufferedRanges::Range& range : merged.Ranges()) {
+      flat.push_back(range.start);
+      flat.push_back(range.end);
+    }
+  };
+  // Prefer the source that last received an append when the attached URL is an empty speculative
+  // MediaSource the player has not filled yet.
+  flatten(media_.PlaybackSourceOf(element));
+  if (!flat.empty()) {
+    return flat;
+  }
+  flatten(media_.SourceOf(element));
   return flat;
 }
 
@@ -243,7 +296,9 @@ void Page::UpdateMediaReadinessFromSource(std::uint64_t source_id) {
     // stalling. A buffer that does not contain the position contributes nothing -- not its largest
     // end, which would be a promise about data on the far side of a gap.
     for (const media::BufferedRanges::Range& range : buffer->Buffered().Ranges()) {
-      if (at + media::BufferedRanges::kJoinTolerance >= range.start && at < range.end) {
+      // Seconds of media at or after the playhead. Requiring `at` to fall *inside* a range made
+      // youtube look unbuffered whenever the first WebM cluster started a few frames after 0.
+      if (range.end > at) {
         ahead = std::max(ahead, range.end - at);
       }
     }
@@ -253,14 +308,22 @@ void Page::UpdateMediaReadinessFromSource(std::uint64_t source_id) {
   }
   // The *smallest* ahead across buffers would be the honest number for a stream with audio and video,
   // because playback stalls on whichever runs out first. Taking the largest here is a deliberate
-  // simplification and it is written down rather than left to be found: with one buffer -- which is
-  // every case this browser can actually play, since it has no decoder yet -- the two are the same.
+  // simplification and it is written down rather than left to be found: with one buffer the two are
+  // the same; with two they are not, and that is the next sharpening.
   state->MetadataArrived(source->Duration());
   state->BufferedAhead(ahead);
   if (source->State() == media::MediaSourceState::ReadyState::Ended && ahead <= 0.0) {
     state->ReachedEnd();
   }
-  FlushMediaEvents(*element);
+  // Do not FlushMediaEvents here -- callers that must deliver synchronously (attach, play) flush
+  // themselves; appendBuffer flushes from the updateend microtask.
+}
+
+void Page::FlushMediaEventsForBuffer(std::uint64_t buffer_id) {
+  const std::uint64_t source_id = media_.SourceOfBuffer(buffer_id);
+  if (dom::Element* element = media_.ElementForSource(source_id)) {
+    FlushMediaEvents(*element);
+  }
 }
 
 }  // namespace microbrowser::engine

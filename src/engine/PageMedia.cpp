@@ -58,6 +58,9 @@ bindings::MediaController::PlayResult Page::Play(dom::Element& element) {
   FlushMediaEvents(element);
   switch (refusal) {
     case media::MediaState::PlayRefusal::None:
+      video_.StartPlayback(element, *state);
+      (void)video_.AdvanceAll([this](dom::Element& el) { return MediaStateFor(el); });
+      InvalidateLayout();
       return bindings::MediaController::PlayResult::Started;
     case media::MediaState::PlayRefusal::NotAllowed:
       return bindings::MediaController::PlayResult::NotAllowed;

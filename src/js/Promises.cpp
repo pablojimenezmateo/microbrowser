@@ -279,6 +279,21 @@ void Interpreter::DrainMicrotasks() {
   // It is not a hang here. Past the bound the drain stops and leaves the rest
   // queued, so the window stays responsive and the work continues on the next
   // turn. Losing promptness is a far better failure than losing the browser.
+  //
+  // **Budget refresh at the outermost drain only.** youtube's player bootstrap
+  // does `NZU().then(initPlayer_)`; when the player module is already loaded,
+  // NZU is `Promise.resolve([])` and `initPlayer_` → `Application.create` runs
+  // as a microtask on whatever steps kevlar already spent. That throws
+  // `script ran too long`, leaves the player proxy's `eue` flag stuck, and the
+  // watch page never stamps `#movie_player`. Refreshing here — once per outer
+  // drain, never per job and never when nested — is not the per-CallCompiled
+  // reset TD-0018 forbids: the hang guard still covers the whole drain as one
+  // budget, and a microtask storm still hits 20M and stops.
+  const bool outermost = microtask_drain_depth_ == 0;
+  ++microtask_drain_depth_;
+  if (outermost && vm_.frames.empty() && steps_ > kMaxSteps / 2) {
+    BeginHostTurn();
+  }
   constexpr std::size_t kMaxJobsPerTurn = 100'000;
   for (std::size_t ran = 0; ran < kMaxJobsPerTurn && !microtasks_.empty(); ++ran) {
     // Between jobs, with nothing in progress and every queued job a root, is
@@ -348,6 +363,7 @@ void Interpreter::DrainMicrotasks() {
     }
     ResolvePromise(*this, task.derived, handled.value);
   }
+  --microtask_drain_depth_;
 }
 
 Value Interpreter::NewPromiseValue() {

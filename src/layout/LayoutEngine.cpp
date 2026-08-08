@@ -195,6 +195,10 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
     // measures declared size first, then attaches, then remeasures.
     if ((element.TagName() == "img" || element.TagName() == "canvas") && images_ != nullptr) {
       box->SetImage(images_->ImageForElement(element, 0, 0));
+    } else if (element.TagName() == "video" && images_ != nullptr) {
+      if (const std::optional<gfx::SurfaceId> surface = images_->SurfaceForElement(element)) {
+        box->SetVideoSurface(*surface);
+      }
     } else if (element.TagName() == "input" || element.TagName() == "button" ||
                element.TagName() == "textarea" || element.TagName() == "select") {
       box->SetText(FormControlText(element));
@@ -580,6 +584,19 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     content_height =
         LayoutInlineChildren(box, content_left, content_width, content_top, child_floats);
   } else {
+    // Definite height this box will end up with, known before its children when
+    // the height does not depend on them. CSS 2.1 §10.5: a percentage height
+    // resolves against that, and is treated as `auto` when the containing
+    // block's height is indefinite. Skipping the definite case left
+    // `ytd-player { height: 100% }` at zero inside youtube's abspos
+    // `#player-container` that already had a stretched height from top/bottom.
+    std::optional<float> definite_content_height;
+    if (forced != nullptr && forced->content_height.has_value()) {
+      definite_content_height = *forced->content_height;
+    } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
+      definite_content_height = style.height.Resolve(style.font_size);
+    }
+
     float child_cursor = content_top;
     for (const std::unique_ptr<Box>& child : box.Children()) {
       if (!child->IsOutOfLineFlow()) {
@@ -600,8 +617,15 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
         continue;
       }
 
+      ForcedSize percent_height;
+      const ForcedSize* child_forced = nullptr;
+      if (definite_content_height.has_value() && child_style.height.IsPercent()) {
+        percent_height.content_height =
+            child_style.height.Used(*definite_content_height, child_style.font_size);
+        child_forced = &percent_height;
+      }
       LayoutBlock(*child, content_left, content_width, child_cursor, child_floats,
-                  style.centers_block_children);
+                  style.centers_block_children, child_forced);
     }
     content_height = child_cursor - content_top;
   }

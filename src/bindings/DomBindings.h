@@ -352,6 +352,9 @@ class DomBindings {
   void SetReadyState(const char* state);
   js::Value MakeClassList(dom::Element& element);
   js::Value MakeStyle(dom::Element& element);
+  // Live `data-*` map. A snapshot cannot accept `el.dataset.version = url`, which
+  // is how youtube's player stamps the script URL J14 later compares.
+  js::Value MakeDataset(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
   // One event object, with its flags and the two ways to stop it.
   // `trusted` says whether the browser made it or a page did -- a page's own

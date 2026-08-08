@@ -338,6 +338,35 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
            "and the request that went out is the one the object described");
   });
 
+  AddTest(tests, "Fetch/RequestBodyAndCredentialsReachTheWire", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "ok"));
+    session.Run(
+        "const body = new Uint8Array([65, 66, 0, 67]);"
+        "const req = new Request('/sabr', {method: 'POST', body, credentials: 'include'});"
+        "fetch(req).then(r => r.text()).then(t => console.log(t));");
+    ExpectEqString(session.Console(), "ok", "fetch(Request) settles: " + session.Errors());
+    ExpectEqInt(static_cast<long long>(session.factory.log.requests.size()), 2,
+                "document then the page's fetch");
+    const std::string& wire = session.factory.log.requests.at(1);
+    Expect(wire.rfind("POST /sabr ", 0) == 0, "method and path from the Request");
+    Expect(wire.find("Content-Length: 4\r\n") != std::string::npos,
+           "typed-array body bytes reach the wire, not String(uint8Array)");
+    Expect(wire.find("Content-Type:") == std::string::npos,
+           "a byte source leaves Content-Type unset so a cross-origin POST stays simple");
+    Expect(wire.find("\r\n\r\nABC") != std::string::npos ||
+               wire.find("\r\n\r\nAB") != std::string::npos,
+           "payload includes the zero byte between B and C");
+    // The body ends the message; find the four bytes after the header break.
+    const auto at = wire.find("\r\n\r\n");
+    Expect(at != std::string::npos && wire.size() >= at + 4 + 4, "headers then body");
+    if (at != std::string::npos && wire.size() >= at + 8) {
+      Expect(wire[at + 4] == 'A' && wire[at + 5] == 'B' && wire[at + 6] == '\0' &&
+                 wire[at + 7] == 'C',
+             "raw bytes, including an embedded NUL");
+    }
+  });
+
   AddTest(tests, "Fetch/HeadersAreACollection", [] {
     Session session;
     session.Run(
@@ -352,13 +381,38 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
                    + session.Errors());
   });
 
-  AddTest(tests, "Fetch/ResponseBodyIsAbsentRatherThanFake", [] {
+  AddTest(tests, "Fetch/ResponseBodyIsAOneChunkStream", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "hi"));
+    session.Run(
+        "fetch('/d').then(async r => {"
+        "  console.log('has ' + !!r.body + ' ' + typeof ReadableStream);"
+        "  const first = await r.body.getReader().read();"
+        "  console.log(first.done + ' ' + first.value.length + ' ' +"
+        "              String.fromCharCode(...first.value));"
+        "  let second;"
+        "  try { r.body.getReader(); second = 'unlocked'; }"
+        "  catch (e) { second = e.name; }"
+        "  console.log(second);"
+        "});");
+    ExpectEqString(session.Console(), "has true function|false 2 hi|TypeError",
+                   "buffered body as one Uint8Array chunk; a second getReader "
+                   "fails because the stream is locked -- " +
+                       session.Errors());
+  });
+
+  AddTest(tests, "Fetch/ResponseBodyReaderMarksBodyUsed", [] {
     Session session;
     session.Serve("page.example", OkResponse("text/plain", "x"));
-    session.Run("fetch('/d').then(r => console.log('body ' + (r.body === undefined)));");
-    ExpectEqString(session.Console(), "body true",
-                   "a `body` that was present and buffering would make `if (response.body)` "
-                   "lie to every page that streams -- ADR 0012's rule about stubs");
+    session.Run(
+        "fetch('/d').then(async r => {"
+        "  await r.body.getReader().read();"
+        "  try { await r.text(); console.log('ok'); }"
+        "  catch (e) { console.log(e.name); }"
+        "});");
+    ExpectEqString(session.Console(), "TypeError",
+                   "reading the body stream consumes it for text() too -- " +
+                       session.Errors());
   });
 
   AddTest(tests, "Fetch/ANavigationCancelsWhatThePageWasFetching", [] {

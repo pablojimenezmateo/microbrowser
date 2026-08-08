@@ -32,7 +32,8 @@
 namespace microbrowser::js {
 
 Compiler::Compiler(CompileState& state, CompiledFunction& function, Compiler* parent)
-    : state_(state), function_(function), parent_(parent) {}
+    : state_(state), function_(function), parent_(parent),
+      strict_(parent != nullptr && parent->strict_) {}
 
 // --- Emitting ---------------------------------------------------------------
 

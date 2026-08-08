@@ -26,9 +26,10 @@
 #include "util/WaitDescriptor.h"
 #include "util/BlobUrlRegistry.h"
 #include "engine/MediaElements.h"
+#include "engine/PageVideo.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
-#include "gfx/DisplayList.h"
+#include "gfx/Surface.h"
 #include "gfx/TextRenderer.h"
 #include "layout/FontTextMeasurer.h"
 #include "engine/PageScript.h"
@@ -504,9 +505,11 @@ class Page : private layout::ImageProvider,
   void SetAppendWindow(std::uint64_t buffer_id, double start, double end) override;
   bool SourceBufferUpdating(std::uint64_t buffer_id) const override;
   std::vector<double> SourceBufferBuffered(std::uint64_t buffer_id) const override;
+  std::vector<double> MediaBuffered(const dom::Element& element) const override;
   bool IsLiveSourceBuffer(std::uint64_t buffer_id) const override;
   std::vector<std::string> TakeSourceBufferEvents(std::uint64_t buffer_id) override;
   std::vector<std::string> TakeMediaSourceEvents(std::uint64_t source_id) override;
+  void FlushMediaEventsForBuffer(std::uint64_t buffer_id) override;
   // What an append changed about the *element*: MSE reports what it holds and the element's state
   // machine decides what that means. One direction, and one number across the seam.
   void UpdateMediaReadinessFromSource(std::uint64_t source_id);
@@ -544,6 +547,9 @@ class Page : private layout::ImageProvider,
   // page with none from paying for the feature.
   void AppendWorkerDescriptors(util::WaitDescriptorList& out) const {
     workers_.AppendDescriptors(out);
+  }
+  void AppendVideoDecoderDescriptors(util::WaitDescriptorList& out) const {
+    video_.AppendDecoderDescriptors(out);
   }
   bool WorkersHaveWork() const { return workers_.HasWork(); }
 
@@ -602,6 +608,11 @@ class Page : private layout::ImageProvider,
   // The `<canvas>` backing stores (ADR 0029 §2). `mutable` for the reason `animations_` is: the paint
   // path reads a snapshot from a const method, and taking one is a read of what is already there.
   CanvasSurfaces& Canvases() { return canvases_; }
+  const gfx::SurfaceRegistry& VideoSurfaces() const { return video_.Surfaces(); }
+  gfx::SurfaceRegistry& VideoSurfaces() { return video_.Surfaces(); }
+  void AddVideoSurfaceDamage(const gfx::DisplayList& list, std::vector<gfx::IntRect>& damage) {
+    video_.AddSurfaceDamage(list, damage);
+  }
   const Animations& RunningAnimations() const { return animations_; }
   // Fires whatever the state machine has queued, in order.
   void FlushMediaEvents(dom::Element& element);
@@ -706,6 +717,7 @@ class Page : private layout::ImageProvider,
   std::shared_ptr<const gfx::Image> ImageFor(std::string_view src) const override;
   std::shared_ptr<const gfx::Image> ImageForElement(const dom::Element& element, int css_width = 0,
                                                    int css_height = 0) const override;
+  std::optional<gfx::SurfaceId> SurfaceForElement(const dom::Element& element) const override;
 
   // One route from "this form is being submitted" to a submission: fire the
   // `submit` event, and build the data set only if nothing prevented it. A
@@ -789,6 +801,7 @@ class Page : private layout::ImageProvider,
   // from the layout pass.
   mutable Animations animations_;
   mutable CanvasSurfaces canvases_;
+  PageVideo video_;
   Workers workers_;
   std::vector<PendingWorkerScript> unrequested_worker_scripts_;
   // What time the animation pass believes it is. One number for the whole frame, for the reason the

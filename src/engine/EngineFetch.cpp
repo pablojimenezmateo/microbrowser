@@ -101,12 +101,13 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
     for (const char byte : request.body) {
       options.body.push_back(static_cast<std::byte>(byte));
     }
-    if (!options.headers.Has("content-type")) {
+    if (request.body_from_string && !options.headers.Has("content-type")) {
       // What the specification attaches to a string body, and it is not
       // cosmetic: `text/plain` is CORS-safelisted, so a POST of a string is a
       // simple request and a POST of JSON -- which the page labels itself --
-      // costs a preflight. The default deciding that is the reason it is here
-      // rather than left to the server.
+      // costs a preflight. A byte source (ArrayBuffer / typed array) leaves
+      // Content-Type unset, which is also safelisted-by-absence and what
+      // YouTube's SABR POST needs.
       options.headers.Add("Content-Type", "text/plain;charset=UTF-8");
     }
   }

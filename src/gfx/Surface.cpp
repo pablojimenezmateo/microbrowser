@@ -1,7 +1,12 @@
 #include "gfx/Surface.h"
 
 #include <cstring>
+#include <memory>
 #include <utility>
+
+#include "gfx/DisplayList.h"
+#include "gfx/Image.h"
+#include "gfx/Painter.h"
 
 namespace microbrowser::gfx {
 
@@ -54,5 +59,25 @@ const Surface* SurfaceRegistry::Find(SurfaceId id) const {
 }
 
 bool SurfaceRegistry::Destroy(SurfaceId id) { return surfaces_.erase(id) > 0; }
+
+void CompositeSurfaces(Canvas& canvas, const DisplayList& list, const SurfaceRegistry& surfaces) {
+  const std::vector<SurfacePlacement> placements = SurfacePlacements(list);
+  if (placements.empty()) {
+    return;
+  }
+  Painter painter(canvas);
+  for (const SurfacePlacement& placement : placements) {
+    const Surface* surface = surfaces.Find(placement.surface);
+    if (surface == nullptr || !surface->HasContent()) {
+      continue;
+    }
+    auto image = std::make_shared<Image>();
+    std::vector<std::uint32_t> pixels(surface->Pixels().begin(), surface->Pixels().end());
+    if (!image->Adopt(surface->Size().width, surface->Size().height, std::move(pixels))) {
+      continue;
+    }
+    painter.DrawImage(*image, placement.destination);
+  }
+}
 
 }  // namespace microbrowser::gfx

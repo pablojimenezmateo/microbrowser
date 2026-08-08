@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "app/DirtyRegionPolicy.h"
+#include "gfx/Surface.h"
 #include "app/EventDrainBudget.h"
 #include "app/IdleWaitStrategy.h"
 #include "app/KeyRouting.h"
@@ -428,6 +429,7 @@ void Application::PaintAndPresent() {
     painter_.SetTransform(gfx::AffineTransform::Translation(static_cast<float>(origin.x),
                                                             static_cast<float>(origin.y)));
     gfx::Execute(display_list_, painter_, region, &text_);
+    gfx::CompositeSurfaces(canvas_, display_list_, engine_.VideoSurfaces());
     painter_.SetTransform(gfx::AffineTransform{});
   };
 

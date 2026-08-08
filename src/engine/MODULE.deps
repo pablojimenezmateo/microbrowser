@@ -125,7 +125,7 @@ max_tu_lines: 900
 # elements upgrade, is that response in the tree, what does this shadow root
 # contain. Each is one line of JavaScript, and each was previously answered by
 # adding an `fprintf` and rebuilding.
-budget: Engine header_lines=420 public_methods=17 members=22
+budget: Engine header_lines=425 public_methods=18 members=22
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.
@@ -158,7 +158,7 @@ budget: CanvasSurfaces header_lines=110 public_methods=14 members=2
 budget: State         header_lines=50 public_methods=4 members=10
 budget: Surface       header_lines=30 public_methods=0 members=8
 budget: Animations    header_lines=110 public_methods=12 members=5
-budget: MediaElements header_lines=80 public_methods=22 members=8
+budget: MediaElements header_lines=120 public_methods=25 members=9
 budget: Loader header_lines=145 public_methods=17 members=8
 # What a load produced. A struct with no invariant, which is why it is one --
 # but a budget so that "what does a caller learn about a response" stays a
@@ -276,7 +276,12 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # interface because the API is wide -- each one is a lookup plus a call into src/media, and none of
 # them decides anything. Widening the *interface* is the cost of not widening the seam: the
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
-budget: Page   header_lines=835 public_methods=159 members=22
+budget: Page   header_lines=845 public_methods=165 members=23
+# ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
+# the last composited generation per surface id, which is how a playing video damages the screen when
+# the display list is byte-identical.
+budget: DecoderClient header_lines=55 public_methods=14 members=6
+budget: PageVideo      header_lines=75 public_methods=11 members=4
 # Text measurement split from Page for fan-out: one coordinator member rather than
 # `gfx::TextRenderer` and `layout::FontTextMeasurer` on Page itself.
 budget: PageTextContext header_lines=30 public_methods=5 members=2

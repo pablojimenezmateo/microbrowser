@@ -271,6 +271,7 @@ void Engine::AppendWaitDescriptors(util::WaitDescriptorList& out) const {
   // nothing to say costs nothing; one that posts writes a byte and the loop wakes. No polling, and a
   // page with no workers adds no descriptors at all.
   page_.AppendWorkerDescriptors(out);
+  page_.AppendVideoDecoderDescriptors(out);
 }
 
 bool Engine::HasRunnableWork() const {

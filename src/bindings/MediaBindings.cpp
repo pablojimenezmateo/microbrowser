@@ -185,6 +185,23 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
   accessor("paused");
   accessor("ended");
   accessor("muted");
+
+  // `buffered` as a TimeRanges snapshot of whatever MediaSource ranges are
+  // attached. Absent rather than always-empty when there is no media controller
+  // behind this binding layer.
+  const Value buffered = interpreter_->NewNativeValue("buffered", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* node = NodeOf(call.self);
+    if (owner == nullptr || owner->media_ == nullptr || node == nullptr || !node->IsElement()) {
+      return Value::Undefined();
+    }
+    return owner->MakeTimeRanges(
+        owner->media_->MediaBuffered(static_cast<const dom::Element&>(*node)));
+  });
+  if (buffered.IsObject()) {
+    buffered.object->Set(kOwnerSlot, PointerValue(this));
+    target.object->DefineAccessor("buffered", buffered.object, nullptr);
+  }
 }
 
 bool DomBindings::DispatchMediaEvent(dom::Element& element, const std::string& type) {

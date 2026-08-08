@@ -44,12 +44,13 @@ struct MatroskaFile {
   bool had_refusals = false;
 };
 
-// Nothing when the bytes are not EBML at all. A WebM file begins with the EBML header magic, and a
-// parser that skipped that check would walk arbitrary bytes as a variable-length integer tree.
+// Nothing when the bytes are not EBML / Matroska media at all. A WebM *file* begins with the EBML
+// header magic; an MSE media segment may begin with a bare `Cluster` (YouTube DASH). A parser that
+// skipped that check would walk arbitrary bytes as a variable-length integer tree.
 std::optional<MatroskaFile> ParseMatroska(std::span<const std::byte> input);
 
-// Whether these bytes start with the EBML header. Cheap, and the reason it is public: a media
-// loader can tell a WebM from an MP4 without attempting either.
+// Whether these bytes start with an EBML header or a bare Cluster. Cheap, and the reason it is
+// public: a media loader can tell a WebM from an MP4 without attempting either.
 bool IsMatroska(std::span<const std::byte> input);
 
 }  // namespace microbrowser::media

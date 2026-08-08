@@ -233,6 +233,38 @@ void RegisterMatroskaTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(parsed->samples.size()), 1, "and so was the sample");
   });
 
+  AddTest(tests, "Matroska/ATruncatedSegmentStillYieldsTracks", [] {
+    // MSE WebM init: Segment's size names the whole stream; only Info+Tracks arrived.
+    const std::string info_tracks =
+        Element(0x1549A966, Element(0x2AD7B1, Uint(1000000, 3))) +
+        Element(0x1654AE6B, VideoTrack(1));
+    std::string file = Element(0x1A45DFA3, Element(0x4286, Uint(1, 1)));
+    // Hand-build a Segment header whose size claims far more than the payload we append.
+    file.push_back(static_cast<char>(0x18));
+    file.push_back(static_cast<char>(0x53));
+    file.push_back(static_cast<char>(0x80));
+    file.push_back(static_cast<char>(0x67));
+    file.push_back(static_cast<char>(0x01));
+    for (int shift = 48; shift >= 0; shift -= 8) {
+      file.push_back(static_cast<char>((0x13214545ull >> shift) & 0xFFu));  // huge declared size
+    }
+    file += info_tracks;
+    const std::optional<MatroskaFile> parsed = ParseMatroska(Bytes(file));
+    Expect(parsed.has_value(), "truncated Segment still parses");
+    ExpectEqInt(static_cast<long long>(parsed->tracks.size()), 1, "Tracks inside truncated Segment");
+    Expect(parsed->had_refusals, "truncation is signalled");
+  });
+
+  AddTest(tests, "Matroska/ABareClusterIsAMediaSegment", [] {
+    const std::string cluster =
+        Element(0x1F43B675, Element(0xE7, Uint(100, 2)) + SimpleBlock(1, 0, true, "frame"));
+    Expect(media::IsMatroska(Bytes(cluster)), "Cluster magic is Matroska for MSE");
+    const std::optional<MatroskaFile> parsed = ParseMatroska(Bytes(cluster));
+    Expect(parsed.has_value(), "bare Cluster parses");
+    ExpectEqInt(static_cast<long long>(parsed->samples.size()), 1, "one sample");
+    ExpectEqInt(static_cast<long long>(parsed->samples[0].decode_time), 100, "cluster timecode");
+  });
+
   AddTest(tests, "Matroska/SomethingThatIsNotEbmlIsRefused", [] {
     // Without the magic check, arbitrary bytes are walked as a variable-length integer tree. That
     // terminates -- but only after reporting tracks and samples that are not there.

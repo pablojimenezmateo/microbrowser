@@ -14,7 +14,7 @@ purpose: Containers, and the buffer two threads pass samples through. Never a co
 # away the only place the codec's input can be constrained.
 allow: util
 
-public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h BufferedRanges.h HlsPlaylist.h Matroska.h MediaSourceState.h MediaState.h MpegTs.h PlaybackClock.h
+public: BoxReader.h CodecId.h IsoBmff.h AudioRing.h AudioSink.h BufferedRanges.h HlsPlaylist.h Matroska.h MediaSourceState.h MediaState.h MpegTs.h PlaybackClock.h Ump.h
 
 extern:
 
@@ -63,6 +63,6 @@ budget: BufferedRanges  header_lines=60 public_methods=10 members=1
 budget: Range           header_lines=15 public_methods=2  members=2
 # The append algorithm as a pure object, for the reason MediaState is one: it is the part that is
 # easy to get subtly wrong, and only a pure object can be asserted.
-budget: SourceBufferState header_lines=85 public_methods=20 members=12
+budget: SourceBufferState header_lines=115 public_methods=24 members=14
 budget: MediaSourceState  header_lines=60 public_methods=18 members=5
 budget: Segment         header_lines=15 public_methods=2  members=2

@@ -458,6 +458,22 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(StyleOf("<p>x</p>", ":root { --pad: 20px } p { padding: var(--pad) 0 }", "p")
                    .padding.top == Length::Pixels(20.0f),
            "a reference may be one component of a shorthand");
+    // Adjacent to a calc operator, not only after whitespace. youtube's
+    // `#player-container-inner` uses exactly this form (no spaces around `/`
+    // or `*`); treating `/var(` as a non-function left the second reference
+    // literal and the whole padding-top invalid.
+    Expect(StyleOf("<div style='width:100px'><p>x</p></div>",
+                   ":root { --h: 0.5625; --w: 1 } p { padding-top: "
+                   "calc(var(--h)/var(--w)*100%) }",
+                   "p")
+                   .padding.top.IsPercent(),
+           "var() after `/` or `*` in calc is still a function");
+    Expect(StyleOf("<div style='width:100px'><p>x</p></div>",
+                   ":root { --h: 0.5625; --w: 1 } p { padding-top: "
+                   "calc(var(--h)/var(--w)*100%) }",
+                   "p")
+                   .padding.top.value == 56.25f,
+           "and substitutes to the aspect-ratio percentage youtube asks for");
 
     // Invalid at computed-value time: the property is unset, and the rule it
     // would have beaten does *not* get to win instead. This is the case that

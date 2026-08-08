@@ -188,6 +188,7 @@ void ParseElements(ParseContext& context, std::size_t begin, std::size_t end, in
     const std::size_t header = static_cast<std::size_t>(id.length + size.length);
     const std::size_t payload = at + header;
     std::size_t payload_end = 0;
+    bool truncated = false;
     if (size.all_ones) {
       // An unknown size: legal, and common in a live stream. It runs to the end of the enclosing
       // element, which for the top-level `Segment` is the end of the file.
@@ -195,10 +196,13 @@ void ParseElements(ParseContext& context, std::size_t begin, std::size_t end, in
     } else {
       payload_end = util::SaturatingAdd(payload, static_cast<std::size_t>(size.value));
       if (payload_end > end) {
-        // A declared size past the end of its parent. The element is truncated -- a partial
-        // download -- so what arrived before it is kept and this is not.
+        // Declared size past the bytes that arrived. A partial download of a *file* is one case;
+        // the other is an MSE WebM initialization segment: the muxer writes `Segment`'s size as the
+        // whole representation, and the player appends only Info+Tracks. Aborting here left every
+        // YouTube init with zero tracks, so every later Cluster was "media before initialization".
         context.out->had_refusals = true;
-        return;
+        payload_end = end;
+        truncated = true;
       }
     }
 
@@ -324,8 +328,9 @@ void ParseElements(ParseContext& context, std::size_t begin, std::size_t end, in
         break;  // an element this parser does not read, skipped by its declared size
     }
 
-    if (size.all_ones) {
-      // An unknown-size element consumed the rest of its parent by definition.
+    if (size.all_ones || truncated) {
+      // An unknown-size or truncated element consumed the rest of its parent by definition -- the
+      // next sibling's offset is not knowable from what arrived.
       return;
     }
     const std::size_t next = util::SaturatingAdd(at, header + static_cast<std::size_t>(size.value));
@@ -346,7 +351,15 @@ bool IsMatroska(std::span<const std::byte> input) {
     return false;
   }
   BoxReader reader(input);
-  return reader.ReadU32() == 0x1A45DFA3u && reader.Ok();
+  const std::uint32_t first = reader.ReadU32();
+  if (!reader.Ok()) {
+    return false;
+  }
+  // A full file or an MSE initialization segment begins with the EBML header. An MSE *media*
+  // segment is often a bare `Cluster` (YouTube WebM DASH does this), with no EBML wrapper --
+  // refusing those left every cluster as ParseFailed while inits "succeeded" and `buffered`
+  // stayed empty for the element that mattered.
+  return first == 0x1A45DFA3u || first == 0x1F43B675u;
 }
 
 std::optional<MatroskaFile> ParseMatroska(std::span<const std::byte> input) {

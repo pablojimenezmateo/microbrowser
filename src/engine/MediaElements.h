@@ -77,6 +77,15 @@ class MediaElements {
   // has to hear about it is found from the source. Null when no element is attached, which is a source
   // a page built and never used.
   dom::Element* ElementForSource(std::uint64_t source_id) const;
+  // When a page still appends to a SourceBuffer after `video.src` was pointed at a newer MediaSource,
+  // re-bind the (single) media element to this source so `buffered` and readiness describe the
+  // buffers that are actually receiving data. Null when there is no media element to steal.
+  dom::Element* RebindElementToSource(std::uint64_t source_id);
+  // Last source that successfully received an append for this element. `video.src` can already name a
+  // newer empty MediaSource while SABR is still filling the previous one; `buffered` and readiness
+  // must follow the appends, not the speculative URL.
+  void SetPlaybackSource(dom::Element& element, std::uint64_t source_id);
+  std::uint64_t PlaybackSourceOf(const dom::Element& element) const;
   std::uint64_t SourceOfBuffer(std::uint64_t buffer_id) const;
 
  private:
@@ -96,6 +105,7 @@ class MediaElements {
   // element's own state machine. Cleared on navigation with everything else, so it never outlives what
   // it points at.
   std::map<dom::Element*, std::uint64_t> attached_;
+  std::map<dom::Element*, std::uint64_t> playback_;
   std::uint64_t next_id_ = 0;
 };
 

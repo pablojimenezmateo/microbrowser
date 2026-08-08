@@ -789,8 +789,13 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("'use strict'; this === globalThis", "true");
     ExpectEval("this.claimed = this.claimed || {}; typeof globalThis.claimed", "object");
     ExpectEval("(function (g) { g.viaUmd = 7 })(this); globalThis.viaUmd", "7");
+    // A bare call in non-strict code gets the global object as `this`. youtube's
+    // player is `(function(g){var window=this;...})(_yt_player)` and needs it.
+    ExpectEval("(function () { return this === globalThis })()", "true");
+    ExpectEval("var got; (function () { got = this })(); got === globalThis", "true");
     // Strict mode still applies where it actually applies.
     ExpectEval("'use strict'; function f(){ return this } f()", "undefined");
+    ExpectEval("(function () { 'use strict'; return this })()", "undefined");
     // The exception, and it has to shadow rather than simply be absent: a
     // module's scope has the global scope as its parent.
     ExpectEqString(EvalModules({{"main", "console.log(this === globalThis, this)"}}),

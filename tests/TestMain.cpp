@@ -80,6 +80,8 @@ void RegisterWebFontTests(std::vector<TestCase>& tests);
 void RegisterWebSocketTests(std::vector<TestCase>& tests);
 void RegisterWoff2Tests(std::vector<TestCase>& tests);
 void RegisterXhrTests(std::vector<TestCase>& tests);
+void RegisterDecoderMessageTests(std::vector<TestCase>& tests);
+void RegisterDecoderClientTests(std::vector<TestCase>& tests);
 void RegisterIpcMessageTests(std::vector<TestCase>& tests);
 void RegisterIsoBmffTests(std::vector<TestCase>& tests);
 void RegisterJpegDecoderTests(std::vector<TestCase>& tests);
@@ -244,6 +246,8 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterWebSocketTests(tests);
   microbrowser::tests::RegisterWoff2Tests(tests);
   microbrowser::tests::RegisterXhrTests(tests);
+  microbrowser::tests::RegisterDecoderMessageTests(tests);
+  microbrowser::tests::RegisterDecoderClientTests(tests);
   microbrowser::tests::RegisterIpcMessageTests(tests);
   microbrowser::tests::RegisterIsoBmffTests(tests);
   microbrowser::tests::RegisterJpegDecoderTests(tests);

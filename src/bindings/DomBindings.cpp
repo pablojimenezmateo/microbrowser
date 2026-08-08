@@ -536,11 +536,30 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     // hiding them blocked dom-repeat and every other attribute binding.
     return value == nullptr ? Value::Null() : Value::String(*value);
   });
+  // Namespace accepted and ignored, for the same reason as createElementNS:
+  // this tree is HTML-only. youtube's player calls setAttributeNS(null, ...)
+  // during bootstrap; without the name the call throws and #container stays
+  // empty.
+  method("getAttributeNS", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "getAttributeNS called on a non-element");
+    }
+    const std::string* value = static_cast<dom::Element*>(self)->GetAttribute(
+        LowerCase(js::ToString(Argument(call.arguments, 1))));
+    return value == nullptr ? Value::Null() : Value::String(*value);
+  });
   method("hasAttribute", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     return Value::Bool(self != nullptr && self->IsElement() &&
                        static_cast<dom::Element*>(self)->HasAttribute(
                            LowerCase(js::ToString(Argument(call.arguments, 0)))));
+  });
+  method("hasAttributeNS", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return Value::Bool(self != nullptr && self->IsElement() &&
+                       static_cast<dom::Element*>(self)->HasAttribute(
+                           LowerCase(js::ToString(Argument(call.arguments, 1)))));
   });
   method("removeAttribute", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -556,6 +575,19 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     // reaction or the mutation record.
     owner->RemoveElementAttribute(*static_cast<dom::Element*>(self),
                                   LowerCase(js::ToString(Argument(call.arguments, 0))));
+    return Value::Undefined();
+  });
+  method("removeAttributeNS", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "removeAttributeNS called on a non-element");
+    }
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    owner->RemoveElementAttribute(*static_cast<dom::Element*>(self),
+                                  LowerCase(js::ToString(Argument(call.arguments, 1))));
     return Value::Undefined();
   });
   method("matches", [](NativeCall& call) {
@@ -603,39 +635,17 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     }
     return owner->MakeStyle(static_cast<dom::Element&>(*self));
   });
-  // `data-*` attributes, under the names a page uses for them.
+  // `data-*` attributes, under the names a page uses for them. Live, because
+  // `el.dataset.version = url` must write `data-version` -- youtube's player
+  // does exactly that, and a snapshot Proxy-less object threw the write away so
+  // J14's version check always failed and EHT cleared `#movie_player`.
   accessor("dataset", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     if (owner == nullptr || self == nullptr || !self->IsElement()) {
       return Value::Undefined();
     }
-    // A plain object rather than a live view: the set of `data-` attributes
-    // an element has does not change under a page's feet the way `class`
-    // does, and reading one is what a page overwhelmingly does with it.
-    const Value data = call.interpreter.NewObjectValue();
-    if (data.IsObject()) {
-      for (const dom::Attribute& attribute :
-           static_cast<dom::Element&>(*self).Attributes()) {
-        if (attribute.name.rfind("data-", 0) != 0) {
-          continue;
-        }
-        // `data-user-id` is `dataset.userId`, which is the same kebab-to-
-        // camel rule the style properties use.
-        std::string name;
-        bool upper = false;
-        for (const char c : attribute.name.substr(5)) {
-          if (c == '-') {
-            upper = true;
-            continue;
-          }
-          name.push_back(upper ? util::detail::AsciiToUpper(c) : c);
-          upper = false;
-        }
-        data.object->Set(name, Value::String(attribute.value));
-      }
-    }
-    return data;
+    return owner->MakeDataset(static_cast<dom::Element&>(*self));
   });
   method("setAttribute", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -649,6 +659,21 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     owner->SetElementAttribute(*static_cast<dom::Element*>(self),
                                LowerCase(js::ToString(Argument(call.arguments, 0))),
                                js::ToString(Argument(call.arguments, 1)));
+    return Value::Undefined();
+  });
+  method("setAttributeNS", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "setAttributeNS called on a non-element");
+    }
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    // Namespace ignored; see getAttributeNS above.
+    owner->SetElementAttribute(*static_cast<dom::Element*>(self),
+                               LowerCase(js::ToString(Argument(call.arguments, 1))),
+                               js::ToString(Argument(call.arguments, 2)));
     return Value::Undefined();
   });
 }

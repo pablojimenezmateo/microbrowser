@@ -274,6 +274,12 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.createComment('hi').nodeType", "8");
     ExpectScript(kPage, "document.createElementNS('http://www.w3.org/1999/xhtml','div').tagName",
                  "DIV");
+    // Namespace ignored; youtube's player bootstraps with setAttributeNS(null, …).
+    ExpectScript(kPage,
+                 "var e = document.createElement('div');"
+                 "e.setAttributeNS(null, 'data-x', '1');"
+                 "e.getAttributeNS(null, 'data-x')",
+                 "1");
   });
 
   // A fragment is a parentless bag of nodes that inserts as a unit. The point
@@ -1262,6 +1268,23 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
         now += static_cast<std::int64_t>(*delay);
       }
     }
+  });
+
+  AddTest(tests, "DomBindings/DOMExceptionExistsForInstanceofAndName", [] {
+    // youtube's player catches with `err instanceof DOMException` then reads
+    // `.name`. A missing binding turns that into a ReferenceError that aborts
+    // the media path before any Error fallback runs.
+    ExpectScript("<body></body>", "typeof DOMException", "function");
+    ExpectScript("<body></body>",
+                 "(() => { const e = new DOMException('full', 'QuotaExceededError');"
+                 " return (e instanceof DOMException) + '|' + (e instanceof Error) + '|' + e.name;"
+                 " })()",
+                 "true|true|QuotaExceededError");
+    ExpectScript("<body></body>",
+                 "(() => { try { null.x } catch (e) {"
+                 "   return (e instanceof DOMException) + '|' + (e instanceof Error);"
+                 " } })()",
+                 "false|true");
   });
 
   AddTest(tests, "DomBindings/SetTimeoutClearsASpentStepBudget", [] {
@@ -2568,6 +2591,21 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "{\"userId\":\"7\",\"x\":\"1\"}");
     ExpectScript("<div id=d></div>",
                  "JSON.stringify(document.getElementById('d').dataset)", "{}");
+  });
+
+  AddTest(tests, "DomBindings/DatasetWritesReachTheAttribute", [] {
+    // youtube's player does `movie_player.dataset.version = jsUrl`; a snapshot
+    // object dropped that write and J14's version check then destroyed the stamp.
+    ExpectScript("<div id=d></div>",
+                 "const el = document.getElementById('d');"
+                 "el.dataset.version = '/s/player/x/base.js';"
+                 "el.getAttribute('data-version') + '|' + el.dataset.version",
+                 "/s/player/x/base.js|/s/player/x/base.js");
+    ExpectScript("<div id=d data-user-id='1'></div>",
+                 "const el = document.getElementById('d');"
+                 "el.dataset.userId = '9';"
+                 "el.getAttribute('data-user-id')",
+                 "9");
   });
 
   AddTest(tests, "DomBindings/CloningCopiesRatherThanShares", [] {

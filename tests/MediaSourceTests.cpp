@@ -336,6 +336,105 @@ void RegisterMediaSourceTests(std::vector<TestCase>& tests) {
     ExpectEqString(EventsOf(buffer), "updatestart error updateend updatestart update updateend",
                    "one failure and one no-op");
   });
+
+  AddTest(tests, "MediaSource/WebMInitAndClusterUpdateBuffered", [] {
+    // YouTube's other half of DASH. Until Append tried Matroska, every WebM segment was
+    // ParseFailed and `video.buffered` stayed empty while appends "succeeded" only for fMP4.
+    auto element = [](std::uint64_t id, const std::string& payload) {
+      std::string out;
+      for (int shift = 56; shift >= 0; shift -= 8) {
+        const std::uint8_t byte = static_cast<std::uint8_t>((id >> shift) & 0xFFu);
+        if (!out.empty() || byte != 0) {
+          out.push_back(static_cast<char>(byte));
+        }
+      }
+      out.push_back(static_cast<char>(0x01));
+      for (int shift = 48; shift >= 0; shift -= 8) {
+        out.push_back(static_cast<char>((payload.size() >> shift) & 0xFFu));
+      }
+      out += payload;
+      return out;
+    };
+    auto uint_be = [](std::uint64_t value, std::size_t bytes) {
+      std::string out;
+      for (std::size_t i = 0; i < bytes; ++i) {
+        out.push_back(static_cast<char>((value >> ((bytes - 1 - i) * 8)) & 0xFFu));
+      }
+      return out;
+    };
+    auto simple_block = [&](std::uint8_t track, std::int16_t relative, const std::string& frame) {
+      std::string payload;
+      payload.push_back(static_cast<char>(0x80u | track));
+      payload += uint_be(static_cast<std::uint16_t>(relative), 2);
+      payload.push_back(static_cast<char>(0x80));
+      payload += frame;
+      return element(0xA3, payload);
+    };
+    const std::string init =
+        element(0x1A45DFA3, element(0x4286, uint_be(1, 1))) +
+        element(0x18538067,
+                element(0x1549A966, element(0x2AD7B1, uint_be(1000000, 4))) +
+                    element(0x1654AE6B,
+                            element(0xAE, element(0xD7, uint_be(1, 1)) + element(0x83, uint_be(1, 1)) +
+                                              element(0x86, "V_VP9") +
+                                              element(0xE0, element(0xB0, uint_be(320, 2)) +
+                                                                element(0xBA, uint_be(240, 2))))));
+    const std::string cluster =
+        element(0x1A45DFA3, element(0x4286, uint_be(1, 1))) +
+        element(0x18538067, element(0x1F43B675, element(0xE7, uint_be(0, 2)) +
+                                                    simple_block(1, 0, "frame0") +
+                                                    simple_block(1, 40, "frame1") +
+                                                    simple_block(1, 80, "frame2")));
+    auto as_bytes = [](const std::string& text) {
+      return std::vector<std::byte>(reinterpret_cast<const std::byte*>(text.data()),
+                                    reinterpret_cast<const std::byte*>(text.data()) + text.size());
+    };
+    SourceBufferState buffer{"video/webm; codecs=\"vp9\""};
+    Expect(buffer.Append(as_bytes(init), MediaSourceState::kQuotaBytes) == AppendResult::Ok,
+           "WebM init");
+    Expect(buffer.HasInitSegment(), "tracks landed");
+    Expect(buffer.Append(as_bytes(cluster), MediaSourceState::kQuotaBytes) == AppendResult::Ok,
+           "WebM cluster");
+    Expect(!buffer.Buffered().Empty(), "buffered spans the cluster");
+    Expect(buffer.Buffered().LargestEnd() >= 0.08, "at least 80ms from three 40ms frames");
+
+    // YouTube DASH media segments are a bare Cluster -- no EBML header. Refusing those left every
+    // watch-page append after the init as ParseFailed.
+    const std::string bare_cluster =
+        element(0x1F43B675, element(0xE7, uint_be(120, 2)) + simple_block(1, 0, "frame3") +
+                                simple_block(1, 40, "frame4"));
+    Expect(buffer.Append(as_bytes(bare_cluster), MediaSourceState::kQuotaBytes) == AppendResult::Ok,
+           "bare Cluster media segment");
+    Expect(buffer.Buffered().LargestEnd() >= 0.16, "bare cluster extends buffered");
+  });
+
+  AddTest(tests, "MediaSource/UmpMediaPartsBecomeAppendable", [] {
+    // Type 21 MEDIA = header-id byte + fMP4. A player that appends the UMP response wholesale still
+    // has to produce a buffered range rather than ParseFailed forever.
+    const std::vector<std::byte> init = Mp4InitSegment();
+    auto write_varint = [](std::vector<std::byte>& out, std::size_t value) {
+      if (value < 128) {
+        out.push_back(static_cast<std::byte>(value));
+        return;
+      }
+      // Two-byte UMP varint: top bit set, next clear; value = (b1 << 6) | (prefix & 0x3f).
+      Expect(value < (1u << 14), "fixture size fits two-byte varint");
+      out.push_back(static_cast<std::byte>(0x80u | (value & 0x3fu)));
+      out.push_back(static_cast<std::byte>((value >> 6) & 0xffu));
+    };
+    std::vector<std::byte> ump;
+    ump.push_back(std::byte{20});  // MEDIA_HEADER type
+    ump.push_back(std::byte{1});   // size 1
+    ump.push_back(std::byte{0});
+    ump.push_back(std::byte{21});  // MEDIA
+    write_varint(ump, 1 + init.size());
+    ump.push_back(std::byte{0});  // header id
+    ump.insert(ump.end(), init.begin(), init.end());
+    SourceBufferState buffer{std::string(kMp4)};
+    Expect(buffer.Append(ump, MediaSourceState::kQuotaBytes) == AppendResult::Ok,
+           "UMP-wrapped init parses");
+    Expect(buffer.HasInitSegment(), "tracks from the unwrapped fMP4");
+  });
 }
 
 }  // namespace microbrowser::tests

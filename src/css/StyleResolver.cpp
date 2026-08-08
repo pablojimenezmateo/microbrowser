@@ -70,17 +70,25 @@ bool ResolveOneVar(std::string_view inside, const ComputedStyle& style, int dept
   return SubstituteVarsDepth(fallback, style, depth + 1, out);
 }
 
+bool IsIdentContinue(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' ||
+         c == '_' || static_cast<unsigned char>(c) >= 0x80;
+}
+
 bool SubstituteVarsDepth(std::string_view value, const ComputedStyle& style, int depth,
                          std::string& out) {
   if (depth > kMaxVarDepth) {
     return false;
   }
   for (std::size_t i = 0; i < value.size();) {
-    // `var(` only where it starts a function, so a `--foo` inside a string or
-    // an identifier like `sidebar(` is left alone.
-    if (value.compare(i, 4, "var(") != 0 ||
-        (i > 0 && !IsCssWhitespace(value[i - 1]) && value[i - 1] != '(' &&
-                      value[i - 1] != ',')) {
+    // `var(` only where it starts a function. An ident character before it
+    // means this is the tail of a longer name (`xvar(`), not a function. A
+    // math operator must *not* block it: youtube sizes the watch player with
+    // `calc(var(--h)/var(--w)*100%)` and the `/` is a separator, not part of
+    // a name. Restricting the lookbehind to whitespace/`(`/`,` left every
+    // `/var(...)` and `*var(...)` unsubstituted, so the calc never applied
+    // and `#player-container-inner` stayed height zero.
+    if (value.compare(i, 4, "var(") != 0 || (i > 0 && IsIdentContinue(value[i - 1]))) {
       out.push_back(value[i++]);
       continue;
     }

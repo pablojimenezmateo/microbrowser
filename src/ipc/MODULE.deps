@@ -2,7 +2,7 @@ purpose: The UI/Engine seam. A closed message vocabulary and a swappable transpo
 
 allow: util gfx
 
-public: ByteStream.h Message.h Transport.h InProcessTransport.h
+public: ByteStream.h DecoderMessage.h Message.h Transport.h InProcessTransport.h
 
 extern:
 
