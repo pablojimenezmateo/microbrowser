@@ -824,6 +824,30 @@ ADR 0036, TD-0001 (`layout.block_passes` still huge on search).
 
 ---
 
+## TD-0019 — Decoded Opus frames never reach the audio ring
+
+Watch video paints (TD-0018 update 2026-08-08): VP9 frames blit into ADR 0013
+surfaces. The matching Opus `DecoderClient` is configured for youtube's audio
+SourceBuffer and samples are pushed, but `PageVideo::AdvancePlayback` discards
+audio `PollFrames` results (`sample_count != 0`) and never opens an
+`media::AudioSink` / writes an `AudioRing`.
+
+**Measured.** Same Release watch run that applied 30–60 video frames:
+`media.video_configure_failures` is typically **1** (the audio track's
+configure or the unused path), `audio.devices_opened` is **0**, and playback
+is silent even when `muted` is false after a user gesture.
+
+**Why it is written down.** Session 24's ring, clock and SDL sink exist and are
+tested; session 27's decoder emits PCM. The missing piece is the engine-side
+owner that starts a sink on `play()`, converts decoder PCM into ring frames,
+and joins the device before `main` returns — ADR 0028 §4's ownership statement,
+not a one-liner in `PageVideo`.
+
+**End state.** A gestured unmuted watch plays sound; an idle page with no media
+still has no audio thread; `audio.devices_opened` tracks the sink lifetime.
+
+---
+
 ## Closed
 
 - **TD-0005 — `CollectImages` duplicated the cascade** (2026-08-06). Background URLs are queued
