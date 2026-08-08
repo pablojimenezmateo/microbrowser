@@ -1187,6 +1187,26 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(strokes), 1, "exactly one border is painted, not two");
   });
 
+  AddTest(tests, "Layout/AnInlineBoxPaintsItsBackgroundBehindEachLineFragment", [] {
+    // reddit's `.md-spoiler-text:not(.revealed) { background: #4f4f4f }` is on
+    // the span, not on the text node -- background-color does not inherit.
+    const LaidOut result = Run(
+        "<p><span id=s>spoiler</span></p>",
+        "body, p { margin: 0 } #s { background-color: rgb(79, 79, 79); color: transparent }",
+        400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    bool saw_grey = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        if (fill->color == gfx::Color::Rgb(0x4F, 0x4F, 0x4F)) {
+          saw_grey = true;
+        }
+      }
+    }
+    Expect(saw_grey, "the inline span's background paints behind its text fragments");
+  });
+
   // `aspect-ratio` is how a page reserves space for media before the media
   // arrives, which is what reddit uses it for. A box that ignored it collapses
   // to nothing and the page below it moves once the image loads.

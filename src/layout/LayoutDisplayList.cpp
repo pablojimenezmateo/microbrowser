@@ -226,6 +226,48 @@ void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx:
   out.PopClip();
 }
 
+// Backgrounds on inline boxes paint behind each line fragment of their content,
+// not behind an empty border box. An Inline box never receives geometry of its
+// own -- fragments live on Text descendants -- which is why a spoiler span's
+// grey bar was invisible text on white rather than a bar.
+void PaintInlineBackground(const Box& box, gfx::FloatPoint offset, gfx::DisplayList& out) {
+  const css::ComputedStyle& style = box.Style();
+  if (style.visibility != css::Visibility::Visible ||
+      style.background_color.IsFullyTransparent()) {
+    return;
+  }
+  const float font_size = style.font_size;
+  const float pad_l = style.padding.left.Resolve(font_size);
+  const float pad_r = style.padding.right.Resolve(font_size);
+  const float pad_t = style.padding.top.Resolve(font_size);
+  const float pad_b = style.padding.bottom.Resolve(font_size);
+
+  const auto paint_rect = [&](gfx::FloatRect rect) {
+    rect.x -= pad_l;
+    rect.y -= pad_t;
+    rect.width += pad_l + pad_r;
+    rect.height += pad_t + pad_b;
+    rect.x += offset.x;
+    rect.y += offset.y;
+    if (rect.IsEmpty()) {
+      return;
+    }
+    gfx::Path path;
+    path.AddRect(rect);
+    out.FillPath(path, style.background_color);
+  };
+
+  box.ForEachDescendant([&](const Box& desc) {
+    if (desc.GetKind() == Box::Kind::Text) {
+      for (const TextFragment& fragment : desc.Fragments()) {
+        paint_rect(fragment.rect);
+      }
+    } else if (desc.IsAtomicInline()) {
+      paint_rect(desc.Geometry().BorderBox());
+    }
+  });
+}
+
 // Where a box's descendants are measured against when they are pinned rather
 // than laid out: the nearest scrollport, and the containing block a sticky box
 // may not escape. Both in painted coordinates, which is the coordinate system
@@ -393,6 +435,9 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
                      style.color, fragment.right_to_left);
       }
       return;
+    }
+    if (box.GetKind() == Box::Kind::Inline) {
+      PaintInlineBackground(box, offset, out);
     }
     const gfx::FloatRect unshifted = box.Geometry().BorderBox();
     const gfx::FloatRect border_box{unshifted.x + offset.x, unshifted.y + offset.y,
