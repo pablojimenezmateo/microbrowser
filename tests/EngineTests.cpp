@@ -1639,6 +1639,26 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(images.at(0), "a.png", "in document order");
   });
 
+  AddTest(tests, "Page/CollectsImagesInsideShadowTrees", [] {
+    // Youtube thumbnails live in ytd-thumbnail's shadow root. ElementsByTagName
+    // does not see them; CollectImages must walk shadow trees the same way
+    // CollectShadowStyleSheets does.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body><div id=host></div>"
+              "<script>"
+              "var r = document.getElementById('host').attachShadow({mode:'open'});"
+              "r.innerHTML = \"<img src='shadow.png'><img src='a.png'>\";"
+              "</script></body>",
+              "https://example.org/");
+    page.RunScripts(0);
+    const std::vector<std::string>& images = page.PendingImages();
+    Expect(std::find(images.begin(), images.end(), "shadow.png") != images.end(),
+           "an <img> in a shadow tree is fetched");
+    Expect(std::find(images.begin(), images.end(), "a.png") != images.end(),
+           "and so is every other one under that root");
+  });
+
   AddTest(tests, "Layout/AnImageTakesItsSizeFromThePixelsWhenNothingElseSaysOtherwise", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
