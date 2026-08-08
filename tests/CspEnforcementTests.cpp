@@ -278,6 +278,17 @@ void RegisterCspEnforcementTests(std::vector<TestCase>& tests) {
                    "without telling the page which of the two it was");
   });
 
+  AddTest(tests, "CspEnforcement/ConnectSrcDoesNotBlockADataFetch", [] {
+    Session session;
+    session.Load("Content-Security-Policy: connect-src 'self'\r\n",
+                 "<html><body><script>"
+                 "fetch('data:text/plain,ok').then(function (r) { return r.text(); })"
+                 "  .then(function (t) { console.log(t); });"
+                 "</script></body></html>");
+    ExpectEqString(session.Console(), "ok",
+                   "a data: URL is answered locally and is not a connect-src violation");
+  });
+
   AddTest(tests, "CspEnforcement/AMetaPolicyGovernsTheDocumentThatCarriesIt", [] {
     Session session;
     session.Load("",

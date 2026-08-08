@@ -36,6 +36,7 @@ namespace {
 // it, which is a bug this module has already had once.
 constexpr const char* kRegistrySlot = "#customElements";
 constexpr const char* kUpgradeSlot = "#upgrading";
+constexpr const char* kWhenDefinedPendingSlot = "#whenDefinedPending";
 // On a wrapper, once its class has run. An element is upgraded at most once.
 constexpr const char* kUpgradedSlot = "#upgraded";
 
@@ -43,6 +44,45 @@ constexpr const char* kUpgradedSlot = "#upgraded";
 // keeps a page from redefining `<div>`.
 bool IsValidCustomElementName(const std::string& name) {
   return !name.empty() && name.front() != '-' && name.find('-') != std::string::npos;
+}
+
+js::Object* WhenDefinedPending(js::Interpreter& interpreter, js::Object& registry) {
+  const Value* existing = registry.GetOwn(kWhenDefinedPendingSlot);
+  if (existing != nullptr && existing->IsObject()) {
+    return existing->object;
+  }
+  const Value made = interpreter.NewArrayValue({});
+  if (!made.IsObject()) {
+    return nullptr;
+  }
+  registry.Set(kWhenDefinedPendingSlot, made);
+  return made.object;
+}
+
+void ResolveWhenDefined(js::Interpreter& interpreter, js::Object& registry, std::string_view name,
+                        const Value& constructor) {
+  js::Object* pending = WhenDefinedPending(interpreter, registry);
+  if (pending == nullptr) {
+    return;
+  }
+  std::vector<Value> kept;
+  for (std::size_t i = 0; i < pending->ElementCount(); ++i) {
+    const Value entry = pending->GetElement(i);
+    if (!entry.IsObject()) {
+      kept.push_back(entry);
+      continue;
+    }
+    const Value* waiting_for = entry.object->GetOwn("name");
+    if (waiting_for != nullptr && js::ToString(*waiting_for) == name) {
+      const Value* promise = entry.object->GetOwn("promise");
+      if (promise != nullptr && promise->IsObject()) {
+        interpreter.SettleAsyncResult(promise->object, constructor, false);
+      }
+      continue;
+    }
+    kept.push_back(entry);
+  }
+  registry.Set(kWhenDefinedPendingSlot, interpreter.NewArrayValue(std::move(kept)));
 }
 
 }  // namespace
@@ -320,6 +360,8 @@ void DomBindings::InstallCustomElements() {
                            call.interpreter.GetPropertyValue(constructor, "observedAttributes"));
     registry_object.object->Set(name, definition);
 
+    ResolveWhenDefined(call.interpreter, *registry_object.object, name, constructor);
+
     // Everything already in the document with this name is upgraded now. A
     // page that defines its classes after its markup -- which is the usual
     // order, since the script is at the end of the body -- depends on this.
@@ -331,10 +373,52 @@ void DomBindings::InstallCustomElements() {
         pending.push_back(&element);
       }
     });
+    if (!pending.empty()) {
+      call.interpreter.BeginTask();
+    }
     for (dom::Element* element : pending) {
       owner->UpgradeElement(*element);
     }
     return Value::Undefined();
+  });
+
+  method("whenDefined", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    const std::string name = LowerCase(js::ToString(Argument(call.arguments, 0)));
+    if (!IsValidCustomElementName(name)) {
+      return call.Throw("TypeError", "'" + name + "' is not a valid custom element name");
+    }
+    const Value registry_object = owner->CustomElementRegistry();
+    if (!registry_object.IsObject()) {
+      return Value::Undefined();
+    }
+    const Value* definition = registry_object.object->GetOwn(name);
+    if (definition != nullptr && definition->IsObject()) {
+      const Value* constructor = definition->object->GetOwn("constructor");
+      const Value promise = call.interpreter.NewPromiseValue();
+      if (constructor != nullptr && promise.IsObject()) {
+        call.interpreter.SettleAsyncResult(promise.object, *constructor, false);
+      }
+      return promise;
+    }
+    const Value promise = call.interpreter.NewPromiseValue();
+    if (!promise.IsObject()) {
+      return promise;
+    }
+    js::Object* pending = WhenDefinedPending(call.interpreter, *registry_object.object);
+    if (pending == nullptr) {
+      return promise;
+    }
+    const Value entry = call.interpreter.NewObjectValue();
+    if (entry.IsObject()) {
+      entry.object->Set("name", Value::String(name));
+      entry.object->Set("promise", promise);
+      pending->PushElement(entry);
+    }
+    return promise;
   });
 
   method("get", [](NativeCall& call) {

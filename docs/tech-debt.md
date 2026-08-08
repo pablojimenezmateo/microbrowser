@@ -613,13 +613,13 @@ templates; close when the snapshot shows feed posts rather than an empty main re
 
 **Measured**, www.reddit.com post-challenge (Gate A passes), Release build, 2026-08-08:
 
-| metric | before late-script fix | after (`31e78e4`) | after CSP trust (this session) |
-|---|---|---|---|
-| snapshot wall time | ~726 s | ~608 s | **~731 s** |
-| `display_list.commands` (final frame) | 210 | 210 | **3150** |
-| `csp.violations` | 72 | 95 (`script-src`) | **3** (`connect-src` `data:` only) |
-| `js.modules_loaded` | — | 3 | **8** |
-| `js.steps_exhausted` | 2 | 2 | 3 |
+| metric | before late-script fix | after (`31e78e4`) | after CSP trust (`46ddc28`) | after connect-src + `whenDefined` (this session) |
+|---|---|---|---|---|
+| snapshot wall time | ~726 s | ~608 s | **~731 s** | **~581 s** (challenge interstitial; post-challenge not reached) |
+| `display_list.commands` (final frame) | 210 | 210 | **3150** | **212** (challenge URL; peak **4026** mid-load) |
+| `csp.violations` | 72 | 95 (`script-src`) | **3** (`connect-src` `data:` only) | **0** |
+| `js.modules_loaded` | — | 3 | **8** | **7** |
+| `js.steps_exhausted` | 2 | 2 | 3 | **2** |
 | small `js/concat` `script.start` | yes | yes | yes |
 | large `runtime-concat` `script.start` | no | no | **yes** (concat chain runs) |
 
@@ -627,9 +627,12 @@ Late-script completions that arrive after `load_` clears now run (regression tes
 `Engine/ALateScriptRunsAfterTheLoadHasFinished`). **CSP transitive trust** propagates from
 permitted scripts through promise microtasks, `fetch` continuations, timers, rAF, and idle
 callbacks (`TrustedScript` + `Interpreter` microtask tagging). That cleared the 64
-`script-src` concat refusals; the three remaining violations are `connect-src` refusals of
-`data:text/javascript,…` bootstrap URLs, not missing runtime bundles. Gate B still needs
-`<suspense-replace>` hoisting and feed articles in the snapshot.
+`script-src` concat refusals; the three remaining violations were `connect-src` refusals of
+`data:text/javascript,…` bootstrap URLs from `fetch()`, which is not a network connection --
+`Engine::StartFetch` now skips `connect-src` for `data:` and `blob:` the way `Loader` already
+answers them locally. **`customElements.whenDefined`** landed (reddit waits on several names);
+`define` batch-upgrade gets a fresh step budget via `BeginTask`. Gate B still needs feed
+articles in the snapshot if hoisting is not yet firing.
 
 ---
 

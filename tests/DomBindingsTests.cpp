@@ -378,6 +378,23 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.get('x-t') === T",
                  "true");
 
+    // `whenDefined` resolves when the name is registered, and immediately when
+    // it already is -- reddit's bundle waits on several custom elements this way.
+    ExpectScript(kPage, "typeof customElements.whenDefined", "function");
+    ExpectScript(kPage,
+                 "customElements.whenDefined('x-miss') instanceof Promise",
+                 "true");
+    {
+      Bound bound = Bind(kPage);
+      (void)bound.interpreter->Run(
+          "customElements.whenDefined('x-late').then(function (C) { globalThis._late = C.name; });"
+          "class Late extends HTMLElement {}"
+          "customElements.define('x-late', Late);");
+      bound.interpreter->DrainMicrotasks();
+      ExpectEqString(js::ToString(bound.interpreter->Run("globalThis._late").value), "Late",
+                     "whenDefined settles when the element is defined");
+    }
+
     // The class's prototype is on the element *before* its constructor runs,
     // which is what lets a constructor call the class's own methods. Every
     // framework's base class does exactly this on its first line -- Polymer's

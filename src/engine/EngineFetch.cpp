@@ -70,6 +70,15 @@ std::string NormaliseMethod(std::string_view method) {
   return std::string(method);
 }
 
+// `data:` and `blob:` are answered inside `Loader::StartSubresource` without a
+// socket. `connect-src` governs network connections; refusing a local URL here
+// was blocking reddit's `fetch('data:text/javascript,…')` bootstrap probes while
+// recording a violation the page never meant to make.
+bool IsLocallyResolvedUrl(std::string_view url) {
+  return util::StartsWithAsciiCaseInsensitive(url, "data:") ||
+         util::StartsWithAsciiCaseInsensitive(url, "blob:");
+}
+
 }  // namespace
 
 std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
@@ -87,7 +96,8 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
   // *not* started, and the caller sees the same zero it sees for a URL that
   // does not parse -- which rejects the promise without telling the page which
   // of the two happened.
-  if (!page_.Policy().AllowsUrl(csp::Directive::Connect, request.url)) {
+  if (!IsLocallyResolvedUrl(request.url) &&
+      !page_.Policy().AllowsUrl(csp::Directive::Connect, request.url)) {
     return 0;
   }
 
