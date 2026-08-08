@@ -85,6 +85,7 @@ inline constexpr const char* kPendingFetchSlot = "#fetches";
 inline constexpr const char* kFetchPromiseSlot = "#promise";
 inline constexpr const char* kFetchSignalSlot = "#signal";
 inline constexpr const char* kFetchIdSlot = "#id";
+inline constexpr const char* kFetchTrustSlot = "#trust";
 // An `XMLHttpRequest` in flight sits in the *same* table, with the XHR object
 // where the promise would be. One table rather than two, so that a navigation
 // clearing the requests clears both kinds and `DeliverFetchResponse` is the one

@@ -415,7 +415,7 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   NotifyConnection(*child, true);
   if (child->IsElement()) {
     const auto& element = static_cast<const dom::Element&>(*child);
-    if (trusted_script_insertion_ && element.TagName() == "script") {
+    if (InTrustedScriptContext() && element.TagName() == "script") {
       csp_trusted_scripts_.insert(&element);
       if (trusted_script_flush_) {
         trusted_script_flush_();

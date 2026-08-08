@@ -268,6 +268,10 @@ void Interpreter::EnqueueMicrotask(Microtask task) {
   if (microtasks_.size() >= kMaxAllocationLength) {
     return;  // saturated rather than unbounded; the drain below is what bounds it
   }
+  if (!task.trust_scripts && trusted_script_active_ != nullptr &&
+      trusted_script_active_(trusted_script_context_)) {
+    task.trust_scripts = true;
+  }
   microtasks_.push_back(std::move(task));
 }
 
@@ -316,15 +320,27 @@ void Interpreter::DrainMicrotasks() {
     const ValueRoot root_argument(*this, task.argument);
     const ValueRoot root_derived(*this, task.derived);
 
-    if (task.suspension != 0) {
-      // A call waiting on an `await`. Put back and run here rather than through
-      // a handler. `argument` stays rooted above for the same reason a then
-      // handler's derived does: ResumeSuspended may collect before the value
-      // is on the machine's stacks.
-      const Result resumed = ResumeSuspended(task.suspension, task.argument, task.rejected);
-      if (resumed.IsAbrupt()) {
-        console_.push_back("Uncaught (in async function) " + ToString(resumed.value));
+    const auto with_trust = [&](const auto& run) {
+      if (task.trust_scripts && trusted_script_apply_ != nullptr) {
+        trusted_script_apply_(trusted_script_context_, true);
       }
+      run();
+      if (task.trust_scripts && trusted_script_apply_ != nullptr) {
+        trusted_script_apply_(trusted_script_context_, false);
+      }
+    };
+
+    if (task.suspension != 0) {
+      with_trust([&] {
+        // A call waiting on an `await`. Put back and run here rather than through
+        // a handler. `argument` stays rooted above for the same reason a then
+        // handler's derived does: ResumeSuspended may collect before the value
+        // is on the machine's stacks.
+        const Result resumed = ResumeSuspended(task.suspension, task.argument, task.rejected);
+        if (resumed.IsAbrupt()) {
+          console_.push_back("Uncaught (in async function) " + ToString(resumed.value));
+        }
+      });
       continue;
     }
     const bool has_handler = task.callee.IsObject() && task.callee.object->IsCallable();
@@ -332,36 +348,42 @@ void Interpreter::DrainMicrotasks() {
       // A plain job, from queueMicrotask or a thenable adoption. Nothing to
       // settle, and a throw has nowhere to go but the console.
       if (has_handler) {
-        const Result ran_job = CallFunction(task.callee, Value::Undefined(), {task.argument});
-        if (ran_job.IsAbrupt()) {
-          console_.push_back("Uncaught (in microtask) " + ToString(ran_job.value));
-        }
+        with_trust([&] {
+          const Result ran_job = CallFunction(task.callee, Value::Undefined(), {task.argument});
+          if (ran_job.IsAbrupt()) {
+            console_.push_back("Uncaught (in microtask) " + ToString(ran_job.value));
+          }
+        });
       }
       continue;
     }
     if (!has_handler) {
-      // `p.then(f)` with a rejection, or `p.catch(f)` with a value: the
-      // outcome passes through untouched to the derived promise. This is what
-      // makes a rejection travel down a chain until something catches it.
-      // ResolvePromise may still run a thenable's `then` through CallCompiled,
-      // which is why `derived` stays rooted above rather than only for the
-      // handler path.
-      if (task.rejected) {
-        SettlePromise(*this, task.derived, State::Rejected, task.argument);
-      } else {
-        ResolvePromise(*this, task.derived, task.argument);
+      with_trust([&] {
+        // `p.then(f)` with a rejection, or `p.catch(f)` with a value: the
+        // outcome passes through untouched to the derived promise. This is what
+        // makes a rejection travel down a chain until something catches it.
+        // ResolvePromise may still run a thenable's `then` through CallCompiled,
+        // which is why `derived` stays rooted above rather than only for the
+        // handler path.
+        if (task.rejected) {
+          SettlePromise(*this, task.derived, State::Rejected, task.argument);
+        } else {
+          ResolvePromise(*this, task.derived, task.argument);
+        }
+      });
+      continue;
+    }
+    with_trust([&] {
+      const Result handled = CallFunction(task.callee, Value::Undefined(), {task.argument});
+      // Same hole as the job fields: the handler's completion is a C++ local
+      // while ResolvePromise may allocate (and collect) adopting a thenable.
+      const ValueRoot root_handled(*this, handled.value);
+      if (handled.IsAbrupt()) {
+        SettlePromise(*this, task.derived, State::Rejected, handled.value);
+        return;
       }
-      continue;
-    }
-    const Result handled = CallFunction(task.callee, Value::Undefined(), {task.argument});
-    // Same hole as the job fields: the handler's completion is a C++ local
-    // while ResolvePromise may allocate (and collect) adopting a thenable.
-    const ValueRoot root_handled(*this, handled.value);
-    if (handled.IsAbrupt()) {
-      SettlePromise(*this, task.derived, State::Rejected, handled.value);
-      continue;
-    }
-    ResolvePromise(*this, task.derived, handled.value);
+      ResolvePromise(*this, task.derived, handled.value);
+    });
   }
   --microtask_drain_depth_;
 }

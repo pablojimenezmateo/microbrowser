@@ -1488,6 +1488,15 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "navigator.userAgent", "microbrowser");
   });
 
+  AddTest(tests, "DomBindings/PageVisibilityAndUserActivation", [] {
+    ExpectScript(kPage, "document.hidden", "false");
+    ExpectScript(kPage, "document.visibilityState", "visible");
+    ExpectScript(kPage, "document.hasFocus()", "true");
+    ExpectScript(kPage, "typeof navigator.userActivation", "object");
+    ExpectScript(kPage, "navigator.userActivation.isActive", "false");
+    ExpectScript(kPage, "navigator.userActivation.hasBeenActive", "false");
+  });
+
   AddTest(tests, "DomBindings/LocationSplitsTheShapesAUrlComesIn", [] {
     const auto at = [](std::string url, std::string_view source) {
       Bound bound = Bind(kPage, std::move(url));

@@ -306,6 +306,7 @@ void DomBindings::Install() {
   InstallImplementation(target);
   InstallMessageChannel();
   InstallRange();
+  InstallPageVisibility(target);
 
   interpreter_->GlobalScope()->Declare("document", document, false);
   InstallEventConstructors();
@@ -401,6 +402,62 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
   // On the interface, so every document has one -- including the ones this
   // makes, which is what lets a page nest the call.
   document_interface.object->Set("implementation", implementation);
+}
+
+void DomBindings::InstallPageVisibility(const js::Value& document_interface) {
+  if (!document_interface.IsObject()) {
+    return;
+  }
+
+  // Page Visibility (ADR 0017 survey: 34 `visibilitychange` sites). A headless
+  // snapshot and a foreground browser tab are both *visible* -- nothing here
+  // hides the document yet, and answering hidden would send youtube's player
+  // down a path that refuses to start.
+  const Value hidden_getter = interpreter_->NewNativeValue(
+      "hidden", [](NativeCall&) { return Value::Bool(false); });
+  const Value visibility_getter = interpreter_->NewNativeValue(
+      "visibilityState", [](NativeCall&) { return Value::String(std::string("visible")); });
+  if (hidden_getter.IsObject()) {
+    document_interface.object->DefineAccessor("hidden", hidden_getter.object, nullptr);
+  }
+  if (visibility_getter.IsObject()) {
+    document_interface.object->DefineAccessor("visibilityState", visibility_getter.object, nullptr);
+  }
+
+  const Value has_focus = interpreter_->NewNativeValue("hasFocus", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Bool(false);
+    }
+    // The browsing context has focus whenever this page is the one being driven.
+    // A finer model can key off platform focus later; youtube reads this before
+    // play and a constant false is the same class of bug as hidden=true.
+    (void)owner;
+    return Value::Bool(true);
+  });
+  if (has_focus.IsObject()) {
+    has_focus.object->Set(kOwnerSlot, PointerValue(this));
+    document_interface.object->Set("hasFocus", has_focus);
+  }
+
+  if (geometry_ == nullptr) {
+    return;
+  }
+  const Value element_from_point = interpreter_->NewNativeValue(
+      "elementFromPoint", [](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->geometry_ == nullptr || call.arguments.size() < 2) {
+          return Value::Null();
+        }
+        const float x = static_cast<float>(js::ToNumber(Argument(call.arguments, 0)));
+        const float y = static_cast<float>(js::ToNumber(Argument(call.arguments, 1)));
+        dom::Element* hit = owner->geometry_->ElementAtViewport(x, y);
+        return owner->WrapperFor(hit);
+      });
+  if (element_from_point.IsObject()) {
+    element_from_point.object->Set(kOwnerSlot, PointerValue(this));
+    document_interface.object->Set("elementFromPoint", element_from_point);
+  }
 }
 
 }  // namespace microbrowser::bindings

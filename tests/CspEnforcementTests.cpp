@@ -74,6 +74,13 @@ struct Session {
     channel.Ui().Send(ipc::NavigateMessage{"https://page.example/"});
     engine.HandlePendingMessages();
     RunEngineToIdle(engine);
+    for (int turn = 0; turn < kMaxDriveTurns; ++turn) {
+      const bool advanced = engine.Advance();
+      const bool due = engine.RunDueWork();
+      if (!advanced && !due && !engine.HasRunnableWork()) {
+        break;
+      }
+    }
   }
 
   // Whether any request line the server saw mentions `needle`. The document's
@@ -206,6 +213,56 @@ void RegisterCspEnforcementTests(std::vector<TestCase>& tests) {
                  "</body></html>");
     Expect(session.Requested("/local.png"), "the allowed image was fetched");
     Expect(!session.Requested("/remote.png"), "and the refused one was not");
+  });
+
+  AddTest(tests, "CspEnforcement/APromiseContinuationInsertsAScriptWithoutANonce", [] {
+    Session session;
+    session.Load("Content-Security-Policy: script-src 'nonce-abc'\r\n",
+                 "<html><body>"
+                 "<script nonce=\"abc\">"
+                 "Promise.resolve(0).then(function() {"
+                 "  const s = document.createElement('script');"
+                 "  s.src = 'https://cdn.example/after-promise.js';"
+                 "  document.body.appendChild(s);"
+                 "});"
+                 "</script></body></html>");
+    Expect(session.Requested("/after-promise.js"),
+           "a promise continuation from a permitted script may insert another");
+    ExpectEqString(session.Console(), "ran", "and it ran when it arrived");
+  });
+
+  AddTest(tests, "CspEnforcement/AFetchContinuationInsertsAScriptWithoutANonce", [] {
+    Session session;
+    session.Load("Content-Security-Policy: script-src 'nonce-abc'\r\n",
+                 "<html><body>"
+                 "<script nonce=\"abc\">"
+                 "fetch('/late.js').then(function() {"
+                 "  console.log('in-then');"
+                 "  const s = document.createElement('script');"
+                 "  s.src = '/after-fetch.js';"
+                 "  document.body.appendChild(s);"
+                 "});"
+                 "</script></body></html>");
+    Expect(session.Requested("/late.js"), "the fetch went out");
+    Expect(session.Requested("/after-fetch.js"),
+           "a fetch continuation from a permitted script may insert another");
+    ExpectEqString(session.Console(), "in-then|ran", "both scripts ran when they arrived");
+  });
+
+  AddTest(tests, "CspEnforcement/ASetTimeoutContinuationInsertsAScriptWithoutANonce", [] {
+    Session session;
+    session.Load("Content-Security-Policy: script-src 'nonce-abc'\r\n",
+                 "<html><body>"
+                 "<script nonce=\"abc\">"
+                 "setTimeout(function() {"
+                 "  const s = document.createElement('script');"
+                 "  s.src = 'https://cdn.example/after-timeout.js';"
+                 "  document.body.appendChild(s);"
+                 "}, 0);"
+                 "</script></body></html>");
+    Expect(session.Requested("/after-timeout.js"),
+           "a timer continuation from a permitted script may insert another");
+    ExpectEqString(session.Console(), "ran", "and it ran when it arrived");
   });
 
   AddTest(tests, "CspEnforcement/ConnectSrcStopsAPagesOwnFetch", [] {

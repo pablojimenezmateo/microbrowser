@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/TrustedScript.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
@@ -105,6 +106,7 @@ void IdleCallbacks::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
         }
       }
     }
+    entry.trust_scripts = TrustedScriptContextActive(call.interpreter);
     queue->pending_.push_back(entry);
     callbacks_object->Set(js::NumberToString(entry.id), handler);
     return Value::Number(entry.id);
@@ -183,6 +185,7 @@ bool IdleCallbacks::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
     // fresh step budget they inherit kevlar's spent kMaxSteps and abort after
     // a handful of items (TD-0018: 15 videoRenderer in data, 3 in the DOM).
     interpreter.BeginTask();
+    TrustedScriptInvocation trust(interpreter, entry.trust_scripts);
     (void)interpreter.CallFunction(callback, Value::Undefined(), {deadline});
     AddPerformanceCounter(PerfCounterId::IdleCallbacksRun);
   }

@@ -648,6 +648,12 @@ class Page : private layout::ImageProvider,
   // the document value changed and layout/paint should run.
   bool ActivateCheckableInputAt(gfx::FloatPoint document_point);
 
+  // Default action for a click on `<video>`/`<audio>` or inside `#movie_player`:
+  // toggle play/pause when the page did not `preventDefault`. youtube's error
+  // overlay sits above the element and its `playVideo()` path stays in -1; the
+  // media element itself may already have buffered data (TD-0020).
+  bool ToggleMediaPlaybackAt(gfx::FloatPoint document_point);
+
   // Resets the owning form of a reset input at `document_point`. Returns true
   // when the document value changed and layout/paint should run.
   bool ResetFormAt(gfx::FloatPoint document_point);
@@ -694,6 +700,7 @@ class Page : private layout::ImageProvider,
   void SetScrollOffset(const dom::Node& node, float x, float y) override;
   void ScrollIntoView(const dom::Node& node) override;
   std::optional<bindings::ImageState> QueryImageState(const dom::Element& element) override;
+  dom::Element* ElementAtViewport(float x, float y) override;
   // Records that `element` -- or the viewport, when null -- moved, so that one
   // `scroll` event fires at the next frame rather than one per wheel notch.
   // ADR 0018 §3: a page with twelve `scroll` listeners must not run them twelve

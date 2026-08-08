@@ -36,6 +36,13 @@ void Interpreter::BeginHostTurn() {
   step_budget_absorbed_ = false;
 }
 
+void Interpreter::SetTrustedScriptHooks(void* context, bool (*active)(void* context),
+                                        TrustedScriptHook apply) {
+  trusted_script_context_ = context;
+  trusted_script_active_ = active;
+  trusted_script_apply_ = apply;
+}
+
 Result Interpreter::ExhaustedSteps() {
   util::AddPerformanceCounter(util::PerfCounterId::JsStepsExhausted);
   util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);

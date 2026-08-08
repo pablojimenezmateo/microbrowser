@@ -74,6 +74,7 @@ void DomBindings::InstallPrivacyAnswers(const js::Value& navigator) {
 
   InstallPermissions(navigator);
   InstallClipboard(navigator);
+  InstallUserActivation(navigator);
 }
 
 void DomBindings::InstallPermissions(const js::Value& navigator) {
@@ -118,6 +119,42 @@ void DomBindings::InstallPermissions(const js::Value& navigator) {
     permissions.object->Set("query", query);
     navigator.object->Set("permissions", permissions);
   }
+}
+
+void DomBindings::InstallUserActivation(const js::Value& navigator) {
+  if (interpreter_ == nullptr || !navigator.IsObject()) {
+    return;
+  }
+  // ADR 0017 §3 / HTML §6.4.7. youtube's `playVideo()` reads
+  // `navigator.userActivation.isActive` before calling `<video>.play()`; when
+  // the name was missing the check read false and playback never started.
+  //
+  // The document holds one sticky bit (dom::Document::HasUserActivation); both
+  // accessors read it until a transient model arrives. See Node.h.
+  const Value user_activation = interpreter_->NewObjectValue();
+  if (!user_activation.IsObject()) {
+    return;
+  }
+  const auto flag_getter = [this](const char* name) {
+    const Value getter = interpreter_->NewNativeValue(name, [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      return Value::Bool(owner != nullptr && owner->HasUserActivation());
+    });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      return getter;
+    }
+    return Value::Undefined();
+  };
+  const Value is_active = flag_getter("isActive");
+  const Value has_been_active = flag_getter("hasBeenActive");
+  if (is_active.IsObject()) {
+    user_activation.object->DefineAccessor("isActive", is_active.object, nullptr);
+  }
+  if (has_been_active.IsObject()) {
+    user_activation.object->DefineAccessor("hasBeenActive", has_been_active.object, nullptr);
+  }
+  navigator.object->Set("userActivation", user_activation);
 }
 
 void DomBindings::InstallClipboard(const js::Value& navigator) {

@@ -55,10 +55,14 @@ class AnimationFrames {
   bool RunDue(js::Interpreter& interpreter, std::int64_t now_ms);
 
  private:
+  struct PendingFrame {
+    double id = 0;
+    bool trust_scripts = false;
+  };
   // Ids only. The callables live in the JavaScript heap, for the reason the
   // timers' do: the collector cannot see a `js::Value` in a C++ field, and a
   // callback it cannot see is one it frees while this still points at it.
-  std::vector<double> pending_;
+  std::vector<PendingFrame> pending_;
   double next_id_ = 1.0;
   std::int64_t origin_ms_ = 0;
   // When the next frame is due. Set when the queue goes from empty to not, so

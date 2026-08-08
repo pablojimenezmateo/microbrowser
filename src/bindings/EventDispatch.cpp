@@ -509,12 +509,12 @@ bool DomBindings::NotifyDomContentLoaded() {
   }
   // Bubbles, so a listener on `window` sees it -- which is where the other
   // half of pages put it.
-  const bool was_trusted = trusted_script_insertion_;
+  const std::uint32_t saved_depth = trusted_script_depth_;
   if (csp_script_strict_dynamic_) {
-    trusted_script_insertion_ = true;
+    PushTrustedScriptContext();
   }
   DispatchEventTo(*document_, event);
-  trusted_script_insertion_ = was_trusted;
+  trusted_script_depth_ = saved_depth;
   return true;
 }
 
@@ -525,12 +525,12 @@ bool DomBindings::NotifyLoad() {
   SetReadyState("complete");
   // At the window, not at the document: `load` does not bubble, and
   // `window.onload` is where every page listens for it.
-  const bool was_trusted = trusted_script_insertion_;
+  const std::uint32_t saved_depth = trusted_script_depth_;
   if (csp_script_strict_dynamic_) {
-    trusted_script_insertion_ = true;
+    PushTrustedScriptContext();
   }
   const bool heard = DispatchAtWindow("load");
-  trusted_script_insertion_ = was_trusted;
+  trusted_script_depth_ = saved_depth;
   if (heard) {
     util::AddPerformanceCounter(util::PerfCounterId::EngineLoadEvents);
   }
@@ -545,11 +545,11 @@ void DomBindings::NotifyScriptElementEvent(const dom::Element& element, const ch
   if (!event.IsObject()) {
     return;
   }
-  const bool was_trusted = trusted_script_insertion_;
-  trusted_script_insertion_ = true;
+  const std::uint32_t saved_depth = trusted_script_depth_;
+  PushTrustedScriptContext();
   DispatchEventTo(const_cast<dom::Element&>(element), event);
   interpreter_->DrainMicrotasks();
-  trusted_script_insertion_ = was_trusted;
+  trusted_script_depth_ = saved_depth;
 }
 
 void DomBindings::DeliverWindowMessage(const js::Value& data) {

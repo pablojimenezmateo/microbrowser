@@ -131,6 +131,10 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
     LayoutAndPaint();
     return true;
   }
+  if (page_.ToggleMediaPlaybackAt(document_point)) {
+    LayoutAndPaint();
+    return true;
+  }
   const std::optional<std::string> href = page_.LinkAt(document_point);
   if (!href.has_value()) {
     if (click.ran) {

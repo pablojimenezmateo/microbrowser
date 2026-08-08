@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/TrustedScript.h"
 
 namespace microbrowser::bindings {
 
@@ -63,7 +64,7 @@ void AnimationFrames::Install(js::Interpreter& interpreter, std::int64_t now_ms)
     auto* frames =
         reinterpret_cast<AnimationFrames*>(static_cast<std::uintptr_t>(queue_slot->number));
     const double id = frames->next_id_++;
-    frames->pending_.push_back(id);
+    frames->pending_.push_back(PendingFrame{id, TrustedScriptContextActive(call.interpreter)});
     callbacks_object->Set(js::NumberToString(id), handler);
     return Value::Number(id);
   });
@@ -79,7 +80,8 @@ void AnimationFrames::Install(js::Interpreter& interpreter, std::int64_t now_ms)
         reinterpret_cast<AnimationFrames*>(static_cast<std::uintptr_t>(queue_slot->number));
     const double id = js::ToNumber(Argument(call.arguments, 0));
     frames->pending_.erase(
-        std::remove(frames->pending_.begin(), frames->pending_.end(), id),
+        std::remove_if(frames->pending_.begin(), frames->pending_.end(),
+                       [id](const PendingFrame& frame) { return frame.id == id; }),
         frames->pending_.end());
     // The callback goes too, or cancelling would leak its closure for as long
     // as the page lives.
@@ -110,7 +112,7 @@ bool AnimationFrames::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) 
   // frame is asking for the *next* one, and taking the list first is what makes
   // that true rather than an infinite loop inside one turn -- the same rule the
   // timers follow for a zero delay.
-  const std::vector<double> due = std::exchange(pending_, {});
+  const std::vector<PendingFrame> due = std::exchange(pending_, {});
   next_frame_ms_ = now_ms + kFrameIntervalMs;
 
   // One timestamp for the whole frame. Two callbacks handed two different times
@@ -119,8 +121,8 @@ bool AnimationFrames::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) 
   // surface and a cross-process timing oracle.
   const Value timestamp = Value::Number(static_cast<double>(now_ms - origin_ms_));
 
-  for (const double id : due) {
-    const std::string key = js::NumberToString(id);
+  for (const PendingFrame& frame : due) {
+    const std::string key = js::NumberToString(frame.id);
     const Value* handler = callbacks->GetOwn(key);
     if (handler == nullptr || !handler->IsObject()) {
       continue;  // cancelled by an earlier callback in this same frame
@@ -133,6 +135,7 @@ bool AnimationFrames::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) 
     // stamps the remaining `shownItems` (same reason timers/idle/MessageChannel
     // call BeginTask).
     interpreter.BeginTask();
+    TrustedScriptInvocation trust(interpreter, frame.trust_scripts);
     (void)interpreter.CallFunction(callback, Value::Undefined(), {timestamp});
   }
   // A frame is a turn of its own, so anything its callbacks queued settles

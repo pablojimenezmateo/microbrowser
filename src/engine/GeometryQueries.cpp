@@ -674,4 +674,10 @@ css::ComputedStyle Page::StyleWithoutBox(const dom::Element& element) const {
   return style;
 }
 
+dom::Element* Page::ElementAtViewport(float x, float y) {
+  const gfx::FloatPoint document_point{x, y + layout_.scroll_y};
+  const dom::Element* hit = ElementAt(document_point);
+  return hit == nullptr ? nullptr : const_cast<dom::Element*>(hit);
+}
+
 }  // namespace microbrowser::engine

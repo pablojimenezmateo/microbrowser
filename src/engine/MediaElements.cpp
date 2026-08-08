@@ -29,6 +29,9 @@ media::MediaState* MediaElements::For(const dom::Element& element, bool has_sour
   media::MediaState fresh;
   if (has_source) {
     fresh.BeginLoad();
+    if (element.HasAttribute("muted")) {
+      fresh.SetMuted(true);
+    }
   } else {
     // No source is `NO_SOURCE` immediately, which is what makes `play()` on an empty element a
     // `NotSupportedError` rather than a promise that never settles.

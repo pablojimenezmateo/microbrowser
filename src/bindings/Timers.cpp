@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/TrustedScript.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
@@ -73,6 +74,7 @@ bool TimerQueue::QueueTask(js::Interpreter& interpreter, const js::Value& callba
   // for.
   timer.due_ms = static_cast<std::int64_t>(now_slot->number);
   timer.host_task = true;
+  timer.trust_scripts = TrustedScriptContextActive(interpreter);
   queue->timers_.push_back(timer);
   callbacks->Set(js::NumberToString(timer.id), callback);
   return true;
@@ -126,6 +128,7 @@ void TimerQueue::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       timer.interval_ms = repeating ? std::max<std::int64_t>(delay, 1) : 0;
       timer.repeating = repeating;
       timer.nesting_level = nesting + 1;
+      timer.trust_scripts = TrustedScriptContextActive(call.interpreter);
       queue->timers_.push_back(timer);
       callbacks_object->Set(js::NumberToString(timer.id), handler);
       return Value::Number(timer.id);
@@ -229,6 +232,7 @@ bool TimerQueue::RunDue(js::Interpreter& interpreter, std::int64_t now_ms) {
     // a spent step budget.
     interpreter.BeginTask();
     active_nesting_ = timer.host_task ? 0 : timer.nesting_level;
+    TrustedScriptInvocation trust(interpreter, timer.trust_scripts);
     (void)interpreter.CallFunction(callback, Value::Undefined(), {});
     active_nesting_ = 0;
   };

@@ -44,6 +44,7 @@ class IdleCallbacks {
     // When set, the callback must run by then even if nothing is idle yet.
     std::int64_t timeout_at_ms = 0;
     bool has_timeout = false;
+    bool trust_scripts = false;
   };
 
   std::vector<Entry> pending_;

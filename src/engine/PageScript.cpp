@@ -10,6 +10,7 @@
 #include "util/Env.h"
 #include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
+#include "bindings/TrustedScript.h"
 
 #include <cstdio>
 
@@ -243,6 +244,20 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
                                                      cookies_, sockets_, media_, canvas_,
                                                      workers_);
   bindings_->Install();
+  bindings::InstallTrustedScriptSlot(*interpreter_, *bindings_);
+  interpreter_->SetTrustedScriptHooks(
+      bindings_.get(),
+      [](void* context) {
+        return static_cast<bindings::DomBindings*>(context)->InTrustedScriptContext();
+      },
+      [](void* context, bool push) {
+        auto* bindings = static_cast<bindings::DomBindings*>(context);
+        if (push) {
+          bindings->PushTrustedScriptContext();
+        } else {
+          bindings->PopTrustedScriptContext();
+        }
+      });
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   if (trusted_insertion_flush_) {
     bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);

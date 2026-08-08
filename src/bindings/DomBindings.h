@@ -275,7 +275,20 @@ class DomBindings {
   // While a script the policy already allowed is running, `<script>` nodes it
   // inserts are trusted for `script-src` without carrying the nonce themselves.
   // reddit's polyfill loader appends its tags this way.
-  void SetTrustedScriptInsertion(bool trusted) { trusted_script_insertion_ = trusted; }
+  bool InTrustedScriptContext() const { return trusted_script_depth_ > 0; }
+  void PushTrustedScriptContext() { ++trusted_script_depth_; }
+  void PopTrustedScriptContext() {
+    if (trusted_script_depth_ > 0) {
+      --trusted_script_depth_;
+    }
+  }
+  void SetTrustedScriptInsertion(bool trusted) {
+    if (trusted) {
+      PushTrustedScriptContext();
+    } else {
+      PopTrustedScriptContext();
+    }
+  }
   void SetTrustedScriptFlush(std::function<void()> hook) { trusted_script_flush_ = std::move(hook); }
   void SetScriptStrictDynamic(bool enabled) { csp_script_strict_dynamic_ = enabled; }
   void MarkCspTrustedScript(const dom::Element& element) { csp_trusted_scripts_.insert(&element); }
@@ -312,6 +325,7 @@ class DomBindings {
   // `document.implementation`, and `Document.prototype` -- where every
   // `document.*` method now lives rather than on the one wrapper.
   void InstallImplementation(const js::Value& document_interface);
+  void InstallPageVisibility(const js::Value& document_interface);
   // Whether an element answers to a CSS selector. Shared by querySelector,
   // querySelectorAll, matches and closest, which would otherwise be four
   // chances to disagree. Implemented by `src/css` (see MODULE.deps): the
@@ -507,6 +521,7 @@ class DomBindings {
   // because a page may sniff several of them and two constants meant to agree eventually do not.
   void InstallPrivacyAnswers(const js::Value& navigator);
   void InstallPermissions(const js::Value& navigator);
+  void InstallUserActivation(const js::Value& navigator);
   void InstallClipboard(const js::Value& navigator);
   void InstallNotification();
   void InstallCrypto();
@@ -756,7 +771,7 @@ class DomBindings {
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
   // string -- and a test needs to see what was written either way. The chrome takes it from here.
   std::string clipboard_;
-  bool trusted_script_insertion_ = false;
+  std::uint32_t trusted_script_depth_ = 0;
   bool csp_script_strict_dynamic_ = false;
   std::function<void()> trusted_script_flush_;
   std::unordered_set<const dom::Element*> csp_trusted_scripts_;

@@ -385,6 +385,9 @@ class Interpreter {
     // native, so that the resumed body runs with nothing of the drain's in a
     // C++ local -- which is what lets a collection happen inside it.
     std::uint64_t suspension = 0;
+    // True when the job was queued while a CSP-trusted script context was
+    // active, so promise continuations from a permitted script inherit trust.
+    bool trust_scripts = false;
   };
   void EnqueueMicrotask(Microtask task);
   // Runs the queue to empty.
@@ -395,6 +398,12 @@ class Interpreter {
   // draining costs a wakeup that was already happening and never asks for one.
   void DrainMicrotasks();
   bool HasPendingMicrotasks() const { return !microtasks_.empty(); }
+
+  // CSP transitive trust: bindings install these so promise reactions queued
+  // during a permitted script run with trusted `<script>` insertion enabled.
+  using TrustedScriptHook = void (*)(void* context, bool push);
+  void SetTrustedScriptHooks(void* context, bool (*active)(void* context),
+                             TrustedScriptHook apply);
 
   // Fresh step budget for a host *task* (HTML event-loop task), when the
   // machine is idle. Used for fetch/XHR delivery: after kevlar spends the
@@ -1141,6 +1150,9 @@ class Interpreter {
   // the hang-guard budget (that is the microtask-storm hang TD-0018 forbids);
   // the outermost entry may, when the parent turn already spent most of it.
   int microtask_drain_depth_ = 0;
+  void* trusted_script_context_ = nullptr;
+  bool (*trusted_script_active_)(void* context) = nullptr;
+  TrustedScriptHook trusted_script_apply_ = nullptr;
   // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036). One
   // budget per top-level script turn; nested custom-element reactions and
   // microtasks share it. youtube.com's kevlar turn exhausts this and aborts

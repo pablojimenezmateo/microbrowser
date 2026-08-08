@@ -25,6 +25,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/FetchSupport.h"
+#include "bindings/TrustedScript.h"
 #include "bindings/Network.h"
 #include "util/PerformanceCounters.h"
 
@@ -338,6 +339,7 @@ void DomBindings::InstallFetch() {
     }
     entry.object->SetHidden(kFetchIdSlot, Value::Number(static_cast<double>(id)));
     entry.object->SetHidden(kFetchPromiseSlot, promise);
+    entry.object->SetHidden(kFetchTrustSlot, Value::Bool(InTrustedScriptContext()));
     if (signal.IsObject()) {
       entry.object->SetHidden(kFetchSignalSlot, signal);
     }
@@ -381,6 +383,7 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
   }
   Value promise;
   Value xhr;
+  bool trust_scripts = false;
   std::vector<Value> kept;
   for (std::size_t i = 0; i < pending->object->ElementCount(); ++i) {
     const Value entry = pending->object->GetElement(i);
@@ -388,6 +391,9 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
     if (entry_id == nullptr || static_cast<std::uint64_t>(js::ToNumber(*entry_id)) != id) {
       kept.push_back(entry);
       continue;
+    }
+    if (const Value* trust = entry.object->GetOwn(kFetchTrustSlot)) {
+      trust_scripts = js::ToBoolean(*trust);
     }
     // A promise for a `fetch`, an XHR object for an `XMLHttpRequest`. One table
     // and one delivery, which is ADR 0020 §1's rule that there is one request
@@ -410,6 +416,7 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
   // `steps_` past the hang-guard limit and every `then` / XHR handler throws
   // `RangeError: script ran too long` before doing any stamp work (TD-0018).
   interpreter_->BeginTask();
+  TrustedScriptInvocation trust(*interpreter_, trust_scripts);
 
   if (xhr.IsObject()) {
     DeliverToXhr(xhr, response);

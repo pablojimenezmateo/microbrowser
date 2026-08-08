@@ -662,6 +662,55 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "and focuses the link");
   });
 
+  AddTest(tests, "Page/ClickOnVideoTogglesPlayback", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'><video muted src='x.webm' "
+        "style='width:200px;height:100px'></video></body>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    const dom::Element* video = nullptr;
+    page.CurrentDocument()->ForEachDescendant([&](const dom::Node& node) {
+      if (video != nullptr || !node.IsElement()) {
+        return;
+      }
+      if (static_cast<const dom::Element&>(node).TagName() == "video") {
+        video = &static_cast<const dom::Element&>(node);
+      }
+    });
+    Expect(video != nullptr, "video exists");
+    Expect(page.ToggleMediaPlaybackAt(gfx::FloatPoint{10.0f, 10.0f}), "starts on click");
+    Expect(!page.Paused(*video), "and is playing");
+  });
+
+  AddTest(tests, "Page/ClickInsideMoviePlayerTogglesVideoPlayback", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'>"
+        "<div id='movie_player' style='width:200px;height:100px;position:relative'>"
+        "<div class='ytp-error' style='position:absolute;inset:0'></div>"
+        "<video muted src='x.webm' style='width:200px;height:100px'></video>"
+        "</div></body>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    const dom::Element* video = nullptr;
+    page.CurrentDocument()->ForEachDescendant([&](const dom::Node& node) {
+      if (video != nullptr || !node.IsElement()) {
+        return;
+      }
+      if (static_cast<const dom::Element&>(node).TagName() == "video") {
+        video = &static_cast<const dom::Element&>(node);
+      }
+    });
+    Expect(video != nullptr, "video exists");
+    Expect(page.Paused(*video), "starts paused");
+    Expect(page.ToggleMediaPlaybackAt(gfx::FloatPoint{10.0f, 10.0f}),
+           "overlay click reaches #movie_player's video");
+    Expect(!page.Paused(*video), "and starts playback");
+  });
+
   AddTest(tests, "Page/HitTestsThroughATransform", [] {
     // ADR 0014 §4's other half. A transform moves what is *painted* and nothing
     // else, so the box stays where layout put it and the hit test has to un-map the

@@ -232,7 +232,7 @@ budget: HistorySource header_lines=45 public_methods=6 members=0
 # it is `window.innerWidth`, which was simply missing, and it is the
 # `rootBounds` every IntersectionObserver with no `root` measures against. It is
 # the one answer here that is not about a node, which is why it takes none.
-budget: GeometrySource header_lines=90 public_methods=9 members=0
+budget: GeometrySource header_lines=90 public_methods=10 members=0
 # The timer queue. Two members: the timers and the counter that names them.
 # The callbacks are deliberately not here -- they live in the JavaScript heap,
 # because the collector cannot see a value in a C++ field and a callback it

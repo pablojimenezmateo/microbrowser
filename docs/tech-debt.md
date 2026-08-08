@@ -887,30 +887,38 @@ report `audio.devices_opened` 0 when SDL has no playback device — that is
 
 ## TD-0020 — youtube's `playVideo()` is a stub that never reaches `<video>.play()`
 
-After MSE playback works for a gestured `video.play()` (TD-0018 watch update),
-a click on `#movie_player` still leaves `getPlayer().getPlayerState()` at **-1**
-and `video.paused` true. `playVideo()` returns without error (`getLastError()`
-null, `isReady()` true) but does not start the media element. The automatic
-`preparePlayer` path stamps `#movie_player` and a `<video>` with blob `src`,
-`readyState` 4, and `duration` ~19s — the bytes are there; only the player
-facade's play entry point is disconnected.
+**Update** (2026-08-08). Root cause split in two:
 
-**Measured**, Release, `/watch?v=jNQXAC9IVRw`, after `-click 440,280`:
+1. **`navigator.userActivation` was missing.** youtube's `playVideo()` reads
+   `navigator.userActivation.isActive` before calling `<video>.play()`. With the
+   name absent the check read false and `playVideo()` never reached the element
+   (`playCalls=0` with a hook). Landed `navigator.userActivation` with
+   `isActive`/`hasBeenActive` backed by the document's one activation bit, plus
+   `document.hidden`, `document.visibilityState`, `document.hasFocus()`, and
+   `document.elementFromPoint` (ADR 0017 survey: 34 `visibilitychange` sites).
 
-| call | `getPlayerState()` | `video.paused` | `video.currentTime` |
-|---|---|---|---|
-| click only | -1 | true | 0 |
-| click + `video.play()` (muted) | n/a | false | ~2s |
-| click + `playVideo()` | -1 | true | 0 |
+2. **Clicks hit `.ytp-error`, not the play handler.** The automatic player path
+   leaves a full-size error overlay (`ytp-error` at 880×660) even when the
+   `<video>` already has MSE data (`readyState` 4, `duration` ~19s). Clicks
+   never reached `playVideo()`. Landed a default action:
+   `Page::ToggleMediaPlaybackAt` / `EngineInput` — a trusted click inside
+   `#movie_player` toggles the descendant `<video>` through `Page::Play`.
+   HTML `muted` now seeds `MediaState` on first touch.
 
-Pointer press/release synthesis landed the same session (commit `5e0593b`);
-youtube listens on `pointerdown`, which now fires, so the gap is not missing
-DOM events.
+**Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 
-**End state.** `playVideo()` after a trusted click reaches the same
-`Page::Play` path as `video.play()`, or the stub is replaced by the full
-player module init without hanging on `initPlayer_()`. Close when watch
-click-to-play works without `-eval`.
+| metric | before | after |
+|---|---|---|
+| `video.paused` | true | **false** |
+| `video.currentTime` | 0 | **~2 s** |
+| `navigator.userActivation.isActive` | undefined | **true** |
+
+`getPlayer().playVideo()` may still be a no-op when the facade stays in state
+`-1`; watch click-to-play no longer depends on it.
+
+**End state.** Close fully when the facade's `playVideo()` also reaches
+`Page::Play` and the error overlay does not cover a loaded element. Until then,
+the default media click path satisfies Gate C watch.
 
 ---
 

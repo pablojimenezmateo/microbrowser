@@ -470,6 +470,20 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
         "i.complete + ',' + i.naturalWidth + 'x' + i.naturalHeight");
     ExpectEqString(answer, "true,32x18", "complete and natural dimensions after decode");
   });
+
+  AddTest(tests, "Geometry/ElementFromPointUsesViewportCoordinates", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'>"
+        "<div id='under' style='position:absolute;left:0;top:0;width:100px;height:100px'></div>"
+        "<div id='over' style='position:absolute;left:0;top:0;width:100px;height:100px'></div>"
+        "<script>"
+        "console.log(document.elementFromPoint(10,10).id);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "over", "topmost element at the point");
+  });
 }
 
 }  // namespace microbrowser::tests

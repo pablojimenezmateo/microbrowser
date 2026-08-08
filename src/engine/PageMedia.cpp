@@ -30,6 +30,42 @@ bool HasSourceAttribute(const dom::Element& element) {
   return src != nullptr && !src->empty();
 }
 
+const dom::Element* ParentElement(const dom::Element& element) {
+  const dom::Node* parent = element.Parent();
+  return parent != nullptr && parent->IsElement() ? static_cast<const dom::Element*>(parent)
+                                                    : nullptr;
+}
+
+const dom::Element* FindMediaInSubtree(const dom::Element& root) {
+  if (IsMediaTag(root)) {
+    return &root;
+  }
+  const dom::Element* found = nullptr;
+  root.ForEachDescendant([&](const dom::Node& node) {
+    if (found != nullptr || !node.IsElement()) {
+      return;
+    }
+    const auto& candidate = static_cast<const dom::Element&>(node);
+    if (IsMediaTag(candidate)) {
+      found = &candidate;
+    }
+  });
+  return found;
+}
+
+const dom::Element* MediaElementForClickTarget(const dom::Element& hit) {
+  for (const dom::Element* at = &hit; at != nullptr; at = ParentElement(*at)) {
+    if (IsMediaTag(*at)) {
+      return at;
+    }
+    const std::string* id = at->GetAttribute("id");
+    if (id != nullptr && *id == "movie_player") {
+      return FindMediaInSubtree(*at);
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 media::MediaState* Page::MediaStateFor(const dom::Element& element) {
@@ -154,6 +190,27 @@ void Page::FlushMediaEvents(dom::Element& element) {
   for (const std::string_view type : state->TakeEvents()) {
     script_.DispatchMediaEvent(element, std::string(type));
   }
+}
+
+bool Page::ToggleMediaPlaybackAt(gfx::FloatPoint document_point) {
+  EnsureLayoutClean();
+  if (boxes_ == nullptr || document_ == nullptr) {
+    return false;
+  }
+  const dom::Element* hit = ElementAt(document_point);
+  if (hit == nullptr) {
+    return false;
+  }
+  const dom::Element* media = MediaElementForClickTarget(*hit);
+  if (media == nullptr || !IsMediaTag(*media)) {
+    return false;
+  }
+  auto& element = *const_cast<dom::Element*>(media);
+  if (Paused(element)) {
+    return Play(element) == bindings::MediaController::PlayResult::Started;
+  }
+  Pause(element);
+  return true;
 }
 
 }  // namespace microbrowser::engine

@@ -73,6 +73,8 @@ class TimerQueue {
     // HTML timer nesting level for this task. Used when *scheduling* the next
     // timeout from inside it.
     std::uint32_t nesting_level = 0;
+    // Queued while a CSP-trusted script was running.
+    bool trust_scripts = false;
   };
 
   std::vector<Timer> timers_;

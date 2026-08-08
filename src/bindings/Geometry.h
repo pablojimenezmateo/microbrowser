@@ -151,6 +151,12 @@ class GeometrySource {
   // Whether an `<img>`'s selected URL has been decoded and its intrinsic size.
   // Nothing when the node is not an image or has no `src`/`srcset` selection.
   virtual std::optional<ImageState> QueryImageState(const dom::Element& element) = 0;
+
+  // The topmost element under a viewport point, or null when nothing receives
+  // events there. Viewport coordinates -- the same ones `elementFromPoint` and
+  // pointer input use -- and the answer is never stale for the same reason as
+  // QueryBox.
+  virtual dom::Element* ElementAtViewport(float x, float y) = 0;
 };
 
 }  // namespace microbrowser::bindings
