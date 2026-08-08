@@ -111,6 +111,12 @@ js::Value DomBindings::CustomElementRegistry() {
 }
 
 void DomBindings::UpgradeElement(dom::Element& element) {
+  // TD-0018: each upgrade is its own host turn. A batch `define` or fragment
+  // insert can upgrade dozens of elements; one BeginTask for the whole batch
+  // leaves later `connectedCallback`s on a spent budget (`js.steps_exhausted`).
+  if (interpreter_ != nullptr) {
+    interpreter_->BeginTask();
+  }
   const Value registry = CustomElementRegistry();
   if (!registry.IsObject()) {
     return;
@@ -373,9 +379,6 @@ void DomBindings::InstallCustomElements() {
         pending.push_back(&element);
       }
     });
-    if (!pending.empty()) {
-      call.interpreter.BeginTask();
-    }
     for (dom::Element* element : pending) {
       owner->UpgradeElement(*element);
     }

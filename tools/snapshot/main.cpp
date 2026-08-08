@@ -33,6 +33,7 @@
 #include "gfx/Painter.h"
 #include "gfx/TextRenderer.h"
 #include "ipc/InProcessTransport.h"
+#include "ipc/Message.h"
 #include "platform/SystemFonts.h"
 #include "util/Parse.h"
 #include "util/Env.h"
@@ -275,6 +276,96 @@ bool SnapshotAwaitingRedditChallenge(std::string_view url) {
   return url == "https://www.reddit.com" || url == "https://www.reddit.com/";
 }
 
+bool IsRedditHomepage(std::string_view url) {
+  return url.find("www.reddit.com") != std::string_view::npos ||
+         url.find("reddit.com") != std::string_view::npos;
+}
+
+bool RedditChallengeSolved(std::string_view url) {
+  return url.find("solution=") != std::string_view::npos;
+}
+
+struct SnapshotFrame {
+  microbrowser::gfx::DisplayList display_list;
+  std::string title;
+  std::string url;
+  bool painted = false;
+};
+
+std::optional<int> ParseLeadingInt(std::string_view text) {
+  if (text.empty() || text.front() < '0' || text.front() > '9') {
+    return std::nullopt;
+  }
+  int value = 0;
+  for (const char c : text) {
+    if (c < '0' || c > '9') {
+      break;
+    }
+    value = value * 10 + (c - '0');
+    if (value > 1'000'000) {
+      return std::nullopt;
+    }
+  }
+  return value;
+}
+
+// Gate B wants the feed, not the chrome-only frame that lands when `load`
+// fires before concat/hoisting finishes. Probe the DOM rather than URL shape:
+// `js_challenge=1` stays on the feed URL after a successful solve (70993b7).
+bool RedditFeedLooksReady(microbrowser::engine::Engine& engine, std::size_t command_count) {
+  if (!IsRedditHomepage(engine.Url()) || !RedditChallengeSolved(engine.Url())) {
+    return true;
+  }
+  const std::string articles =
+      engine.EvaluateScript("document.querySelectorAll('article').length");
+  const std::string render_template =
+      engine.EvaluateScript("customElements.get('ac-render-template') ? '1' : '0'");
+  const std::optional<int> count = ParseLeadingInt(articles);
+  return count.has_value() && *count > 3 && command_count > 1000 &&
+         render_template == "1";
+}
+
+void DrainOutgoingPaints(microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
+                         SnapshotFrame* best, int viewport_width, int viewport_height) {
+  while (std::optional<microbrowser::ipc::EngineToUi> message = ui.TryReceive()) {
+    if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message)) {
+      if (microbrowser::util::PerformanceTrace::FlagEnabled("MICROBROWSER_TRACE_REDRAW")) {
+        long long covered = 0;
+        for (const microbrowser::gfx::IntRect& rect : paint->damage) {
+          covered += static_cast<long long>(rect.width) * rect.height;
+        }
+        const long long surface =
+            static_cast<long long>(viewport_width) * viewport_height;
+        std::fprintf(stderr,
+                     "[redraw] %-7s rects=%zu coverage=%5.1f%% surface=%dx%d "
+                     "scroll=%d,%d commands=%zu\n",
+                     paint->damage.empty() ? "full" : "partial", paint->damage.size(),
+                     surface > 0 ? static_cast<double>(covered) * 100.0 /
+                                       static_cast<double>(surface)
+                                 : 0.0,
+                     viewport_width, viewport_height, paint->scroll_delta.x,
+                     paint->scroll_delta.y, paint->display_list.Size());
+      }
+      latest.display_list = std::move(paint->display_list);
+      latest.painted = true;
+      if (best != nullptr && latest.display_list.Size() > best->display_list.Size()) {
+        *best = latest;
+      }
+    } else if (auto* changed = std::get_if<microbrowser::ipc::TitleChangedMessage>(&*message)) {
+      latest.title = changed->title;
+      if (best != nullptr && best->painted) {
+        best->title = latest.title;
+      }
+    } else if (auto* committed =
+                   std::get_if<microbrowser::ipc::NavigationCommittedMessage>(&*message)) {
+      latest.url = committed->url;
+      if (best != nullptr && best->painted) {
+        best->url = latest.url;
+      }
+    }
+  }
+}
+
 // Turns the loop's crank until the navigation is finished.
 //
 // This is the whole of what a host has to do since ADR 0011, minus a window: it
@@ -282,12 +373,15 @@ bool SnapshotAwaitingRedditChallenge(std::string_view url) {
 // the sockets the engine says it is waiting for. There is no polling and no
 // sleep, which is why this is a faithful stand-in for the real loop rather than
 // a shortcut that only works because nothing else is happening.
-void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
+void RunLoadToCompletion(microbrowser::engine::Engine& engine,
+                         microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
+                         SnapshotFrame* best, int viewport_width, int viewport_height) {
   std::uint64_t turns = 0;
   const bool trace = microbrowser::util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE");
   // reddit's interstitial marks `load` finished while its inline async handler
-  // still runs and only then submits the challenge form. Stay in the load loop
-  // until the URL carries `solution=` or fifteen minutes pass (Gate B measurement).
+  // still runs and only then submits the challenge form. After the feed commits,
+  // concat/hoisting can run for minutes past `load` (TD-0016). Stay in the
+  // loop until the challenge submits, the feed looks ready, or fifteen minutes.
   const auto settle_deadline =
       std::chrono::steady_clock::now() + std::chrono::minutes(15);
   const auto should_turn = [&]() {
@@ -297,7 +391,18 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     if (engine.IsLoading()) {
       return true;
     }
-    return SnapshotAwaitingRedditChallenge(engine.Url());
+    if (SnapshotAwaitingRedditChallenge(engine.Url())) {
+      return true;
+    }
+    if (IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url())) {
+      const std::size_t commands = latest.painted ? latest.display_list.Size() : 0;
+      if (commands > 1000 && (turns % 25ULL) == 0ULL &&
+          RedditFeedLooksReady(engine, commands)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
   };
   while (should_turn()) {
     ++turns;
@@ -320,6 +425,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
       std::fflush(stderr);
     }
     if (advanced || engine.HasRunnableWork()) {
+      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       continue;
     }
     // Due timers, animation frames and worker messages. The real loop runs this
@@ -335,6 +441,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
                      static_cast<unsigned long long>(turns));
         std::fflush(stderr);
       }
+      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       continue;
     }
     microbrowser::util::WaitDescriptorList descriptors;
@@ -377,6 +484,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
     microbrowser::platform::WaitOnDescriptors(
         descriptors,
         deadline.has_value() ? static_cast<std::int32_t>(*deadline) : 200);
+    DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
   }
   if (trace) {
     std::fprintf(stderr, "[load] finished after %llu turns\n",
@@ -396,18 +504,21 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   // list stuck at `initialCount` (Ot → rAF → tryRenderChunk_ → rAF…) even
   // after Polymer.dom.children and BeginTask-on-rAF were fixed.
   //
-  // Wall-clock budget: youtube's stamp can keep `RunDueWork` returning true
-  // for hundreds of passes (each a layout), which turned a 40s snapshot into
-  // six minutes. Autofill that needs more than a few seconds of post-load
-  // time is still owed frames; the interactive loop keeps going.
-  const auto drain_deadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(20);
-  for (int pass = 0; pass < 512; ++pass) {
+  // reddit's concat polyfill can run for hundreds of seconds after `load`; use
+  // the same fifteen-minute wall clock as the load loop rather than twenty
+  // seconds (TD-0016 / Gate B).
+  const auto drain_deadline = settle_deadline;
+  for (int pass = 0; pass < 4096; ++pass) {
     if (std::chrono::steady_clock::now() >= drain_deadline) {
       break;
     }
     if (engine.RunDueWork()) {
+      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       continue;
+    }
+    if (IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url()) &&
+        RedditFeedLooksReady(engine, latest.painted ? latest.display_list.Size() : 0)) {
+      break;
     }
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
     if (!deadline.has_value()) {
@@ -430,12 +541,17 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine) {
   // frame so youtube's lazy imgs can assign `src` after the last stamp chunk,
   // then keep turning until idle so the fetches that assignment starts can land.
   (void)engine.EvaluateScript("requestAnimationFrame(() => {});");
-  for (int pass = 0; pass < 64; ++pass) {
+  for (int pass = 0; pass < 256; ++pass) {
     if (std::chrono::steady_clock::now() >= drain_deadline) {
       break;
     }
     if (engine.RunDueWork()) {
+      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       continue;
+    }
+    if (IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url()) &&
+        RedditFeedLooksReady(engine, latest.painted ? latest.display_list.Size() : 0)) {
+      break;
     }
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
     if (!deadline.has_value()) {
@@ -491,12 +607,14 @@ int main(int argc, char** argv) {
 
   microbrowser::ipc::InProcessChannel channel;
   microbrowser::engine::Engine engine{channel.Engine(), fonts};
+  SnapshotFrame latest;
+  SnapshotFrame best;
 
   channel.Ui().Send(microbrowser::ipc::ResizeViewportMessage{
       microbrowser::gfx::IntSize{options.width, options.height}, options.device_scale});
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{options.url});
   engine.HandlePendingMessages();
-  RunLoadToCompletion(engine);
+  RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   if (options.hover_x >= 0 && options.hover_y >= 0) {
     microbrowser::ipc::PointerInputMessage pointer;
     pointer.kind = microbrowser::ipc::PointerInputMessage::Kind::Move;
@@ -504,7 +622,7 @@ int main(int argc, char** argv) {
                                                      static_cast<float>(options.hover_y)};
     channel.Ui().Send(pointer);
     engine.HandlePendingMessages();
-    RunLoadToCompletion(engine);
+    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   }
   if (options.click_x >= 0 && options.click_y >= 0) {
     // Down then up, the way a real click arrives, so the engine sees the same
@@ -519,7 +637,7 @@ int main(int argc, char** argv) {
       channel.Ui().Send(pointer);
     }
     engine.HandlePendingMessages();
-    RunLoadToCompletion(engine);
+    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   }
   for (microbrowser::ipc::KeyInputMessage key : options.keys) {
     // Down then up, the way a real key arrives. A handler that runs on keyup
@@ -530,7 +648,7 @@ int main(int argc, char** argv) {
     key.kind = microbrowser::ipc::KeyInputMessage::Kind::Up;
     channel.Ui().Send(key);
     engine.HandlePendingMessages();
-    RunLoadToCompletion(engine);
+    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   }
   if (options.scroll_y > 0) {
     channel.Ui().Send(
@@ -541,7 +659,7 @@ int main(int argc, char** argv) {
     // within reach of the scrollport -- and a snapshot that stopped here would
     // write out the frame from *before* the image arrived, which looks exactly
     // like a lazy loader that does not work.
-    RunLoadToCompletion(engine);
+    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   }
 
   // The probes, after every input has been delivered and the page has settled,
@@ -555,52 +673,30 @@ int main(int argc, char** argv) {
   for (const std::string& probe : options.probes) {
     const std::string answer = engine.EvaluateScript(probe);
     std::printf("eval: %s\n", answer.c_str());
-    RunLoadToCompletion(engine);
+    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   }
 
-  // Keep the last frame. A navigation sends more than one -- resize, then load
-  // -- and the last is the finished page.
-  microbrowser::gfx::DisplayList display_list;
-  std::string title;
-  std::string url = options.url;
-  bool painted = false;
-  while (std::optional<microbrowser::ipc::EngineToUi> message = channel.Ui().TryReceive()) {
-    if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message)) {
-      // MICROBROWSER_TRACE_REDRAW=1 means the same thing here as it does in the
-      // browser -- what changed, and how much of the window that is -- except
-      // that the browser can only be asked from a machine with a display and
-      // this cannot. A scroll's damage is the whole point of ADR 0018, and a
-      // check for it that needs a window is one nobody runs.
-      if (microbrowser::util::PerformanceTrace::FlagEnabled("MICROBROWSER_TRACE_REDRAW")) {
-        long long covered = 0;
-        for (const microbrowser::gfx::IntRect& rect : paint->damage) {
-          covered += static_cast<long long>(rect.width) * rect.height;
-        }
-        const long long surface =
-            static_cast<long long>(options.width) * options.height;
-        std::fprintf(stderr,
-                     "[redraw] %-7s rects=%zu coverage=%5.1f%% surface=%dx%d "
-                     "scroll=%d,%d commands=%zu\n",
-                     paint->damage.empty() ? "full" : "partial", paint->damage.size(),
-                     surface > 0 ? static_cast<double>(covered) * 100.0 /
-                                       static_cast<double>(surface)
-                                 : 0.0,
-                     options.width, options.height, paint->scroll_delta.x,
-                     paint->scroll_delta.y, paint->display_list.Size());
-      }
-      display_list = std::move(paint->display_list);
-      painted = true;
-    } else if (auto* changed = std::get_if<microbrowser::ipc::TitleChangedMessage>(&*message)) {
-      title = changed->title;
-    } else if (auto* committed =
-                   std::get_if<microbrowser::ipc::NavigationCommittedMessage>(&*message)) {
-      url = committed->url;
-    }
+  // Paints were drained during the load loop. If the last frame regressed after
+  // a larger feed paint (TD-0016: peak mid-load, 210 final), keep the best one
+  // that still looks like a feed when the latest does not.
+  DrainOutgoingPaints(channel.Ui(), latest, &best, options.width, options.height);
+  SnapshotFrame frame = latest;
+  if (latest.painted && best.painted && best.display_list.Size() > latest.display_list.Size() &&
+      IsRedditHomepage(latest.url.empty() ? engine.Url() : latest.url) &&
+      RedditChallengeSolved(latest.url.empty() ? engine.Url() : latest.url) &&
+      best.display_list.Size() > 1000) {
+    frame = best;
+    std::fprintf(stderr, "feed settle: kept peak frame %zu commands over final %zu\n",
+                 best.display_list.Size(), latest.display_list.Size());
   }
-  if (!painted) {
+  if (!frame.painted) {
     std::fputs("the engine produced no frame\n", stderr);
     return 1;
   }
+
+  microbrowser::gfx::DisplayList display_list = std::move(frame.display_list);
+  std::string title = frame.title;
+  std::string url = frame.url.empty() ? options.url : frame.url;
 
   microbrowser::gfx::Canvas canvas{options.width, options.height};
   canvas.Clear(microbrowser::gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
