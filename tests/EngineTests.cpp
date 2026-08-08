@@ -505,6 +505,25 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "text outside the anchor is not a link");
   });
 
+  AddTest(tests, "Page/HitTestsAbsoluteInsetFillLink", [] {
+    // youtube's search thumbnail: host sized by ::before, link fills it with
+    // top/right/bottom/left 0. A zero-height absolute link made every click miss.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "#host{position:relative;width:200px;height:100px}"
+              "#host::before{content:\"\";display:block;padding-top:50%}"
+              "a{position:absolute;top:0;right:0;bottom:0;left:0}"
+              "</style>"
+              "<body style='margin:0'><div id=host><a href='/watch'></a></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}).has_value(),
+           "a click inside the sized host hits the absolute fill link");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}), "/watch", "href");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "and focuses the link");
+  });
+
   AddTest(tests, "Page/HitTestsThroughATransform", [] {
     // ADR 0014 §4's other half. A transform moves what is *painted* and nothing
     // else, so the box stays where layout put it and the hit test has to un-map the

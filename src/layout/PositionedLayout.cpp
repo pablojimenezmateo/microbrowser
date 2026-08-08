@@ -111,11 +111,19 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
       resolve(style.margin.left, 0.0f) + resolve(style.margin.right, 0.0f) +
       resolve(style.padding.left, 0.0f) + resolve(style.padding.right, 0.0f) +
       resolve(border.left, 0.0f) + resolve(border.right, 0.0f);
+  const float vertical_extra =
+      resolve(style.margin.top, 0.0f) + resolve(style.margin.bottom, 0.0f) +
+      resolve(style.padding.top, 0.0f) + resolve(style.padding.bottom, 0.0f) +
+      resolve(border.top, 0.0f) + resolve(border.bottom, 0.0f);
 
   const bool has_left = !inset.left.IsAuto();
   const bool has_right = !inset.right.IsAuto();
+  const bool has_top = !inset.top.IsAuto();
+  const bool has_bottom = !inset.bottom.IsAuto();
   const float left = has_left ? resolve(inset.left, containing_block.width) : 0.0f;
   const float right = has_right ? resolve(inset.right, containing_block.width) : 0.0f;
+  const float top = has_top ? resolve(inset.top, containing_block.height) : 0.0f;
+  const float bottom = has_bottom ? resolve(inset.bottom, containing_block.height) : 0.0f;
 
   // The used width, in the order the spec decides it: a declared one, then the
   // space between two offsets, then shrink-to-fit. The middle case is what
@@ -130,6 +138,19 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   }
   outer_width = std::max(horizontal_extra, outer_width);
 
+  // Same for height: `top: 0; bottom: 0` (youtube's `#thumbnail`) fills the
+  // containing block. A percentage height resolves against that block too --
+  // LayoutBlock cannot, because a normal-flow percentage height is indefinite.
+  std::optional<float> forced_content_height;
+  if (!style.height.IsAuto()) {
+    // Includes percentages: against the containing block, which is definite
+    // for an absolutely positioned box (unlike normal flow).
+    forced_content_height = resolve(style.height, containing_block.height);
+  } else if (has_top && has_bottom) {
+    forced_content_height =
+        std::max(0.0f, containing_block.height - top - bottom - vertical_extra);
+  }
+
   // Placed from whichever edge was given. With neither, the static position --
   // where the flow would have put it -- stands in as the containing block's
   // own origin.
@@ -141,8 +162,8 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   }
 
   float y = containing_block.y;
-  if (!inset.top.IsAuto()) {
-    y = containing_block.y + resolve(inset.top, containing_block.height);
+  if (has_top) {
+    y = containing_block.y + top;
   }
 
   // Laid out with its own formatting context: an absolutely positioned box
@@ -151,14 +172,14 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   FloatContext floats;
   ForcedSize forced;
   forced.content_width = std::max(0.0f, outer_width - horizontal_extra);
+  forced.content_height = forced_content_height;
   float cursor = y;
   LayoutBlock(box, x, outer_width, cursor, floats, false, &forced);
 
   // `bottom` without `top` places the box by its lower edge, which needs the
   // height -- so it is applied after the box has one rather than guessed at.
-  if (inset.top.IsAuto() && !inset.bottom.IsAuto()) {
+  if (!has_top && has_bottom) {
     const float height = cursor - y;
-    const float bottom = resolve(inset.bottom, containing_block.height);
     const float wanted = containing_block.y + containing_block.height - bottom - height;
     OffsetSubtree(box, 0.0f, wanted - y);
   }

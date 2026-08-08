@@ -441,6 +441,22 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "and taking no space from the line it left, which a box laid out twice would have");
   });
 
+  AddTest(tests, "Layout/AbsoluteInsetsStretchHeightLikeWidth", [] {
+    // youtube's `#thumbnail { position:absolute; top:0; right:0; bottom:0; left:0 }`
+    // inside a sized host. Without stretching on opposite insets the link is
+    // 500×0 and clicks miss it.
+    const LaidOut result = Run(
+        "<body style='margin:0'><div id='host'><a id='fill' href='/x'></a></div></body>",
+        "body { margin: 0 } "
+        "#host { position: relative; width: 200px; height: 100px } "
+        "#fill { position: absolute; top: 0; right: 0; bottom: 0; left: 0 }",
+        400.0f);
+    const Box* fill = FindBox(*result.root, "a");
+    Expect(fill != nullptr, "the absolute link has a box");
+    Expect(std::abs(fill->Geometry().BorderBox().width - 200.0f) < 0.5f, "stretched width");
+    Expect(std::abs(fill->Geometry().BorderBox().height - 100.0f) < 0.5f, "stretched height");
+  });
+
   AddTest(tests, "Layout/InputControlsGenerateVisibleInlineBoxes", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input size='10'><span>after</span></body>",
