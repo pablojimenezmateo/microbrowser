@@ -537,6 +537,10 @@ bool DomBindings::NotifyLoad() {
   return heard;
 }
 
+bool DomBindings::NotifyWindowResize() {
+  return DispatchAtWindow("resize");
+}
+
 void DomBindings::NotifyScriptElementEvent(const dom::Element& element, const char* type) {
   if (interpreter_ == nullptr || document_ == nullptr) {
     return;

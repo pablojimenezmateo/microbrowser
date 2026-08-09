@@ -1223,7 +1223,7 @@ lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
 | column flex grow/shrink + `max-height` re-layout | **done** — `#content` is now ~840px inside the 896px dialog (`layout.flex_column_max_height_relayouts`); Accept still needs `scrollIntoView` because it sits at the end of the scrollable policy text |
 | `location.assign` / `replace` / `href=` / **`reload`** | **done** (ADR 0026 §3) — deferred through `HistorySource::RequestNavigation`; Accept's Fy8 ends in `location.reload()` after POSTing `savePreferenceUrl` (GET is 405; POST returns 204) |
 | Accept → `consent.youtube.com/save` | **done** for the network half — click fires `yt-save-consent-action` → `handleSaveConsent` → `Fy8` (set SOCS, POST `/upgrade_visitor_cookie`, POST save URL); dismiss needs `location.reload()` (above) |
-| auto-refit after stamp | **open** — `notifyResize()` schedules a refit that lands on the next drain (`top/left` → `0/266`), but nothing calls it after the bump stamps; youtube forces `ShadyDOM` (`force:true`, `ShadyCSS.disableRuntime:true`) |
+| auto-refit after stamp | **open** — `notifyResize()` schedules a refit that lands on the next drain (`top/left` → `0/266`), but nothing calls it after the bump stamps; youtube forces `ShadyDOM` (`force:true`, `ShadyCSS.disableRuntime:true`). **Window `resize` on viewport change is done** (`Engine::SetViewport` → `DispatchAtWindow("resize")`) for iron-resizable's orphan path; the stamp path still needs FlattenedNodesObserver / post-stamp `notifyResize` |
 | inflated `#content.scrollHeight` (~1e5–4e5) | **open** — scrollport height is right; overflow measurement is not |
 | real `-click` Accept → user activation → play | check after reload dismiss |
 

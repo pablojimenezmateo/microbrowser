@@ -239,7 +239,9 @@ budget: IndexedDbSource header_lines=65 public_methods=16 members=0
 # wrote it and answers with a decision, because this module may not see `url` and
 # the same-origin check ADR 0026 §2 calls load-bearing has to happen where URLs
 # are understood.
-budget: HistorySource header_lines=45 public_methods=6 members=0
+budget: HistorySource header_lines=55 public_methods=7 members=0
+# Raised for ADR 0026 §3 location.assign/replace/reload: RequestNavigation is
+# the seventh method; the header grew with the deferred-navigation contract.
 # The layout questions a page may ask, as an interface this module declares and
 # `src/engine` implements. A budget so that growth in it is a decision: every
 # entry here is a new thing script can learn about the document's geometry, and

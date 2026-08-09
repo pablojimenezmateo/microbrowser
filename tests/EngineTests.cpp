@@ -3342,6 +3342,25 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "the second page's script saw the second page's tree, and none of the first "
            "page's globals");
   });
+
+  AddTest(tests, "Engine/ViewportResizeFiresWindowResize", [] {
+    // Polymer iron-fit / iron-resizable listen on window `resize` (TD-0022).
+    // SetViewport used to relayout without ever dispatching it.
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<script>"
+        "window.addEventListener('resize', function () { console.log('resized'); });"
+        "</" "script>")});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "",
+                   "the initial viewport does not fire after the listener is attached");
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{500, 400}, 1.0f});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "resized",
+                   "a later SetViewport fires resize after layout");
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{500, 400}, 1.0f});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "resized",
+                   "an unchanged viewport is a no-op");
+  });
 }
 
 }  // namespace microbrowser::tests

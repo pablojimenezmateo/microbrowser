@@ -898,6 +898,10 @@ void Engine::SetViewport(const gfx::IntSize& size, float device_scale) {
   // A resize changes the containing block, so it relays out. This is the one
   // input that does.
   LayoutAndPaint();
+  // After layout: iron-fit's `notifyResize` from a window `resize` listener
+  // reads geometry, and answering before layout would refit against the old
+  // containing block. Cheap when nobody listens (DispatchAtWindow checks).
+  (void)page_.NotifyWindowResize();
 }
 
 const std::vector<std::string>& CspViolations(const Engine& engine) {

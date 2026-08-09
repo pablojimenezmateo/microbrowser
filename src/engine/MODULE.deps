@@ -133,7 +133,9 @@ max_tu_lines: 950
 # same shape as every other seam above it -- one private implementation per
 # interface method, plus `DatabasesFor` and the `storage::PartitionedIndexedDb`
 # member itself, keyed by the page's own partition key like EngineStorage.cpp.
-budget: Engine header_lines=470 public_methods=20 members=24
+budget: Engine header_lines=490 public_methods=20 members=26
+# Raised for deferred location navigation (pending_location_ + replacing_document_)
+# — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.

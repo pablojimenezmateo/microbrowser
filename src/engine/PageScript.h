@@ -156,6 +156,8 @@ class PageScript {
   void SetDocumentUrl(const std::string& url);
   bool NotifyPopState();
   bool NotifyHashChange(const std::string& old_url, const std::string& new_url);
+  // `resize` at the window after a viewport change. See Page::NotifyWindowResize.
+  bool NotifyWindowResize();
 
   // Settles the promise `fetch` handed out for `id`. False when nothing was
   // waiting -- the request was aborted, or this is a second delivery -- and

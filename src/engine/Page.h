@@ -398,6 +398,12 @@ class Page : private layout::ImageProvider,
   // listening and the document may therefore have changed.
   bool NotifyLoad() { return script_.NotifyLoad(); }
 
+  // Fires `resize` at the window after the viewport changed and the page was
+  // relaid out. Polymer iron-fit / iron-resizable listen on window for this;
+  // without it a dialog that opened at the wrong size never refits on a
+  // chrome resize (TD-0022). True when something was listening.
+  bool NotifyWindowResize() { return script_.NotifyWindowResize(); }
+
   // Moves this document's address without replacing the document: a
   // `pushState`, a `replaceState`, or a traversal between two entries that
   // belong to it. `:target` is recomputed, because it comes from the fragment

@@ -249,6 +249,9 @@ class DomBindings {
   // no `load` handler must not cost a relayout for having been loaded.
   bool NotifyDomContentLoaded();
   bool NotifyLoad();
+  // `resize` at the window after the viewport changed. Polymer iron-fit listens
+  // here; see Engine::SetViewport / TD-0022. False when nobody was listening.
+  bool NotifyWindowResize();
 
   // Settles the promise `fetch` handed out for request `id`, and runs the
   // microtasks that answer queues. False when nothing was waiting -- an

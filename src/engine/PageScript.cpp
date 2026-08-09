@@ -429,6 +429,10 @@ bool PageScript::NotifyHashChange(const std::string& old_url, const std::string&
   return bindings_ != nullptr && bindings_->DispatchHashChange(old_url, new_url);
 }
 
+bool PageScript::NotifyWindowResize() {
+  return bindings_ != nullptr && bindings_->NotifyWindowResize();
+}
+
 bool PageScript::RunReadyAsync() {
   return interpreter_ != nullptr && RunTiming(Timing::Async);
 }
