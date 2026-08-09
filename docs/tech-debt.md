@@ -1034,6 +1034,20 @@ activation is `NotAllowedError` (handled as autoplay-blocked, not this code).
 | `video.currentTime` | 0 | **~2 s** |
 | `navigator.userActivation.isActive` | undefined | **true** |
 
+**Update** (2026-08-09, evening). `-prelude` hooks on watch (before page scripts):
+
+| observation | value |
+|---|---|
+| `HTMLVideoElement.play` rejections | **6× `NotAllowedError`** only (blob `src` set, `networkState=2`, unmuted) |
+| `NotSupportedError` from `play()` | **0** (ResourceSelected / `currentSrc` path holds) |
+| `HTMLMediaElement.load()` | **23×** with empty `src` (player speculative path) |
+| `media.error_events` | **0** on a clean counter run |
+| `Error()` constructions of note | `Woffle: PES is undefined` (×3) — Woffle offline path in player, not our demux |
+
+So the facade error is **not** an early `NotSupportedError` from empty `currentSrc` / `NO_SOURCE`, and **not** a fired `HTMLMediaElement` `error` event. Unmuted autoplay correctly refuses; the player maps that to autoplay-blocked. `fmt.unplayable` is still set by a higher SABR/Woffle path while MSE buffers ~19s. Click bypass remains the Gate C watch path.
+
+**Tooling:** `microbrowser_snapshot -prelude '<js>'` runs once before the page's scripts (`Engine::SetScriptPrelude`).
+
 **End state.** Close fully when `getPlayerStateObject().isError` is false for a
 loaded watch and `#movie_player.playVideo()` reaches `HTMLMediaElement.play`
 without the `#movie_player` click bypass. Until then Gate C watch is satisfied

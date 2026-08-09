@@ -3789,3 +3789,14 @@ policy — MSE was empty; not the real fix. Active refusals on watch are
 `fmt.unplayable`. Still open: which SABR/player path sets the error code while
 buffers hold ~19s.
 
+---
+
+## 2026-08-09 — snapshot `-prelude` + TD-0020 play hooks
+
+**Status:** instrument landed; facade still open
+
+`microbrowser_snapshot -prelude` runs before page scripts. Watch hooks show
+only `NotAllowedError` on `play()` (blob src already set), many empty-`src`
+`load()` calls, and `Woffle: PES is undefined` Errors — not MediaError / not
+`NotSupportedError`. Click-to-play still works.
+
