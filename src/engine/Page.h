@@ -313,8 +313,11 @@ class Page : private layout::ImageProvider,
   // sleep.
   std::optional<std::uint32_t> NextWakeDelay(std::int64_t now_ms) const;
   // Runs every timer that is due and the animation frame if its boundary has
-  // arrived. True when any ran and the page needs laying out again.
-  bool RunDueWork(std::int64_t now_ms);
+  // arrived. `None` when idle; `Paint` when boxes were restyled in place (WAAPI
+  // / paint-only CSS animation / video) and geometry is unchanged; `Layout`
+  // when the box tree or its placement must be recomputed.
+  enum class DueWorkKind : std::uint8_t { None, Paint, Layout };
+  DueWorkKind RunDueWork(std::int64_t now_ms);
 
   // Adds the fetched stylesheet for `PendingStyleSheets()[pending_index]`.
   // Author-origin cascade order is the document order of <style> and <link>,

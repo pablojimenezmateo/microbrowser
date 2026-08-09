@@ -401,7 +401,7 @@ void RegisterScrollTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 0), "during:0", "a scroll does not dispatch synchronously");
 
     Expect(page.NextWakeDelay(0).has_value(), "a page that owes a scroll event asks to be woken");
-    Expect(page.RunDueWork(1), "and the frame delivers it");
+    Expect(page.RunDueWork(1) != engine::Page::DueWorkKind::None, "and the frame delivers it");
     Expect(!page.NextWakeDelay(2).has_value(),
            "after which a settled page schedules nothing at all -- the zero-idle invariant");
   });

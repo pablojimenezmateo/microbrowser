@@ -377,13 +377,20 @@ bool Engine::RunDueWork() {
   if (from_workers) {
     LayoutAndPaint();
   }
-  if (!page_.RunDueWork(NowMilliseconds())) {
+  const Page::DueWorkKind due = page_.RunDueWork(NowMilliseconds());
+  if (due == Page::DueWorkKind::None) {
     return from_workers;
   }
   if (FollowScriptNavigation()) {
     return true;
   }
-  LayoutAndPaint();
+  // Paint-only due work (WAAPI style ticks, video frames) must not enter Layout:
+  // MutationVersion has moved, so Layout would reflow every frame (TD-0021).
+  if (due == Page::DueWorkKind::Paint) {
+    PaintAndSend();
+  } else {
+    LayoutAndPaint();
+  }
   return true;
 }
 

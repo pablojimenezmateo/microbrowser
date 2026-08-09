@@ -523,6 +523,7 @@ namespace microbrowser::util {
   X(LayoutDueWorkClean, "layout.due_work_clean")                                 \
   X(LayoutAnimationTick, "layout.animation_tick_no_box_rebuild")                 \
   X(LayoutAnimationPaintOnly, "layout.animation_paint_only")                     \
+  X(LayoutAttrPaintOnly, "layout.attr_paint_only")                               \
   X(LayoutVideoPaintOnly, "layout.video_paint_only")                             \
   /* MessageChannel (host) tasks run inside one TimerQueue::RunDue after the     */ \
   /* initial due set. Cooperative schedulers post one slice per task; without    */ \

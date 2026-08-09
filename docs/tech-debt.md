@@ -976,8 +976,9 @@ drain). Fixed:
 | trigger | action |
 |---|---|
 | structure or cascade change | `InvalidateLayout` (rebuild boxes) |
-| attribute / style mutation, or layout-affecting animation | `RestyleWithoutLayout` + reflow (`laid_out_width` clear) |
-| paint-only animation (transform/color) | `RestyleWithoutLayout` only |
+| attribute / style mutation | `RestyleWithoutLayout` + paint (`layout.attr_paint_only`); reflow deferred to `EnsureLayoutClean` |
+| layout-affecting CSS animation | `RestyleWithoutLayout` + reflow |
+| paint-only CSS animation (transform/color) | `RestyleWithoutLayout` only |
 | video frame | paint / surface damage only |
 
 `EnsureBoxTree` keys off `StructureVersion` + cascade generation; `Layout` still

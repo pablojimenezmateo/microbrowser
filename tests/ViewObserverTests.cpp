@@ -357,7 +357,8 @@ void RegisterViewObserverTests(std::vector<TestCase>& tests) {
         "</script></body>");
     Expect(session.Frame(0), "the initial observation");
     ExpectEqString(session.Log(), "w=100", "as laid out");
-    Expect(session.page.RunDueWork(1), "the timer ran and widened the box");
+    Expect(session.page.RunDueWork(1) != engine::Page::DueWorkKind::None,
+           "the timer ran and widened the box");
     Expect(session.Frame(2), "the frame after it reports the new size");
     ExpectEqString(session.Log(), "w=100|w=300",
                    "the observer reported the width the element actually has now, which "

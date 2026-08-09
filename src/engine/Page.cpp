@@ -450,7 +450,7 @@ std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
   return 0;
 }
 
-bool Page::RunDueWork(std::int64_t now_ms) {
+Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms) {
   // Drop the box tree only when the *structure* or cascade moved. Attribute /
   // style writes (WAAPI polyfills, Polymer hosts) bump MutationVersion every
   // frame — rebuilding boxes for those was a 60Hz BuildBoxTree on youtube
@@ -474,7 +474,7 @@ bool Page::RunDueWork(std::int64_t now_ms) {
       video_.AdvanceAll([this](dom::Element& element) { return MediaStateFor(element); });
   ran = video_updated || ran;
   if (!ran) {
-    return false;
+    return DueWorkKind::None;
   }
   const bool structure_changed =
       document_ != nullptr && document_->StructureVersion() != structure_before;
@@ -484,27 +484,37 @@ bool Page::RunDueWork(std::int64_t now_ms) {
   if (structure_changed || cascade_changed) {
     InvalidateLayout();
     AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDueWork);
-  } else if (attrs_changed || animation_tick) {
+    return DueWorkKind::Layout;
+  }
+  if (attrs_changed || animation_tick) {
     if (boxes_ != nullptr) {
       RestyleWithoutLayout();
-      const bool need_layout =
-          attrs_changed || (animation_tick && animations_.TickNeedsLayout());
-      if (need_layout) {
+      // WAAPI polyfills write `style` every frame. Returning Layout here would
+      // still force LayoutBoxes via MutationVersion vs layout_.document_version
+      // even when geometry did not move — so paint-only is Paint, and layout-
+      // affecting CSS animations still ask for Layout.
+      if (animation_tick && animations_.TickNeedsLayout()) {
         layout_.laid_out_width = -1.0f;
         AddPerformanceCounter(PerfCounterId::LayoutAnimationTick);
+        return DueWorkKind::Layout;
+      }
+      if (attrs_changed) {
+        AddPerformanceCounter(PerfCounterId::LayoutAttrPaintOnly);
       } else {
         AddPerformanceCounter(PerfCounterId::LayoutAnimationPaintOnly);
       }
-    } else {
-      InvalidateLayout();
-      AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDueWork);
+      return DueWorkKind::Paint;
     }
-  } else if (video_updated) {
-    AddPerformanceCounter(PerfCounterId::LayoutVideoPaintOnly);
-  } else {
-    AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);
+    InvalidateLayout();
+    AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDueWork);
+    return DueWorkKind::Layout;
   }
-  return true;
+  if (video_updated) {
+    AddPerformanceCounter(PerfCounterId::LayoutVideoPaintOnly);
+    return DueWorkKind::Paint;
+  }
+  AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);
+  return DueWorkKind::Layout;
 }
 
 void Page::SetNetworkSource(bindings::NetworkSource* network) {
