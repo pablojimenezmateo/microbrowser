@@ -25,6 +25,11 @@ void Page::ResetResolver() {
   InvalidateBoxTree();
   resolver_ = css::StyleResolver{};
   resolver_.SetAdjuster(this);
+  // RebuildAuthorStyleSheets always ResetResolver()'s first. Without this, the
+  // new resolver keeps a zero MediaContext and every `vh`/`vw` declaration is
+  // dropped at apply time — kevlar's `min-height: calc(100vh - …)` rules
+  // (channels / playlist / ~90 other `100vh` uses) became 0 (TD-0028).
+  resolver_.SetMediaContext(viewport_);
 }
 
 css::ComputedStyle Page::StyleOfForTesting(const dom::Element& element) const {

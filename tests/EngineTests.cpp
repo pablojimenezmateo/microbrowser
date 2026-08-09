@@ -3644,6 +3644,29 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "page's globals");
   });
 
+  AddTest(tests, "Page/VhSurvivesAuthorSheetRebuild", [element_with_id] {
+    // TD-0028: RebuildAuthorStyleSheets ResetResolver()'d without restoring
+    // MediaContext, so youtube's `min-height: calc(100vh - 120px)` applied as
+    // nothing and the home column stayed content-sized.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{1280.0f, 900.0f, 1.0f});
+    page.Load("<style>"
+              "#col { min-height: calc(100vh - 120px); width: 100px }"
+              "</style><div id=col></div>",
+              "https://example.org/");
+    page.Layout(1280.0f);
+    const dom::Element* col = element_with_id(*page.MutableDocument(), "col");
+    Expect(col != nullptr, "column");
+    ExpectEqInt(static_cast<long long>(page.StyleOfForTesting(*col).min_height.value + 0.5f), 780,
+                "vh applied after the Load rebuild");
+    // A resize rebuilds author sheets again — the same trap as first load.
+    page.SetViewport(css::MediaContext{1280.0f, 800.0f, 1.0f});
+    page.Layout(1280.0f);
+    ExpectEqInt(static_cast<long long>(page.StyleOfForTesting(*col).min_height.value + 0.5f), 680,
+                "and after a SetViewport rebuild");
+  });
+
   AddTest(tests, "Engine/ViewportResizeFiresWindowResize", [] {
     // Polymer iron-fit / iron-resizable listen on window `resize` (TD-0022).
     // SetViewport used to relayout without ever dispatching it.

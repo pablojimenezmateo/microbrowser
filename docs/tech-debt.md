@@ -1561,50 +1561,46 @@ drain without crashing.
 **Opened** 2026-08-09 after the abspos ICB `min-height:100%` fix.
 
 **Symptom.** With `ytd-app` correctly filling the viewport (~900px),
-`#content` is still ~130px and `ytd-page-manager` / `ytd-browse` ~74px.
-`ytd-feed-nudge-renderer` can sit at ~0–2px while descendant title boxes
-previously measured ~50px — overflow:hidden ancestors clip the nudge, so the
-window reads as masthead + empty / skeleton rather than "Try searching…".
+`#content` / `ytd-page-manager` stayed far shorter; early on the feed-nudge
+wrappers measured 0 under `overflow:hidden`, so the window read as masthead +
+empty rather than "Try searching…".
 
 **Not.** Missing rich items when `ytInitialData` only has `feedNudgeRenderer`
 (history-off): that zero is the response (TD-0017 update).
+**Not.** A missing `#content { display:flex; height:100% }` rule — kevlar has
+none; `#content` is deliberately `display:block`. `#page-manager`'s `flex:1`
+is inert because its parent is not a flex container (same in Chrome).
+**Not.** Home (`page-subtype=home`) relying on
+`ytd-two-column-browse-results-renderer { min-height: calc(100vh - 120px) }` —
+that rule is **channels-only**; playlist/show use
+`calc(100vh - var(--ytd-toolbar-height))`. Home is content-sized by design
+when the server sends only the history-off nudge.
 
-**Suspected.** Nested row flex containers reporting 0 cross-size while a flex
-item child has a real height; and/or page-manager height rules (`100%` /
-`100vh` / flex grow) that never become definite against the filled app.
-`vh` in lengths is media-query-only today.
+**Root cause for dead `vh` (2026-08-09).** `Page::ResetResolver()` assigned a
+fresh `StyleResolver` and reattached the adjuster, but never restored
+`MediaContext`. `RebuildAuthorStyleSheets` always resets first, so every
+`vh`/`vw` declaration was refused at apply time (`viewport_height == 0`) even
+though `ParseStyleSheet` received the real viewport for `@media`.
 
-**Partial (2026-08-09).** Three flex bugs fixed that youtube hits:
-1. Row flex definite/ForcedSize height now feeds `align-items: stretch`
-   (`definite_cross_size`).
-2. Row item `height:100%` resolves against that definite cross size.
-3. `flex: 1` is `flex-basis: 0%` (not `0px`); percentage basis against an
-   indefinite main size is treated as `auto` so auto-height columns size to
-   content.
+**Fixed (2026-08-09).** Flex / paint / media-context:
+1. Row flex definite/ForcedSize height → `align-items: stretch`.
+2. Row item `height:100%` against that definite cross size.
+3. `flex: 1` → `flex-basis: 0%`; `%` basis against indefinite main → `auto`.
+4. Main-axis `%` height against indefinite flex main → `auto` (nudge wrappers).
+5. Anonymous boxes do not re-paint a copied parent background (white fills
+   after nudge text).
+6. **`ResetResolver` restores `viewport_` onto the new resolver** so `vh` in
+   author sheets survives Load and resize rebuilds (`Page/VhSurvivesAuthorSheetRebuild`).
 
-After Accept, `#text-container` is still ~127px while `#content-wrapper` /
-`#dismissible` stay 0 (`overflow:hidden`) and `ytd-page-manager` ~72px —
-so something beyond those three still zeroes the wrapper (box-tree / out-of-
-flow / explicit `flex-basis:0px`). Setting `flex:0 0 auto` via script makes
-the nudge ~163px tall, which confirms the collapse is flex sizing.
+**Verified after Accept (Release):** nudge ~163px with title text in the
+display list and pixels; `#content` ~291 / page-manager ~235 inside a 900px
+`ytd-app` — content-sized, matching a history-off home rather than a failed
+`100vh` fill.
 
-**Partial (2026-08-09, continued).** Two more paint/flex fixes:
-4. `height:100%` / main-axis `%` against an indefinite flex main size is
-   treated as `auto` (same rule as `%` flex-basis) — nudge wrappers go from
-   0 → ~163px and `#content` ~291px.
-5. Anonymous boxes no longer re-paint a copied parent `background` — full-
-   viewport white fills from wrappers under `ytd-app` were painting *after*
-   the nudge text and erasing it.
-
-Remaining: `#content` / `ytd-page-manager` still content-sized (~291 / ~235)
-inside a 900px `ytd-app` rather than filling below the masthead (`#content`
-is `display:block`, while `page-manager` has `flex:1 1 0px` that only grows
-inside a flex parent). `getComputedStyle` now exposes flex longhands to
-diagnose that.
-
-**Close when** after Accept, nudge title text (or rich items when present) is
-inside the visible viewport without `-eval` scroll hacks, and
-`ytd-page-manager` height tracks `ytd-app` minus the masthead.
+**Close when** channels/playlist two-column `min-height: calc(100vh - …)`
+applies from the author sheet without inline overrides (depends on (6) plus
+`var()` already in the cascade), and a non-nudge home with rich items fills
+usefully when the server sends them (TD-0017).
 
 ---
 
