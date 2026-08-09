@@ -316,7 +316,7 @@ float Page::Layout(float width) {
       std::fflush(stderr);
     }
     util::PerformanceTrace::Scope place("engine::LayoutBoxes");
-    content_height_ = engine.Layout(*boxes_, width);
+    content_height_ = engine.Layout(*boxes_, width, viewport_.viewport_height);
     if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
       std::fprintf(stderr, "[load] LayoutBoxes end\n");
       std::fflush(stderr);

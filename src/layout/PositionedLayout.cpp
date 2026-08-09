@@ -2,6 +2,7 @@
 #include <cstddef>
 
 #include "layout/LayoutEngine.h"
+#include "util/PerformanceCounters.h"
 
 // `position: relative`, `absolute` and `fixed`.
 //
@@ -172,6 +173,24 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   forced.content_height = forced_content_height;
   float cursor = y;
   LayoutBlock(box, x, outer_width, cursor, floats, false, &forced);
+
+  // Percentage min/max-height are definite against the abspos containing block
+  // (CSS 2.1 §10.5). LayoutBlock's own ClampHeight passes the used content
+  // height as that container, which makes `min-height: 100%` a no-op — and
+  // that is how `ytd-app { position:absolute; min-height:100% }` stayed at its
+  // intrinsic ~128px instead of filling the viewport ICB.
+  const float height_padding_border =
+      resolve(style.padding.top, 0.0f) + resolve(style.padding.bottom, 0.0f) +
+      resolve(border.top, 0.0f) + resolve(border.bottom, 0.0f);
+  const float content_h = box.Geometry().content.height;
+  const float clamped =
+      style.ClampHeight(content_h, containing_block.height, height_padding_border);
+  if (clamped != content_h) {
+    util::AddPerformanceCounter(util::PerfCounterId::LayoutAbsposMinMaxHeightRelayouts);
+    forced.content_height = clamped;
+    cursor = y;
+    LayoutBlock(box, x, outer_width, cursor, floats, false, &forced);
+  }
 
   // `bottom` without `top` places the box by its lower edge, which needs the
   // height -- so it is applied after the box has one rather than guessed at.

@@ -478,6 +478,40 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(std::abs(fill->Geometry().BorderBox().height - 100.0f) < 0.5f, "stretched height");
   });
 
+  AddTest(tests, "Layout/AbsposMinHeightPercentUsesViewportIcb", [] {
+    // youtube home: `ytd-app { position:absolute; min-height:100% }` with every
+    // in-flow child gone absolute too, so html/body collapse to height 0. The
+    // ICB is the viewport — 100% must resolve against that, not the empty root.
+    auto document = html::ParseDocument(
+        "<body style='margin:0'>"
+        "<div id='app'><div id='mast' style='height:56px'>m</div>"
+        "<div id='page'>p</div></div></body>");
+    auto resolver = std::make_unique<css::StyleResolver>();
+    resolver->AddStyleSheet(
+        css::ParseStyleSheet(
+            "body { margin: 0 } "
+            "#app { position: absolute; left: 0; top: 0; width: 100%; min-height: 100% }"),
+        css::Origin::Author);
+    auto measurer = std::make_unique<FixedTextMeasurer>(kAdvanceRatio);
+    const LayoutEngine engine(*resolver, *measurer);
+    auto root = engine.BuildBoxTree(*document);
+    engine.Layout(*root, 400.0f, 800.0f);
+    const Box* app = nullptr;
+    root->ForEachDescendant([&](const Box& box) {
+      if (app != nullptr || box.Origin() == nullptr) {
+        return;
+      }
+      const std::string* id = box.Origin()->GetAttribute("id");
+      if (id != nullptr && *id == "app") {
+        app = &box;
+      }
+    });
+    Expect(app != nullptr, "app box");
+    Expect(std::abs(app->Geometry().BorderBox().height - 800.0f) < 0.5f,
+           "min-height:100% fills the viewport ICB");
+    Expect(std::abs(app->Geometry().BorderBox().width - 400.0f) < 0.5f, "width:100% still");
+  });
+
   AddTest(tests, "Layout/PercentHeightResolvesAgainstDefiniteParent", [] {
     // youtube: abspos `#player-container` (top/bottom stretch) hosts
     // `ytd-player { height: 100% }`. A normal-flow percentage height is

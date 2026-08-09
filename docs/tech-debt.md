@@ -708,7 +708,9 @@ blanking youtube search even after UA `[hidden]` and the reflection were correct
 is still **0**. **Update** (2026-08-09): that zero is usually the server's
 history-off `feedNudgeRenderer` / `richSectionRenderer` ("Try searching to get
 started"), not a failed rich-item stamp — confirm content kinds before blaming
-the stamper. Masthead search Enter is closed (TD-0026).
+the stamper. Masthead search Enter is closed (TD-0026). **Update** (same day):
+`ytd-app { min-height:100% }` now fills the viewport ICB (see session log);
+remaining empty-looking home is TD-0028 (page-manager / nested flex height).
 
 **Close when** youtube home applies browse→two-column `data` without `-eval`, rich-grid
 stamps *when the response contains `richItemRenderer`s*, and the live-host strip
@@ -1510,6 +1512,30 @@ those URL-taking sites. Test: `DomBindings/BlobUrlAndWindowPostMessage`
 (`setAttribute`, style, storage keys, …) still use pure `js::ToString`. Audit
 when a page depends on coercing a host object there — do not blanket-replace
 without checking throw propagation.
+
+---
+
+## TD-0028 — youtube home `#content` / page-manager stay content-sized inside a filled `ytd-app`
+
+**Opened** 2026-08-09 after the abspos ICB `min-height:100%` fix.
+
+**Symptom.** With `ytd-app` correctly filling the viewport (~900px),
+`#content` is still ~130px and `ytd-page-manager` / `ytd-browse` ~74px.
+`ytd-feed-nudge-renderer` can sit at ~0–2px while descendant title boxes
+previously measured ~50px — overflow:hidden ancestors clip the nudge, so the
+window reads as masthead + empty / skeleton rather than "Try searching…".
+
+**Not.** Missing rich items when `ytInitialData` only has `feedNudgeRenderer`
+(history-off): that zero is the response (TD-0017 update).
+
+**Suspected.** Nested row flex containers reporting 0 cross-size while a flex
+item child has a real height; and/or page-manager height rules (`100%` /
+`100vh` / flex grow) that never become definite against the filled app.
+`vh` in lengths is media-query-only today.
+
+**Close when** after Accept, nudge title text (or rich items when present) is
+inside the visible viewport without `-eval` scroll hacks, and
+`ytd-page-manager` height tracks `ytd-app` minus the masthead.
 
 ---
 

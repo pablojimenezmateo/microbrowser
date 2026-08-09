@@ -719,7 +719,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   ApplyRelativeOffset(box);
 }
 
-float LayoutEngine::Layout(Box& root, float width) const {
+float LayoutEngine::Layout(Box& root, float width, float viewport_height) const {
   AddPerformanceCounter(PerfCounterId::LayoutRuns);
   // Intrinsic widths are cached within a pass and not across them: a replaced
   // box's used width can change between two layouts of the same tree.
@@ -728,11 +728,16 @@ float LayoutEngine::Layout(Box& root, float width) const {
   // The root establishes the initial block formatting context.
   FloatContext floats;
   LayoutBlock(root, 0.0f, width, cursor, floats);
-  // The root is the containing block of last resort: an absolutely positioned
-  // box with no positioned ancestor is placed against the initial containing
-  // block, and so is every `fixed` one until there is a scroll offset to hold
-  // them still against.
-  LayoutAbsoluteDescendants(root, root.Geometry().PaddingBox());
+  // The initial containing block is the viewport (CSS 2.1 §10.1), not the
+  // root element's padding box. When every in-flow child is abspos the root
+  // collapses to height 0 — using that as the CB made youtube's
+  // `ytd-app { position:absolute; min-height:100% }` resolve 100% against 0
+  // and leave the page a 128px strip of masthead over a white viewport.
+  const gfx::FloatRect icb =
+      viewport_height > 0.0f
+          ? gfx::FloatRect{0.0f, 0.0f, width, viewport_height}
+          : root.Geometry().PaddingBox();
+  LayoutAbsoluteDescendants(root, icb);
   // The document is as tall as the lower of its flow content and its floats: a
   // page that is nothing but a tall float still scrolls.
   return std::max(cursor, floats.LowestBottom());

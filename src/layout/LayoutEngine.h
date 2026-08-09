@@ -71,7 +71,9 @@ class LayoutEngine {
 
   // Lays out `root` into a viewport `width` wide. Returns the total content
   // height, which is what a scrollbar needs.
-  float Layout(Box& root, float width) const;
+  // `viewport_height` is the ICB height (CSS 2.1 §10.1) for root-level abspos;
+  // 0 keeps the root padding-box fallback used by tests that omit a window.
+  float Layout(Box& root, float width, float viewport_height = 0.0f) const;
 
  private:
   std::unique_ptr<Box> BuildFor(const dom::Node& node, const css::ComputedStyle& parent_style,

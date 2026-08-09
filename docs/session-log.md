@@ -4204,3 +4204,31 @@ residual `ReferenceError: w` / `undefined (bound)`; non-URL `js::ToString`
 audit (TD-0027 remainder).
 
 ---
+
+## 2026-08-09 — Abspos `min-height:100%` uses the viewport ICB
+
+**Status:** `ytd-app` fills the window; home feed hosts still content-size inside it
+
+User-visible home was a short strip of masthead / skeleton over white. Probe:
+`html`/`body` height 0 (every child abspos), `ytd-app { position:absolute;
+min-height:100% }` at **128px** — `Layout()` placed root-level abspos against
+the root padding box (also 0), and `LayoutAbsoluteBox` never clamped
+percentage min/max-height against the containing block (LayoutBlock's own
+clamp passes the used content height, making `min-height:100%` a no-op).
+
+**Fix.** `Layout(root, width, viewport_height)` builds the ICB as
+`{0,0,width,viewport_height}`; `Page::Layout` passes `viewport_.viewport_height`.
+`LayoutAbsoluteBox` re-clamps with that CB and relayouts when min/max bites
+(`layout.abspos_min_max_height_relayouts`). Test
+`Layout/AbsposMinHeightPercentUsesViewportIcb`.
+
+**Measured (Release, no wheel):** `ytd-app` **900×1280 at y=0** (was 128);
+`layout.abspos_min_max_height_relayouts` ~479; display-list ~165 commands /
+61 runs / 15 images (was ~40/0/1 before Accept paths). `#content` /
+`ytd-page-manager` still ~130/74px content-sized inside the filled app —
+**TD-0028**.
+
+**Left:** TD-0028 (page-manager / nested flex height); rich items when the
+server sends them; watch settle wall.
+
+---

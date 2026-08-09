@@ -600,6 +600,9 @@ namespace microbrowser::util {
   /* first pass sizes by content, then a second pass re-resolves with the max   */ \
   /* as a definite main size so items can shrink (youtube consent `#content`).  */ \
   X(LayoutFlexColumnMaxHeightRelayouts, "layout.flex_column_max_height_relayouts") \
+  /* Abspos boxes whose percentage min/max-height forced a second LayoutBlock  */ \
+  /* against the containing block (youtube `ytd-app { min-height:100% }`).     */ \
+  X(LayoutAbsposMinMaxHeightRelayouts, "layout.abspos_min_max_height_relayouts")  \
   /* Text handed to the shaper by layout rather than by paint. Intrinsic width  */ \
   /* measurement is the other half of a slow layout and is invisible from the   */ \
   /* box counters, which count boxes rather than the work each one asks for.    */ \
