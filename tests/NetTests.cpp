@@ -523,6 +523,24 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
            "requests still send it");
   });
 
+  AddTest(tests, "Cookie/HttpDateExpiresDeletesLikeABrowser", [] {
+    // youtube's consent probe writes TESTCOOKIESENABLED then clears it with a
+    // past IMF-fix Expires. Digits-only parsing left the empty name in the
+    // jar forever and consent reported "error saving your choice".
+    CookieJar jar;
+    const Url url = MustParse("https://www.youtube.com/watch?v=x");
+    const PartitionKey key = KeyFor("https://www.youtube.com/");
+    const std::int64_t now = 1'776'000'000;  // ~2026-04
+    Expect(jar.StoreFromDocument(
+               key, url, "TESTCOOKIESENABLED=1;expires=Sun, 09 Aug 2026 06:26:50 GMT", now),
+           "future HTTP-date stores");
+    ExpectEqString(jar.DocumentCookie(key, url, now), "TESTCOOKIESENABLED=1", "readable");
+    Expect(jar.StoreFromDocument(
+               key, url, "TESTCOOKIESENABLED=;expires=Sat, 31 Jan 1970 23:00:00 GMT", now),
+           "past HTTP-date is accepted");
+    ExpectEqString(jar.DocumentCookie(key, url, now), "", "and removes the cookie");
+  });
+
   // --- Content coding -------------------------------------------------------
 
   AddTest(tests, "ContentEncoding/GzipIsDecodedAndTheHeadersStopDescribingTheWire", [] {

@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "url/PublicSuffixList.h"
+#include "util/HttpDate.h"
 #include "util/Parse.h"
 #include "util/PerformanceCounters.h"
 #include "util/SaturatingMath.h"
@@ -176,14 +177,16 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
         max_age = *seconds <= 0 ? std::int64_t{0} : util::SaturatingSignedAdd(now, *seconds);
       }
     } else if (EqualsIgnoringCase(name, "expires")) {
-      // Only the epoch-seconds form is parsed. HTTP-date parsing needs a real
-      // date parser with three legacy formats, and guessing at a date means
-      // guessing at an expiry — a cookie that outlives its instructions is a
-      // privacy bug. An unparsed Expires makes the cookie a session cookie,
-      // which is the conservative answer.
-      const auto seconds = util::ParseInt64(value);
-      if (seconds.has_value()) {
+      // Script and servers write IMF-fix (`Wed, 09 Nov 1994 08:49:37 GMT`).
+      // Digits-only is kept for tests and for anyone who already used our
+      // earlier form. An unparsed Expires used to make the cookie a session
+      // cookie — which turned youtube's past-dated deletes of
+      // `TESTCOOKIESENABLED` / `PREF` into permanent empty/null entries and
+      // left consent thinking cookies were broken.
+      if (const auto seconds = util::ParseInt64(value)) {
         expires = *seconds;
+      } else if (const auto http = util::ParseHttpDate(value)) {
+        expires = *http;
       }
     } else if (EqualsIgnoringCase(name, "samesite")) {
       if (EqualsIgnoringCase(value, "strict")) {

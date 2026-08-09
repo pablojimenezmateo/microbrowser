@@ -216,6 +216,7 @@ microbrowser_module(util
     src/util/PerformanceTrace.cpp
     src/util/AesCtr.cpp
     src/util/Hmac.cpp
+    src/util/HttpDate.cpp
     src/util/Sha1.cpp
     src/util/Sha2.cpp
     src/util/StartupTrace.cpp
