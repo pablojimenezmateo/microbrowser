@@ -114,6 +114,35 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 2), "none", "but the cascade still has an answer");
   });
 
+  AddTest(tests, "Geometry/ClearingDisplayNoneRebuildsTheBox", [] {
+    // iron-overlay's prepare path: show (`display = ""`), measure, hide.
+    // Restyle-in-place cannot invent a box for an element that was
+    // `display:none`, so the tree must rebuild or the rect stays 0×0 and the
+    // dialog centres on a zero-size box (TD-0022).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'>"
+        "<div id='a' style='display:none;width:120px;height:40px'></div>"
+        "<script>"
+        "var e = document.getElementById('a');"
+        "console.log(e.getBoundingClientRect().width);"
+        "e.style.display = '';"
+        "console.log(e.getBoundingClientRect().width + ',' + e.getBoundingClientRect().height);"
+        "console.log(e.scrollWidth + ',' + e.scrollHeight);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "0", "still none before the write");
+    ExpectEqString(Line(output, 1), "120,40", "a box exists after clearing display:none");
+    ExpectEqString(Line(output, 2), "120,40", "scroll size is at least the padding box");
+    const util::PerfCounterSnapshot after = util::CapturePerformanceCounters();
+    const std::uint64_t rebuilt =
+        after[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)] -
+        before[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)];
+    Expect(rebuilt >= 1, "display none→box regenerates the box tree");
+  });
+
   AddTest(tests, "Geometry/AnInlineElementReportsItsFragments", [] {
     // An Inline box carries no geometry of its own -- its content lives in the
     // line boxes of its container -- so the union of its fragments is the only

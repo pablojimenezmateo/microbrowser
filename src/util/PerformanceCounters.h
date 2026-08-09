@@ -483,6 +483,10 @@ namespace microbrowser::util {
   X(BoxTreeInvalidatedByFont, "engine.box_tree_invalidated_by_font")               \
   X(BoxTreeInvalidatedByDueWork, "engine.box_tree_invalidated_by_due_work")       \
   X(BoxTreeInvalidatedBySheet, "engine.box_tree_invalidated_by_sheet")           \
+  /* display:none ↔ box-generating: RestyleWithoutLayout cannot invent a box,  */ \
+  /* so the tree is rebuilt. iron-overlay's prepare refit depends on this —    */ \
+  /* without it youtube's consent dialog centres as if it were still 0×0.      */ \
+  X(BoxTreeInvalidatedByDisplayChange, "engine.box_tree_invalidated_by_display") \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
   X(GfxImagesTransformed, "gfx.images_transformed")                               \
   X(GfxImagesScaled, "gfx.images_scaled")                                         \

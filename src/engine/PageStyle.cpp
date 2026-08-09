@@ -271,10 +271,37 @@ void Page::RestyleWithoutLayout() {
   // that element produced. Walking the box tree instead would inherit through
   // anonymous boxes and foster-parented content, which is not the tree the
   // cascade is defined over.
+  //
+  // `display: none` ↔ anything else changes *which* boxes exist, not only their
+  // style. Restyling in place cannot invent a box for an element that had none,
+  // and iron-overlay's prepare path is exactly that: `style.display = ""` then
+  // `getBoundingClientRect()` before any structure mutation. A missing rebuild
+  // leaves the rect at 0×0 and the dialog centred on a zero-size box forever.
+  bool box_generation_changed = false;
   resolver_.ForEachStyledElement(*document_, [&](const dom::Element& element,
                                                  const css::ComputedStyle& style) {
     const auto found = boxes.find(&element);
     if (found == boxes.end()) {
+      if (!style.GeneratesBox()) {
+        return;
+      }
+      // Under a `display:none` ancestor every child also lacks a box while
+      // still "generating" in its own style. Only a missing box whose parent
+      // *has* one (or is the document root) means this element itself just
+      // became box-generating.
+      const dom::Node* parent = element.Parent();
+      if (parent == nullptr || parent->GetKind() == dom::Node::Kind::Document) {
+        box_generation_changed = true;
+        return;
+      }
+      if (parent->IsElement() &&
+          boxes.find(static_cast<const dom::Element*>(parent)) != boxes.end()) {
+        box_generation_changed = true;
+      }
+      return;
+    }
+    if (!style.GeneratesBox()) {
+      box_generation_changed = true;
       return;
     }
     found->second->SetStyle(style);
@@ -289,6 +316,12 @@ void Page::RestyleWithoutLayout() {
                                           ? nullptr
                                           : ImageFor(style.background.image));
   });
+  if (box_generation_changed) {
+    AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDisplayChange);
+    InvalidateBoxTree();
+    EnsureBoxTree();
+    return;
+  }
   RefreshTextStyles(*boxes_);
 }
 

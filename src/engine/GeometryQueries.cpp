@@ -518,8 +518,18 @@ std::optional<bindings::BoxGeometry> Page::QueryBox(const dom::Node& node) {
   } else {
     answer.scroll_x = box->ScrollOffset().x;
     answer.scroll_y = box->ScrollOffset().y;
-    answer.scroll_width = box->ScrollableOverflow().width;
-    answer.scroll_height = box->ScrollableOverflow().height;
+    if (box->IsScrollContainer()) {
+      answer.scroll_width = box->ScrollableOverflow().width;
+      answer.scroll_height = box->ScrollableOverflow().height;
+    } else {
+      // Scrollable overflow is only measured for scroll containers. For
+      // `overflow: visible` the CSSOM still exposes a scroll size — at least the
+      // padding box — so `scrollWidth`/`scrollHeight` are never zero on a box
+      // that has a non-zero client size (youtube's consent dialog was).
+      const gfx::FloatRect padding = box->Geometry().PaddingBox();
+      answer.scroll_width = padding.width;
+      answer.scroll_height = padding.height;
+    }
   }
   return answer;
 }
