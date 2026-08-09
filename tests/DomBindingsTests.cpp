@@ -1898,6 +1898,35 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "inner:click:true outer:true:true", "both ran, target first");
   });
 
+  AddTest(tests, "DomBindings/HtmlElementClickDispatchesTrustedClick", [] {
+    // HTMLElement.click() is the activation API consent UIs and form scripts
+    // call. Absent, `btn.click` is undefined and feature detection throws;
+    // present but untrusted would send youtube's handlers down a no-op path.
+    Bound bound = Bind("<button id=b type=button>go</button>");
+    const js::Result ran = bound.interpreter->Run(
+        "globalThis.seen = [];"
+        "var b = document.getElementById('b');"
+        "b.addEventListener('click', function(e) {"
+        "  seen.push(e.type + ':' + e.isTrusted + ':' + (typeof b.click));"
+        "});"
+        "b.click();"
+        "seen.join('|')");
+    Expect(!ran.IsAbrupt(), "click() ran: " + js::ToString(ran.value));
+    ExpectEqString(js::ToString(ran.value), "click:true:function",
+                   "trusted click from HTMLElement.click()");
+  });
+
+  AddTest(tests, "DomBindings/HtmlElementClickSkipsDisabled", [] {
+    Bound bound = Bind("<button id=b disabled>go</button>");
+    const js::Result ran = bound.interpreter->Run(
+        "globalThis.n = 0;"
+        "document.getElementById('b').addEventListener('click', function(){ n++; });"
+        "document.getElementById('b').click();"
+        "String(n)");
+    Expect(!ran.IsAbrupt(), "disabled click is a no-op");
+    ExpectEqString(js::ToString(ran.value), "0", "no click on disabled");
+  });
+
   AddTest(tests, "DomBindings/PointerDownIsTrustedAndBubbles", [] {
     Bound bound = Bind("<div id=outer><button id=inner>go</button></div>");
     const js::Result setup = bound.interpreter->Run(

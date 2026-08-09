@@ -3,6 +3,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "html/Focus.h"
+#include "html/FormControl.h"
 
 // Focus, as a page sees it and as the browser moves it.
 //
@@ -122,6 +123,36 @@ void DomBindings::InstallFocus(const js::Value& target) {
     if (owner->FocusedElement() == self) {
       owner->MoveFocus(nullptr, false);
     }
+    return Value::Undefined();
+  });
+  // HTMLElement.click() — measured everywhere consent UIs and form scripts
+  // prefer a method call over fabricating a MouseEvent. Without it youtube's
+  // Accept all path is unreachable from script, and feature detection that
+  // expects a function throws instead of activating.
+  method("click", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    auto& element = static_cast<dom::Element&>(*self);
+    // Spec: disabled form controls do not activate. A bare `disabled` on a
+    // custom element is still an attribute a page sets to mean "do not click".
+    if (html::IsDisabledFormControl(element) || element.HasAttribute("disabled")) {
+      return Value::Undefined();
+    }
+    PointerInput pointer;
+    if (owner->geometry_ != nullptr) {
+      if (const auto box = owner->geometry_->QueryBox(element)) {
+        pointer.client_x = box->border_box.x + box->border_box.width * 0.5f;
+        pointer.client_y = box->border_box.y + box->border_box.height * 0.5f;
+        pointer.page_x = pointer.client_x;
+        pointer.page_y = pointer.client_y;
+      }
+    }
+    pointer.button = 0;
+    pointer.buttons = 0;
+    (void)owner->DispatchClick(element, pointer);
     return Value::Undefined();
   });
 }
