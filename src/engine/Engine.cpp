@@ -393,8 +393,11 @@ bool Engine::RunDueWork() {
     // boxes; the next real LayoutAndPaint from a completion shows them.
     if (!IsLoading()) {
       PaintAndSend();
-      return true;
     }
+    // Never report paint-only ticks as "runnable work". Snapshot's load/drain
+    // loops treat `true` as "skip the wait", so infinite Element.animate /
+    // CSS animations (TD-0021) would spin the CPU and starve sockets. The app
+    // loop ignores this return and sleeps on NextDeadlineMs either way.
     return from_workers;
   }
   LayoutAndPaint();
