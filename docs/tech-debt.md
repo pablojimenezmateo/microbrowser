@@ -1032,6 +1032,22 @@ Watch config sets `allowWoffleManagement:true`; without `crypto.subtle` the PES
 encoder cannot import AES-CTR keys, and without IndexedDB/BroadcastChannel the
 offline store never opens — both still open platform gaps (survey: 2 and 7 uses).
 
+**Update** (2026-08-09, late). `TextEncoder`/`TextDecoder` and `crypto.subtle`
+(ADR 0037) landed. Watch still reports `Woffle: PES is undefined` and
+`fmt.unplayable`. Diagnosis of the Woffle half:
+
+| piece | role | status |
+|---|---|---|
+| `TextEncoder` | `dW` key material from `DATASYNC_ID` | **done** |
+| `crypto.subtle` | `au()` → AES-CTR / HMAC for `W3O` PES encoder at `B[1]` | **done** (`importKey` still 0 on watch — encoder never constructed) |
+| `indexedDB` + `IDBTransaction` / `IDBObjectStore` / `IDBIndex` / `IDBKeyRange` | `yPS` feature-detect; without them `g.wU` is false and `plI` returns | **absent** |
+| `BroadcastChannel` | `X_` sync channel `PERSISTENT_ENTITY_STORE_SYNC:…` | **absent** |
+
+`plI` only constructs `W3O` (which installs the PES encoder) after `g.wU()` and
+`BroadcastChannel` succeed. Closing the Woffle report means **IndexedDB (ADR 0021
+§5) plus BroadcastChannel**, not more media surface. `fmt.unplayable` via
+`setmediasrc`/Gal may still be a separate throw once Woffle is quiet.
+
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 
 | metric | before | after |
