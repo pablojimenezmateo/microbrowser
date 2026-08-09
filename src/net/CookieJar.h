@@ -54,6 +54,12 @@ std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& req
 // `privacy::Verdict`: Total Cookie Protection stops being a policy that could
 // be switched off and becomes a signature that cannot be called incorrectly.
 // A third party embedded on two sites gets two jars, because it gets two keys.
+//
+// First-party lookups share one jar across same-site origins under the same
+// top-level site (`www` and `consent.youtube.com`): exact origin equality in
+// the key would be partitioning *inside* a site, which ADR 0005 does not ask
+// for and which empties the Cookie header on youtube Accept (TD-0032).
+// Domain / host-only matching still scopes what each host receives.
 class CookieJar {
  public:
   // Returns false when the cookie was refused. Refusal is routine — a page

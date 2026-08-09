@@ -444,6 +444,49 @@ void RegisterNetTests(std::vector<TestCase>& tests) {
                    "CSRF defence rather than a label");
   });
 
+  AddTest(tests, "Cookie/FirstPartySameSiteOriginsShareJar", [] {
+    // youtube Accept: document.cookie sets SOCS on www, then fetch POSTs
+    // consent.youtube.com/save. Both are first-party under top-level youtube.
+    CookieJar jar;
+    const Url www = MustParse("https://www.youtube.com/");
+    const Url consent = MustParse("https://consent.youtube.com/save");
+    const Url apex = MustParse("https://youtube.com/");
+    const Site youtube = Site::FromUrl(www);
+    const PartitionKey www_key = PartitionKey::ForTopLevel(ContainerId::Default(), www);
+    const PartitionKey consent_key =
+        PartitionKey::ForEmbedded(ContainerId::Default(), youtube, consent);
+    const PartitionKey apex_key =
+        PartitionKey::ForEmbedded(ContainerId::Default(), youtube, apex);
+
+    Expect(www_key.IsFirstParty() && consent_key.IsFirstParty() && apex_key.IsFirstParty(),
+           "www, consent and apex are first-party under the youtube site");
+    Expect(!(www_key == consent_key),
+           "the keys still differ by origin — that is what used to empty the Cookie header");
+
+    Expect(jar.StoreFromDocument(www_key, www,
+                                 "SOCS=ok; Domain=.youtube.com; Path=/; SameSite=Lax", 0),
+           "script sets a domain cookie on www");
+    ExpectEqString(jar.HeaderFor(consent_key, consent, true, false, 0), "SOCS=ok",
+                   "the same first-party jar sends it to consent.youtube.com");
+    ExpectEqString(jar.HeaderFor(apex_key, apex, true, false, 0), "SOCS=ok",
+                   "and to the apex host");
+    ExpectEqString(jar.DocumentCookie(www_key, www, 0), "SOCS=ok",
+                   "document.cookie still reads it");
+
+    // Host-only cookies stay host-only: Domain matching, not the partition.
+    Expect(jar.StoreFromDocument(www_key, www, "hostonly=1; Path=/", 0), "host-only on www");
+    Expect(jar.HeaderFor(consent_key, consent, true, false, 0).find("hostonly") ==
+               std::string::npos,
+           "host-only www cookies do not travel to consent");
+
+    // Third-party under a different top-level site stays isolated (TCP).
+    const Url other_page = MustParse("https://news.ycombinator.com/");
+    const PartitionKey tracker_on_hn = PartitionKey::ForEmbedded(
+        ContainerId::Default(), Site::FromUrl(other_page), MustParse("https://www.youtube.com/pixel"));
+    ExpectEqString(jar.HeaderFor(tracker_on_hn, www, false, false, 0), "",
+                   "a youtube origin under HN's top-level site does not see youtube's jar");
+  });
+
   AddTest(tests, "Cookie/ExpiryRemovesAndReplacementDoesNotDuplicate", [] {
     CookieJar jar;
     const Url url = MustParse("https://example.com/");

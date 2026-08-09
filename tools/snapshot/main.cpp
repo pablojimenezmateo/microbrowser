@@ -473,6 +473,59 @@ void DrainOutgoingPaints(microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& lates
 // a shortcut that only works because nothing else is happening.
 void RunLoadToCompletion(microbrowser::engine::Engine& engine,
                          microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
+                         SnapshotFrame* best, int viewport_width, int viewport_height);
+
+// After a trusted click/key, Accept's chain is page `fetch` → save →
+// `location.reload()`. `RunLoadToCompletion` only watches `IsDocumentLoading`,
+// so it returned while those fetches were still on the wire and the process
+// exited before reload (TD-0031 / TD-0032). Wait for script fetches (not fonts)
+// with a short cap — long-lived innertube must not reopen the 15‑minute hang.
+void RunPostInteractionDrain(microbrowser::engine::Engine& engine,
+                             microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
+                             SnapshotFrame* best, int viewport_width, int viewport_height) {
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (engine.IsDocumentLoading()) {
+      RunLoadToCompletion(engine, ui, latest, best, viewport_width, viewport_height);
+      continue;
+    }
+    if (!engine.HasInFlightScriptFetches() && !engine.HasRunnableWork()) {
+      microbrowser::util::WaitDescriptorList descriptors;
+      engine.AppendWaitDescriptors(descriptors);
+      if (descriptors.empty()) {
+        break;
+      }
+    }
+    if (engine.Advance() || engine.HasRunnableWork()) {
+      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
+      continue;
+    }
+    if (engine.RunDueWork()) {
+      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
+      continue;
+    }
+    microbrowser::util::WaitDescriptorList descriptors;
+    engine.AppendWaitDescriptors(descriptors);
+    const std::optional<std::uint32_t> next = engine.NextDeadlineMs();
+    if (descriptors.empty()) {
+      break;
+    }
+    const auto remaining_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                  deadline - std::chrono::steady_clock::now())
+                                  .count();
+    if (remaining_ms <= 0) {
+      break;
+    }
+    const std::int32_t wait_ms = static_cast<std::int32_t>(
+        std::min<std::int64_t>(remaining_ms, next.has_value() ? *next : 200));
+    microbrowser::util::PerformanceTrace::Scope wait("wait::Network");
+    microbrowser::platform::WaitOnDescriptors(descriptors, wait_ms);
+    DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
+  }
+}
+
+void RunLoadToCompletion(microbrowser::engine::Engine& engine,
+                         microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
                          SnapshotFrame* best, int viewport_width, int viewport_height) {
   std::uint64_t turns = 0;
   const bool trace = microbrowser::util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE");
@@ -811,6 +864,7 @@ int main(int argc, char** argv) {
     }
     engine.HandlePendingMessages();
     RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+    RunPostInteractionDrain(engine, channel.Ui(), latest, &best, options.width, options.height);
   };
   const auto remember_click_point = [&](const std::string& answer) {
     // A throw or a probe without coordinates must not leave the previous
@@ -924,6 +978,7 @@ int main(int argc, char** argv) {
         channel.Ui().Send(key);
         engine.HandlePendingMessages();
         RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+        RunPostInteractionDrain(engine, channel.Ui(), latest, &best, options.width, options.height);
         break;
       }
       case Options::StepKind::Scroll: {

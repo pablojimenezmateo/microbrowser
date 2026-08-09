@@ -96,6 +96,11 @@ class Engine : private bindings::NetworkSource,
   bool IsLoading() const {
     return IsDocumentLoading() || !script_fetches_.empty() || !font_fetches_.empty();
   }
+  // Page `fetch` / XHR in flight (not navigation, not fonts). Snapshot waits on
+  // these after a trusted click so Accept's save→reload can finish without
+  // re-entering the unbounded font/innertube hang TD-0031 removed from the
+  // load loop (TD-0032).
+  bool HasInFlightScriptFetches() const { return !script_fetches_.empty(); }
   // Why `IsLoading` is still true — for `MICROBROWSER_LOAD_TURN_TRACE` and
   // snapshot hang diagnosis. Empty when nothing is outstanding.
   std::string LoadingReason() const;

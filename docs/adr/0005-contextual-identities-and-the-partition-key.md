@@ -158,6 +158,13 @@ a virtual call on the request path. The cycle was information — it said a modu
 top-level document**, for nested third-party frames (a.com → b.com → c.com). Firefox and Chrome
 differ here and both have compatibility scars. Decide with a test case in hand, not in the abstract.
 
+**First-party cookie jar vs origin in the key (settled 2026-08-10, TD-0032).** The key still
+carries origin for every store. Cookie *lookup* for a first-party request matches every
+first-party entry under the same `(container, top_level site)`, not only the request URL's
+origin — otherwise `www` and `consent.youtube.com` are two jars and Accept's save POST sees
+no `SOCS`. Third-party lookups still require origin equality. Domain / host-only rules are
+unchanged.
+
 **Container-aware history.** Whether history entries carry a container, whether the omnibox surfaces
 them across containers, and what "search history" means when the same site appears under two
 identities. This is a UI design question and belongs with M7.

@@ -1311,6 +1311,7 @@ lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
 | column flex grow/shrink + `max-height` re-layout | **done** — `#content` is now ~840px inside the 896px dialog (`layout.flex_column_max_height_relayouts`); Accept still needs `scrollIntoView` because it sits at the end of the scrollable policy text |
 | `location.assign` / `replace` / `href=` / **`reload`** | **done** (ADR 0026 §3) — deferred through `HistorySource::RequestNavigation`; Accept's Fy8 ends in `location.reload()` after POSTing `savePreferenceUrl` (GET is 405; POST returns 204) |
 | Accept → `consent.youtube.com/save` | **done** for the network half — click fires `yt-save-consent-action` → `handleSaveConsent` → `Fy8` (set SOCS, POST `/upgrade_visitor_cookie`, POST save URL); dismiss needs `location.reload()` (above) |
+| Accept dismiss (dialog gone after reload) | **done** 2026-08-10 — TD-0032 first-party cookie jar + post-click script-fetch drain; Release home: `dialogs:0`, `SOCS` set |
 | auto-refit after stamp | **done** — root cause was not FlattenedNodesObserver: iron-overlay prepares with `style.display=""` then measures, and `RestyleWithoutLayout` could not invent a box for an element that had been `display:none` (box tree skipped when only `MutationVersion` moved). Display none↔box now rebuilds the tree (`engine.box_tree_invalidated_by_display`). Dialog centres at `top:0; left:266` without `-eval` |
 | non-scroller `scrollWidth`/`scrollHeight` | **done** — were 0 on any non-scroll-container; now at least the padding box |
 | inflated `#content.scrollHeight` (~1e5–4e5) | **done** — was a symptom of the missing box after `display:none` cleared (overflow measured against a stale tree); after the rebuild, `#content.scrollHeight` is ~2.3k for ~1.3k of policy text. Accept still sits below the dialog fold until the content scroller moves (real UX) |
@@ -1650,6 +1651,55 @@ finishes (~122 s, peak ~1.8 GiB) with `vids:20`, `SOCS` set; plain `/results
 without Accept ~18 s (was unbounded). `SettleForSnapshot` no longer
 unconditionally `InvalidateLayout`s (that was the `bad_alloc`). Consent dialog
 node can remain (`dialogs:1`) after Accept — dismiss visibility still open.
+
+**Update** (2026-08-10). Dismiss was blocked by TD-0032 (first-party cookie jar
+split + snapshot exiting mid-save). After that fix, Accept's save→reload can
+finish; re-measure `opened` / dialog count on home.
+
+---
+
+## TD-0032 — First-party cookie jar keyed by request origin; snapshot dropped Accept mid-fetch — **fixed 2026-08-10**
+
+**Opened** 2026-08-10.
+
+**Symptom.** After trusted Accept on youtube home: `document.cookie` showed
+`SOCS`, `upgrade_visitor_cookie` ran with `cookies=7`, but
+`consent.youtube.com/save` went out with `cookies=0`, the dialog stayed
+`opened===true` / `display:flex`, and the snapshot often exited after
+`request.start` for save with no `request.done` / no `location.reload()`.
+
+**Cause (two halves).**
+
+1. **Cookie partition.** `CookieJar` matched `entry.key == key` exactly.
+   `document.cookie` stores under `ForTopLevel(www.youtube.com)`; a page fetch
+   to `consent.youtube.com` looks up `ForEmbedded(youtube-site, consent-url)` —
+   same container and top-level site, different **origin** in the key → empty
+   jar. ADR 0005's Total Cookie Protection needs the top-level site so a third
+   party on a.com and b.com cannot correlate; it does not ask to split
+   first-party jars by same-site host. Domain / host-only matching already
+   scopes what each host receives.
+
+2. **Snapshot settle.** TD-0031 correctly stopped `RunLoadToCompletion` from
+   waiting on page `fetch`/fonts (innertube hang). After a click that *starts*
+   Accept's fetch→save→reload chain, the tool returned immediately because
+   `IsDocumentLoading` was false, then exited while save was still on the wire.
+
+**Fix.** `CookiePartitionMatches`: first-party lookups share all first-party
+entries under `(container, top_level site)`; third-party still matches the full
+key including origin. Snapshot `RunPostInteractionDrain` after click/key waits
+up to 60s for `HasInFlightScriptFetches` (not fonts), and re-enters
+`RunLoadToCompletion` when reload sets document loading. Test
+`Cookie/FirstPartySameSiteOriginsShareJar`.
+
+**Measured** (Release, before): Accept click → save `cookies=0`, no reload,
+`propOpened: true`. After: `dialogs:0`, `SOCS` set, `focus: none`, home
+reloads (~21 s wall with post-interaction drain).
+
+**End state.** Same-site first-party cookie visibility matches browsers;
+snapshot Accept harness completes save→reload without waiting on stuck fonts.
+
+**Close when.** Unit test green (done); Accept on home leaves no consent dialog
+(done on Release snapshot 2026-08-10); ADR 0005 notes the first-party jar rule.
 
 ---
 

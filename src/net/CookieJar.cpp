@@ -100,6 +100,31 @@ bool CookiePathMatches(std::string_view request_path, std::string_view cookie_pa
   return cookie_path.back() == '/' || request_path[cookie_path.size()] == '/';
 }
 
+// Whether a stored cookie's partition is visible to a lookup key.
+//
+// ADR 0005 keys every store by `(container, top_level site, origin)`. Total
+// Cookie Protection needs the top-level site so a third party on a.com and on
+// b.com cannot correlate visits. It does **not** need the request origin to
+// split first-party jars: `www.youtube.com` and `consent.youtube.com` are the
+// same site under one top-level document, and a `Domain=.youtube.com` cookie
+// set from the former must travel on a fetch to the latter. Exact origin
+// equality left Accept's `POST consent.youtube.com/save` with `cookies=0`
+// while `document.cookie` on www already showed `SOCS` (TD-0022 / TD-0032).
+//
+// Third-party contexts still match the full key, including origin.
+bool CookiePartitionMatches(const url::PartitionKey& stored, const url::PartitionKey& request) {
+  if (stored.Container() != request.Container()) {
+    return false;
+  }
+  if (!(stored.TopLevelSite() == request.TopLevelSite())) {
+    return false;
+  }
+  if (request.IsFirstParty()) {
+    return stored.IsFirstParty();
+  }
+  return stored.GetOrigin() == request.GetOrigin();
+}
+
 std::optional<Cookie> ParseSetCookie(std::string_view field, const url::Url& request_url,
                                      std::int64_t now) {
   const std::size_t semicolon = field.find(';');
@@ -248,10 +273,11 @@ bool CookieJar::Store(const url::PartitionKey& key, const url::Url& request_url,
   }
 
   // Replacing rather than appending: a cookie is identified by name, domain and
-  // path *within its partition*, and a jar that appended would grow forever and
-  // send both.
+  // path within the visible partition (first-party same-site origins share one
+  // jar — see CookiePartitionMatches), and a jar that appended would grow
+  // forever and send both.
   const auto same = [&](const Entry& entry) {
-    return entry.key == key && entry.cookie.name == stored_cookie.name &&
+    return CookiePartitionMatches(entry.key, key) && entry.cookie.name == stored_cookie.name &&
            entry.cookie.domain == stored_cookie.domain && entry.cookie.path == stored_cookie.path;
   };
   const auto found = std::find_if(entries_.begin(), entries_.end(), same);
@@ -290,7 +316,7 @@ std::vector<Cookie> CookieJar::CookiesFor(const url::PartitionKey& key,
 
   std::vector<const Entry*> matched;
   for (const Entry& entry : entries_) {
-    if (!(entry.key == key)) {
+    if (!CookiePartitionMatches(entry.key, key)) {
       continue;  // a different partition is a different jar
     }
     const Cookie& cookie = entry.cookie;
@@ -362,7 +388,7 @@ std::string CookieJar::DocumentCookie(const url::PartitionKey& key, const url::U
 
   std::vector<const Entry*> matched;
   for (const Entry& entry : entries_) {
-    if (!(entry.key == key)) {
+    if (!CookiePartitionMatches(entry.key, key)) {
       continue;
     }
     const Cookie& cookie = entry.cookie;
@@ -426,7 +452,7 @@ bool CookieJar::StoreFromDocument(const url::PartitionKey& key, const url::Url& 
         document_url.PathString().empty() ? "/" : document_url.PathString();
     const bool secure = url::Origin::FromUrl(document_url).IsPotentiallyTrustworthy();
     const auto visible = [&](const Entry& entry) {
-      if (!(entry.key == key)) {
+      if (!CookiePartitionMatches(entry.key, key)) {
         return false;
       }
       const Cookie& c = entry.cookie;
