@@ -966,6 +966,26 @@ selector dependency graph). The style cache is necessary but not sufficient:
 unchanged chrome still allocates fresh boxes on every stamp. `due_work` is the
 largest remaining invalidation bucket after script/image/font/sheet are counted.
 
+**Update** (2026-08-09, watch). `RunDueWork` treated every CSS-animation frame,
+every decoded video frame, and every attribute/`style` write (WAAPI polyfill)
+as `InvalidateLayout` — `boxes_.reset()` plus `CollectImages` — so a watch page
+paid **~50 full `BuildBoxTree`/`LayoutBoxes` passes per second** (Release turn
+trace: 2930 `LayoutBoxes` in 60 s, 1.5 GiB RSS, never finishing the snapshot
+drain). Fixed:
+
+| trigger | action |
+|---|---|
+| structure or cascade change | `InvalidateLayout` (rebuild boxes) |
+| attribute / style mutation, or layout-affecting animation | `RestyleWithoutLayout` + reflow (`laid_out_width` clear) |
+| paint-only animation (transform/color) | `RestyleWithoutLayout` only |
+| video frame | paint / surface damage only |
+
+`EnsureBoxTree` keys off `StructureVersion` + cascade generation; `Layout` still
+keys cleanliness off `MutationVersion` so `offsetWidth` after a style write
+restyles then reflows. Counters: `layout.animation_tick_no_box_rebuild`,
+`layout.animation_paint_only`, `layout.video_paint_only`. Dirty-subtree rebuild
+remains the end state for stamp/font/sheet.
+
 **Measured** (Release, `/results?search_query=cats`):
 
 | metric | after TD-0001 guards | after style cache |

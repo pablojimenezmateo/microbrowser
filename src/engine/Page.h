@@ -862,11 +862,13 @@ class Page : private layout::ImageProvider,
     // `width` because `SetViewport` updates that without placing — comparing
     // only `width` would skip a resize reflow (TD-0018).
     float laid_out_width = -1.0f;
-    // dom::Document::MutationVersion() as of the last layout. Anything that
-    // changes the tree moves it, so a mismatch is the layout-clean flag of
-    // ADR 0015 -- and it is a comparison rather than a bit because a bit that
-    // each reader cleared would hide the change from the next.
+    // `Document::MutationVersion()` as of the last layout/reflow. Attribute and
+    // style writes bump it without changing structure — those need LayoutBoxes
+    // (and RestyleWithoutLayout), not a new box tree (TD-0021).
     std::uint64_t document_version = 0;
+    // `Document::StructureVersion()` when `boxes_` was last built. Insert/remove
+    // only — the gate for `EnsureBoxTree` vs restyle-in-place.
+    std::uint64_t structure_version = 0;
     float scroll_y = 0.0f;
     // `StyleResolver::Generation()` when `boxes_` was last built.
     std::uint64_t box_tree_cascade_generation = 0;

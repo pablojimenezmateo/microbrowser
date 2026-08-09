@@ -321,6 +321,7 @@ void Page::RebuildAuthorStyleSheets() {
     RestyleWithoutLayout();
     layout_.box_tree_cascade_generation = resolver_.Generation();
     layout_.document_version = document_->MutationVersion();
+    layout_.structure_version = document_->StructureVersion();
   } else {
     InvalidateBoxTree();
     AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedBySheet);
@@ -331,6 +332,7 @@ void Page::InvalidateBoxTree() {
   boxes_.reset();
   layout_.box_by_element.clear();
   layout_.box_tree_cascade_generation = 0;
+  layout_.structure_version = 0;
   layout_.laid_out_width = -1.0f;
 }
 
@@ -364,8 +366,8 @@ void Page::EnsureBoxTree() {
   }
   RefreshDocumentStates();
   const std::uint64_t cascade = resolver_.Generation();
-  const std::uint64_t doc_ver = document_->MutationVersion();
-  if (boxes_ != nullptr && layout_.document_version == doc_ver &&
+  const std::uint64_t structure = document_->StructureVersion();
+  if (boxes_ != nullptr && layout_.structure_version == structure &&
       layout_.box_tree_cascade_generation == cascade) {
     AddPerformanceCounter(PerfCounterId::BoxTreeBuildSkipped);
     return;
@@ -373,7 +375,8 @@ void Page::EnsureBoxTree() {
   const layout::LayoutEngine engine(resolver_, text_ctx_.Measurer(), this);
   util::PerformanceTrace::Scope build("engine::BuildBoxTree");
   boxes_ = engine.BuildBoxTree(*document_);
-  layout_.document_version = doc_ver;
+  layout_.document_version = document_->MutationVersion();
+  layout_.structure_version = structure;
   layout_.box_tree_cascade_generation = cascade;
   RebuildElementBoxIndex();
 }

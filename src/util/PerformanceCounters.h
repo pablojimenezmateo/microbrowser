@@ -521,6 +521,9 @@ namespace microbrowser::util {
   /* tree was left standing. The counter that says MessageChannel/rAF churn is   */ \
   /* no longer paying InvalidateLayout per turn (TD-0018).                       */ \
   X(LayoutDueWorkClean, "layout.due_work_clean")                                 \
+  X(LayoutAnimationTick, "layout.animation_tick_no_box_rebuild")                 \
+  X(LayoutAnimationPaintOnly, "layout.animation_paint_only")                     \
+  X(LayoutVideoPaintOnly, "layout.video_paint_only")                             \
   /* MessageChannel (host) tasks run inside one TimerQueue::RunDue after the     */ \
   /* initial due set. Cooperative schedulers post one slice per task; without    */ \
   /* this drain each slice forced its own LayoutAndPaint.                        */ \

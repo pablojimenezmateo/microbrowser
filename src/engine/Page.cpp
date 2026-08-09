@@ -295,10 +295,17 @@ float Page::Layout(float width) {
   }
   AddPerformanceCounter(PerfCounterId::LayoutPasses);
   EnsureBoxTree();
+  // Attribute / style writes leave the box tree in place but stale styles on
+  // the boxes. Restyle before placing, or offsetWidth after `el.style.width`
+  // reads the previous geometry (GeometryQueryTests / TD-0021).
+  if (boxes_ != nullptr && document_ != nullptr &&
+      layout_.document_version != document_->MutationVersion()) {
+    RestyleWithoutLayout();
+  }
   const layout::LayoutEngine engine(resolver_, text_ctx_.Measurer(), this);
-  // The box tree is rebuilt when the document or cascade changes. Background
-  // images are queued during that one cascade pass rather than in a second
-  // walk -- TD-0005.
+  // The box tree is rebuilt when the document *structure* or cascade changes.
+  // Background images are queued during that one cascade pass rather than in a
+  // second walk -- TD-0005.
   util::LoadTimeline::Mark("layout.start");
   {
     if (util::EnvFlagEnabled("MICROBROWSER_LOAD_TURN_TRACE")) {
@@ -314,6 +321,7 @@ float Page::Layout(float width) {
     AddPerformanceCounter(PerfCounterId::LayoutPassBoxes, CountBoxes(*boxes_));
   }
   layout_.document_version = document_->MutationVersion();
+  layout_.structure_version = document_->StructureVersion();
   layout_.laid_out_width = width;
   util::LoadTimeline::Mark("layout.end");
   // The scroll offsets go back on, clamped against the overflow this layout
@@ -443,22 +451,23 @@ std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
 }
 
 bool Page::RunDueWork(std::int64_t now_ms) {
-  // Invalidate only when the document/cascade moved, or a CSS animation is in
-  // flight. Dropping the box tree on every due-work turn defeated
-  // `layout.skipped_clean` (TD-0018 / youtube MessageChannel stamp).
+  // Drop the box tree only when the *structure* or cascade moved. Attribute /
+  // style writes (WAAPI polyfills, Polymer hosts) bump MutationVersion every
+  // frame — rebuilding boxes for those was a 60Hz BuildBoxTree on youtube
+  // (TD-0021). Animation ticks and video frames are restyle/paint paths.
   const std::uint64_t ver_before =
       document_ != nullptr ? document_->MutationVersion() : 0;
+  const std::uint64_t structure_before =
+      document_ != nullptr ? document_->StructureVersion() : 0;
   const std::uint64_t cascade_before = resolver_.Generation();
   bool ran = DispatchPendingScrollEvents();
   ran = script_.RunDueWork(now_ms) || ran;
-  // `Running()` before `Advance`: a frame is owed while something is in flight,
-  // and `Advance` drops the finished ones so `NextWakeDelay` can answer nothing.
-  bool animating = false;
+  bool animation_tick = false;
   if (animations_.Running()) {
-    animations_.Advance(now_ms);
+    (void)animations_.Advance(now_ms);
     animation_time_ms_ = now_ms;
+    animation_tick = true;
     ran = true;
-    animating = animations_.Running();
     AddPerformanceCounter(PerfCounterId::AnimationFramesProduced);
   }
   const bool video_updated =
@@ -467,12 +476,31 @@ bool Page::RunDueWork(std::int64_t now_ms) {
   if (!ran) {
     return false;
   }
-  const bool mutated =
+  const bool structure_changed =
+      document_ != nullptr && document_->StructureVersion() != structure_before;
+  const bool attrs_changed =
       document_ != nullptr && document_->MutationVersion() != ver_before;
   const bool cascade_changed = resolver_.Generation() != cascade_before;
-  if (mutated || cascade_changed || animating || video_updated) {
+  if (structure_changed || cascade_changed) {
     InvalidateLayout();
     AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDueWork);
+  } else if (attrs_changed || animation_tick) {
+    if (boxes_ != nullptr) {
+      RestyleWithoutLayout();
+      const bool need_layout =
+          attrs_changed || (animation_tick && animations_.TickNeedsLayout());
+      if (need_layout) {
+        layout_.laid_out_width = -1.0f;
+        AddPerformanceCounter(PerfCounterId::LayoutAnimationTick);
+      } else {
+        AddPerformanceCounter(PerfCounterId::LayoutAnimationPaintOnly);
+      }
+    } else {
+      InvalidateLayout();
+      AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDueWork);
+    }
+  } else if (video_updated) {
+    AddPerformanceCounter(PerfCounterId::LayoutVideoPaintOnly);
   } else {
     AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);
   }

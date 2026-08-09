@@ -103,7 +103,8 @@ bindings::MediaController::PlayResult Page::Play(dom::Element& element) {
     case media::MediaState::PlayRefusal::None:
       video_.StartPlayback(element, *state);
       (void)video_.AdvanceAll([this](dom::Element& el) { return MediaStateFor(el); });
-      InvalidateLayout();
+      // A new decoded frame damages the compositor surface (AddSurfaceDamage),
+      // not the box tree — InvalidateLayout here was a 60Hz BuildBoxTree.
       return bindings::MediaController::PlayResult::Started;
     case media::MediaState::PlayRefusal::NotAllowed:
       return bindings::MediaController::PlayResult::NotAllowed;

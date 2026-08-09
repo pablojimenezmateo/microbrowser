@@ -70,6 +70,10 @@ class Animations {
   // Whether anything at all is running, which is what a caller asks before deciding to lay out again.
   bool Running() const { return !transitions_.empty() || !animations_.empty(); }
 
+  // True when a due-work animation tick must reflow, not only restyle+paint.
+  // Transform/color ticks are paint-only (PropertyAffectsLayout); width/etc. are not.
+  bool TickNeedsLayout() const;
+
   // The `@keyframes` this document defines. Replaced wholesale when the stylesheets change, because a
   // named animation is looked up by name every frame and a stale definition would animate to a value
   // that is no longer written anywhere.

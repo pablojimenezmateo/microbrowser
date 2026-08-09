@@ -57,6 +57,19 @@ void PropertiesOf(const css::TransitionSpec& spec,
 // accessor. That is not cleverness for its own sake: a second switch would be a second list of which
 // member each property maps to, and the two would drift -- exactly the failure `css::InheritInto` was
 // created to stop. One list, in `InterpolateProperty`, read twice.
+bool AnimatableAffectsLayout(css::AnimatableProperty property) {
+  switch (property) {
+    case css::AnimatableProperty::None:
+    case css::AnimatableProperty::Color:
+    case css::AnimatableProperty::BackgroundColor:
+    case css::AnimatableProperty::BorderColor:
+    case css::AnimatableProperty::Transform:
+      return false;
+    default:
+      return true;
+  }
+}
+
 bool Differs(css::AnimatableProperty property, const css::ComputedStyle& a,
              const css::ComputedStyle& b) {
   css::ComputedStyle at_a = a;
@@ -405,6 +418,31 @@ const css::KeyframesRule* Animations::Keyframes(const std::string& name) const {
     }
   }
   return nullptr;
+}
+
+bool Animations::TickNeedsLayout() const {
+  for (const auto& [key, running] : transitions_) {
+    (void)key;
+    if (AnimatableAffectsLayout(running.property)) {
+      return true;
+    }
+  }
+  for (const auto& [key, running] : animations_) {
+    (void)key;
+    const css::KeyframesRule* rule = Keyframes(running.spec.name);
+    if (rule == nullptr) {
+      continue;
+    }
+    for (const css::Keyframe& frame : rule->frames) {
+      for (const auto& [property, value] : frame.declarations) {
+        (void)value;
+        if (css::PropertyAffectsLayout(property)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 void Animations::Clear() {
