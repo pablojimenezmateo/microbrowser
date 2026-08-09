@@ -513,8 +513,12 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms) {
     AddPerformanceCounter(PerfCounterId::LayoutVideoPaintOnly);
     return DueWorkKind::Paint;
   }
+  // Timers / rAF / tasks ran without touching the tree. Paint if a frame was
+  // owed; do not reflow — Layout would no-op only when MutationVersion matches,
+  // and a script that only scheduled more work must not force LayoutAndPaint's
+  // full path as "Layout".
   AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);
-  return DueWorkKind::Layout;
+  return DueWorkKind::Paint;
 }
 
 void Page::SetNetworkSource(bindings::NetworkSource* network) {
