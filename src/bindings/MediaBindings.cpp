@@ -19,6 +19,7 @@
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 #include "js/Value.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
 
@@ -236,6 +237,9 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
 bool DomBindings::DispatchMediaEvent(dom::Element& element, const std::string& type) {
   if (interpreter_ == nullptr) {
     return false;
+  }
+  if (type == "error") {
+    util::AddPerformanceCounter(util::PerfCounterId::MediaErrorEvents);
   }
   // Trusted, and not cancelable: the only caller is the state machine that saw the transition.
   // A page that could fire `canplay` at its own element could make a player believe data

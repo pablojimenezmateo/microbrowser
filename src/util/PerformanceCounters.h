@@ -376,6 +376,7 @@ namespace microbrowser::util {
   X(MediaLoadsStarted, "media.loads_started")                                      \
   X(MediaLoadFailures, "media.load_failures")                                     \
   X(MediaAutoplayRefusals, "media.autoplay_refusals")                             \
+  X(MediaErrorEvents, "media.error_events")                                       \
   X(MediaSourceAppends, "media.source_appends")                                   \
   X(MediaSourceAppendFailures, "media.source_append_failures")                    \
   X(MediaSourceQuotaRefusals, "media.source_quota_refusals")                      \
