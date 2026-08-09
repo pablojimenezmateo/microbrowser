@@ -291,7 +291,8 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # +AsAnimationSource and AnimationSource wiring (TD-0021 / Element.animate).
 # +1 member: pointer_down_target_ (UI Events click retarget; youtube Accept).
 # +1 public method: ResolveClickActivation.
-budget: Page   header_lines=980 public_methods=186 members=25
+# +1 public method: RecollectDocumentImages (IO-assigned img.src).
+budget: Page   header_lines=990 public_methods=187 members=25
 budget: LayoutState header_lines=40 public_methods=0 members=8
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when

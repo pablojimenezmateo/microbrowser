@@ -86,6 +86,12 @@ void Engine::PaintAndSend(gfx::IntPoint scroll_delta, const gfx::IntRect* only) 
   if (page_.DeliverObservations(NowMilliseconds())) {
     scroll_delta = gfx::IntPoint{};
     only = nullptr;
+    // IntersectionObserver (and ResizeObserver) callbacks often assign
+    // `img.src` for lazy thumbs. Attribute-only mutations do not rebuild the
+    // pending-image list — recollect before StartImageRequests or the frame
+    // that learned the URL never fetches it (youtube search after Accept).
+    page_.RecollectDocumentImages();
+    util::AddPerformanceCounter(util::PerfCounterId::EngineImagesRecollectedAfterObservation);
   }
   // And the images that came within reach of the scrollport while all that was
   // happening. Here rather than beside the observers because it is not one: a

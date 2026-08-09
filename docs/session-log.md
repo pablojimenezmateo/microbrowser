@@ -3886,4 +3886,21 @@ Measured (Release, cats search): after `-wheel` + Accept, URL stays
 **Left:** search thumbnail `src` attach; TD-0018; home when the server sends a
 feed; `Intl` / `eval` on side scripts.
 
+---
+
+## 2026-08-09 — TD-0023: recollect images after observation/`src` writes
+
+**Status:** youtube search thumbs fetch once `img.src` is set
+
+Attribute-only `img.src` (IntersectionObserver lazy path) never rebuilt
+`pending_images`. `CollectImages` now runs on attribute-only due work, and
+`RecollectDocumentImages` runs after observation callbacks in `PaintAndSend`
+(`engine.images_recollected_after_observation`).
+
+Measured (Release, cats search, Accept + `-y 400`): `withSrc`/`complete` 6,
+first result thumb `naturalWidth` 720, ~1120 display-list commands / 26 images.
+Empty-`src` before scroll or mid-stamp still under TD-0018.
+
+**Left:** TD-0018 empty-src reliability; home nudge; `Intl` / `eval`.
+
 

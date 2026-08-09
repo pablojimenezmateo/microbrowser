@@ -566,6 +566,12 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms, bool* script_ran) {
     return DueWorkKind::Layout;
   }
   if (attrs_changed || animation_tick) {
+    if (attrs_changed) {
+      // `img.src = url` from IntersectionObserver (or any script) bumps
+      // MutationVersion without StructureVersion — CollectImages must still run
+      // or TakeUnrequestedImages never sees the new URL (youtube search thumbs).
+      CollectImages();
+    }
     if (boxes_ != nullptr) {
       // Throttle full-document restyle: WAAPI polyfills write `style` every
       // frame, and RestyleWithoutLayout walks the whole tree (TD-0021).

@@ -1659,6 +1659,25 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "and so is every other one under that root");
   });
 
+  AddTest(tests, "Page/RecollectsImagesAfterScriptAssignsSrc", [] {
+    // IntersectionObserver lazy thumbs assign img.src without inserting nodes.
+    // Attribute-only mutation used to restyle/paint and never recollect, so
+    // TakeUnrequestedImages never saw the URL (youtube search after Accept).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body><img id=t></body>", "https://example.org/");
+    page.RunScripts(0);
+    ExpectEqInt(static_cast<long long>(page.PendingImages().size()), 0,
+                "no src yet means nothing to fetch");
+    (void)page.EvaluateScript(
+        "document.getElementById('t').src = 'https://example.org/thumb.jpg';");
+    page.RecollectDocumentImages();
+    const std::vector<std::string>& images = page.PendingImages();
+    Expect(std::find(images.begin(), images.end(), "https://example.org/thumb.jpg") !=
+               images.end(),
+           "assigning img.src must enqueue the URL without a tree rebuild");
+  });
+
   AddTest(tests, "Layout/AnImageTakesItsSizeFromThePixelsWhenNothingElseSaysOtherwise", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

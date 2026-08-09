@@ -236,6 +236,9 @@ namespace microbrowser::util {
   /* www.reddit.com, 29 requests and 26 images decoded became 13 and 10.       */ \
   X(EngineImagesDeferred, "engine.images_deferred")                              \
   X(EngineImagesRevealed, "engine.images_revealed")                              \
+  /* Pending list rebuilt after an observation callback assigned img.src.      */ \
+  X(EngineImagesRecollectedAfterObservation,                                     \
+    "engine.images_recollected_after_observation")                               \
   /* --- fetch (ADR 0020 §1) -------------------------------------------------*/ \
   /* What a *page* asked the network for, as against what the browser asked    */ \
   /* for on its behalf. The pair to read is `requests` against `delivered`     */ \

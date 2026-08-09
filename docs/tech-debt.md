@@ -1312,6 +1312,28 @@ and for not activating whatever was under the dialog.
 
 ---
 
+## TD-0023 — `img.src` assigned by script never entered the image fetch list
+
+**Symptom.** youtube search thumbnails are gated by `IntersectionObserver`, which
+assigns `img.src` without inserting nodes. Attribute-only mutations bumped
+`MutationVersion` and took the paint-only due-work path (TD-0021), which
+restyled but never called `CollectImages`. `StartImageRequests` then had an
+empty pending list for URLs the DOM already named. Observation delivery could
+also set `src` *during* `PaintAndSend`, after the last collect and before
+`StartImageRequests`.
+
+**Landed** (2026-08-09). `CollectImages` on attribute-only due work;
+`RecollectDocumentImages` after `DeliverObservations` when callbacks ran
+(`engine.images_recollected_after_observation`). Test
+`Page/RecollectsImagesAfterScriptAssignsSrc`.
+
+**Still open.** Above-fold search thumbs often keep `src` empty — the observer
+callback is not assigning (0×0 `yt-image` geometry / step budget / race), which
+is separate from the fetch-list hole. Close this TD when a set `src` always
+fetches; empty-`src` reliability stays under TD-0018.
+
+---
+
 ## Closed
 
 - **TD-0001 — Measure-then-place walked every flex/float/atomic subtree twice** (2026-08-09).

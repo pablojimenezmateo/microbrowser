@@ -380,6 +380,12 @@ class Page : private layout::ImageProvider,
   // thumbnails fetches a handful. ADR 0018 §5.
   bool RevealLazyImages();
 
+  // Rebuild `pending_images` from the document's current `<img>` attributes.
+  // Needed when script assigns `src` without a structure change — notably
+  // IntersectionObserver lazy thumbnails — because attribute-only due work
+  // used to restyle/paint without ever recollecting.
+  void RecollectDocumentImages() { CollectImages(); }
+
   // The size the document asks for `src` to be drawn at, or a zero extent for
   // an axis nothing states. Only a vector image needs it -- a bitmap has its
   // own size and this is the box it is scaled into -- which is why it is asked
