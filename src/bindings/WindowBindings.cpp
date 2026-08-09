@@ -47,99 +47,119 @@ void DomBindings::InstallWindow() {
   }
   interpreter_->GlobalScope()->Declare("window", window, false);
 
-  // `location`, from the text the loader handed over. This module cannot see
-  // `src/url` and should not: what a URL *means* is the loader's problem, and
-  // all a page reads back here is the parts it was given.
+  // `location` is a real `Location` instance — not a plain object with own
+  // parts. youtube (and every polyfill that does `Location.prototype`) needs
+  // `location instanceof Location` and descriptors on the prototype; a missing
+  // `Location` global is `typeof Location === "undefined"`.
+  EnsureInterfaces();
+  const Value location_prototype = MakeInterface("Location", Value::Undefined());
   const Value location = interpreter_->NewObjectValue();
-  if (location.IsObject()) {
-    WriteLocationFields(location);
-    // `toString`, because a page concatenates `location` with a string as
-    // often as it reads `href`.
-    const Value to_string = interpreter_->NewNativeValue("toString", [](NativeCall& call) {
+  if (location.IsObject() && location_prototype.IsObject()) {
+    location.object->SetPrototype(location_prototype.object);
+
+    const auto href_of = [](const NativeCall& call) -> std::string {
       if (!call.self.IsObject()) {
-        return Value::String(std::string());
+        return {};
       }
-      const Value* href = call.self.object->GetOwn("#href");
-      if (href == nullptr) {
-        href = call.self.object->Get("href");
+      if (const Value* href = call.self.object->GetOwn("#href")) {
+        return js::ToString(*href);
       }
-      return href == nullptr ? Value::String(std::string()) : *href;
+      DomBindings* owner = OwnerOf(call);
+      return owner == nullptr ? std::string() : owner->url_;
+    };
+
+    // Parts live on the prototype as accessors over `#href`, so
+    // `WriteLocationFields` only has to refresh one slot and cannot drift from
+    // `SplitHref` the way duplicated own properties could.
+    const auto install_part = [this, &location_prototype, href_of](const char* name, auto pick) {
+      const Value get = interpreter_->NewNativeValue(name, [href_of, pick](NativeCall& call) {
+        return Value::String(pick(SplitHref(href_of(call))));
+      });
+      if (get.IsObject()) {
+        get.object->Set(kOwnerSlot, PointerValue(this));
+        location_prototype.object->DefineAccessor(name, get.object, nullptr);
+      }
+    };
+    install_part("protocol", [](const HrefParts& p) { return p.protocol; });
+    install_part("host", [](const HrefParts& p) { return p.host; });
+    install_part("hostname", [](const HrefParts& p) { return p.hostname; });
+    install_part("port", [](const HrefParts& p) { return p.port; });
+    install_part("pathname", [](const HrefParts& p) { return p.pathname; });
+    install_part("search", [](const HrefParts& p) { return p.search; });
+    install_part("hash", [](const HrefParts& p) { return p.hash; });
+    install_part("origin", [](const HrefParts& p) { return p.origin; });
+
+    const Value to_string = interpreter_->NewNativeValue("toString", [href_of](NativeCall& call) {
+      return Value::String(href_of(call));
     });
     if (to_string.IsObject()) {
-      location.object->Set("toString", to_string);
+      to_string.object->Set(kOwnerSlot, PointerValue(this));
+      location_prototype.object->Set("toString", to_string);
     }
+
     // `assign` / `replace` / `reload` / writable `href` — ADR 0026 §3. Deferred
     // through HistorySource so the navigation runs after the turn ends.
     // youtube's consent Accept POSTs to consent.youtube.com/save, then
     // `location.reload()` so the watch page comes back with SOCS set; without
     // reload the cookie lands and the dialog stays forever.
-    if (history_ != nullptr) {
-      const auto install_nav = [this, &location](const char* name, bool replace) {
-        const Value method = interpreter_->NewNativeValue(name, [replace](NativeCall& call) {
-          DomBindings* owner = OwnerOf(call);
-          if (owner == nullptr || owner->history_ == nullptr) {
-            return Value::Undefined();
-          }
-          const std::string url = js::ToString(Argument(call.arguments, 0));
-          owner->history_->RequestNavigation(url, replace);
-          return Value::Undefined();
-        });
-        if (method.IsObject()) {
-          method.object->Set(kOwnerSlot, PointerValue(this));
-          location.object->Set(name, method);
-        }
-      };
-      install_nav("assign", false);
-      install_nav("replace", true);
-
-      const Value reload = interpreter_->NewNativeValue("reload", [](NativeCall& call) {
-        DomBindings* owner = OwnerOf(call);
-        if (owner == nullptr || owner->history_ == nullptr) {
-          return Value::Undefined();
-        }
-        // Same URL, replace: a new load of the current entry, not a push.
-        // Empty `url_` would ResolveUrl to nothing and be dropped — refuse
-        // silently rather than invent a navigation target.
-        if (!owner->url_.empty()) {
-          owner->history_->RequestNavigation(owner->url_, true);
-        }
-        return Value::Undefined();
-      });
-      if (reload.IsObject()) {
-        reload.object->Set(kOwnerSlot, PointerValue(this));
-        location.object->Set("reload", reload);
-      }
-
-      const Value href_get = interpreter_->NewNativeValue("href", [](NativeCall& call) {
-        if (!call.self.IsObject()) {
-          return Value::String(std::string());
-        }
-        const Value* href = call.self.object->GetOwn("#href");
-        if (href == nullptr) {
-          href = call.self.object->Get("href");
-        }
-        return href == nullptr ? Value::String(std::string()) : *href;
-      });
-      const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) {
+    const auto install_nav = [this, &location_prototype](const char* name, bool replace) {
+      const Value method = interpreter_->NewNativeValue(name, [replace](NativeCall& call) {
         DomBindings* owner = OwnerOf(call);
         if (owner == nullptr || owner->history_ == nullptr) {
           return Value::Undefined();
         }
         const std::string url = js::ToString(Argument(call.arguments, 0));
-        owner->history_->RequestNavigation(url, false);
+        owner->history_->RequestNavigation(url, replace);
         return Value::Undefined();
       });
-      if (href_get.IsObject() && href_set.IsObject()) {
-        href_get.object->Set(kOwnerSlot, PointerValue(this));
-        href_set.object->Set(kOwnerSlot, PointerValue(this));
-        // Keep the plain data slot as `#href` so WriteLocationFields can update
-        // it, and expose a getter/setter named `href` to script.
-        if (const Value* current = location.object->GetOwn("href"); current != nullptr) {
-          location.object->Set("#href", *current);
-        }
-        location.object->DefineAccessor("href", href_get.object, href_set.object);
+      if (method.IsObject()) {
+        method.object->Set(kOwnerSlot, PointerValue(this));
+        location_prototype.object->Set(name, method);
       }
+    };
+    install_nav("assign", false);
+    install_nav("replace", true);
+
+    const Value reload = interpreter_->NewNativeValue("reload", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      if (owner == nullptr || owner->history_ == nullptr) {
+        return Value::Undefined();
+      }
+      if (!owner->url_.empty()) {
+        owner->history_->RequestNavigation(owner->url_, true);
+      }
+      return Value::Undefined();
+    });
+    if (reload.IsObject()) {
+      reload.object->Set(kOwnerSlot, PointerValue(this));
+      location_prototype.object->Set("reload", reload);
     }
+
+    const Value href_get = interpreter_->NewNativeValue("href", [href_of](NativeCall& call) {
+      return Value::String(href_of(call));
+    });
+    const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      if (owner == nullptr) {
+        return Value::Undefined();
+      }
+      const std::string url = js::ToString(Argument(call.arguments, 0));
+      if (owner->history_ != nullptr) {
+        owner->history_->RequestNavigation(url, false);
+      } else if (call.self.IsObject()) {
+        // No history source (unit tests): update the slot in place so reads
+        // still agree with what script wrote.
+        call.self.object->Set("#href", Value::String(url));
+      }
+      return Value::Undefined();
+    });
+    if (href_get.IsObject() && href_set.IsObject()) {
+      href_get.object->Set(kOwnerSlot, PointerValue(this));
+      href_set.object->Set(kOwnerSlot, PointerValue(this));
+      location_prototype.object->DefineAccessor("href", href_get.object, href_set.object);
+    }
+
+    WriteLocationFields(location);
     global->Set("location", location);
     interpreter_->GlobalScope()->Declare("location", location, false);
     // `document.location` is the same object as `window.location`, which is
@@ -199,32 +219,11 @@ void DomBindings::WriteLocationFields(const js::Value& location) {
   if (!location.IsObject()) {
     return;
   }
-  const HrefParts address = SplitHref(url_);
-  // `#href` when assign/replace installed an accessor on `href`; plain `href`
-  // otherwise (tests / pages without a HistorySource). Never Set("href") over
-  // the accessor — that would delete the navigation path.
-  if (location.object->GetOwn("#href") != nullptr ||
-      (location.object->GetOwn("href") != nullptr &&
-       location.object->GetOwn("assign") != nullptr)) {
-    location.object->Set("#href", Value::String(url_));
-  } else {
-    location.object->Set("href", Value::String(url_));
-  }
-  location.object->Set("protocol", Value::String(address.protocol));
-  location.object->Set("host", Value::String(address.host));
-  location.object->Set("hostname", Value::String(address.hostname));
-  location.object->Set("port", Value::String(address.port));
-  location.object->Set("pathname", Value::String(address.pathname));
-  // `search` and `hash` were the two missing ones, and their absence is not
-  // cosmetic: a page reading `new URLSearchParams(location.search)` off an
-  // `undefined` gets an empty parameter set and carries on, which is how
-  // reddit's challenge form submits without the fields it was meant to add.
-  location.object->Set("search", Value::String(address.search));
-  location.object->Set("hash", Value::String(address.hash));
-  location.object->Set("origin", Value::String(address.origin));
+  // One slot: prototype accessors re-split it. Writing the parts as own
+  // properties again would shadow the accessors and drift on the next navigate.
+  location.object->Set("#href", Value::String(url_));
   if (js::Value* document = interpreter_->GlobalScope()->Lookup("document")) {
     if (document->IsObject()) {
-      // `document.URL`, which is the same string by another name.
       document->object->Set("URL", Value::String(url_));
     }
   }

@@ -1666,6 +1666,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "'' + location", "https://example.org/a/b?q=1");
     // The same object under both names, which a page checks by identity.
     ExpectScript(kPage, "document.location === location", "true");
+    ExpectScript(kPage, "typeof Location", "function");
+    ExpectScript(kPage, "location instanceof Location", "true");
+    ExpectScript(kPage,
+                 "Object.getOwnPropertyDescriptor(Location.prototype, 'pathname') !== undefined",
+                 "true");
     // The user agent is a fingerprinting surface before it is anything else.
     // This one says what the browser is and nothing about the machine it is
     // on, so every copy answers the same.
