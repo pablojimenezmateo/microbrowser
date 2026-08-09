@@ -598,25 +598,15 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     // is what puts a positioned box in one subtree and a positioned box in another
     // into the same ordered list -- the thing tree order could not do, and the
     // reason old.reddit.com's header bar could not be ordered against its sidebar.
-    struct Unit {
-      const Box* box = nullptr;
-      int layer = 0;
-      std::size_t order = 0;  // tree order, to break ties stably
-      // Intervening overflow scroll between this stacking context and the unit.
-      // Layout geometry is unscrolled; paint translates by -scroll (hit-testing
-      // adds the same delta to the point). Without it, youtube's
-      // position:relative Accept button under #content paints at y≈1421 while
-      // the scrolled viewport shows only the static yt-button-shape parent.
-      gfx::FloatPoint scroll_delta{};
-    };
-    std::vector<Unit> units;
+    std::vector<StackingUnit> units;
     const auto collect = [&units](const Box& parent, gfx::FloatPoint scroll_from_sc,
+                                  std::vector<InterveningClip> clips_from_sc,
                                   auto& recurse) -> void {
       for (const std::unique_ptr<Box>& child : parent.Children()) {
         const bool unit = PaintsAsUnit(*child);
         if (unit) {
-          units.push_back(
-              Unit{child.get(), PaintLayer(*child), units.size(), scroll_from_sc});
+          units.push_back(StackingUnit{child.get(), PaintLayer(*child), units.size(),
+                                       scroll_from_sc, clips_from_sc});
         }
         // A unit that is **not** a stacking context is descended into anyway, and
         // this line is load-bearing: `z-index: auto` means "order me, but let my own
@@ -630,28 +620,46 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
         // *non*-unit children when its turn comes.
         if (!unit || !IsStackingContext(*child)) {
           gfx::FloatPoint into = scroll_from_sc;
-          if (child->IsScrollContainer()) {
-            into.x += child->ScrollOffset().x;
-            into.y += child->ScrollOffset().y;
-          }
-          recurse(*child, into, recurse);
+          std::vector<InterveningClip> clips_into = clips_from_sc;
+          AccumulateOverflowForCollect(*child, into, clips_into);
+          recurse(*child, into, std::move(clips_into), recurse);
         }
       }
     };
-    collect(box, gfx::FloatPoint{}, collect);
+    collect(box, gfx::FloatPoint{}, {}, collect);
     // Stable in tree order within a layer, which is the tie-break the specification
     // names and the only one that makes a page deterministic.
-    std::stable_sort(units.begin(), units.end(), [](const Unit& a, const Unit& b) {
+    std::stable_sort(units.begin(), units.end(), [](const StackingUnit& a, const StackingUnit& b) {
       return a.layer != b.layer ? a.layer < b.layer : a.order < b.order;
     });
 
     const auto paint_units = [&](int from, int to, bool inclusive) {
-      for (const Unit& unit : units) {
+      for (const StackingUnit& unit : units) {
         if (unit.layer >= from && (inclusive ? unit.layer <= to : unit.layer < to)) {
           const gfx::FloatPoint unit_offset{child_offset.x - unit.scroll_delta.x,
                                             child_offset.y - unit.scroll_delta.y};
+          // Intervening overflow clips the tree walk would have PushClip'd while
+          // descending to this unit (TD-0030). Abspos keeps the existing exception
+          // shared with hit-testing — see SkipsInterveningOverflowClip.
+          int pushed = 0;
+          if (!SkipsInterveningOverflowClip(*unit.box)) {
+            for (const InterveningClip& clip : unit.intervening_clips) {
+              const float x = clip.padding_box.x + child_offset.x - clip.scroll_before.x;
+              const float y = clip.padding_box.y + child_offset.y - clip.scroll_before.y;
+              out.PushClip(gfx::IntRect{
+                  static_cast<int>(std::floor(x)),
+                  static_cast<int>(std::floor(y)),
+                  static_cast<int>(std::ceil(clip.padding_box.width)),
+                  static_cast<int>(std::ceil(clip.padding_box.height)),
+              });
+              ++pushed;
+            }
+          }
           self(*unit.box, unit_offset, child_frame, IsStackingContext(*unit.box), paint_opacity,
                self);
+          for (int i = 0; i < pushed; ++i) {
+            out.PopClip();
+          }
         }
       }
     };

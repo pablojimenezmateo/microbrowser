@@ -844,6 +844,50 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
         "el && el.id;");
     ExpectEqString(hit, "accept", "scrolled relative button is hit, not the overflow parent");
+
+    // TD-0030: after scroll the button's layout BorderBox may still lie below the
+    // scroller's padding box. Collect must clip — a point outside #content must
+    // not hit the button even though scroll_delta would map it onto the box.
+    const std::string outside = page.EvaluateScript(
+        "var c=document.getElementById('content');"
+        "var cr=c.getBoundingClientRect();"
+        "var el=document.elementFromPoint(cr.left+10, cr.bottom+20);"
+        "el && el.id;");
+    Expect(outside != "accept",
+           "relative button scrolled out of overflow:auto is not hit outside the clip");
+  });
+
+  AddTest(tests, "Page/CollectedRelativeUnitClippedByOverflowScroller", [] {
+    // Paint half of TD-0030: a collected position:relative unit under
+    // overflow:auto must PushClip the scroller's padding box the way the tree
+    // walk does for in-flow children.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "body{margin:0}"
+              "#dialog{position:fixed;left:0;top:0;width:200px;height:80px;z-index:2}"
+              "#content{height:80px;overflow:auto}"
+              "#spacer{height:200px}"
+              "#mark{position:relative;height:40px;background:red}"
+              "</style>"
+              "<body>"
+              "<div id=dialog><div id=content><div id=spacer></div>"
+              "<div id=mark></div></div></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    page.EvaluateScript("document.getElementById('content').scrollTop=1e9;");
+    page.Layout(400.0f);
+    gfx::DisplayList list;
+    page.Paint(list);
+    int pushes = 0;
+    int pops = 0;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      pushes += std::holds_alternative<gfx::PushClipCommand>(command) ? 1 : 0;
+      pops += std::holds_alternative<gfx::PopClipCommand>(command) ? 1 : 0;
+    }
+    Expect(pushes >= 1, "overflow:auto under a stacking context still PushClips");
+    ExpectEqInt(pushes, pops, "every PushClip has a matching PopClip");
   });
 
   AddTest(tests, "Page/ClickOnVideoTogglesPlayback", [] {

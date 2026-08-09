@@ -1614,21 +1614,30 @@ usefully when the server sends them (TD-0017).
 
 ---
 
-## TD-0030 — Collected stacking units skip intervening overflow clips
+## TD-0030 — Collected stacking units skip intervening overflow clips — **fixed 2026-08-10**
 
 **Opened** 2026-08-09 with the Appendix E hit-test / paint scroll_delta fix.
 
-**Symptom / gap.** Paint and hit-testing now apply intervening *scroll* when a
-stacking context collects a positioned unit from under an `overflow:auto`
-ancestor (youtube Accept). They still do not push that ancestor's clip for the
-collected unit: a partially scrolled relative button can paint outside the
-scroller's padding box, and hit-testing can accept a point the scroller would
-have clipped.
+**Symptom / gap.** Paint and hit-testing applied intervening *scroll* when a
+stacking context collected a positioned unit from under an `overflow:auto`
+ancestor (youtube Accept), but not that ancestor's *clip*: a partially scrolled
+relative button could paint and hit outside the scroller's padding box.
 
-**Close when** collect records clip rects (or re-enters scroll containers' clip
-state) for units the same way `PushClip` does on the tree walk, with a test
-that a `position:relative` control scrolled out of an `overflow:auto` box is
-neither painted nor hit outside that box.
+**Fix.** Collect records each intervening scroll container's padding box plus
+the scroll accumulated before entering it (`layout::InterveningClip` on
+`StackingUnit`). Paint `PushClip`s those rects (same floor/ceil as the tree
+walk); hit-test requires the point inside each before visiting the unit.
+Helpers live in `Stacking.h` so paint and hit-test stay in lockstep.
+Absolutely positioned units still skip intervening clips
+(`SkipsInterveningOverflowClip`) — the existing youtube-thumbnail exception
+documented next to `ScrollAdjust` / `Page/LinkAtThroughOverflowHiddenAncestor`.
+
+**Tests.** `Page/HitTestsRelativeInsideOverflowScroller` (outside-clip miss),
+`Page/CollectedRelativeUnitClippedByOverflowScroller`.
+
+**Close when.** Done for relative / in-flow collected units. Abspos under a
+non-covering `overflow:hidden` padding box remains the documented exception
+until thumbnail layout no longer needs it.
 
 ---
 

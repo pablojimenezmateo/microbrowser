@@ -90,43 +90,49 @@ const std::string* AnchorHref(const dom::Element* element) {
   return href != nullptr && !href->empty() ? href : nullptr;
 }
 
-struct PaintUnit {
-  const layout::Box* box = nullptr;
-  int layer = 0;
-  std::size_t order = 0;
-  // Scroll offsets of overflow ancestors between the collecting stacking context
-  // and this unit. Layout BorderBoxes stay in unscrolled coordinates; jumping
-  // to a collected unit (youtube Accept: position:relative button under
-  // #content { overflow:auto }) must add these or the button never contains
-  // the viewport point and the static yt-button-shape parent steals the hit.
-  gfx::FloatPoint scroll_delta{};
-};
-
-std::vector<PaintUnit> CollectPaintUnits(const layout::Box& parent) {
-  std::vector<PaintUnit> units;
+std::vector<layout::StackingUnit> CollectPaintUnits(const layout::Box& parent) {
+  std::vector<layout::StackingUnit> units;
   const auto recurse = [&units](const layout::Box& box, gfx::FloatPoint scroll_from_sc,
+                                std::vector<layout::InterveningClip> clips_from_sc,
                                 auto& self) -> void {
     for (const std::unique_ptr<layout::Box>& child : box.Children()) {
       const bool unit = layout::PaintsAsUnit(*child);
       if (unit) {
-        units.push_back(
-            PaintUnit{child.get(), layout::PaintLayer(*child), units.size(), scroll_from_sc});
+        units.push_back(layout::StackingUnit{child.get(), layout::PaintLayer(*child),
+                                             units.size(), scroll_from_sc, clips_from_sc});
       }
       if (!unit || !layout::IsStackingContext(*child)) {
         gfx::FloatPoint into = scroll_from_sc;
-        if (child->IsScrollContainer()) {
-          into.x += child->ScrollOffset().x;
-          into.y += child->ScrollOffset().y;
-        }
-        self(*child, into, self);
+        std::vector<layout::InterveningClip> clips_into = clips_from_sc;
+        layout::AccumulateOverflowForCollect(*child, into, clips_into);
+        self(*child, into, std::move(clips_into), self);
       }
     }
   };
-  recurse(parent, gfx::FloatPoint{}, recurse);
-  std::stable_sort(units.begin(), units.end(), [](const PaintUnit& a, const PaintUnit& b) {
-    return a.layer != b.layer ? a.layer < b.layer : a.order < b.order;
-  });
+  recurse(parent, gfx::FloatPoint{}, {}, recurse);
+  std::stable_sort(units.begin(), units.end(),
+                   [](const layout::StackingUnit& a, const layout::StackingUnit& b) {
+                     return a.layer != b.layer ? a.layer < b.layer : a.order < b.order;
+                   });
   return units;
+}
+
+// True when every intervening overflow clip still contains the point (TD-0030).
+// `scrolled` is the collecting context's ScrollAdjust'd point; each clip's
+// scroll_before maps it into that container's padding-box space.
+bool PointSurvivesInterveningClips(const layout::StackingUnit& unit,
+                                   gfx::FloatPoint scrolled) {
+  if (layout::SkipsInterveningOverflowClip(*unit.box)) {
+    return true;
+  }
+  for (const layout::InterveningClip& clip : unit.intervening_clips) {
+    const gfx::FloatPoint at{scrolled.x + clip.scroll_before.x,
+                             scrolled.y + clip.scroll_before.y};
+    if (!Contains(clip.padding_box, at)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Reverse of BuildDisplayList's Appendix E steps for one stacking context:
@@ -136,11 +142,14 @@ template <typename VisitUnit, typename VisitInFlow>
 bool VisitReversePaintChildren(const layout::Box& box, gfx::FloatPoint point, bool collects,
                                VisitUnit&& visit_unit, VisitInFlow&& visit_in_flow) {
   const gfx::FloatPoint scrolled = ScrollAdjust(box, point);
-  std::vector<PaintUnit> units;
+  std::vector<layout::StackingUnit> units;
   if (collects) {
     units = CollectPaintUnits(box);
     for (std::size_t i = units.size(); i-- > 0;) {
       if (units[i].layer <= 0) {
+        continue;
+      }
+      if (!PointSurvivesInterveningClips(units[i], scrolled)) {
         continue;
       }
       const gfx::FloatPoint at{scrolled.x + units[i].scroll_delta.x,
@@ -151,6 +160,9 @@ bool VisitReversePaintChildren(const layout::Box& box, gfx::FloatPoint point, bo
     }
     for (std::size_t i = units.size(); i-- > 0;) {
       if (units[i].layer != 0) {
+        continue;
+      }
+      if (!PointSurvivesInterveningClips(units[i], scrolled)) {
         continue;
       }
       const gfx::FloatPoint at{scrolled.x + units[i].scroll_delta.x,
@@ -180,6 +192,9 @@ bool VisitReversePaintChildren(const layout::Box& box, gfx::FloatPoint point, bo
   if (collects) {
     for (std::size_t i = units.size(); i-- > 0;) {
       if (units[i].layer >= 0) {
+        continue;
+      }
+      if (!PointSurvivesInterveningClips(units[i], scrolled)) {
         continue;
       }
       const gfx::FloatPoint at{scrolled.x + units[i].scroll_delta.x,
