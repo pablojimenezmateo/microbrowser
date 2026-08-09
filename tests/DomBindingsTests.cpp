@@ -95,6 +95,18 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "InvalidCharacterError");
   });
 
+  AddTest(tests, "DomBindings/CssSupportsAndEscape", [] {
+    // Same answers as `@supports` in the stylesheet path — a probe that
+    // disagreed with cascade would send youtube down a polyfill branch.
+    ExpectScript("<html><body></body></html>", "typeof CSS.supports", "function");
+    ExpectScript("<html><body></body></html>", "CSS.supports('display', 'flex')", "true");
+    ExpectScript("<html><body></body></html>", "CSS.supports('display: flex')", "true");
+    ExpectScript("<html><body></body></html>",
+                 "CSS.supports('display', 'not-a-real-value')", "false");
+    ExpectScript("<html><body></body></html>", "CSS.escape('foo bar')", "foo\\20 bar");
+    ExpectScript("<html><body></body></html>", "CSS.escape('0abc')", "\\30 abc");
+  });
+
   AddTest(tests, "DomBindings/CryptoSubtleAesCtrAndHmac", [] {
     // Web Crypto subset: youtube's `au()` probes importKey/sign/encrypt.
     Bound bound = Bind("<html><body></body></html>");

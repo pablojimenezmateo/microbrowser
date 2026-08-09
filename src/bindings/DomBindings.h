@@ -797,6 +797,10 @@ class DomBindings {
   // ShadowRoot. ADR 0019 §4.
   void InstallConstructableStylesheets(const js::Value& document_interface,
                                        const js::Value& shadow_root_interface);
+  // `window.CSS` with `supports` (and `escape`) — same answers `@supports`
+  // uses, so a page probing via script cannot disagree with a stylesheet.
+  // Lives next to constructable sheets because both are the CSSOM surface.
+  void InstallCssOm();
   // Parses `markup` with `context_tag_name` as the fragment parsing
   // algorithm's context element and inserts what it produced into `parent`
   // before `reference`. The one place a page's string becomes tree, so that

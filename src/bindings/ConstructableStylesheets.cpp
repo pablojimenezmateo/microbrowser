@@ -4,6 +4,7 @@
 // a `<style>` per instance. Lit on reddit and youtube depends on native
 // constructable stylesheets when `attachShadow` exists and skips the polyfill.
 
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <utility>
@@ -11,7 +12,10 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "css/StyleResolver.h"
+#include "css/StyleSheet.h"
 #include "dom/Node.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
 
@@ -219,6 +223,95 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
 
   install_adopted(document_interface);
   install_adopted(shadow_root_interface);
+}
+
+void DomBindings::InstallCssOm() {
+  if (interpreter_ == nullptr) {
+    return;
+  }
+  const Value css = interpreter_->NewObjectValue();
+  if (!css.IsObject()) {
+    return;
+  }
+
+  // Both call shapes go through the same answers `@supports` uses
+  // (SupportsDeclaration / SupportsConditionText), so a page probing via
+  // `CSS.supports` cannot disagree with a stylesheet's `@supports`.
+  const Value supports = interpreter_->NewNativeValue("supports", [](NativeCall& call) -> Value {
+    if (call.arguments.empty()) {
+      return Value::Bool(false);
+    }
+    bool ok = false;
+    if (call.arguments.size() >= 2) {
+      ok = css::SupportsDeclaration(js::ToString(call.arguments[0]),
+                                    js::ToString(call.arguments[1]));
+    } else {
+      ok = css::SupportsConditionText(js::ToString(call.arguments[0]));
+    }
+    util::AddPerformanceCounter(util::PerfCounterId::CssSupportsQueries);
+    return Value::Bool(ok);
+  });
+  if (supports.IsObject()) {
+    css.object->Set("supports", supports);
+  }
+
+  // CSS.escape: enough for an ident. A fuller escapable-string grammar is not
+  // what pages probe for; they need a function that turns `a b` into something
+  // `querySelector` can take.
+  const Value escape = interpreter_->NewNativeValue("escape", [](NativeCall& call) -> Value {
+    const std::string input = js::ToString(Argument(call.arguments, 0));
+    std::string out;
+    out.reserve(input.size() + 8);
+    std::size_t unit = 0;
+    for (std::size_t i = 0; i < input.size();) {
+      const unsigned char lead = static_cast<unsigned char>(input[i]);
+      std::uint32_t cp = 0;
+      std::size_t width = 1;
+      if (lead < 0x80) {
+        cp = lead;
+      } else if ((lead & 0xE0) == 0xC0 && i + 1 < input.size()) {
+        cp = (lead & 0x1F) << 6 | (static_cast<unsigned char>(input[i + 1]) & 0x3F);
+        width = 2;
+      } else if ((lead & 0xF0) == 0xE0 && i + 2 < input.size()) {
+        cp = (lead & 0x0F) << 12 | (static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6 |
+             (static_cast<unsigned char>(input[i + 2]) & 0x3F);
+        width = 3;
+      } else if ((lead & 0xF8) == 0xF0 && i + 3 < input.size()) {
+        cp = (lead & 0x07) << 18 | (static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12 |
+             (static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6 |
+             (static_cast<unsigned char>(input[i + 3]) & 0x3F);
+        width = 4;
+      } else {
+        char buf[8];
+        std::snprintf(buf, sizeof(buf), "\\%x ", lead);
+        out += buf;
+        ++i;
+        ++unit;
+        continue;
+      }
+      const bool as_name =
+          (cp == '_' || (cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || cp >= 0x80) ||
+          (unit > 0 && ((cp >= '0' && cp <= '9') || cp == '-')) ||
+          (unit == 0 && cp == '-' && i + width < input.size());
+      if (as_name) {
+        out.append(input, i, width);
+      } else {
+        char buf[16];
+        std::snprintf(buf, sizeof(buf), "\\%x ", static_cast<unsigned>(cp));
+        out += buf;
+      }
+      i += width;
+      ++unit;
+    }
+    util::AddPerformanceCounter(util::PerfCounterId::CssEscapeCalls);
+    return Value::String(std::move(out));
+  });
+  if (escape.IsObject()) {
+    css.object->Set("escape", escape);
+  }
+
+  interpreter_->Global()->Set("CSS", css);
+  interpreter_->GlobalScope()->Declare("CSS", css, false);
 }
 
 }  // namespace microbrowser::bindings

@@ -760,6 +760,31 @@ void ParseRuleList(const std::vector<Token>& tokens, std::size_t from, std::size
   }
 }
 
+bool SupportsConditionTextImpl(std::string_view condition) {
+  auto usable_end = [](const std::vector<Token>& tokens) {
+    std::size_t end = tokens.size();
+    while (end > 0 && tokens[end - 1].kind == Token::Kind::EndOfFile) {
+      --end;
+    }
+    return end;
+  };
+  const std::vector<Token> tokens = Tokenize(condition);
+  if (SupportsPreludeMatches(tokens, 0, usable_end(tokens))) {
+    return true;
+  }
+  // CSS.supports(conditionText): if the bare text is not a supports-condition,
+  // wrap it in parentheses and try again (CSS Conditional Rules §6.1). That is
+  // why `CSS.supports('display: flex')` works while `@supports display: flex`
+  // does not — the API is the forgiving entry point.
+  std::string wrapped;
+  wrapped.reserve(condition.size() + 2);
+  wrapped.push_back('(');
+  wrapped.append(condition);
+  wrapped.push_back(')');
+  const std::vector<Token> wrapped_tokens = Tokenize(wrapped);
+  return SupportsPreludeMatches(wrapped_tokens, 0, usable_end(wrapped_tokens));
+}
+
 }  // namespace
 
 std::vector<Declaration> ParseDeclarationList(std::string_view input) {
@@ -773,6 +798,10 @@ StyleSheet ParseStyleSheet(std::string_view input, const MediaContext& context) 
   AddPerformanceCounter(PerfCounterId::CssSheetsParsed);
   ParseRuleList(tokens, 0, tokens.size(), context, sheet);
   return sheet;
+}
+
+bool SupportsConditionText(std::string_view condition) {
+  return SupportsConditionTextImpl(condition);
 }
 
 }  // namespace microbrowser::css

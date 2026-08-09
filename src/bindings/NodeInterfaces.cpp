@@ -467,6 +467,7 @@ void DomBindings::EnsureInterfaces() {
     InstallConstructableStylesheets(*document_interface,
                                     shadow_root_interface != nullptr ? *shadow_root_interface
                                                                      : empty);
+    InstallCssOm();
   }
   InstallMutationObserver();
   if (geometry_ != nullptr) {

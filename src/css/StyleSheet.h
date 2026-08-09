@@ -305,4 +305,9 @@ std::vector<Declaration> ParseDeclarationList(std::string_view input);
 // everything.
 std::vector<Selector> ParseSelectorList(std::string_view input);
 
+// `CSS.supports(conditionText)` — the same grammar `@supports` uses, so a page
+// and a stylesheet cannot disagree. `SupportsDeclaration` is the two-argument
+// form (`CSS.supports(property, value)`).
+bool SupportsConditionText(std::string_view condition);
+
 }  // namespace microbrowser::css

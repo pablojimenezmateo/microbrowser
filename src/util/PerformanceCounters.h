@@ -189,6 +189,8 @@ namespace microbrowser::util {
   /* the number against css.rules_parsed is what the index is actually worth   */ \
   /* on a given page.                                                          */ \
   X(CssDynamicRulesIndexed, "css.dynamic_rules_indexed")                         \
+  X(CssSupportsQueries, "css.supports_queries")                                   \
+  X(CssEscapeCalls, "css.escape_calls")                                           \
   /* A dynamic state bit that actually flipped on an element. Counted apart    */ \
   /* from the moves that flipped nothing, because a pointer crossing a page    */ \
   /* generates far more of the second than of the first.                       */ \
