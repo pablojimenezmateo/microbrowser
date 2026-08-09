@@ -9,12 +9,9 @@
 #include "bindings/Geometry.h"
 #include "dom/Node.h"
 #include "js/Heap.h"
+#include "js/Interpreter.h"
 #include "js/Value.h"
 #include "util/StringUtil.h"
-
-namespace microbrowser::js {
-class Interpreter;
-}  // namespace microbrowser::js
 
 // Shared by the binding translation units, and private to the module: a
 // binding is an implementation detail of the seam, not part of its interface,
@@ -55,6 +52,20 @@ inline js::Value PointerValue(const void* pointer) {
 // manifest calls a security boundary.
 inline js::Value Argument(const std::vector<js::Value>& arguments, std::size_t index) {
   return index < arguments.size() ? arguments[index] : js::Value::Undefined();
+}
+
+// Convert a binding argument the way script operators do: `@@toPrimitive` /
+// `toString` / `valueOf`. `js::ToString` invents "[object Object]" for ordinary
+// objects and cannot see `Location`/`URL.prototype.toString` — which is how
+// `new URL(location)` became `https://…/[object%20Object]` and youtube's
+// consent `continue=` URL broke.
+inline bool CoerceToString(js::NativeCall& call, const js::Value& value, std::string& out) {
+  const js::Result converted = call.interpreter.ToStringOf(value, out);
+  if (converted.IsAbrupt()) {
+    (void)call.ThrowValue(converted.value);
+    return false;
+  }
+  return true;
 }
 
 class DomBindings;

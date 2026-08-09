@@ -4179,3 +4179,28 @@ that touch `Location.prototype` or `instanceof Location` saw a missing global.
 residual `ReferenceError: w` / `undefined (bound)` throws.
 
 ---
+
+## 2026-08-09 — `new URL(location)` coercion (TD-0027)
+
+**Status:** closed for URL-taking bindings; home skeleton diagnosed
+
+User-visible home was the CSS skeleton grid. Root cause of the broken consent
+`continue=` URL was `new URL(location)` →
+`https://www.youtube.com/[object%20Object]` because `URL`'s constructor used
+pure `js::ToString` instead of `ToStringOf` (Location's `toString` → href).
+Same helper applied to `fetch` / `Request` / `location.assign|href=` / XHR
+`open` / history URL args / anchor `href` setter.
+
+**Measured (Release):** `new URL(location).href` is `https://www.youtube.com/`;
+consent `a[href]` list has zero `object Object` entries; after Accept, SOCS set,
+dialogs 0, `ytd-feed-nudge-renderer` text "Your YouTube history is off…",
+`#home-page-skeleton` absent, `ytd-rich-item-renderer` 0 with
+`ytInitialData` contents `["richSectionRenderer"]` only — server history-off
+nudge, not a failed rich-item stamp. No `/youtubei/v1/browse` (guide +
+feedback only).
+
+**Left:** home rich items only when the server sends them; TD-0021 dirty-subtree;
+residual `ReferenceError: w` / `undefined (bound)`; non-URL `js::ToString`
+audit (TD-0027 remainder).
+
+---

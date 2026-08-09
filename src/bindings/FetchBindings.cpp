@@ -236,15 +236,23 @@ void DomBindings::InstallFetch() {
       // is what makes `fetch(new Request(url, a), b)` mean what a page expects.
       // YouTube SABR is exactly that shape: `fetch(new Request(url, {method,
       // body, credentials}))` with no second argument.
-      request.url = js::ToString(*input.object->Get("url"));
+      if (!CoerceToString(call, *input.object->Get("url"), request.url)) {
+        return call.ThrownValue();
+      }
       if (const Value* method = input.object->Get("method")) {
-        request.method = js::ToString(*method);
+        if (!CoerceToString(call, *method, request.method)) {
+          return call.ThrownValue();
+        }
       }
       if (const Value* mode = input.object->Get("mode")) {
-        request.mode = js::ToString(*mode);
+        if (!CoerceToString(call, *mode, request.mode)) {
+          return call.ThrownValue();
+        }
       }
       if (const Value* credentials = input.object->Get("credentials")) {
-        request.credentials = js::ToString(*credentials);
+        if (!CoerceToString(call, *credentials, request.credentials)) {
+          return call.ThrownValue();
+        }
       }
       if (const Value* headers = input.object->Get("headers")) {
         for (const Value& pair : ReadPairs(*headers, kHeaderPairsSlot)) {
@@ -252,7 +260,11 @@ void DomBindings::InstallFetch() {
         }
       }
       if (const Value* body = input.object->GetOwn(kRequestBodySlot)) {
-        request.body = body->IsString() ? body->AsString() : js::ToString(*body);
+        if (body->IsString()) {
+          request.body = body->AsString();
+        } else if (!CoerceToString(call, *body, request.body)) {
+          return call.ThrownValue();
+        }
         const Value* from_string = input.object->GetOwn(kRequestBodyFromStringSlot);
         request.body_from_string =
             from_string != nullptr && js::ToBoolean(*from_string);
@@ -260,8 +272,10 @@ void DomBindings::InstallFetch() {
       if (const Value* given = input.object->GetOwn(kRequestSignalSlot)) {
         signal = *given;
       }
-    } else {
-      request.url = js::ToString(input);
+    } else if (!CoerceToString(call, input, request.url)) {
+      // `fetch(location)` / `fetch(new URL(...))` must see href via toString,
+      // not the pure `js::ToString` "[object Object]" path.
+      return call.ThrownValue();
     }
     if (request.url.empty()) {
       return reject("fetch requires a URL");

@@ -127,11 +127,17 @@ void DomBindings::InstallXhr() {
       }
       return call.ThrowValue(error);
     }
-    const std::string method = js::ToString(Argument(call.arguments, 0));
+    std::string method;
+    if (!CoerceToString(call, Argument(call.arguments, 0), method)) {
+      return call.ThrownValue();
+    }
     call.self.object->SetHidden(kXhrMethodSlot,
                                 Value::String(method.empty() ? std::string("GET") : method));
-    call.self.object->SetHidden(kXhrUrlSlot,
-                               Value::String(js::ToString(Argument(call.arguments, 1))));
+    std::string url;
+    if (!CoerceToString(call, Argument(call.arguments, 1), url)) {
+      return call.ThrownValue();
+    }
+    call.self.object->SetHidden(kXhrUrlSlot, Value::String(url));
     // A re-open discards whatever the last exchange left behind. Without this a
     // reused XHR would answer with the previous response's headers.
     call.self.object->SetHidden(kXhrHeadersSlot, call.interpreter.NewArrayValue({}));

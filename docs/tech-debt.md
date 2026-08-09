@@ -1485,8 +1485,38 @@ type `cats` → Enter → `location.pathname==="/results"` with
 
 ---
 
+## TD-0027 — Binding URL arguments used pure `js::ToString` (no `toString`)
+
+**Closed** (2026-08-09) for URL-taking entry points.
+
+**Symptom.** youtube home's consent flow requested
+`consent.youtube.com/m?continue=https://www.youtube.com/%5Bobject%20Object%5D…`.
+Probe: `new URL(location).href === "https://www.youtube.com/[object%20Object]"`
+while `new URL(location.href)` was correct. The home skeleton stayed up through
+a broken consent continue; after a successful Accept the grid stamps the
+server's history-off `feedNudgeRenderer` ("Your YouTube history is off") with
+`ytd-rich-item-renderer` still 0 — that zero is the response, not a stamp miss.
+
+**Cause.** `URL` / `fetch` / `Request` / `location.assign` / XHR `open` /
+`history.pushState` URL args used `js::ToString`, which cannot call into the
+interpreter and invents `"[object Object]"` for ordinary objects.
+`ResolveUrl` then treated that as a path against the document base.
+
+**Fix.** `CoerceToString` in `BindingSupport.h` (`Interpreter::ToStringOf`) on
+those URL-taking sites. Test: `DomBindings/BlobUrlAndWindowPostMessage`
+(`new URL(location).pathname === "/a/b"`).
+
+**Still open (same class, lower urgency).** Non-URL binding arguments
+(`setAttribute`, style, storage keys, …) still use pure `js::ToString`. Audit
+when a page depends on coercing a host object there — do not blanket-replace
+without checking throw propagation.
+
+---
+
 ## Closed
 
+- **TD-0027 — Binding URL arguments used pure `js::ToString`** (2026-08-09).
+  See above.
 - **TD-0026 — youtube home searchbox preventDefaults Enter but never navigates**
   (2026-08-09). See above.
 - **TD-0024 — SPA search→watch can leave `ytd-player` without `#movie_player`**

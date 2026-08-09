@@ -1485,7 +1485,22 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   struct StubNetwork final : bindings::NetworkSource {
     std::uint64_t StartFetch(const bindings::ScriptRequest&) override { return 0; }
     void AbortFetch(std::uint64_t) override {}
-    std::string ResolveUrl(std::string_view, std::string_view) const override { return {}; }
+    std::string ResolveUrl(std::string_view relative, std::string_view base) const override {
+      // Absolute input wins. A relative that is the pure-ToString garbage
+      // "[object Object]" must NOT silently become base+"/…".
+      if (relative.find("://") != std::string_view::npos) {
+        return std::string(relative);
+      }
+      if (relative.empty()) {
+        return std::string(base);
+      }
+      std::string out(base);
+      if (!out.empty() && out.back() != '/') {
+        out.push_back('/');
+      }
+      out.append(relative);
+      return out;
+    }
     std::string RegisterBlobUrl(std::string body, std::string) override {
       registered = std::move(body);
       return "blob:null/42";
@@ -1496,8 +1511,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
 
   auto document = html::ParseDocument("<html><body></body></html>");
   auto interpreter = std::make_unique<js::Interpreter>();
-  bindings::DomBindings dom(*interpreter, *document, "https://example.org/", nullptr, &network,
-                            nullptr, nullptr, nullptr, nullptr, nullptr);
+  bindings::DomBindings dom(*interpreter, *document, "https://example.org/a/b?q=1", nullptr,
+                            &network, nullptr, nullptr, nullptr, nullptr, nullptr);
   dom.Install();
 
   const js::Result blob = interpreter->Run(
@@ -1505,6 +1520,16 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       "typeof Blob + '|' + URL.createObjectURL(b)");
   ExpectEqString(js::ToString(blob.value), "function|blob:null/42", "Blob registers a url");
   ExpectEqString(network.registered, "self._d=u=>import(u)", "blob body preserved");
+
+  // `new URL(location)` must coerce via Location.toString → href. The pure
+  // `js::ToString` path invents "[object Object]", which ResolveUrl then
+  // treats as a path against the document base — youtube's consent continue
+  // URL became `https://www.youtube.com/[object%20Object]?cbrd=1`.
+  const js::Result from_location = interpreter->Run(
+      "const u = new URL(location); u.href + '|' + u.pathname");
+  ExpectEqString(js::ToString(from_location.value),
+                 "https://example.org/a/b?q=1|/a/b",
+                 "new URL(location) uses Location.toString");
 
   const js::Result message = interpreter->Run(
       "let data = ''; window.addEventListener('message', e => { data = e.data[0]; });"

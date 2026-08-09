@@ -108,7 +108,10 @@ void DomBindings::InstallWindow() {
         if (owner == nullptr || owner->history_ == nullptr) {
           return Value::Undefined();
         }
-        const std::string url = js::ToString(Argument(call.arguments, 0));
+        std::string url;
+        if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
+          return call.ThrownValue();
+        }
         owner->history_->RequestNavigation(url, replace);
         return Value::Undefined();
       });
@@ -143,7 +146,10 @@ void DomBindings::InstallWindow() {
       if (owner == nullptr) {
         return Value::Undefined();
       }
-      const std::string url = js::ToString(Argument(call.arguments, 0));
+      std::string url;
+      if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
+        return call.ThrownValue();
+      }
       if (owner->history_ != nullptr) {
         owner->history_->RequestNavigation(url, false);
       } else if (call.self.IsObject()) {
@@ -248,11 +254,22 @@ void DomBindings::InstallUrlConstructor() {
   }
   const Value prototype = interpreter_->NewObjectValue();
   const Value constructor = interpreter_->NewNativeValue("URL", [this, prototype](NativeCall& call) {
-    const std::string relative = js::ToString(Argument(call.arguments, 0));
+    // Must coerce through `toString`: `js::ToString(location)` is
+    // "[object Object]", which then resolves as a path against the document
+    // base — `https://www.youtube.com/[object%20Object]` — and that string is
+    // what youtube put in consent.youtube.com's `continue=` parameter.
+    std::string relative;
+    if (!CoerceToString(call, Argument(call.arguments, 0), relative)) {
+      return call.ThrownValue();
+    }
     const Value base_argument = Argument(call.arguments, 1);
     // An absent base means the document's own address, which is what a relative URL is relative to.
-    const std::string base =
-        base_argument.IsUndefined() ? url_ : js::ToString(base_argument);
+    std::string base = url_;
+    if (!base_argument.IsUndefined()) {
+      if (!CoerceToString(call, base_argument, base)) {
+        return call.ThrownValue();
+      }
+    }
     const std::string resolved = network_->ResolveUrl(relative, base);
     if (resolved.empty()) {
       // The specification throws `TypeError` for a URL that does not parse, and pages depend on it:

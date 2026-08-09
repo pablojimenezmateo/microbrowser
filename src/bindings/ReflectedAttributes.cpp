@@ -272,7 +272,11 @@ void DomBindings::InstallHyperlinkElementUtils() {
     if (owner == nullptr || element == nullptr) {
       return Value::Undefined();
     }
-    owner->SetElementAttribute(*element, "href", js::ToString(Argument(call.arguments, 0)));
+    std::string href;
+    if (!CoerceToString(call, Argument(call.arguments, 0), href)) {
+      return call.ThrownValue();
+    }
+    owner->SetElementAttribute(*element, "href", href);
     return Value::Undefined();
   });
   if (href_get.IsObject() && href_set.IsObject()) {

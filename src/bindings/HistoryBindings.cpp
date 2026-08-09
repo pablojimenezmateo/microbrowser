@@ -101,9 +101,12 @@ void DomBindings::InstallHistory() {
           // browser ignores. Read and dropped, so that a page passing three
           // arguments is not a page passing the URL as the title.
           const Value url_argument = Argument(call.arguments, 2);
-          const std::string url =
-              url_argument.IsUndefined() || url_argument.IsNull() ? std::string()
-                                                                 : js::ToString(url_argument);
+          std::string url;
+          if (!url_argument.IsUndefined() && !url_argument.IsNull()) {
+            if (!CoerceToString(call, url_argument, url)) {
+              return call.ThrownValue();
+            }
+          }
 
           switch (history_->PushHistoryState(*serialized, url, replace)) {
             case HistorySource::UrlOutcome::Ok:

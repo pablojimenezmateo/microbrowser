@@ -530,15 +530,23 @@ void DomBindings::InstallRequest() {
         bool body_from_string = false;
         Value signal;
         if (input.IsObject() && input.object->GetOwn("url") != nullptr) {
-          url = js::ToString(*input.object->Get("url"));
+          if (!CoerceToString(call, *input.object->Get("url"), url)) {
+            return call.ThrownValue();
+          }
           if (const Value* existing = input.object->Get("method")) {
-            method = js::ToString(*existing);
+            if (!CoerceToString(call, *existing, method)) {
+              return call.ThrownValue();
+            }
           }
           if (const Value* existing = input.object->Get("mode")) {
-            mode = js::ToString(*existing);
+            if (!CoerceToString(call, *existing, mode)) {
+              return call.ThrownValue();
+            }
           }
           if (const Value* existing = input.object->Get("credentials")) {
-            credentials = js::ToString(*existing);
+            if (!CoerceToString(call, *existing, credentials)) {
+              return call.ThrownValue();
+            }
           }
           if (const Value* existing = input.object->Get("headers")) {
             for (const Value& pair : ReadPairs(*existing, kHeaderPairsSlot)) {
@@ -546,16 +554,19 @@ void DomBindings::InstallRequest() {
             }
           }
           if (const Value* existing = input.object->GetOwn(kRequestBodySlot)) {
-            body_bytes =
-                existing->IsString() ? existing->AsString() : js::ToString(*existing);
+            if (existing->IsString()) {
+              body_bytes = existing->AsString();
+            } else if (!CoerceToString(call, *existing, body_bytes)) {
+              return call.ThrownValue();
+            }
             const Value* from_string = input.object->GetOwn(kRequestBodyFromStringSlot);
             body_from_string = from_string != nullptr && js::ToBoolean(*from_string);
           }
           if (const Value* existing = input.object->GetOwn(kRequestSignalSlot)) {
             signal = *existing;
           }
-        } else {
-          url = js::ToString(input);
+        } else if (!CoerceToString(call, input, url)) {
+          return call.ThrownValue();
         }
         const Value init = Argument(call.arguments, 1);
         if (init.IsObject()) {
