@@ -1039,14 +1039,38 @@ offline store never opens — both still open platform gaps (survey: 2 and 7 use
 | piece | role | status |
 |---|---|---|
 | `TextEncoder` | `dW` key material from `DATASYNC_ID` | **done** |
-| `crypto.subtle` | `au()` → AES-CTR / HMAC for `W3O` PES encoder at `B[1]` | **done** (`importKey` still 0 on watch — encoder never constructed) |
-| `indexedDB` + `IDBTransaction` / `IDBObjectStore` / `IDBIndex` / `IDBKeyRange` | `yPS` feature-detect; without them `g.wU` is false and `plI` returns | **absent** |
-| `BroadcastChannel` | `X_` sync channel `PERSISTENT_ENTITY_STORE_SYNC:…` | **absent** |
+| `crypto.subtle` | `au()` → AES-CTR / HMAC for `W3O` PES encoder at `B[1]` | **done** |
+| `indexedDB` + `IDBTransaction` / `IDBObjectStore` / `IDBIndex` / `IDBKeyRange` | `yPS` feature-detect; without them `g.wU` is false and `plI` returns | **done** (ADR 0038) |
+| `BroadcastChannel` | `X_` sync channel `PERSISTENT_ENTITY_STORE_SYNC:…` | **done** (ADR 0038; document-scoped) |
 
 `plI` only constructs `W3O` (which installs the PES encoder) after `g.wU()` and
 `BroadcastChannel` succeed. Closing the Woffle report means **IndexedDB (ADR 0021
 §5) plus BroadcastChannel**, not more media surface. `fmt.unplayable` via
 `setmediasrc`/Gal may still be a separate throw once Woffle is quiet.
+
+**Update** (2026-08-09, later still). `BroadcastChannel` and a memory-backed
+`IndexedDB` (ADR 0038) landed: `indexedDB`/`IDBDatabase`/`IDBTransaction`/
+`IDBObjectStore`/`IDBIndex`/`IDBKeyRange`/`IDBCursor`/`IDBCursorWithValue`/
+`IDBRequest`/`IDBOpenDBRequest` and `BroadcastChannel` are all real
+constructors now, backed by `storage::PartitionedIndexedDb` (in-memory, 50MiB
+per partition) on one side of the seam and `bindings::IndexedDbSource` on the
+other, the same inversion ADR 0021 used for `sessionStorage`.
+
+Two bugs kept watch from using them even after the constructors existed:
+
+1. `"objectStoreNames" in IDBTransaction.prototype` was false — the name lived
+   as an own property on each transaction instance. `yPS` returns false for the
+   whole feature without opening anything.
+2. `"IDBTransaction" in self` was false — `MakeInterface` puts constructors in
+   the global *scope* only (so a page assigning `window.ShadowRoot = …` cannot
+   fork the bare name), but the `in` operator consulted the global object's
+   property map alone. Fixed in `Operators.cpp` to match `GetProperty`/
+   `SetProperty`'s "one namespace, two spellings" rule.
+
+What is **not** closed: `BroadcastChannel` is document-scoped rather than
+partition-scoped; index `keyPath` metadata is bindings-local so a reopen without
+`upgradeneeded` cannot repopulate indexes. Whether watch now reaches
+`crypto.subtle_import_key` and clears `fmt.unplayable` is the next measurement.
 
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 

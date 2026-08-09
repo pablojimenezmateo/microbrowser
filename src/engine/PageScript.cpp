@@ -241,7 +241,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url,
                                                      geometry_, network_, history_, storage_,
                                                      cookies_, sockets_, media_, canvas_,
-                                                     workers_);
+                                                     workers_, indexed_db_);
   bindings_->Install();
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   if (trusted_insertion_flush_) {

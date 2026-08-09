@@ -97,6 +97,16 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("typeof neverDeclared", "undefined");
   });
 
+  AddTest(tests, "JsInterpreter/InOnTheGlobalSeesScopeBindings", [] {
+    // Builtins and MakeInterface constructors live as global *scope* bindings,
+    // not own properties of the global object (so assigning window.ShadowRoot
+    // cannot fork the bare name). GetProperty/SetProperty already honour that;
+    // `in` must too — youtube's yPS does `"IDBTransaction" in self`.
+    ExpectEval("'Math' in globalThis", "true");
+    ExpectEval("'Object' in globalThis", "true");
+    ExpectEval("'definitelyNotABinding' in globalThis", "false");
+  });
+
   // --- Scope, closures and functions ---------------------------------------
 
   AddTest(tests, "JsInterpreter/ClosuresCaptureTheirScope", [] {

@@ -328,6 +328,8 @@ void DomBindings::Install() {
   InstallTreeWalkers(target);
   InstallImplementation(target);
   InstallMessageChannel();
+  InstallBroadcastChannel();
+  InstallIndexedDb();
   InstallRange();
   InstallPageVisibility(target);
 

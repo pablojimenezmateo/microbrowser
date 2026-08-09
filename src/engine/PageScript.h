@@ -15,6 +15,7 @@
 #include "bindings/DomBindings.h"
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
+#include "bindings/IndexedDb.h"
 #include "bindings/Performance.h"
 #include "bindings/Network.h"
 #include "bindings/Timers.h"
@@ -75,6 +76,10 @@ class PageScript {
   // And for `sessionStorage`/`localStorage`. Null leaves both names undeclared, which
   // is ADR 0012's rule and ADR 0021 §6's answer for a document with no keyed storage.
   void SetStorageSource(bindings::StorageSource* storage) { storage_ = storage; }
+  // ADR 0038. Null leaves `indexedDB` undeclared, the same rule the storage
+  // source follows -- a page that finds the name and gets a store that
+  // refuses every write is worse off than one that finds nothing.
+  void SetIndexedDbSource(bindings::IndexedDbSource* indexed_db) { indexed_db_ = indexed_db; }
   // And for `document.cookie`. Null leaves the accessor answering an empty string,
   // which is what a test with a bare document needs.
   void SetCookieSource(bindings::CookieSource* cookies) { cookies_ = cookies; }
@@ -450,6 +455,7 @@ class PageScript {
   bindings::NetworkSource* network_ = nullptr;
   bindings::HistorySource* history_ = nullptr;
   bindings::StorageSource* storage_ = nullptr;
+  bindings::IndexedDbSource* indexed_db_ = nullptr;
   bindings::CookieSource* cookies_ = nullptr;
   bindings::SocketSource* sockets_ = nullptr;
   bindings::MediaController* media_ = nullptr;

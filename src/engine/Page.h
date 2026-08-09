@@ -13,6 +13,7 @@
 
 #include "bindings/Cookies.h"
 #include "bindings/Geometry.h"
+#include "bindings/IndexedDb.h"
 #include "bindings/Network.h"
 #include "bindings/Media.h"
 #include "engine/DocumentPolicy.h"
@@ -238,6 +239,10 @@ class Page : private layout::ImageProvider,
   // arrived later would leave the first script of the first document without one, and
   // that first script is exactly where Plex looks for `sessionStorage`.
   void SetStorageSource(bindings::StorageSource* storage);
+  // ADR 0038. Same lifetime as the storage source, and the same reason:
+  // youtube's Woffle path opens its entity store from the first script that
+  // runs, not from a handler attached later.
+  void SetIndexedDbSource(bindings::IndexedDbSource* indexed_db);
   // ADR 0005. Borrowed and set before any script runs, for the reason the
   // storage source is: `document.cookie` must answer on the first line of a
   // page's inline script.

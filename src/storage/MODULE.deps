@@ -4,9 +4,18 @@ purpose: Client-side storage, partitioned. Memory by default; nothing reaches a 
 # open a socket is a store that could tell a site what another site wrote.
 allow: util url
 
-public: StorageArea.h PartitionedStorage.h
+public: StorageArea.h PartitionedStorage.h IndexedDbKey.h IndexedDbObjectStore.h PartitionedIndexedDb.h
 
 max_tu_lines: 500
 
 budget: StorageArea         header_lines=95 public_methods=12 members=3
 budget: PartitionedStorage  header_lines=70 public_methods=8  members=2
+
+# ADR 0038. The memory-only tier behind `indexedDB`, keyed by the same
+# `url::PartitionKey` as `sessionStorage`/`localStorage` -- see the lint's
+# `kPartitionedTypes` list in tests/ArchitectureInvariantsTests.cpp, which
+# `PartitionedIndexedDb` joins on this commit.
+budget: IndexedDbKey         header_lines=30 public_methods=5  members=4
+budget: IndexedDbObjectStore header_lines=49 public_methods=11 members=3
+budget: IndexedDbDatabase    header_lines=25 public_methods=7  members=3
+budget: PartitionedIndexedDb header_lines=35 public_methods=7  members=2

@@ -202,6 +202,40 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
 
 }
 
+// `MessagePort::onmessage` (MessageChannels.cpp) defines its handler property
+// this way rather than as plain data, and every later `on<type>` property
+// this codebase adds must follow it: `RunListenersOn` above reads
+// `holder.object->Get("on" + type)` as an *implicit* listener on every
+// dispatch (the `attribute` local), which is the specification's rule for an
+// `onclick` HTML attribute. A handler stored as ordinary data is visible to
+// that implicit read as well as to whatever explicit check installed it,
+// so it fires twice -- once from the explicit check, once from
+// `dispatchEvent`'s own attribute pass. `Object::Get` returns nullptr for an
+// accessor property (Heap.cpp `Object::Get`), which is what keeps the
+// implicit pass from seeing a handler stored behind one, and is why this
+// helper exists rather than a plain `Set`.
+void DomBindings::InstallOnEventAccessor(const js::Value& prototype, const char* name) {
+  if (!prototype.IsObject()) {
+    return;
+  }
+  const std::string slot = std::string("#") + name;
+  const Value getter = interpreter_->NewNativeValue(
+      name, [slot](NativeCall& call) -> Value {
+        const Value* found = call.self.IsObject() ? call.self.object->GetOwn(slot) : nullptr;
+        return found == nullptr ? Value::Null() : *found;
+      });
+  const Value setter = interpreter_->NewNativeValue(
+      name, [slot](NativeCall& call) -> Value {
+        if (call.self.IsObject()) {
+          call.self.object->SetHidden(slot, Argument(call.arguments, 0));
+        }
+        return Value::Undefined();
+      });
+  if (getter.IsObject() && setter.IsObject()) {
+    prototype.object->DefineAccessor(name, getter.object, setter.object);
+  }
+}
+
 js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
   EnsureInterfaces();
   if (!interfaces_.IsObject()) {

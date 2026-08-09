@@ -9,6 +9,7 @@
 
 #include "bindings/History.h"
 #include "bindings/Cookies.h"
+#include "bindings/IndexedDb.h"
 #include "bindings/Network.h"
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
@@ -23,6 +24,7 @@
 #include "gfx/Surface.h"
 #include "ipc/Message.h"
 #include "ipc/Transport.h"
+#include "storage/PartitionedIndexedDb.h"
 #include "storage/PartitionedStorage.h"
 #include "util/WaitDescriptor.h"
 
@@ -33,7 +35,8 @@ class Engine : private bindings::NetworkSource,
                private bindings::HistorySource,
                private bindings::StorageSource,
                private bindings::SocketSource,
-               private bindings::CookieSource {
+               private bindings::CookieSource,
+               private bindings::IndexedDbSource {
   friend const std::vector<std::string>& CspViolations(const Engine&);
   friend void SettleForSnapshot(Engine& engine);
 
@@ -329,6 +332,35 @@ class Engine : private bindings::NetworkSource,
   // rather than crashing. An opaque origin genuinely has no keyed storage.
   storage::StorageArea* AreaFor(bindings::StorageSource::Kind kind);
 
+  // bindings::IndexedDbSource. ADR 0038, in EngineIndexedDb.cpp, and private for the
+  // reason StorageSource is: **this is where the partition key is derived**, the same
+  // way `AreaFor` derives one for `sessionStorage`, and `src/bindings` cannot see
+  // `url::PartitionKey` at all.
+  bool Available() override;
+  OpenResult OpenDatabase(const std::string& name, std::uint64_t version) override;
+  void DeleteDatabase(const std::string& name) override;
+  bool CreateObjectStore(const std::string& db, const std::string& store,
+                         const bindings::IndexedDbKeyPath& key_path) override;
+  bool CreateIndex(const std::string& db, const std::string& store, const std::string& index,
+                   bool unique) override;
+  std::vector<std::string> ObjectStoreNames(const std::string& db) override;
+  std::vector<std::string> IndexNames(const std::string& db, const std::string& store) override;
+  bindings::IndexedDbKeyPath ObjectStoreKeyPath(const std::string& db,
+                                                const std::string& store) override;
+  PutResult Put(const std::string& db, const std::string& store,
+               const bindings::IndexedDbKeyValue& key, std::vector<std::uint8_t> value,
+               std::vector<IndexKeyEntry> index_keys) override;
+  std::optional<std::vector<std::uint8_t>> Get(const std::string& db, const std::string& store,
+                                               const bindings::IndexedDbKeyValue& key) override;
+  bool Delete(const std::string& db, const std::string& store,
+             const bindings::IndexedDbKeyValue& key) override;
+  std::vector<CursorEntry> Query(const std::string& db, const std::string& store,
+                                 const std::string& index,
+                                 const std::optional<bindings::IndexedDbKeyValue>& only_key) override;
+  // The partition's databases, or null when the document has no URL a partition key
+  // can be built from -- the same `about:blank` / opaque-origin case `AreaFor` refuses.
+  storage::PartitionedIndexedDb::Databases* DatabasesFor();
+
   // bindings::NetworkSource. Private inheritance for the reason Page's
   // GeometrySource is private: the binding layer holds a reference to the
   // interface and nothing else has business calling these.
@@ -404,6 +436,10 @@ class Engine : private bindings::NetworkSource,
   std::map<std::uint64_t, std::unique_ptr<net::EventSourceConnection>> event_sources_;
   storage::PartitionedStorage session_storage_;
   storage::PartitionedStorage local_storage_;
+  // ADR 0038. In memory only, like the two above -- and, like them, cleared by
+  // nothing this engine does today, because there is no second document yet to
+  // navigate away and free the first one's.
+  storage::PartitionedIndexedDb indexed_db_;
   Page page_;
   // Once, before the document's own scripts. See SetScriptPrelude.
   std::string script_prelude_;

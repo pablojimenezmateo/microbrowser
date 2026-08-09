@@ -112,6 +112,8 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // the three: Plex's very first inline script, before any bundle loads, reads
   // `sessionStorage`.
   page_.SetStorageSource(this);
+  // And `indexedDB`, ADR 0038, same lifetime and same reason as sessionStorage.
+  page_.SetIndexedDbSource(this);
   // And its sockets, same lifetime and same reason.
   page_.SetSocketSource(this);
   // And its cookies, same lifetime and same reason. Reddit's GQL reads

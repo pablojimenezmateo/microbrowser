@@ -584,7 +584,8 @@ std::vector<Violation> CheckStorageLookupsArePartitioned(const SourceSet& files,
   // rather than a habit. `PartitionedStorage` is the store behind `sessionStorage` and
   // `localStorage`; IndexedDB and the Cache API join it here when they land.
   static constexpr std::string_view kPartitionedTypes[] = {"CookieJar", "HttpCache",
-                                                           "PartitionedStorage"};
+                                                           "PartitionedStorage",
+                                                           "PartitionedIndexedDb"};
 
   for (const SourceFile& file : files) {
     if (!file.IsHeader()) {

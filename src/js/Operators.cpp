@@ -666,7 +666,20 @@ Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
           return Result::Normal(Value::Bool(b.object->HasElement(*index)));
         }
       }
-      return Result::Normal(Value::Bool(b.object->GetProperty(key) != nullptr));
+      if (b.object->GetProperty(key) != nullptr) {
+        return Result::Normal(Value::Bool(true));
+      }
+      // Same "one namespace, two spellings" rule GetProperty/SetProperty use on
+      // the global object: builtins and `MakeInterface` constructors live as
+      // scope bindings rather than own properties (so a page that assigns
+      // `window.ShadowRoot = …` cannot fork the bare name from the property).
+      // `'IDBTransaction' in self` must therefore see the binding too —
+      // youtube's `yPS` refuses IndexedDB entirely when this answers false.
+      if (b.object == Global() && GlobalScope() != nullptr &&
+          GlobalScope()->Lookup(key) != nullptr) {
+        return Result::Normal(Value::Bool(true));
+      }
+      return Result::Normal(Value::Bool(false));
     }
 
     case BinaryOp::InstanceOf: {

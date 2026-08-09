@@ -30,7 +30,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # is how the binding layer asks it rather than re-implementing it wrong.
 allow: util js dom html css
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h
 
 extern:
 
@@ -40,7 +40,11 @@ extern:
 # landed in FetchTypes.cpp (SABR / `getReader()` on youtube.com). Raised to 800
 # for those helpers rather than inventing a second fetch TU for one Response
 # accessor.
-max_tu_lines: 800
+# Raised again to 900 for ADR 0038's IndexedDB request/transaction/cursor
+# machinery declared on `DomBindings` itself (see the class budget's comment) --
+# the two new .cpp files it is implemented across, IndexedDbBindings.cpp and
+# IndexedDbRequests.cpp, both stay well under this cap on their own.
+max_tu_lines: 900
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
 # safe while nothing frees a node before its document. `Node::Remove` would;
@@ -216,7 +220,19 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # share with `querySelector`.
 # Raised for `InstallTextEncoding` (TextEncoder/TextDecoder): one declaration so
 # the Encoding Standard's UTF-8 half is a window global — youtube's PES path.
-budget: DomBindings header_lines=810 public_methods=40 members=23
+# Raised again, and by a member, for ADR 0038's IndexedDbSource and the request/
+# transaction/cursor delivery machinery around it -- MakeIdbRequest, MakeIdbIndex,
+# MakeIdbObjectStore, OpenIdbCursor, DeliverIdbEvent and the index-metadata table
+# `IdbIndexKeyPath` reads, none of which may live as free functions because each
+# calls another private member (InterfaceNamed, MaybeCompleteIdbTransaction) that
+# a free function gets no access to just because its only caller has some.
+budget: DomBindings header_lines=880 public_methods=40 members=24
+# ADR 0038's `indexedDB` seam: a database/store/key/version question this module
+# declares and `src/engine` answers, the same inversion StorageSource uses. Four
+# extra "methods" over what reads as the API (16) are the deleted copy ops and
+# the constructor/destructor every interface with `= delete` on it costs here --
+# see IndexedDbObjectStore's own header for the same accounting.
+budget: IndexedDbSource header_lines=65 public_methods=16 members=0
 # Where `history` goes: the questions a page may ask about session history, as an
 # interface this module declares and `src/engine` implements. Five methods, and
 # the shape of PushHistoryState is the point -- it takes the URL as the page

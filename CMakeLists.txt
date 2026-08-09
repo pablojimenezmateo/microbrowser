@@ -336,6 +336,9 @@ microbrowser_module(net
 
 microbrowser_module(storage
   SOURCES
+    src/storage/IndexedDbKey.cpp
+    src/storage/IndexedDbObjectStore.cpp
+    src/storage/PartitionedIndexedDb.cpp
     src/storage/PartitionedStorage.cpp
     src/storage/StorageArea.cpp
   DEPS microbrowser_util microbrowser_url)
@@ -407,6 +410,7 @@ microbrowser_module(engine
     src/engine/ModuleLoader.cpp
     src/engine/EngineSockets.cpp
     src/engine/EngineStorage.cpp
+    src/engine/EngineIndexedDb.cpp
     src/engine/EngineCookies.cpp
     src/engine/Page.cpp
     src/engine/PageHitTest.cpp
@@ -483,6 +487,9 @@ microbrowser_module(bindings
     src/bindings/TreeMutation.cpp
     src/bindings/TreeWalkers.cpp
     src/bindings/MessageChannels.cpp
+    src/bindings/BroadcastChannelBindings.cpp
+    src/bindings/IndexedDbBindings.cpp
+    src/bindings/IndexedDbRequests.cpp
     src/bindings/MediaQueries.cpp
     src/bindings/Ranges.cpp
     src/bindings/HtmlParsing.cpp
@@ -659,6 +666,9 @@ add_executable(microbrowser_tests
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp
   tests/StorageTests.cpp
+  tests/IndexedDbTests.cpp
+  tests/IndexedDbScriptTests.cpp
+  tests/BroadcastChannelTests.cpp
   tests/WebFontTests.cpp
   tests/WebSocketTests.cpp
   tests/Woff2Tests.cpp

@@ -12,6 +12,7 @@
 #include "bindings/History.h"
 #include "bindings/Canvas.h"
 #include "bindings/Workers.h"
+#include "bindings/IndexedDb.h"
 #include "bindings/Media.h"
 #include "bindings/Network.h"
 #include "bindings/Cookies.h"
@@ -119,12 +120,14 @@ class DomBindings {
   // `window.localStorage` and finds a store that throws on every write is worse off
   // than one that finds nothing: ADR 0012, and ADR 0021 §6 says the same about
   // `navigator.storage.persist()`.
+  // `indexed_db` is where `indexedDB` is answered, or null when there is no store
+  // behind it -- and then, like `storage`, **the name is not declared**. ADR 0038.
   DomBindings(js::Interpreter& interpreter, dom::Document& document, std::string url = {},
               GeometrySource* geometry = nullptr, NetworkSource* network = nullptr,
               HistorySource* history = nullptr, StorageSource* storage = nullptr,
               CookieSource* cookies = nullptr, SocketSource* sockets = nullptr,
               MediaController* media = nullptr, CanvasSurface* canvas = nullptr,
-              WorkerHost* workers = nullptr);
+              WorkerHost* workers = nullptr, IndexedDbSource* indexed_db = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
@@ -377,6 +380,11 @@ class DomBindings {
   // is how youtube's player stamps the script URL J14 later compares.
   js::Value MakeDataset(dom::Element& element);
   void InstallEventMethods(const js::Value& wrapper);
+  // An `on<type>` handler property as an accessor over a hidden slot, defined
+  // once on a shared prototype rather than as per-instance data. See the
+  // comment on this method in EventBindings.cpp for why a plain data property
+  // fires a handler twice.
+  void InstallOnEventAccessor(const js::Value& prototype, const char* name);
   // One event object, with its flags and the two ways to stop it.
   // `trusted` says whether the browser made it or a page did -- a page's own
   // event must not be able to cause what a real one causes.
@@ -609,6 +617,79 @@ class DomBindings {
   // else that this module can see, which is exactly what ADR 0021's seam is for.
   void InstallStorage();
 
+  // --- IndexedDB, in IndexedDbBindings.cpp and IndexedDbRequests.cpp --------
+  // `indexedDB`, installed only when there is an IndexedDbSource, for the reason
+  // `sessionStorage` is: a name that exists and refuses every write is worse than
+  // no name at all. ADR 0038.
+  void InstallIndexedDb();
+  // An index's keyPath and uniqueness, remembered here because `src/storage` does
+  // not carry one (it may not see `js`, so it cannot extract a key from a value)
+  // and the engine's seam has no getter for it -- only this binding ever asked to
+  // create the index, so only this binding needs to remember what it asked for.
+  // Kept as a JavaScript object hung off the interfaces object rather than a C++
+  // table, for the reason every other piece of cross-call state here is: the
+  // collector can see a property and cannot see a value in a field.
+  js::Value IdbIndexMetaTable();
+  void RememberIdbIndexMeta(const std::string& db, const std::string& store,
+                           const std::string& index, const IndexedDbKeyPath& key_path,
+                           bool unique);
+  // Nothing when this index was never created, or was created with no keyPath.
+  std::optional<IndexedDbKeyPath> IdbIndexKeyPath(const std::string& db, const std::string& store,
+                                                  const std::string& index);
+  bool IdbIndexIsUnique(const std::string& db, const std::string& store,
+                        const std::string& index);
+  // Schedules `request`'s `success` (or `error`, for `DeliverIdbError`) as a
+  // macrotask -- `TimerQueue::QueueTask`, exactly like a `MessagePort`'s delivery
+  // and for the same reason: a page's own transaction-completion promise must
+  // actually cross a turn, not settle inside the call that started it.
+  void DeliverIdbSuccess(const js::Value& request, const js::Value& result);
+  void DeliverIdbError(const js::Value& request, const std::string& name,
+                       const std::string& message);
+  // Fires `type` on `request` (running its `onX` handler and then any
+  // listener), then tells the owning transaction one of its requests
+  // finished. The shared tail of `DeliverIdbSuccess` and `DeliverIdbError`,
+  // which differ only in which field they set first and which names they
+  // pass here. A private member rather than a free function for the reason
+  // every other helper below it is: it calls `InterfaceNamed` and
+  // `MaybeCompleteIdbTransaction`, and a free function gets no access to
+  // either just because its only caller has some.
+  void DeliverIdbEvent(const js::Value& request, const char* type, const char* handler_name);
+  // Decrements `transaction`'s pending-request count and fires `complete` when it
+  // reaches zero. Called at the tail of every request's own delivery, which is
+  // late enough: a handler that starts another request synchronously has already
+  // incremented the count again by the time this runs.
+  void MaybeCompleteIdbTransaction(const js::Value& transaction);
+  // A new `IDBRequest` (or `IDBOpenDBRequest`), entangled with `transaction` --
+  // undefined for `indexedDB.open()`, since that request is not part of one.
+  // Shared by both IndexedDB translation units because every operation in
+  // either one starts by making a request.
+  js::Value MakeIdbRequest(const char* interface_name, const js::Value& source,
+                           const js::Value& transaction);
+  // `IDBIndex`, bound to `db`/`store`/`index`/`transaction`. Called from both
+  // `IDBObjectStore.createIndex` and `.index` here, and from
+  // IndexedDbRequests.cpp where the index's own methods (`get`, `getAll`,
+  // `openCursor`) are installed -- declared once because both files make one.
+  js::Value MakeIdbIndex(const std::string& db, const std::string& store,
+                         const std::string& index, const js::Value& transaction);
+  // An `IDBObjectStore` wrapper bound to `db`/`store`/`transaction`. Every
+  // call to `IDBTransaction.objectStore` or `IDBDatabase.createObjectStore`
+  // makes a fresh one rather than caching it -- a store handed out by one
+  // transaction is not valid on another.
+  js::Value MakeIdbObjectStore(const std::string& db, const std::string& store,
+                              const js::Value& transaction);
+  // A fresh `IDBCursor` (or `IDBCursorWithValue`) over `db`/`store`, filtered
+  // by `index` (empty for the store's own primary key) and `only`. Delivers
+  // as `request`'s result, positioned on the first matching entry or `null`
+  // when there is none -- `openCursor` never errors just because nothing
+  // matched. In IndexedDbRequests.cpp.
+  void OpenIdbCursor(IndexedDbSource& source, const std::string& db, const std::string& store,
+                     const std::string& index, const js::Value& only, const js::Value& transaction,
+                     const js::Value& request, bool with_value);
+  // `IDBIndex`, `IDBKeyRange` and the two cursor interfaces, in
+  // IndexedDbRequests.cpp -- split from InstallIndexedDb once that function's
+  // file reached the module's line cap.
+  void InstallIndexedDbCursors();
+
   // --- fetch, in FetchBindings.cpp and FetchTypes.cpp -----------------------
   // Installed only when there is a NetworkSource, for the reason the geometry
   // bindings are installed only when there is a GeometrySource: a `fetch` that
@@ -674,6 +755,13 @@ class DomBindings {
   void StartPort(const js::Value& port);
   void DeliverPortMessage(const js::Value& port, const js::SerializedValue& serialized);
   void DispatchPortMessage(const js::Value& port, const js::Value& data);
+  // `BroadcastChannel`, in BroadcastChannelBindings.cpp -- every channel of one name
+  // this document has opened hears every message any of the others posts. See the
+  // note at the top of that file for what "this document" leaves out.
+  void InstallBroadcastChannel();
+  js::Value LiveBroadcastChannels();
+  void DeliverBroadcastMessage(const js::Value& sender, const js::SerializedValue& serialized);
+  void DispatchBroadcastMessage(const js::Value& target, const js::SerializedValue& serialized);
   js::Value InterfaceNamed(const char* name);
   js::Value DocumentInterface();
   // `window.matchMedia`, in MediaQueries.cpp. Through the geometry seam,
@@ -774,6 +862,9 @@ class DomBindings {
   // `history` is not declared at all. Same rule as the two above.
   HistorySource* history_ = nullptr;
   StorageSource* storage_ = nullptr;
+  // ADR 0038. Borrowed and null when there is no store behind this layer, in
+  // which case `indexedDB` is not declared at all -- the same rule `storage_` follows.
+  IndexedDbSource* indexed_db_ = nullptr;
   CookieSource* cookies_ = nullptr;
   SocketSource* sockets_ = nullptr;
   MediaController* media_ = nullptr;

@@ -588,7 +588,28 @@ namespace microbrowser::util {
   /* two are how a next session decides whether an index is worth its          */ \
   /* invalidation: candidates/walks is the average document's answer.          */ \
   X(FocusTabWalks, "focus.tab_walks")                                            \
-  X(FocusTabCandidates, "focus.tab_candidates")
+  X(FocusTabCandidates, "focus.tab_candidates")                                 \
+  /* --- BroadcastChannel (ADR 0038) ----------------------------------------- */ \
+  /* Constructed apart from delivered: a page that opens a channel and never   */ \
+  /* sees `delivered` move is either alone in its name or posting before the   */ \
+  /* other end attached a listener.                                           */ \
+  X(BroadcastChannelsConstructed, "broadcast_channel.constructed")               \
+  X(BroadcastChannelMessagesPosted, "broadcast_channel.messages_posted")         \
+  X(BroadcastChannelMessagesDelivered, "broadcast_channel.messages_delivered")   \
+  X(BroadcastChannelClosed, "broadcast_channel.closed")                          \
+  /* --- IndexedDB (ADR 0038) ------------------------------------------------- */ \
+  /* `opens` against `upgrades` says how much of an `open()` a page's own       */ \
+  /* `onupgradeneeded` actually costs -- youtube's Woffle path fires one         */ \
+  /* upgrade and then reopens at that version forever.                          */ \
+  X(IdbOpens, "idb.opens")                                                       \
+  X(IdbUpgrades, "idb.upgrades")                                                 \
+  X(IdbPuts, "idb.puts")                                                        \
+  X(IdbGets, "idb.gets")                                                        \
+  X(IdbDeletes, "idb.deletes")                                                  \
+  X(IdbCursorQueries, "idb.cursor_queries")                                     \
+  X(IdbConstraintErrors, "idb.constraint_errors")                               \
+  X(IdbQuotaRefusals, "idb.quota_refusals")                                     \
+  X(IdbPartitionsCreated, "idb.partitions_created")
 
 enum class PerfCounterId : std::size_t {
 #define MICROBROWSER_PERF_COUNTER_ENUM(id, name) id,

@@ -495,6 +495,10 @@ void Page::SetStorageSource(bindings::StorageSource* storage) {
   script_.SetStorageSource(storage);
 }
 
+void Page::SetIndexedDbSource(bindings::IndexedDbSource* indexed_db) {
+  script_.SetIndexedDbSource(indexed_db);
+}
+
 void Page::SetCookieSource(bindings::CookieSource* cookies) {
   script_.SetCookieSource(cookies);
 }
