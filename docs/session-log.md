@@ -4232,3 +4232,33 @@ clamp passes the used content height, making `min-height:100%` a no-op).
 server sends them; watch settle wall.
 
 ---
+
+## 2026-08-09 — youtube skeleton: event UAF + `[object Object]` fetch
+
+**Status:** interactive youtube home no longer ASAN-aborts on geometry; bad
+`GET /[object%20Object]` gone
+
+User report: app stuck on home skeleton. Two platform bugs stacked on the
+consent / settle path:
+
+1. **UAF (TD-0029).** `DispatchEventTo` drained microtasks then read
+   `defaultPrevented` on an event that was only a C++ local. Script `load` on
+   youtube allocated past the GC threshold inside a `then` → Collect freed the
+   event → ASAN heap-use-after-free (Release: SIGFPE in `GetOwnProperty`).
+   `ValueRoot` for the event across the drain (same root as thrown completions).
+
+2. **`fetch({})` → network (TD-0027 extension).** A plain object with no
+   Request shape coerced to `"[object Object]"`, resolved against the document
+   base, and issued `GET https://www.youtube.com/[object%20Object]` (timeline
+   + `fetch.object_object_url`). Chrome throws TypeError first. Also finished
+   DOMString coercion on reflected attrs / `setAttribute` / `encodeURI*` /
+   WebSocket / EventSource.
+
+**Measured (Release):** no `object%20Object` request; `fetch.object_object_url`
+0; ASAN youtube + `getBoundingClientRect` on the consent dialog completes.
+`HTMLElement.click()` on Accept still sets SOCS; trusted `-click` on the
+paper-button coords still focuses the dialog instead (hit-test / TD-0028).
+
+**Left:** TD-0028 page-manager height / nudge visibility; trusted Accept
+click hit-testing; home rich items when the server sends them.
+

@@ -1489,29 +1489,62 @@ type `cats` → Enter → `location.pathname==="/results"` with
 
 ## TD-0027 — Binding URL arguments used pure `js::ToString` (no `toString`)
 
-**Closed** (2026-08-09) for URL-taking entry points.
+**Closed** (2026-08-09) for URL-taking entry points; **extended** same day.
 
 **Symptom.** youtube home's consent flow requested
 `consent.youtube.com/m?continue=https://www.youtube.com/%5Bobject%20Object%5D…`.
 Probe: `new URL(location).href === "https://www.youtube.com/[object%20Object]"`
-while `new URL(location.href)` was correct. The home skeleton stayed up through
-a broken consent continue; after a successful Accept the grid stamps the
-server's history-off `feedNudgeRenderer` ("Your YouTube history is off") with
-`ytd-rich-item-renderer` still 0 — that zero is the response, not a stamp miss.
+while `new URL(location.href)` was correct. Separately, `fetch({})` (a plain
+object with no Request shape) was coerced to the relative URL
+`[object Object]`, resolved against the document base, and actually issued
+`GET https://www.youtube.com/[object%20Object]` (counter
+`fetch.object_object_url`). Chrome rejects that with TypeError before any
+request.
 
 **Cause.** `URL` / `fetch` / `Request` / `location.assign` / XHR `open` /
-`history.pushState` URL args used `js::ToString`, which cannot call into the
-interpreter and invents `"[object Object]"` for ordinary objects.
+`history.pushState` URL args — and later reflected DOMString attrs /
+`setAttribute` / `encodeURI*` / WebSocket / EventSource — used `js::ToString`,
+which cannot call into the interpreter and invents `"[object Object]"`.
 `ResolveUrl` then treated that as a path against the document base.
 
-**Fix.** `CoerceToString` in `BindingSupport.h` (`Interpreter::ToStringOf`) on
-those URL-taking sites. Test: `DomBindings/BlobUrlAndWindowPostMessage`
-(`new URL(location).pathname === "/a/b"`).
+**Fix.**
 
-**Still open (same class, lower urgency).** Non-URL binding arguments
-(`setAttribute`, style, storage keys, …) still use pure `js::ToString`. Audit
-when a page depends on coercing a host object there — do not blanket-replace
-without checking throw propagation.
+- `CoerceToString` (`Interpreter::ToStringOf`) on URL-taking sites, reflected
+  attribute setters, `setAttribute`/`setAttributeNS`, `encodeURI`/
+  `encodeURIComponent`, WebSocket and EventSource constructors.
+- `fetch` / `Request` / XHR `open` refuse the literal `"[object Object]"` with
+  TypeError (Chrome's `fetch({})` behaviour), so a bad coerce cannot become a
+  network request.
+- Counter `fetch.object_object_url` if one still reaches `Engine::StartFetch`.
+
+**Tests.** `DomBindings/BlobUrlAndWindowPostMessage` (location → URL /
+encodeURIComponent / `link.href` / `img.src` / `setAttribute` / `fetch({})` /
+`new Request({})`); `JsInterpreter/TheUriFunctionsDifferInWhatTheyKeep`.
+
+**Still open (same class, lower urgency).** Style `setProperty` / storage keys
+and other non-URL DOMString sites that still use pure `js::ToString`. Audit
+when a page depends on coercing a host object there.
+
+---
+
+## TD-0029 — Event object UAF across `DrainMicrotasks` in `DispatchEventTo`
+
+**Closed** (2026-08-09).
+
+**Symptom.** ASAN heap-use-after-free (Release: SIGFPE in
+`Object::GetOwnProperty`) when youtube.com fired script `load` and the
+handler's microtasks allocated past the GC threshold. The event from
+`MakeEvent` was only a C++ local; `DrainMicrotasks` → `MaybeCollect` freed it;
+reading `defaultPrevented` afterwards was UAF. Interactive loads that forced
+layout/`getBoundingClientRect` during settle hit it often enough to abort.
+
+**Fix.** `Interpreter::ValueRoot` on the event for the whole of
+`DispatchEventTo`, `DispatchAtWindowWith`, and `NotifyScriptElementEvent`
+(same root already used for thrown completions and microtask jobs).
+
+**Test.** `DomBindings/APageCanMakeAndDispatchItsOwnEvents` — cancelable
+dispatch whose handler queues an allocating `then`; returns `false` after the
+drain without crashing.
 
 ---
 
@@ -1541,8 +1574,11 @@ inside the visible viewport without `-eval` scroll hacks, and
 
 ## Closed
 
+- **TD-0029 — Event UAF across DrainMicrotasks in DispatchEventTo** (2026-08-09).
+  ValueRoot on the event; see open entry above (now closed).
 - **TD-0027 — Binding URL arguments used pure `js::ToString`** (2026-08-09).
-  See above.
+  See above (extended: reflected attrs, setAttribute, encodeURI*, sockets,
+  fetch({}) refusal).
 - **TD-0026 — youtube home searchbox preventDefaults Enter but never navigates**
   (2026-08-09). See above.
 - **TD-0024 — SPA search→watch can leave `ytd-player` without `#movie_player`**

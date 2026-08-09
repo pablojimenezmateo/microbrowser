@@ -111,7 +111,10 @@ void DomBindings::InstallWebSocket() {
         if (owner == nullptr || owner->sockets_ == nullptr) {
           return Value::Undefined();
         }
-        const std::string url = js::ToString(Argument(call.arguments, 0));
+        std::string url;
+        if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
+          return call.ThrownValue();
+        }
         const Value socket = call.interpreter.NewObjectValue();
         if (!socket.IsObject()) {
           return socket;
@@ -321,7 +324,10 @@ void DomBindings::InstallEventSource() {
         if (owner == nullptr || owner->sockets_ == nullptr) {
           return Value::Undefined();
         }
-        const std::string url = js::ToString(Argument(call.arguments, 0));
+        std::string url;
+        if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
+          return call.ThrownValue();
+        }
         const Value stream = call.interpreter.NewObjectValue();
         if (!stream.IsObject()) {
           return stream;

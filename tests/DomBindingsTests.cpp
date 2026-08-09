@@ -1550,6 +1550,35 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "https%3A%2F%2Fexample.org%2Fa%2Fb%3Fq%3D1",
                  "encodeURIComponent(location) uses Location.toString");
 
+  // Reflected URL attributes too: `link.href = location` used pure ToString and
+  // became the path `[object Object]` (youtube's https://www.youtube.com/[object%20Object]
+  // request that fed consent continue=).
+  const js::Result link_href = interpreter->Run(
+      "const l = document.createElement('link'); l.href = location; l.getAttribute('href')");
+  ExpectEqString(js::ToString(link_href.value), "https://example.org/a/b?q=1",
+                 "link.href = location coerces via toString");
+  const js::Result img_src = interpreter->Run(
+      "const i = document.createElement('img'); i.src = location; i.getAttribute('src')");
+  ExpectEqString(js::ToString(img_src.value), "https://example.org/a/b?q=1",
+                 "img.src = location coerces via toString");
+  const js::Result set_attr = interpreter->Run(
+      "const s = document.createElement('script'); s.setAttribute('src', location);"
+      "s.getAttribute('src')");
+  ExpectEqString(js::ToString(set_attr.value), "https://example.org/a/b?q=1",
+                 "setAttribute('src', location) coerces via toString");
+
+  // `fetch({})` must reject, not GET `/[object%20Object]` against the document
+  // base (youtube.com did the latter and poisoned consent continue=).
+  ExpectEqString(
+      js::ToString(interpreter->Run("let _n=''; fetch({}).catch(e=>{_n=e.name}); _n").value),
+      "", "rejection not settled yet");
+  interpreter->DrainMicrotasks();
+  ExpectEqString(js::ToString(interpreter->Run("_n").value), "TypeError",
+                 "fetch({}) rejects TypeError like Chrome");
+  ExpectEqString(
+      js::ToString(interpreter->Run("try { new Request({}) } catch (e) { e.name }").value),
+      "TypeError", "new Request({}) throws TypeError");
+
   const js::Result message = interpreter->Run(
       "let data = ''; window.addEventListener('message', e => { data = e.data[0]; });"
       "window.postMessage(['esms', true], '*'); data");

@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -276,6 +277,14 @@ void DomBindings::InstallFetch() {
       // `fetch(location)` / `fetch(new URL(...))` must see href via toString,
       // not the pure `js::ToString` "[object Object]" path.
       return call.ThrownValue();
+    }
+    // A plain object with no Request shape becomes "[object Object]" via
+    // OrdinaryToPrimitive. Chrome's `fetch({})` throws TypeError *before* a
+    // request; resolving that string against the document base produced
+    // `https://www.youtube.com/[object%20Object]` (and a consent continue=
+    // carrying the same path). Refuse the Object.prototype.toString form.
+    if (request.url == "[object Object]") {
+      return reject("Failed to parse URL from [object Object]");
     }
     if (request.url.empty()) {
       return reject("fetch requires a URL");

@@ -22,6 +22,8 @@
 #include "engine/Engine.h"
 #include "url/Origin.h"
 #include "url/Url.h"
+#include "util/LoadTimeline.h"
+#include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::engine {
@@ -89,6 +91,17 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
   const std::optional<url::Url>& base = page_.BaseUrl();
   if (!base.has_value()) {
     return 0;
+  }
+  // A URL that still says `[object Object]` is a DOMString coercion miss: some
+  // binding took a Location/URL/host object through pure `js::ToString`. Count
+  // it so a youtube load that still does this is visible without a timeline.
+  if (request.url.find("[object") != std::string::npos ||
+      request.url.find("%5Bobject") != std::string::npos) {
+    util::AddPerformanceCounter(util::PerfCounterId::FetchObjectObjectUrl);
+    if (util::LoadTimeline::Enabled()) {
+      util::LoadTimeline::MarkWith("fetch.object_object_url",
+                                   request.method + " " + request.url);
+    }
   }
   // `connect-src`, and this is the only place a page's own request can be
   // stopped: `fetch` and `XMLHttpRequest` both come through here, so the check

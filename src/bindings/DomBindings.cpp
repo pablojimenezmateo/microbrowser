@@ -659,9 +659,16 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (owner == nullptr) {
       return Value::Undefined();
     }
-    owner->SetElementAttribute(*static_cast<dom::Element*>(self),
-                               LowerCase(js::ToString(Argument(call.arguments, 0))),
-                               js::ToString(Argument(call.arguments, 1)));
+    // Both name and value are DOMStrings: coerce via toString, not pure
+    // js::ToString (Location/URL → "[object Object]" broke reflected URL attrs
+    // and the same bug reaches setAttribute('href'|'src', location)).
+    std::string name;
+    std::string value;
+    if (!CoerceToString(call, Argument(call.arguments, 0), name) ||
+        !CoerceToString(call, Argument(call.arguments, 1), value)) {
+      return call.ThrownValue();
+    }
+    owner->SetElementAttribute(*static_cast<dom::Element*>(self), LowerCase(name), value);
     return Value::Undefined();
   });
   method("setAttributeNS", [](NativeCall& call) {
@@ -674,9 +681,13 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
       return Value::Undefined();
     }
     // Namespace ignored; see getAttributeNS above.
-    owner->SetElementAttribute(*static_cast<dom::Element*>(self),
-                               LowerCase(js::ToString(Argument(call.arguments, 1))),
-                               js::ToString(Argument(call.arguments, 2)));
+    std::string name;
+    std::string value;
+    if (!CoerceToString(call, Argument(call.arguments, 1), name) ||
+        !CoerceToString(call, Argument(call.arguments, 2), value)) {
+      return call.ThrownValue();
+    }
+    owner->SetElementAttribute(*static_cast<dom::Element*>(self), LowerCase(name), value);
     return Value::Undefined();
   });
 }

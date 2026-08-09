@@ -253,6 +253,7 @@ namespace microbrowser::util {
   X(FetchDelivered, "fetch.delivered")                                           \
   X(FetchFailed, "fetch.failed")                                                 \
   X(FetchAborted, "fetch.aborted")                                               \
+  X(FetchObjectObjectUrl, "fetch.object_object_url")                             \
   /* The same four for `XMLHttpRequest`, counted apart from `fetch` even though */ \
   /* both go out through one path. Which API a page reaches for says what era   */ \
   /* its code is from, and on a page that hangs it is the first thing worth     */ \

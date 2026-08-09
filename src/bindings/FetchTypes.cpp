@@ -568,6 +568,9 @@ void DomBindings::InstallRequest() {
         } else if (!CoerceToString(call, input, url)) {
           return call.ThrownValue();
         }
+        if (url == "[object Object]") {
+          return call.Throw("TypeError", "Failed to parse URL from [object Object]");
+        }
         const Value init = Argument(call.arguments, 1);
         if (init.IsObject()) {
           if (const Value* given = init.object->Get("method")) {

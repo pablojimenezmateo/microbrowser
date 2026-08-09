@@ -231,7 +231,15 @@ void DomBindings::InstallReflections() {
         }
         return Value::Undefined();
       }
-      owner->SetElementAttribute(*element, attribute, js::ToString(assigned));
+      // DOMString conversion runs toString/valueOf (Web IDL). Pure js::ToString
+      // invents "[object Object]" for Location/URL — youtube then requested
+      // `https://www.youtube.com/[object%20Object]` (seen as consent continue=
+      // after redirect). Same class as TD-0027; href on <a> already coerced.
+      std::string text;
+      if (!CoerceToString(call, assigned, text)) {
+        return call.ThrownValue();
+      }
+      owner->SetElementAttribute(*element, attribute, text);
       return Value::Undefined();
     });
     if (!get.IsObject() || !set.IsObject()) {

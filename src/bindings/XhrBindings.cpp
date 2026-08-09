@@ -137,6 +137,9 @@ void DomBindings::InstallXhr() {
     if (!CoerceToString(call, Argument(call.arguments, 1), url)) {
       return call.ThrownValue();
     }
+    if (url == "[object Object]") {
+      return call.Throw("TypeError", "Failed to parse URL from [object Object]");
+    }
     call.self.object->SetHidden(kXhrUrlSlot, Value::String(url));
     // A re-open discards whatever the last exchange left behind. Without this a
     // reused XHR would answer with the previous response's headers.
