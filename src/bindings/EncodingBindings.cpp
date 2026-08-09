@@ -1,14 +1,15 @@
-// `TextEncoder` / `TextDecoder` — the Encoding Standard's UTF-8 half.
+// `TextEncoder` / `TextDecoder` — the Encoding Standard's UTF-8 half — and
+// `btoa` / `atob`, the Window binary-string Base64 pair.
 //
 // youtube's player builds PES keys and offline-cache blobs with
-// `(new TextEncoder).encode(...)`. Without these names the path throws
-// `Woffle: PES is undefined` (and Gal's setmediasrc catch records
-// `fmt.unplayable`) while MSE still buffers. The survey counted 35 uses
-// across the Gate targets; this is the platform surface, not a youtube shim.
+// `(new TextEncoder).encode(...)`. Without those names the path threw
+// `Woffle: PES is undefined`. Separately, watch still throws
+// `ReferenceError: btoa is not defined` dozens of times per load (measured
+// under MICROBROWSER_JS_THROWS); the bytes already live in util::Base64.
 //
-// Only UTF-8 is implemented. Other labels refuse with RangeError — the
-// Encoding Standard's answer, and ADR 0012's: a decoder that silently
-// pretends every label is UTF-8 is worse than an absence.
+// Only UTF-8 is implemented for TextDecoder. Other labels refuse with
+// RangeError — the Encoding Standard's answer, and ADR 0012's: a decoder that
+// silently pretends every label is UTF-8 is worse than an absence.
 
 #include <algorithm>
 #include <cstddef>
@@ -22,6 +23,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "util/Base64.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
@@ -345,6 +347,92 @@ void DomBindings::InstallTextEncoding() {
 
   interpreter_->Global()->Set("TextDecoder", decoder_ctor);
   interpreter_->GlobalScope()->Declare("TextDecoder", decoder_ctor, false);
+
+  // `btoa` / `atob`: Window's Latin-1 ↔ Base64 pair. They take and return
+  // *binary strings* (one byte per UTF-16 code unit in 0..255), not UTF-8 —
+  // which is why they are not TextEncoder aliases and why a code unit above
+  // 255 is InvalidCharacterError rather than a multi-byte encoding.
+  const Value btoa = interpreter_->NewNativeValue("btoa", [](NativeCall& call) -> Value {
+    const std::string input = js::ToString(Argument(call.arguments, 0));
+    std::string bytes;
+    bytes.reserve(input.size());
+    // Walk Unicode scalar values. `btoa` accepts U+0000..U+00FF only; our
+    // strings are UTF-8, so U+00FF is two bytes on the wire and must still
+    // round-trip as a single Latin-1 byte.
+    for (std::size_t i = 0; i < input.size();) {
+      const unsigned char lead = static_cast<unsigned char>(input[i]);
+      std::uint32_t cp = 0;
+      std::size_t width = 1;
+      if (lead < 0x80) {
+        cp = lead;
+      } else if ((lead & 0xE0) == 0xC0 && i + 1 < input.size()) {
+        cp = (lead & 0x1F) << 6 | (static_cast<unsigned char>(input[i + 1]) & 0x3F);
+        width = 2;
+      } else if ((lead & 0xF0) == 0xE0 && i + 2 < input.size()) {
+        cp = (lead & 0x0F) << 12 | (static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6 |
+             (static_cast<unsigned char>(input[i + 2]) & 0x3F);
+        width = 3;
+      } else if ((lead & 0xF8) == 0xF0 && i + 3 < input.size()) {
+        cp = (lead & 0x07) << 18 | (static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12 |
+             (static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6 |
+             (static_cast<unsigned char>(input[i + 3]) & 0x3F);
+        width = 4;
+      } else {
+        return call.Throw("InvalidCharacterError",
+                          "InvalidCharacterError: btoa requires a Latin1 string");
+      }
+      if (cp > 0xFF) {
+        return call.Throw("InvalidCharacterError",
+                          "InvalidCharacterError: btoa requires a Latin1 string");
+      }
+      bytes.push_back(static_cast<char>(cp));
+      i += width;
+    }
+    util::AddPerformanceCounter(util::PerfCounterId::EncodingBtoa);
+    return Value::String(util::Base64Encode(bytes));
+  });
+  if (btoa.IsObject()) {
+    interpreter_->Global()->Set("btoa", btoa);
+    interpreter_->GlobalScope()->Declare("btoa", btoa, false);
+  }
+
+  const Value atob = interpreter_->NewNativeValue("atob", [](NativeCall& call) -> Value {
+    const std::string input = js::ToString(Argument(call.arguments, 0));
+    // HTML strips ASCII whitespace before decoding.
+    std::string stripped;
+    stripped.reserve(input.size());
+    for (char c : input) {
+      if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f') {
+        continue;
+      }
+      stripped.push_back(c);
+    }
+    const std::optional<std::string> decoded = util::Base64Decode(stripped);
+    if (!decoded.has_value()) {
+      return call.Throw("InvalidCharacterError",
+                        "InvalidCharacterError: atob received an invalid character");
+    }
+    // Re-encode each byte as a Latin-1 code unit in a UTF-8 string (bytes
+    // 0..127 stay one byte; 128..255 become two-byte UTF-8 sequences). Our
+    // string type is UTF-8, so this is the portable form of a binary string.
+    std::string latin1;
+    latin1.reserve(decoded->size());
+    for (char ch : *decoded) {
+      const unsigned char byte = static_cast<unsigned char>(ch);
+      if (byte < 0x80) {
+        latin1.push_back(static_cast<char>(byte));
+      } else {
+        latin1.push_back(static_cast<char>(0xC0 | (byte >> 6)));
+        latin1.push_back(static_cast<char>(0x80 | (byte & 0x3F)));
+      }
+    }
+    util::AddPerformanceCounter(util::PerfCounterId::EncodingAtob);
+    return Value::String(std::move(latin1));
+  });
+  if (atob.IsObject()) {
+    interpreter_->Global()->Set("atob", atob);
+    interpreter_->GlobalScope()->Declare("atob", atob, false);
+  }
 }
 
 }  // namespace microbrowser::bindings

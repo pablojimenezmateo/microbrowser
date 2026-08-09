@@ -82,6 +82,19 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "new TextDecoder().decode(new Uint8Array([0xEF,0xBB,0xBF,0x61]))", "a");
   });
 
+  AddTest(tests, "DomBindings/BtoaAndAtobRoundTripLatin1", [] {
+    // Window Base64. Watch threw `btoa is not defined` 17 times per load.
+    ExpectScript("<html><body></body></html>", "btoa('hello')", "aGVsbG8=");
+    ExpectScript("<html><body></body></html>", "atob('aGVsbG8=')", "hello");
+    ExpectScript("<html><body></body></html>",
+                 "btoa(String.fromCharCode(0xff))", "/w==");
+    ExpectScript("<html><body></body></html>",
+                 "atob(' /w== ').charCodeAt(0)", "255");
+    ExpectScript("<html><body></body></html>",
+                 "(() => { try { btoa('\\u0100'); return 'ok'; } catch (e) { return e.name; } })()",
+                 "InvalidCharacterError");
+  });
+
   AddTest(tests, "DomBindings/CryptoSubtleAesCtrAndHmac", [] {
     // Web Crypto subset: youtube's `au()` probes importKey/sign/encrypt.
     Bound bound = Bind("<html><body></body></html>");

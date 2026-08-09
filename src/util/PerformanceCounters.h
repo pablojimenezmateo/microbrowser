@@ -380,6 +380,8 @@ namespace microbrowser::util {
   X(EncodingTextDecoderConstructed, "encoding.text_decoder_constructed")           \
   X(EncodingTextDecoderDecode, "encoding.text_decoder_decode")                     \
   X(EncodingTextDecoderBytes, "encoding.text_decoder_bytes")                       \
+  X(EncodingBtoa, "encoding.btoa")                                                 \
+  X(EncodingAtob, "encoding.atob")                                                 \
   X(CryptoSubtleInstalled, "crypto.subtle_installed")                              \
   X(CryptoSubtleImportKey, "crypto.subtle_import_key")                              \
   X(CryptoSubtleEncrypt, "crypto.subtle_encrypt")                                   \
