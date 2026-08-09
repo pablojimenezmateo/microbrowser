@@ -80,10 +80,21 @@ class Engine : private bindings::NetworkSource,
   // requested at the *first frame*, which is after the navigation is over as
   // far as everything else is concerned, and a browser that stopped turning
   // there would show a page with holes where its visible images go.
-  bool IsLoading() const {
+  //
+  // `IsDocumentLoading` is the navigation half alone. A page `fetch()` /
+  // XHR and outstanding `@font-face` downloads stay in `IsLoading` so tests
+  // and `RunEngineToIdle` wait for them, but youtube's long-lived innertube
+  // requests and stuck gstatic font fetches would otherwise hold the
+  // snapshot's load loop for the full settle deadline (session 13 note;
+  // TD-0031). The tool asks `IsDocumentLoading`; the loop still watches the
+  // sockets through `AppendWaitDescriptors`.
+  bool IsDocumentLoading() const {
     return load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
-           !script_fetches_.empty() || !module_fetches_.empty() || !font_fetches_.empty() ||
-           page_.HasPendingModules() || page_.HasOutstandingScriptFetches();
+           !module_fetches_.empty() || page_.HasPendingModules() ||
+           page_.HasOutstandingScriptFetches();
+  }
+  bool IsLoading() const {
+    return IsDocumentLoading() || !script_fetches_.empty() || !font_fetches_.empty();
   }
   // Why `IsLoading` is still true — for `MICROBROWSER_LOAD_TURN_TRACE` and
   // snapshot hang diagnosis. Empty when nothing is outstanding.

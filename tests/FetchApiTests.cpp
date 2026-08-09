@@ -258,6 +258,23 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
                 "and a flag");
   });
 
+  AddTest(tests, "Fetch/DocumentLoadingIgnoresInFlightPageFetch", [] {
+    // TD-0031: youtube `/results` keeps innertube fetches open; the snapshot
+    // tool must not treat those as "document still loading" or it never leaves
+    // the load loop. Tests still wait on IsLoading via RunEngineToIdle.
+    Session session;
+    session.factory.delivery = ScriptedTransport::Factory::Delivery::Held;
+    session.Serve("page.example", OkResponse("text/plain", "never"));
+    session.Start("fetch('/hang')");
+    Expect(session.factory.Release("GET / "), "document");
+    session.Pump(200);
+    Expect(session.engine.IsLoading(), "page fetch still outstanding");
+    Expect(!session.engine.IsDocumentLoading(),
+           "document navigation and render-blocking work are done");
+    Expect(session.engine.LoadingReason().find("script_fetches") != std::string::npos,
+           "LoadingReason names the fetch half: " + session.engine.LoadingReason());
+  });
+
   AddTest(tests, "Fetch/AbortFiresAtTheSignal", [] {
     Session session;
     session.Run(

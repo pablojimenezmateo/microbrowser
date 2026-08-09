@@ -1622,6 +1622,37 @@ neither painted nor hit outside that box.
 
 ---
 
+## TD-0031 — Page `fetch()` / stuck fonts kept snapshot `IsLoading` forever on youtube `/results`
+
+**Opened** 2026-08-09. Session 13 already warned: a long-poll open would hold
+`microbrowser_snapshot` for the settle deadline. It showed up — with fonts too.
+
+**Symptom.** `/results?search_query=…` stamped ~10 `ytd-video-renderer`s, then
+the load loop spun with `MICROBROWSER_LOAD_TURN_TRACE` reporting
+`reason=script_fetches` and/or `font_fetches` and one wait descriptor —
+youtube innertube/SABR-style requests and gstatic `@font-face` downloads that
+do not complete (related: TD-0015). Home finished; results after Accept/`-eval`
+appeared hung for minutes.
+
+**Fix.** `Engine::IsDocumentLoading()` is the navigation / render-blocking half
+(document, late images/scripts, modules, classic script fetches). `IsLoading()`
+still includes page `fetch`/XHR and font downloads so `RunEngineToIdle` and
+Fetch/WebFont tests wait for them. Snapshot `RunLoadToCompletion` asks
+`IsDocumentLoading` only; sockets remain on `AppendWaitDescriptors` for the
+finite post-load drain.
+
+**Close when** `/results` after Accept finishes a snapshot without a 15‑minute
+cap, with video renderers present, and a unit test asserts document-vs-fetch
+loading separately.
+
+**Update** (2026-08-09). Release `/results?search_query=cats` with Accept:
+finishes (~122 s, peak ~1.8 GiB) with `vids:20`, `SOCS` set; plain `/results`
+without Accept ~18 s (was unbounded). `SettleForSnapshot` no longer
+unconditionally `InvalidateLayout`s (that was the `bad_alloc`). Consent dialog
+node can remain (`dialogs:1`) after Accept — dismiss visibility still open.
+
+---
+
 ## Closed
 
 - **TD-0029 — Event UAF across DrainMicrotasks in DispatchEventTo** (2026-08-09).

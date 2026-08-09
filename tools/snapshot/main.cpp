@@ -486,7 +486,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (std::chrono::steady_clock::now() >= settle_deadline) {
       return false;
     }
-    if (engine.IsLoading()) {
+    if (engine.IsDocumentLoading()) {
       return true;
     }
     if (SnapshotAwaitingRedditChallenge(engine.Url())) {
@@ -611,6 +611,9 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
   // restamp before `-click last` (otherwise Accept's coordinates are reused).
   // Everyone else gets a short post-load drain: perpetual rAF + Element.animate
   // on a settled page must not LayoutAndPaint-spin past -click/-eval (TD-0021).
+  //
+  // Document loading excludes page `fetch` and `@font-face` (TD-0031): those
+  // keep sockets open without meaning the navigation is unfinished.
   const auto drain_deadline = settle_deadline;
   const bool reddit_feed_drain =
       IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url());
@@ -678,7 +681,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (youtube_watch_drain || youtube_results_drain) {
       microbrowser::util::WaitDescriptorList descriptors;
       engine.AppendWaitDescriptors(descriptors);
-      if (!descriptors.empty() || engine.HasRunnableWork() || engine.IsLoading()) {
+      if (!descriptors.empty() || engine.HasRunnableWork() || engine.IsDocumentLoading()) {
         microbrowser::util::PerformanceTrace::Scope wait("wait::Network");
         const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                                    post_load_deadline - std::chrono::steady_clock::now())
@@ -942,7 +945,24 @@ int main(int argc, char** argv) {
         // on disk (youtube Accept → thumb diagnostics).
         std::fflush(stdout);
         remember_click_point(answer);
-        RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+        // A probe eval must not re-enter youtube's 45s results drain (or a
+        // 15‑minute load wait) when the document is already settled — that is
+        // how `-eval` after Accept looked hung while innertube/font sockets
+        // stayed open (TD-0031). Clicks still call RunLoadToCompletion in full.
+        if (engine.IsDocumentLoading()) {
+          RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width,
+                              options.height);
+        } else {
+          // Network completions only. RunDueWork would spin on perpetual rAF /
+          // Element.animate (TD-0021) and LayoutAndPaint a youtube results tree
+          // dozens of times after a probe eval.
+          for (int pass = 0; pass < 32; ++pass) {
+            if (!(engine.Advance() || engine.HasRunnableWork())) {
+              break;
+            }
+            DrainOutgoingPaints(channel.Ui(), latest, &best, options.width, options.height);
+          }
+        }
         break;
       }
     }

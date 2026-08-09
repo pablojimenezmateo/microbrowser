@@ -339,7 +339,10 @@ std::string Engine::LoadingReason() const {
   note(load_.active, "load");
   note(!post_load_.images.empty(), "late_images");
   note(!post_load_.scripts.empty(), "late_scripts");
-  note(!script_fetches_.empty(), "script_fetches");
+  if (!script_fetches_.empty()) {
+    note(true, "script_fetches");
+    out << "(n=" << script_fetches_.size() << ')';
+  }
   note(!module_fetches_.empty(), "module_fetches");
   note(!font_fetches_.empty(), "font_fetches");
   note(page_.HasPendingModules(), "pending_modules");
@@ -923,8 +926,12 @@ void SettleForSnapshot(Engine& engine) {
   if (!engine.post_load_.document_interactive) {
     return;
   }
-  (void)engine.ProcessDynamicScripts();
-  engine.page_.InvalidateLayout();
+  // Only drop the box tree when dynamic scripts actually changed the document.
+  // Unconditionally InvalidateLayout here doubled youtube `/results` memory past
+  // bad_alloc on an already-painted tree (TD-0031).
+  if (engine.ProcessDynamicScripts()) {
+    engine.page_.InvalidateLayout();
+  }
   engine.LayoutAndPaint();
 }
 
