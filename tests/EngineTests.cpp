@@ -362,6 +362,62 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "post-load CORS script still runs with a cleared load_.base");
   });
 
+  AddTest(tests, "Engine/ALateScriptFiresOnloadSoWaitersCanRun", [] {
+    // YouTube `_.VE` / `P_U`: onload schedules a completion that does
+    // `dataset.loaded || (set loaded, notify waiters)`. Pre-stamping
+    // `data-loaded` before `load` made that completion a no-op (TD-0024).
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html", "<html><head></head><body>ok</body></html>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/javascript", "globalThis.playerReady = true;")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    Expect(!session.engine.IsLoading(), "navigation finished");
+
+    session.engine.EvaluateScript(
+        "globalThis.gotLoad = false;"
+        "globalThis.gotWaiter = false;"
+        "globalThis.sawLoadedBeforeNotify = null;"
+        "const s = document.createElement('script');"
+        "s.id = 'js-player';"
+        "s.src = '/player_ias/base.js';"
+        "s.onload = function () {"
+        "  globalThis.gotLoad = true;"
+        "  globalThis.sawLoadedBeforeNotify = !!(s.dataset && s.dataset.loaded);"
+        "  setTimeout(function () {"
+        "    if (s.dataset && s.dataset.loaded) { return; }"
+        "    s.dataset.loaded = 'true';"
+        "    globalThis.gotWaiter = true;"
+        "  }, 0);"
+        "};"
+        "document.head.appendChild(s);");
+    session.engine.HandlePendingMessages();
+    // Post-load: IsLoading is false, so RunEngineToIdle alone will not drain
+    // setTimeout(0) from onload. Mirror CspEnforcement's settle loop.
+    for (int turn = 0; turn < 1000; ++turn) {
+      const bool advanced = session.engine.Advance();
+      const bool due = session.engine.RunDueWork();
+      if (!advanced && !due && !session.engine.HasRunnableWork()) {
+        break;
+      }
+    }
+
+    ExpectEqString(session.engine.EvaluateScript("'' + gotLoad"), "true",
+                   "script.onload ran after the late fetch");
+    ExpectEqString(session.engine.EvaluateScript("'' + sawLoadedBeforeNotify"), "false",
+                   "data-loaded must not be set before onload (VE OgC short-circuit)");
+    ExpectEqString(session.engine.EvaluateScript("'' + gotWaiter"), "true",
+                   "the VE-shaped waiter ran and could set data-loaded itself");
+    ExpectEqString(session.engine.EvaluateScript("'' + playerReady"), "true",
+                   "and the script body ran");
+  });
+
   AddTest(tests, "Page/AClickReachesTheElementUnderIt", [] {
     // An inline element has no box geometry of its own -- its text fragments
     // carry the rectangles -- and a text box has no element. So a click on the

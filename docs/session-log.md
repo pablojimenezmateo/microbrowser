@@ -4080,3 +4080,19 @@ dispatch `error`. Timeline: `player_ias/.../base.js` request+run, `/player` and
 home nudge; `Intl`.
 
 ---
+
+## 2026-08-09 — script `load` before `data-loaded` (TD-0024 stamp)
+
+**Status:** SPA search→watch stamps `#movie_player` / `<video>`
+
+Pre-stamping `data-loaded` before firing `load` made YouTube's `P_U` onload
+completion skip `OgC`, so `EHT.wja` never called `Application.create` with a
+target. Fire `load` first; `hQn` sets the attribute. Regression test:
+`Engine/ALateScriptFiresOnloadSoWaitersCanRun`.
+
+**Check:** Release, Accept on `/results?search_query=cats` → thumb click →
+`movie:true`, `video:true`, `html5:true`. `readyState` may still be 0 (MSE).
+
+**Left:** SPA playback buffer (TD-0020); home nudge; `Intl`.
+
+---

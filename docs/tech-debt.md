@@ -1404,8 +1404,15 @@ playable `<video>` without a cold document load.
 dereferences a cleared `load_.base`; CSP trust is stamped on
 `createElement('script')` as well as append; refused/failed late scripts fire
 `error`. SPA now fetches and runs `player_ias/.../base.js`, issues
-`/youtubei/v1/player` + `/next` (200), and `Application.create` is a function —
-still no `#movie_player` / `<video>` (cause B).
+`/youtubei/v1/player` + `/next` (200), and `Application.create` is a function.
+
+**Landed** (2026-08-09, `data-loaded` / `OgC` ordering). Stamping `data-loaded`
+*before* firing `load` made YouTube's `P_U` completion (`BzU(el)||(hQn,OgC)`)
+skip `OgC`, so `EHT` set `eue` and waited forever while `create` existed from
+the script body but was never *called* with a target. `load` fires first;
+`hQn` sets the attribute. **Check:** search→watch after Accept:
+`movie:true`, `video:true`, `html5:true` (Release). `readyState` can still be 0
+until MSE buffers — that is playback (TD-0020), not stamp.
 
 **Instrumentation.** `MICROBROWSER_LOAD_TIMELINE` kept only 512 rows and truncated
 during font cookies on youtube soft-nav — raised to 4096 so innertube/player

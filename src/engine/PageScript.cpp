@@ -340,12 +340,13 @@ bool PageScript::RunTiming(Timing timing) {
     }
     if (result.completion != js::Completion::Throw) {
       if (element != nullptr && bindings_ != nullptr) {
-        // YouTube's script loader (`BzU` / `hQn`) treats `data-loaded` as the
-        // signal that a `<script src>` finished, and `_.VE` calls its callback
-        // immediately when that bit is set. Firing `load` alone left VE waiting
-        // on a script whose load event had already run — player `eue` stuck,
-        // `Application.create` never invoked (TD-0024).
-        const_cast<dom::Element*>(element)->SetAttribute("data-loaded", "true");
+        // Fire `load` *before* any `data-loaded` bit. YouTube's script loader
+        // (`P_U` / `XtI` / `_.VE`) registers waiters and on load runs
+        // `BzU(el)||(hQn(el), OgC(...))`. `BzU` reads `dataset.loaded`. If we
+        // stamped `data-loaded` first, that short-circuit skipped `OgC`, so
+        // `EHT`'s `wja` never ran, `Application.create` was never called with a
+        // target, and SPA watch left `create` defined but no `#movie_player`
+        // (TD-0024). `hQn` sets the attribute itself when the completion runs.
         bindings_->NotifyScriptElementEvent(*element, "load");
       }
       continue;
