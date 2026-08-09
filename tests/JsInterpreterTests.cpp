@@ -2515,6 +2515,24 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // proxy usable as the object itself.
     ExpectEval("const t = {}; const p = new Proxy(t, {}); p.b = 2; t.b", "2");
     ExpectEval("try { new Proxy(1, {}) } catch (e) { e.name }", "TypeError");
+    // Prototype identity goes through the target: Lit's U3D is
+    // `Object.getPrototypeOf(o) === Object.prototype`, and a Proxy whose
+    // [[Prototype]] slot is null used to make every reactive merge throw.
+    ExpectEval("Object.getPrototypeOf(new Proxy({}, {})) === Object.prototype", "true");
+    ExpectEval("Object.getPrototypeOf(new Proxy([], {})) === Array.prototype", "true");
+    ExpectEval("Object.hasOwn(new Proxy({a:1}, {}), 'a')", "true");
+  });
+
+  AddTest(tests, "JsInterpreter/InSeesSymbolKeys", [] {
+    // Lit brands signal getters with a Symbol and checks `SSn in getter`
+    // before writing (gvU). ToString-ing the key made `in` always false, so
+    // every observer merge threw Error("ad") on youtube.
+    ExpectEval("const s = Symbol('brand'); const f = function(){}; f[s] = function(){}; "
+               "(s in f) && typeof f[s] === 'function'",
+               "true");
+    ExpectEval("const s = Symbol('x'); const o = {[s]: 1}; s in o", "true");
+    ExpectEval("const s = Symbol('missing'); s in {}", "false");
+    ExpectEval("const s = Symbol('h'); const o = {}; o[s] = 1; Object.hasOwn(o, s)", "true");
   });
 
   AddTest(tests, "JsInterpreter/AProxysTrapsSeeEveryOperation", [] {

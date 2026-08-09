@@ -3984,4 +3984,23 @@ the server returns rows.
 **Left:** SPA stamp reliability when results are sparse; home nudge; `Intl` /
 `eval`.
 
+---
+
+## 2026-08-09 — Symbol `in` unblocks Lit reactive merges (Error: ad)
+
+**Status:** `Error: ad` gone on youtube; SPA watch player data still incomplete
+
+Lit's signal write gate is `SSn in getter` where `SSn` is a Symbol (`gvU` in
+desktop_polymer). `BinaryOp::In` used `ToString` on the key, so Symbol brands
+never matched, `gvU` was always false, and `vvU` threw `Error("ad")` on every
+observer merge (ResizeObserver / visibility). Proxy `getPrototypeOf` also
+returned null (AllocateObject never sets a Proxy [[Prototype]]), which would
+have broken Lit's `U3D` for proxied plain objects.
+
+**Check:** `SSn in getter` true in jsshell; `Object.getPrototypeOf(new Proxy({},
+{})) === Object.prototype`; cats search→watch: zero `Error: ad` lines.
+`ytd-watch-flexy.data` keys still often only `["contents"]` (TD-0024 remainder).
+
+**Left:** innertube/player application on soft nav; home nudge; `Intl` / `eval`.
+
 

@@ -1369,10 +1369,20 @@ URLs like a longer settle: up to 90s or until `video` / `#movie_player`, and
 keeps waiting on sockets when there is no timer deadline. Constructible
 `Animation` removed a separate SPA abort (`Illegal constructor: Animation`).
 
-**Still open.** Soft-nav player stamp can still lag or fail when search results
-are sparse / not hit-testable; `Error: ad` in observer callbacks (DI) is
-unexplained. Close when search→watch reliably yields a playable `<video>`
-without depending on a cold document load.
+**Landed** (2026-08-09, Symbol `in`). Lit brands signal getters with a Symbol and
+gates writes on `SSn in getter` (`gvU`). `BinaryOp::In` stringified Symbol keys,
+so the check was always false and every reactive merge threw `Error: ad` in
+observer callbacks. `in` / Proxy `has` now keep Symbol identity; Proxy
+`getPrototypeOf` / `Object.hasOwn` also go through the target (Lit's `U3D` is
+`getPrototypeOf(o) === Object.prototype`). After the fix, `Error: ad` is gone on
+search→watch; `ytd-watch-flexy.data` can still be only `["contents"]` with no
+`#movie_player` — the remaining gap is the innertube/player application path,
+not Lit signal writes.
+
+**Still open.** Soft-nav player stamp can still leave `flexy.data` with only
+`contents` (no `playerOverlays` / `currentVideoEndpoint`, `hasIPR:false`) while
+cold loads of the same URL reach `readyState` 4. Close when search→watch
+reliably yields a playable `<video>` without depending on a cold document load.
 
 ---
 

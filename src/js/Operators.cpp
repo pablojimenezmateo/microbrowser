@@ -646,23 +646,29 @@ Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
       if (!b.IsObject()) {
         return Throw("TypeError", "'in' requires an object");
       }
+      // Through KeyFrom, not ToString: a Symbol key must stay a Symbol.
+      // Lit's signal brand check is `SSn in getter` where SSn is a Symbol —
+      // stringifying it answered false, gvU failed, and every reactive merge
+      // threw Error("ad") (youtube observer callbacks / SPA watch stamp).
+      const PropertyKey key = KeyFrom(a);
       if (b.object->GetKind() == Object::Kind::Proxy) {
         Value target;
         if (Object* trap = ProxyTrap(b, "has", target)) {
-          const Result asked = CallFunction(Value::Obj(trap), Value::Undefined(), {target, a});
+          const Result asked =
+              CallFunction(Value::Obj(trap), Value::Undefined(), {target, KeyValue(key)});
           return asked.IsAbrupt() ? asked : Result::Normal(Value::Bool(ToBoolean(asked.value)));
         }
         // No `has` trap: the question goes straight to the target, which is
         // what makes a handler that defines nothing transparent.
         return Result::Normal(
-            Value::Bool(target.IsObject() && target.object->GetProperty(KeyFrom(a)) != nullptr));
+            Value::Bool(target.IsObject() && target.object->GetProperty(key) != nullptr));
       }
-      const std::string key = ToString(a);
-      if (b.object->GetKind() == Object::Kind::Array) {
-        if (key == "length") {
+      if (!key.IsSymbol() && b.object->GetKind() == Object::Kind::Array) {
+        const std::string& text = key.Text();
+        if (text == "length") {
           return Result::Normal(Value::Bool(true));
         }
-        if (const std::optional<std::size_t> index = ParseArrayIndex(key)) {
+        if (const std::optional<std::size_t> index = ParseArrayIndex(text)) {
           return Result::Normal(Value::Bool(b.object->HasElement(*index)));
         }
       }
@@ -675,8 +681,8 @@ Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
       // `window.ShadowRoot = …` cannot fork the bare name from the property).
       // `'IDBTransaction' in self` must therefore see the binding too —
       // youtube's `yPS` refuses IndexedDB entirely when this answers false.
-      if (b.object == Global() && GlobalScope() != nullptr &&
-          GlobalScope()->Lookup(key) != nullptr) {
+      if (!key.IsSymbol() && b.object == Global() && GlobalScope() != nullptr &&
+          GlobalScope()->Lookup(key.Text()) != nullptr) {
         return Result::Normal(Value::Bool(true));
       }
       return Result::Normal(Value::Bool(false));

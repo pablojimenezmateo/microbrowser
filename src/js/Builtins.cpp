@@ -531,23 +531,85 @@ void Interpreter::InstallGlobals() {
   });
   install(object_constructor, "hasOwn", [](NativeCall& call) {
     const Value target = Argument(call.arguments, 0);
-    return Value::Bool(target.IsObject() &&
-                       target.object->HasOwn(KeyFrom(Argument(call.arguments, 1))));
+    if (!target.IsObject()) {
+      return Value::Bool(false);
+    }
+    const PropertyKey key = KeyFrom(Argument(call.arguments, 1));
+    // Proxies store `#target`/`#handler` as own hidden slots; HasOwn on the
+    // proxy object itself would answer about those, never the wrapped object.
+    if (target.object->GetKind() == Object::Kind::Proxy) {
+      Value behind;
+      if (Object* trap =
+              call.interpreter.ProxyTrap(target, "getOwnPropertyDescriptor", behind)) {
+        const Result described = call.interpreter.CallFunction(
+            Value::Obj(trap), Value::Undefined(), {behind, KeyValue(key)});
+        if (described.IsAbrupt()) {
+          return call.ThrowValue(described.value);
+        }
+        return Value::Bool(described.value.IsObject());
+      }
+      return Value::Bool(behind.IsObject() && behind.object->HasOwn(key));
+    }
+    return Value::Bool(target.object->HasOwn(key));
   });
   install(object_constructor, "getPrototypeOf", [](NativeCall& call) {
-    const Value target = Argument(call.arguments, 0);
-    if (!target.IsObject() || target.object->Prototype() == nullptr) {
-      return Value::Null();
+    // Through the Proxy trap (and the target when none is defined). Reading
+    // `proxy->Prototype()` is always null — AllocateObject never sets one —
+    // which made Lit's `Object.getPrototypeOf(o) === Object.prototype` false
+    // for every proxied plain object (U3D / Error "ad").
+    Value current = Argument(call.arguments, 0);
+    for (int depth = 0; depth < 32; ++depth) {
+      if (!current.IsObject()) {
+        return Value::Null();
+      }
+      if (current.object->GetKind() == Object::Kind::Proxy) {
+        Value behind;
+        if (Object* trap =
+                call.interpreter.ProxyTrap(current, "getPrototypeOf", behind)) {
+          const Result asked =
+              call.interpreter.CallFunction(Value::Obj(trap), Value::Undefined(), {behind});
+          if (asked.IsAbrupt()) {
+            return call.ThrowValue(asked.value);
+          }
+          if (asked.value.IsNull() || asked.value.IsObject()) {
+            return asked.value;
+          }
+          return call.Throw("TypeError", "getPrototypeOf trap must return an object or null");
+        }
+        current = behind;
+        continue;
+      }
+      if (current.object->Prototype() == nullptr) {
+        return Value::Null();
+      }
+      return Value::Obj(current.object->Prototype());
     }
-    return Value::Obj(target.object->Prototype());
+    return Value::Null();
   });
   install(object_constructor, "setPrototypeOf", [](NativeCall& call) {
-    const Value target = Argument(call.arguments, 0);
+    Value current = Argument(call.arguments, 0);
     const Value prototype = Argument(call.arguments, 1);
-    if (target.IsObject()) {
-      target.object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
+    if (!current.IsObject()) {
+      return current;
     }
-    return target;
+    if (current.object->GetKind() == Object::Kind::Proxy) {
+      Value behind;
+      if (Object* trap =
+              call.interpreter.ProxyTrap(current, "setPrototypeOf", behind)) {
+        const Result asked = call.interpreter.CallFunction(
+            Value::Obj(trap), Value::Undefined(), {behind, prototype});
+        if (asked.IsAbrupt()) {
+          return call.ThrowValue(asked.value);
+        }
+        return current;
+      }
+      if (behind.IsObject()) {
+        behind.object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
+      }
+      return current;
+    }
+    current.object->SetPrototype(prototype.IsObject() ? prototype.object : nullptr);
+    return current;
   });
   install(object_constructor, "freeze", [](NativeCall& call) {
     // Real, not a no-op. A freeze that reported success and changed nothing
