@@ -373,6 +373,7 @@ void DomBindings::InstallCrypto() {
   if (random_uuid.IsObject()) {
     crypto.object->Set("randomUUID", random_uuid);
   }
+  InstallSubtleCrypto(crypto);
   interpreter_->Global()->Set("crypto", crypto);
   interpreter_->GlobalScope()->Declare("crypto", crypto, false);
 }

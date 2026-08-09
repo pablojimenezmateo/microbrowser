@@ -18,8 +18,8 @@ namespace microbrowser::util {
 //
 // It is also the cheapest thing on this roadmap to be sure about: the algorithm
 // is fully specified, it has published vectors, and the tests run them. What it
-// must never grow into is a general crypto module -- there is no HMAC here, no
-// key handling, and nothing whose failure mode is silent.
+// must never grow into is a general crypto module -- HMAC lives in Hmac.h, not
+// here, and nothing whose failure mode is silent.
 //
 // Bytes in, raw digest bytes out. Callers that want text encode it with
 // util::Base64Encode.

@@ -27,6 +27,7 @@ void RegisterDirtyRegionPolicyTests(std::vector<TestCase>& tests);
 void RegisterDirtyRegionTests(std::vector<TestCase>& tests);
 void RegisterCspEnforcementTests(std::vector<TestCase>& tests);
 void RegisterCspTests(std::vector<TestCase>& tests);
+void RegisterCryptoPrimitiveTests(std::vector<TestCase>& tests);
 void RegisterDigestTests(std::vector<TestCase>& tests);
 void RegisterDisplayListTests(std::vector<TestCase>& tests);
 void RegisterEnvTests(std::vector<TestCase>& tests);
@@ -195,6 +196,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterDirtyRegionTests(tests);
   microbrowser::tests::RegisterCspEnforcementTests(tests);
   microbrowser::tests::RegisterCspTests(tests);
+  microbrowser::tests::RegisterCryptoPrimitiveTests(tests);
   microbrowser::tests::RegisterDigestTests(tests);
   microbrowser::tests::RegisterDisplayListTests(tests);
   microbrowser::tests::RegisterEnvTests(tests);

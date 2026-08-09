@@ -1018,8 +1018,8 @@ largest remaining invalidation bucket after script/image/font/sheet are counted.
 | progressive `streamingData.formats` | **[]** (adaptive-only / SABR) |
 | click → `Page::Play` | still works (`paused=false`, `currentTime≈2`) |
 | `AudioContext` | absent (ADR 0028 §4 — deliberate; not this error code) |
-| `crypto.subtle` | **absent** (player `au()` needs `importKey`/`sign`/`encrypt` for PES) |
-| `indexedDB` / `BroadcastChannel` | **absent** (Woffle offline store `g.D8` / `plI`) |
+| `crypto.subtle` | **present** (importKey / encrypt AES-CTR / sign HMAC-SHA-256; ADR 0037) |
+| `indexedDB` / `BroadcastChannel` | **absent** (Woffle offline store `g.D8` / `plI`; importKey never reached) |
 
 So the facade is not a single missing binding: it is youtube's player stuck in
 `fmt.unplayable` while MSE has already buffered a playable stream. `playVideo()`

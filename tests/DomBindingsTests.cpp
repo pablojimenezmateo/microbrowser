@@ -82,6 +82,36 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "new TextDecoder().decode(new Uint8Array([0xEF,0xBB,0xBF,0x61]))", "a");
   });
 
+  AddTest(tests, "DomBindings/CryptoSubtleAesCtrAndHmac", [] {
+    // Web Crypto subset: youtube's `au()` probes importKey/sign/encrypt.
+    Bound bound = Bind("<html><body></body></html>");
+    (void)bound.interpreter->Run(
+        "globalThis._cryptoOk = false;"
+        "const keyBytes = new Uint8Array([0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,"
+        "  0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c]);"
+        "const counter = new Uint8Array([0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,"
+        "  0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff]);"
+        "const plain = new Uint8Array([0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,"
+        "  0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a]);"
+        "crypto.subtle.importKey('raw', keyBytes, {name:'AES-CTR'}, false, ['encrypt'])"
+        ".then(key => crypto.subtle.encrypt({name:'AES-CTR',counter,length:128}, key, plain))"
+        ".then(buf => {"
+        "  const hex = Array.from(new Uint8Array(buf)).map("
+        "    b => b.toString(16).padStart(2,'0')).join('');"
+        "  globalThis._hex = hex;"
+        "  return crypto.subtle.importKey('raw', keyBytes, {name:'HMAC',hash:'SHA-256'}, false, ['sign']);"
+        "})"
+        ".then(hk => crypto.subtle.sign({name:'HMAC'}, hk, new Uint8Array([1,2,3])))"
+        ".then(mac => {"
+        "  globalThis._cryptoOk ="
+        "    globalThis._hex === '874d6191b620e3261bef6864990db6ce' &&"
+        "    mac.byteLength === 32 && !!crypto.subtle;"
+        "});");
+    bound.interpreter->DrainMicrotasks();
+    ExpectEqString(js::ToString(bound.interpreter->Run("globalThis._cryptoOk").value), "true",
+                   "AES-CTR NIST vector and HMAC-SHA256 via crypto.subtle");
+  });
+
   // The type hierarchy. `HTMLElement is not defined` is where youtube.com's
   // application bundle stopped, and it is not a missing method -- it is a
   // missing *type*, so `class X extends HTMLElement` could not be written at

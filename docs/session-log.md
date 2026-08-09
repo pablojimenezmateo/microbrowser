@@ -3817,6 +3817,20 @@ path: `crypto.subtle` (`au()` wants `importKey`/`sign`/`encrypt`) and
 IndexedDB + `BroadcastChannel` (Woffle `g.D8` / `plI`); page sends
 `allowWoffleManagement:true`.
 
+---
+
+## 2026-08-09 — `crypto.subtle` subset (ADR 0037)
+
+**Status:** landed; `au()` sees subtle; PES still undefined; facade open
+
+AES-128-CTR + HMAC-SHA256 in `util`; `crypto.subtle.importKey` / `encrypt` /
+`sign` in bindings. Watch probe: `crypto.subtle` truthy with the three methods,
+but `crypto.subtle_import_key` stays **0** — Woffle fails before key import
+(`indexedDB` / `BroadcastChannel` still undefined; `g.D8`/`plI` need both).
+`Woffle: PES is undefined` ×3 and `fmt.unplayable` unchanged. Next: ADR 0021
+IndexedDB (and BroadcastChannel) or isolate the Gal/`setmediasrc` throw that is
+not the Woffle report.
+
 **Left:** dirty-subtree box allocation; TD-0020 facade (`fmt.unplayable`);
 TD-0018; home feed when the server sends one.
 

@@ -214,6 +214,8 @@ microbrowser_module(util
     src/util/Random.cpp
     src/util/PerformanceCounters.cpp
     src/util/PerformanceTrace.cpp
+    src/util/AesCtr.cpp
+    src/util/Hmac.cpp
     src/util/Sha1.cpp
     src/util/Sha2.cpp
     src/util/StartupTrace.cpp
@@ -447,6 +449,7 @@ microbrowser_module(bindings
   SOURCES
     src/bindings/CanvasBindings.cpp
     src/bindings/Fingerprint.cpp
+    src/bindings/CryptoSubtle.cpp
     src/bindings/WorkerBindings.cpp
     src/bindings/PrivacyAnswers.cpp
     src/bindings/CustomElements.cpp
@@ -616,6 +619,7 @@ add_executable(microbrowser_tests
   tests/DisplayListTests.cpp
   tests/EnvTests.cpp
   tests/CorsTests.cpp
+  tests/CryptoPrimitiveTests.cpp
   tests/CspEnforcementTests.cpp
   tests/CspTests.cpp
   tests/FetchTests.cpp

@@ -527,6 +527,8 @@ class DomBindings {
   void InstallClipboard(const js::Value& navigator);
   void InstallNotification();
   void InstallCrypto();
+  // `crypto.subtle` subset (AES-CTR encrypt, HMAC-SHA-256 sign). In CryptoSubtle.cpp.
+  void InstallSubtleCrypto(const js::Value& crypto);
   // `TextEncoder` / `TextDecoder` (Encoding Standard, UTF-8). In EncodingBindings.cpp; installed
   // from InstallWindow because they are window globals, not navigator answers.
   void InstallTextEncoding();
