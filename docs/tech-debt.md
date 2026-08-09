@@ -692,8 +692,16 @@ host-less `DocumentFragment`. `InsertFragmentChildren` upgraded custom elements 
 **Fix.** `DocumentFragment::IsTemplateContent()` marks `<template>.content` so
 `InsertFragmentChildren` skips `UpgradeSubtree` there (`dom.template_content_upgrade_skips`).
 Do **not** treat every host-less fragment as inert — ShadyDOM stamps into one without
-`Host()`. Live stamped hosts still strip binding tokens after the constructor until the
-stamp path is cheap enough to leave tokens alone.
+`Host()`. Live stamped hosts still strip binding tokens **before** the constructor
+(moved 2026-08-09: Polymer's `_initializeProperties` deserializes a present boolean
+attribute as true, so `hidden="[[data.hideContents]]"` used to become `hidden=""` via
+reflect before the old post-constructor strip ran). Template contents keep tokens for
+`_parseTemplate`.
+
+**Companion (not debt).** `document.all` as HTML [[IsHTMLDDA]] landed with the strip
+move: without it, polymer_resin's `!Z && Z !== document.all` treated every undefined
+sink as `"zClosurez"`, and `HTMLElement.hidden = undefined` stuck the attribute —
+blanking youtube search even after UA `[hidden]` and the reflection were correct.
 
 **Status** (2026-08-07, Release). Skip is enabled. A youtube home snapshot finishes
 (~3 min Release) with masthead and two-column hosts in the tree; `ytd-rich-item-renderer`

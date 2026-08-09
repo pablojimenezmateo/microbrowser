@@ -13,6 +13,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "css/StyleSheet.h"
+#include "js/Heap.h"
 
 namespace microbrowser::bindings {
 
@@ -257,6 +258,28 @@ void DomBindings::Install() {
   };
   element_accessor("body", "body");
   element_accessor("documentElement", "html");
+
+  // `document.all` (HTML obsolete / [[IsHTMLDDA]]). Absent, `undefined !==
+  // document.all` is false and polymer_resin's `!Z && Z !== document.all`
+  // treats every undefined sink as the innocuous string `"zClosurez"` -- which
+  // made `HTMLElement.hidden = undefined` set the attribute and blanked
+  // youtube search (`hidden="[[data.hideContents]]"`).
+  {
+    js::Object* all = interpreter_->GetHeap().AllocateObject(js::Object::Kind::HTMLAllCollection);
+    if (all != nullptr) {
+      // Seed Object.prototype the same way every other plain object does —
+      // NewObject() is private to the interpreter.
+      const Value seed = interpreter_->NewObjectValue();
+      if (seed.IsObject()) {
+        all->SetPrototype(seed.object->Prototype());
+      }
+      // A data property rather than a capturing accessor: the Value is on the
+      // prototype map, so the collector sees it. Overwriting `document.all` is
+      // a page's own act and not a reason to keep a second copy.
+      target.object->Set("all", Value::Obj(all));
+    }
+  }
+
   // Empty when nothing is stored for script yet. Reading `undefined` makes
   // `document.cookie.match(...)` throw before the page can handle a missing jar.
   const Value cookie_getter = interpreter_->NewNativeValue(

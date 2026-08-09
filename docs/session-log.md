@@ -3701,3 +3701,36 @@ and navigates; watch click-to-play path unchanged in intent.
 sends one, search lazy-thumbnail attach rate, TD-0003, TD-0020 facade
 `playVideo`.
 
+---
+
+## 2026-08-09 — youtube search blank: `document.all` + `[hidden]` + pre-constructor strip
+
+**Status:** search paints again (~1254 display-list commands, Release)
+
+**Cause chain.** UA `[hidden]{display:none!important}` and `HTMLElement.hidden`
+presence reflection were correct and necessary (expandable metadata / Polymer
+boolean attrs). With them alone, search went blank: polymer_resin sanitizes
+sinks with `!Z && Z !== document.all`. This engine had no `document.all`, so
+`undefined !== document.all` was false, undefined became `"zClosurez"`, and
+`hidden = "zClosurez"` stuck the attribute on `ytd-two-column-search-results-renderer`
+(`hidden="[[data.hideContents]]"`). Separately, stripping binding tokens
+*after* the constructor was too late — Polymer deserializes a present boolean
+attribute as true during `_initializeProperties`.
+
+**Landed:**
+
+- `Object::Kind::HTMLAllCollection` / `IsHTMLDDA()`: ToBoolean false, typeof
+  `"undefined"`, `== null` true, `!== undefined` true; installed as
+  `document.all`.
+- Strip binding-token attributes **before** ConstructValue (TD-0017 still:
+  template contents stay inert).
+- Tests for HTMLDDA, `hidden = undefined`, UA `[hidden]!important` vs author
+  `display:flex`.
+
+**Measured** (Release snapshot `/results?search_query=cats`): **1254** commands,
+~74% non-white pixels, `js.steps_exhausted` = 1. Title still the URL string
+(cosmetic).
+
+**Left:** TD-0021 BuildBoxTree, TD-0020 playVideo facade, TD-0018 step budget,
+home feed when the server sends one.
+

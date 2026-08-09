@@ -173,9 +173,12 @@ Result Interpreter::LooseEqualsOf(const Value& a, const Value& b, bool& out) {
   // trusting a `valueOf` a page wrote not to hand back another object.
   Value x = a;
   Value y = b;
+  const auto nullish_or_dda = [](const Value& value) {
+    return value.IsNullish() || (value.IsObject() && value.object->IsHTMLDDA());
+  };
   for (int pass = 0; pass < 2; ++pass) {
-    if (x.IsNullish() || y.IsNullish()) {
-      out = x.IsNullish() && y.IsNullish();
+    if (nullish_or_dda(x) || nullish_or_dda(y)) {
+      out = nullish_or_dda(x) && nullish_or_dda(y);
       return Result::Normal();
     }
     if (x.type == y.type) {
@@ -184,7 +187,7 @@ Result Interpreter::LooseEqualsOf(const Value& a, const Value& b, bool& out) {
     }
     // An object compares by becoming a primitive, and only then. `{} == {}`
     // is false because both sides are objects and the type test above caught
-    // it, not because the conversion said so.
+    // it, not because the conversion said so. HTMLDDA was handled above.
     if (x.IsObject()) {
       const Result converted = ToPrimitive(x, Hint::Default, x);
       if (converted.IsAbrupt()) {

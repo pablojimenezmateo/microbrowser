@@ -788,6 +788,8 @@ void Interpreter::InstallGlobals() {
       // Only a proxy whose target is itself a proxy, which is a cycle a page
       // built rather than anything with a kind to report.
       case Object::Kind::Proxy: return Value::String(std::string("[object Object]"));
+      case Object::Kind::HTMLAllCollection:
+        return Value::String(std::string("[object HTMLAllCollection]"));
       case Object::Kind::Plain: break;
     }
     return Value::String(std::string("[object Object]"));

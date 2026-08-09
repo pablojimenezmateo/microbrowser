@@ -521,10 +521,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const s = stamp.querySelector('span');"
                  "s.getAttribute('items') + '|' + s.textContent",
                  "[[items]]|[[t]]");
-    // Observed attributes present at upgrade get attributeChangedCallback with a
-    // null old value. Binding tokens on a *live* host are stripped after the
-    // constructor (TD-0017) so they do not reach `_deserializeValue`; inert
-    // template contents keep them for Polymer annotation parsing.
+    // Binding tokens on a *live* host are stripped *before* the constructor
+    // (TD-0017). Polymer deserializes a present boolean attribute as true during
+    // `_initializeProperties`, so leaving `hidden="[[data.hideContents]]"` until
+    // after construction reflected as `hidden=""` and hid youtube search.
+    // Inert template contents keep tokens for `_parseTemplate`.
     ExpectScript("<html><body><x-t v='1'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -534,7 +535,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('x-t', T);"
                  "log.join('|')",
                  "v:null->1");
-    // Constructor sees the token; strip runs before ACC / connectedCallback.
+    // Constructor must not see the token — strip precedes ConstructValue.
     ExpectScript("<html><body><x-t v='[[x]]'></x-t></body></html>",
                  "var log = [];"
                  "class T extends HTMLElement {"
@@ -545,7 +546,19 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('x-t', T);"
                  "document.querySelector('x-t').seen + '|' + "
                  "document.querySelector('x-t').getAttribute('v') + '|' + log.join('|')",
-                 "[[x]]|null|");
+                 "null|null|");
+    // Boolean presence: a binding token on `hidden` must not become `hidden=""`
+    // via constructor reflect, or UA `[hidden]{display:none}` hides the host.
+    ExpectScript("<html><body><x-h hidden='[[data.hideContents]]'></x-h></body></html>",
+                 "class H extends HTMLElement {"
+                 "  constructor(){"
+                 "    super();"
+                 "    if (this.hasAttribute('hidden')) this.setAttribute('hidden','');"
+                 "  }"
+                 "}"
+                 "customElements.define('x-h', H);"
+                 "document.querySelector('x-h').hasAttribute('hidden')",
+                 "false");
   });
 
   AddTest(tests, "DomBindings/TemplateContentCustomElementsStayInert", [] {
@@ -864,6 +877,22 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const on = i.hasAttribute('disabled'); i.disabled = false;"
                  "on + '/' + i.hasAttribute('disabled') + '/' + i.disabled",
                  "true/false/false");
+    // HTMLElement.hidden is the same presence reflection. Polymer stamps
+    // `hidden="[[!isExpanded]]"` and writes the boolean property; an expando
+    // would leave the attribute unset and the UA `[hidden]` rule never match.
+    ExpectScript(kPage,
+                 "const d = document.createElement('div'); d.hidden = true;"
+                 "const on = d.hasAttribute('hidden'); d.hidden = false;"
+                 "on + '/' + d.hasAttribute('hidden') + '/' + d.hidden",
+                 "true/false/false");
+    // Presence + ToBoolean: `hidden = undefined` must clear. Without a real
+    // `document.all`, polymer_resin replaces undefined with `"zClosurez"` and
+    // that string is truthy — which stuck `hidden=""` on youtube search.
+    ExpectScript(kPage,
+                 "const d = document.createElement('div'); d.hidden = true;"
+                 "d.hidden = undefined;"
+                 "d.hasAttribute('hidden') + '/' + d.hidden",
+                 "false/false");
     // A missing `type` is a text input, which is what a page branching on it
     // expects to read.
     ExpectScript(kPage, "document.createElement('input').type", "text");
@@ -884,6 +913,23 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.body.id = 'first'; document.body.id = 'second';"
                  "var r = o.takeRecords(); r.length + ':' + r[1].attributeName + ':' + r[1].oldValue",
                  "2:id:first");
+  });
+
+  AddTest(tests, "DomBindings/DocumentAllIsHTMLDDA", [] {
+    // HTML [[IsHTMLDDA]]: falsy, typeof "undefined", == null, but still an
+    // object so `!== undefined` is true. Polymer resin's
+    // `!Z && Z !== document.all` relies on that last clause — without a real
+    // `document.all`, `undefined !== document.all` is false and undefined sinks
+    // become the string `"zClosurez"`.
+    ExpectScript(kPage,
+                 "[typeof document.all, !document.all, document.all == null, "
+                 "document.all == undefined, document.all !== undefined, "
+                 "undefined !== document.all, "
+                 "!(!undefined && undefined !== document.all)].join(',')",
+                 "undefined,true,true,true,true,true,false");
+    ExpectScript(kPage,
+                 "Object.prototype.toString.call(document.all)",
+                 "[object HTMLAllCollection]");
   });
 
   AddTest(tests, "DomBindings/TheSameNodeIsTheSameObject", [] {

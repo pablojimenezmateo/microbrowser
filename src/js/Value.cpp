@@ -113,9 +113,10 @@ bool ToBoolean(const Value& value) {
     case ValueType::String:
       return !value.AsString().empty();
     case ValueType::Object:
-      // Every object is truthy, including an empty array and a Boolean(false)
-      // wrapper. This is the rule people are most often surprised by.
-      return true;
+      // `document.all` is the one object that is falsy (HTML [[IsHTMLDDA]]).
+      // Every other object is truthy, including an empty array and a
+      // Boolean(false) wrapper.
+      return value.object == nullptr || !value.object->IsHTMLDDA();
     case ValueType::Symbol:
       return true;
     case ValueType::BigInt:
@@ -250,6 +251,10 @@ std::string_view TypeOf(const Value& value) {
     case ValueType::String:
       return "string";
     case ValueType::Object:
+      // HTML [[IsHTMLDDA]]: `typeof document.all` is "undefined".
+      if (value.object != nullptr && value.object->IsHTMLDDA()) {
+        return "undefined";
+      }
       return value.object->IsCallable() ? "function" : "object";
     case ValueType::Symbol:
       return "symbol";
@@ -289,10 +294,14 @@ bool StrictEquals(const Value& a, const Value& b) {
 }
 
 bool LooseEquals(const Value& a, const Value& b) {
-  // null and undefined are equal to each other and to nothing else. This one
-  // rule is why `x == null` is the idiomatic nullish check.
-  if (a.IsNullish() || b.IsNullish()) {
-    return a.IsNullish() && b.IsNullish();
+  // null and undefined are equal to each other and to nothing else -- and to
+  // `document.all` (HTML [[IsHTMLDDA]]), which is why `document.all == null`
+  // is true while `document.all !== undefined` stays true.
+  const auto nullish_or_dda = [](const Value& value) {
+    return value.IsNullish() || (value.IsObject() && value.object->IsHTMLDDA());
+  };
+  if (nullish_or_dda(a) || nullish_or_dda(b)) {
+    return nullish_or_dda(a) && nullish_or_dda(b);
   }
   if (a.type == b.type) {
     return StrictEquals(a, b);

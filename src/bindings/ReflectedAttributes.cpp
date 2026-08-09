@@ -66,6 +66,11 @@ constexpr Reflection kReflections[] = {
     {"HTMLElement", "title", "title", Reflect::Text},
     {"HTMLElement", "lang", "lang", Reflect::Text},
     {"HTMLElement", "dir", "dir", Reflect::Text},
+    // Presence, and the reason youtube's expandable metadata used to stay open:
+    // Polymer writes `el.hidden = !isExpanded` from `hidden="[[!isExpanded]]"`.
+    // Without a setter that reaches the content attribute the assignment was an
+    // expando, the cascade never saw `[hidden]`, and search rows grew to ~900px.
+    {"HTMLElement", "hidden", "hidden", Reflect::Presence},
 
     {"HTMLAnchorElement", "href", "href", Reflect::Text},
     {"HTMLAnchorElement", "target", "target", Reflect::Text},

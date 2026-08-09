@@ -214,11 +214,21 @@ class Object {
     ArrayBuffer,
     TypedArray,
     DataView,
+    // `document.all`: the HTML [[IsHTMLDDA]] exotic. One kind rather than a
+    // flag because ToBoolean / typeof / == ask on every use, and the kind byte
+    // is already being read. See HTML "DOM interface" obsolete section.
+    HTMLAllCollection,
   };
 
   explicit Object(Kind kind) : kind_(kind) {}
 
   Kind GetKind() const { return kind_; }
+  // The HTML willful violation: ToBoolean is false, typeof is "undefined", and
+  // `== null` / `== undefined` are true -- while `!== undefined` stays true.
+  // Polymer resin's `!Z && Z !== document.all` needs that last distinction;
+  // without a real `document.all`, `undefined !== document.all` is false and
+  // undefined sinks become the innocuous string `"zClosurez"`.
+  bool IsHTMLDDA() const { return kind_ == Kind::HTMLAllCollection; }
   // A bigint cell's digits. Null for every other object -- and read on every
   // bigint operation, which is why it is a pointer here rather than a lookup
   // in the table beside the heap that owns it.

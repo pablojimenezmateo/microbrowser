@@ -167,6 +167,26 @@ void DomBindings::UpgradeElement(dom::Element& element) {
     util::AddPerformanceCounter(util::PerfCounterId::DomCustomElementPrototypeMissing);
   }
 
+  // Strip binding-token attribute values *before* the constructor runs.
+  //
+  // Polymer's base reads attributes during `_initializeProperties()` / the
+  // constructor and deserializes a present boolean attribute as `true`. A
+  // stamped `hidden="[[data.hideContents]]"` therefore became `hidden=""` via
+  // reflectToAttribute before the old post-constructor strip could see the
+  // token — and `[hidden]{display:none}` (plus HTMLElement.hidden) then hid
+  // youtube's entire search results forever, because `data.hideContents` stays
+  // undefined until a command that never arrived. Template *contents* never
+  // reach this path (InsertFragmentChildren leaves them inert), so
+  // `_parseTemplate` still sees tokens on `_template` (TD-0017).
+  for (std::size_t i = 0; i < element.Attributes().size();) {
+    const dom::Attribute& attribute = element.Attributes()[i];
+    if (IsTemplateBindingToken(attribute.value)) {
+      element.RemoveAttribute(attribute.name);
+      continue;
+    }
+    ++i;
+  }
+
   // The handoff described at the top of this file: HTMLElement's constructor
   // returns whatever is parked here, so `super()` inside the page's class
   // yields the element that already exists.
@@ -191,20 +211,6 @@ void DomBindings::UpgradeElement(dom::Element& element) {
     interpreter_->ReportUncaught(constructed.value, "custom element constructor");
     return;
   }
-  // After construction, drop binding-token attribute values before the
-  // observed-attribute ACC pass and connectedCallback. Template *contents*
-  // never reach this path (InsertFragmentChildren leaves them inert), so
-  // Polymer `_parseTemplate` still sees `data="[[…]]"` on `_template`. Live
-  // stamped hosts must not keep tokens into connectedCallback — that hung
-  // youtube outside the JS step budget (TD-0017).
-  for (std::size_t i = 0; i < element.Attributes().size();) {
-    const dom::Attribute& attribute = element.Attributes()[i];
-    if (IsTemplateBindingToken(attribute.value)) {
-      element.RemoveAttribute(attribute.name);
-      continue;
-    }
-    ++i;
-  }
   // Observed attributes present before upgrade: the specification queues one
   // attributeChangedCallback per attribute after construction, with a null old
   // value. Polymer's property effects may depend on this to apply bindings that
@@ -222,7 +228,8 @@ void DomBindings::UpgradeElement(dom::Element& element) {
           // attributeChangedCallback with `[[items]]` makes Polymer
           // `_deserializeValue` null an Array property and can loop with
           // setAttribute (TD-0017). Annotation parsing still sees them via
-          // getAttribute on inert template contents.
+          // getAttribute on inert template contents. Tokens were stripped
+          // above; keep the guard if a setter re-introduced one.
           if (IsTemplateBindingToken(attribute.value)) {
             continue;
           }

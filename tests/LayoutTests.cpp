@@ -115,6 +115,27 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "and the content starts inside all three: 10 margin + 2 border + 5 padding");
   });
 
+  AddTest(tests, "Layout/HiddenAttributeGeneratesNoBox", [] {
+    // HTML's UA `[hidden]{display:none!important}` — without it a Polymer
+    // `hidden="[[!isExpanded]]"` write is invisible to layout even after the
+    // attribute reflects, and youtube search rows keep their expanded height.
+    const LaidOut result =
+        Run("<div id=\"outer\" style=\"width:200px\">"
+            "<div id=\"gone\" hidden style=\"height:600px;display:flex\">tall</div>"
+            "<div id=\"ok\" style=\"height:100px\">visible</div>"
+            "</div>",
+            "body { margin: 0 }", 400.0f);
+    const Box* outer = FindBox(*result.root, "div");
+    Expect(outer != nullptr, "outer exists");
+    Expect(outer->Geometry().BorderBox().height <= 101.0f,
+           "hidden sibling contributes no height despite author display:flex");
+    bool saw_gone_text = false;
+    result.root->ForEachDescendant([&](const Box& box) {
+      saw_gone_text = saw_gone_text || box.Text() == "tall";
+    });
+    Expect(!saw_gone_text, "hidden content generates no box");
+  });
+
   AddTest(tests, "Layout/EmptyBeforeWithPercentPaddingSetsAspectHeight", [] {
     // youtube's thumbnail hack: an empty ::before whose padding-top is a
     // percentage of the containing-block width reserves the media box.
