@@ -2967,6 +2967,29 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "and stops scheduling the moment the page stops asking");
   });
 
+  AddTest(tests, "Page/AnimationConstructorIsConstructible", [] {
+    // youtube SPA search→watch calls `new Animation(effect)` in a listener;
+    // Illegal constructor left ytd-player without #movie_player / <video>.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<html><body></body></html>", "https://example.org/");
+    page.Layout(400.0f);
+    page.RunScripts(0);
+    const std::string out = page.EvaluateScript(
+        "(() => {"
+        "  const a = new Animation();"
+        "  const b = document.createElement('div').animate([], 0);"
+        "  const need = 'play currentTime pause reverse playbackRate cancel finish startTime "
+        "playState'.split(' ');"
+        "  const missing = need.filter((k) => b[k] === undefined);"
+        "  return [a instanceof Animation, a.playState, typeof a.play, typeof a.reverse,"
+        "          typeof a.finish, typeof a.playbackRate, typeof a.startTime,"
+        "          missing.join(',')].join('|');"
+        "})()");
+    ExpectEqString(out, "true|finished|function|function|function|number|object|",
+                   "constructible Animation + polyfill probe surface: " + out);
+  });
+
   AddTest(tests, "Page/ElementAnimateDrivesComputedStyleWithoutStyleAttribute", [] {
     // TD-0021: native Element.animate must not write el.style (the polyfill
     // path). Mid-animation getComputedStyle sees the interpolated transform.

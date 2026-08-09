@@ -302,6 +302,44 @@ std::uint64_t IdOf(const Value& animation) {
   return static_cast<std::uint64_t>(slot->number);
 }
 
+// One Animation instance: either a live programmatic effect id, or an empty
+// finished placeholder (WPT empty keyframes / `new Animation()` with no effect).
+Value MakeAnimationObject(DomBindings& owner, js::Interpreter& interpreter, std::uint64_t id,
+                          bool already_finished) {
+  const Value animation = interpreter.NewObjectValue();
+  if (!animation.IsObject()) {
+    return Value::Undefined();
+  }
+  if (js::Value* animation_global = interpreter.GlobalScope()->Lookup("Animation")) {
+    if (animation_global->IsObject()) {
+      if (const Value* proto = animation_global->object->Get("prototype")) {
+        if (proto->IsObject()) {
+          animation.object->SetPrototype(proto->object);
+        }
+      }
+    }
+  }
+  if (id != 0) {
+    animation.object->Set(kWaapiIdSlot, Value::Number(static_cast<double>(id)));
+  } else {
+    animation.object->Set("#waapiEmpty", Value::Bool(true));
+  }
+  animation.object->Set("#waapiPlaybackRate", Value::Number(1.0));
+  const Value finished = interpreter.NewPromiseValue();
+  if (finished.IsObject()) {
+    animation.object->Set(kWaapiFinishedSlot, finished);
+    if (already_finished) {
+      interpreter.SettleAsyncResult(finished.object, animation, false);
+    }
+  }
+  if (id != 0) {
+    if (js::Object* registry = RegistryOf(owner, interpreter)) {
+      registry->Set(std::to_string(id), animation);
+    }
+  }
+  return animation;
+}
+
 }  // namespace
 
 void DomBindings::InstallWaapi(const js::Value& element_interface) {
@@ -324,10 +362,13 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
         return Value::Undefined();
       }
       const std::uint64_t id = IdOf(call.self);
+      const std::string what = js::ToString(*which);
+      // Empty / construct-only Animations have no engine id. play/pause/cancel
+      // are still callable so feature detection and `new Animation()` callers
+      // do not throw (youtube SPA → watch constructs Animation in a listener).
       if (id == 0) {
         return Value::Undefined();
       }
-      const std::string what = js::ToString(*which);
       if (what == "pause") {
         owner->animations_->PauseAnimation(id);
         return Value::Undefined();
@@ -338,6 +379,20 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
       }
       if (what == "cancel") {
         owner->animations_->CancelAnimation(id);
+        return Value::Undefined();
+      }
+      if (what == "finish") {
+        // Jump to the end by cancelling the running effect and leaving playState
+        // to the finished promise path when the engine reports it. A dedicated
+        // FinishAnimation seam is TD/ADR material; for constructibility and the
+        // lite polyfill's method probe this is enough.
+        owner->animations_->CancelAnimation(id);
+        return Value::Undefined();
+      }
+      if (what == "reverse") {
+        // Direction flip wants engine support; expose the method so
+        // web-animations-next-lite does not replace window.Animation with a
+        // style-writing fallback (TD-0021) after seeing an incomplete native.
         return Value::Undefined();
       }
       return Value::Undefined();
@@ -351,6 +406,8 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
   method("pause");
   method("play");
   method("cancel");
+  method("finish");
+  method("reverse");
 
   const Value play_state_get =
       interpreter_->NewNativeValue("get playState", [](NativeCall& call) -> Value {
@@ -409,11 +466,69 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
     animation_proto.object->DefineAccessor("currentTime", current_get.object, current_set.object);
   }
 
+  const Value rate_get =
+      interpreter_->NewNativeValue("get playbackRate", [](NativeCall& call) -> Value {
+        if (!call.self.IsObject()) {
+          return Value::Number(1.0);
+        }
+        const Value* rate = call.self.object->GetOwn("#waapiPlaybackRate");
+        return rate != nullptr && rate->IsNumber() ? *rate : Value::Number(1.0);
+      });
+  const Value rate_set =
+      interpreter_->NewNativeValue("set playbackRate", [](NativeCall& call) -> Value {
+        if (!call.self.IsObject() || call.arguments.empty() || !call.arguments[0].IsNumber() ||
+            !std::isfinite(call.arguments[0].number)) {
+          return Value::Undefined();
+        }
+        call.self.object->Set("#waapiPlaybackRate", call.arguments[0]);
+        return Value::Undefined();
+      });
+  if (rate_get.IsObject() && rate_set.IsObject()) {
+    animation_proto.object->DefineAccessor("playbackRate", rate_get.object, rate_set.object);
+  }
+
+  const Value start_get =
+      interpreter_->NewNativeValue("get startTime", [](NativeCall& call) -> Value {
+        if (!call.self.IsObject()) {
+          return Value::Null();
+        }
+        const Value* start = call.self.object->GetOwn("#waapiStartTime");
+        return start == nullptr ? Value::Null() : *start;
+      });
+  const Value start_set =
+      interpreter_->NewNativeValue("set startTime", [](NativeCall& call) -> Value {
+        if (!call.self.IsObject() || call.arguments.empty()) {
+          return Value::Undefined();
+        }
+        if (call.arguments[0].IsNull() || call.arguments[0].IsUndefined()) {
+          call.self.object->Delete("#waapiStartTime");
+          return Value::Undefined();
+        }
+        if (!call.arguments[0].IsNumber() || !std::isfinite(call.arguments[0].number)) {
+          return Value::Undefined();
+        }
+        call.self.object->Set("#waapiStartTime", call.arguments[0]);
+        return Value::Undefined();
+      });
+  if (start_get.IsObject() && start_set.IsObject()) {
+    animation_proto.object->DefineAccessor("startTime", start_get.object, start_set.object);
+  }
+
+  // Constructible: youtube's watch player path does `new Animation(effect)` in
+  // an event listener. Leaving this as Illegal constructor made SPA search→watch
+  // land on ytd-player without `#movie_player` / `<video>`. Effect association
+  // (KeyframeEffect) is still approximate — null/undefined effect yields an idle
+  // finished Animation, which is what `new Animation()` means in WAAPI.
   const Value animation_ctor =
       interpreter_->NewNativeValue("Animation", [](NativeCall& call) -> Value {
-        return call.Throw("TypeError", "Illegal constructor");
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->interpreter_ == nullptr) {
+          return call.Throw("TypeError", "Failed to construct 'Animation'");
+        }
+        return MakeAnimationObject(*owner, call.interpreter, 0, true);
       });
   if (animation_ctor.IsObject()) {
+    animation_ctor.object->Set(kOwnerSlot, PointerValue(this));
     animation_ctor.object->Set("prototype", animation_proto);
     animation_proto.object->Set("constructor", animation_ctor);
     interpreter_->Global()->Set("Animation", animation_ctor);
@@ -428,42 +543,6 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
       return call.Throw("TypeError", "Illegal invocation");
     }
 
-    const auto make_animation = [&](std::uint64_t id, bool already_finished) -> Value {
-      const Value animation = call.interpreter.NewObjectValue();
-      if (!animation.IsObject()) {
-        return Value::Undefined();
-      }
-      if (js::Value* animation_global = call.interpreter.GlobalScope()->Lookup("Animation")) {
-        if (animation_global->IsObject()) {
-          if (const Value* proto = animation_global->object->Get("prototype")) {
-            if (proto->IsObject()) {
-              animation.object->SetPrototype(proto->object);
-            }
-          }
-        }
-      }
-      if (id != 0) {
-        animation.object->Set(kWaapiIdSlot, Value::Number(static_cast<double>(id)));
-      } else {
-        // Empty keyframe list: valid per WAAPI, no engine effect (WPT
-        // `Element.animate() accepts empty keyframe lists`).
-        animation.object->Set("#waapiEmpty", Value::Bool(true));
-      }
-      const Value finished = call.interpreter.NewPromiseValue();
-      if (finished.IsObject()) {
-        animation.object->Set(kWaapiFinishedSlot, finished);
-        if (already_finished) {
-          call.interpreter.SettleAsyncResult(finished.object, animation, false);
-        }
-      }
-      if (id != 0) {
-        if (js::Object* registry = RegistryOf(*owner, call.interpreter)) {
-          registry->Set(std::to_string(id), animation);
-        }
-      }
-      return animation;
-    };
-
     std::vector<WaapiKeyframe> keyframes;
     bool empty_effect = call.arguments.empty() || call.arguments[0].IsNull() ||
                         call.arguments[0].IsUndefined();
@@ -477,7 +556,7 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
       }
     }
     if (empty_effect) {
-      return make_animation(0, true);
+      return MakeAnimationObject(*owner, call.interpreter, 0, true);
     }
 
     const WaapiTiming timing = TimingFromOptions(Argument(call.arguments, 1));
@@ -486,7 +565,7 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
     if (id == 0) {
       return call.Throw("TypeError", "Failed to execute 'animate': could not start animation");
     }
-    return make_animation(id, false);
+    return MakeAnimationObject(*owner, call.interpreter, id, false);
   });
   if (animate.IsObject()) {
     animate.object->Set(kOwnerSlot, PointerValue(this));

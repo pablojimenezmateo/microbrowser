@@ -3946,4 +3946,23 @@ and `src` false (correct lazy). `js.steps_exhausted` absent;
 **Left:** residual TD-0018 (home feed when server sends one; `Intl` / `eval`);
 watch already plays (TD-0020).
 
+---
+
+## 2026-08-09 — `Animation` is constructible (SPA watch)
+
+**Status:** `new Animation()` no longer aborts youtube search→watch listeners
+
+SPA navigation threw `TypeError: Illegal constructor: Animation` (named after
+the throw). Native `Animation` now constructs an idle/empty instance; prototype
+gains `reverse` / `finish` / `playbackRate` / `startTime` for the
+`web-animations-next-lite` completeness probe. Test
+`Page/AnimationConstructorIsConstructible`.
+
+**Check:** after Accept + thumb click, `new Animation().playState === "finished"`
+and no Illegal constructor; `ytd-player` still often lacks `#movie_player` /
+`<video>` on the soft-nav path (cold `/watch` plays). `Error: ad` in observer
+callbacks remains (DI / ads slice).
+
+**Left:** SPA watch player stamp; home nudge; `Intl` / `eval`.
+
 

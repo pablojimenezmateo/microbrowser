@@ -1017,7 +1017,11 @@ restyles then reflows. Counters: `layout.animation_tick_no_box_rebuild`,
 
 **Still open.** Dirty-subtree box rebuild remains the end state for stamp/font/
 sheet. Full Web Animations (KeyframeEffect constructor, `getAnimations`,
-opacity as a paint property) is not required for the youtube polyfill path.
+opacity as a paint property) is still approximate — `new Animation()` is now
+constructible (idle/empty) and the prototype carries `reverse` / `finish` /
+`playbackRate` / `startTime` so youtube's lite polyfill completeness probe can
+skip (2026-08-09). SPA search→watch no longer dies on Illegal constructor;
+`#movie_player` stamp after soft nav remains a separate gap.
 
 **Update** (2026-08-09). **`Element.animate` / `Animation` landed** through
 `bindings::AnimationSource` → `engine::Animations` programmatic effects (same
@@ -1346,30 +1350,9 @@ also set `src` *during* `PaintAndSend`, after the last collect and before
 (`engine.images_recollected_after_observation`). Test
 `Page/RecollectsImagesAfterScriptAssignsSrc`.
 
-**Still open.** Above-fold search thumbs often keep `src` empty — the observer
-callback is not assigning (0×0 `yt-image` geometry / step budget / race), which
-is separate from the fetch-list hole. Close this TD when a set `src` always
-fetches; empty-`src` reliability stays under TD-0018.
-
-**Measured** (2026-08-09, Release, after Accept, no scroll): `ytd-thumbnail`
-500×281 in view; child `yt-image` stays `display:inline` / 0×0; `img` is
-`inline-block` 0×0 with no `src`. `view.intersection_records` ~1000 and
-`engine.images_recollected_after_observation` move, so sampling runs — the
-lazy path still refuses to assign. After `-y 400`, `withSrc`/`complete` rise
-and the first result thumb reaches `naturalWidth` 720 (TD-0023 fetch path).
-
-**Update** (2026-08-09). Root cause of the 0×0 used size: inline replaced
-layout ignored percentage `width`/`height`. `.ytCoreImageFillParent*` matched
-in the cascade (`visibility:hidden` from `.ytCoreImageHost` proved it) but
-`ReplacedIntrinsic` skipped percents and `InlineLayout` reused that geometry.
-Landed `ResolveReplacedSize` + pass the containing block's definite height into
-`LayoutInlineChildren` (`layout.replaced_percent_resolved`). After Accept,
-above-fold imgs are **500×281** (was 0×0).
-
-**Update** (2026-08-09, NestedHostBudget). Empty `src` with sized geometry was
-`UpgradeElement` under live rAF frames (TD-0018): IO never got `onViewportEntered`.
-Fetch-list half of this TD stays closed; empty-`src` reliability moves with
-TD-0018's NestedHostBudget landing.
+**Still open.** Close when a set `src` always fetches. Empty-`src` reliability
+on first paint is closed under TD-0018's NestedHostBudget (2026-08-09): in-view
+search thumbs get `src` without scroll.
 
 ---
 

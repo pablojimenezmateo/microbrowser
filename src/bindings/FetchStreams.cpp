@@ -258,11 +258,11 @@ void DomBindings::InstallReadableStream() {
 
   const Value stream_ctor = interpreter_->NewNativeValue(
       "ReadableStream", [](NativeCall& call) -> Value {
-        return call.Throw("TypeError", "Illegal constructor");
+        return call.Throw("TypeError", "Illegal constructor: ReadableStream");
       });
   const Value reader_ctor = interpreter_->NewNativeValue(
       "ReadableStreamDefaultReader", [](NativeCall& call) -> Value {
-        return call.Throw("TypeError", "Illegal constructor");
+        return call.Throw("TypeError", "Illegal constructor: ReadableStreamDefaultReader");
       });
   if (!stream_ctor.IsObject() || !reader_ctor.IsObject()) {
     return;
