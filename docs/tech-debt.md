@@ -1221,10 +1221,11 @@ lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
 | `box-sizing: border-box` honoured for min/max size | **done** (iron-fit's pair with `max-height`) |
 | `getComputedStyle().overflow` shorthand | **done** |
 | column flex grow/shrink + `max-height` re-layout | **done** — `#content` is now ~840px inside the 896px dialog (`layout.flex_column_max_height_relayouts`); Accept still needs `scrollIntoView` because it sits at the end of the scrollable policy text |
+| `location.assign` / `replace` / `href=` | **done** (ADR 0026 §3) — deferred through `HistorySource::RequestNavigation`; manual `location.assign(savePreferenceUrl)` navigates |
+| Accept → `consent.youtube.com/save` | **open** — Accept sets `SOCS` from `saveConsentAction.socsCookie` but never calls `location.assign` / form POST; a manual GET to the save URL returns **405**; save likely needs **POST** (and the command executor that should drive it is not reaching navigation) |
 | auto-refit after stamp | **open** — `notifyResize()` schedules a refit that lands on the next drain (`top/left` → `0/266`), but nothing calls it after the bump stamps; youtube forces `ShadyDOM` (`force:true`, `ShadyCSS.disableRuntime:true`) |
-| Accept dismisses lightbox without scripted `opened=false` | **open** — trusted `-click` on an on-screen Accept sets `SOCS`/`PREF` and user activation, but `opened` stays true / backdrop stays `opened` |
 | inflated `#content.scrollHeight` (~1e5–4e5) | **open** — scrollport height is right; overflow measurement is not |
-| real `-click` Accept → user activation → play | blocked on dismiss |
+| real `-click` Accept → user activation → play | blocked on dismiss / save navigation |
 
 `dialog.refit()` / `resetFit(); fit()` recentres correctly when called. After
 Accept sets `SOCS`, MSE buffers the full zoo clip (`readyState` 4, ~19s) once
@@ -1233,10 +1234,9 @@ the overlay is cleared; `play()` still needs a trusted gesture.
 **Close when.** After the consent bump stamps, the dialog's border box is
 inside the viewport without `-eval` fit/scroll, Accept is hit-testable by
 `-click`, and Accept leaves `opened===false` (or navigates) without a scripted
-property write. Likely remaining work: deliver the resize notification Polymer
-expects after a late stamp under forced ShadyDOM; finish the Accept close path
-once cookies already succeed; fix scrollable-overflow measurement that inflates
-`scrollHeight`.
+property write. Likely remaining work: auto-refit after stamp; make Accept's
+`saveConsentAction` reach a **POST** to `consent.youtube.com/save` (GET is 405);
+fix scrollable-overflow measurement that inflates `scrollHeight`.
 
 ---
 

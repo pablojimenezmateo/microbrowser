@@ -346,6 +346,41 @@ void RegisterHistoryTests(std::vector<TestCase>& tests) {
                    "a fresh document has no state and fires nothing. Errors: " +
                        session.Errors());
   });
+
+  AddTest(tests, "History/LocationAssignNavigatesAfterTheTurn", [] {
+    // youtube consent Accept sets SOCS then location.assign(savePreferenceUrl).
+    // Without assign the dialog never leaves; without the turn boundary the
+    // assign would tear the document down under the script that asked.
+    Session session;
+    session.Run(
+        "console.log(typeof location.assign + ' ' + typeof location.replace);");
+    ExpectEqString(session.Console(), "function function",
+                   "assign and replace exist. Errors: " + session.Errors());
+
+    Session navigate;
+    navigate.Run("location.assign('https://page.example/second');");
+    ExpectEqString(navigate.DisplayedUrl(), "https://page.example/second",
+                   "location.assign loads after the turn. Errors: " + navigate.Errors());
+  });
+
+  AddTest(tests, "History/LocationReplaceRewritesTheCurrentEntry", [] {
+    Session session;
+    session.Run("location.replace('https://page.example/second');");
+    ExpectEqString(session.DisplayedUrl(), "https://page.example/second",
+                   "replace navigates. Errors: " + session.Errors());
+    const std::size_t requests_before = session.factory.log.requests.size();
+    session.Traverse(-1);
+    ExpectEqInt(static_cast<long long>(session.factory.log.requests.size()),
+                static_cast<long long>(requests_before),
+                "replace left no prior entry, so back loads nothing");
+  });
+
+  AddTest(tests, "History/LocationHrefSetterAssigns", [] {
+    Session session;
+    session.Run("location.href = 'https://page.example/second';");
+    ExpectEqString(session.DisplayedUrl(), "https://page.example/second",
+                   "href= is assign. Errors: " + session.Errors());
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -29,6 +29,7 @@
 #include "js/StructuredClone.h"
 #include "url/Origin.h"
 #include "url/Url.h"
+#include "util/LoadTimeline.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::engine {
@@ -110,6 +111,14 @@ void Engine::RequestHistoryTraversal(int delta) {
   pending_traversal_ += delta;
 }
 
+void Engine::RequestNavigation(std::string_view url, bool replace) {
+  if (pending_location_.has_value()) {
+    // First wins: the first navigation tears the document down.
+    return;
+  }
+  pending_location_ = PendingLocationNavigation{std::string(url), replace};
+}
+
 void Engine::SendHistoryState() {
   endpoint_.Send(ipc::HistoryStateMessage{history_.CanGoBack(), history_.CanGoForward()});
 }
@@ -118,6 +127,39 @@ bool Engine::FollowPendingTraversal() {
   const int delta = pending_traversal_;
   pending_traversal_ = 0;
   return delta != 0 && Traverse(delta);
+}
+
+bool Engine::FollowPendingLocationNavigation() {
+  if (!pending_location_.has_value()) {
+    return false;
+  }
+  PendingLocationNavigation pending = std::move(*pending_location_);
+  pending_location_.reset();
+
+  const std::string resolved = ResolveUrl(pending.url, page_.Url());
+  if (resolved.empty()) {
+    return false;
+  }
+  // Fragment-only: same document, no load. Spec and every in-page anchor.
+  if (NavigateToFragment(resolved)) {
+    AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
+    return true;
+  }
+  // javascript:/data: as a navigation target is refused rather than executed —
+  // a location.assign("javascript:…") that ran script would be eval by another
+  // name, and this engine has neither.
+  if (resolved.starts_with("javascript:") || resolved.starts_with("data:")) {
+    return false;
+  }
+  AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
+  if (pending.replace) {
+    replacing_document_ = true;
+  }
+  util::LoadTimeline::MarkWith(pending.replace ? "navigation.location_replace"
+                                               : "navigation.location_assign",
+                               resolved);
+  NavigateFromCurrentDocument(resolved, {});
+  return true;
 }
 
 bool Engine::Traverse(int delta) {

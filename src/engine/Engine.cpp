@@ -585,11 +585,14 @@ void Engine::OnDocument(Loader::Result result) {
   // with it the object this is stored on.
   page_.SetDocumentTiming(load_.started_wall_ms,
                           static_cast<double>(NowMilliseconds() - load_.started_ms));
-  if (traversing_) {
+  if (traversing_ || replacing_document_) {
     // A traversal's entry is already in the list, at its own index. Its URL is
     // rewritten rather than pushed, because a redirect can land somewhere else
     // and the entry has to say where the document actually is.
+    // `location.replace` uses the same shape: rewrite the current entry with the
+    // new document rather than growing history (youtube consent save redirect).
     traversing_ = false;
+    replacing_document_ = false;
     history_.SetCurrentUrl(page_.Url());
     ++document_id_;
     if (HistoryEntry* entry = history_.MutableCurrent()) {
@@ -829,6 +832,9 @@ bool Engine::FollowScriptNavigation() {
   // A traversal first, because `history.back()` is the one a router calls and
   // both are taken at the same boundary for the same reason.
   if (FollowPendingTraversal()) {
+    return true;
+  }
+  if (FollowPendingLocationNavigation()) {
     return true;
   }
   const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission();

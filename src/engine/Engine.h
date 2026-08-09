@@ -254,6 +254,7 @@ class Engine : private bindings::NetworkSource,
   UrlOutcome PushHistoryState(const js::SerializedValue& state, std::string_view url,
                               bool replace) override;
   void RequestHistoryTraversal(int delta) override;
+  void RequestNavigation(std::string_view url, bool replace) override;
 
   // Moves by `delta`: a load when the target entry belongs to another document,
   // and a paint plus `popstate` when it belongs to this one. True when anything
@@ -263,6 +264,8 @@ class Engine : private bindings::NetworkSource,
   // happened, which is the caller's signal that everything below it belongs to a
   // document that may be gone.
   bool FollowPendingTraversal();
+  // `location.assign` / `replace` / `href=`, taken at the same turn boundary.
+  bool FollowPendingLocationNavigation();
   // A navigation that differs from the current URL only in its fragment: a new
   // entry, the fragment applied, `hashchange`, and no request. True when `url`
   // was one, which is the caller's signal not to load it.
@@ -496,6 +499,17 @@ class Engine : private bindings::NetworkSource,
   // document, and doing that with the interpreter on the stack is a
   // use-after-free.
   int pending_traversal_ = 0;
+  // A `location.assign` / `replace` / `href=` that script asked for. First one
+  // in a turn wins, for the same reason as PendingSubmit: the first navigation
+  // is what tears the document down.
+  struct PendingLocationNavigation {
+    std::string url;
+    bool replace = false;
+  };
+  std::optional<PendingLocationNavigation> pending_location_;
+  // `location.replace` rewrites the current history entry on commit rather than
+  // pushing — same OnDocument shape as a traversal restore (`traversing_`).
+  bool replacing_document_ = false;
   // Whether the load in flight is a traversal rather than a new navigation. A
   // traversal's entry is already in the list at its own index, so committing one
   // must not push.

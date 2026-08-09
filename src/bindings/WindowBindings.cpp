@@ -141,11 +141,67 @@ void DomBindings::InstallWindow() {
       if (!call.self.IsObject()) {
         return Value::String(std::string());
       }
-      const Value* href = call.self.object->Get("href");
+      const Value* href = call.self.object->GetOwn("#href");
+      if (href == nullptr) {
+        href = call.self.object->Get("href");
+      }
       return href == nullptr ? Value::String(std::string()) : *href;
     });
     if (to_string.IsObject()) {
       location.object->Set("toString", to_string);
+    }
+    // `assign` / `replace` / writable `href` — ADR 0026 §3. Deferred through
+    // HistorySource so the navigation runs after the turn ends. Without these,
+    // youtube's consent Accept sets SOCS and never leaves the dialog: its
+    // saveConsentAction finishes with `location.assign(savePreferenceUrl)`.
+    if (history_ != nullptr) {
+      const auto install_nav = [this, &location](const char* name, bool replace) {
+        const Value method = interpreter_->NewNativeValue(name, [replace](NativeCall& call) {
+          DomBindings* owner = OwnerOf(call);
+          if (owner == nullptr || owner->history_ == nullptr) {
+            return Value::Undefined();
+          }
+          const std::string url = js::ToString(Argument(call.arguments, 0));
+          owner->history_->RequestNavigation(url, replace);
+          return Value::Undefined();
+        });
+        if (method.IsObject()) {
+          method.object->Set(kOwnerSlot, PointerValue(this));
+          location.object->Set(name, method);
+        }
+      };
+      install_nav("assign", false);
+      install_nav("replace", true);
+
+      const Value href_get = interpreter_->NewNativeValue("href", [](NativeCall& call) {
+        if (!call.self.IsObject()) {
+          return Value::String(std::string());
+        }
+        const Value* href = call.self.object->GetOwn("#href");
+        if (href == nullptr) {
+          href = call.self.object->Get("href");
+        }
+        return href == nullptr ? Value::String(std::string()) : *href;
+      });
+      const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->history_ == nullptr) {
+          return Value::Undefined();
+        }
+        const std::string url = js::ToString(Argument(call.arguments, 0));
+        owner->history_->RequestNavigation(url, false);
+        return Value::Undefined();
+      });
+      if (href_get.IsObject() && href_set.IsObject()) {
+        href_get.object->Set(kOwnerSlot, PointerValue(this));
+        href_set.object->Set(kOwnerSlot, PointerValue(this));
+        // Keep the plain data slot as `#href` so WriteLocationFields can update
+        // it, and expose a getter/setter named `href` to script.
+        if (const Value* current = location.object->GetOwn("href"); current != nullptr) {
+          location.object->Set("#href", *current);
+        }
+        location.object->DefineAccessor("href", href_get.object, href_set.object);
+      }
     }
     global->Set("location", location);
     interpreter_->GlobalScope()->Declare("location", location, false);
@@ -207,7 +263,16 @@ void DomBindings::WriteLocationFields(const js::Value& location) {
     return;
   }
   const Address address = SplitAddress(url_);
-  location.object->Set("href", Value::String(url_));
+  // `#href` when assign/replace installed an accessor on `href`; plain `href`
+  // otherwise (tests / pages without a HistorySource). Never Set("href") over
+  // the accessor — that would delete the navigation path.
+  if (location.object->GetOwn("#href") != nullptr ||
+      (location.object->GetOwn("href") != nullptr &&
+       location.object->GetOwn("assign") != nullptr)) {
+    location.object->Set("#href", Value::String(url_));
+  } else {
+    location.object->Set("href", Value::String(url_));
+  }
   location.object->Set("protocol", Value::String(address.protocol));
   location.object->Set("host", Value::String(address.host));
   location.object->Set("hostname", Value::String(address.hostname));
