@@ -4065,3 +4065,18 @@ search→watch after Accept: `ytd-watch-flexy.data` has `currentVideoEndpoint` /
 home nudge; `Intl`.
 
 ---
+
+## 2026-08-09 — post-load player `base.js` fetch (TD-0024)
+
+**Status:** `Application.create` is a function on SPA watch; still no `#movie_player`
+
+`OptionsForSubresource` dereferenced `load_.base` after the navigation cleared
+it. CSP trust for `'strict-dynamic'` is now stamped on `createElement('script')`
+and flush runs when an already-trusted script is appended. Failed late fetches
+dispatch `error`. Timeline: `player_ias/.../base.js` request+run, `/player` and
+`/next` 200; probe `create:"function"`, `video:false`, `mp:false`.
+
+**Left:** cause B — stamp `#movie_player` after create exists (eue / apiResolver);
+home nudge; `Intl`.
+
+---

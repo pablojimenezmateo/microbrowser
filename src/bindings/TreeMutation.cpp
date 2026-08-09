@@ -415,9 +415,14 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   NotifyConnection(*child, true);
   if (child->IsElement()) {
     const auto& element = static_cast<const dom::Element&>(*child);
-    if (InTrustedScriptContext() && element.TagName() == "script") {
-      csp_trusted_scripts_.insert(&element);
-      if (trusted_script_flush_) {
+    if (element.TagName() == "script") {
+      if (InTrustedScriptContext()) {
+        csp_trusted_scripts_.insert(&element);
+      }
+      // Flush when the element is already trusted (e.g. createElement marked it)
+      // even if this append is outside a trusted context — otherwise a script
+      // stamped under trust and appended a tick later never enters CollectInserted.
+      if (IsCspTrustedScript(element) && trusted_script_flush_) {
         trusted_script_flush_();
       }
     } else if (element.TagName() == "iframe" && element.GetAttribute("src") == nullptr) {
@@ -480,6 +485,13 @@ js::Value DomBindings::CreateElement(const std::string& tag_name) {
   // owned by C++ until something appends it.
   unattached_.push_back(std::move(element));
   const js::Value wrapper = WrapperFor(raw);
+  // CSP `'strict-dynamic'`: a script created while a permitted script runs is
+  // trusted before it is inserted. YouTube's player loader (`GXC`) does
+  // createElement → set src → appendChild; marking only at append missed the
+  // create half when the append's trust bit had already dropped (TD-0024).
+  if (tag_name == "script" && InTrustedScriptContext()) {
+    MarkCspTrustedScript(*raw);
+  }
   // Upgraded here rather than on insertion, because the specification says a
   // custom element is constructed when it is created -- a page that does
   // `document.createElement('my-thing')` and reads a property its constructor

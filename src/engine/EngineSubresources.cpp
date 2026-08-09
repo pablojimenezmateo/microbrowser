@@ -38,14 +38,28 @@ using util::PerfCounterId;
 std::optional<net::FetchOptions> Engine::OptionsForSubresource(
     const SubresourceRequest& request) const {
   net::FetchOptions options;
-  options.bypass_cache = load_.bypass_cache;
-  const url::Url& document = *load_.base;
+  // After the navigation finishes, `load_` is cleared — post-load scripts
+  // (youtube's PLAYER_JS_URL / base.js on SPA watch) still need a document
+  // URL for CORS and relative resolution. Same fallback as images.
+  options.bypass_cache = load_.active && load_.bypass_cache;
+  std::optional<url::Url> parsed;
+  const url::Url* document = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
+  if (document == nullptr) {
+    parsed = page_.BaseUrl();
+    if (!parsed.has_value()) {
+      parsed = url::Url::Parse(page_.Url());
+    }
+    if (!parsed.has_value()) {
+      return std::nullopt;
+    }
+    document = &*parsed;
+  }
 
   if (!request.cross_origin.has_value()) {
-    const std::optional<url::Url> target = url::Url::Parse(request.url, document);
+    const std::optional<url::Url> target = url::Url::Parse(request.url, *document);
     const bool cross_origin =
         target.has_value() &&
-        !url::Origin::FromUrl(*target).IsSameOrigin(url::Origin::FromUrl(document));
+        !url::Origin::FromUrl(*target).IsSameOrigin(url::Origin::FromUrl(*document));
     if (cross_origin && csp::HasIntegrityMetadata(request.integrity)) {
       // ADR 0020 §4: `integrity` on a cross-origin resource requires
       // `crossorigin`. Refused rather than fetched and left unchecked, because
@@ -64,7 +78,7 @@ std::optional<net::FetchOptions> Engine::OptionsForSubresource(
       util::EqualsAsciiCaseInsensitive(*request.cross_origin, "use-credentials")
           ? net::CredentialsMode::Include
           : net::CredentialsMode::Omit;
-  options.cors.origin = url::Origin::FromUrl(document);
+  options.cors.origin = url::Origin::FromUrl(*document);
   return options;
 }
 
@@ -156,6 +170,12 @@ void Engine::StartPendingScriptRequests() {
     const std::size_t index = base_index + i;
     const std::optional<net::FetchOptions> options = OptionsForSubresource(pending[i]);
     if (!options.has_value()) {
+      // Refused before the wire (integrity without crossorigin, or no document
+      // URL). YouTube's player loader waits on `load` only — a silent skip
+      // leaves At7 hanging forever (TD-0024). Fire `error` so the page can
+      // fail closed rather than wait.
+      page_.NotifyScriptFetchFailed(index);
+      AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
       continue;
     }
     const Loader::RequestId id = loader_.StartSubresource(
@@ -181,6 +201,7 @@ bool Engine::OnLateScript(Loader::Completion completion) {
   if (!completion.result.ok ||
       !IntegrityHolds(page_.PendingScripts(), index, completion.result.body)) {
     AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+    page_.NotifyScriptFetchFailed(index);
     return true;
   }
   page_.AddScript(index, std::move(completion.result.body));

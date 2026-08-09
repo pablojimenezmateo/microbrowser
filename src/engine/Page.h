@@ -195,6 +195,11 @@ class Page : private layout::ImageProvider,
   // paint and which do not -- see PageScript::Timing and ADR 0011.
   bool PendingScriptIsAsync(std::size_t index) const { return script_.IsAsync(index); }
   void AddScript(std::size_t pending_index, std::string source);
+  // A pending script was refused or failed before Run — fire `error` on the
+  // element so a page waiting on `load` (YouTube At7 / GXC) does not hang.
+  void NotifyScriptFetchFailed(std::size_t pending_index) {
+    script_.NotifyFetchFailed(pending_index);
+  }
   // Finds `<script>` elements added after the parse-time walk and queues them.
   // True when any were found.
   bool CollectInsertedScripts();

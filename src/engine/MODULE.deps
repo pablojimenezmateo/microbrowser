@@ -377,7 +377,7 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # +1 header line, +1 method and +1 member for SetIndexedDbSource and the
 # IndexedDbSource pointer it stores, the same shape as every other Set*Source.
 # +SetAnimationSource / animations_ / DeliverFinishedAnimations (TD-0021).
-budget: PageScript header_lines=500 public_methods=65 members=32
+budget: PageScript header_lines=500 public_methods=68 members=32
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

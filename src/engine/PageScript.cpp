@@ -231,6 +231,19 @@ void PageScript::AddFetched(std::size_t index, std::string source) {
   slots_[slot].source = std::move(source);
 }
 
+void PageScript::NotifyFetchFailed(std::size_t index) {
+  if (index >= pending_slots_.size() || bindings_ == nullptr) {
+    return;
+  }
+  const std::size_t slot = pending_slots_[index];
+  if (slot >= slots_.size()) {
+    return;
+  }
+  if (const dom::Element* element = slots_[slot].element) {
+    bindings_->NotifyScriptElementEvent(*element, "error");
+  }
+}
+
 void PageScript::SetTrustedInsertionFlush(std::function<void()> hook) {
   trusted_insertion_flush_ = std::move(hook);
   if (bindings_ != nullptr) {

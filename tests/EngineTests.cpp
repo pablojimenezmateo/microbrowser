@@ -327,6 +327,41 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "a script inserted after load still runs when it arrives");
   });
 
+  AddTest(tests, "Engine/ALateCrossOriginScriptUsesThePageOriginAfterLoad", [] {
+    // OptionsForSubresource used to dereference load_.base after the navigation
+    // cleared it; a post-load script with crossorigin needs the page origin for
+    // CORS (youtube SPA player base.js).
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html", "<html><head></head><body>ok</body></html>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "cdn.example", 443, true,
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/javascript\r\n"
+        "Access-Control-Allow-Origin: https://page.example\r\n"
+        "Content-Length: 22\r\n"
+        "\r\n"
+        "console.log('cdn ran')"});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    Expect(!session.engine.IsLoading(), "navigation finished");
+
+    session.engine.EvaluateScript(
+        "const s = document.createElement('script');"
+        "s.src = 'https://cdn.example/player.js';"
+        "s.crossOrigin = 'anonymous';"
+        "document.head.appendChild(s);");
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "cdn ran",
+                   "post-load CORS script still runs with a cleared load_.base");
+  });
+
   AddTest(tests, "Page/AClickReachesTheElementUnderIt", [] {
     // An inline element has no box geometry of its own -- its text fragments
     // carry the rectangles -- and a text box has no element. So a click on the

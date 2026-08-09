@@ -211,6 +211,8 @@ class PageScript {
   bool IsAsync(std::size_t index) const;
   // Supplies the source for `PendingUrls()[index]`.
   void AddFetched(std::size_t index, std::string source);
+  // Fetch refused or failed: dispatch `error` on the `<script>` if any.
+  void NotifyFetchFailed(std::size_t index);
 
   // Runs the document's scripts: every blocking one in document order, then
   // every deferred one, then whatever `async` scripts have arrived so far.

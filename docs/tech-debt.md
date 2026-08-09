@@ -1400,6 +1400,13 @@ those because `ytInitialPlayerResponse` is in the HTML.
 ready (`new Promise(function(){})`). Close when search→watch reliably yields a
 playable `<video>` without a cold document load.
 
+**Landed** (2026-08-09, post-load scripts). `OptionsForSubresource` no longer
+dereferences a cleared `load_.base`; CSP trust is stamped on
+`createElement('script')` as well as append; refused/failed late scripts fire
+`error`. SPA now fetches and runs `player_ias/.../base.js`, issues
+`/youtubei/v1/player` + `/next` (200), and `Application.create` is a function —
+still no `#movie_player` / `<video>` (cause B).
+
 **Instrumentation.** `MICROBROWSER_LOAD_TIMELINE` kept only 512 rows and truncated
 during font cookies on youtube soft-nav — raised to 4096 so innertube/player
 rows stay visible.
