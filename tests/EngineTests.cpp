@@ -1964,6 +1964,27 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqInt(frame->scroll_delta.y, 0, "and no document blit");
   });
 
+  AddTest(tests, "Engine/AWheelReachesFixedOverflowUnderAZeroHeightHost", [] {
+    // youtube consent: `position:fixed` dialog inside a 0×0 lightbox host.
+    // ScrollTargetAt required every ancestor BorderBox to contain the point and
+    // never reached `#content { overflow:auto }`. Wheel must use the same
+    // elevated abspos walk as elementFromPoint (TD-0022).
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 400}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<body style='margin:0'>"
+        "<div id='host' style='height:0;width:0;overflow:visible'>"
+        "<div id='dialog' style='position:fixed;left:0;top:0;width:400px;height:400px'>"
+        "<div id='content' style='height:300px;overflow:auto'>"
+        "<div style='height:900px'><button id='accept' style='margin-top:700px'>Accept</button>"
+        "</div></div></div></div></body>")});
+    Expect(session.LastFrame() != nullptr, "painted");
+    session.Send(ipc::ScrollMessage{0, 400, gfx::IntPoint{200, 150}});
+    const std::string top =
+        session.engine.EvaluateScript("String(document.getElementById('content').scrollTop)");
+    ExpectEqString(top, "400", "fixed overflow under a 0-height host takes the wheel");
+  });
+
   AddTest(tests, "Engine/NavigatingToAboutBlankIsAPageRatherThanAFailure", [] {
     Session session;
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});

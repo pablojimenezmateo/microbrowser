@@ -56,12 +56,16 @@ struct Options {
   std::string prelude;
   // Pointer, keyboard, scroll and probe steps in **argv order**. A click after
   // an `-eval` that scrolled Accept into view is how youtube consent is driven;
-  // the old "all clicks then all evals" order could not express that.
+  // `-wheel` over the dialog's `#content` does the same without script
+  // (overflow scrollers take the delta at that point — ADR 0018 §4).
   enum class StepKind { Hover, Click, ClickLastEval, Eval, Key, Scroll };
   struct Step {
     StepKind kind = StepKind::Eval;
     int x = 0;
     int y = 0;
+    // For Scroll: wheel delta in CSS pixels. `x`/`y` are the pointer position;
+    // negative `x` means "viewport centre" (bare `-y`).
+    int scroll_delta = 0;
     std::string text;
     microbrowser::ipc::KeyInputMessage key{};
   };
@@ -87,7 +91,7 @@ microbrowser::ipc::KeyInputMessage NamedKey(std::string_view name) {
 const char* kUsage =
     "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n"
     "                            [-dpr ratio] [-hover x,y] [-click x,y] [-type text]\n"
-    "                            [-key name] [-prelude js] [-eval js] [-v]\n"
+    "                            [-key name] [-prelude js] [-eval js] [-wheel x,y,dy] [-v]\n"
     "  -dpr    device pixels per CSS pixel: which srcset candidate an <img> picks\n"
     "  -hover  move the pointer there: what `:hover` and `:active` do to the page\n"
     "  -click  deliver a click at x,y (viewport CSS px), or `last` for the prior\n"
@@ -96,7 +100,10 @@ const char* kUsage =
     "  -key    press one named key -- Escape, Enter, Tab, ArrowDown; repeatable\n"
     "  -prelude  run once before the page's scripts (API hooks); repeatable, in order\n"
     "  -eval   run JS against the settled page; printed as eval: <result>; repeatable\n"
-    "  -y      scroll the document by this many CSS pixels\n"
+    "  -y      scroll by this many CSS pixels at the viewport centre (overflow\n"
+    "          scrollers under the centre take it; else the document)\n"
+    "  -wheel  scroll by dy CSS px at x,y (ADR 0018 hit-test). youtube consent\n"
+    "          Accept is in overflow #content — `-wheel 640,400,900` then `-click`\n"
     "  -v      print every display list command\n"
     "  Interaction flags run in argv order (so -eval can scroll then -click).\n";
 
@@ -245,7 +252,24 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       if (!parsed) return false;
       Options::Step step;
       step.kind = Options::StepKind::Scroll;
-      step.y = *parsed;
+      step.x = -1;  // viewport centre at apply time
+      step.scroll_delta = *parsed;
+      out.steps.push_back(std::move(step));
+    } else if (argument == "-wheel") {
+      // x,y,dy — pointer where the wheel is, then the delta (ADR 0018 §4).
+      const std::string_view text = value();
+      const auto first = text.find(',');
+      const auto second = first == std::string_view::npos ? first : text.find(',', first + 1);
+      if (first == std::string_view::npos || second == std::string_view::npos) return false;
+      const std::optional<int> x = ParseInt(text.substr(0, first));
+      const std::optional<int> y = ParseInt(text.substr(first + 1, second - first - 1));
+      const std::optional<int> dy = ParseInt(text.substr(second + 1));
+      if (!x || !y || !dy) return false;
+      Options::Step step;
+      step.kind = Options::StepKind::Scroll;
+      step.x = *x;
+      step.y = *y;
+      step.scroll_delta = *dy;
       out.steps.push_back(std::move(step));
     } else if (!argument.empty() && argument.front() == '-') {
       return false;
@@ -691,11 +715,12 @@ int main(int argc, char** argv) {
     RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   };
   const auto remember_click_point = [&](const std::string& answer) {
-    // Prefer a JSON object with numeric x/y (the consent-button shape). Fall
-    // back to a bare "x,y" so a one-liner probe can feed `-click last` too.
+    // Prefer a JSON object with numeric x/y (the consent-button shape). Also
+    // accept `"click":"x,y"` so a probe can return scroll diagnostics and a
+    // point in one object. Fall back to a bare "x,y".
     // ParseInt is exact (no trailing junk), so take only the digit run.
     const auto leading_int = [](std::string_view raw) -> std::optional<int> {
-      while (!raw.empty() && (raw.front() == ' ' || raw.front() == '\t')) {
+      while (!raw.empty() && (raw.front() == ' ' || raw.front() == '\t' || raw.front() == '"')) {
         raw.remove_prefix(1);
       }
       std::size_t end = 0;
@@ -707,6 +732,28 @@ int main(int argc, char** argv) {
       }
       return end == 0 ? std::nullopt : ParseInt(raw.substr(0, end));
     };
+    const std::size_t click_key = answer.find("\"click\"");
+    if (click_key != std::string::npos) {
+      const std::size_t colon = answer.find(':', click_key);
+      if (colon != std::string::npos) {
+        std::string_view rest{answer.data() + colon + 1, answer.size() - (colon + 1)};
+        while (!rest.empty() && (rest.front() == ' ' || rest.front() == '"')) {
+          rest.remove_prefix(1);
+        }
+        const std::size_t comma = rest.find(',');
+        if (comma != std::string_view::npos) {
+          if (const auto x = leading_int(rest.substr(0, comma))) {
+            last_eval_x = *x;
+          }
+          if (const auto y = leading_int(rest.substr(comma + 1))) {
+            last_eval_y = *y;
+          }
+          if (last_eval_x >= 0 && last_eval_y >= 0) {
+            return;
+          }
+        }
+      }
+    }
     const std::size_t x_key = answer.find("\"x\"");
     const std::size_t y_key = answer.find("\"y\"");
     if (x_key != std::string::npos && y_key != std::string::npos) {
@@ -765,8 +812,13 @@ int main(int argc, char** argv) {
         break;
       }
       case Options::StepKind::Scroll: {
+        // Bare `-y` aimed at (0,0) and never hit overflow scrollers in the
+        // middle of the window — youtube's consent Accept lives in
+        // `#content { overflow-y: auto }` under the dialog (TD-0022).
+        const int pos_x = step.x < 0 ? options.width / 2 : step.x;
+        const int pos_y = step.x < 0 ? options.height / 2 : step.y;
         channel.Ui().Send(microbrowser::ipc::ScrollMessage{
-            0, step.y, microbrowser::gfx::IntPoint{}});
+            0, step.scroll_delta, microbrowser::gfx::IntPoint{pos_x, pos_y}});
         engine.HandlePendingMessages();
         RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
         break;

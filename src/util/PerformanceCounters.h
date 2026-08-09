@@ -556,6 +556,11 @@ namespace microbrowser::util {
   /* browser do unbounded work, and the count going up per iteration is the    */ \
   /* only way to tell that page apart from a slow one.                         */ \
   X(LayoutForcedByScript, "layout.forced_by_script")                             \
+  /* Wheel routing (ADR 0018 §4). `overflow_moved` is a scroller under the     */ \
+  /* pointer; `viewport_fallback` is document/chain end. A youtube consent   */ \
+  /* Accept that needs `#content` scrolled should raise the first.           */ \
+  X(ScrollOverflowMoved, "scroll.overflow_moved")                                 \
+  X(ScrollViewportFallback, "scroll.viewport_fallback")                           \
   /* Element→box map lookups from geometry queries. Hits should track lookups  */ \
   /* once the index is built; the O(boxes) walk is gone (Gate C stamp depth).  */ \
   X(LayoutBoxLookups, "layout.box_lookups")                                      \

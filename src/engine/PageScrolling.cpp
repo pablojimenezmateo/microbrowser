@@ -2,8 +2,10 @@
 //
 // ADR 0018, and its load-bearing sentence is the reason this file is short:
 // **a scroll is a paint, not a layout.** Nothing here rebuilds a box tree or
-// re-resolves a cascade. A scroll writes a number onto a box, records that the
-// box owes a `scroll` event, and reports the rectangle that has to be redrawn.
+// re-resolves a cascade *because of the scroll itself*. `EnsureLayoutClean` at
+// the start of `ScrollAt` only runs layout when the tree was already dirty —
+// without it a wheel hit-tests a stale tree while `scrollTop =` (which cleans
+// first) still moves the same scroller.
 //
 // Split out of Page.cpp because it is a different question from the rest of
 // what a Page does: everything else in that file turns a document into boxes,
@@ -15,6 +17,7 @@
 
 #include "engine/Page.h"
 #include "layout/LayoutEngine.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::engine {
 
@@ -37,34 +40,57 @@ void Page::NoteScrolled(const dom::Element* element) {
 
 Page::ScrollOutcome Page::ScrollAt(gfx::FloatPoint document_point, gfx::FloatPoint delta) {
   ScrollOutcome outcome;
+  // Same clean gate as `scrollTop =` / click hit-testing.
+  EnsureLayoutClean();
   if (boxes_ == nullptr) {
     outcome.viewport = true;
+    util::AddPerformanceCounter(util::PerfCounterId::ScrollViewportFallback);
     return outcome;
   }
-  const layout::Box* target = layout::ScrollTargetAt(*boxes_, document_point, delta);
-  if (target == nullptr || target->Origin() == nullptr) {
-    // Nothing inside the page can take it, so the document does. That is the
-    // chaining rule reaching its last link rather than a failure.
-    outcome.viewport = true;
+  // Route through the same deepest-element walk as clicks. `ScrollTargetAt`'s
+  // "every ancestor BorderBox must contain the point" misses `position:fixed`
+  // (and abspos) under a 0×0 host — youtube's consent dialog lives in
+  // `ytd-consent-bump-v2-lightbox` at height 0 while `#content { overflow:auto }`
+  // is the scroller Accept needs (TD-0022).
+  const dom::Element* hit = ElementAt(document_point);
+  const auto can_move = [](float at_now, float by, float high) {
+    return (by < 0.0f && at_now > 0.0f) || (by > 0.0f && at_now < high);
+  };
+  for (const dom::Node* at = hit; at != nullptr; at = at->Parent()) {
+    if (!at->IsElement()) {
+      continue;
+    }
+    const auto& element = static_cast<const dom::Element&>(*at);
+    const auto found = layout_.box_by_element.find(&element);
+    if (found == layout_.box_by_element.end()) {
+      continue;
+    }
+    layout::Box* box = found->second;
+    if (box == nullptr || !box->AllowsUserScroll()) {
+      continue;
+    }
+    const gfx::FloatPoint limit = layout::MaxScrollOffset(*box);
+    const gfx::FloatPoint was = box->ScrollOffset();
+    if (!can_move(was.x, delta.x, limit.x) && !can_move(was.y, delta.y, limit.y)) {
+      continue;
+    }
+    const gfx::FloatPoint wanted{std::clamp(was.x + delta.x, 0.0f, limit.x),
+                                 std::clamp(was.y + delta.y, 0.0f, limit.y)};
+    if (wanted == was) {
+      continue;
+    }
+    box->SetScrollOffset(wanted);
+    scroll_.offsets[&element] = wanted;
+    NoteScrolled(&element);
+    util::AddPerformanceCounter(util::PerfCounterId::ScrollOverflowMoved);
+    const gfx::FloatRect port = box->Geometry().PaddingBox();
+    outcome.damage = gfx::EnclosingIntRect(
+        gfx::FloatRect{port.x, port.y - layout_.scroll_y, port.width, port.height});
+    outcome.moved = true;
     return outcome;
   }
-  const gfx::FloatPoint limit = layout::MaxScrollOffset(*target);
-  const gfx::FloatPoint was = target->ScrollOffset();
-  const gfx::FloatPoint wanted{std::clamp(was.x + delta.x, 0.0f, limit.x),
-                               std::clamp(was.y + delta.y, 0.0f, limit.y)};
-  if (wanted == was) {
-    outcome.viewport = true;
-    return outcome;
-  }
-  const_cast<layout::Box*>(target)->SetScrollOffset(wanted);
-  scroll_.offsets[target->Origin()] = wanted;
-  NoteScrolled(target->Origin());
-  // What moved: the scroller's padding box, which is the clip its content is
-  // drawn inside. Nothing outside it changed, which is the point.
-  const gfx::FloatRect port = target->Geometry().PaddingBox();
-  outcome.damage = gfx::EnclosingIntRect(
-      gfx::FloatRect{port.x, port.y - layout_.scroll_y, port.width, port.height});
-  outcome.moved = true;
+  outcome.viewport = true;
+  util::AddPerformanceCounter(util::PerfCounterId::ScrollViewportFallback);
   return outcome;
 }
 

@@ -3849,4 +3849,21 @@ tops up the hang guard for media-element events flushed from that task
 **Left:** TD-0018 residual; home feed when the server sends one; Accept still needs
 scroll into `#content` (TD-0022 UX); `Intl` / `eval` throws on side scripts.
 
+---
+
+## 2026-08-09 — TD-0022: wheel reaches fixed overflow under a 0×0 host
+
+**Status:** Accept dismissible via `-wheel` then `-click` without `scrollIntoView`
+
+`Page::ScrollAt` walked `ScrollTargetAt`, which required every ancestor border
+box to contain the pointer. youtube's consent `#content { overflow:auto }` sits
+in a fixed dialog under a height-0 lightbox, so the wheel fell through while
+`scrollTop =` and `elementFromPoint` worked. ScrollAt now starts from
+`ElementAt` (same elevated abspos path as clicks). Snapshot: `-wheel x,y,dy`,
+`-y` at viewport centre, `-click last` reads `"click":"x,y"`. Counters
+`scroll.overflow_moved` / `scroll.viewport_fallback`.
+
+**Left:** TD-0018 residual; home feed when the server sends only a nudge;
+`Intl` / `eval` on side scripts.
+
 

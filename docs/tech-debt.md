@@ -1273,18 +1273,30 @@ lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
 | auto-refit after stamp | **done** — root cause was not FlattenedNodesObserver: iron-overlay prepares with `style.display=""` then measures, and `RestyleWithoutLayout` could not invent a box for an element that had been `display:none` (box tree skipped when only `MutationVersion` moved). Display none↔box now rebuilds the tree (`engine.box_tree_invalidated_by_display`). Dialog centres at `top:0; left:266` without `-eval` |
 | non-scroller `scrollWidth`/`scrollHeight` | **done** — were 0 on any non-scroll-container; now at least the padding box |
 | inflated `#content.scrollHeight` (~1e5–4e5) | **done** — was a symptom of the missing box after `display:none` cleared (overflow measured against a stale tree); after the rebuild, `#content.scrollHeight` is ~2.3k for ~1.3k of policy text. Accept still sits below the dialog fold until the content scroller moves (real UX) |
-| real `-click` Accept → user activation → play | open — needs a scroll (or sticky footer) so Accept is in the dialog scrollport, then trusted `-click` |
+| real `-click` Accept → user activation → play | **done** for the scroll half — see below |
 
 `dialog.refit()` / `resetFit(); fit()` recentres correctly when called. After
 Accept sets `SOCS`, MSE buffers the full zoo clip (`readyState` 4, ~19s) once
 the overlay is cleared; `play()` still needs a trusted gesture.
 
+**Update** (2026-08-09, wheel → Accept). `#content` is `overflow-y: auto` inside
+a `position:fixed` dialog whose host (`ytd-consent-bump-v2-lightbox`) is **0×0**.
+`ScrollTargetAt` required every ancestor `BorderBox` to contain the pointer, so
+the wheel never reached `#content` while `elementFromPoint` / `scrollTop =`
+still could. `Page::ScrollAt` now walks from `ElementAt` up the DOM for a
+movable scroller (same elevated-abspos path as clicks). Snapshot gained
+`-wheel x,y,dy` and `-y` aims at the viewport centre. Counters:
+`scroll.overflow_moved` / `scroll.viewport_fallback`.
+
+Measured (Release, `/watch?v=jNQXAC9IVRw`):
+`-wheel 640,400,950` → `#content.scrollTop === 950`, Accept at `y≈471`;
+`-click last` (from eval `"click":"x,y"`) → `dialogs:0`, `SOCS` set, MSE `readyState` 4.
+
 **Close when.** After the consent bump stamps, the dialog's border box is
 inside the viewport without `-eval` fit/scroll, Accept is hit-testable by
 `-click`, and Accept leaves `opened===false` (or navigates) without a scripted
-property write. Position/refit and scrollHeight inflation are done; remaining:
-get Accept into the dialog scrollport without a scripted `scrollIntoView` (wheel
-on the overflow scroller, or sticky button row if the stylesheet asks for it).
+property write. **Done** for scrollport + trusted click via `-wheel` then
+`-click` (optional eval only to discover Accept's post-scroll coordinates).
 
 ---
 
