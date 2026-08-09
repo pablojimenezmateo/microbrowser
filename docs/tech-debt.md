@@ -1645,7 +1645,10 @@ documented next to `ScrollAdjust` / `Page/LinkAtThroughOverflowHiddenAncestor`.
 
 **Close when.** Done for relative / in-flow collected units. Abspos under a
 non-covering `overflow:hidden` padding box remains the documented exception
-until thumbnail layout no longer needs it.
+until thumbnail layout no longer needs it. Zero-area intervening clips (youtube
+`body{height:0;overflow:scroll}` with abspos `ytd-app`) are skipped —
+`InterveningClipApplies`; viewport overflow propagation for html/body is
+TD-0034.
 
 ---
 
@@ -1767,6 +1770,31 @@ restyles, BuildBoxTree **~5.2 s / 118** (network still dominates wall).
 
 **End state.** Display-change rebuilds only when an element's own box generation
 actually flips; dirty-subtree rebuild (TD-0021) remains the larger end state.
+
+---
+
+## TD-0034 — html/body overflow clips to a height-0 padding box instead of the viewport
+
+**Opened** 2026-08-10 after TD-0030 made youtube search thumbnails unclickable.
+
+**Symptom.** `elementFromPoint` on a visible `a#thumbnail` returns
+`ytd-page-manager`. Clicks never navigate. Structure: `body{height:0;
+overflow:scroll}` (CSSOM), abspos `ytd-app` (unit, not a stacking context),
+`ytd-search{position:relative;z-index:0}` collecting the abspos thumbnail.
+TD-0030 recorded body's empty padding box as an intervening clip and rejected
+the `ytd-search` unit.
+
+**Mitigation landed.** `InterveningClipApplies` skips zero-area padding clips
+so collected units work again (test
+`Page/HitTestsAbsposUnderNonStackingAbsposAncestor`). Accept's non-empty
+`overflow:auto` clips are unchanged.
+
+**End state.** CSS overflow propagation: used overflow on the viewport for
+html/body, clip rect = viewport size (not the content-sized / zero padding
+box). Paint tree-walk PushClip for the root scroller should match.
+
+**Close when** a height-0 body with overflow still clips in-flow content to the
+viewport (not to empty), and the zero-area skip can be removed.
 
 ---
 

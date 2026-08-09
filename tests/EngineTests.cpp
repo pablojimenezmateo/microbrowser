@@ -817,6 +817,43 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "focused element is #accept, not #backdrop");
   });
 
+  AddTest(tests, "Page/HitTestsAbsposUnderNonStackingAbsposAncestor", [] {
+    // youtube search: body often reports height:0 with overflow:scroll while
+    // ytd-app is position:absolute;z-index:auto (unit, not a stacking context)
+    // and ytd-search is position:relative;z-index:0 (unit + SC) around the
+    // abspos thumbnail. TD-0030's intervening body clip was empty and rejected
+    // ytd-search — elementFromPoint returned #pm and clicks never navigated
+    // (TD-0034 mitigation: skip zero-area intervening clips).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "html,body{margin:0;height:0;overflow:scroll}"
+              "#app{position:absolute;left:0;top:0;width:400px;height:300px}"
+              "#pm{width:400px;height:300px}"
+              "#search{position:relative;z-index:0;width:400px;height:300px;"
+              "overflow:hidden}"
+              "#thumb{position:relative;width:200px;height:100px}"
+              "a{position:absolute;inset:0}"
+              "</style>"
+              "<body>"
+              "<div id=app><div id=pm><div id=search><div id=thumb>"
+              "<a id=thumbnail href='/watch?v=1'></a>"
+              "</div></div></div></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    const std::string hit = page.EvaluateScript(
+        "var el=document.elementFromPoint(50,50); el && (el.id||el.tagName);");
+    ExpectEqString(hit, "thumbnail",
+                   "abspos link under non-stacking abspos ancestor is the top hit");
+    Expect(page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}).has_value(), "LinkAt finds href");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "click focuses the link");
+    const dom::Element* focused = page.FocusedElement();
+    Expect(focused != nullptr && focused->GetAttribute("id") != nullptr &&
+               *focused->GetAttribute("id") == "thumbnail",
+           "focused element is #thumbnail");
+  });
+
   AddTest(tests, "Page/HitTestsRelativeInsideOverflowScroller", [] {
     // youtube Accept: position:relative button under #content { overflow:auto }.
     // Appendix E collects the button into the dialog stacking context; the hit
