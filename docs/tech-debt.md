@@ -1414,6 +1414,10 @@ the script body but was never *called* with a target. `load` fires first;
 `movie:true`, `video:true`, `html5:true` (Release). `readyState` can still be 0
 until MSE buffers — that is playback (TD-0020), not stamp.
 
+**Close when** search→watch stamps `#movie_player` / `<video>` without a cold
+document load, and media reaches a playable `readyState` (or a measured MSE
+blocker is filed separately). Stamp half: **done** 2026-08-09 (`37448fd`).
+
 **Instrumentation.** `MICROBROWSER_LOAD_TIMELINE` kept only 512 rows and truncated
 during font cookies on youtube soft-nav — raised to 4096 so innertube/player
 rows stay visible.
