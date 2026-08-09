@@ -50,39 +50,22 @@ struct Options {
   std::string output = "snapshot.ppm";
   int width = 1280;
   int height = 900;
-  int scroll_y = 0;
-  // Device pixels per CSS pixel. It decides which `srcset` candidate an <img>
-  // loads, and it is a flag rather than a property of the machine because the
-  // machine this runs on has no display at all.
   float device_scale = 1.0f;
   bool dump = false;
-  // Scripts to run against the loaded page, in order, each printed with what
-  // it evaluated to. `-eval` may be repeated.
-  //
-  // The reason it exists: a snapshot can show what a page *looks* like and had
-  // no way to ask it anything. "Did the custom elements upgrade", "is that
-  // response in the tree", "what is in this shadow root" are each one line of
-  // JavaScript, and each of them used to cost an `fprintf` and a rebuild.
-  std::vector<std::string> probes;
   // Runs once after the document exists and before the page's own scripts.
-  // `-eval` is too late to hook APIs the player has already called (TD-0020).
   std::string prelude;
-  // A click to deliver before the snapshot, in viewport pixels. Negative means
-  // none -- 0,0 is a real point.
-  int click_x = -1;
-  int click_y = -1;
-  // A pointer *move*, delivered before the click. Separate from the click
-  // because they are different questions: a click asks what an element does and
-  // a move asks what the cascade does about `:hover`, and a page can get the
-  // second wrong while getting the first right. Negative means none.
-  int hover_x = -1;
-  int hover_y = -1;
-  // Keys to deliver after the click, in order. Each is one press and release.
-  // `-type` expands to one entry per character with the character as its text;
-  // `-key` names a key and inserts nothing, which is how Escape and Enter
-  // arrive. This is the whole of what a check phrased as an interaction needs,
-  // and it is here because the browser needs a display and this does not.
-  std::vector<microbrowser::ipc::KeyInputMessage> keys;
+  // Pointer, keyboard, scroll and probe steps in **argv order**. A click after
+  // an `-eval` that scrolled Accept into view is how youtube consent is driven;
+  // the old "all clicks then all evals" order could not express that.
+  enum class StepKind { Hover, Click, ClickLastEval, Eval, Key, Scroll };
+  struct Step {
+    StepKind kind = StepKind::Eval;
+    int x = 0;
+    int y = 0;
+    std::string text;
+    microbrowser::ipc::KeyInputMessage key{};
+  };
+  std::vector<Step> steps;
 };
 
 // The DOM's `key` for a character, which for a printable character is the
@@ -106,13 +89,16 @@ const char* kUsage =
     "                            [-dpr ratio] [-hover x,y] [-click x,y] [-type text]\n"
     "                            [-key name] [-prelude js] [-eval js] [-v]\n"
     "  -dpr    device pixels per CSS pixel: which srcset candidate an <img> picks\n"
-    "  -hover  move the pointer there first: what `:hover` and `:active` do to the page\n"
-    "  -click  deliver a click before the snapshot, to follow a link or submit a form\n"
-    "  -type   type text into whatever the click focused; repeatable, in order\n"
+    "  -hover  move the pointer there: what `:hover` and `:active` do to the page\n"
+    "  -click  deliver a click at x,y (viewport CSS px), or `last` for the prior\n"
+    "          -eval's {\"x\":..,\"y\":..} JSON; repeatable\n"
+    "  -type   type text into whatever has focus; repeatable\n"
     "  -key    press one named key -- Escape, Enter, Tab, ArrowDown; repeatable\n"
     "  -prelude  run once before the page's scripts (API hooks); repeatable, in order\n"
-    "  -eval   run after the page has settled; printed as eval: <result>; repeatable\n"
-    "  -v      print every display list command: what was painted, where, in what colour\n";
+    "  -eval   run JS against the settled page; printed as eval: <result>; repeatable\n"
+    "  -y      scroll the document by this many CSS pixels\n"
+    "  -v      print every display list command\n"
+    "  Interaction flags run in argv order (so -eval can scroll then -click).\n";
 
 // One line per command. The point of a dump rather than a pixel is that a rect
 // of the right colour in the wrong place and a rect that was never recorded
@@ -202,28 +188,38 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       out.height = *parsed;
     } else if (argument == "-hover" || argument == "-click") {
       const std::string_view text = value();
-      const std::size_t comma = text.find(',');
-      if (comma == std::string_view::npos) return false;
-      const std::optional<int> x = ParseInt(text.substr(0, comma));
-      const std::optional<int> y = ParseInt(text.substr(comma + 1));
-      if (!x || !y) return false;
-      int& into_x = argument == "-hover" ? out.hover_x : out.click_x;
-      int& into_y = argument == "-hover" ? out.hover_y : out.click_y;
-      into_x = *x;
-      into_y = *y;
+      if (argument == "-click" && text == "last") {
+        Options::Step step;
+        step.kind = Options::StepKind::ClickLastEval;
+        out.steps.push_back(std::move(step));
+      } else {
+        const std::size_t comma = text.find(',');
+        if (comma == std::string_view::npos) return false;
+        const std::optional<int> x = ParseInt(text.substr(0, comma));
+        const std::optional<int> y = ParseInt(text.substr(comma + 1));
+        if (!x || !y) return false;
+        Options::Step step;
+        step.kind = argument == "-hover" ? Options::StepKind::Hover : Options::StepKind::Click;
+        step.x = *x;
+        step.y = *y;
+        out.steps.push_back(std::move(step));
+      }
     } else if (argument == "-type") {
       const std::string_view text = value();
       if (text.empty()) return false;
-      // One key per byte. ASCII only, which is what the window path delivers
-      // too -- a multi-byte character would need a codepoint boundary walk and
-      // there is nothing yet on the other end that would read it differently.
       for (const char c : text) {
-        out.keys.push_back(TypedKey(std::string(1, c)));
+        Options::Step step;
+        step.kind = Options::StepKind::Key;
+        step.key = TypedKey(std::string(1, c));
+        out.steps.push_back(std::move(step));
       }
     } else if (argument == "-key") {
       const std::string_view name = value();
       if (name.empty()) return false;
-      out.keys.push_back(NamedKey(name));
+      Options::Step step;
+      step.kind = Options::StepKind::Key;
+      step.key = NamedKey(name);
+      out.steps.push_back(std::move(step));
     } else if (argument == "-dpr") {
       const std::optional<float> parsed = microbrowser::util::ParseFloat(value());
       if (!parsed || !(*parsed > 0.0f) || *parsed > 8.0f) return false;
@@ -231,7 +227,10 @@ bool ParseOptions(int argc, char** argv, Options& out) {
     } else if (argument == "-eval") {
       const std::string_view text = value();
       if (text.empty()) return false;
-      out.probes.emplace_back(text);
+      Options::Step step;
+      step.kind = Options::StepKind::Eval;
+      step.text = std::string(text);
+      out.steps.push_back(std::move(step));
     } else if (argument == "-prelude") {
       const std::string_view text = value();
       if (text.empty()) return false;
@@ -244,7 +243,10 @@ bool ParseOptions(int argc, char** argv, Options& out) {
     } else if (argument == "-y") {
       const std::optional<int> parsed = ParseInt(value());
       if (!parsed) return false;
-      out.scroll_y = *parsed;
+      Options::Step step;
+      step.kind = Options::StepKind::Scroll;
+      step.y = *parsed;
+      out.steps.push_back(std::move(step));
     } else if (!argument.empty() && argument.front() == '-') {
       return false;
     } else {
@@ -673,65 +675,110 @@ int main(int argc, char** argv) {
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{options.url});
   engine.HandlePendingMessages();
   RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
-  if (options.hover_x >= 0 && options.hover_y >= 0) {
-    microbrowser::ipc::PointerInputMessage pointer;
-    pointer.kind = microbrowser::ipc::PointerInputMessage::Kind::Move;
-    pointer.position = microbrowser::gfx::FloatPoint{static_cast<float>(options.hover_x),
-                                                     static_cast<float>(options.hover_y)};
-    channel.Ui().Send(pointer);
-    engine.HandlePendingMessages();
-    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
-  }
-  if (options.click_x >= 0 && options.click_y >= 0) {
-    // Down then up, the way a real click arrives, so the engine sees the same
-    // sequence the window would deliver.
+  int last_eval_x = -1;
+  int last_eval_y = -1;
+  const auto deliver_click = [&](int x, int y) {
     for (const auto kind : {microbrowser::ipc::PointerInputMessage::Kind::Down,
                             microbrowser::ipc::PointerInputMessage::Kind::Up}) {
       microbrowser::ipc::PointerInputMessage pointer;
       pointer.kind = kind;
-      pointer.position = microbrowser::gfx::FloatPoint{static_cast<float>(options.click_x),
-                                                       static_cast<float>(options.click_y)};
+      pointer.position =
+          microbrowser::gfx::FloatPoint{static_cast<float>(x), static_cast<float>(y)};
       pointer.buttons = kind == microbrowser::ipc::PointerInputMessage::Kind::Down ? 1 : 0;
       channel.Ui().Send(pointer);
     }
     engine.HandlePendingMessages();
     RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
-  }
-  for (microbrowser::ipc::KeyInputMessage key : options.keys) {
-    // Down then up, the way a real key arrives. A handler that runs on keyup
-    // and a default action that runs on keydown are both real, and delivering
-    // only the press would test half of the path.
-    key.kind = microbrowser::ipc::KeyInputMessage::Kind::Down;
-    channel.Ui().Send(key);
-    key.kind = microbrowser::ipc::KeyInputMessage::Kind::Up;
-    channel.Ui().Send(key);
-    engine.HandlePendingMessages();
-    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
-  }
-  if (options.scroll_y > 0) {
-    channel.Ui().Send(
-        microbrowser::ipc::ScrollMessage{0, options.scroll_y, microbrowser::gfx::IntPoint{}});
-    engine.HandlePendingMessages();
-    // And then turn the crank, like the click and the key above already do. A
-    // scroll can start a fetch now -- an `<img loading="lazy">` that came
-    // within reach of the scrollport -- and a snapshot that stopped here would
-    // write out the frame from *before* the image arrived, which looks exactly
-    // like a lazy loader that does not work.
-    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
-  }
-
-  // The probes, after every input has been delivered and the page has settled,
-  // so they describe the page the snapshot is about to write out. Before the
-  // frame is taken rather than after, because a probe that changes the document
-  // should show up in it.
-  //
-  // Drain between probes: `v.play()` schedules decoder work on the next wake,
-  // and a second `-eval` that reads `currentTime` must see that work -- the
-  // same reason a click drains before the next `-type`.
-  for (const std::string& probe : options.probes) {
-    const std::string answer = engine.EvaluateScript(probe);
-    std::printf("eval: %s\n", answer.c_str());
-    RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+  };
+  const auto remember_click_point = [&](const std::string& answer) {
+    // Prefer a JSON object with numeric x/y (the consent-button shape). Fall
+    // back to a bare "x,y" so a one-liner probe can feed `-click last` too.
+    // ParseInt is exact (no trailing junk), so take only the digit run.
+    const auto leading_int = [](std::string_view raw) -> std::optional<int> {
+      while (!raw.empty() && (raw.front() == ' ' || raw.front() == '\t')) {
+        raw.remove_prefix(1);
+      }
+      std::size_t end = 0;
+      if (!raw.empty() && (raw.front() == '+' || raw.front() == '-')) {
+        ++end;
+      }
+      while (end < raw.size() && raw[end] >= '0' && raw[end] <= '9') {
+        ++end;
+      }
+      return end == 0 ? std::nullopt : ParseInt(raw.substr(0, end));
+    };
+    const std::size_t x_key = answer.find("\"x\"");
+    const std::size_t y_key = answer.find("\"y\"");
+    if (x_key != std::string::npos && y_key != std::string::npos) {
+      const std::size_t x_colon = answer.find(':', x_key);
+      const std::size_t y_colon = answer.find(':', y_key);
+      if (x_colon != std::string::npos && y_colon != std::string::npos) {
+        if (const auto x = leading_int(std::string_view{answer}.substr(x_colon + 1))) {
+          last_eval_x = *x;
+        }
+        if (const auto y = leading_int(std::string_view{answer}.substr(y_colon + 1))) {
+          last_eval_y = *y;
+        }
+        return;
+      }
+    }
+    const std::size_t comma = answer.find(',');
+    if (comma != std::string::npos) {
+      if (const auto x = leading_int(std::string_view{answer}.substr(0, comma))) {
+        last_eval_x = *x;
+      }
+      if (const auto y = leading_int(std::string_view{answer}.substr(comma + 1))) {
+        last_eval_y = *y;
+      }
+    }
+  };
+  for (const Options::Step& step : options.steps) {
+    switch (step.kind) {
+      case Options::StepKind::Hover: {
+        microbrowser::ipc::PointerInputMessage pointer;
+        pointer.kind = microbrowser::ipc::PointerInputMessage::Kind::Move;
+        pointer.position = microbrowser::gfx::FloatPoint{static_cast<float>(step.x),
+                                                         static_cast<float>(step.y)};
+        channel.Ui().Send(pointer);
+        engine.HandlePendingMessages();
+        RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+        break;
+      }
+      case Options::StepKind::Click:
+        deliver_click(step.x, step.y);
+        break;
+      case Options::StepKind::ClickLastEval:
+        if (last_eval_x < 0 || last_eval_y < 0) {
+          std::fputs("-click last needs a prior -eval that returned x,y\n", stderr);
+          return 2;
+        }
+        deliver_click(last_eval_x, last_eval_y);
+        break;
+      case Options::StepKind::Key: {
+        microbrowser::ipc::KeyInputMessage key = step.key;
+        key.kind = microbrowser::ipc::KeyInputMessage::Kind::Down;
+        channel.Ui().Send(key);
+        key.kind = microbrowser::ipc::KeyInputMessage::Kind::Up;
+        channel.Ui().Send(key);
+        engine.HandlePendingMessages();
+        RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+        break;
+      }
+      case Options::StepKind::Scroll: {
+        channel.Ui().Send(microbrowser::ipc::ScrollMessage{
+            0, step.y, microbrowser::gfx::IntPoint{}});
+        engine.HandlePendingMessages();
+        RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+        break;
+      }
+      case Options::StepKind::Eval: {
+        const std::string answer = engine.EvaluateScript(step.text);
+        std::printf("eval: %s\n", answer.c_str());
+        remember_click_point(answer);
+        RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
+        break;
+      }
+    }
   }
 
   // Paints were drained during the load loop. Hoist and late script can leave
@@ -804,7 +851,13 @@ int main(int argc, char** argv) {
   // reason above. Every check from ADR 0017 on is phrased as an interaction,
   // and where a click sent focus decides where every key after it goes. A
   // click that focused the wrong thing renders identically to one that worked.
-  if (!options.keys.empty() || (options.click_x >= 0 && options.click_y >= 0)) {
+  const bool drove_input = std::any_of(
+      options.steps.begin(), options.steps.end(), [](const Options::Step& step) {
+        return step.kind == Options::StepKind::Click ||
+               step.kind == Options::StepKind::ClickLastEval ||
+               step.kind == Options::StepKind::Key;
+      });
+  if (drove_input) {
     std::fprintf(stderr, "  focus: %s\n", engine.FocusDescription().c_str());
   }
   if (options.dump) {
