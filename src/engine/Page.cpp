@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "css/StyleSheet.h"
+#include "dom/FlatTree.h"
 #include "gfx/SvgDecoder.h"
 #include "engine/FormAlgorithms.h"
 #include "engine/ImageSelection.h"
@@ -45,6 +46,44 @@ std::string DirectText(const dom::Element& element) {
     }
   }
   return text;
+}
+
+// Composed-tree parent for click / focus / activation. A shadow root has no
+// parent by design (ADR 0019 §2); crossing to the host is how a click on an
+// <img> inside yt-image reaches a#thumbnail (youtube search). Matches
+// EventDispatch's propagation walk.
+dom::Element* ComposedParentElement(dom::Element* element) {
+  if (element == nullptr) {
+    return nullptr;
+  }
+  if (dom::Node* parent = element->Parent(); parent != nullptr && parent->IsElement()) {
+    return static_cast<dom::Element*>(parent);
+  }
+  if (const dom::Element* host = dom::ShadowHostOf(*element)) {
+    return const_cast<dom::Element*>(host);
+  }
+  return nullptr;
+}
+
+bool IsInComposedDocument(const dom::Element* element, const dom::Document* document) {
+  if (element == nullptr || document == nullptr) {
+    return false;
+  }
+  for (const dom::Node* node = element; node != nullptr;) {
+    if (node == document) {
+      return true;
+    }
+    if (node->Parent() != nullptr) {
+      node = node->Parent();
+      continue;
+    }
+    if (const dom::Element* host = dom::ShadowHostOf(*node)) {
+      node = host;
+      continue;
+    }
+    break;
+  }
+  return false;
 }
 
 bool IsValueResettableControl(const dom::Element& element) {
@@ -422,31 +461,15 @@ DispatchOutcome Page::DispatchPointerReleaseAt(gfx::FloatPoint document_point,
   // UI Events: pointerup/mouseup fire at the element under the pointer; click
   // fires at the nearest common ancestor of the press and release targets. A
   // re-hit-test-only click is how Accept-over-a-result navigates to /watch.
-  auto parent_element = [](dom::Element* element) -> dom::Element* {
-    if (element == nullptr) {
-      return nullptr;
-    }
-    dom::Node* parent = element->Parent();
-    return parent != nullptr && parent->IsElement() ? static_cast<dom::Element*>(parent)
-                                                    : nullptr;
-  };
-  auto in_document = [&](dom::Element* element) {
-    if (element == nullptr || document_ == nullptr) {
-      return false;
-    }
-    for (dom::Node* node = element; node != nullptr; node = node->Parent()) {
-      if (node == document_.get()) {
-        return true;
-      }
-    }
-    return false;
-  };
-  auto common_ancestor = [&](dom::Element* a, dom::Element* b) -> dom::Element* {
+  // Parent walks cross shadow hosts (ADR 0019) — youtube thumbnails put the
+  // <img> inside yt-image's shadow under a#thumbnail.
+  auto common_ancestor = [](dom::Element* a, dom::Element* b) -> dom::Element* {
     if (a == nullptr || b == nullptr) {
       return nullptr;
     }
-    for (dom::Element* candidate = a; candidate != nullptr; candidate = parent_element(candidate)) {
-      for (dom::Element* other = b; other != nullptr; other = parent_element(other)) {
+    for (dom::Element* candidate = a; candidate != nullptr;
+         candidate = ComposedParentElement(candidate)) {
+      for (dom::Element* other = b; other != nullptr; other = ComposedParentElement(other)) {
         if (candidate == other) {
           return candidate;
         }
@@ -455,10 +478,10 @@ DispatchOutcome Page::DispatchPointerReleaseAt(gfx::FloatPoint document_point,
     return nullptr;
   };
 
-  if (!in_document(down)) {
+  if (!IsInComposedDocument(down, document_.get())) {
     down = nullptr;
   }
-  if (!in_document(up)) {
+  if (!IsInComposedDocument(up, document_.get())) {
     up = nullptr;
   }
 
@@ -745,9 +768,7 @@ bool Page::FocusFromClickAt(gfx::FloatPoint document_point) {
   // walk is in this file with the four others that use it.
   const dom::Element* target = ElementAt(document_point);
   while (target != nullptr && !html::IsFocusable(*target)) {
-    const dom::Node* parent = target->Parent();
-    target = parent != nullptr && parent->IsElement() ? static_cast<const dom::Element*>(parent)
-                                                      : nullptr;
+    target = ComposedParentElement(const_cast<dom::Element*>(target));
   }
   // Not keyboard-driven, so no focus ring: a ring on every click is the reason
   // authors write `outline: none`, which is worse for the user than either
@@ -856,12 +877,7 @@ ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
   EnsureLayoutClean();
 
   auto parent_element = [](dom::Element* element) -> dom::Element* {
-    if (element == nullptr) {
-      return nullptr;
-    }
-    dom::Node* parent = element->Parent();
-    return parent != nullptr && parent->IsElement() ? static_cast<dom::Element*>(parent)
-                                                    : nullptr;
+    return ComposedParentElement(element);
   };
 
   for (dom::Element* at = click_target; at != nullptr; at = parent_element(at)) {

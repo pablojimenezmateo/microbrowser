@@ -1799,8 +1799,33 @@ search hits work; a later pass can store propagated viewport overflow policy.
 
 ---
 
+## TD-0035 — Click / focus / activation stopped at shadow roots — **fixed 2026-08-10**
+
+**Opened** 2026-08-10 while chasing youtube `/results` → `/watch`.
+
+**Symptom.** After TD-0034, `elementFromPoint` correctly hit the `<img>` inside
+`a#thumbnail`'s `yt-image` shadow. Press/release still produced no click
+default: `DispatchPointerReleaseAt` walked `Parent()` only, so a shadow-tree
+target was "not in the document" and cleared; `FocusFromClickAt` and
+`ResolveClickActivation` stopped at the shadow root the same way. Event
+propagation already crossed hosts via `ShadowHostOf` (ADR 0019); the engine's
+click router did not.
+
+**Fix.** Composed-parent and in-document walks in `Page.cpp` use
+`dom::ShadowHostOf` the same way `EventDispatch` does. Regression:
+`Page/ClickOnImgInsideShadowUnderLinkActivatesHref`.
+
+**Close when.** Done for the engine click path. Audit other `Parent()`-only
+ancestor walks that decide user input (Tab order already uses focusables;
+form ownership is light-DOM by spec).
+
+---
+
 ## Closed
 
+- **TD-0035 — Click/focus/activation stopped at shadow roots** (2026-08-10).
+  Engine click router walks composed parents via `ShadowHostOf`; youtube
+  thumbnail `<img>` under `a#thumbnail` activates href.
 - **TD-0034 — html/body overflow clipped as local scroll containers** (2026-08-10).
   Used overflow propagates to the viewport; html/body no longer PushClip or
   reject collected units. See open entry (closed for the clip half).

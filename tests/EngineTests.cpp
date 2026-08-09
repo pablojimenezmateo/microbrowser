@@ -853,6 +853,36 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "focused element is #thumbnail");
   });
 
+  AddTest(tests, "Page/HitTestsAbsposInsideOverflowHiddenStackingContext", [] {
+    // Closer to youtube search: after TD-0034, elementFromPoint still returned
+    // ytd-search for an in-view abspos thumbnail. ytd-search is
+    // position:relative;z-index:0;overflow:hidden around the link.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "body{margin:0}"
+              "#search{position:relative;z-index:0;width:400px;height:300px;"
+              "overflow:hidden}"
+              "#thumb{position:relative;width:200px;height:100px;margin:50px}"
+              "a{position:absolute;inset:0;overflow:hidden}"
+              "</style>"
+              "<body>"
+              "<div id=search><div id=thumb>"
+              "<a id=thumbnail href='/watch?v=1'></a>"
+              "</div></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    const std::string hit = page.EvaluateScript(
+        "var r=document.getElementById('thumbnail').getBoundingClientRect();"
+        "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
+        "el && (el.id||el.tagName);");
+    ExpectEqString(hit, "thumbnail",
+                   "abspos link inside overflow:hidden stacking context is topmost");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{150.0f, 100.0f}), "/watch?v=1",
+                   "LinkAt agrees");
+  });
+
   AddTest(tests, "Page/HtmlBodyOverflowDoesNotClipAsLocalScroller", [] {
     // In-flow content under height:0 body still paints in the viewport; the
     // document scrolls via the viewport, not a body padding-box scroller.
@@ -875,6 +905,79 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     const std::string hit = page.EvaluateScript(
         "document.elementFromPoint(10,10) && document.elementFromPoint(10,10).id;");
     ExpectEqString(hit, "tall", "in-flow content in the viewport is still hit");
+  });
+
+  AddTest(tests, "Page/ClickOnImgInsideLinkActivatesHref", [] {
+    // youtube search thumbs: elementFromPoint hits the <img> inside a#thumbnail;
+    // ResolveClickActivation must still walk to the anchor (ADR 0017).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "body{margin:0}"
+              "a{position:absolute;left:0;top:0;width:200px;height:100px}"
+              "img{width:200px;height:100px}"
+              "</style>"
+              "<body><a id=thumbnail href='/watch?v=1'>"
+              "<img id=pic src='x.png'>"
+              "</a></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    const std::string hit = page.EvaluateScript(
+        "var el=document.elementFromPoint(50,50); el && (el.id||el.tagName);");
+    Expect(hit == "pic" || hit == "IMG" || hit == "thumbnail",
+           "hit is the img or the link");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "click focuses");
+    // Activation is tested through LinkAt agreement and focusable ancestor.
+    Expect(page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}).has_value(), "link is found");
+    ExpectEqString(*page.LinkAt(gfx::FloatPoint{50.0f, 50.0f}), "/watch?v=1", "href");
+  });
+
+  AddTest(tests, "Page/ClickOnImgInsideShadowUnderLinkActivatesHref", [] {
+    // youtube: a#thumbnail hosts yt-image; the painted <img> lives in the
+    // shadow tree. Parent() stops at the shadow root, so click/focus/activation
+    // must cross ShadowHostOf (ADR 0019) or the click is dropped as not in
+    // document and the href never activates.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "body{margin:0}"
+              "a{position:absolute;left:0;top:0;width:200px;height:100px;display:block}"
+              "yt-image,img{display:block;width:200px;height:100px}"
+              "</style>"
+              "<body><a id=thumbnail href='/watch?v=1'><yt-image id=host></yt-image></a>"
+              "<script>"
+              "var h=document.getElementById('host');"
+              "var r=h.attachShadow({mode:'open'});"
+              "r.innerHTML=\"<img id=pic src='x.png'>\";"
+              "globalThis.clicks=0;"
+              "document.getElementById('thumbnail').addEventListener('click',function(e){"
+              "  globalThis.clicks++;"
+              "  e.preventDefault();"
+              "});"
+              "</script></body>",
+              "https://example.org/");
+    page.RunScripts(0);
+    page.Layout(400.0f);
+    const std::string hit = page.EvaluateScript(
+        "var el=document.elementFromPoint(50,50); el && (el.id||el.tagName);");
+    Expect(hit == "pic" || hit == "IMG" || hit == "host" || hit == "thumbnail",
+           "hit is shadow img, host, or link");
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}),
+           "focus walks composed ancestors to the link");
+    const dom::Element* focused = page.FocusedElement();
+    Expect(focused != nullptr && focused->GetAttribute("id") != nullptr &&
+               *focused->GetAttribute("id") == "thumbnail",
+           "focused element is a#thumbnail across the shadow boundary");
+    const engine::DispatchOutcome outcome =
+        page.DispatchClickAt(gfx::FloatPoint{50.0f, 50.0f}, {});
+    Expect(outcome.click_target != nullptr, "click target survives in-document check");
+    ExpectEqString(page.EvaluateScript("String(globalThis.clicks)"), "1",
+                   "click listener on the light-DOM link runs");
+    Expect(outcome.prevented, "preventDefault from the link was seen");
+    const engine::ClickActivation activation =
+        page.ResolveClickActivation(outcome.click_target);
+    Expect(activation.href.has_value(), "activation finds href across shadow");
+    ExpectEqString(*activation.href, "/watch?v=1", "href is the thumbnail link");
   });
 
   AddTest(tests, "Page/HitTestsRelativeInsideOverflowScroller", [] {
