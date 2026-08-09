@@ -68,10 +68,28 @@ const layout::Box* BoxFor(const ElementBoxMap& map, const dom::Element& element)
 // box itself is not: a scroller's own border box does not move when it scrolls
 // — only its descendants do. Skipping ancestors left youtube's consent dialog
 // `scrollTop` changing while Accept's rect stayed off-screen.
+//
+// `position:fixed` (and anything under one) is laid out against the viewport
+// already — paint zeroes the scroll translation for those boxes — so document
+// scroll must not be subtracted or Accept reports a large negative `top` after
+// the page scrolls (TD-0036 made that reachable).
+bool UnderFixedPosition(const ElementBoxMap& map, const dom::Element& element) {
+  for (const dom::Node* at = &element; at != nullptr; at = at->Parent()) {
+    if (!at->IsElement()) {
+      continue;
+    }
+    const layout::Box* box = BoxFor(map, static_cast<const dom::Element&>(*at));
+    if (box != nullptr && box->Style().position == css::Position::Fixed) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void AncestorScrollOffsets(const ElementBoxMap& map, const dom::Element& element,
                            float document_scroll_y, float& scroll_x, float& scroll_y) {
   scroll_x = 0.0f;
-  scroll_y = document_scroll_y;
+  scroll_y = UnderFixedPosition(map, element) ? 0.0f : document_scroll_y;
   for (const dom::Node* at = element.Parent(); at != nullptr; at = at->Parent()) {
     if (!at->IsElement()) {
       continue;
@@ -709,9 +727,21 @@ void Page::ScrollIntoView(const dom::Node& node) {
     shift_y += was.y - wanted.y;
   }
   // And the document itself, which is the outermost scroller and the one with
-  // no box of its own.
-  const float limit = std::max(0.0f, content_height_ - viewport_.viewport_height);
-  SetScrollOffsetY(std::clamp(target.y + shift_y, 0.0f, limit));
+  // no box of its own. Skip when the target is under `position:fixed`: fixed
+  // boxes do not move with the document, and scrolling it by their layout Y
+  // yanks the page away from a consent dialog (youtube Accept after TD-0036
+  // made the document actually scrollable).
+  bool under_fixed = false;
+  for (const layout::Box* box : chain) {
+    if (box->Style().position == css::Position::Fixed) {
+      under_fixed = true;
+      break;
+    }
+  }
+  if (!under_fixed) {
+    const float limit = std::max(0.0f, content_height_ - viewport_.viewport_height);
+    SetScrollOffsetY(std::clamp(target.y + shift_y, 0.0f, limit));
+  }
 }
 
 std::optional<std::string> Page::QueryUsedValue(const dom::Element& element,

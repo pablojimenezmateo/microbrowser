@@ -209,8 +209,23 @@ bool VisitReversePaintChildren(const layout::Box& box, gfx::FloatPoint point, bo
 
 using ElementPredicate = bool (*)(const dom::Element&);
 
+// Fixed boxes are laid out in viewport space (paint zeroes scroll translation).
+// Input and `elementFromPoint` pass document coordinates (viewport + scroll);
+// undo that once when entering a fixed subtree so Accept stays hittable after
+// the document scrolls.
+gfx::FloatPoint PointForBox(const layout::Box& box, gfx::FloatPoint point,
+                            float& document_scroll_y) {
+  if (document_scroll_y != 0.0f && box.Style().position == css::Position::Fixed) {
+    point.y -= document_scroll_y;
+    document_scroll_y = 0.0f;
+  }
+  return point;
+}
+
 dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
-                                 ElementPredicate predicate, bool collects) {
+                                 ElementPredicate predicate, bool collects,
+                                 float document_scroll_y) {
+  point = PointForBox(box, point, document_scroll_y);
   const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
   if (!local.has_value()) {
     return nullptr;
@@ -221,11 +236,11 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
   if (VisitReversePaintChildren(
           box, point, collects,
           [&](const layout::Box& child, gfx::FloatPoint p, bool child_collects) {
-            found = HitTestFormControl(child, p, predicate, child_collects);
+            found = HitTestFormControl(child, p, predicate, child_collects, document_scroll_y);
             return found != nullptr;
           },
           [&](const layout::Box& child, gfx::FloatPoint p) {
-            found = HitTestFormControl(child, p, predicate, false);
+            found = HitTestFormControl(child, p, predicate, false, document_scroll_y);
             return found != nullptr;
           })) {
     return found;
@@ -245,7 +260,9 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
 }
 
 const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point,
-                                   const dom::Element* enclosing, bool collects) {
+                                   const dom::Element* enclosing, bool collects,
+                                   float document_scroll_y) {
+  point = PointForBox(box, point, document_scroll_y);
   const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
   if (!local.has_value()) {
     return nullptr;
@@ -259,11 +276,11 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
   if (VisitReversePaintChildren(
           box, point, collects,
           [&](const layout::Box& child, gfx::FloatPoint p, bool child_collects) {
-            found = HitTestElement(child, p, enclosing, child_collects);
+            found = HitTestElement(child, p, enclosing, child_collects, document_scroll_y);
             return found != nullptr;
           },
           [&](const layout::Box& child, gfx::FloatPoint p) {
-            found = HitTestElement(child, p, enclosing, false);
+            found = HitTestElement(child, p, enclosing, false, document_scroll_y);
             return found != nullptr;
           })) {
     return found;
@@ -287,7 +304,9 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
 }
 
 std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
-                                       const std::string* active_href, bool collects) {
+                                       const std::string* active_href, bool collects,
+                                       float document_scroll_y) {
+  point = PointForBox(box, point, document_scroll_y);
   const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
   if (!local.has_value()) {
     return std::nullopt;
@@ -301,11 +320,11 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
   if (VisitReversePaintChildren(
           box, point, collects,
           [&](const layout::Box& child, gfx::FloatPoint p, bool child_collects) {
-            found = HitTestLink(child, p, active_href, child_collects);
+            found = HitTestLink(child, p, active_href, child_collects, document_scroll_y);
             return found.has_value();
           },
           [&](const layout::Box& child, gfx::FloatPoint p) {
-            found = HitTestLink(child, p, active_href, false);
+            found = HitTestLink(child, p, active_href, false, document_scroll_y);
             return found.has_value();
           })) {
     return found;
@@ -339,7 +358,7 @@ std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
     return std::nullopt;
   }
   AddPerformanceCounter(PerfCounterId::EngineHitTests);
-  return HitTestLink(*boxes_, document_point, nullptr, true);
+  return HitTestLink(*boxes_, document_point, nullptr, true, layout_.scroll_y);
 }
 
 const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
@@ -348,13 +367,14 @@ const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
     return nullptr;
   }
   AddPerformanceCounter(PerfCounterId::EngineHitTests);
-  return HitTestElement(*boxes_, document_point, nullptr, true);
+  return HitTestElement(*boxes_, document_point, nullptr, true, layout_.scroll_y);
 }
 
 dom::Element* HitTestFormControlAt(const layout::Box& root, gfx::FloatPoint document_point,
-                                   bool (*predicate)(const dom::Element&)) {
+                                   bool (*predicate)(const dom::Element&),
+                                   float document_scroll_y) {
   AddPerformanceCounter(PerfCounterId::EngineHitTests);
-  return HitTestFormControl(root, document_point, predicate, true);
+  return HitTestFormControl(root, document_point, predicate, true, document_scroll_y);
 }
 
 }  // namespace microbrowser::engine

@@ -973,6 +973,7 @@ class Page : private layout::ImageProvider,
 // Form-control hit test shared by Page's click default actions. Lives in
 // PageHitTest.cpp with LinkAt / ElementAt so visibility:hidden is one walk.
 dom::Element* HitTestFormControlAt(const layout::Box& root, gfx::FloatPoint document_point,
-                                   bool (*predicate)(const dom::Element&));
+                                   bool (*predicate)(const dom::Element&),
+                                   float document_scroll_y = 0.0f);
 
 }  // namespace microbrowser::engine

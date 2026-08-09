@@ -1842,6 +1842,14 @@ already includes abspos and skips fixed. Regression:
 **Close when.** Done for document scroll height. Nested abspos overflow edge
 cases stay covered by the same overflow walk used for scroll containers.
 
+**Follow-up** (same day). `scrollIntoView` under `position:fixed` must not
+drive the document scroller — once document height was real, Accept's
+`scrollIntoView` scrolled the page by the button's layout Y and threw the
+dialog off-screen. Fixed in `Page::ScrollIntoView`. Also: fixed subtrees are
+viewport-laid-out; `getBoundingClientRect` / hit-testing must not apply
+document scroll to them (`AncestorScrollOffsets`, `PointForBox`). See
+`Scroll/ScrollIntoViewUnderFixedDoesNotMoveTheDocument`.
+
 ---
 
 ## Closed

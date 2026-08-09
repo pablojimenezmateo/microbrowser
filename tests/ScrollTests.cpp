@@ -471,6 +471,47 @@ void RegisterScrollTests(std::vector<TestCase>& tests) {
             "String(Math.round(document.getElementById('target').getBoundingClientRect().top))"),
         "0", "and the target sits at the viewport top");
   });
+
+  AddTest(tests, "Scroll/ScrollIntoViewUnderFixedDoesNotMoveTheDocument", [] {
+    // Consent dialogs are position:fixed with an overflow #content. After the
+    // document became scrollable (TD-0036), scrollIntoView(Accept) used the
+    // button's layout Y to scroll the document and threw the dialog off-screen.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{400.0f, 600.0f, 1.0f});
+    page.Load("<style>"
+              "body{margin:0}"
+              "#tall{height:4000px}"
+              "#dlg{position:fixed;left:50px;top:50px;width:300px;height:200px;"
+              "overflow:auto}"
+              "#pad{height:500px}"
+              "button{display:block;width:100px;height:40px}"
+              "</style>"
+              "<body><div id=tall></div>"
+              "<div id=dlg><div id=pad></div><button id=btn>Accept</button></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    (void)page.EvaluateScript("document.documentElement.scrollTop=800");
+    (void)page.EvaluateScript("document.getElementById('btn').scrollIntoView()");
+    ExpectEqString(page.EvaluateScript("String(Math.round(document.documentElement.scrollTop))"),
+                   "800", "document scroll stays put under a fixed scroller");
+    ExpectEqString(
+        page.EvaluateScript(
+            "String(Math.round(document.getElementById('dlg').scrollTop))"),
+        "342", "fixed overflow scroller moved to show the button");
+    ExpectEqString(
+        page.EvaluateScript(
+            "var t=document.getElementById('btn').getBoundingClientRect().top;"
+            "String(t >= 50 && t <= 250)"),
+        "true", "button client rect is inside the fixed dialog");
+    ExpectEqString(
+        page.EvaluateScript(
+            "var r=document.getElementById('btn').getBoundingClientRect();"
+            "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
+            "String(!!(el && (el.id==='btn' || el.closest && el.closest('#btn'))))"),
+        "true", "elementFromPoint hits the button after document scroll");
+  });
 }
 
 }  // namespace microbrowser::tests

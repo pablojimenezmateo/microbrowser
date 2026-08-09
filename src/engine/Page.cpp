@@ -412,7 +412,7 @@ std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint docu
     return std::nullopt;
   }
   const dom::Element* submitter =
-      HitTestFormControlAt(*boxes_, document_point, html::IsSubmitControl);
+      HitTestFormControlAt(*boxes_, document_point, html::IsSubmitControl, layout_.scroll_y);
   if (submitter == nullptr) {
     return std::nullopt;
   }
@@ -781,7 +781,8 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  dom::Element* hit = HitTestFormControlAt(*boxes_, document_point, html::IsCheckableInput);
+  dom::Element* hit =
+      HitTestFormControlAt(*boxes_, document_point, html::IsCheckableInput, layout_.scroll_y);
   return hit != nullptr && ActivateCheckableInputOn(*hit);
 }
 
@@ -820,7 +821,8 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   if (boxes_ == nullptr || document_ == nullptr) {
     return false;
   }
-  const dom::Element* reset = HitTestFormControlAt(*boxes_, document_point, html::IsResetControl);
+  const dom::Element* reset =
+      HitTestFormControlAt(*boxes_, document_point, html::IsResetControl, layout_.scroll_y);
   return reset != nullptr && ResetFormOn(*reset);
 }
 
