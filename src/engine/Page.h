@@ -323,7 +323,9 @@ class Page : private layout::ImageProvider,
   // / paint-only CSS animation / video) and geometry is unchanged; `Layout`
   // when the box tree or its placement must be recomputed.
   enum class DueWorkKind : std::uint8_t { None, Paint, Layout };
-  DueWorkKind RunDueWork(std::int64_t now_ms);
+  // `script_ran` is set when timers, rAF, idle callbacks, or scroll events ran
+  // (anything that is not solely an animation/video/attr tick).
+  DueWorkKind RunDueWork(std::int64_t now_ms, bool* script_ran = nullptr);
 
   // Adds the fetched stylesheet for `PendingStyleSheets()[pending_index]`.
   // Author-origin cascade order is the document order of <style> and <link>,

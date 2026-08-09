@@ -377,7 +377,8 @@ bool Engine::RunDueWork() {
   if (from_workers) {
     LayoutAndPaint();
   }
-  const Page::DueWorkKind due = page_.RunDueWork(NowMilliseconds());
+  bool script_ran = false;
+  const Page::DueWorkKind due = page_.RunDueWork(NowMilliseconds(), &script_ran);
   if (due == Page::DueWorkKind::None) {
     return from_workers;
   }
@@ -395,11 +396,12 @@ bool Engine::RunDueWork() {
   } else {
     LayoutAndPaint();
   }
-  // While loading, never report due work as runnable to the snapshot/load loop.
-  // A true return skips WaitOnDescriptors; layout-affecting animate() then
-  // LayoutAndPaint-spins at ~60Hz and starves font/media fetches (TD-0021).
-  // The app loop ignores this return and sleeps on NextDeadlineMs either way.
-  if (IsLoading()) {
+  // Snapshot load/drain loops treat `true` as "skip the wait". Animation,
+  // video, and attr-restyle ticks must not do that — they keep NextDeadlineMs
+  // armed forever (infinite Element.animate) and would LayoutAndPaint-spin
+  // (TD-0021). Script timers/rAF/tasks still return true so host-task storms
+  // drain without sleeping on a 16ms frame boundary (TD-0018).
+  if (IsLoading() || (!script_ran && !from_workers)) {
     return from_workers;
   }
   return true;

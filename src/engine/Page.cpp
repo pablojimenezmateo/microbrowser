@@ -452,7 +452,7 @@ std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
   return 0;
 }
 
-Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms) {
+Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms, bool* script_ran) {
   // Drop the box tree only when the *structure* or cascade moved. Attribute /
   // style writes (WAAPI polyfills, Polymer hosts) bump MutationVersion every
   // frame — rebuilding boxes for those was a 60Hz BuildBoxTree on youtube
@@ -464,6 +464,9 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms) {
   const std::uint64_t cascade_before = resolver_.Generation();
   bool ran = DispatchPendingScrollEvents();
   ran = script_.RunDueWork(now_ms) || ran;
+  if (script_ran != nullptr) {
+    *script_ran = ran;
+  }
   bool animation_tick = false;
   if (animations_.Running()) {
     (void)animations_.Advance(now_ms);
