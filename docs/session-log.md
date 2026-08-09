@@ -3773,3 +3773,19 @@ TD-0018; home feed when the server sends one.
 `ToggleMediaPlaybackAt`. Documented on TD-0020; next is which player check
 sets that error despite the type allowlist.
 
+---
+
+## 2026-08-09 — TD-0020 media surface: currentSrc, changeType, load, no false error
+
+**Status:** facade still `fmt.unplayable`; several wrong edges closed
+
+Shipped: `currentSrc` + `error===null`; `SourceBuffer.changeType`; empty
+`<video>` uses `MarkNoSource` (no `error` event); MSE `blob:` attach calls
+`ResourceSelected` so `play()` is not `NotSupportedError` before the first
+buffer; `HTMLMediaElement.load()` resets instead of throwing. A temporary
+"NoSource play succeeds" probe cleared `isError` only by skipping autoplay
+policy — MSE was empty; not the real fix. Active refusals on watch are
+`NotAllowedError` (no activation); player maps that to autoplay-blocked, not
+`fmt.unplayable`. Still open: which SABR/player path sets the error code while
+buffers hold ~19s.
+
