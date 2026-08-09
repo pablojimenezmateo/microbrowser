@@ -355,6 +355,9 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
   const Value play_state_get =
       interpreter_->NewNativeValue("get playState", [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
+        if (call.self.IsObject() && call.self.object->GetOwn("#waapiEmpty") != nullptr) {
+          return Value::String(std::string("finished"));
+        }
         if (owner == nullptr || owner->animations_ == nullptr) {
           return Value::String(std::string("idle"));
         }
@@ -424,40 +427,66 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
         node == nullptr || !node->IsElement()) {
       return call.Throw("TypeError", "Illegal invocation");
     }
+
+    const auto make_animation = [&](std::uint64_t id, bool already_finished) -> Value {
+      const Value animation = call.interpreter.NewObjectValue();
+      if (!animation.IsObject()) {
+        return Value::Undefined();
+      }
+      if (js::Value* animation_global = call.interpreter.GlobalScope()->Lookup("Animation")) {
+        if (animation_global->IsObject()) {
+          if (const Value* proto = animation_global->object->Get("prototype")) {
+            if (proto->IsObject()) {
+              animation.object->SetPrototype(proto->object);
+            }
+          }
+        }
+      }
+      if (id != 0) {
+        animation.object->Set(kWaapiIdSlot, Value::Number(static_cast<double>(id)));
+      } else {
+        // Empty keyframe list: valid per WAAPI, no engine effect (WPT
+        // `Element.animate() accepts empty keyframe lists`).
+        animation.object->Set("#waapiEmpty", Value::Bool(true));
+      }
+      const Value finished = call.interpreter.NewPromiseValue();
+      if (finished.IsObject()) {
+        animation.object->Set(kWaapiFinishedSlot, finished);
+        if (already_finished) {
+          call.interpreter.SettleAsyncResult(finished.object, animation, false);
+        }
+      }
+      if (id != 0) {
+        if (js::Object* registry = RegistryOf(*owner, call.interpreter)) {
+          registry->Set(std::to_string(id), animation);
+        }
+      }
+      return animation;
+    };
+
     std::vector<WaapiKeyframe> keyframes;
-    if (call.arguments.empty() || !ParseKeyframeList(call.arguments[0], keyframes)) {
-      return call.Throw("TypeError", "Failed to execute 'animate': keyframes are required");
+    bool empty_effect = call.arguments.empty() || call.arguments[0].IsNull() ||
+                        call.arguments[0].IsUndefined();
+    if (!empty_effect) {
+      if (IsArrayObject(call.arguments[0]) && call.arguments[0].object->ElementCount() == 0) {
+        empty_effect = true;
+      } else if (!ParseKeyframeList(call.arguments[0], keyframes)) {
+        return call.Throw("TypeError", "Failed to execute 'animate': keyframes are required");
+      } else if (keyframes.empty()) {
+        empty_effect = true;
+      }
     }
+    if (empty_effect) {
+      return make_animation(0, true);
+    }
+
     const WaapiTiming timing = TimingFromOptions(Argument(call.arguments, 1));
     const std::uint64_t id = owner->animations_->StartAnimation(
         static_cast<dom::Element&>(*node), std::move(keyframes), timing);
     if (id == 0) {
       return call.Throw("TypeError", "Failed to execute 'animate': could not start animation");
     }
-
-    const Value animation = call.interpreter.NewObjectValue();
-    if (!animation.IsObject()) {
-      owner->animations_->CancelAnimation(id);
-      return Value::Undefined();
-    }
-    if (js::Value* animation_global = call.interpreter.GlobalScope()->Lookup("Animation")) {
-      if (animation_global->IsObject()) {
-        if (const Value* proto = animation_global->object->Get("prototype")) {
-          if (proto->IsObject()) {
-            animation.object->SetPrototype(proto->object);
-          }
-        }
-      }
-    }
-    animation.object->Set(kWaapiIdSlot, Value::Number(static_cast<double>(id)));
-    const Value finished = call.interpreter.NewPromiseValue();
-    if (finished.IsObject()) {
-      animation.object->Set(kWaapiFinishedSlot, finished);
-    }
-    if (js::Object* registry = RegistryOf(*owner, call.interpreter)) {
-      registry->Set(std::to_string(id), animation);
-    }
-    return animation;
+    return make_animation(id, false);
   });
   if (animate.IsObject()) {
     animate.object->Set(kOwnerSlot, PointerValue(this));

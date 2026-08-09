@@ -999,6 +999,24 @@ should skip its style-writing fallback. Counters: `animation.waapi_started` /
 remains of the watch CPU story is then TD-0020's facade / format path and
 dirty-subtree rebuild — not a 60 Hz attribute restyle from the polyfill.
 
+**Update** (2026-08-09, watch probe after WAAPI). Release snapshot of
+`/watch?v=jNQXAC9IVRw` completes (~53 s) with:
+
+| probe | value |
+|---|---|
+| `typeof Element.prototype.animate` | `function` |
+| `typeof Animation` | `function` |
+| `getPlayerState()` | **3** (buffering) |
+| `isError` / `errorCode` | **false** / **null** (no longer `fmt.unplayable`) |
+| `layout.animation_tick_no_box_rebuild` | 907 |
+| focus after `-click` | `tp-yt-paper-dialog#dialog` (consent UI, not the player) |
+
+Empty/`null` keyframe lists must be accepted (WPT / the lite polyfill's probe);
+rejecting them threw and left the polyfill path noisy. Snapshot post-load drain
+for non-reddit pages is capped and yields on the rAF clock so perpetual
+`requestAnimationFrame` cannot starve `-eval`. Video `readyState` was still 0
+on that click — consent dialog first.
+
 **Measured** (Release, `/results?search_query=cats`):
 
 | metric | after TD-0001 guards | after style cache |

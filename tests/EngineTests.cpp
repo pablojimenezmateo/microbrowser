@@ -2986,6 +2986,23 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
     ExpectEqString(out, "true|true", "finished resolves; cancel rejects AbortError");
   });
 
+  AddTest(tests, "Page/ElementAnimateAcceptsEmptyKeyframes", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><div id='box'>x</div><script>"
+        "const el = document.getElementById('box');"
+        "const a = el.animate([], 100);"
+        "const b = el.animate(null, 100);"
+        "globalThis.ok = a && b && a.playState === 'finished' && b.playState === 'finished';"
+        "</" "script></body></html>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    page.RunScripts(0);
+    ExpectEqString(page.EvaluateScript("String(globalThis.ok)"), "true",
+                   "empty/null keyframes return a finished Animation");
+  });
+
   // An element by id, for the two animation tests below. `dom::Document` has no `getElementById` --
   // that lives in the binding layer, where a page reaches it -- so the walk is here.
   const auto element_with_id = [](dom::Document& document, std::string_view id) -> dom::Element* {
