@@ -333,6 +333,13 @@ namespace microbrowser::util {
   /* kept whatever the construction left on it. Above zero means every          */ \
   /* component of that class renders as a plain element.                       */ \
   X(DomCustomElementPrototypeMissing, "dom.custom_element_prototype_missing")     \
+  /* Own data properties written *before* upgrade that shadow a prototype       */ \
+  /* accessor, re-applied through the setter after construction. youtube's     */ \
+  /* monomer `yt-button-shape` queues on `data` until the setter fills          */ \
+  /* `rawProps`; an own `data` from a pre-upgrade assignment skips that path   */ \
+  /* and leaves Accept/Reject unstamped (consent dialog).                      */ \
+  X(DomCustomElementPreupgradePropsReapplied,                                    \
+    "dom.custom_element_preupgrade_props_reapplied")                             \
   /* Inserts into `template.content` that skipped custom-element upgrade.       */ \
   /* Should rise with youtube Polymer `_template` fills; zero with bindings     */ \
   /* still missing means the inert guard is not on the path that builds them.   */ \

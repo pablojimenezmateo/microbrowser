@@ -211,6 +211,50 @@ void DomBindings::UpgradeElement(dom::Element& element) {
     interpreter_->ReportUncaught(constructed.value, "custom element constructor");
     return;
   }
+
+  // Re-apply own data properties that shadow a prototype accessor.
+  //
+  // A page routinely writes `el.data = …` (Polymer `_setUnmanagedPropertyToNode`)
+  // on an element that is not upgraded yet — stamped into a fragment, or
+  // created before `customElements.define`. That assignment creates an *own*
+  // data property. Upgrade then installs the class prototype with a `data`
+  // setter, but the own property keeps shadowing it: later writes never reach
+  // the setter, `rawProps` stays empty, and youtube's monomer wrapper stays in
+  // `isQueuingForData()` forever (empty Accept/Reject `yt-button-shape`s on
+  // the consent dialog). Delete the own slot and assign through SetProperty so
+  // the setter runs once, before attribute/connected reactions see the element.
+  if (wrapper.IsObject() && wrapper.object->Prototype() != nullptr) {
+    const std::vector<std::string> own_keys = wrapper.object->Keys();
+    for (const std::string& name : own_keys) {
+      if (name.empty() || name[0] == '#') {
+        continue;  // internal slots (#node, #upgraded, …)
+      }
+      const js::PropertyKey key(name);
+      const js::Object::Property* own = wrapper.object->GetOwnProperty(key);
+      if (own == nullptr || own->IsAccessor()) {
+        continue;
+      }
+      js::Object* proto = wrapper.object->Prototype();
+      const js::Object::Property* inherited =
+          proto != nullptr ? proto->GetProperty(key) : nullptr;
+      if (inherited == nullptr || inherited->setter == nullptr) {
+        continue;
+      }
+      const Value value = own->value;
+      if (!interpreter_->DeleteProperty(wrapper, key)) {
+        continue;
+      }
+      const js::Result applied = interpreter_->SetProperty(wrapper, key, value);
+      if (applied.completion == js::Completion::Throw) {
+        interpreter_->ReportUncaught(applied.value,
+                                     "custom element pre-upgrade property");
+        continue;
+      }
+      util::AddPerformanceCounter(
+          util::PerfCounterId::DomCustomElementPreupgradePropsReapplied);
+    }
+  }
+
   // Observed attributes present before upgrade: the specification queues one
   // attributeChangedCallback per attribute after construction, with a null old
   // value. Polymer's property effects may depend on this to apply bindings that

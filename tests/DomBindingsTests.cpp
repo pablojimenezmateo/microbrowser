@@ -447,6 +447,25 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "customElements.define('my-box', Box);"
                  "document.getElementsByTagName('my-box')[0] instanceof Box",
                  "true");
+    // Pre-upgrade own properties that shadow a prototype accessor must be
+    // re-applied through the setter. youtube's monomer `yt-button-shape` stays
+    // in `isQueuingForData` forever when `data` was assigned as an own data
+    // property before `define` installed the accessor (consent Accept/Reject).
+    // Element must be in the document at `define` time — that is when the
+    // registry walks and upgrades (createElement-before-define stays inert
+    // until then).
+    ExpectScript(
+        "<html><body><x-preprop></x-preprop></body></html>",
+        "var el = document.querySelector('x-preprop');"
+        "el.data = {label:'ok'};"
+        "class PreProp extends HTMLElement {"
+        "  constructor(){ super(); this.raw = null; }"
+        "  set data(v){ this.raw = v; }"
+        "  get data(){ return this.raw; }"
+        "}"
+        "customElements.define('x-preprop', PreProp);"
+        "[el.raw && el.raw.label, Object.getOwnPropertyDescriptor(el,'data') == null].join()",
+        "ok,true");
     ExpectScript(kPage,
                  "class T extends HTMLElement {} customElements.define('x-t', T);"
                  "customElements.get('x-t') === T",
