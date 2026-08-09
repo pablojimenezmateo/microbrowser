@@ -125,6 +125,9 @@ void Page::RemoveSourceBuffer(std::uint64_t source_id, std::uint64_t buffer_id) 
   media::MediaSourceState* source = media_.Source(source_id);
   media::SourceBufferState* buffer = media_.Buffer(buffer_id);
   if (source != nullptr && buffer != nullptr) {
+    // Decoders hold raw pointers into the buffer's tracks and samples. Drop
+    // them before the unique_ptr erase below frees that memory.
+    video_.DetachBuffer(buffer);
     source->RemoveSourceBuffer(buffer);
   }
 }

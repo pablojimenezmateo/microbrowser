@@ -189,6 +189,14 @@ void Http2ScriptedTransport::Respond(std::uint32_t stream,
     factory_->paths.push_back(path);
     factory_->authorities.emplace_back(ValueOf(request, ":authority"));
   }
+  if (factory_ != nullptr && !factory_->die_once_on_path.empty() &&
+      path == factory_->die_once_on_path) {
+    // Session death before any response bytes: every open stream fails with
+    // "the connection failed". Fetch retries GET/HEAD once on a new socket.
+    factory_->die_once_on_path.clear();
+    closed_ = true;
+    return;
+  }
   const Factory::Route* route = factory_ != nullptr ? factory_->Find(path) : nullptr;
 
   std::vector<net::hpack::Header> fields;

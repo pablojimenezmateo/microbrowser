@@ -143,6 +143,11 @@ namespace microbrowser::util {
   X(NetHttp2GoAways, "net.h2_goaways")                                           \
   X(NetHttp2ProtocolErrors, "net.h2_protocol_errors")                            \
   X(NetHttp2WindowUpdates, "net.h2_window_updates")                              \
+  /* One GET/HEAD whose shared HTTP/2 session died before a response, resent  */ \
+  /* on a fresh connection. The blast radius of a session failure is every    */ \
+  /* open stream; without this, youtube SPA loses player base.js with the     */ \
+  /* font SVGs that shared its socket (TD-0025).                              */ \
+  X(NetHttp2Retried, "net.h2_retried")                                           \
   /* HPACK, as the two halves of one ratio. On the wire against decoded, so    */ \
   /* the compression the protocol claims is a division rather than a belief;   */ \
   /* the failure count is beside them because a decoder that has failed has    */ \

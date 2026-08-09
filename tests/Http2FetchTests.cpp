@@ -244,6 +244,52 @@ void RegisterHttp2FetchTests(std::vector<TestCase>& tests) {
                 "and the header block -- cookie and all -- decoded at the other end");
     ExpectEqString(factory.paths.front(), "/set", "with the target intact");
   });
+
+  AddTest(tests, "Http2Fetch/AGetSurvivesADeadSharedSessionOnce", [] {
+    // TD-0025: one fatal read fails every open stream. GET must retry on a
+    // fresh connection; without that, youtube SPA loses player base.js with
+    // whatever else shared the socket.
+    Http2ScriptedFactory factory;
+    factory.die_once_on_path = "/player/base.js";
+    factory.routes.push_back({"/player/base.js", 200, "application/javascript", "ok", ""});
+    PrivacyPolicy policy;
+    CookieJar cookies;
+    HttpCache cache;
+    ConnectionPool pool(factory);
+
+    const FetchResult result = RunToCompletion(
+        net::Fetch(policy.Decide(RequestFor("https://example.com/player/base.js")), policy, pool,
+                   cookies, cache, FetchOptions{}, 1000));
+    Expect(result.ok, result.error.empty() ? "GET retry after session death failed"
+                                           : result.error.c_str());
+    ExpectEqString(BodyOf(result.response), "ok", "the body came from the second connection");
+    ExpectEqInt(static_cast<long long>(factory.connects), 2,
+                "first socket died; second answered");
+    ExpectEqInt(static_cast<long long>(factory.paths.size()), 2,
+                "the path was asked twice — once on the dead session, once on the retry");
+  });
+
+  AddTest(tests, "Http2Fetch/APostDoesNotRetryADeadSession", [] {
+    Http2ScriptedFactory factory;
+    factory.die_once_on_path = "/youtubei/v1/player";
+    factory.routes.push_back({"/youtubei/v1/player", 200, "application/json", "{}", ""});
+    PrivacyPolicy policy;
+    CookieJar cookies;
+    HttpCache cache;
+    ConnectionPool pool(factory);
+
+    FetchOptions options;
+    options.method = "POST";
+    const char payload[] = "{}";
+    options.body.assign(reinterpret_cast<const std::byte*>(payload),
+                        reinterpret_cast<const std::byte*>(payload) + sizeof(payload) - 1);
+    const FetchResult result = RunToCompletion(
+        net::Fetch(policy.Decide(RequestFor("https://example.com/youtubei/v1/player")), policy,
+                   pool, cookies, cache, options, 1000));
+    Expect(!result.ok, "POST must not be resent after a silent session death");
+    ExpectEqInt(static_cast<long long>(factory.connects), 1,
+                "a second connection would be a second side effect");
+  });
 }
 
 }  // namespace microbrowser::tests

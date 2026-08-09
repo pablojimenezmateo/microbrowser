@@ -4096,3 +4096,25 @@ target. Fire `load` first; `hQn` sets the attribute. Regression test:
 **Left:** SPA playback buffer (TD-0020); home nudge; `Intl`.
 
 ---
+
+## 2026-08-09 — HTTP/2 GET retry + PageVideo detach (TD-0025)
+
+**Status:** SPA search→watch reaches playable MSE like cold watch
+
+A shared HTTP/2 session death marked every open stream
+`FAILED the connection failed` with no retry. Soft-nav lost
+`player_ias/.../base.js` in that blast (`fetch.failed` 81 on one run) while
+later innertube `/player` succeeded on a fresh socket — so `#movie_player`
+never stamped. GET/HEAD now retry once with `allow_reuse=false`; POST stays
+on REFUSED_STREAM / GOAWAY only. Counter `net.h2_retried`.
+
+Also `PageVideo::DetachBuffer` before `removeSourceBuffer` frees the buffer
+(decoders held raw `SourceBufferState*` / `MediaTrack*`).
+
+**Check:** Release, `/results?search_query=cats` → Accept → thumb →
+`movie:true`, `rs:4`, `buf≈23s`, `isError:false`, `isPlayable:true`;
+`base.js` 200; `net.h2_retried=4`; `fetch.failed` 10 (was 81).
+
+**Left:** home feed / `Intl`; any remaining TD-0020 click-to-play UX.
+
+---

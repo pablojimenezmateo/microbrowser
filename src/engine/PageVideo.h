@@ -54,6 +54,11 @@ class PageVideo {
   // Called when `play()` succeeds on an element attached to a `MediaSource`.
   void StartPlayback(dom::Element& element, media::MediaState& state);
 
+  // A `SourceBuffer` is about to be destroyed. Drop every decoder that held a
+  // pointer into it — otherwise `AdvancePlayback` / `NextDelayMs` UAF after
+  // `removeSourceBuffer` (SPA soft-nav teardown).
+  void DetachBuffer(const media::SourceBufferState* buffer);
+
   // Feeds samples, reads frames, and advances playback time. True when a surface generation changed.
   bool AdvancePlayback(dom::Element& element, media::MediaState& state);
 

@@ -719,7 +719,19 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
             const char* reason = session_->ErrorOf(stream_);
             const bool refused =
                 session_->StateOf(stream_) == Http2Session::StreamState::Refused;
-            retry_or_fail(reason != nullptr ? reason : "the stream failed", refused);
+            // A shared session's fatal I/O fails every open stream at once. For
+            // GET/HEAD that is recoverable: drop the dead session and ask once
+            // on a fresh connection (allow_reuse=false via retried_). POST stays
+            // on REFUSED_STREAM / GOAWAY only — a second side effect is worse
+            // than a failed write.
+            const bool idempotent =
+                remaining_.method == "GET" || remaining_.method == "HEAD";
+            const bool session_died = session_->Failed();
+            const bool retryable = refused || (session_died && idempotent);
+            if (retryable && !retried_) {
+              AddPerformanceCounter(PerfCounterId::NetHttp2Retried);
+            }
+            retry_or_fail(reason != nullptr ? reason : "the stream failed", retryable);
             return true;
           }
           case Http2Session::StreamState::Unknown:

@@ -113,6 +113,10 @@ class Http2ScriptedTransport::Factory : public net::TransportFactory {
   // never be handed to a session, which is how a test asks for the HTTP/1.1
   // path from the same fixture.
   bool speaks_http2 = true;
+  // When set, the first request whose `:path` matches closes the socket without
+  // answering. Cleared after one kill so a Fetch retry on a fresh connection
+  // can succeed — the HTTP/2 session-death retry path (TD-0025).
+  std::string die_once_on_path;
 };
 
 using Http2ScriptedFactory = Http2ScriptedTransport::Factory;

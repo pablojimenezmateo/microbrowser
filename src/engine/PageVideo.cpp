@@ -200,6 +200,27 @@ void PageVideo::StartPlayback(dom::Element& element, media::MediaState& state) {
   EnsureOutputRunning(state);
 }
 
+void PageVideo::DetachBuffer(const media::SourceBufferState* buffer) {
+  if (buffer == nullptr) {
+    return;
+  }
+  const auto clear = [buffer](TrackDecoder& decoder) {
+    if (decoder.buffer != buffer) {
+      return;
+    }
+    decoder.client.reset();
+    decoder.track = nullptr;
+    decoder.buffer = nullptr;
+    decoder.next_sample = 0;
+    decoder.configured = false;
+  };
+  for (auto& [element, session] : sessions_) {
+    (void)element;
+    clear(session.video);
+    clear(session.audio);
+  }
+}
+
 bool PageVideo::FeedSamples(TrackDecoder& decoder, double current_time, double horizon) {
   if (!decoder.configured || decoder.client == nullptr || decoder.track == nullptr ||
       decoder.buffer == nullptr) {

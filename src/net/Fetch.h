@@ -176,12 +176,9 @@ class FetchRequest {
   // True when a request that has produced nothing may be sent again on a fresh
   // connection. Worth exactly one retry and no more.
   //
-  // `nothing_was_processed` is the protocol-specific half: on HTTP/1.1 it is a
-  // pooled connection that failed before saying anything -- the race every pool
-  // has -- and on HTTP/2 it is REFUSED_STREAM or a GOAWAY that never promised
-  // to handle this stream. Both mean the server did not act on the request, and
-  // that is the only condition under which resending it is not a second side
-  // effect.
+  // `nothing_was_processed`: HTTP/1.1 pooled socket that said nothing; HTTP/2
+  // REFUSED_STREAM / unprocessed GOAWAY; or GET/HEAD after a fatal session
+  // death (TD-0025 — shared h2 failure otherwise drops every late script).
   bool MayRetry(bool nothing_was_processed) const { return !retried_ && nothing_was_processed; }
   // The HTTP/1.1 half of that, spelled once: a connection that came out of the
   // pool and then failed before the server said anything is the race every pool

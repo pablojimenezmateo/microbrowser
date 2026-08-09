@@ -1417,10 +1417,45 @@ until MSE buffers — that is playback (TD-0020), not stamp.
 **Close when** search→watch stamps `#movie_player` / `<video>` without a cold
 document load, and media reaches a playable `readyState` (or a measured MSE
 blocker is filed separately). Stamp half: **done** 2026-08-09 (`37448fd`).
+MSE on SPA: **done** with TD-0025 (`net.h2_retried` recovers late `base.js`).
 
 **Instrumentation.** `MICROBROWSER_LOAD_TIMELINE` kept only 512 rows and truncated
 during font cookies on youtube soft-nav — raised to 4096 so innertube/player
 rows stay visible.
+
+---
+
+## TD-0025 — HTTP/2 session death fails every open GET with no retry
+
+**Symptom.** On youtube SPA search→watch, `player_ias/.../base.js` and dozens of
+`fonts.gstatic.com` SVGs finish together as `FAILED the connection failed`
+(~10s after the script started). Innertube `/player` and `/next` later succeed
+on a fresh connection, but without `base.js` YouTube never runs `OgC` →
+`Application.create` with a target, so `#movie_player` stays missing
+(TD-0024 stamp flakiness). Measured Release: `fetch.failed=81` on one soft-nav;
+`base.js` was among the blast.
+
+**Cause.** `Http2Session::Read` maps a fatal transport read to
+`"the connection failed"` on every incomplete stream. `FetchRequest` retried
+HTTP/2 only for `REFUSED_STREAM` / unprocessed GOAWAY — correct for POST, but
+a shared-session death then permanently fails every in-flight GET, including
+late scripts that have no application-level retry.
+
+**Landed** (2026-08-09). One GET/HEAD retry on session-level failure, forcing
+`ConnectionPool::Acquire(... allow_reuse=false)`. POST still refuses that path.
+Counter `net.h2_retried`. Test
+`Http2Fetch/AGetSurvivesADeadSharedSessionOnce` (and the POST negative).
+
+**Also.** `PageVideo::DetachBuffer` before `removeSourceBuffer` frees the
+buffer — decoders held raw `SourceBufferState*` / `MediaTrack*` and a soft-nav
+teardown could UAF in `NextDelayMs` / `FeedSamples` (exit 139 on one SPA run).
+
+**Close when.** SPA search→watch stamps `#movie_player` reliably across network
+jitter (retry recovers `base.js`), and cold/SPA watch reach playable
+`readyState` without transport-mass-failure orphans. **Measured closed for
+stamp+MSE** (2026-08-09, Release cats search→watch): `rs:4`, `buf≈23s`,
+`isError:false`, `net.h2_retried=4`, `base.js` 200. Keep open only as the
+ledger for residual `fetch.failed` / non-idempotent retry policy questions.
 
 ---
 

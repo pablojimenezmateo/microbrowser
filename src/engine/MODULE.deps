@@ -303,7 +303,7 @@ budget: DecoderClient header_lines=55 public_methods=14 members=6
 # Audio sink wiring (TD-0019): ring, clock, pending PCM, UpdateOutput. The sink
 # is borrowed from app; members grew with ADR 0028 §4 ownership rather than a
 # second video-only path. Dtor clears the sink before the ring dies.
-budget: PageVideo      header_lines=120 public_methods=19 members=8
+budget: PageVideo      header_lines=120 public_methods=20 members=8
 # Text measurement split from Page for fan-out: one coordinator member rather than
 # `gfx::TextRenderer` and `layout::FontTextMeasurer` on Page itself.
 budget: PageTextContext header_lines=30 public_methods=5 members=2
