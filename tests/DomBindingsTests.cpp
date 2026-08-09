@@ -1601,6 +1601,10 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "bar = 3; '' + window.bar", "3");
     ExpectScript(kPage, "window.document === document", "true");
     ExpectScript(kPage, "self === window", "true");
+    // Top-level browsing context aliases (ADR 0027 not yet nested).
+    ExpectScript(kPage, "top === window && parent === window && frames === window", "true");
+    ExpectScript(kPage, "frameElement === null", "true");
+    ExpectScript(kPage, "typeof top.location.href", "string");
   });
 
   AddTest(tests, "DomBindings/LocationAndNavigatorReportWhatTheyShould", [] {

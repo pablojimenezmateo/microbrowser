@@ -113,6 +113,15 @@ void DomBindings::InstallWindow() {
   const Value window = Value::Obj(global);
   global->Set("window", window);
   global->Set("self", window);
+  // Top-level browsing context: `top`/`parent`/`frames` are this window, and
+  // `frameElement` is null. youtube's player reads `window.top.location` (and
+  // `window === window.top`) on every load; without these the access throws
+  // and reporting / bevasr / deid probes abort into catch paths.
+  // Nested contexts are ADR 0027 — until they exist, every Window is top-level.
+  global->Set("top", window);
+  global->Set("parent", window);
+  global->Set("frames", window);
+  global->Set("frameElement", Value::Null());
   if (js::Value* document = interpreter_->GlobalScope()->Lookup("document")) {
     // So that `window.document` and `document` are the same object, which a
     // page checks more often than it looks.
