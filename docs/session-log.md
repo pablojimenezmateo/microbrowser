@@ -4045,4 +4045,23 @@ last probe on disk.
 
 **Left:** TD-0024 soft-nav player data; home nudge; `Intl` / `eval`.
 
+## 2026-08-09 — `eval` / `Function` + CSP `'unsafe-eval'` (ADR 0039)
 
+**Status:** WebPO hang fixed; SPA watch still missing `#movie_player`
+
+BotGuard's challenge script uses `(0,eval)(…)`. Refusing `eval` left WebPO's
+`wne()` promise unsettled, so innertube never ran on soft nav. `eval` and
+`Function` now exist; CSP without `'unsafe-eval'` throws `EvalError` via a host
+hook. Successful external scripts also set `data-loaded` for YouTube's `_.VE`.
+`MICROBROWSER_LOAD_TIMELINE` raised to 4096 entries (512 truncated mid-fonts on
+youtube).
+
+**Check:** jsshell `(0,eval)('(function(x){return x+1})')(41)` → 42; CSP tests;
+search→watch after Accept: `ytd-watch-flexy.data` has `currentVideoEndpoint` /
+`playerOverlays` / … (not only `["contents"]`). Still `video:false`,
+`#movie_player` absent, `yt.player.Application.create` undefined.
+
+**Left:** TD-0024 root cause B — player Application / VE stamp after OK nav data;
+home nudge; `Intl`.
+
+---
