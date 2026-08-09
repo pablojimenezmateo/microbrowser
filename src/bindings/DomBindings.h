@@ -677,6 +677,14 @@ class DomBindings {
   // transaction is not valid on another.
   js::Value MakeIdbObjectStore(const std::string& db, const std::string& store,
                               const js::Value& transaction);
+  // An `IDBTransaction` for `db` covering `store_names` in `mode`. Shared by
+  // `IDBDatabase.transaction` and the versionchange transaction an open
+  // request exposes during `upgradeneeded` -- youtube's EntityStore refuses
+  // the whole open if `IDBOpenDBRequest.transaction` is null/undefined there
+  // (`new v_(a.transaction)` then reads `addEventListener` off undefined).
+  js::Value MakeIdbTransaction(const js::Value& database, const std::string& db,
+                               const std::vector<std::string>& store_names,
+                               const std::string& mode);
   // A fresh `IDBCursor` (or `IDBCursorWithValue`) over `db`/`store`, filtered
   // by `index` (empty for the store's own primary key) and `only`. Delivers
   // as `request`'s result, positioned on the first matching entry or `null`

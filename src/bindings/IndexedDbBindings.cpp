@@ -181,7 +181,10 @@ js::Value DomBindings::MakeIdbRequest(const char* interface_name, const js::Valu
   request.object->Set("error", Value::Null());
   request.object->Set("readyState", Value::String(std::string("pending")));
   request.object->Set("source", source);
-  request.object->Set("transaction", transaction);
+  // Spec uses `null` when the request is not tied to a transaction. Leaving
+  // `undefined` here made youtube's `a.transaction === null` check pass and
+  // then `new v_(a.transaction)` throw on `addEventListener` of undefined.
+  request.object->Set("transaction", transaction.IsObject() ? transaction : Value::Null());
   InstallEventMethods(request);
   if (transaction.IsObject()) {
     request.object->SetHidden(kIdbTxnSlot, transaction);
@@ -315,6 +318,32 @@ js::Value DomBindings::MakeIdbObjectStore(const std::string& db, const std::stri
   return wrapper;
 }
 
+js::Value DomBindings::MakeIdbTransaction(const js::Value& database, const std::string& db,
+                                          const std::vector<std::string>& store_names,
+                                          const std::string& mode) {
+  const Value transaction = interpreter_->NewObjectValue();
+  if (!transaction.IsObject()) {
+    return Value::Undefined();
+  }
+  if (const Value proto = InterfaceNamed("IDBTransaction"); proto.IsObject()) {
+    transaction.object->SetPrototype(proto.object);
+  }
+  transaction.object->SetHidden(kIdbDbSlot, Value::String(db));
+  transaction.object->SetHidden(kIdbPendingSlot, Value::Number(0.0));
+  transaction.object->Set("db", database);
+  transaction.object->Set("mode", Value::String(mode));
+  std::vector<Value> name_values;
+  for (const std::string& name : store_names) {
+    name_values.push_back(Value::String(name));
+  }
+  // Own data would make `in` true on the instance and false on the prototype —
+  // which is exactly the shape `yPS` rejects. The names live here; the getter
+  // on the prototype surfaces them.
+  transaction.object->SetHidden(kIdbTxnStoreNamesSlot, interpreter_->NewArrayValue(name_values));
+  InstallEventMethods(transaction);
+  return transaction;
+}
+
 namespace {
 
 // An array with `.contains`/`.item` beside the indices and `.length` a real
@@ -431,28 +460,7 @@ void DomBindings::InstallIndexedDb() {
         }
       }
       const std::string mode = call.arguments.size() > 1 ? js::ToString(call.arguments[1]) : "readonly";
-      const Value transaction = call.interpreter.NewObjectValue();
-      if (!transaction.IsObject()) {
-        return Value::Undefined();
-      }
-      if (const Value proto = self->InterfaceNamed("IDBTransaction"); proto.IsObject()) {
-        transaction.object->SetPrototype(proto.object);
-      }
-      transaction.object->SetHidden(kIdbDbSlot, Value::String(db));
-      transaction.object->SetHidden(kIdbPendingSlot, Value::Number(0.0));
-      transaction.object->Set("db", call.self);
-      transaction.object->Set("mode", Value::String(mode));
-      std::vector<Value> name_values;
-      for (const std::string& name : store_names) {
-        name_values.push_back(Value::String(name));
-      }
-      // Own data would make `in` true on the instance and false on the
-      // prototype — which is exactly the shape `yPS` rejects. The names
-      // live here; the getter on the prototype surfaces them.
-      transaction.object->SetHidden(kIdbTxnStoreNamesSlot,
-                                    call.interpreter.NewArrayValue(name_values));
-      self->InstallEventMethods(transaction);
-      return transaction;
+      return self->MakeIdbTransaction(call.self, db, store_names, mode);
     });
     method("close", [](NativeCall& call) -> Value {
       if (call.self.IsObject()) {
@@ -747,10 +755,21 @@ void DomBindings::InstallIndexedDb() {
           self->InstallEventMethods(database);
         }
         DomBindings* bindings = self;
+        const std::string db_name = name;
         const Value deliver = call.interpreter.NewNativeValue(
-            "idbOpen", [bindings, request, database, open_result](NativeCall& inner) -> Value {
+            "idbOpen", [bindings, request, database, open_result, db_name](NativeCall& inner) -> Value {
               if (open_result.needs_upgrade) {
                 util::AddPerformanceCounter(util::PerfCounterId::IdbUpgrades);
+                // Spec: during upgradeneeded the open request's `.transaction`
+                // is the versionchange transaction. youtube's EntityStore does
+                // `new v_(a.transaction)` and throws if that is undefined —
+                // which is how watch logged `addEventListener of undefined`
+                // and never finished creating its object stores.
+                const Value upgrade_txn = bindings->MakeIdbTransaction(
+                    database, db_name, {}, "versionchange");
+                if (upgrade_txn.IsObject()) {
+                  request.object->Set("transaction", upgrade_txn);
+                }
                 const Value event = inner.interpreter.NewObjectValue();
                 if (event.IsObject()) {
                   if (const Value proto = bindings->InterfaceNamed("Event"); proto.IsObject()) {
@@ -761,7 +780,8 @@ void DomBindings::InstallIndexedDb() {
                   event.object->Set("oldVersion", Value::Number(static_cast<double>(open_result.old_version)));
                   event.object->Set("newVersion", Value::Number(static_cast<double>(open_result.new_version)));
                   request.object->Set("result", database);
-                  request.object->Set("readyState", Value::String(std::string("done")));
+                  // Still "pending" through the upgrade; success flips it later.
+                  request.object->Set("readyState", Value::String(std::string("pending")));
                   if (const Value* handler = request.object->GetOwn("#onupgradeneeded");
                       handler != nullptr && handler->IsObject() && handler->object->IsCallable()) {
                     const js::Result outcome =
@@ -778,6 +798,12 @@ void DomBindings::InstallIndexedDb() {
                       inner.interpreter.ReportUncaught(outcome.value, "IDBOpenDBRequest upgrade listener");
                     }
                   }
+                }
+                if (upgrade_txn.IsObject()) {
+                  bindings->MaybeCompleteIdbTransaction(upgrade_txn);
+                  // After the upgrade the open request no longer carries a
+                  // transaction — same as browsers once success fires.
+                  request.object->Set("transaction", Value::Null());
                 }
               }
               bindings->DeliverIdbSuccess(request, database);

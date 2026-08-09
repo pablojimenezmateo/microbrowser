@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -164,6 +165,20 @@ const RegExp* Interpreter::RegExpOf(const Value& value) const {
 }
 
 Value Interpreter::MakeError(std::string_view kind, std::string message) {
+  util::AddPerformanceCounter(util::PerfCounterId::JsThrows);
+  // Caught throws never reach ReportUncaught. youtube's Gal/setmediasrc path is
+  // the motivating case: it catches, maps to fmt.unplayable, and leaves the
+  // original TypeError/DOMException name only in the UV details object. Opt in
+  // with MICROBROWSER_JS_THROWS=1; off by default so a page that throws in a
+  // hot loop does not own stderr.
+  static const bool kLogThrows = util::EnvFlagEnabled("MICROBROWSER_JS_THROWS");
+  if (kLogThrows) {
+    const std::string stack = CaptureStack(kind, message);
+    // One line for easy grepping; stack frames stay on following lines so a
+    // caught throw still names a place the way ReportUncaught would.
+    std::fprintf(stderr, "[js.throw] %s\n", stack.c_str());
+    std::fflush(stderr);
+  }
   Object* error = heap_.AllocateObject(Object::Kind::Error);
   if (error == nullptr) {
     // Out of memory while reporting being out of memory. A string is the one

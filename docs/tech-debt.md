@@ -1069,8 +1069,29 @@ Two bugs kept watch from using them even after the constructors existed:
 
 What is **not** closed: `BroadcastChannel` is document-scoped rather than
 partition-scoped; index `keyPath` metadata is bindings-local so a reopen without
-`upgradeneeded` cannot repopulate indexes. Whether watch now reaches
-`crypto.subtle_import_key` and clears `fmt.unplayable` is the next measurement.
+`upgradeneeded` cannot repopulate indexes.
+
+**Update** (2026-08-09, after yPS prototype/`in` fixes). Release watch probe
+(`/watch?v=jNQXAC9IVRw`, with `-click 456,398`):
+
+| metric | value |
+|---|---|
+| `idb.opens` / `puts` / `gets` | **10 / 8 / 15** (was 0) |
+| `broadcast_channel.constructed` | **4** |
+| `Woffle: PES is undefined` | **gone** from console |
+| `video.readyState` / `buffered` | **4 / ~19s** |
+| `video.paused` / `currentTime` after click | **false / ~4s** |
+| `crypto.subtle_import_key` | still **0** (lazy until PES encrypts; construction no longer blocks) |
+| `getVideoData().errorCode` | still **`fmt.unplayable`** |
+| `getPlayerStateObject().isError` | still **true** |
+| MSE `addSourceBuffer` / `appendBuffer` failures (prelude wrap) | **0** of 139 |
+
+So Gate C watch playback via the media click path works; the facade error is a
+caught throw inside Gal/`Dh` (`trg:"setmediasrc"`) that does not prevent MSE
+from attaching afterward. Original exception name is swallowed by the player's
+`try/catch` — use `MICROBROWSER_JS_THROWS=1` (logs every engine `MakeError`) to
+see it. Closing TD-0020 fully still means `isError === false` and
+`playVideo()` reaching `HTMLMediaElement.play` without the click bypass.
 
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 

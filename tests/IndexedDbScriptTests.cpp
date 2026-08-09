@@ -146,8 +146,13 @@ void RegisterIndexedDbScriptTests(std::vector<TestCase>& tests) {
     session.Run(
         "globalThis.order = [];"
         "const req = indexedDB.open('actualDb', 1);"
-        "req.onupgradeneeded = () => order.push('upgrade:' + req.result.objectStoreNames.length);"
-        "req.onsuccess = () => order.push('success:' + (req.result instanceof IDBDatabase));"
+        "req.onupgradeneeded = () => {"
+        "  order.push('upgrade:' + req.result.objectStoreNames.length);"
+        "  order.push('txn:' + (req.transaction && req.transaction.mode));"
+        "  order.push('txnNull:' + (req.transaction === null));"
+        "};"
+        "req.onsuccess = () => order.push('success:' + (req.result instanceof IDBDatabase)"
+        " + ':txnAfter:' + (req.transaction === null));"
         "console.log(order.join(','));"  // logged before either event: nothing yet.
         "order.push('__marker');");
     const std::string console = session.Console();
@@ -156,8 +161,12 @@ void RegisterIndexedDbScriptTests(std::vector<TestCase>& tests) {
     // By the time the whole load (including its queued tasks) has run, a brand
     // new database has upgraded from nothing and then succeeded, in that order,
     // after the marker the synchronous part of the script pushed itself.
-    Expect(session.EvaluateOrder() == "__marker,upgrade:0,success:true",
-           "and both fired, upgrade before success, once the load finished");
+    // youtube's EntityStore does `new v_(a.transaction)` inside upgradeneeded
+    // and throws if that is null/undefined — so the mode must be present, and
+    // cleared to null by the time success fires.
+    Expect(session.EvaluateOrder() ==
+               "__marker,upgrade:0,txn:versionchange,txnNull:false,success:true:txnAfter:true",
+           "upgrade exposes a versionchange transaction; success clears it");
   });
 
   AddTest(tests, "IndexedDbScript/YpsCreatesTheDatabasesStoreAndPutGetDeleteRoundTrip", [] {

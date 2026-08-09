@@ -63,6 +63,7 @@ Two independent output modes:
 
 ```bash
 MICROBROWSER_TRACE_REDRAW=1   # [redraw] full  rects=1 coverage=100.0% surface=1280x800 commands=29
+MICROBROWSER_JS_THROWS=1      # [js.throw] TypeError: …  (every engine MakeError, including caught ones)
 ```
 
 Read through `util::PerformanceTrace::FlagEnabled`, which is a thin wrapper over `util::EnvValue`

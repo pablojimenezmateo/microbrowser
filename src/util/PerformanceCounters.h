@@ -291,6 +291,12 @@ namespace microbrowser::util {
   /* stamp — browse `__data` arrived, `ytd-rich-grid-renderer` never did.     */ \
   X(JsStepsPeak, "js.steps_peak")                                                 \
   X(JsStepsExhausted, "js.steps_exhausted")                                       \
+  /* Engine-built throws (`MakeError`), including ones a page's own try/catch  */ \
+  /* swallows. youtube's setmediasrc path catches Gal's throw and turns it into */ \
+  /* `fmt.unplayable` without ever reaching ReportUncaught -- so the only way  */ \
+  /* to see the *original* name/message is to count and (with                */ \
+  /* MICROBROWSER_JS_THROWS=1) log here.                                      */ \
+  X(JsThrows, "js.throws")                                                       \
   /* Hits on the hard heap cell limit. A non-zero count that coincides with an */ \
   /* `out of memory` throw means the live set does not fit, or safepoints are  */ \
   /* not collecting -- the youtube Polymer-upgrade OOM of 2026-08-06 was the   */ \
