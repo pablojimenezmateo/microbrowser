@@ -178,6 +178,12 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
   if (interpreter_ == nullptr || !event.IsObject()) {
     return false;
   }
+  // Root across the listener drain: handlers queue microtasks, DrainMicrotasks
+  // may Collect, and `event` is only a C++ local. Without this, reading
+  // `defaultPrevented` afterwards is a use-after-free (ASAN on youtube.com
+  // script `load` → GetOwnProperty on a freed event; Release saw SIGFPE in the
+  // same hashtable). Same shape as ValueRoot on thrown completions.
+  const js::Interpreter::ValueRoot rooted_event(*interpreter_, event);
   const Value* type_value = event.object->GetOwn("type");
   if (type_value == nullptr) {
     return false;
@@ -492,6 +498,8 @@ bool DomBindings::DispatchAtWindowWith(const char* type, const js::Value& event)
   if (interpreter_ == nullptr || !event.IsObject()) {
     return false;
   }
+  // Same root as DispatchEventTo: the drain below can Collect.
+  const js::Interpreter::ValueRoot rooted_event(*interpreter_, event);
   const Value window = Value::Obj(interpreter_->Global());
   const std::string slot = std::string("#on:") + type;
   const bool listening =
@@ -564,6 +572,10 @@ void DomBindings::NotifyScriptElementEvent(const dom::Element& element, const ch
   if (!event.IsObject()) {
     return;
   }
+  // Root for the outer drain too: DispatchEventTo roots while it runs, then
+  // pops; a second DrainMicrotasks here must not free `event` under us either
+  // (even though we no longer read it — keep the lifetime honest).
+  const js::Interpreter::ValueRoot rooted_event(*interpreter_, event);
   const std::uint32_t saved_depth = trusted_script_depth_;
   PushTrustedScriptContext();
   DispatchEventTo(const_cast<dom::Element&>(element), event);

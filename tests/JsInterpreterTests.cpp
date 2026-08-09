@@ -2342,6 +2342,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("decodeURIComponent('a%20b%26c')", "a b&c");
     ExpectEval("decodeURI('a%20b%2Fc')", "a b%2Fc");
     ExpectEval("try { decodeURIComponent('%zz') } catch (e) { e.name }", "URIError");
+    // Host objects must run toString: pure ToString invents "[object Object]"
+    // (TD-0027's class of bug; youtube consent continue=).
+    ExpectEval("encodeURIComponent({toString:()=>'a b'})", "a%20b");
+    ExpectEval("encodeURI({toString:()=>'http://x/a b'})", "http://x/a%20b");
   });
 
   AddTest(tests, "JsInterpreter/NumbersHaveMethodsWithoutBeingBoxed", [] {

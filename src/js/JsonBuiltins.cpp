@@ -769,7 +769,21 @@ void Interpreter::InstallJsonAndUri(Object* json) {
         name,
         NewNativeValue(name,
                        [encode, keep_reserved](NativeCall& call) {
-                         const std::string text = ToString(Argument(call.arguments, 0));
+                         // Through ToStringOf, not pure ToString: encodeURIComponent
+                         // / encodeURI take any value and must run a host object's
+                         // toString. Pure ToString invents "[object Object]" for
+                         // Location/URL — the same class of bug as TD-0027's
+                         // `new URL(location)` (youtube consent `continue=`).
+                         std::string text;
+                         if (call.arguments.empty()) {
+                           text = "undefined";
+                         } else {
+                           const Result converted =
+                               call.interpreter.ToStringOf(Argument(call.arguments, 0), text);
+                           if (converted.IsAbrupt()) {
+                             return call.ThrowValue(converted.value);
+                           }
+                         }
                          if (encode) {
                            return Value::String(PercentEncode(text, keep_reserved));
                          }

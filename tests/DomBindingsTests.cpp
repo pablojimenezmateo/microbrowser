@@ -268,6 +268,18 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.body.addEventListener('ping', e => e.preventDefault());"
                  "document.body.dispatchEvent(new Event('ping'))",
                  "true");
+    // A handler queues a microtask that allocates past the GC threshold. The
+    // drain runs before dispatchEvent returns and reads defaultPrevented — the
+    // event must stay rooted across that Collect (ASAN UAF on youtube.com
+    // script load without ValueRoot in DispatchEventTo).
+    ExpectScript(kPage,
+                 "document.body.addEventListener('ping', e => {"
+                 "  e.preventDefault();"
+                 "  Promise.resolve().then(() => { const a = [];"
+                 "    for (let i = 0; i < 8000; i++) a.push({i}); });"
+                 "});"
+                 "document.body.dispatchEvent(new Event('ping', { cancelable: true }))",
+                 "false");
     // `preventDefault` on an event that is not cancelable does nothing, so a
     // handler cannot believe it stopped something it did not.
     ExpectScript(kPage,
@@ -1530,6 +1542,13 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   ExpectEqString(js::ToString(from_location.value),
                  "https://example.org/a/b?q=1|/a/b",
                  "new URL(location) uses Location.toString");
+
+  // encodeURIComponent must also coerce via toString — same "[object Object]"
+  // class as new URL(location) when a page percent-encodes location or a URL.
+  const js::Result encoded = interpreter->Run("encodeURIComponent(location)");
+  ExpectEqString(js::ToString(encoded.value),
+                 "https%3A%2F%2Fexample.org%2Fa%2Fb%3Fq%3D1",
+                 "encodeURIComponent(location) uses Location.toString");
 
   const js::Result message = interpreter->Run(
       "let data = ''; window.addEventListener('message', e => { data = e.data[0]; });"
