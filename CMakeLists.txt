@@ -495,6 +495,7 @@ microbrowser_module(bindings
     src/bindings/HtmlParsing.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/ViewObservers.cpp
+    src/bindings/WaapiBindings.cpp
     src/bindings/EventBindings.cpp
     src/bindings/EventDispatch.cpp
     src/bindings/FocusBindings.cpp

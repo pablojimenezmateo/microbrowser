@@ -80,6 +80,8 @@ class PageScript {
   // source follows -- a page that finds the name and gets a store that
   // refuses every write is worse off than one that finds nothing.
   void SetIndexedDbSource(bindings::IndexedDbSource* indexed_db) { indexed_db_ = indexed_db; }
+  // TD-0021. Null leaves `Element.animate` undeclared (ADR 0012).
+  void SetAnimationSource(bindings::AnimationSource* animations) { animations_ = animations; }
   // And for `document.cookie`. Null leaves the accessor answering an empty string,
   // which is what a test with a bare document needs.
   void SetCookieSource(bindings::CookieSource* cookies) { cookies_ = cookies; }
@@ -122,6 +124,18 @@ class PageScript {
   // data arrived.
   bool DispatchMediaEvent(dom::Element& element, const std::string& type) {
     return bindings_ != nullptr && bindings_->DispatchMediaEvent(element, type);
+  }
+  bool DeliverFinishedAnimations() {
+    if (bindings_ == nullptr) {
+      return false;
+    }
+    const bool settled = bindings_->DeliverFinishedAnimations();
+    // Promise reactions for `Animation.finished` are microtasks; without a
+    // drain here a page (and a test) that only RunDueWork never sees them.
+    if (settled && interpreter_ != nullptr) {
+      interpreter_->DrainMicrotasks();
+    }
+    return settled;
   }
   bool DeliverEventSourceOpen(std::uint64_t id) {
     return bindings_ != nullptr && bindings_->DeliverEventSourceOpen(id);
@@ -456,6 +470,7 @@ class PageScript {
   bindings::HistorySource* history_ = nullptr;
   bindings::StorageSource* storage_ = nullptr;
   bindings::IndexedDbSource* indexed_db_ = nullptr;
+  bindings::AnimationSource* animations_ = nullptr;
   bindings::CookieSource* cookies_ = nullptr;
   bindings::SocketSource* sockets_ = nullptr;
   bindings::MediaController* media_ = nullptr;

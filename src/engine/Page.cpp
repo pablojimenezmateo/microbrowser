@@ -75,6 +75,8 @@ Page::Page(gfx::FontProvider& fonts)
   // life of the page, and a source that arrived later would leave the first
   // script of a document without one.
   script_.SetGeometrySource(this);
+  // Element.animate → this Page's Animations (TD-0021). Same lifetime as geometry.
+  script_.SetAnimationSource(AsAnimationSource());
   // And its media questions, for the same reason and with the same lifetime: the state machines
   // are this object's, so `<video>` has its API from the first script of the first document.
   script_.SetMediaController(this);
@@ -469,6 +471,12 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms) {
     animation_tick = true;
     ran = true;
     AddPerformanceCounter(PerfCounterId::AnimationFramesProduced);
+  }
+  // After Advance *and* after script: cancel() queues a finished notice while
+  // Running() may already be false, so delivery cannot sit inside the Running
+  // branch alone.
+  if (script_.DeliverFinishedAnimations()) {
+    ran = true;
   }
   const bool video_updated =
       video_.AdvanceAll([this](dom::Element& element) { return MediaStateFor(element); });

@@ -231,6 +231,9 @@ void DomBindings::EnsureInterfaces() {
   InstallHtmlParsing(element);
   // `attachShadow` and what a slot answers. On Element for the same reason.
   InstallShadowDom(element);
+  // Web Animations: after Element exists so `animate` lands on the prototype a
+  // page feature-detects. Absent when no AnimationSource (ADR 0012 / TD-0021).
+  InstallWaapi(element);
   const Value html_element = MakeInterface("HTMLElement", element);
   // On HTMLElement rather than Element, which is where the specification puts
   // them: focus is an HTML concept, and an SVG element in this tree is an

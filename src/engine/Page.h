@@ -16,6 +16,7 @@
 #include "bindings/IndexedDb.h"
 #include "bindings/Network.h"
 #include "bindings/Media.h"
+#include "bindings/Waapi.h"
 #include "engine/DocumentPolicy.h"
 #include "engine/DocumentResources.h"
 #include "engine/PageTextContext.h"
@@ -71,11 +72,16 @@ struct FormSubmission {
 class Page : private layout::ImageProvider,
              public bindings::WorkerHost,
              private bindings::GeometrySource,
+             private bindings::AnimationSource,
              private css::StyleAdjuster,
              public bindings::CanvasSurface,
              public bindings::MediaController {
  public:
   explicit Page(gfx::FontProvider& fonts);
+
+  // The AnimationSource this Page is. Private inheritance keeps the interface
+  // off the public Page surface; PageScript still needs the pointer.
+  bindings::AnimationSource* AsAnimationSource() { return this; }
 
   // Replaces the document. `url` is recorded as the document's address; it is
   // not fetched here, because what a URL turns into is the loader's problem and
@@ -696,6 +702,18 @@ class Page : private layout::ImageProvider,
   css::StyleResolver& Styles() { return resolver_; }
 
  private:
+  // bindings::AnimationSource — Element.animate → engine::Animations (TD-0021).
+  std::uint64_t StartAnimation(dom::Element& element,
+                               std::vector<bindings::WaapiKeyframe> keyframes,
+                               bindings::WaapiTiming timing) override;
+  void PauseAnimation(std::uint64_t id) override;
+  void PlayAnimation(std::uint64_t id) override;
+  void CancelAnimation(std::uint64_t id) override;
+  bindings::WaapiPlayState AnimationPlayState(std::uint64_t id) const override;
+  std::optional<double> AnimationCurrentTimeMs(std::uint64_t id) const override;
+  void SetAnimationCurrentTimeMs(std::uint64_t id, double local_ms) override;
+  std::vector<bindings::AnimationSource::FinishedAnimation> TakeFinishedAnimations() override;
+
   // bindings::GeometrySource. Private inheritance for the reason ImageProvider
   // is private: the binding layer holds a reference to the interface, and
   // nothing else has business calling these. See ADR 0015 -- values out, never

@@ -986,13 +986,18 @@ keys cleanliness off `MutationVersion` so `offsetWidth` after a style write
 restyles then reflows. Counters: `layout.animation_tick_no_box_rebuild`,
 `layout.animation_paint_only`, `layout.attr_paint_only`, `layout.video_paint_only`.
 
-**Still open.** youtube loads `web-animations-next-lite` and the polyfill writes
-`el.style.*` every frame. Even with throttled restyle and no `PaintAndSend`
-during `IsLoading`, `script_.RunDueWork` still runs the polyfill/rAF path every
-~16 ms at high CPU on watch. Closing this wants **`Element.animate` / Web
-Animations** so the polyfill delegates to the engine's animation clock instead
-of attribute writes (ADR 0014 §5). Dirty-subtree box rebuild remains the end
-state for stamp/font/sheet.
+**Still open.** Dirty-subtree box rebuild remains the end state for stamp/font/
+sheet. Full Web Animations (KeyframeEffect constructor, `getAnimations`,
+opacity as a paint property) is not required for the youtube polyfill path.
+
+**Update** (2026-08-09). **`Element.animate` / `Animation` landed** through
+`bindings::AnimationSource` → `engine::Animations` programmatic effects (same
+Apply path as CSS `@keyframes`, never `el.style`). Feature detection sees
+`Element.prototype.animate` and `window.Animation`, so `web-animations-next-lite`
+should skip its style-writing fallback. Counters: `animation.waapi_started` /
+`finished` / `cancelled`. Pause leaves `NextDelayMs` empty (idle CPU). What
+remains of the watch CPU story is then TD-0020's facade / format path and
+dirty-subtree rebuild — not a 60 Hz attribute restyle from the polyfill.
 
 **Measured** (Release, `/results?search_query=cats`):
 

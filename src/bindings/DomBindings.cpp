@@ -45,7 +45,8 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
                          std::string url, GeometrySource* geometry, NetworkSource* network,
                          HistorySource* history, StorageSource* storage, CookieSource* cookies,
                          SocketSource* sockets, MediaController* media, CanvasSurface* canvas,
-                         WorkerHost* workers, IndexedDbSource* indexed_db)
+                         WorkerHost* workers, IndexedDbSource* indexed_db,
+                         AnimationSource* animations)
     : interpreter_(&interpreter),
       document_(&document),
       url_(std::move(url)),
@@ -58,7 +59,8 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
       sockets_(sockets),
       media_(media),
       canvas_(canvas),
-      workers_(workers) {}
+      workers_(workers),
+      animations_(animations) {}
 
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
   // The real CSS selector engine, not the three-form toy this used to be.

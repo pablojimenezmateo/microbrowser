@@ -74,4 +74,71 @@ void Page::CollectKeyframes(const css::StyleSheet& sheet) {
   animations_.SetKeyframes(std::move(merged));
 }
 
+std::uint64_t Page::StartAnimation(dom::Element& element,
+                                   std::vector<bindings::WaapiKeyframe> keyframes,
+                                   bindings::WaapiTiming timing) {
+  if (keyframes.empty()) {
+    return 0;
+  }
+  css::KeyframesRule frames;
+  frames.name = "waapi";
+  for (bindings::WaapiKeyframe& frame : keyframes) {
+    css::Keyframe out;
+    out.offset = std::clamp(frame.offset, 0.0, 1.0);
+    out.declarations = std::move(frame.declarations);
+    frames.frames.push_back(std::move(out));
+  }
+  css::AnimationSpec spec;
+  spec.duration_ms = timing.duration_ms;
+  spec.delay_ms = timing.delay_ms;
+  spec.iterations = timing.iterations <= 0.0 ? 1.0 : timing.iterations;
+  spec.timing = timing.easing;
+  spec.direction = timing.direction;
+  spec.fill = timing.fill;
+  css::ComputedStyle base = StyleOfForTesting(element);
+  // ObserveStyle must see the cascade base without the effect we are about to
+  // start, so Apply can fall back missing keyframe props correctly.
+  return animations_.StartProgrammatic(element, std::move(frames), std::move(spec),
+                                       std::move(base), animation_time_ms_);
+}
+
+void Page::PauseAnimation(std::uint64_t id) {
+  animations_.PauseProgrammatic(id, animation_time_ms_);
+}
+
+void Page::PlayAnimation(std::uint64_t id) {
+  animations_.PlayProgrammatic(id, animation_time_ms_);
+}
+
+void Page::CancelAnimation(std::uint64_t id) { animations_.CancelProgrammatic(id); }
+
+bindings::WaapiPlayState Page::AnimationPlayState(std::uint64_t id) const {
+  if (!animations_.ProgrammaticExists(id)) {
+    return bindings::WaapiPlayState::Idle;
+  }
+  if (animations_.ProgrammaticFinished(id)) {
+    return bindings::WaapiPlayState::Finished;
+  }
+  if (animations_.ProgrammaticPaused(id)) {
+    return bindings::WaapiPlayState::Paused;
+  }
+  return bindings::WaapiPlayState::Running;
+}
+
+std::optional<double> Page::AnimationCurrentTimeMs(std::uint64_t id) const {
+  return animations_.ProgrammaticCurrentTimeMs(id, animation_time_ms_);
+}
+
+void Page::SetAnimationCurrentTimeMs(std::uint64_t id, double local_ms) {
+  animations_.SetProgrammaticCurrentTimeMs(id, local_ms, animation_time_ms_);
+}
+
+std::vector<bindings::AnimationSource::FinishedAnimation> Page::TakeFinishedAnimations() {
+  std::vector<bindings::AnimationSource::FinishedAnimation> out;
+  for (const Animations::FinishedNotice& notice : animations_.TakeFinishedProgrammatic()) {
+    out.push_back({notice.id, notice.cancelled});
+  }
+  return out;
+}
+
 }  // namespace microbrowser::engine

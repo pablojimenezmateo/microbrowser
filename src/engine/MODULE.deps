@@ -22,7 +22,9 @@ extern:
 # translation units.
 # Raised again for ADR 0038's IndexedDbSource: one more seam, one more Set method, the same shape as
 # every one above it.
-max_tu_lines: 920
+# Raised for AnimationSource (Element.animate / TD-0021) on the same class that
+# already hosts GeometrySource and MediaController — one Page, one clock.
+max_tu_lines: 950
 
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays
@@ -163,7 +165,7 @@ budget: PendingWorkerScript header_lines=15 public_methods=0 members=2
 budget: CanvasSurfaces header_lines=110 public_methods=14 members=2
 budget: State         header_lines=50 public_methods=4 members=10
 budget: Surface       header_lines=30 public_methods=0 members=8
-budget: Animations    header_lines=110 public_methods=12 members=5
+budget: Animations    header_lines=145 public_methods=28 members=9
 budget: MediaElements header_lines=120 public_methods=25 members=9
 budget: Loader header_lines=145 public_methods=17 members=8
 # What a load produced. A struct with no invariant, which is why it is one --
@@ -284,7 +286,8 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
 # +1 public method for SetIndexedDbSource (ADR 0038), forwarded to PageScript
 # like every other Set*Source before it.
-budget: Page   header_lines=915 public_methods=175 members=24
+# +AsAnimationSource and AnimationSource wiring (TD-0021 / Element.animate).
+budget: Page   header_lines=940 public_methods=180 members=24
 budget: LayoutState header_lines=40 public_methods=0 members=8
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
@@ -366,7 +369,8 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # fetch needs to know what a module graph is.
 # +1 header line, +1 method and +1 member for SetIndexedDbSource and the
 # IndexedDbSource pointer it stores, the same shape as every other Set*Source.
-budget: PageScript header_lines=426 public_methods=60 members=28
+# +SetAnimationSource / animations_ / DeliverFinishedAnimations (TD-0021).
+budget: PageScript header_lines=480 public_methods=65 members=30
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

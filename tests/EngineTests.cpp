@@ -2906,6 +2906,86 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "and stops scheduling the moment the page stops asking");
   });
 
+  AddTest(tests, "Page/ElementAnimateDrivesComputedStyleWithoutStyleAttribute", [] {
+    // TD-0021: native Element.animate must not write el.style (the polyfill
+    // path). Mid-animation getComputedStyle sees the interpolated transform.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetAnimationTime(0);
+    page.Load(
+        "<html><body><div id='box'>x</div><script>"
+        "const el = document.getElementById('box');"
+        "const before = el.getAttribute('style');"
+        "globalThis.anim = el.animate("
+        "  [{transform: 'translateX(0px)'}, {transform: 'translateX(100px)'}],"
+        "  {duration: 200, fill: 'forwards', easing: 'linear'});"
+        "globalThis.styleAttr = el.getAttribute('style');"
+        "globalThis.hadAttr = before;"
+        "</" "script></body></html>",
+        "https://example.org/");
+    page.SetViewport(css::MediaContext{400.0f, 300.0f, 1.0f});
+    page.Layout(400.0f);
+    page.RunScripts(0);
+    Expect(page.NextWakeDelay(0).has_value(), "a running WAAPI effect wakes the loop");
+    ExpectEqInt(static_cast<long long>(page.RunningAnimations().RunningCount()), 1,
+                "one programmatic effect");
+    // Advance halfway; RestyleWithoutLayout via due work so AdjustStyle applies.
+    page.SetAnimationTime(100);
+    page.RunDueWork(100);
+    page.Layout(400.0f);
+    const std::string mid = page.EvaluateScript(
+        "getComputedStyle(document.getElementById('box')).transform + '|' +"
+        " (document.getElementById('box').getAttribute('style') === null ? 'none' : "
+        "document.getElementById('box').getAttribute('style')) + '|' +"
+        " globalThis.anim.playState");
+    Expect(mid.find("none") != std::string::npos || mid.find("matrix") != std::string::npos ||
+               mid.find("translate") != std::string::npos,
+           "computed transform is set mid-animation: " + mid);
+    Expect(mid.find("|none|") != std::string::npos || mid.find("||") != std::string::npos,
+           "style attribute stays unset: " + mid);
+    Expect(mid.find("running") != std::string::npos || mid.find("finished") != std::string::npos,
+           "playState is live: " + mid);
+
+    page.EvaluateScript("globalThis.anim.pause()");
+    page.RunDueWork(100);
+    Expect(!page.NextWakeDelay(100).has_value(),
+           "pause leaves no animation wake (idle CPU)");
+
+    page.EvaluateScript("globalThis.anim.play()");
+    page.SetAnimationTime(250);
+    page.RunDueWork(250);
+    const std::string done = page.EvaluateScript("globalThis.anim.playState");
+    ExpectEqString(done, "finished", "fill:forwards holds finished state");
+  });
+
+  AddTest(tests, "Page/ElementAnimateFinishedResolvesAndCancelRejects", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetAnimationTime(0);
+    page.Load(
+        "<html><body><div id='box'>x</div><script>"
+        "const el = document.getElementById('box');"
+        "globalThis.ok = el.animate([{opacity:'1'},{opacity:'1'}], {duration:50, fill:'none'});"
+        "globalThis.ok.finished.then(() => { globalThis.resolved = true; },"
+        "  () => { globalThis.resolved = false; });"
+        "globalThis.bad = el.animate([{transform:'none'},{transform:'none'}], {duration:5000});"
+        "globalThis.bad.finished.then(() => { globalThis.cancelledOk = false; },"
+        "  (e) => { globalThis.cancelledOk = e && e.name === 'AbortError'; });"
+        "globalThis.bad.cancel();"
+        "</" "script></body></html>",
+        "https://example.org/");
+    page.Layout(400.0f);
+    page.RunScripts(0);
+    page.RunDueWork(0);  // deliver cancel rejection
+    page.SetAnimationTime(60);
+    page.RunDueWork(60);  // finish the short one
+    // Microtasks from SettleAsyncResult need a turn.
+    page.RunDueWork(60);
+    const std::string out = page.EvaluateScript(
+        "String(globalThis.resolved) + '|' + String(globalThis.cancelledOk)");
+    ExpectEqString(out, "true|true", "finished resolves; cancel rejects AbortError");
+  });
+
   // An element by id, for the two animation tests below. `dom::Document` has no `getElementById` --
   // that lives in the binding layer, where a page reaches it -- so the walk is here.
   const auto element_with_id = [](dom::Document& document, std::string_view id) -> dom::Element* {

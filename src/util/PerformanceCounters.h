@@ -420,6 +420,9 @@ namespace microbrowser::util {
   X(TransitionsFinished, "animation.transitions_finished")                        \
   X(AnimationsStarted, "animation.animations_started")                            \
   X(AnimationsFinished, "animation.animations_finished")                          \
+  X(WaapiAnimationsStarted, "animation.waapi_started")                            \
+  X(WaapiAnimationsFinished, "animation.waapi_finished")                          \
+  X(WaapiAnimationsCancelled, "animation.waapi_cancelled")                        \
   X(AnimationFramesProduced, "animation.frames_produced")                         \
   X(IdleCallbacksRun, "idle.callbacks_run")                                       \
   X(CanvasesCreated, "canvas.created")                                            \

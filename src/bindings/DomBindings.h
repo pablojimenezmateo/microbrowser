@@ -18,6 +18,7 @@
 #include "bindings/Cookies.h"
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
+#include "bindings/Waapi.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 #include "js/StructuredClone.h"
@@ -127,12 +128,15 @@ class DomBindings {
               HistorySource* history = nullptr, StorageSource* storage = nullptr,
               CookieSource* cookies = nullptr, SocketSource* sockets = nullptr,
               MediaController* media = nullptr, CanvasSurface* canvas = nullptr,
-              WorkerHost* workers = nullptr, IndexedDbSource* indexed_db = nullptr);
+              WorkerHost* workers = nullptr, IndexedDbSource* indexed_db = nullptr,
+              AnimationSource* animations = nullptr);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
   // which is a decision the engine will want to make per navigation.
   void Install();
+
+  dom::Document& Document() { return *document_; }
 
   // The wrapper for a node, made once and cached. Public because the engine
   // will need it to hand an event its target.
@@ -170,6 +174,10 @@ class DomBindings {
   bool DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
                                  const std::string& data, const std::string& last_id);
   bool DeliverEventSourceError(std::uint64_t id, bool permanent);
+
+  // Settles `Animation.finished` for programmatic effects that completed or
+  // were cancelled since the last take. True when any promise settled.
+  bool DeliverFinishedAnimations();
 
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
@@ -801,6 +809,8 @@ class DomBindings {
   // uses, so a page probing via script cannot disagree with a stylesheet.
   // Lives next to constructable sheets because both are the CSSOM surface.
   void InstallCssOm();
+  // `Element.animate` / `Animation` — only when `animations_` is set (TD-0021).
+  void InstallWaapi(const js::Value& element_interface);
   // Parses `markup` with `context_tag_name` as the fragment parsing
   // algorithm's context element and inserts what it produced into `parent`
   // before `reference`. The one place a page's string becomes tree, so that
@@ -882,6 +892,10 @@ class DomBindings {
   MediaController* media_ = nullptr;
   CanvasSurface* canvas_ = nullptr;
   WorkerHost* workers_ = nullptr;
+  // TD-0021 / Web Animations. Null leaves `Element.animate` undeclared so a
+  // polyfill that writes `el.style` every frame is not preferred over nothing
+  // when the engine has no clock behind the name (ADR 0012).
+  AnimationSource* animations_ = nullptr;
   // What a page last wrote to the clipboard. Held here rather than handed to the system, because
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
   // string -- and a test needs to see what was written either way. The chrome takes it from here.
