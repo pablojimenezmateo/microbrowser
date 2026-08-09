@@ -1764,6 +1764,13 @@ actually flips; dirty-subtree rebuild (TD-0021) remains the larger end state.
 
 ## Closed
 
+- **TD-0033 — Restyle treated non-box DOM as display changes** (2026-08-10).
+  UA hidden-input `display:none`; skip missing boxes under replaced parents.
+  Youtube `/results`: display invalidations 280 → 7; BuildBoxTree ~8.3 s/390 →
+  ~5.2 s/118.
+- **TD-0030 — Collected stacking units skip intervening overflow clips** (2026-08-10).
+  Collect records padding clips with scroll_delta; paint PushClip / hit-test
+  Contains. Abspos exception retained for thumbnail layout.
 - **TD-0029 — Event UAF across DrainMicrotasks in DispatchEventTo** (2026-08-09).
   ValueRoot on the event; see open entry above (now closed).
 - **TD-0027 — Binding URL arguments used pure `js::ToString`** (2026-08-09).
