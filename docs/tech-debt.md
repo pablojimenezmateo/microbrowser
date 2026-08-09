@@ -1197,8 +1197,9 @@ reported "error saving your choice". After Accept (plus closing the lightbox):
 | `getPlayerState()` | still flaps **-1** / **3** while `paused===true` |
 
 So the MSE/buffer half of TD-0020 is largely unblocked once consent cookies
-round-trip. Remaining: facade state vs element play, and the consent UI itself
-(TD-0022) so a real `-click` can dismiss without `-eval`.
+round-trip. Remaining: facade state vs element play. Consent UI positioning
+(TD-0022) is fixed; Accept is reachable via scroll + trusted `-click`
+(`-eval` scrollIntoView then `-click last`).
 
 ---
 
