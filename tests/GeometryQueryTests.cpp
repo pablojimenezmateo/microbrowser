@@ -267,6 +267,28 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
                    "a property this engine does not have reads back empty, not invented");
   });
 
+  AddTest(tests, "Geometry/ComputedStyleMaxSizeInitialIsNone", [] {
+    // CSS: `max-width` / `max-height` initial is `none`. iron-fit (and Polymer
+    // overlays generally) gate `constrain()` on `maxHeight !== "none"`; answering
+    // `"auto"` skips the viewport clamp and leaves dialogs taller than the window.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body><div id='a'>x</div>"
+        "<script>var s = getComputedStyle(document.getElementById('a'));"
+        "console.log(s.maxHeight);"
+        "console.log(s.maxWidth);"
+        "console.log(s.getPropertyValue('max-height'));"
+        "document.getElementById('a').style.maxHeight = '200px';"
+        "console.log(getComputedStyle(document.getElementById('a')).maxHeight);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "none", "max-height initial is none");
+    ExpectEqString(Line(output, 1), "none", "max-width initial is none");
+    ExpectEqString(Line(output, 2), "none", "getPropertyValue agrees");
+    ExpectEqString(Line(output, 3), "200px", "an authored max-height still serializes");
+  });
+
   AddTest(tests, "Geometry/ComputedStyleFollowsAMutation", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

@@ -341,6 +341,42 @@ void RegisterScrollTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 4), "10,0", "scrollTo is absolute and leaves the other axis alone");
   });
 
+  AddTest(tests, "Scroll/GetBoundingClientRectFollowsAncestorScrollTop", [] {
+    // Viewport coords subtract every scrolled ancestor, not only the document.
+    // Without that, `scrollTop` on an `overflow:auto` dialog moves paint but
+    // leaves script's rects where they were — and a click aimed at Accept on
+    // youtube's consent bump never hits the button.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'>"
+        "<div id='scroller' style='height:100px;overflow:auto;position:relative'>"
+        "<div style='height:80px'></div>"
+        "<div id='target' style='height:40px'>x</div>"
+        "<div style='height:200px'></div></div>"
+        "<script>var s = document.getElementById('scroller');"
+        "var t = document.getElementById('target');"
+        "var before = t.getBoundingClientRect().top;"
+        "s.scrollTop = 50;"
+        "var after = t.getBoundingClientRect().top;"
+        "console.log(before + ',' + after + ',' + (before - after));"
+        "</script></body>");
+    // before ≈ 80, after ≈ 30, delta ≈ 50.
+    const std::string line = Line(output, 0);
+    Expect(!line.empty(), "produced a log line");
+    // Parse "before,after,delta"
+    const auto first = line.find(',');
+    const auto second = line.find(',', first == std::string::npos ? 0 : first + 1);
+    Expect(first != std::string::npos && second != std::string::npos, "three fields");
+    const float before = std::stof(line.substr(0, first));
+    const float after = std::stof(line.substr(first + 1, second - first - 1));
+    const float delta = std::stof(line.substr(second + 1));
+    Expect(before > 70.0f && before < 90.0f, "target starts below the spacer");
+    ExpectEqFloat(delta, 50.0f, 1.0f, "rect moves by the scrollTop applied");
+    ExpectEqFloat(after, before - 50.0f, 1.0f, "and lands that much higher");
+  });
+
   AddTest(tests, "Scroll/ScrollIntoViewMovesEveryScrollingAncestor", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

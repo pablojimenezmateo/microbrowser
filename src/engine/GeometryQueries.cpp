@@ -34,8 +34,8 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
-bindings::GeometryRect ToRect(const gfx::FloatRect& rect, float scroll_y) {
-  return bindings::GeometryRect{rect.x, rect.y - scroll_y, rect.width, rect.height};
+bindings::GeometryRect ToRect(const gfx::FloatRect& rect, float scroll_x, float scroll_y) {
+  return bindings::GeometryRect{rect.x - scroll_x, rect.y - scroll_y, rect.width, rect.height};
 }
 
 using ElementBoxMap = std::unordered_map<const dom::Element*, layout::Box*>;
@@ -60,6 +60,29 @@ const layout::Box* BoxFor(const ElementBoxMap& map, const dom::Element& element)
   }
   AddPerformanceCounter(PerfCounterId::LayoutBoxLookupHits);
   return it->second;
+}
+
+// Document scroll plus every ancestor scroll container's offset. `getBoundingClientRect`
+// is in viewport coordinates; layout stores document coordinates, so each
+// scrolled ancestor between the box and the viewport must be subtracted. The
+// box itself is not: a scroller's own border box does not move when it scrolls
+// — only its descendants do. Skipping ancestors left youtube's consent dialog
+// `scrollTop` changing while Accept's rect stayed off-screen.
+void AncestorScrollOffsets(const ElementBoxMap& map, const dom::Element& element,
+                           float document_scroll_y, float& scroll_x, float& scroll_y) {
+  scroll_x = 0.0f;
+  scroll_y = document_scroll_y;
+  for (const dom::Node* at = element.Parent(); at != nullptr; at = at->Parent()) {
+    if (!at->IsElement()) {
+      continue;
+    }
+    const layout::Box* ancestor = BoxFor(map, static_cast<const dom::Element&>(*at));
+    if (ancestor == nullptr || !ancestor->IsScrollContainer()) {
+      continue;
+    }
+    scroll_x += ancestor->ScrollOffset().x;
+    scroll_y += ancestor->ScrollOffset().y;
+  }
 }
 
 // The same lookup, on a tree the caller may write to. Scrolling a box is the
@@ -378,8 +401,20 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "height") return LengthText(style.height, font_size);
   if (property == "min-width") return LengthText(style.min_width, font_size);
   if (property == "min-height") return LengthText(style.min_height, font_size);
-  if (property == "max-width") return LengthText(style.max_width, font_size);
-  if (property == "max-height") return LengthText(style.max_height, font_size);
+  // `max-width` / `max-height` initial value is `none`, not `auto`. The cascade
+  // stores the unbounded case as Length::Auto (ClampBy reads it as no bound),
+  // but iron-fit's `_discoverInfo` does `sizedBy.height = maxHeight !== "none"`
+  // — answering `"auto"` makes every unconstrained box look pre-sized, so
+  // `constrain()` never writes a viewport max-height and youtube's consent
+  // dialog stays 1500px tall with Accept below the fold.
+  if (property == "max-width") {
+    return style.max_width.IsAuto() ? std::string("none")
+                                    : LengthText(style.max_width, font_size);
+  }
+  if (property == "max-height") {
+    return style.max_height.IsAuto() ? std::string("none")
+                                     : LengthText(style.max_height, font_size);
+  }
   if (property == "margin-top") return LengthText(style.margin.top, font_size);
   if (property == "margin-right") return LengthText(style.margin.right, font_size);
   if (property == "margin-bottom") return LengthText(style.margin.bottom, font_size);
@@ -440,19 +475,22 @@ std::optional<bindings::BoxGeometry> Page::QueryBox(const dom::Node& node) {
     return std::nullopt;
   }
 
-  const float scroll_y = layout_.scroll_y;
+  float scroll_x = 0.0f;
+  float scroll_y = 0.0f;
+  AncestorScrollOffsets(layout_.box_by_element, element, layout_.scroll_y, scroll_x, scroll_y);
   bindings::BoxGeometry answer;
   if (box->GetKind() == layout::Box::Kind::Inline) {
     // An inline box carries no geometry of its own; its fragments do. The three
     // boxes collapse to one here because a fragment has no padding or border of
     // its own to subtract -- which is a real approximation, and a much smaller
     // one than reporting zero.
-    const bindings::GeometryRect united = ToRect(UnionOfFragments(*box), scroll_y);
+    const bindings::GeometryRect united =
+        ToRect(UnionOfFragments(*box), scroll_x, scroll_y);
     return bindings::BoxGeometry{united, united, united};
   }
-  answer.border_box = ToRect(box->Geometry().BorderBox(), scroll_y);
-  answer.padding_box = ToRect(box->Geometry().PaddingBox(), scroll_y);
-  answer.content_box = ToRect(box->Geometry().content, scroll_y);
+  answer.border_box = ToRect(box->Geometry().BorderBox(), scroll_x, scroll_y);
+  answer.padding_box = ToRect(box->Geometry().PaddingBox(), scroll_x, scroll_y);
+  answer.content_box = ToRect(box->Geometry().content, scroll_x, scroll_y);
   if (IsViewportScroller(element)) {
     // `document.documentElement.scrollTop` is the *document's* offset, not the
     // root element's own -- which is the one thing about the scroll API every
