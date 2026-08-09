@@ -445,6 +445,44 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
                      "handler completed after MediaEventBudget");
     }
+    // Custom-element upgrades during an rAF stamp share live frames with the
+    // outer CallFunction. BeginTask is a no-op there; ElementUpgradeBudget must
+    // still refresh once the shared allotment is half spent (TD-0018 thumbs).
+    {
+      Interpreter interpreter;
+      const Value deliver = interpreter.NewNativeValue(
+          "deliverUpgrade", [](NativeCall& call) -> Value {
+            const Value* burn = call.interpreter.Global()->GetOwn("burn");
+            const Value* handler = call.interpreter.Global()->GetOwn("handler");
+            if (burn == nullptr || handler == nullptr || !burn->IsObject() ||
+                !handler->IsObject()) {
+              return Value::Undefined();
+            }
+            (void)call.interpreter.CallFunction(*burn, Value::Undefined(), {});
+            {
+              const Interpreter::ElementUpgradeBudget budget(call.interpreter);
+              const Result out =
+                  call.interpreter.CallFunction(*handler, Value::Undefined(), {});
+              if (out.completion == Completion::Throw) {
+                return call.ThrowValue(out.value);
+              }
+              return out.value;
+            }
+          });
+      Expect(deliver.IsObject(), "install deliverUpgrade native");
+      interpreter.Global()->Set("deliverUpgrade", deliver);
+      interpreter.GlobalScope()->Declare("deliverUpgrade", deliver, false);
+      Expect(interpreter
+                 .Run("globalThis.got = 0;"
+                      "globalThis.burn = () => { while (true) {} };"
+                      "globalThis.handler = () => { got = 1; return got; };"
+                      "function entry() { return deliverUpgrade(); }"
+                      "entry()")
+                 .completion == Completion::Normal,
+             "upgrade budget lets nested work finish under live frames");
+      ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
+                     "handler completed after ElementUpgradeBudget");
+    }
   });
 
   AddTest(tests, "JsInterpreter/ANodeThatIsNeitherExpressionNorStatementDoesNotLoop", [] {

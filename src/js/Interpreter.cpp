@@ -37,32 +37,48 @@ void Interpreter::BeginHostTurn() {
   step_budget_absorbed_ = false;
 }
 
-void Interpreter::EnterMediaEventBudget() {
+void Interpreter::EnterNestedHostBudget(util::PerfCounterId reset_counter) {
   util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
-  if (media_event_depth_ == 0) {
-    media_event_chain_steps_ = 0;
+  if (nested_host_budget_depth_ == 0) {
+    nested_host_chain_steps_ = 0;
   } else {
-    media_event_chain_steps_ += steps_;
+    nested_host_chain_steps_ += steps_;
   }
-  ++media_event_depth_;
-  if (media_event_chain_steps_ >= kMaxMediaChainSteps) {
+  ++nested_host_budget_depth_;
+  if (nested_host_chain_steps_ >= kMaxNestedHostChainSteps) {
     // Leave steps past the hang guard so the nested CallFunction aborts rather
     // than opening an unbounded pump. Peak already recorded above.
     steps_ = kMaxSteps + 1;
     return;
   }
+  // Refresh only when BeginHostTurn would (empty machine), when nesting past
+  // the first NestedHostBudget (MSE updateend → append → updateend), or when
+  // the shared allotment is already half spent. Unconditional reset on every
+  // custom-element upgrade under a live rAF would re-open TD-0018's stamp hang:
+  // each cheap upgrade would wipe the outer turn's progress toward kMaxSteps.
+  const bool under_live_frames = !vm_.frames.empty();
+  const bool refresh = !under_live_frames || nested_host_budget_depth_ > 1 ||
+                       steps_ >= kMaxSteps / 2;
+  if (!refresh) {
+    return;
+  }
   steps_ = 0;
   step_budget_absorbed_ = false;
-  util::AddPerformanceCounter(util::PerfCounterId::JsMediaEventBudgetResets);
+  // Count only the interesting case: a refresh that BeginHostTurn refused
+  // (live frames) or a nested NestedHostBudget. Empty-machine zeros are the
+  // ordinary BeginTask path and would swamp `js.element_upgrade_budget_resets`.
+  if (under_live_frames || nested_host_budget_depth_ > 1) {
+    util::AddPerformanceCounter(reset_counter);
+  }
 }
 
-void Interpreter::LeaveMediaEventBudget() {
-  media_event_chain_steps_ += steps_;
-  if (media_event_depth_ > 0) {
-    --media_event_depth_;
+void Interpreter::LeaveNestedHostBudget() {
+  nested_host_chain_steps_ += steps_;
+  if (nested_host_budget_depth_ > 0) {
+    --nested_host_budget_depth_;
   }
-  if (media_event_depth_ == 0) {
-    media_event_chain_steps_ = 0;
+  if (nested_host_budget_depth_ == 0) {
+    nested_host_chain_steps_ = 0;
   }
 }
 

@@ -907,6 +907,22 @@ player path does not wire through to `<video>.play()` even though a gestured
 `complete`/`naturalWidth`/`naturalHeight` and `load` events on decode landed
 the same day; search `loaded` images went from **0 → 4+** in snapshot probes.
 
+**Update** (2026-08-09, NestedHostBudget for CE upgrades). Above-fold search
+thumbs were sized (replaced %) and IO sampling ran (`view.intersection_records`),
+but `img.onViewportEntered` was never installed: `u5m`/`SE3.observe` runs from
+Lit `connectedCallback` during the stamp, and `UpgradeElement`'s `BeginTask`
+was a no-op under live rAF frames — first-chunk upgrades shared one spent 20M
+allotment and aborted mid-stamp (`hasData` true, `hasEnter` false, empty `src`).
+`Interpreter::NestedHostBudget` generalises the MSE media budget: refresh when
+the machine is empty, when nesting past the first NestedHostBudget, or when the
+shared allotment is already half spent — not on every cheap upgrade (that would
+re-open the stamp hang). `ElementUpgradeBudget` in `UpgradeElement`; counter
+`js.element_upgrade_budget_resets` (only when a refresh happens under live
+frames or nested NestedHostBudget depth). Acceptance: after Accept, no scroll,
+in-view thumbs have `onViewportEntered` and a non-empty `src` — **met**
+(Release 2026-08-09: `inViewNoEnter:0`, `inViewNoSrc:0`, `js.steps_exhausted`
+absent, `js.steps_peak` ≈ 10.3M).
+
 **End state.** Close when `js.steps_exhausted` is 0, search results show
 painted thumbnails for every in-view row without `-eval` force, watch plays via
 the page's own click handler (not only `-eval video.play()`), and home is
@@ -914,7 +930,8 @@ honest about nudge vs UA. Related: TD-0017 (binding-token strip), TD-0007 /
 ADR 0036, **TD-0001 closed** (search layout no longer the wall), **TD-0020**
 (youtube `playVideo` stub), **TD-0023** (img.src recollect). Inline replaced
 `width/height: 100%` now resolves (2026-08-09) — above-fold thumbs are sized
-500×281; empty `src` / `visibility:hidden` until IO assigns remains open here.
+500×281; empty `src` / `visibility:hidden` until IO assigns was the NestedHostBudget
+gap above.
 
 ---
 
@@ -1347,8 +1364,12 @@ in the cascade (`visibility:hidden` from `.ytCoreImageHost` proved it) but
 `ReplacedIntrinsic` skipped percents and `InlineLayout` reused that geometry.
 Landed `ResolveReplacedSize` + pass the containing block's definite height into
 `LayoutInlineChildren` (`layout.replaced_percent_resolved`). After Accept,
-above-fold imgs are **500×281** (was 0×0). `src` assignment remains flaky —
-separate from the size hole; still TD-0018.
+above-fold imgs are **500×281** (was 0×0).
+
+**Update** (2026-08-09, NestedHostBudget). Empty `src` with sized geometry was
+`UpgradeElement` under live rAF frames (TD-0018): IO never got `onViewportEntered`.
+Fetch-list half of this TD stays closed; empty-`src` reliability moves with
+TD-0018's NestedHostBudget landing.
 
 ---
 

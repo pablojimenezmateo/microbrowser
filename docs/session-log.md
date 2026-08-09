@@ -3921,4 +3921,29 @@ Measured (Release, cats search, Accept, no scroll): above-fold `img` used size
 
 **Left:** TD-0018 `src` assignment; home nudge; `Intl` / `eval`.
 
+---
+
+## 2026-08-09 — NestedHostBudget: CE upgrades under live rAF frames
+
+**Status:** youtube search in-view thumbs get `src` without scroll
+
+`UpgradeElement`'s `BeginTask` was a no-op while an rAF stamp's frames were
+live, so the first lazy-list chunk shared one spent 20M hang allotment and
+aborted before Lit/`u5m` installed `onViewportEntered` /
+`IntersectionObserver.observe`. `Interpreter::NestedHostBudget` generalises the
+MSE media budget: refresh when the machine is empty, when nesting past the
+first NestedHostBudget, or when the shared allotment is half spent — not on
+every cheap upgrade. `ElementUpgradeBudget` in `UpgradeElement`; counter
+`js.element_upgrade_budget_resets` (live-frame refreshes only).
+
+**Check** (Release `microbrowser_snapshot`, cats search, `-wheel` + Accept,
+no scroll): `inViewNoEnter:0`, `inViewNoSrc:0`, in-view rows
+`hasEnter`/`src`/`visibility:visible` at 500×281; below-fold `hasEnter` true
+and `src` false (correct lazy). `js.steps_exhausted` absent;
+`js.steps_peak` ≈ 10.3M; `js.element_upgrade_budget_resets` nonzero;
+`engine.images_loaded` 18.
+
+**Left:** residual TD-0018 (home feed when server sends one; `Intl` / `eval`);
+watch already plays (TD-0020).
+
 

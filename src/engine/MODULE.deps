@@ -24,7 +24,9 @@ extern:
 # every one above it.
 # Raised for AnimationSource (Element.animate / TD-0021) on the same class that
 # already hosts GeometrySource and MediaController — one Page, one clock.
-max_tu_lines: 950
+# Raised for click press-target + image recollect (TD-0022/0023): two more
+# members and declarations on the Page seam, not a missing module.
+max_tu_lines: 980
 
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays

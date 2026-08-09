@@ -414,7 +414,10 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # cannot allocate an Error object it falls back to a bare string, and that
 # string still needs CaptureStack appended or youtube's eight heap_oom throws
 # report with no place. See 94317dd and TD-0012.
-budget: Interpreter header_lines=1160 public_methods=63 members=26
+# And by NestedHostBudget / ElementUpgradeBudget (lines): MSE and CE upgrades
+# under live frames need a shared nested hang-guard refresh (TD-0018 / TD-0020).
+# Member count unchanged (renamed media_* → nested_host_*); methods unchanged.
+budget: Interpreter header_lines=1260 public_methods=63 members=26
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

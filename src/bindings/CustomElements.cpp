@@ -15,6 +15,7 @@
 // element script gets is the element the document already had, rather than a
 // second object that has to be kept in step with it.
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -111,11 +112,15 @@ js::Value DomBindings::CustomElementRegistry() {
 }
 
 void DomBindings::UpgradeElement(dom::Element& element) {
-  // TD-0018: each upgrade is its own host turn. A batch `define` or fragment
-  // insert can upgrade dozens of elements; one BeginTask for the whole batch
-  // leaves later `connectedCallback`s on a spent budget (`js.steps_exhausted`).
+  // TD-0018: NestedHostBudget — BeginTask/BeginHostTurn is a no-op while an
+  // rAF or script frame is live, so a youtube stamp's first chunk shared one
+  // spent 20M allotment and aborted before `u5m` registered IntersectionObserver
+  // on above-fold thumbs. ElementUpgradeBudget refreshes when that allotment is
+  // half spent (and always when the machine is empty), without wiping progress
+  // on every cheap upgrade. Nested CE-in-CE shares the chain cap with MSE.
+  std::optional<js::Interpreter::ElementUpgradeBudget> upgrade_budget;
   if (interpreter_ != nullptr) {
-    interpreter_->BeginTask();
+    upgrade_budget.emplace(*interpreter_);
   }
   const Value registry = CustomElementRegistry();
   if (!registry.IsObject()) {
