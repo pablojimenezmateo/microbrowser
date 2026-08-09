@@ -984,8 +984,15 @@ drain). Fixed:
 `EnsureBoxTree` keys off `StructureVersion` + cascade generation; `Layout` still
 keys cleanliness off `MutationVersion` so `offsetWidth` after a style write
 restyles then reflows. Counters: `layout.animation_tick_no_box_rebuild`,
-`layout.animation_paint_only`, `layout.video_paint_only`. Dirty-subtree rebuild
-remains the end state for stamp/font/sheet.
+`layout.animation_paint_only`, `layout.attr_paint_only`, `layout.video_paint_only`.
+
+**Still open.** youtube loads `web-animations-next-lite` and the polyfill writes
+`el.style.*` every frame. Even with throttled restyle and no `PaintAndSend`
+during `IsLoading`, `script_.RunDueWork` still runs the polyfill/rAF path every
+~16 ms at high CPU on watch. Closing this wants **`Element.animate` / Web
+Animations** so the polyfill delegates to the engine's animation clock instead
+of attribute writes (ADR 0014 §5). Dirty-subtree box rebuild remains the end
+state for stamp/font/sheet.
 
 **Measured** (Release, `/results?search_query=cats`):
 
