@@ -387,10 +387,17 @@ bool Engine::RunDueWork() {
   // Paint-only due work (WAAPI style ticks, video frames) must not enter Layout:
   // MutationVersion has moved, so Layout would reflow every frame (TD-0021).
   if (due == Page::DueWorkKind::Paint) {
-    PaintAndSend();
-  } else {
-    LayoutAndPaint();
+    // While a load is outstanding, rebuilding the display list at 60Hz is why
+    // youtube watch never finished the snapshot drain: RunDueWork returning
+    // true skipped the socket wait every frame. Restyle already updated the
+    // boxes; the next real LayoutAndPaint from a completion shows them.
+    if (!IsLoading()) {
+      PaintAndSend();
+      return true;
+    }
+    return from_workers;
   }
+  LayoutAndPaint();
   return true;
 }
 

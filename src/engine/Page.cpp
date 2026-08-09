@@ -488,11 +488,16 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms) {
   }
   if (attrs_changed || animation_tick) {
     if (boxes_ != nullptr) {
-      RestyleWithoutLayout();
-      // WAAPI polyfills write `style` every frame. Returning Layout here would
-      // still force LayoutBoxes via MutationVersion vs layout_.document_version
-      // even when geometry did not move — so paint-only is Paint, and layout-
-      // affecting CSS animations still ask for Layout.
+      // Throttle full-document restyle: WAAPI polyfills write `style` every
+      // frame, and RestyleWithoutLayout walks the whole tree (TD-0021).
+      constexpr std::int64_t kAttrRestyleMinMs = 50;
+      const bool restyle_now =
+          animation_tick || last_attr_restyle_ms_ == 0 ||
+          now_ms - last_attr_restyle_ms_ >= kAttrRestyleMinMs;
+      if (restyle_now) {
+        RestyleWithoutLayout();
+        last_attr_restyle_ms_ = now_ms;
+      }
       if (animation_tick && animations_.TickNeedsLayout()) {
         layout_.laid_out_width = -1.0f;
         AddPerformanceCounter(PerfCounterId::LayoutAnimationTick);

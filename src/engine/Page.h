@@ -833,6 +833,8 @@ class Page : private layout::ImageProvider,
   // animation-frame callbacks share a timestamp: two elements animating on one frame must be at the
   // same instant, and reading a clock per element is how two halves of one transition desynchronise.
   std::int64_t animation_time_ms_ = 0;
+  // Last RestyleWithoutLayout from an attribute/WAAPI due-work tick (TD-0021).
+  std::int64_t last_attr_restyle_ms_ = 0;
   // Every `@keyframes` this document has seen, kept so that a second stylesheet's arrival does not drop
   // the first one's animations. The copy in `animations_` is what a frame reads; this is what a merge
   // starts from.

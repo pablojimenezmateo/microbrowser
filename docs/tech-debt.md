@@ -976,7 +976,7 @@ drain). Fixed:
 | trigger | action |
 |---|---|
 | structure or cascade change | `InvalidateLayout` (rebuild boxes) |
-| attribute / style mutation | `RestyleWithoutLayout` + paint (`layout.attr_paint_only`); reflow deferred to `EnsureLayoutClean` |
+| attribute / style mutation | throttled `RestyleWithoutLayout` (≥50 ms) + `DueWorkKind::Paint`; during `IsLoading`, Engine does not `PaintAndSend` so the snapshot loop can wait on sockets |
 | layout-affecting CSS animation | `RestyleWithoutLayout` + reflow |
 | paint-only CSS animation (transform/color) | `RestyleWithoutLayout` only |
 | video frame | paint / surface damage only |

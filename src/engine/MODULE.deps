@@ -22,7 +22,7 @@ extern:
 # translation units.
 # Raised again for ADR 0038's IndexedDbSource: one more seam, one more Set method, the same shape as
 # every one above it.
-max_tu_lines: 910
+max_tu_lines: 920
 
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays
@@ -284,7 +284,7 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # alternative is bindings naming `media`, which is the boundary ADR 0008 exists for.
 # +1 public method for SetIndexedDbSource (ADR 0038), forwarded to PageScript
 # like every other Set*Source before it.
-budget: Page   header_lines=910 public_methods=175 members=23
+budget: Page   header_lines=915 public_methods=175 members=24
 budget: LayoutState header_lines=40 public_methods=0 members=8
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
