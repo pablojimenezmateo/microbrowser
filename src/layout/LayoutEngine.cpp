@@ -584,7 +584,35 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
 
   float content_height = 0.0f;
   if (style.IsFlexContainer()) {
-    content_height = LayoutFlexChildren(box, content_left, content_width, content_top);
+    // Column flex needs a definite main size to grow or shrink. A stated or
+    // forced height is one; a binding `max-height` on an auto-height column is
+    // the other — discovered only after a content-sized first pass (youtube
+    // consent: `max-height: 896px` with no height, `#content` at ~1490px).
+    const float border_top_for_flex = geometry.border.top.Resolve(style.font_size);
+    const float border_bottom_for_flex = geometry.border.bottom.Resolve(style.font_size);
+    const float height_padding_border_for_flex =
+        padding_top + padding_bottom + border_top_for_flex + border_bottom_for_flex;
+    std::optional<float> definite_main;
+    if (forced != nullptr && forced->content_height.has_value()) {
+      definite_main = *forced->content_height;
+    } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
+      const float stated = style.height.Resolve(style.font_size);
+      definite_main = style.ClampHeight(stated, stated, height_padding_border_for_flex);
+    }
+    content_height =
+        LayoutFlexChildren(box, content_left, content_width, content_top, definite_main);
+    const bool column = style.flex.direction == css::FlexDirection::Column ||
+                        style.flex.direction == css::FlexDirection::ColumnReverse;
+    if (column && !definite_main.has_value() && !style.max_height.IsAuto() &&
+        !style.max_height.IsPercent()) {
+      const float clamped =
+          style.ClampHeight(content_height, content_height, height_padding_border_for_flex);
+      if (clamped < content_height) {
+        AddPerformanceCounter(PerfCounterId::LayoutFlexColumnMaxHeightRelayouts);
+        content_height =
+            LayoutFlexChildren(box, content_left, content_width, content_top, clamped);
+      }
+    }
   } else if (style.display == css::Display::Table) {
     content_height =
         LayoutTableChildren(box, content_left, content_width, content_top, table_columns);

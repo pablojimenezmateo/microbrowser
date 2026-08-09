@@ -151,7 +151,8 @@ float AlignOffset(css::Alignment alignment, float line_cross, float item_cross) 
 }  // namespace
 
 float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float content_width,
-                                       float start_y) const {
+                                       float start_y,
+                                       std::optional<float> definite_main_height) const {
   const css::ComputedStyle& style = box.Style();
   const css::ComputedStyle::FlexStyle& flex = style.flex;
   const bool row = IsRow(flex.direction);
@@ -161,7 +162,11 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   // height has none until its lines are measured, which is what makes
   // `align-content` and a stretched line different questions from
   // `align-items`.
-  const float main_size = row ? content_width : 0.0f;
+  //
+  // A column's main size is the definite content height when the caller has
+  // one. Zero means indefinite: measure by content, and do not grow or shrink
+  // (there is nothing to flex against).
+  const float main_size = row ? content_width : definite_main_height.value_or(0.0f);
   const float cross_size = row ? 0.0f : content_width;
   const float main_gap = row ? flex.column_gap : flex.row_gap;
   const float cross_gap = row ? flex.row_gap : flex.column_gap;
@@ -244,8 +249,7 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
       // A column's base size is a height, and the only way to know a box's
       // height is to lay it out. Measured against the container's cross size,
       // which is the width it will actually have. Kept as the measuring pass
-      // when flexing does not change the height (a column with auto height
-      // never grows or shrinks -- see the resolve loop below).
+      // when flexing does not change the height.
       float probe = 0.0f;
       item.measure_left = content_left;
       item.measure_top = probe;
@@ -300,10 +304,11 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   for (const Line& line : lines) {
     const auto count = static_cast<float>(line.end - line.begin);
     const float gaps = std::max(0.0f, count - 1.0f) * main_gap;
-    // A column container with an auto height has no main size to flex
-    // against, so nothing grows or shrinks -- there is no free space to speak
-    // of.
-    if (!row || main_size <= 0.0f) {
+    // No definite main size means nothing grows or shrinks — there is no free
+    // space to speak of. That covers an auto-height column and a zero-width
+    // row; a column that arrived with a definite height (or a max-height that
+    // bound the content) flexes here like a row does against its width.
+    if (main_size <= 0.0f) {
       continue;
     }
 
@@ -347,7 +352,9 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
                                     : item_style.flex.shrink * item.base_main / total;
         const float wanted = std::max(item.main_extra, item.outer_main + free_space * share);
         const float allowed =
-            item_style.ClampWidth(wanted - item.main_extra, main_size) + item.main_extra;
+            row ? item_style.ClampWidth(wanted - item.main_extra, main_size) + item.main_extra
+                : item_style.ClampHeight(wanted - item.main_extra, wanted - item.main_extra) +
+                      item.main_extra;
         item.outer_main = allowed;
         // A bound that bit is what freezes the item: it cannot take any more
         // of the space, so the next round shares what is left without it.
@@ -367,9 +374,10 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   for (Line& line : lines) {
     for (std::size_t i = line.begin; i < line.end; ++i) {
       Item& item = items[i];
-      if (!row && item.measured) {
+      if (!row && item.measured &&
+          item.outer_main == item.box->Geometry().MarginBox().height) {
         // Column probe above already laid the item out at the final main size
-        // (no grow/shrink on an auto-height column). Reuse it.
+        // (indefinite column, or flexing left this item unchanged). Reuse it.
         item.outer_cross = item.box->Geometry().MarginBox().width;
         line.cross_size = std::max(line.cross_size, item.outer_cross);
         continue;
@@ -423,12 +431,12 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     }
     // Auto margins absorb free space before justify-content. Spec: if any
     // main-axis margin is auto, justify-content does not distribute that space.
-    const float free_space = row ? main_size - used : 0.0f;
+    const float free_space = main_size > 0.0f ? main_size - used : 0.0f;
     const float auto_share =
-        (row && auto_margins > 0 && free_space > 0.0f) ? free_space / static_cast<float>(auto_margins)
-                                                      : 0.0f;
+        (auto_margins > 0 && free_space > 0.0f) ? free_space / static_cast<float>(auto_margins)
+                                                : 0.0f;
     const float justify_free = auto_share > 0.0f ? 0.0f : free_space;
-    const Spacing spacing = row ? Distribute(flex.justify_content, justify_free, count) : Spacing{};
+    const Spacing spacing = Distribute(flex.justify_content, justify_free, count);
 
     // Positions first, then layout. A reversed direction is a mirror of the
     // whole line rather than a backwards walk over it: `row-reverse` moves the
@@ -439,15 +447,23 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     float main_cursor = spacing.leading;
     for (std::size_t i = line.begin; i < line.end; ++i) {
       const css::Edges& margin = items[i].box->Style().margin;
-      if (row && auto_share > 0.0f) {
-        if ((IsReversed(flex.direction) ? margin.right : margin.left).IsAuto()) {
+      if (auto_share > 0.0f) {
+        if (row) {
+          if ((IsReversed(flex.direction) ? margin.right : margin.left).IsAuto()) {
+            main_cursor += auto_share;
+          }
+        } else if ((IsReversed(flex.direction) ? margin.bottom : margin.top).IsAuto()) {
           main_cursor += auto_share;
         }
       }
       items[i].main_position = main_cursor;
       main_cursor += items[i].outer_main + main_gap + spacing.between;
-      if (row && auto_share > 0.0f) {
-        if ((IsReversed(flex.direction) ? margin.left : margin.right).IsAuto()) {
+      if (auto_share > 0.0f) {
+        if (row) {
+          if ((IsReversed(flex.direction) ? margin.left : margin.right).IsAuto()) {
+            main_cursor += auto_share;
+          }
+        } else if ((IsReversed(flex.direction) ? margin.top : margin.bottom).IsAuto()) {
           main_cursor += auto_share;
         }
       }
@@ -455,9 +471,10 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     if (IsReversed(flex.direction)) {
       // Mirrored against the line's own extent for a column, whose main size
       // is not known until the items are placed, and against the container's
-      // for a row, where it is.
-      const float extent = row ? main_size : std::max(0.0f, main_cursor - main_gap -
-                                                                spacing.between);
+      // for a row, where it is. A definite column height is known too.
+      const float extent = main_size > 0.0f
+                               ? main_size
+                               : std::max(0.0f, main_cursor - main_gap - spacing.between);
       for (std::size_t i = line.begin; i < line.end; ++i) {
         items[i].main_position = extent - items[i].main_position - items[i].outer_main;
       }
@@ -510,9 +527,15 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   }
 
   // The height the container's content occupies: across the lines for a row,
-  // along the main axis for a column.
+  // along the main axis for a column. A definite column height is the used
+  // content height even when items overflow it (flex-shrink: 0) — clamping the
+  // container after the fact without this would disagree with the size flexing
+  // resolved against.
   if (row) {
     return lines_total;
+  }
+  if (main_size > 0.0f) {
+    return main_size;
   }
   float tallest = 0.0f;
   for (const Item& item : items) {

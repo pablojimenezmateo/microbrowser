@@ -566,6 +566,10 @@ namespace microbrowser::util {
   /* stretch / constraint-change cases that still re-lay out.                   */ \
   X(LayoutMeasureCacheHits, "layout.measure_cache_hits")                         \
   X(LayoutMeasureCacheMisses, "layout.measure_cache_misses")                     \
+  /* Column flex containers with `height: auto` and a binding `max-height`: the */ \
+  /* first pass sizes by content, then a second pass re-resolves with the max   */ \
+  /* as a definite main size so items can shrink (youtube consent `#content`).  */ \
+  X(LayoutFlexColumnMaxHeightRelayouts, "layout.flex_column_max_height_relayouts") \
   /* Text handed to the shaper by layout rather than by paint. Intrinsic width  */ \
   /* measurement is the other half of a slow layout and is invisible from the   */ \
   /* box counters, which count boxes rather than the work each one asks for.    */ \

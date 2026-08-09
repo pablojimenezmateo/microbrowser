@@ -95,8 +95,16 @@ class LayoutEngine {
   // occupy. In its own translation unit: the algorithm is long, and it is the
   // only place in layout where children are sized against each other rather
   // than each against the container.
+  //
+  // `definite_main_height` is the column container's definite content height
+  // when it has one (a stated height, a forced size, or a max-height that bound
+  // an auto-height pass). Row containers ignore it: their main size is
+  // `content_width`. Without it a column never grows or shrinks — there is no
+  // free space to speak of — which is how youtube's consent dialog kept
+  // `#content` at its intrinsic ~1490px inside an 896px `max-height` box.
   float LayoutFlexChildren(Box& box, float content_left, float content_width,
-                           float start_y) const;
+                           float start_y,
+                           std::optional<float> definite_main_height = std::nullopt) const;
   // Positioning, in its own translation unit. Two passes and not one: an
   // absolutely positioned box is sized against the padding box of the nearest
   // positioned ancestor, and that ancestor's height is not known until its

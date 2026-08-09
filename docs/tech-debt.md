@@ -1208,26 +1208,35 @@ round-trip. Remaining: facade state vs element play, and the consent UI itself
 (viewport centre as if size were zero) while content is ~748×928. Accept all
 lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
 `getComputedStyle` serializes unbounded max-size as `"none"` (iron-fit's
-`sizedBy.height = maxHeight !== "none"`). `overflow` stays `visible`, so the
-dialog is not a scroll container either.
+`sizedBy.height = maxHeight !== "none"`).
 
-`dialog.refit()` / `resetFit(); fit()` recentres correctly. After content
-stamps, **`iron-resize` is never heard** on the dialog in a session probe
-(`ironResize:0` with a listener), so the Polymer resizable path never asks for
-another fit. Forcing `opened=false` on the lightbox/backdrop dismisses the
-overlay; Accept alone sets `SOCS` but leaves `opened===true` until that write.
+**Update** (2026-08-09). Several halves landed or were named:
 
-**Why it matters.** Without an on-screen Accept, `-click` cannot dismiss
-consent, and the watch player stays under an overlay even when MSE has already
-buffered the video (TD-0020 update above).
+| piece | status |
+|---|---|
+| `max-height` / `max-width` serialize as `none` | **done** |
+| `getBoundingClientRect` subtracts ancestor scroll | **done** |
+| `HTMLElement.click()` | **done** (does **not** grant user activation — correct) |
+| cookie `Expires` HTTP-date (consent save / `TESTCOOKIESENABLED` delete) | **done** |
+| `box-sizing: border-box` honoured for min/max size | **done** (iron-fit's pair with `max-height`) |
+| `getComputedStyle().overflow` shorthand | **done** |
+| column flex grow/shrink + `max-height` re-layout | **done** — `#content` is now ~840px inside the 896px dialog (`layout.flex_column_max_height_relayouts`); Accept still needs `scrollIntoView` because it sits at the end of the scrollable policy text |
+| auto-refit after stamp | **open** — `notifyResize()` schedules a refit that lands on the next drain (`top/left` → `0/266`), but nothing calls it after the bump stamps; youtube forces `ShadyDOM` (`force:true`, `ShadyCSS.disableRuntime:true`) |
+| Accept dismisses lightbox without scripted `opened=false` | **open** — trusted `-click` on an on-screen Accept sets `SOCS`/`PREF` and user activation, but `opened` stays true / backdrop stays `opened` |
+| inflated `#content.scrollHeight` (~1e5–4e5) | **open** — scrollport height is right; overflow measurement is not |
+| real `-click` Accept → user activation → play | blocked on dismiss |
+
+`dialog.refit()` / `resetFit(); fit()` recentres correctly when called. After
+Accept sets `SOCS`, MSE buffers the full zoo clip (`readyState` 4, ~19s) once
+the overlay is cleared; `play()` still needs a trusted gesture.
 
 **Close when.** After the consent bump stamps, the dialog's border box is
 inside the viewport without `-eval` fit/scroll, Accept is hit-testable by
 `-click`, and Accept leaves `opened===false` (or navigates) without a scripted
-property write. Likely work: deliver the resize notification Polymer expects
-after a stamp (ResizeObserver sample after layout, or `iron-resize` subscription
-for late-stamped descendants), and finish whatever close path Accept starts
-once cookies already succeed.
+property write. Likely remaining work: deliver the resize notification Polymer
+expects after a late stamp under forced ShadyDOM; finish the Accept close path
+once cookies already succeed; fix scrollable-overflow measurement that inflates
+`scrollHeight`.
 
 ---
 

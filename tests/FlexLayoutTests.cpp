@@ -639,6 +639,38 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(containers[0]->Geometry().content.height + 0.5f), 60,
                 "two lines of thirty");
   });
+
+  AddTest(tests, "Flex/ColumnMaxHeightLetsItemsShrink", [] {
+    // youtube consent shape: column flex, `height: auto`, a binding `max-height`,
+    // and a tall `overflow: auto; min-height: 0` body. Without a second pass that
+    // treats the max as a definite main size, the body stays at its intrinsic
+    // height and the footer is laid out below the dialog.
+    const Flexed result = Run(
+        "<div class=flex><section>"
+        "<p>aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa</p>"
+        "<p>bbbb bbbb bbbb bbbb bbbb bbbb bbbb bbbb</p>"
+        "<p>cccc cccc cccc cccc cccc cccc cccc cccc</p>"
+        "<p>dddd dddd dddd dddd dddd dddd dddd dddd</p>"
+        "<p>eeee eeee eeee eeee eeee eeee eeee eeee</p>"
+        "</section><footer>ok</footer></div>",
+        "body, div, section, footer, p { margin: 0; padding: 0 } "
+        ".flex { display: flex; flex-direction: column; width: 100px; max-height: 100px; "
+        "box-sizing: border-box } "
+        "section { overflow: auto; min-height: 0 } "
+        "footer { height: 20px; flex-shrink: 0 }");
+    const std::vector<const Box*> containers = Items(*result.root, "div");
+    const std::vector<const Box*> bodies = Items(*result.root, "section");
+    const std::vector<const Box*> feet = Items(*result.root, "footer");
+    ExpectEqInt(static_cast<long long>(containers.size()), 1, "one container");
+    ExpectEqInt(static_cast<long long>(bodies.size()), 1, "one body");
+    ExpectEqInt(static_cast<long long>(feet.size()), 1, "one footer");
+    ExpectEqInt(static_cast<long long>(containers[0]->Geometry().content.height + 0.5f), 100,
+                "max-height is the used height");
+    ExpectEqInt(static_cast<long long>(bodies[0]->Geometry().content.height + 0.5f), 80,
+                "body shrinks into the free space above the footer");
+    ExpectEqInt(static_cast<long long>(feet[0]->Geometry().content.y + 0.5f), 80,
+                "footer stays inside the max-height box");
+  });
 }
 
 }  // namespace microbrowser::tests
