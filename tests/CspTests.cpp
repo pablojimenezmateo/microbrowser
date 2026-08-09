@@ -178,6 +178,23 @@ void RegisterCspTests(std::vector<TestCase>& tests) {
            "a hash suppresses 'unsafe-inline' too");
   });
 
+  AddTest(tests, "Csp/UnsafeEvalGatesStringToCode", [] {
+    Expect(Policies("img-src 'none'").AllowsEval(),
+           "a policy that never mentions script leaves eval alone");
+    Expect(!Policies("script-src 'self'").AllowsEval(),
+           "script-src without 'unsafe-eval' forbids eval");
+    Expect(Policies("script-src 'self' 'unsafe-eval'").AllowsEval(),
+           "and 'unsafe-eval' restores it");
+    Expect(!Policies("default-src 'none'").AllowsEval(),
+           "default-src without 'unsafe-eval' forbids it too");
+    Expect(Policies("default-src 'none' 'unsafe-eval'").AllowsEval(),
+           "default-src can carry 'unsafe-eval'");
+    Expect(!Policies("default-src 'none' 'unsafe-eval'; script-src 'self'").AllowsEval(),
+           "an explicit script-src without the keyword still forbids");
+    Expect(!Policies("script-src 'self' 'unsafe-eval', default-src 'none'").AllowsEval(),
+           "every policy in the list must allow");
+  });
+
   AddTest(tests, "Csp/AnUnparseableTokenIsStricterAndNeverLooser", [] {
     Expect(Policies("script-src 'strict-dynamic' 'nonce-abc'")
                .AllowsInline(Directive::Script, "abc", "x"),

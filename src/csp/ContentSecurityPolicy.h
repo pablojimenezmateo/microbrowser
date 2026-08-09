@@ -72,6 +72,8 @@ struct Source {
     Nonce,
     Hash,
     UnsafeInline,
+    // `'unsafe-eval'` — not a URL source; `AllowsEval` reads it off the list.
+    UnsafeEval,
   };
 
   Kind kind = Kind::Nothing;
@@ -118,6 +120,11 @@ class Policy {
   // inserts are allowed transitively (enforced in bindings, not here).
   bool ScriptStrictDynamic() const { return script_strict_dynamic_; }
 
+  // Whether `eval` / `new Function` may run. True when `script-src` /
+  // `default-src` is absent, or when the governing list includes
+  // `'unsafe-eval'`. ADR 0039.
+  bool AllowsEval() const;
+
  private:
   const std::vector<Source>* ListFor(Directive directive) const;
 
@@ -155,6 +162,9 @@ class PolicyList {
 
   // True when any policy in force sets `'strict-dynamic'` on `script-src`.
   bool ScriptStrictDynamic() const;
+
+  // Allowed only when *every* policy allows (same as URLs / inline).
+  bool AllowsEval() const;
 
  private:
   std::vector<Policy> policies_;

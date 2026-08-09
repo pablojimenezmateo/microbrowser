@@ -191,6 +191,11 @@ Source ParseSource(std::string_view token) {
       source.kind = Source::Kind::UnsafeInline;
       return source;
     }
+    if (util::EqualsAsciiCaseInsensitive(body, "unsafe-eval")) {
+      Source source;
+      source.kind = Source::Kind::UnsafeEval;
+      return source;
+    }
     if (util::StartsWithAsciiCaseInsensitive(body, "nonce-")) {
       Source source;
       source.kind = Source::Kind::Nonce;
@@ -203,11 +208,9 @@ Source ParseSource(std::string_view token) {
     if (std::optional<Source> hash = ParseHashSource(body); hash.has_value()) {
       return *hash;
     }
-    // `'none'`, `'unsafe-eval'`, `'unsafe-hashes'`, and anything else quoted.
-    // All of them become a source that matches nothing, which is right for
-    // `'none'` by definition and right for the others because this browser has
-    // no `eval` (a test says so). `'strict-dynamic'` is handled in Policy::Parse
-    // rather than here.
+    // `'none'`, `'unsafe-hashes'`, and anything else quoted that is not a
+    // keyword this parser understands. `'strict-dynamic'` is handled in
+    // Policy::Parse rather than here (it is not a URL source).
     return nothing;
   }
   if (std::optional<Source> parsed = ParseHostOrScheme(token); parsed.has_value()) {
@@ -302,6 +305,7 @@ bool MatchesUrl(const Source& source, const url::Url& target, const url::Origin&
     case Source::Kind::Nonce:
     case Source::Kind::Hash:
     case Source::Kind::UnsafeInline:
+    case Source::Kind::UnsafeEval:
       // None of these say anything about a URL. `'unsafe-inline'` in
       // particular does not allow an external script, which is the mistake a
       // table-driven implementation makes.
@@ -429,6 +433,22 @@ bool Policy::AllowsUrl(Directive directive, const url::Url& target, const url::O
   return false;
 }
 
+bool Policy::AllowsEval() const {
+  // CSP3: `eval` is gated by `script-src` / `default-src`. No governing list
+  // means the platform default (allowed). A governing list without
+  // `'unsafe-eval'` forbids it — including `'none'`.
+  const std::vector<Source>* list = ListFor(Directive::Script);
+  if (list == nullptr) {
+    return true;
+  }
+  for (const Source& source : *list) {
+    if (source.kind == Source::Kind::UnsafeEval) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Policy::AllowsInline(Directive directive, std::string_view nonce,
                           std::string_view body) const {
   const std::vector<Source>* list = ListFor(directive);
@@ -509,6 +529,11 @@ bool PolicyList::Governs(Directive directive) const {
 bool PolicyList::ScriptStrictDynamic() const {
   return std::any_of(policies_.begin(), policies_.end(),
                      [](const Policy& policy) { return policy.ScriptStrictDynamic(); });
+}
+
+bool PolicyList::AllowsEval() const {
+  return std::all_of(policies_.begin(), policies_.end(),
+                     [](const Policy& policy) { return policy.AllowsEval(); });
 }
 
 }  // namespace microbrowser::csp

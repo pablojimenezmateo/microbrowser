@@ -479,6 +479,8 @@ class PageScript {
   bindings::CanvasSurface* canvas_ = nullptr;
   bindings::WorkerHost* workers_ = nullptr;
   bool script_strict_dynamic_ = false;
+  // CSP without `'unsafe-eval'`: `eval` / `Function` throw (ADR 0039).
+  bool eval_forbidden_ = false;
   std::function<void()> trusted_insertion_flush_;
 };
 

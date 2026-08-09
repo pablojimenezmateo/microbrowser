@@ -513,8 +513,9 @@ struct CompiledFunction {
   // has to know it to resolve names: a name in a flattened function is one hop
   // count and a name in a scoped one is another. That it can be decided from
   // the syntax at all is the point -- a nested function is a node, and there
-  // is no other way to make one. `eval` and `Function(source)` do not exist
-  // here, and a test says so.
+  // is no other way to make one from syntax alone — `Function(source)` is a
+  // separate host path (ADR 0039) and does not change how the compiler decides
+  // flattening for a nested FunctionExpression in the AST.
   bool frame_locals = false;
   // Set when the body names `arguments`, so the array is built per call only
   // where something can observe it. The scan stops at a nested ordinary

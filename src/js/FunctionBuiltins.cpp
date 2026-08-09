@@ -68,14 +68,55 @@ Value Forward(NativeCall& call, const Result& result) {
 }  // namespace
 
 void Interpreter::InstallFunctionPrototype() {
-  // `Function` exists so that `Function.prototype` is reachable, and refuses to
-  // be called. Compiling a function from a source string is the one path by
-  // which a page turns data it received into code it runs, and this engine does
-  // not have it -- there is no `eval` either. Saying so with a TypeError is
-  // better than leaving the name undefined, because a page that feature-detects
-  // gets an answer instead of a ReferenceError.
+  // `eval` and `Function(source)` compile a string into running code. They are
+  // gated only by CSP `'unsafe-eval'` at the host (ADR 0039); without a policy
+  // that forbids them they exist, which is what BotGuard / WebPO on youtube.com
+  // needs (`(0,eval)(...)` in the challenge interpreter). Refusing them outright
+  // left Wq2 waiting forever on `wne()` and blocked every SPA player fetch
+  // (TD-0024).
+  Object* eval_fn = NewNative("eval", [](NativeCall& call) {
+    if (call.arguments.empty()) {
+      return Value::Undefined();
+    }
+    const Value& argument = Argument(call.arguments, 0);
+    if (argument.type != ValueType::String) {
+      // Non-strings are returned unchanged (indirect-eval shape BotGuard uses
+      // for Trusted-Types probes before it feeds a real source string).
+      return argument;
+    }
+    if (call.interpreter.eval_forbidden_ != nullptr &&
+        call.interpreter.eval_forbidden_(call.interpreter.eval_forbidden_context_)) {
+      return call.Throw("EvalError", "call to eval() blocked by CSP");
+    }
+    // Always global scope: `(0,eval)` is indirect, and that is the only form
+    // measured on youtube. Direct-eval scope chaining is a follow-up.
+    const Result ran = call.interpreter.Run(argument.AsString());
+    return ran.IsAbrupt() ? call.ThrowValue(ran.value) : ran.value;
+  });
+  global_scope_->Declare("eval", Value::Obj(eval_fn), false);
+
   Object* constructor = NewNative("Function", [](NativeCall& call) {
-    return call.Throw("TypeError", "compiling a function from source is not supported");
+    if (call.interpreter.eval_forbidden_ != nullptr &&
+        call.interpreter.eval_forbidden_(call.interpreter.eval_forbidden_context_)) {
+      return call.Throw("EvalError", "Function() blocked by CSP");
+    }
+    // `new Function(a, b, body)` → `function anonymous(a,b){ body }`.
+    std::string body = "return undefined;";
+    std::string params;
+    if (!call.arguments.empty()) {
+      body = ToString(call.arguments.back());
+      for (std::size_t i = 0; i + 1 < call.arguments.size(); ++i) {
+        if (i > 0) {
+          params += ',';
+        }
+        params += ToString(call.arguments[i]);
+      }
+    }
+    // Expression form so `Run`'s completion value *is* the function, rather
+    // than a declaration that only leaves a global binding.
+    const std::string source = "(function anonymous(" + params + "){\n" + body + "\n})";
+    const Result ran = call.interpreter.Run(source);
+    return ran.IsAbrupt() ? call.ThrowValue(ran.value) : ran.value;
   });
   constructor->Set("prototype", Value::Obj(well_known_.function_prototype));
   well_known_.function_prototype->SetHidden("constructor", Value::Obj(constructor));

@@ -405,6 +405,13 @@ class Interpreter {
   void SetTrustedScriptHooks(void* context, bool (*active)(void* context),
                              void (*apply)(void* context, bool push));
 
+  // When non-null and returning true, `eval` / `Function` throw EvalError
+  // (CSP without `'unsafe-eval'`). Null / false keeps the platform default.
+  void SetEvalForbidden(void* context, bool (*forbidden)(void* context)) {
+    eval_forbidden_context_ = context;
+    eval_forbidden_ = forbidden;
+  }
+
   // Fresh step budget for a host *task* (HTML event-loop task), when the
   // machine is idle. Used for fetch/XHR delivery: after kevlar spends the
   // budget, promise reactions must not start already past `kMaxSteps`
@@ -1213,6 +1220,10 @@ class Interpreter {
     void (*apply)(void* context, bool push) = nullptr;
   };
   TrustedScriptHooks trusted_script_hooks_;
+  // CSP `'unsafe-eval'` gate for `eval` / `Function` (ADR 0039). Null means
+  // allowed — pages with no policy keep the platform default.
+  void* eval_forbidden_context_ = nullptr;
+  bool (*eval_forbidden_)(void* context) = nullptr;
   // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036). One
   // budget per top-level script turn; nested custom-element reactions and
   // microtasks share it. youtube.com's kevlar turn exhausts this and aborts

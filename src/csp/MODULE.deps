@@ -33,9 +33,10 @@ budget: Source     header_lines=30 public_methods=0 members=8
 # fixed array indexed by directive rather than a map, because the set of
 # directives this browser enforces is closed and a map would invite a lookup
 # that silently misses -- and a lookup that misses is one that allows.
-budget: Policy     header_lines=45 public_methods=7 members=2
+# AllowsEval and Kind::UnsafeEval (ADR 0039) grew the class by one method.
+budget: Policy     header_lines=55 public_methods=8 members=2
 # Every policy in force on one document. One member, and the rule that makes it
 # a list rather than a policy: *all* of them must allow, so two headers cannot
 # be merged into one and a page cannot loosen its own policy by sending a
 # second, weaker one.
-budget: PolicyList header_lines=30 public_methods=9 members=1
+budget: PolicyList header_lines=35 public_methods=10 members=1

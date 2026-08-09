@@ -963,10 +963,11 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("String.prototype.toUpperCase.call('ab')", "AB");
     ExpectEval("String.prototype.slice.call(12345, 1, 3)", "23");
     ExpectEval("try { Function.prototype.call.call(7) } catch (e) { e.name }", "TypeError");
-    // No path from a source string to running code: no `Function(...)`, and no
-    // `eval` for it to hide behind either.
-    ExpectEval("try { Function('return 1') } catch (e) { e.name }", "TypeError");
-    ExpectEval("typeof eval", "undefined");
+    // `eval` / `Function(source)` exist (ADR 0039); CSP without `'unsafe-eval'`
+    // is what forbids them at the host, not a missing global.
+    ExpectEval("Function('return 1')()", "1");
+    ExpectEval("eval('2+3')", "5");
+    ExpectEval("(0,eval)('1+1')", "2");
     ExpectEval("Function.prototype.call === (function(){}).call", "true");
     // A throw from inside travels out rather than being swallowed.
     ExpectEval("try { (function(){ throw 'boom' }).call({}) } catch (e) { e }", "boom");
@@ -1233,9 +1234,9 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("RegExp('x').test('x')", "true");
     ExpectEval("try { new RegExp('('); } catch (e) { e.name }", "SyntaxError");
     ExpectEval("try { new RegExp('a', 'q'); } catch (e) { e.name }", "SyntaxError");
-    // And compiling a pattern at runtime is still not a path from a string to
-    // running code -- there is no `eval`, and a test elsewhere says so.
-    ExpectEval("try { eval; } catch (e) { e.name }", "ReferenceError");
+    // Compiling a pattern at runtime is still not arbitrary code execution —
+    // only `eval` / `Function` are (ADR 0039), and they are separate.
+    ExpectEval("typeof eval", "function");
   });
 
   AddTest(tests, "JsInterpreter/AMalformedLiteralIsRefusedRatherThanMatchingNothing", [] {

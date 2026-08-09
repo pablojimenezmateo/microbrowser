@@ -100,8 +100,9 @@ amendment at the end of this ADR records what was measured and what the order be
 
 - **`document.write`.** Re-entering the tokenizer mid-parse, for a feature the web is removing. See
   ADR 0011.
-- **`eval` and `Function(source)`.** Already absent, with a test that says so. Nothing here changes
-  that; a page that needs them gets an honest failure.
+- **`eval` and `Function(source)`.** Present, gated by CSP `'unsafe-eval'`
+  (ADR 0039). Refusing them outright hung youtube's WebPO / BotGuard path
+  (TD-0024). Direct-eval scope chaining is still approximate (global only).
 - **Storage APIs without a partition key.** `localStorage`, `sessionStorage`, IndexedDB and the
   Cache API are all per-site state, so every one of them is keyed by ADR 0005's key or does not
   exist. This is the row people forget, so it is written here as well as there.

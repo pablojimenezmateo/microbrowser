@@ -111,7 +111,9 @@ What does not, and why it is a decision rather than an omission:
   user did not cause, sent to a third party, describing what the user's browser did. `AGENTS.md`
   forbids exactly that shape. Violations are enforced and logged locally; nothing is sent. reddit's
   three `report-to` groups and its `NEL` header get the same treatment for the same reason.
-- **`unsafe-eval` is moot** — there is no `eval` and a test says so.
+- **`unsafe-eval` is enforced** — `eval` / `Function` exist (ADR 0039); a
+  governing `script-src` / `default-src` without `'unsafe-eval'` throws
+  `EvalError`.
 
 An unparseable or unknown directive **fails closed for that directive and open for the policy**,
 which is what the specification requires and is the opposite of the instinct. Failing the whole

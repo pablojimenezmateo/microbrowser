@@ -396,7 +396,8 @@ Written here so that the gaps are decisions rather than discoveries. Each has an
 | **WebGL / WebGPU** | no GPU requirement; revisit if that ever changes | 0029 §4 |
 | **Web Audio (`AudioContext`)** | large, and not what makes a video play | 0028 §4 |
 | **Federated sign-in through third-party frames and storage** | the partition key, working as designed | 0021 §1, 0027 §4 |
-| **`document.write`, `eval`, `Function(source)`** | tokenizer re-entrancy; and a test says so | 0011, 0012 |
+| **`document.write`** | tokenizer re-entrancy | 0011, 0012 |
+| **`eval` / `Function(source)`** | present; CSP `'unsafe-eval'` (ADR 0039) | 0012, 0039 |
 | **`:visited`** | every read-back mechanism is a history leak | existing |
 | **`writing-mode`** (vertical text) | a second axis through all of layout | 0025 §3 |
 | **Thai/Khmer/Lao/Burmese line breaking** | needs dictionary segmentation | 0025 §4 |

@@ -101,8 +101,14 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
 bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& policy) {
   bool added = false;
   script_strict_dynamic_ = policy.ScriptStrictDynamic();
+  eval_forbidden_ = !policy.AllowsEval();
   if (bindings_ != nullptr) {
     bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
+  }
+  if (interpreter_ != nullptr) {
+    interpreter_->SetEvalForbidden(this, [](void* context) {
+      return static_cast<PageScript*>(context)->eval_forbidden_;
+    });
   }
   document.ForEachDescendant([this, &policy, &added](const dom::Node& node) {
     if (!node.IsElement()) {
@@ -251,6 +257,9 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   frames_.Install(*interpreter_, now_ms);
   idle_.Install(*interpreter_, now_ms);
   performance_.Install(*interpreter_, now_ms);
+  interpreter_->SetEvalForbidden(this, [](void* context) {
+    return static_cast<PageScript*>(context)->eval_forbidden_;
+  });
   // After the interpreter exists and before anything runs: a module's first
   // `import` is resolved during evaluation, and the resolver has to be there.
   InstallModuleHost(url);
@@ -318,6 +327,12 @@ bool PageScript::RunTiming(Timing timing) {
     }
     if (result.completion != js::Completion::Throw) {
       if (element != nullptr && bindings_ != nullptr) {
+        // YouTube's script loader (`BzU` / `hQn`) treats `data-loaded` as the
+        // signal that a `<script src>` finished, and `_.VE` calls its callback
+        // immediately when that bit is set. Firing `load` alone left VE waiting
+        // on a script whose load event had already run — player `eue` stuck,
+        // `Application.create` never invoked (TD-0024).
+        const_cast<dom::Element*>(element)->SetAttribute("data-loaded", "true");
         bindings_->NotifyScriptElementEvent(*element, "load");
       }
       continue;

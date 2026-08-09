@@ -13,7 +13,7 @@ namespace {
 // otherwise make this grow with the page, which is the one thing an
 // instrument must not do -- a diagnostic that costs memory proportional to
 // hostile input is a diagnostic that becomes a bug.
-constexpr std::size_t kMaxEntries = 512;
+constexpr std::size_t kMaxEntries = 4096;
 
 struct State {
   bool enabled = false;

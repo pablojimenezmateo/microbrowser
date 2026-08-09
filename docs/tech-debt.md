@@ -1379,19 +1379,30 @@ search→watch; `ytd-watch-flexy.data` can still be only `["contents"]` with no
 `#movie_player` — the remaining gap is the innertube/player application path,
 not Lit signal writes.
 
-**Measured** (2026-08-09, Release + `MICROBROWSER_LOAD_TIMELINE=1`). Soft-nav
-search→watch updates the URL (`engine.script_navigations` 1, path `/watch`) and
-even starts `player_ias` / kevlar chunks, but the timeline shows **no**
-`/youtubei/v1/player`, `/next`, or `/get_watch` request — only the earlier
-`/youtubei/v1/guide` from the results page. Cold `/watch` needs none of those
-because `ytInitialPlayerResponse` is in the HTML (`hasIPR:true`, `readyState` 4).
-SPA has `hasIPR:false` and never asks the network for a player config, so
-`flexy.data` stays `["contents"]` no matter how long the snapshot settles.
+**Root cause A — WebPO / BotGuard hang (blocks innertube).** Soft nav runs
+async context processor `Wq2` (WEB_PO) before `networkManager.fetch`. When the
+integrity service exists but `!isReady`, it waits on `wne()` → `wpc.f()`, which
+never settled because BotGuard's challenge script threw
+`ReferenceError: eval is not defined` on `(0,eval)(…)`. Cold watch never waits:
+`rha({pV: videoId, …})` can mint a short poToken while `!isReady`. **Fix:
+ADR 0039** — `eval` / `Function` exist, gated by CSP `'unsafe-eval'`. Also set
+`data-loaded` on `<script>` after a successful run so YouTube's `_.VE` loader
+does not wait forever for a bit that never appeared.
 
-**Still open.** Find why the navigation command path never issues get_watch /
-player after a thumbnail click (command dispatch, DI provider, or endpoint
-handling) — settle time is not the remaining bug. Close when search→watch
-reliably yields a playable `<video>` without a cold document load.
+**Measured** (2026-08-09, Release + `MICROBROWSER_LOAD_TIMELINE=1`, pre-eval).
+Soft-nav search→watch updated the URL and started player chunks but showed **no**
+`/youtubei/v1/player` / `/next` while WebPO hung. Cold `/watch` needs none of
+those because `ytInitialPlayerResponse` is in the HTML.
+
+**Still open (root cause B).** After player JSON returns OK with `streamingData`,
+`loadVideoWithPlayerResponse` can still leave `getPlayerPromise` unsettled —
+`Application.create` / VE `eue` / `apiResolver` race when the player API is not
+ready (`new Promise(function(){})`). Close when search→watch reliably yields a
+playable `<video>` without a cold document load.
+
+**Instrumentation.** `MICROBROWSER_LOAD_TIMELINE` kept only 512 rows and truncated
+during font cookies on youtube soft-nav — raised to 4096 so innertube/player
+rows stay visible.
 
 ---
 

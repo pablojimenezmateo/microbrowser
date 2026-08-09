@@ -81,6 +81,9 @@ class DocumentPolicy {
     return policies_.AllowsInline(directive, nonce, body);
   }
 
+  // Whether `eval` / `Function` may run under this document's CSP (ADR 0039).
+  bool AllowsEval() const { return policies_.AllowsEval(); }
+
   bool ScriptStrictDynamic() const { return policies_.ScriptStrictDynamic(); }
 
   // What was refused, in the order it was refused, for the console. Local and
