@@ -72,7 +72,7 @@ constexpr Reflection kReflections[] = {
     // expando, the cascade never saw `[hidden]`, and search rows grew to ~900px.
     {"HTMLElement", "hidden", "hidden", Reflect::Presence},
 
-    {"HTMLAnchorElement", "href", "href", Reflect::Text},
+    // `href` is HTMLHyperlinkElementUtils — see InstallHyperlinkElementUtils.
     {"HTMLAnchorElement", "target", "target", Reflect::Text},
     {"HTMLAnchorElement", "rel", "rel", Reflect::Text},
 
@@ -241,6 +241,64 @@ void DomBindings::InstallReflections() {
     set.object->Set(kOwnerSlot, PointerValue(this));
     prototype->object->DefineAccessor(entry.property, get.object, set.object);
   }
+  InstallHyperlinkElementUtils();
+}
+
+void DomBindings::InstallHyperlinkElementUtils() {
+  // HTMLHyperlinkElementUtils on `<a>`. youtube's searchbox resolves
+  // `location.href` through `document.createElement('a'); a.href = url;
+  // a.pathname` (`n0n`). Without `pathname` that call threw and Enter never
+  // navigated (TD-0026).
+  const Value* prototype = interfaces_.IsObject() ? interfaces_.object->GetOwn("HTMLAnchorElement")
+                                                  : nullptr;
+  if (prototype == nullptr || !prototype->IsObject()) {
+    return;
+  }
+
+  const auto href_string = [](dom::Element* element) -> std::string {
+    if (element == nullptr) {
+      return {};
+    }
+    const std::string* value = element->GetAttribute("href");
+    return value == nullptr ? std::string() : *value;
+  };
+
+  const Value href_get = interpreter_->NewNativeValue("href", [href_string](NativeCall& call) {
+    return Value::String(href_string(ElementOf(call.self)));
+  });
+  const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Element* element = ElementOf(call.self);
+    if (owner == nullptr || element == nullptr) {
+      return Value::Undefined();
+    }
+    owner->SetElementAttribute(*element, "href", js::ToString(Argument(call.arguments, 0)));
+    return Value::Undefined();
+  });
+  if (href_get.IsObject() && href_set.IsObject()) {
+    href_get.object->Set(kOwnerSlot, PointerValue(this));
+    href_set.object->Set(kOwnerSlot, PointerValue(this));
+    prototype->object->DefineAccessor("href", href_get.object, href_set.object);
+  }
+
+  const auto install_part = [this, prototype, href_string](const char* name, auto pick) {
+    const Value get = interpreter_->NewNativeValue(name, [href_string, pick](NativeCall& call) {
+      const HrefParts parts = SplitHref(href_string(ElementOf(call.self)));
+      return Value::String(pick(parts));
+    });
+    if (get.IsObject()) {
+      get.object->Set(kOwnerSlot, PointerValue(this));
+      prototype->object->DefineAccessor(name, get.object, nullptr);
+    }
+  };
+  install_part("protocol", [](const HrefParts& p) { return p.protocol; });
+  install_part("host", [](const HrefParts& p) { return p.host; });
+  install_part("hostname", [](const HrefParts& p) { return p.hostname; });
+  install_part("port", [](const HrefParts& p) { return p.port; });
+  install_part("pathname", [](const HrefParts& p) { return p.pathname; });
+  install_part("search", [](const HrefParts& p) { return p.search; });
+  install_part("hash", [](const HrefParts& p) { return p.hash; });
+  install_part("origin", [](const HrefParts& p) { return p.origin; });
 }
 
 }  // namespace microbrowser::bindings

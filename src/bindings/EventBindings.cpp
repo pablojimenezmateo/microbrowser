@@ -319,9 +319,13 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
   // A constructor, so the name resolves and `Event.prototype` is reachable --
   // which is what a polyfill patches and what `instanceof` needs.
   DomBindings* self = this;
-  const bool custom = std::string(name) == "CustomEvent";
+  const std::string interface(name);
+  const bool custom = interface == "CustomEvent";
+  const bool keyboard = interface == "KeyboardEvent";
+  const bool mouseish = interface == "MouseEvent" || interface == "PointerEvent" ||
+                        interface == "WheelEvent" || interface == "DragEvent";
   const Value constructor =
-      interpreter_->NewNativeValue(name, [self, custom, prototype](NativeCall& call) {
+      interpreter_->NewNativeValue(name, [self, custom, keyboard, mouseish, prototype](NativeCall& call) {
     const std::string type = js::ToString(Argument(call.arguments, 0));
     const Value options = Argument(call.arguments, 1);
     const auto option = [&options](const char* key) {
@@ -330,6 +334,22 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
       }
       const Value* found = options.object->Get(key);
       return found != nullptr && js::ToBoolean(*found);
+    };
+    const auto copy_string = [&options](js::Object& into, const char* key, const char* fallback = "") {
+      if (!options.IsObject()) {
+        into.Set(key, Value::String(fallback));
+        return;
+      }
+      const Value* found = options.object->Get(key);
+      into.Set(key, Value::String(found == nullptr ? fallback : js::ToString(*found)));
+    };
+    const auto copy_number = [&options](js::Object& into, const char* key, double fallback = 0.0) {
+      if (!options.IsObject()) {
+        into.Set(key, Value::Number(fallback));
+        return;
+      }
+      const Value* found = options.object->Get(key);
+      into.Set(key, Value::Number(found == nullptr ? fallback : js::ToNumber(*found)));
     };
     // Untrusted: a page made it. Returning the object is what makes this work
     // under `new` -- the receiver a construct call builds is discarded in
@@ -348,6 +368,43 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     if (event.IsObject() && custom) {
       const Value* detail = options.IsObject() ? options.object->Get("detail") : nullptr;
       event.object->Set("detail", detail == nullptr ? Value::Undefined() : *detail);
+    }
+    // KeyboardEventInit / MouseEventInit. Without these, `new KeyboardEvent(
+    // 'keydown', { key: 'Enter', code: 'Enter' })` produced an event whose
+    // `.key` and `.code` were undefined — and a handler that branches on them
+    // took the wrong arm (TD-0026). Constructed events are untrusted; legacy
+    // `keyCode`/`which` are whatever the page passed, else 0 (the platform
+    // value for a synthesised event).
+    if (event.IsObject() && keyboard) {
+      copy_string(*event.object, "key");
+      copy_string(*event.object, "code");
+      copy_number(*event.object, "keyCode");
+      copy_number(*event.object, "which");
+      copy_number(*event.object, "location");
+      copy_number(*event.object, "charCode");
+      event.object->Set("repeat", Value::Bool(option("repeat")));
+      event.object->Set("ctrlKey", Value::Bool(option("ctrlKey")));
+      event.object->Set("shiftKey", Value::Bool(option("shiftKey")));
+      event.object->Set("altKey", Value::Bool(option("altKey")));
+      event.object->Set("metaKey", Value::Bool(option("metaKey")));
+    }
+    if (event.IsObject() && mouseish) {
+      copy_number(*event.object, "clientX");
+      copy_number(*event.object, "clientY");
+      copy_number(*event.object, "screenX");
+      copy_number(*event.object, "screenY");
+      copy_number(*event.object, "offsetX");
+      copy_number(*event.object, "offsetY");
+      copy_number(*event.object, "pageX");
+      copy_number(*event.object, "pageY");
+      copy_number(*event.object, "button");
+      copy_number(*event.object, "buttons");
+      copy_number(*event.object, "movementX");
+      copy_number(*event.object, "movementY");
+      event.object->Set("ctrlKey", Value::Bool(option("ctrlKey")));
+      event.object->Set("shiftKey", Value::Bool(option("shiftKey")));
+      event.object->Set("altKey", Value::Bool(option("altKey")));
+      event.object->Set("metaKey", Value::Bool(option("metaKey")));
     }
     return event;
   });

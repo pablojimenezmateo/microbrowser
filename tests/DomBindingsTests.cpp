@@ -297,6 +297,18 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // An event a page made is not trusted, whatever else is true of it. This
     // is the flag that keeps a forged click from doing what a real one does.
     ExpectScript(kPage, "new Event('click').isTrusted", "false");
+    // KeyboardEventInit / MouseEventInit must land on the constructed event —
+    // otherwise `e.key` / `e.code` / `e.clientX` are undefined and handlers that
+    // branch on them take the wrong path (TD-0026).
+    ExpectScript(kPage,
+                 "const k = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter',"
+                 " keyCode: 13, which: 13, bubbles: true });"
+                 "[k.key, k.code, k.keyCode, k.which, k.bubbles, k instanceof KeyboardEvent].join()",
+                 "Enter,Enter,13,13,true,true");
+    ExpectScript(kPage,
+                 "const m = new MouseEvent('click', { clientX: 12, clientY: 34, button: 0 });"
+                 "[m.clientX, m.clientY, m.button, m instanceof MouseEvent].join()",
+                 "12,34,0,true");
 
     // `window` is an event target too. A page listening for `resize` or `load`
     // listens there and nowhere else, and inline scripts on real pages call
@@ -907,6 +919,18 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     // `constructor` names the interface, which is how a page prints a type.
     ExpectScript(kPage, "document.body.constructor.name", "HTMLElement");
     ExpectScript(kPage, "document.createElement('a').constructor.name", "HTMLAnchorElement");
+    // HTMLHyperlinkElementUtils: youtube's searchbox does
+    // `a.href = location.href; a.pathname.startsWith(...)` (TD-0026).
+    ExpectScript(kPage,
+                 "const a = document.createElement('a');"
+                 "a.href = 'https://www.youtube.com/results?search_query=cats#x';"
+                 "[a.pathname, a.search, a.hash, a.hostname, a.protocol].join('|')",
+                 "/results|?search_query=cats|#x|www.youtube.com|https:");
+    ExpectScript(kPage,
+                 "const a = document.createElement('a');"
+                 "a.href = 'https://www.youtube.com/';"
+                 "a.pathname",
+                 "/");
   });
 
   AddTest(tests, "DomBindings/ScriptCanFindElements", [] {

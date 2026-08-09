@@ -708,7 +708,7 @@ blanking youtube search even after UA `[hidden]` and the reflection were correct
 is still **0**. **Update** (2026-08-09): that zero is usually the server's
 history-off `feedNudgeRenderer` / `richSectionRenderer` ("Try searching to get
 started"), not a failed rich-item stamp — confirm content kinds before blaming
-the stamper. Search from the masthead is TD-0026.
+the stamper. Masthead search Enter is closed (TD-0026).
 
 **Close when** youtube home applies browse→two-column `data` without `-eval`, rich-grid
 stamps *when the response contains `richItemRenderer`s*, and the live-host strip
@@ -1469,32 +1469,26 @@ ledger for residual `fetch.failed` / non-idempotent retry policy questions.
 
 ## TD-0026 — youtube home searchbox preventDefaults Enter but never navigates
 
-**Symptom.** After Accept on `https://www.youtube.com/`, the masthead search
-input can be focused and typed (`value==="cats"`), but `-key Enter` and a
-trusted click on the `aria-label=Search` button leave `location.pathname==="/"`.
-Cold `/results?search_query=cats` and search→watch still work.
+**Closed** (2026-08-09). Root cause: youtube's search path (`n0n`) does
+`document.createElement('a'); a.href = location.href; a.pathname.startsWith(…)`.
+`HTMLAnchorElement` only reflected `href` as text — `pathname` was undefined —
+so Enter's handler threw and never called `resolveCommand`. Fixed
+HTMLHyperlinkElementUtils (`pathname`/`search`/`hash`/…) via shared
+`SplitHref` (also used by `location` / `URL`). Release check: home → Accept →
+type `cats` → Enter → `location.pathname==="/results"` with
+`ytd-video-renderer` stamped (13).
 
-**Landed first** (2026-08-09). Hit-testing ignored negative `z-index`, so
-`#background.ytd-masthead { z-index:-1 }` stole every masthead click
-(`elementFromPoint` returned `#background`). Fixed banded hit order in
-`PageHitTest`. Trusted `input` events now fire after engine text edits
-(Polymer sync). Measured: `z-index:-1` computed, `elementFromPoint`→`INPUT`,
-four trusted `input` events for `"cats"`.
-
-**Still open.** Trusted Enter is `defaultPrevented` by the page, so native
-form GET to `/results` never runs, and the page's own handler does not call
-`history.pushState` / change the URL. Search button click focuses the button
-and similarly does not navigate. Close when home→type→Enter (or Search)
-reaches `/results?search_query=…` with stamped `ytd-video-renderer`s.
-
-**Not this.** Home's zero `ytd-rich-item-renderer` with a stamped
-`ytd-feed-nudge-renderer` is the history-off server response ("Try searching
-to get started"), not a stamp failure (TD-0017/0018).
+**Also landed with the dig:** `KeyboardEvent` constructor copies
+`KeyboardEventInit` (`key`/`code`/`keyCode`); snapshot `-type`/`-key` set
+`code`; `EvaluateScript` follows pending form/`location` navigations; fragment
+`location` no longer starves a same-turn `requestSubmit`.
 
 ---
 
 ## Closed
 
+- **TD-0026 — youtube home searchbox preventDefaults Enter but never navigates**
+  (2026-08-09). See above.
 - **TD-0024 — SPA search→watch can leave `ytd-player` without `#movie_player`**
   (2026-08-09). Eval/CSP (ADR 0039), post-load script fetch, `load` before
   `data-loaded`, and TD-0025's GET retry. Release cats search→watch:

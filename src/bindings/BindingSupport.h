@@ -146,4 +146,22 @@ inline bool IsTemplateBindingToken(std::string_view value) {
   return false;
 }
 
+// URL parts a page reads off `location`, `URL`, and `HTMLAnchorElement`
+// (HTMLHyperlinkElementUtils). One splitter so `a.pathname` cannot disagree
+// with `location.pathname` for the same string — youtube's searchbox parses
+// `location.href` through a throwaway `<a>` (`n0n` / `w1v.pathname`) and
+// threw when pathname was missing (TD-0026).
+struct HrefParts {
+  std::string protocol;  // "https:"
+  std::string host;      // "example.org:8080"
+  std::string hostname;  // "example.org"
+  std::string port;
+  std::string pathname;  // "/a/b"
+  std::string search;    // "?q=1"
+  std::string hash;      // "#top"
+  std::string origin;    // "https://example.org:8080", or "null"
+};
+
+HrefParts SplitHref(std::string_view href);
+
 }  // namespace microbrowser::bindings

@@ -132,6 +132,12 @@ std::string Engine::EvaluateScript(std::string_view source) {
   if (post_load_.document_interactive) {
     ProcessDynamicScripts();
   }
+  // A script turn, same boundary as Advance / RunDueWork / HandleKey: a
+  // `requestSubmit`, `location.assign`, or `history.back` queued above is taken
+  // now. Without this, a settled page's `-eval` that submits a form records a
+  // PendingSubmit that nothing ever drains — `RunLoadToCompletion` only
+  // Advances while `IsLoading()`, so the navigation is lost (TD-0026).
+  (void)FollowScriptNavigation();
   return answer;
 }
 
@@ -834,8 +840,13 @@ bool Engine::FollowScriptNavigation() {
   if (FollowPendingTraversal()) {
     return true;
   }
+  // A full `location.assign` tears the document down. A fragment-only change
+  // does not — and a `requestSubmit` queued in the same turn (or left pending
+  // while a hash write ran first) must still be taken (TD-0026).
   if (FollowPendingLocationNavigation()) {
-    return true;
+    if (IsLoading()) {
+      return true;
+    }
   }
   const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission();
   if (!submission.has_value()) {

@@ -96,12 +96,23 @@ ipc::KeyInputMessage TypedKey(const std::string& character) {
   ipc::KeyInputMessage key;
   key.key = character;
   key.text = character;
+  if (character.size() == 1) {
+    const char c = character[0];
+    if (c >= 'a' && c <= 'z') {
+      key.code = std::string("Key") + static_cast<char>('A' + (c - 'a'));
+    } else if (c >= 'A' && c <= 'Z') {
+      key.code = std::string("Key") + c;
+    } else if (c >= '0' && c <= '9') {
+      key.code = std::string("Digit") + c;
+    }
+  }
   return key;
 }
 
 ipc::KeyInputMessage NamedKey(const std::string& name) {
   ipc::KeyInputMessage key;
   key.key = name;
+  key.code = name;
   return key;
 }
 
@@ -2261,6 +2272,40 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "requestSubmit firing the event that submit() does not");
     Expect(submitted.find("Cookie: gate=passed\r\n") != std::string::npos,
            "and the cookie the first response set");
+  });
+
+  AddTest(tests, "Engine/PostLoadRequestSubmitNavigates", [] {
+    // Reddit's challenge submits during DOMContentLoaded while the load is
+    // still active, so AdvanceLoad's FollowScriptNavigation sees it. A settled
+    // page's EvaluateScript that calls requestSubmit used to queue a
+    // PendingSubmit that nothing drained (TD-0026). The script turn must take
+    // the navigation the same way a timer callback's turn does.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<title>Gate</title><form action='/next' method='get'>"
+                   "<input name='q' value='cats'></form><body>gate</body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Results</title><body>found</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/"});
+    ExpectEqString(session.LastTitle(), "Gate", "the gate page committed first");
+
+    (void)session.engine.EvaluateScript("document.forms[0].requestSubmit()");
+    RunEngineToIdle(session.engine);
+    while (auto reply = session.channel.Ui().TryReceive()) {
+      session.sent.push_back(std::move(*reply));
+    }
+    ExpectEqString(session.LastTitle(), "Results",
+                   "EvaluateScript's requestSubmit navigated after the load finished");
+    Expect(factory.log.requests.size() >= 2, "a second document was fetched");
+    Expect(factory.log.requests.at(1).find("GET /next?q=cats ") != std::string::npos,
+           "the submitted query string is on the request");
   });
 
   AddTest(tests, "Engine/AsyncDomContentLoadedChallengeSubmitsAfterAwait", [] {

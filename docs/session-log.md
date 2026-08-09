@@ -4139,3 +4139,25 @@ Home's empty rich-grid is the history-off nudge, not a stamp miss.
 **Left:** TD-0026 search submit; home rich items when the server sends them.
 
 ---
+
+## 2026-08-09 — HTMLAnchorElement pathname closes TD-0026 (youtube home search)
+
+**Status:** home → type → Enter reaches `/results` with stamped video renderers
+
+YouTube's Enter handler (`U` → `H` → `_.WFD` → `resolveCommand`) calls `n0n`,
+which does `createElement('a'); a.href = location.href; a.pathname.startsWith`.
+`pathname` was undefined; the throw aborted navigation. Landed
+HTMLHyperlinkElementUtils on `HTMLAnchorElement` via shared `SplitHref` (also
+dedups `location`/`URL` splitting). Companion fixes from the dig:
+`KeyboardEvent` init dict, snapshot `code` on `-key`/`-type`,
+`EvaluateScript` follows pending navigations, fragment location no longer
+starves same-turn `requestSubmit`.
+
+**Check (Release):** after Accept, focus search, `-type cats`, `-key Enter` →
+`location.pathname==="/results"`, `search==="?search_query=cats"`,
+`ytd-video-renderer` count 13. No `startsWith` of undefined in the Enter path.
+
+**Left:** home rich items when the server sends them; residual
+`undefined (bound)` / `ReferenceError: w` noise on the page.
+
+---

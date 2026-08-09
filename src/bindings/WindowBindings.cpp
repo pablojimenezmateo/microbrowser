@@ -21,88 +21,6 @@ namespace {
 using js::NativeCall;
 using js::Value;
 
-// The document's address, split into the parts `location` reports.
-//
-// Splitting rather than parsing, and the difference is the whole reason this
-// is allowed to live here. The string it is given is what `url::Url::Serialize`
-// produced -- already parsed, already canonical -- so finding where the host
-// ends is arithmetic on a known shape rather than an opinion about a hostile
-// string. A second URL *parser* in this module would be exactly the "two
-// parsers disagreeing about where the host ends" that url/Url.h names as the
-// vulnerability.
-//
-// Which is also why `origin` here is for a page to *read* and never for the
-// browser to decide anything with. When `pushState` arrives (ADR 0026 §2) its
-// same-origin check is computed in the engine from `url::Origin`, on the URL
-// the engine parsed, and it must not consult this.
-struct Address {
-  std::string protocol;  // "https:", with the colon, as the DOM reports it
-  std::string host;      // "example.org:8080"
-  std::string hostname;  // "example.org"
-  std::string port;      // "8080", or empty for the scheme's default
-  std::string pathname;  // "/a/b"
-  std::string search;    // "?q=1", or empty
-  std::string hash;      // "#top", or empty
-  std::string origin;    // "https://example.org:8080", or "null"
-};
-
-Address SplitAddress(std::string_view href) {
-  Address out;
-  out.pathname = "/";
-  out.origin = "null";
-
-  const std::size_t scheme_end = href.find(':');
-  if (scheme_end == std::string_view::npos) {
-    return out;
-  }
-  out.protocol = std::string(href.substr(0, scheme_end + 1));
-
-  std::string_view rest = href.substr(scheme_end + 1);
-  if (rest.size() >= 2 && rest[0] == '/' && rest[1] == '/') {
-    rest.remove_prefix(2);
-    const std::size_t authority_end = rest.find_first_of("/?#");
-    std::string_view authority =
-        authority_end == std::string_view::npos ? rest : rest.substr(0, authority_end);
-    rest = authority_end == std::string_view::npos ? std::string_view() : rest.substr(authority_end);
-    // Credentials are part of the authority and part of no `location`
-    // property. `rfind`, not `find`: a password may contain an encoded `@`.
-    if (const std::size_t credentials = authority.rfind('@');
-        credentials != std::string_view::npos) {
-      authority.remove_prefix(credentials + 1);
-    }
-    out.host = std::string(authority);
-    // An IPv6 host is bracketed and full of colons, so the port separator is
-    // the one after the closing bracket rather than the last one in the string.
-    const std::size_t host_end = authority.starts_with('[') ? authority.find(']') : 0;
-    const std::size_t colon =
-        host_end == std::string_view::npos ? std::string_view::npos : authority.find(':', host_end);
-    if (colon == std::string_view::npos) {
-      out.hostname = std::string(authority);
-    } else {
-      out.hostname = std::string(authority.substr(0, colon));
-      out.port = std::string(authority.substr(colon + 1));
-    }
-    out.origin = out.protocol + "//" + out.host;
-  }
-
-  if (const std::size_t hash = rest.find('#'); hash != std::string_view::npos) {
-    out.hash = std::string(rest.substr(hash));
-    rest = rest.substr(0, hash);
-  }
-  if (const std::size_t query = rest.find('?'); query != std::string_view::npos) {
-    out.search = std::string(rest.substr(query));
-    rest = rest.substr(0, query);
-  }
-  // An empty path is "/" for a URL with an authority and "" for one without --
-  // `data:text/html,x` has an opaque path, which lands in pathname whole.
-  if (!rest.empty()) {
-    out.pathname = std::string(rest);
-  } else if (out.origin == "null") {
-    out.pathname.clear();
-  }
-  return out;
-}
-
 }  // namespace
 
 void DomBindings::InstallWindow() {
@@ -281,7 +199,7 @@ void DomBindings::WriteLocationFields(const js::Value& location) {
   if (!location.IsObject()) {
     return;
   }
-  const Address address = SplitAddress(url_);
+  const HrefParts address = SplitHref(url_);
   // `#href` when assign/replace installed an accessor on `href`; plain `href`
   // otherwise (tests / pages without a HistorySource). Never Set("href") over
   // the accessor — that would delete the navigation path.
@@ -319,7 +237,7 @@ void DomBindings::InstallUrlConstructor() {
   // `URL` object that was not constructible would be the stub ADR 0012 forbids. The parse is *not*
   // here: it goes through `NetworkSource::ResolveUrl` to the one parser in `src/url`, and only the
   // splitting of the canonical result happens in this module -- the same division of labour, and for
-  // the same reason, as `SplitAddress` above.
+  // the same reason, as `SplitHref` (BindingSupport.h / HrefParts.cpp).
   if (interpreter_ == nullptr || network_ == nullptr) {
     // No network source means no resolver, and a `URL` that could not parse would answer about
     // nothing. Absent instead.
@@ -349,7 +267,7 @@ void DomBindings::InstallUrlConstructor() {
     if (prototype.IsObject()) {
       object.object->SetPrototype(prototype.object);
     }
-    const Address address = SplitAddress(resolved);
+    const HrefParts address = SplitHref(resolved);
     object.object->Set("href", Value::String(resolved));
     object.object->Set("protocol", Value::String(address.protocol));
     object.object->Set("host", Value::String(address.host));

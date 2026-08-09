@@ -517,7 +517,8 @@ class DomBindings {
   // The IDL attributes that reflect content attributes, as get/set pairs on
   // the interface each belongs to. `el.value = 'x'` and `setAttribute('value',
   // 'x')` are the same act; before this they were not.
-  void InstallReflections();
+  void InstallReflections();  // also InstallHyperlinkElementUtils (HTMLAnchorElement URL parts)
+  void InstallHyperlinkElementUtils();
 
   // --- Geometry, in GeometryBindings.cpp ------------------------------------
   // `getBoundingClientRect`, `offsetWidth`/`offsetHeight` and

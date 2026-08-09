@@ -78,6 +78,18 @@ struct Options {
 microbrowser::ipc::KeyInputMessage TypedKey(std::string character) {
   microbrowser::ipc::KeyInputMessage key;
   key.key = character;
+  // UI Events `code`: KeyA / Digit0. Empty `code` is how a page that branches
+  // on `e.code === 'Enter'` (or Key*) silently skips its handler (TD-0026).
+  if (character.size() == 1) {
+    const char c = character[0];
+    if (c >= 'a' && c <= 'z') {
+      key.code = std::string("Key") + static_cast<char>('A' + (c - 'a'));
+    } else if (c >= 'A' && c <= 'Z') {
+      key.code = std::string("Key") + c;
+    } else if (c >= '0' && c <= '9') {
+      key.code = std::string("Digit") + c;
+    }
+  }
   key.text = std::move(character);
   return key;
 }
@@ -85,6 +97,9 @@ microbrowser::ipc::KeyInputMessage TypedKey(std::string character) {
 microbrowser::ipc::KeyInputMessage NamedKey(std::string_view name) {
   microbrowser::ipc::KeyInputMessage key;
   key.key = std::string(name);
+  // For the named keys this tool emits, `code` matches `key` (Enter, Escape,
+  // Tab, ArrowDown, …). SDL's CodeName does the same for Return → "Enter".
+  key.code = std::string(name);
   return key;
 }
 
