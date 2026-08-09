@@ -436,6 +436,11 @@ void ForEachClassWord(std::string_view classes, Fn&& fn) {
 void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin,
                                   const dom::Node* scope) {
   ++generation_;
+  // Cascade identity changed: every cached answer is about a different rule
+  // set. Cleared rather than stamped so memory does not grow with every sheet
+  // arrival on a long-lived page.
+  style_cache_.clear();
+  cache_generation_ = generation_;
   for (const StyleRule& rule : sheet.rules) {
     for (const Selector& selector : rule.selectors) {
       invalidation_.AddRule(selector, rule.declarations);
@@ -576,7 +581,39 @@ bool StyleResolver::ScopeAdmits(const Entry& entry, const dom::Element& element,
 }
 
 ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
-                                      const ComputedStyle& parent) const {
+                                      const ComputedStyle& parent,
+                                      std::uint64_t parent_style_id,
+                                      std::uint64_t* out_style_id) const {
+  if (out_style_id != nullptr) {
+    *out_style_id = 0;
+  }
+  if (cache_generation_ != generation_) {
+    style_cache_.clear();
+    cache_generation_ = generation_;
+  }
+
+  const dom::Document* document = element.OwnerDocument();
+  const std::uint64_t structure =
+      document != nullptr ? document->StructureVersion() : 0;
+  const std::uint32_t attr = element.AttrVersion();
+  const dom::ElementState state = element.State();
+
+  const auto cached = style_cache_.find(&element);
+  if (cached != style_cache_.end() && cached->second.cascade_generation == generation_ &&
+      cached->second.structure_version == structure && cached->second.attr_version == attr &&
+      cached->second.state == state && cached->second.parent_style_id == parent_style_id) {
+    AddPerformanceCounter(PerfCounterId::CssStyleCacheHits);
+    ComputedStyle style = cached->second.style;
+    if (out_style_id != nullptr) {
+      *out_style_id = cached->second.style_id;
+    }
+    // Adjuster after the hit: transitions observe the cascaded value each time.
+    if (adjuster_ != nullptr) {
+      adjuster_->AdjustStyle(element, style);
+    }
+    return style;
+  }
+  AddPerformanceCounter(PerfCounterId::CssStyleCacheMisses);
   AddPerformanceCounter(PerfCounterId::CssStylesResolved);
 
   // Inherited properties start from the parent; everything else starts at its
@@ -746,6 +783,22 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   // The animation pass, last, because a running transition's value is what everything downstream must
   // see -- layout, paint and `getComputedStyle` alike. Null for a resolver with no engine behind it,
   // which is every test about selectors.
+  //
+  // Cached *before* the adjuster: the memo is the cascade answer. AdjustStyle
+  // still runs on every resolve (hit or miss) so transitions keep observing.
+  const std::uint64_t style_id = next_style_id_++;
+  style_cache_[&element] = StyleCacheEntry{
+      .style = style,
+      .cascade_generation = generation_,
+      .structure_version = structure,
+      .attr_version = attr,
+      .state = state,
+      .parent_style_id = parent_style_id,
+      .style_id = style_id,
+  };
+  if (out_style_id != nullptr) {
+    *out_style_id = style_id;
+  }
   if (adjuster_ != nullptr) {
     adjuster_->AdjustStyle(element, style);
   }
@@ -826,72 +879,6 @@ ComputedStyle StyleResolver::StyleForPseudo(const dom::Element& element, PseudoE
 
 bool SubstituteVars(std::string_view value, const ComputedStyle& style, std::string& out) {
   return SubstituteVarsDepth(value, style, 0, out);
-}
-
-std::string_view UserAgentStyleSheet() {
-  // Without this, `<div>` is inline and every document is one long line. The
-  // values are the ones the HTML specification's rendering section gives.
-  return R"CSS(
-html, body, div, p, h1, h2, h3, h4, h5, h6, ul, ol, li, section, article,
-header, footer, nav, aside, main, blockquote, pre, form, figure, figcaption,
-hr, dl, dt, dd, fieldset, legend, details, summary, dialog, address, center,
-menu, dir, optgroup, hgroup, search, noscript {
-  display: block;
-}
-/* A block, not an inline: a <center> holding a table is the classic 1990s page
-   layout, and treating it as inline puts the table's rows on one line. The
-   alignment value is the one that also centres block children, which is the
-   whole point of the element and which `text-align: center` cannot do. */
-center { text-align: -microbrowser-center }
-/* The HTML rendering spec resets alignment at a table for exactly this reason:
-   `text-align` inherits, so without it a <center> or a centred div would centre
-   the text of every cell in every table inside it -- which is not what any page
-   wrapping a layout table in <center> is asking for. */
-table { text-align: left }
-li { display: list-item }
-input, button, textarea, select {
-  display: inline-block; background-color: white; border: 1px solid gray
-}
-table { display: table }
-caption { display: table-caption }
-colgroup { display: table-column-group }
-col { display: table-column }
-thead { display: table-header-group }
-tbody { display: table-row-group }
-tfoot { display: table-footer-group }
-tr { display: table-row }
-td, th { display: table-cell }
-head, style, script, title, meta, link, source { display: none }
-/* HTML's UA rule. `!important` is load-bearing: an author `display:flex` on the
-   same element must lose, or Polymer/boolean `hidden` is a no-op against a
-   component stylesheet (youtube's `#content` inside expandable metadata). */
-[hidden] { display: none !important }
-body { margin: 8px }
-p { margin: 1em 0 }
-h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0 }
-h2 { font-size: 1.5em; font-weight: bold; margin: 0.83em 0 }
-h3 { font-size: 1.17em; font-weight: bold; margin: 1em 0 }
-h4 { font-weight: bold; margin: 1.33em 0 }
-h5 { font-size: 0.83em; font-weight: bold; margin: 1.67em 0 }
-h6 { font-size: 0.67em; font-weight: bold; margin: 2.33em 0 }
-b, strong { font-weight: bold }
-i, em { font-style: italic }
-small { font-size: 0.83em }
-big { font-size: 1.17em }
-code, kbd, samp, tt, pre { font-family: monospace }
-a:link { color: #0000EE }
-ul, ol { margin: 1em 0; padding-left: 40px }
-blockquote { margin: 1em 40px }
-pre { white-space: pre; margin: 1em 0 }
-hr { margin: 0.5em 0; border-width: 1px; border-color: gray }
-/* The two bidi elements, whose whole meaning is a `unicode-bidi` value. `<bdo>` overrides the
-   algorithm for its contents; `<bdi>` isolates them, which is what makes an untrusted user name
-   safe to put in the middle of a sentence -- without it, a name that starts with an Arabic letter
-   reorders the text around it. `<bdi>`'s `dir` also defaults to `auto` rather than inheriting,
-   which is the point of the element and is handled where `dir` is read. */
-bdo { unicode-bidi: bidi-override }
-bdi { unicode-bidi: isolate }
-)CSS";
 }
 
 }  // namespace microbrowser::css

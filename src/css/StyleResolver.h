@@ -137,7 +137,14 @@ class StyleResolver {
   // The style of one element, given its parent's already-computed style.
   // Passing the parent style rather than looking it up is what makes
   // inheritance a single pass down the tree instead of a walk up per property.
-  ComputedStyle StyleFor(const dom::Element& element, const ComputedStyle& parent) const;
+  //
+  // `parent_style_id` / `out_style_id` are the style-cache provenance tokens
+  // (TD-0021): 0 means "initial / unknown parent". Callers that walk the tree
+  // top-down thread the ids so an attribute write on one element does not
+  // flush cascade answers for its siblings.
+  ComputedStyle StyleFor(const dom::Element& element, const ComputedStyle& parent,
+                         std::uint64_t parent_style_id = 0,
+                         std::uint64_t* out_style_id = nullptr) const;
 
   // The style of `element::before` or `element::after`. Inheritance is from the
   // originating element's computed style; there is no style attribute and no
@@ -152,7 +159,7 @@ class StyleResolver {
   void ForEachStyledElement(const dom::Document& document, Visitor&& visit) const {
     const ComputedStyle root = InitialStyle();
     for (dom::Node* child : dom::FlatChildren(document)) {
-      Walk(*child, root, visit);
+      Walk(*child, root, 0, visit);
     }
   }
 
@@ -182,11 +189,13 @@ class StyleResolver {
   };
 
   template <typename Visitor>
-  void Walk(const dom::Node& node, const ComputedStyle& parent, Visitor& visit) const {
+  void Walk(const dom::Node& node, const ComputedStyle& parent, std::uint64_t parent_style_id,
+            Visitor& visit) const {
     ComputedStyle style = parent;
+    std::uint64_t style_id = parent_style_id;
     if (node.IsElement()) {
       const auto& element = static_cast<const dom::Element&>(node);
-      style = StyleFor(element, parent);
+      style = StyleFor(element, parent, parent_style_id, &style_id);
       visit(element, style);
     }
     // The *flattened* tree, so that inheritance crosses a shadow boundary the way
@@ -196,7 +205,7 @@ class StyleResolver {
     // "what are this node's children for rendering" is the disagreement the ADR
     // refuses to allow.
     for (dom::Node* child : dom::FlatChildren(node)) {
-      Walk(*child, style, visit);
+      Walk(*child, style, style_id, visit);
     }
   }
 
@@ -248,6 +257,24 @@ class StyleResolver {
   MediaContext media_context_;
   std::size_t next_order_ = 0;
   std::uint64_t generation_ = 0;
+
+  // Computed-style cache across BuildBoxTree passes that share a cascade
+  // generation and document structure (TD-0021). Mutable because StyleFor is
+  // const for callers; the cache is an answer memo, not observable state.
+  // Pre-adjuster styles only — AdjustStyle still runs after every hit so
+  // transitions keep observing.
+  struct StyleCacheEntry {
+    ComputedStyle style;
+    std::uint64_t cascade_generation = 0;
+    std::uint64_t structure_version = 0;
+    std::uint32_t attr_version = 0;
+    dom::ElementState state = dom::ElementState::None;
+    std::uint64_t parent_style_id = 0;
+    std::uint64_t style_id = 0;
+  };
+  mutable std::unordered_map<const dom::Element*, StyleCacheEntry> style_cache_;
+  mutable std::uint64_t next_style_id_ = 1;
+  mutable std::uint64_t cache_generation_ = 0;
 };
 
 // The built-in stylesheet. Every browser has one, and without it `<div>` is

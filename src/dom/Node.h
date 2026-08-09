@@ -138,6 +138,11 @@ class Node {
   // ADR 0009's parse depth. Revisit with a measurement, not a guess.
   void NoteMutation();
 
+  // Insert/remove/reorder — bumps Document::StructureVersion as well as the
+  // mutation counter. Attribute writers keep NoteMutation alone so a style
+  // cache can reuse cascade answers for untouched elements (TD-0021).
+  void NoteStructureChange();
+
   // Clears the document's focus if it is on `removed` or inside it.
   //
   // Called before a subtree leaves the tree, and here rather than at the
@@ -265,6 +270,11 @@ class Element : public Node {
   void SetAttribute(std::string name, std::string value);
   bool RemoveAttribute(std::string_view name);
 
+  // Bumped on SetAttribute / RemoveAttribute only. Paired with Document::
+  // StructureVersion for the style cache of TD-0021: an attribute write on one
+  // element must not force every other element's cascade to re-run.
+  std::uint32_t AttrVersion() const { return attr_version_; }
+
   // The dynamic state on this element. See ElementState: a bit here is a fact
   // the tree does not otherwise record, and the three focus states are
   // deliberately absent from it.
@@ -281,6 +291,7 @@ class Element : public Node {
   std::string tag_name_;
   std::vector<Attribute> attributes_;
   ElementState state_ = ElementState::None;
+  std::uint32_t attr_version_ = 0;
   // Allocated only for `<template>`. A pointer on every element rather than a
   // subclass, because the parser and the bindings both create elements by tag
   // name and neither has anywhere to put a second type.
@@ -425,10 +436,18 @@ class Document : public Node {
   // describing it?" -- and it deliberately says nothing about *what* changed.
   // Anything finer belongs to the invalidation index rather than here.
   std::uint64_t MutationVersion() const { return mutation_version_; }
+  // Tree shape only (insert/remove/reorder). Attribute writes bump
+  // MutationVersion without this, so a style cache can keep answers for
+  // unchanged subtrees across Polymer property stamps (TD-0021).
+  std::uint64_t StructureVersion() const { return structure_version_; }
   // Named apart from Node::NoteMutation, which is the walk that reaches this.
   // Two members of one hierarchy with the same name and different jobs is how
   // a call ends up meaning the other one.
   void NoteTreeMutation() { ++mutation_version_; }
+  void NoteStructureMutation() {
+    ++mutation_version_;
+    ++structure_version_;
+  }
 
   // Which element has focus, and whether it got it from the keyboard.
   //
@@ -470,6 +489,7 @@ class Document : public Node {
   bool quirks_ = false;
   bool user_activation_ = false;
   std::uint64_t mutation_version_ = 0;
+  std::uint64_t structure_version_ = 0;
   FocusState focus_;
   std::vector<SharedConstructableSheet> adopted_style_sheets_;
 };

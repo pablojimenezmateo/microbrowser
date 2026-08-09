@@ -37,8 +37,9 @@ css::ComputedStyle Page::StyleOfForTesting(const dom::Element& element) const {
     }
   }
   css::ComputedStyle style = css::StyleResolver::InitialStyle();
+  std::uint64_t style_id = 0;
   for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
-    style = resolver_.StyleFor(**it, style);
+    style = resolver_.StyleFor(**it, style, style_id, &style_id);
   }
   return style;
 }

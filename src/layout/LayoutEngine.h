@@ -75,7 +75,7 @@ class LayoutEngine {
 
  private:
   std::unique_ptr<Box> BuildFor(const dom::Node& node, const css::ComputedStyle& parent_style,
-                                bool& produced_inline) const;
+                                std::uint64_t parent_style_id, bool& produced_inline) const;
   // `floats` is the formatting context this box participates in. A box that
   // establishes its own -- the root, and every float -- passes a fresh one to
   // its children, which is what keeps a float inside a sidebar from shortening

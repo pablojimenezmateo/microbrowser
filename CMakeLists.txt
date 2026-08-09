@@ -258,6 +258,7 @@ microbrowser_module(css
     src/css/SelectorMatch.cpp
     src/css/SelectorParse.cpp
     src/css/StyleResolver.cpp
+    src/css/UserAgentStyleSheet.cpp
     src/css/Animation.cpp
     src/css/AnimationDeclarations.cpp
     src/css/Timing.cpp

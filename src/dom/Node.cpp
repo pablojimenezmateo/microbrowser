@@ -94,6 +94,12 @@ void Node::NoteMutation() {
   }
 }
 
+void Node::NoteStructureChange() {
+  if (Document* document = OwnerDocument(); document != nullptr) {
+    document->NoteStructureMutation();
+  }
+}
+
 void Node::ReleaseFocusWithin(const Node& removed) {
   Document* document = OwnerDocument();
   if (document == nullptr) {
@@ -115,7 +121,7 @@ Node& Node::Append(std::unique_ptr<Node> child) {
   child->parent_ = this;
   children_.push_back(std::move(child));
   AddPerformanceCounter(PerfCounterId::DomNodesCreated);
-  NoteMutation();
+  NoteStructureChange();
   return *children_.back();
 }
 
@@ -141,7 +147,7 @@ Node& Node::InsertBefore(std::unique_ptr<Node> child, const Node* reference) {
   child->parent_ = this;
   AddPerformanceCounter(PerfCounterId::DomNodesCreated);
   Node& inserted = **children_.insert(found, std::move(child));
-  NoteMutation();
+  NoteStructureChange();
   return inserted;
 }
 
@@ -154,7 +160,7 @@ bool Node::Remove(Node* child) {
   }
   ReleaseFocusWithin(**found);
   children_.erase(found);
-  NoteMutation();
+  NoteStructureChange();
   return true;
 }
 
@@ -172,7 +178,7 @@ std::unique_ptr<Node> Node::Detach(Node* child) {
   // parent it is no longer a child of is the shape every "it disappeared but
   // is still in the list" bug takes.
   owned->parent_ = nullptr;
-  NoteMutation();
+  NoteStructureChange();
   return owned;
 }
 
@@ -227,11 +233,13 @@ void Element::SetAttribute(std::string name, std::string value) {
   for (Attribute& attribute : attributes_) {
     if (attribute.name == name) {
       attribute.value = std::move(value);
+      ++attr_version_;
       NoteMutation();
       return;
     }
   }
   attributes_.push_back(Attribute{std::move(name), std::move(value)});
+  ++attr_version_;
   NoteMutation();
 }
 
@@ -244,6 +252,7 @@ bool Element::RemoveAttribute(std::string_view name) {
     return false;
   }
   attributes_.erase(found);
+  ++attr_version_;
   NoteMutation();
   return true;
 }
@@ -290,6 +299,7 @@ DocumentFragment* Element::AttachShadow(bool open) {
     shadow_ = std::make_unique<DocumentFragment>();
     shadow_->SetHost(this);
     shadow_open_ = open;
+    NoteStructureChange();
   }
   // The existing one, not a replacement. A second `attachShadow` is an error the
   // caller reports, and handing back the first is what makes that reportable

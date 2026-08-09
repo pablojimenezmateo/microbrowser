@@ -472,6 +472,7 @@ bool Page::RunDueWork(std::int64_t now_ms) {
   const bool cascade_changed = resolver_.Generation() != cascade_before;
   if (mutated || cascade_changed || animating || video_updated) {
     InvalidateLayout();
+    AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByDueWork);
   } else {
     AddPerformanceCounter(PerfCounterId::LayoutDueWorkClean);
   }

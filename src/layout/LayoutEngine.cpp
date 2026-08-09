@@ -134,6 +134,7 @@ float FixedTextMeasurer::Ascent(const css::ComputedStyle& style) const {
 
 std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
                                             const css::ComputedStyle& parent_style,
+                                            std::uint64_t parent_style_id,
                                             bool& produced_inline) const {
   if (node.IsText()) {
     const auto& text_node = static_cast<const dom::Text&>(node);
@@ -155,7 +156,9 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   }
 
   const auto& element = static_cast<const dom::Element&>(node);
-  const css::ComputedStyle style = resolver_->StyleFor(element, parent_style);
+  std::uint64_t style_id = 0;
+  const css::ComputedStyle style =
+      resolver_->StyleFor(element, parent_style, parent_style_id, &style_id);
   if (!style.GeneratesBox()) {
     return nullptr;
   }
@@ -254,7 +257,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // The flattened tree, not the node tree: ADR 0019 §2.
   for (dom::Node* child : dom::FlatChildren(node)) {
     bool child_inline = false;
-    std::unique_ptr<Box> child_box = BuildFor(*child, style, child_inline);
+    std::unique_ptr<Box> child_box = BuildFor(*child, style, style_id, child_inline);
     if (child_box == nullptr) {
       continue;
     }
@@ -373,7 +376,7 @@ std::unique_ptr<Box> LayoutEngine::BuildBoxTree(const dom::Document& document) c
   auto root = std::make_unique<Box>(Box::Kind::Block, root_style);
   for (dom::Node* child : dom::FlatChildren(document)) {
     bool produced_inline = false;
-    if (std::unique_ptr<Box> box = BuildFor(*child, root_style, produced_inline)) {
+    if (std::unique_ptr<Box> box = BuildFor(*child, root_style, 0, produced_inline)) {
       root->Append(std::move(box));
     }
   }

@@ -668,8 +668,9 @@ css::ComputedStyle Page::StyleWithoutBox(const dom::Element& element) const {
     at = dom::ShadowHostOf(*at);
   }
   css::ComputedStyle style = css::StyleResolver::InitialStyle();
+  std::uint64_t style_id = 0;
   for (std::size_t i = chain.size(); i-- > 0;) {
-    style = resolver_.StyleFor(*chain[i], style);
+    style = resolver_.StyleFor(*chain[i], style, style_id, &style_id);
   }
   return style;
 }

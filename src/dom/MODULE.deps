@@ -48,7 +48,9 @@ budget: Node     header_lines=140 public_methods=22 members=3
 # and have nowhere to put a second type. Before it, a template's markup was its
 # children: the cascade styled it, layout laid it out and the loader fetched its
 # images, which is the opposite of what the element means.
-budget: Element      header_lines=115 public_methods=21 members=6
+budget: Element      header_lines=125 public_methods=22 members=7
+# +1 AttrVersion / attr_version_: style-cache provenance so an attribute write
+# on one host does not flush every other element's cascade (TD-0021).
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
 budget: DocumentType header_lines=25 public_methods=6  members=1
@@ -67,7 +69,9 @@ budget: DocumentType header_lines=25 public_methods=6  members=1
 # +1 member for ADR 0017's user activation, read by ADR 0028 §1's autoplay refusal. On the
 # document because that is its scope: an interaction with one document does not license
 # another.
-budget: Document     header_lines=115 public_methods=20 members=5
+# +1 structure_version_: tree-shape half of MutationVersion for TD-0021's style
+# cache. Attribute writes leave it alone; insert/remove bump both.
+budget: Document     header_lines=130 public_methods=22 members=6
 # A fragment, plus the one link back from a shadow root to its host. Deliberately
 # not the fragment's parent: a shadow root with a parent would be reachable by
 # every ordinary tree walk, and being unreachable that way is the whole point of

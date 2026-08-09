@@ -3734,3 +3734,28 @@ attribute as true during `_initializeProperties`.
 **Left:** TD-0021 BuildBoxTree, TD-0020 playVideo facade, TD-0018 step budget,
 home feed when the server sends one.
 
+---
+
+## 2026-08-09 — TD-0021 style cache: BuildBoxTree half cost on youtube search
+
+**Status:** style half of TD-0021 landed; dirty-subtree box rebuild remains
+
+**Landed:**
+
+- `Document::StructureVersion` (insert/remove) vs attribute-only
+  `MutationVersion` / `Element::AttrVersion`
+- `StyleResolver` computed-style cache keyed by cascade gen + structure + attr
+  + dynamic state + parent style id; adjuster still runs after every hit
+- Invalidation counters: `_by_font`, `_by_due_work`, `_by_sheet`
+- UA sheet moved to `UserAgentStyleSheet.cpp` (TU cap)
+
+**Measured** (Release, `/results?search_query=cats`):
+
+| metric | before | after |
+|---|---|---|
+| `engine::BuildBoxTree` | **~2.8 s** / 112 | **~1.4 s** / 108 |
+| `css.styles_resolved` | ~132k | **~51k** (+57k hits) |
+| invalidation mix | opaque | due_work 26, font 11, image 7, sheet 5, script 1 |
+
+**Left:** dirty-subtree box allocation; TD-0020 facade; TD-0018; home feed.
+

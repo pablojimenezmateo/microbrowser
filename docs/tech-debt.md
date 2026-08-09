@@ -945,33 +945,34 @@ self over ~95 calls** (Release, 2026-08-09), against **~0.45 s** of
 `LayoutBoxes`. Each rebuild walks the flattened tree, resolves style, allocates
 boxes, and rebuilds the element→box index.
 
-**What already landed** (same day):
+**What already landed** (same day, then 2026-08-09 evening):
 
 | change | counter |
 |---|---|
 | `RunScripts` invalidates only when `MutationVersion` or cascade generation moved | `engine.box_tree_script_skipped` / `_invalidated_by_script` |
 | `AddImage` attaches pixels in place when both axes are definite without the bitmap | `engine.box_tree_image_paint_only` / `_invalidated_by_image` |
+| Computed-style cache keyed by cascade gen + structure version + attr version + state + parent style id | `css.style_cache_hits` / `_misses` |
+| Invalidation provenance at font / due-work / sheet sites | `engine.box_tree_invalidated_by_{font,due_work,sheet}` |
+| `Document::StructureVersion` vs attribute-only `MutationVersion` | — |
 
-On youtube search those counters show the script skip path is rare (Polymer
-mutates) and most in-flight thumbnails still take `_invalidated_by_image`
-(attach misses or 0×0 lazy hosts). Declared-size and abspos-filled images are
-covered by tests and take the paint-only path. The remaining ~95–110 rebuilds
-are real DOM/font/cascade churn, not the unconditional script drop.
+On youtube search (Release, after the cache): **~1.4 s** BuildBoxTree / 108
+calls (was ~2.8 s / 112), with **~57k cache hits** against **~51k misses**. Font
+and image rebuilds that keep the same structure now reuse cascade answers;
+Polymer attribute stamps miss only the hosts that changed. Whole-tree box
+*allocation* remains — dirty-subtree rebuild is still the end state.
 
-**End state.** Either (a) dirty-subtree box rebuild keyed on mutation provenance,
-or (b) a computed-style cache keyed by cascade generation + element identity so
-unchanged subtrees are not re-cascaded. Whole-tree drop stays correct but is the
-wrong cost model once layout itself is cheap. Instrument invalidation *call
-sites* (font / sheet / observer / `InvalidateLayout`) before picking (a) vs (b).
+**End state.** Dirty-subtree box rebuild keyed on mutation provenance (ADR 0016
+selector dependency graph). The style cache is necessary but not sufficient:
+unchanged chrome still allocates fresh boxes on every stamp. `due_work` is the
+largest remaining invalidation bucket after script/image/font/sheet are counted.
 
-**Measured** (Release, `/results?search_query=cats`, after TD-0001 + the two
-guards above):
+**Measured** (Release, `/results?search_query=cats`):
 
-| metric | value |
-|---|---|
-| `engine::BuildBoxTree` | ~2.0 s / ~95 calls |
-| `engine::LayoutBoxes` | ~0.45 s / ~95 calls |
-| snapshot wall | ~18 s |
+| metric | after TD-0001 guards | after style cache |
+|---|---|---|
+| `engine::BuildBoxTree` | ~2.0–2.8 s / ~95–112 calls | **~1.4 s / 108** |
+| `css.styles_resolved` | ~132k | **~51k** (+57k hits) |
+| snapshot wall | ~18–25 s | **~18 s** |
 
 ---
 

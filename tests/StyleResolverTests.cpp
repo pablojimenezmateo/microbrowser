@@ -11,6 +11,7 @@
 #include "css/StyleSheet.h"
 #include "dom/Node.h"
 #include "html/TreeBuilder.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::tests {
 
@@ -250,6 +251,52 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(StyleOf("<select><option>x</option></select>", "", "select").display ==
                Display::InlineBlock,
            "a select is an inline-block control, not ordinary inline text");
+  });
+
+  AddTest(tests, "StyleResolver/ComputedStyleCacheSurvivesRebuildsWithSameStructure", [] {
+    // TD-0021: font/image box-tree drops keep cascade generation and structure;
+    // only the hosts whose attributes moved must miss. Attribute-only writes
+    // leave StructureVersion alone so siblings keep their answers.
+    auto document = html::ParseDocument("<div id='a' class='x'>one</div><div id='b'>two</div>");
+    StyleResolver resolver;
+    resolver.AddStyleSheet(ParseStyleSheet(".x { color: red } #b { color: blue }"),
+                           Origin::Author);
+    const std::vector<Element*> divs = document->ElementsByTagName("div");
+    Expect(divs.size() == 2, "fixture has two divs");
+    Element* a = divs[0];
+    Element* b = divs[1];
+    const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
+    ComputedStyle parent = StyleResolver::InitialStyle();
+    std::uint64_t aid = 0;
+    std::uint64_t bid = 0;
+    const ComputedStyle first_a = resolver.StyleFor(*a, parent, 0, &aid);
+    const ComputedStyle first_b = resolver.StyleFor(*b, parent, 0, &bid);
+    const ComputedStyle again_a = resolver.StyleFor(*a, parent, 0, &aid);
+    const ComputedStyle again_b = resolver.StyleFor(*b, parent, 0, &bid);
+    const util::PerfCounterSnapshot mid = util::CapturePerformanceCounters();
+    Expect(first_a.color == again_a.color && first_b.color == again_b.color,
+           "second resolve returns the same cascaded colours");
+    const auto delta = [&](util::PerfCounterId id) {
+      return mid[static_cast<std::size_t>(id)] - before[static_cast<std::size_t>(id)];
+    };
+    Expect(delta(util::PerfCounterId::CssStyleCacheMisses) == 2,
+           "first pass misses once per element");
+    Expect(delta(util::PerfCounterId::CssStyleCacheHits) == 2,
+           "second pass hits both");
+    a->SetAttribute("class", "x");
+    const util::PerfCounterSnapshot after_attr_before = util::CapturePerformanceCounters();
+    (void)resolver.StyleFor(*a, parent, 0, &aid);
+    (void)resolver.StyleFor(*b, parent, 0, &bid);
+    const util::PerfCounterSnapshot after_attr = util::CapturePerformanceCounters();
+    Expect(after_attr[static_cast<std::size_t>(util::PerfCounterId::CssStyleCacheMisses)] -
+                   after_attr_before[static_cast<std::size_t>(
+                       util::PerfCounterId::CssStyleCacheMisses)] ==
+               1,
+           "only the attribute-touched host misses");
+    Expect(after_attr[static_cast<std::size_t>(util::PerfCounterId::CssStyleCacheHits)] -
+                   after_attr_before[static_cast<std::size_t>(util::PerfCounterId::CssStyleCacheHits)] ==
+               1,
+           "untouched sibling still hits");
   });
 
   AddTest(tests, "StyleResolver/AuthorRulesBeatTheUserAgent", [] {

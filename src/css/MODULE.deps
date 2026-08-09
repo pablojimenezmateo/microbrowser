@@ -109,7 +109,9 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # +1 member for the viewport lengths in declarations resolve against. Folded at
 # cascade time rather than stored on Length, because a length that survives a
 # resize would be wrong — the same reason @media re-parses on SetViewport.
-budget: StyleResolver header_lines=150 public_methods=22 members=7
+# +3 members for the TD-0021 computed-style cache (map, next id, generation stamp).
+# header_lines cover StyleFor's provenance parameters and the cache comment.
+budget: StyleResolver header_lines=200 public_methods=22 members=10
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not

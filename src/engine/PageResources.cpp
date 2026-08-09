@@ -323,6 +323,7 @@ void Page::RebuildAuthorStyleSheets() {
     layout_.document_version = document_->MutationVersion();
   } else {
     InvalidateBoxTree();
+    AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedBySheet);
   }
 }
 
@@ -545,6 +546,7 @@ bool Page::AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes)
   // like from the inside, and it is the whole reason a face arriving late is not
   // free.
   InvalidateBoxTree();
+  AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByFont);
   return true;
 }
 

@@ -168,6 +168,10 @@ namespace microbrowser::util {
   X(CssSheetsParsed, "css.sheets_parsed")                                        \
   X(CssRulesParsed, "css.rules_parsed")                                          \
   X(CssStylesResolved, "css.styles_resolved")                                    \
+  /* Hits on the TD-0021 computed-style cache: same cascade generation,        */ \
+  /* structure version, attr version, dynamic state, and parent style id.      */ \
+  X(CssStyleCacheHits, "css.style_cache_hits")                                   \
+  X(CssStyleCacheMisses, "css.style_cache_misses")                               \
   /* What one cascade actually does, per element. Counted on the expensive     */ \
   /* halves rather than on the cheap one: `styles_resolved` alone reads as     */ \
   /* health while a resolve costs fifty selector matches and a hundred string  */ \
@@ -444,6 +448,9 @@ namespace microbrowser::util {
   X(BoxTreeScriptSkipped, "engine.box_tree_script_skipped")                        \
   X(BoxTreeInvalidatedByImage, "engine.box_tree_invalidated_by_image")             \
   X(BoxTreeImagePaintOnly, "engine.box_tree_image_paint_only")                    \
+  X(BoxTreeInvalidatedByFont, "engine.box_tree_invalidated_by_font")               \
+  X(BoxTreeInvalidatedByDueWork, "engine.box_tree_invalidated_by_due_work")       \
+  X(BoxTreeInvalidatedBySheet, "engine.box_tree_invalidated_by_sheet")           \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
   X(GfxImagesTransformed, "gfx.images_transformed")                               \
   X(GfxImagesScaled, "gfx.images_scaled")                                         \
