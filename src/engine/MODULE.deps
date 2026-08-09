@@ -125,7 +125,7 @@ max_tu_lines: 900
 # elements upgrade, is that response in the tree, what does this shadow root
 # contain. Each is one line of JavaScript, and each was previously answered by
 # adding an `fprintf` and rebuilding.
-budget: Engine header_lines=430 public_methods=19 members=22
+budget: Engine header_lines=440 public_methods=20 members=23
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
 # cache are four members that would otherwise be four more reasons for Engine
 # to become the browser.

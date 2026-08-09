@@ -94,6 +94,10 @@ class Engine : private bindings::NetworkSource,
   // that has no console -- `microbrowser_snapshot -eval` is the one caller. See
   // PageScript::Evaluate.
   std::string EvaluateScript(std::string_view source);
+  // Script that runs once, after the document exists and before the page's own
+  // scripts. Needed to hook APIs before youtube's player can poison itself
+  // (TD-0020); `-eval` is too late. Cleared after the first RunScripts turn.
+  void SetScriptPrelude(std::string source) { script_prelude_ = std::move(source); }
   // The other half of the same question, and forwarded for the same reason. A
   // page that ran correctly and said something is not distinguishable from one
   // that threw, from outside, without both.
@@ -401,6 +405,8 @@ class Engine : private bindings::NetworkSource,
   storage::PartitionedStorage session_storage_;
   storage::PartitionedStorage local_storage_;
   Page page_;
+  // Once, before the document's own scripts. See SetScriptPrelude.
+  std::string script_prelude_;
   // The frame most recently sent, kept so the next one can be diffed against
   // it. This is what the display list being a comparable value buys: damage is
   // computed from two frames rather than trusted from every call site that

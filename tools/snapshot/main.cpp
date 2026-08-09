@@ -64,6 +64,9 @@ struct Options {
   // response in the tree", "what is in this shadow root" are each one line of
   // JavaScript, and each of them used to cost an `fprintf` and a rebuild.
   std::vector<std::string> probes;
+  // Runs once after the document exists and before the page's own scripts.
+  // `-eval` is too late to hook APIs the player has already called (TD-0020).
+  std::string prelude;
   // A click to deliver before the snapshot, in viewport pixels. Negative means
   // none -- 0,0 is a real point.
   int click_x = -1;
@@ -101,12 +104,14 @@ microbrowser::ipc::KeyInputMessage NamedKey(std::string_view name) {
 const char* kUsage =
     "usage: microbrowser_snapshot <url> [-o out.ppm] [-w width] [-h height] [-y scroll]\n"
     "                            [-dpr ratio] [-hover x,y] [-click x,y] [-type text]\n"
-    "                            [-key name] [-v]\n"
+    "                            [-key name] [-prelude js] [-eval js] [-v]\n"
     "  -dpr    device pixels per CSS pixel: which srcset candidate an <img> picks\n"
     "  -hover  move the pointer there first: what `:hover` and `:active` do to the page\n"
     "  -click  deliver a click before the snapshot, to follow a link or submit a form\n"
     "  -type   type text into whatever the click focused; repeatable, in order\n"
     "  -key    press one named key -- Escape, Enter, Tab, ArrowDown; repeatable\n"
+    "  -prelude  run once before the page's scripts (API hooks); repeatable, in order\n"
+    "  -eval   run after the page has settled; printed as eval: <result>; repeatable\n"
     "  -v      print every display list command: what was painted, where, in what colour\n";
 
 // One line per command. The point of a dump rather than a pixel is that a rect
@@ -227,6 +232,13 @@ bool ParseOptions(int argc, char** argv, Options& out) {
       const std::string_view text = value();
       if (text.empty()) return false;
       out.probes.emplace_back(text);
+    } else if (argument == "-prelude") {
+      const std::string_view text = value();
+      if (text.empty()) return false;
+      if (!out.prelude.empty()) {
+        out.prelude.push_back('\n');
+      }
+      out.prelude.append(text);
     } else if (argument == "-v") {
       out.dump = true;
     } else if (argument == "-y") {
@@ -614,6 +626,9 @@ int main(int argc, char** argv) {
 
   microbrowser::ipc::InProcessChannel channel;
   microbrowser::engine::Engine engine{channel.Engine(), fonts};
+  if (!options.prelude.empty()) {
+    engine.SetScriptPrelude(options.prelude);
+  }
   SnapshotFrame latest;
   SnapshotFrame best;
 

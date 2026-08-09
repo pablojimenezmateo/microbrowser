@@ -612,6 +612,12 @@ void Engine::AdvanceLoad() {
   // style sees the ones the document declared; images after, so a script that
   // sets a width has said so before an SVG is rasterized to it.
   if (load_.MayRunScripts()) {
+    if (!script_prelude_.empty()) {
+      // Before the page's own scripts, once. Hooks installed here see every
+      // call the player makes; `-eval` after the load cannot.
+      (void)page_.EvaluateScript(script_prelude_);
+      script_prelude_.clear();
+    }
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
     post_load_.document_interactive = true;
