@@ -4005,6 +4005,29 @@ have broken Lit's `U3D` for proxied plain objects.
 
 ---
 
+## 2026-08-09 — SPA watch: navigate-start without innertube player fetch
+
+**Status:** TD-0024 narrowed; Symbol `in` / snapshot settle already committed
+
+After Accept on a cold watch (SOCS set) → `location.href` to `/results` →
+thumbnail click, `yt-navigate` / `yt-navigate-start` fire with `pageType:"watch"`
+but **`yt-navigate-finish` never fires** and the load timeline shows **no**
+`/youtubei/v1/player`, `/next`, or `/get_watch`. Soft-nav therefore leaves
+`ytd-watch-flexy.data` as `["contents"]` with no `#movie_player`. Cold watch
+still plays via `ytInitialPlayerResponse` in the HTML.
+
+desktop_polymer's `kxg` prefers `fetchPbj` when `o82` is false, else `WzB`
+(player+next via innertube). `window.TextDecoderStream` is absent (gates the
+streaming get_watch branch only — WzB is the non-stream fallback). Next: why
+the navigation promise never settles (fetchPbj hang vs empty
+`watchEndpointMap` / `getRequest`), not more settle time.
+
+**Left:** finish TD-0024; home nudge; `Intl` / `eval`; optional Streams
+(`TextDecoderStream` / `TransformStream`) as a real API when streaming watch
+is required.
+
+---
+
 ## 2026-08-09 — snapshot settles youtube `/results` and tightens `-click last`
 
 **Status:** post-Accept restamp and click hygiene for search→watch harness

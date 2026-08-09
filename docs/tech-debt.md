@@ -1379,10 +1379,19 @@ search→watch; `ytd-watch-flexy.data` can still be only `["contents"]` with no
 `#movie_player` — the remaining gap is the innertube/player application path,
 not Lit signal writes.
 
-**Still open.** Soft-nav player stamp can still leave `flexy.data` with only
-`contents` (no `playerOverlays` / `currentVideoEndpoint`, `hasIPR:false`) while
-cold loads of the same URL reach `readyState` 4. Close when search→watch
-reliably yields a playable `<video>` without depending on a cold document load.
+**Measured** (2026-08-09, Release + `MICROBROWSER_LOAD_TIMELINE=1`). Soft-nav
+search→watch updates the URL (`engine.script_navigations` 1, path `/watch`) and
+even starts `player_ias` / kevlar chunks, but the timeline shows **no**
+`/youtubei/v1/player`, `/next`, or `/get_watch` request — only the earlier
+`/youtubei/v1/guide` from the results page. Cold `/watch` needs none of those
+because `ytInitialPlayerResponse` is in the HTML (`hasIPR:true`, `readyState` 4).
+SPA has `hasIPR:false` and never asks the network for a player config, so
+`flexy.data` stays `["contents"]` no matter how long the snapshot settles.
+
+**Still open.** Find why the navigation command path never issues get_watch /
+player after a thumbnail click (command dispatch, DI provider, or endpoint
+handling) — settle time is not the remaining bug. Close when search→watch
+reliably yields a playable `<video>` without a cold document load.
 
 ---
 
