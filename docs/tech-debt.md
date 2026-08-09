@@ -705,12 +705,14 @@ blanking youtube search even after UA `[hidden]` and the reflection were correct
 
 **Status** (2026-08-07, Release). Skip is enabled. A youtube home snapshot finishes
 (~3 min Release) with masthead and two-column hosts in the tree; `ytd-rich-item-renderer`
-is still **0** (server often serves only a `feedNudgeRenderer` when history is off, and
-stamp still burns `js.steps_exhausted`). Post-load hang was mostly reflow-on-every-rAF
-(see TD-0018 layout skip).
+is still **0**. **Update** (2026-08-09): that zero is usually the server's
+history-off `feedNudgeRenderer` / `richSectionRenderer` ("Try searching to get
+started"), not a failed rich-item stamp — confirm content kinds before blaming
+the stamper. Search from the masthead is TD-0026.
 
 **Close when** youtube home applies browse→two-column `data` without `-eval`, rich-grid
-stamps, and the live-host strip can be deleted without a hang (related: TD-0018).
+stamps *when the response contains `richItemRenderer`s*, and the live-host strip
+can be deleted without a hang (related: TD-0018).
 
 ---
 
@@ -1465,8 +1467,38 @@ ledger for residual `fetch.failed` / non-idempotent retry policy questions.
 
 ---
 
+## TD-0026 — youtube home searchbox preventDefaults Enter but never navigates
+
+**Symptom.** After Accept on `https://www.youtube.com/`, the masthead search
+input can be focused and typed (`value==="cats"`), but `-key Enter` and a
+trusted click on the `aria-label=Search` button leave `location.pathname==="/"`.
+Cold `/results?search_query=cats` and search→watch still work.
+
+**Landed first** (2026-08-09). Hit-testing ignored negative `z-index`, so
+`#background.ytd-masthead { z-index:-1 }` stole every masthead click
+(`elementFromPoint` returned `#background`). Fixed banded hit order in
+`PageHitTest`. Trusted `input` events now fire after engine text edits
+(Polymer sync). Measured: `z-index:-1` computed, `elementFromPoint`→`INPUT`,
+four trusted `input` events for `"cats"`.
+
+**Still open.** Trusted Enter is `defaultPrevented` by the page, so native
+form GET to `/results` never runs, and the page's own handler does not call
+`history.pushState` / change the URL. Search button click focuses the button
+and similarly does not navigate. Close when home→type→Enter (or Search)
+reaches `/results?search_query=…` with stamped `ytd-video-renderer`s.
+
+**Not this.** Home's zero `ytd-rich-item-renderer` with a stamped
+`ytd-feed-nudge-renderer` is the history-off server response ("Try searching
+to get started"), not a stamp failure (TD-0017/0018).
+
+---
+
 ## Closed
 
+- **TD-0024 — SPA search→watch can leave `ytd-player` without `#movie_player`**
+  (2026-08-09). Eval/CSP (ADR 0039), post-load script fetch, `load` before
+  `data-loaded`, and TD-0025's GET retry. Release cats search→watch:
+  `#movie_player` + `<video>` + `readyState` 4 / ~23s buffer / `isError:false`.
 - **TD-0001 — Measure-then-place walked every flex/float/atomic subtree twice** (2026-08-09).
   `OffsetLaidOutSubtree` replaces the second `LayoutBlock` when constraints are unchanged.
   Youtube search: `layout.block_passes` 189M → 139k; `engine::LayoutBoxes` 128 s → 0.7 s;

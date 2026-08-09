@@ -188,6 +188,11 @@ class DomBindings {
   // algorithm -- `requestSubmit()` -- which runs this on its way through.
   bool DispatchSubmit(dom::Element& form);
 
+  // Fires a trusted, bubbling, non-cancelable `input` after the engine has
+  // already edited a text control. Pages (youtube's searchbox) sync Polymer
+  // state from this event; setting the value attribute alone is silent.
+  bool DispatchInput(dom::Element& target);
+
   // Fires `scroll` at `target`, or at the document and the window when it is
   // null. True when something was listening. A C++ entry point for the reason
   // the two above are: the browser is the only thing that knows a scroll

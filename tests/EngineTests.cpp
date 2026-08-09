@@ -754,6 +754,29 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(page.FocusFromClickAt(gfx::FloatPoint{50.0f, 50.0f}), "and focuses the link");
   });
 
+  AddTest(tests, "Page/NegativeZIndexAbsposDoesNotStealInFlowHit", [] {
+    // youtube's #background.ytd-masthead is position:absolute; z-index:-1 over
+    // the full masthead. Without respecting negative z-index, clicks never
+    // reach the search input (elementFromPoint returns #background).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "#host{position:relative;width:200px;height:40px}"
+              "#bg{position:absolute;inset:0;z-index:-1}"
+              "input{width:200px;height:40px}"
+              "</style>"
+              "<body style='margin:0'>"
+              "<div id=host><div id=bg></div><input name=search_query></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{100.0f, 20.0f}),
+           "click focuses the in-flow input under a z-index:-1 abspos");
+    const dom::Element* focused = page.FocusedElement();
+    Expect(focused != nullptr && focused->TagName() == "input",
+           "focused element is the input, not #bg");
+  });
+
   AddTest(tests, "Page/ClickOnVideoTogglesPlayback", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

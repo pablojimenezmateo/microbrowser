@@ -26,6 +26,28 @@ bool ReceivesPointerEvents(const layout::Box& box) {
          style.pointer_events != css::PointerEvents::None;
 }
 
+// Where a child paints relative to in-flow siblings (CSS 2.1 Appendix E).
+// Hit-testing walks reverse paint order, so this decides who wins a click.
+//
+// Absolute boxes with `z-index: auto` / non-negative paint above in-flow content;
+// `z-index: -1` (youtube's `#background.ytd-masthead`) paints below and must not
+// steal the search field.
+enum class HitBand : std::uint8_t { BelowInFlow, InFlow, AboveInFlow };
+
+HitBand BandOf(const layout::Box& box) {
+  if (box.IsFloating()) {
+    return HitBand::AboveInFlow;
+  }
+  if (!box.IsAbsolutelyPositioned()) {
+    return HitBand::InFlow;
+  }
+  const std::optional<int>& z = box.Style().z_index;
+  if (z.has_value() && *z < 0) {
+    return HitBand::BelowInFlow;
+  }
+  return HitBand::AboveInFlow;
+}
+
 std::optional<gfx::FloatPoint> UntransformedPoint(const layout::Box& box,
                                                   gfx::FloatPoint point) {
   const css::ComputedStyle& style = box.Style();
@@ -76,10 +98,6 @@ const std::string* AnchorHref(const dom::Element* element) {
   return href != nullptr && !href->empty() ? href : nullptr;
 }
 
-bool PaintsAboveInFlowBlocks(const layout::Box& box) {
-  return box.IsFloating() || box.IsAbsolutelyPositioned();
-}
-
 using ElementPredicate = bool (*)(const dom::Element&);
 
 dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
@@ -90,13 +108,12 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
   }
   point = *local;
   const gfx::FloatPoint scrolled = ScrollAdjust(box, point);
-  // Elevated children first, even when this box clips in-flow content away —
-  // see ScrollAdjust. In-flow children only when the point is inside.
+  // Reverse paint order: above in-flow, then in-flow, then below (negative z).
   {
     dom::Element* hit = nullptr;
     const auto& children = box.Children();
     for (std::size_t i = children.size(); i-- > 0;) {
-      if (PaintsAboveInFlowBlocks(*children[i])) {
+      if (BandOf(*children[i]) == HitBand::AboveInFlow) {
         hit = HitTestFormControl(*children[i], scrolled, predicate);
         if (hit != nullptr) {
           return hit;
@@ -108,8 +125,20 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
     dom::Element* hit = nullptr;
     const auto& children = box.Children();
     for (std::size_t i = children.size(); i-- > 0;) {
-      if (!PaintsAboveInFlowBlocks(*children[i])) {
+      if (BandOf(*children[i]) == HitBand::InFlow) {
         hit = HitTestFormControl(*children[i], *inside, predicate);
+        if (hit != nullptr) {
+          return hit;
+        }
+      }
+    }
+  }
+  {
+    dom::Element* hit = nullptr;
+    const auto& children = box.Children();
+    for (std::size_t i = children.size(); i-- > 0;) {
+      if (BandOf(*children[i]) == HitBand::BelowInFlow) {
+        hit = HitTestFormControl(*children[i], scrolled, predicate);
         if (hit != nullptr) {
           return hit;
         }
@@ -144,7 +173,7 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
     const dom::Element* hit = nullptr;
     const auto& children = box.Children();
     for (std::size_t i = children.size(); i-- > 0;) {
-      if (PaintsAboveInFlowBlocks(*children[i])) {
+      if (BandOf(*children[i]) == HitBand::AboveInFlow) {
         hit = HitTestElement(*children[i], scrolled, enclosing);
         if (hit != nullptr) {
           return hit;
@@ -156,8 +185,20 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
     const dom::Element* hit = nullptr;
     const auto& children = box.Children();
     for (std::size_t i = children.size(); i-- > 0;) {
-      if (!PaintsAboveInFlowBlocks(*children[i])) {
+      if (BandOf(*children[i]) == HitBand::InFlow) {
         hit = HitTestElement(*children[i], *inside, enclosing);
+        if (hit != nullptr) {
+          return hit;
+        }
+      }
+    }
+  }
+  {
+    const dom::Element* hit = nullptr;
+    const auto& children = box.Children();
+    for (std::size_t i = children.size(); i-- > 0;) {
+      if (BandOf(*children[i]) == HitBand::BelowInFlow) {
+        hit = HitTestElement(*children[i], scrolled, enclosing);
         if (hit != nullptr) {
           return hit;
         }
@@ -197,7 +238,7 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
     std::optional<std::string> hit;
     const auto& children = box.Children();
     for (std::size_t i = children.size(); i-- > 0;) {
-      if (PaintsAboveInFlowBlocks(*children[i])) {
+      if (BandOf(*children[i]) == HitBand::AboveInFlow) {
         hit = HitTestLink(*children[i], scrolled, active_href);
         if (hit.has_value()) {
           return hit;
@@ -209,8 +250,20 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
     std::optional<std::string> hit;
     const auto& children = box.Children();
     for (std::size_t i = children.size(); i-- > 0;) {
-      if (!PaintsAboveInFlowBlocks(*children[i])) {
+      if (BandOf(*children[i]) == HitBand::InFlow) {
         hit = HitTestLink(*children[i], *inside, active_href);
+        if (hit.has_value()) {
+          return hit;
+        }
+      }
+    }
+  }
+  {
+    std::optional<std::string> hit;
+    const auto& children = box.Children();
+    for (std::size_t i = children.size(); i-- > 0;) {
+      if (BandOf(*children[i]) == HitBand::BelowInFlow) {
+        hit = HitTestLink(*children[i], scrolled, active_href);
         if (hit.has_value()) {
           return hit;
         }

@@ -4118,3 +4118,24 @@ Also `PageVideo::DetachBuffer` before `removeSourceBuffer` frees the buffer
 **Left:** home feed / `Intl`; any remaining TD-0020 click-to-play UX.
 
 ---
+
+## 2026-08-09 — masthead z-index hit-test + trusted input events (TD-0026)
+
+**Status:** youtube home search field is clickable and typeable; Enter still
+does not navigate
+
+`#background.ytd-masthead` is `position:absolute; z-index:-1`. Hit-testing
+treated every abspos as above in-flow, so `elementFromPoint` returned
+`#background` and focus never reached `input[name=search_query]`. Banded
+hit order (above / in-flow / below). `getComputedStyle().zIndex` serializes.
+Typing fires trusted `input` (four events for `"cats"`).
+
+Enter is still `preventDefault`'d by the page without a URL change — TD-0026.
+Home's empty rich-grid is the history-off nudge, not a stamp miss.
+
+**Check:** after Accept, click search centre → focus input; `-type cats` →
+`value==="cats"`; `z-index` of `#background` is `"-1"`.
+
+**Left:** TD-0026 search submit; home rich items when the server sends them.
+
+---

@@ -213,6 +213,9 @@ bool Page::InsertTextIntoFocusedTextControl(std::string_view text) {
   value.append(text.substr(0, room));
   control->SetAttribute("value", std::move(value));
   InvalidateBoxTree();
+  // The edit is done; `input` tells listeners (youtube search syncs Polymer
+  // from this). Not cancelable — the character is already in the control.
+  (void)script_.DispatchInput(*control);
   return true;
 }
 
@@ -228,6 +231,7 @@ bool Page::DeleteBackwardFromFocusedTextControl() {
   value.erase(PreviousUtf8Boundary(value));
   control->SetAttribute("value", std::move(value));
   InvalidateBoxTree();
+  (void)script_.DispatchInput(*control);
   return true;
 }
 

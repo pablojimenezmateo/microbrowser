@@ -509,6 +509,10 @@ bool PageScript::DispatchSubmit(dom::Element& form) {
   return bindings_ != nullptr && bindings_->DispatchSubmit(form);
 }
 
+bool PageScript::DispatchInput(dom::Element& target) {
+  return bindings_ != nullptr && bindings_->DispatchInput(target);
+}
+
 std::optional<bindings::PendingSubmit> PageScript::TakePendingSubmit() {
   return bindings_ == nullptr ? std::nullopt : bindings_->TakePendingSubmit();
 }

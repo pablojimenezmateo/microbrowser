@@ -337,6 +337,21 @@ bool DomBindings::DispatchSubmit(dom::Element& form) {
   return DispatchEventTo(form, event);
 }
 
+bool DomBindings::DispatchInput(dom::Element& target) {
+  if (interpreter_ == nullptr) {
+    return false;
+  }
+  const Value event = MakeEvent("input", true, false, true);
+  if (!event.IsObject()) {
+    return false;
+  }
+  const Value prototype = EventPrototype("InputEvent", "UIEvent");
+  if (prototype.IsObject()) {
+    event.object->SetPrototype(prototype.object);
+  }
+  return DispatchEventTo(target, event);
+}
+
 bool DomBindings::DispatchKey(dom::Node* target, const KeyInput& key) {
   if (interpreter_ == nullptr) {
     return false;

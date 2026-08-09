@@ -226,7 +226,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # `IdbIndexKeyPath` reads, none of which may live as free functions because each
 # calls another private member (InterfaceNamed, MaybeCompleteIdbTransaction) that
 # a free function gets no access to just because its only caller has some.
-budget: DomBindings header_lines=920 public_methods=45 members=26
+budget: DomBindings header_lines=930 public_methods=46 members=26
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

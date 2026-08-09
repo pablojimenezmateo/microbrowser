@@ -275,6 +275,8 @@ class PageScript {
   // Fires `submit` at `form`. True when a handler called `preventDefault`,
   // which is the caller's signal not to submit.
   bool DispatchSubmit(dom::Element& form);
+  // Trusted `input` after a text control's value was edited by the engine.
+  bool DispatchInput(dom::Element& target);
   // Fires `scroll` at `target`, or at the document when it is null. True when
   // something was listening. Not cancelable and dispatched after the fact: a
   // scroll has already happened by the time a page hears about it, which is why

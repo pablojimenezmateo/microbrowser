@@ -406,6 +406,9 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "pointer-events") {
     return std::string(style.pointer_events == css::PointerEvents::None ? "none" : "auto");
   }
+  if (property == "z-index") {
+    return style.z_index.has_value() ? std::to_string(*style.z_index) : std::string("auto");
+  }
   if (property == "top") return LengthText(style.inset.top, font_size);
   if (property == "right") return LengthText(style.inset.right, font_size);
   if (property == "bottom") return LengthText(style.inset.bottom, font_size);
