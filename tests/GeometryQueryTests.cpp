@@ -289,6 +289,27 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 3), "200px", "an authored max-height still serializes");
   });
 
+  AddTest(tests, "Geometry/BorderBoxMaxHeightClampsBorderBox", [] {
+    // iron-fit writes `box-sizing: border-box; max-height: …px` together. Under
+    // content-box the padding rode on top of the clamp and youtube's consent
+    // dialog's border box stayed taller than the viewport.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'>"
+        "<div id='a' style='box-sizing:border-box;max-height:100px;padding:20px;"
+        "height:200px;width:50px'>x</div>"
+        "<script>var r = document.getElementById('a').getBoundingClientRect();"
+        "console.log(Math.round(r.height));"
+        "console.log(getComputedStyle(document.getElementById('a')).boxSizing);"
+        "console.log(getComputedStyle(document.getElementById('a')).overflow);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "100", "border box is the max-height");
+    ExpectEqString(Line(output, 1), "border-box", "box-sizing serializes");
+    ExpectEqString(Line(output, 2), "visible", "overflow shorthand serializes");
+  });
+
   AddTest(tests, "Geometry/ComputedStyleFollowsAMutation", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

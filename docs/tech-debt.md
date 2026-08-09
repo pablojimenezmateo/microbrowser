@@ -1183,6 +1183,52 @@ loaded watch and `#movie_player.playVideo()` reaches `HTMLMediaElement.play`
 without the `#movie_player` click bypass. Until then Gate C watch is satisfied
 by the default media click path.
 
+**Update** (2026-08-09, consent cookies). HTTP-date `Expires` parsing
+(`util::ParseHttpDate`) landed — youtube's past-dated deletes of
+`TESTCOOKIESENABLED` / `PREF` had been left as session cookies, and Accept
+reported "error saving your choice". After Accept (plus closing the lightbox):
+
+| observation | value |
+|---|---|
+| `SOCS` / `PREF` | set; no `PREF=null`, no leftover `TESTCOOKIESENABLED` |
+| save-error string | **absent** |
+| `<video>` after `playVideo()` | `readyState` **4**, `buffered` **[0, ~19s]**, `blob:` src |
+| `getVideoData().isPlayable` | **true** |
+| `getPlayerState()` | still flaps **-1** / **3** while `paused===true` |
+
+So the MSE/buffer half of TD-0020 is largely unblocked once consent cookies
+round-trip. Remaining: facade state vs element play, and the consent UI itself
+(TD-0022) so a real `-click` can dismiss without `-eval`.
+
+---
+
+## TD-0022 — youtube consent dialog fits at 0×0 and never auto-refits
+
+**Symptom.** `tp-yt-paper-dialog#dialog` opens with `top:448px; left:640px`
+(viewport centre as if size were zero) while content is ~748×928. Accept all
+lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
+`getComputedStyle` serializes unbounded max-size as `"none"` (iron-fit's
+`sizedBy.height = maxHeight !== "none"`). `overflow` stays `visible`, so the
+dialog is not a scroll container either.
+
+`dialog.refit()` / `resetFit(); fit()` recentres correctly. After content
+stamps, **`iron-resize` is never heard** on the dialog in a session probe
+(`ironResize:0` with a listener), so the Polymer resizable path never asks for
+another fit. Forcing `opened=false` on the lightbox/backdrop dismisses the
+overlay; Accept alone sets `SOCS` but leaves `opened===true` until that write.
+
+**Why it matters.** Without an on-screen Accept, `-click` cannot dismiss
+consent, and the watch player stays under an overlay even when MSE has already
+buffered the video (TD-0020 update above).
+
+**Close when.** After the consent bump stamps, the dialog's border box is
+inside the viewport without `-eval` fit/scroll, Accept is hit-testable by
+`-click`, and Accept leaves `opened===false` (or navigates) without a scripted
+property write. Likely work: deliver the resize notification Polymer expects
+after a stamp (ResizeObserver sample after layout, or `iron-resize` subscription
+for late-stamped descendants), and finish whatever close path Accept starts
+once cookies already succeed.
+
 ---
 
 ## Closed

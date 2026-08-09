@@ -164,6 +164,12 @@ enum class Position : std::uint8_t { Static, Relative, Absolute, Fixed, Sticky }
 // clipping half is layout's.
 enum class Overflow : std::uint8_t { Visible, Hidden, Scroll, Auto };
 
+// `box-sizing`: which box `width` / `height` / `min-*` / `max-*` describe.
+// `border-box` is what iron-fit writes next to `max-height` on youtube's consent
+// dialog; treating that max as a content-box limit left the border box ~32px
+// taller than the viewport clamp and Accept below the fold.
+enum class BoxSizing : std::uint8_t { ContentBox, BorderBox };
+
 // Whether the box is painted and hit-tested. Inherited; a descendant may set
 // `visible` under a `hidden` ancestor and become a target again. `Collapse` is
 // accepted as `Hidden` for now (no table-row collapsing yet).
@@ -402,6 +408,7 @@ struct ComputedStyle {
   Length max_width = Length::Auto();
   Length min_height = Length::Pixels(0.0f);
   Length max_height = Length::Auto();
+  BoxSizing box_sizing = BoxSizing::ContentBox;
 
   // `aspect-ratio`, as width divided by height. Zero is `auto`, which is the
   // initial value and means the box has no preferred ratio at all.
@@ -419,19 +426,20 @@ struct ComputedStyle {
   enum class Content : std::uint8_t { Normal, None, Empty };
   Content content = Content::Normal;
 
-  // A used size, clamped by its bounds. Applied after a size is decided by
-  // whatever decided it -- the block model, shrink-to-fit, or the flex
-  // algorithm -- which is what lets one rule serve all three.
+  // A used *content* size, clamped by its bounds. `padding_border` is the sum of
+  // the padding and border on the axis being clamped; under `box-sizing:
+  // border-box` the bounds describe the border box, so they are applied to
+  // `used + padding_border` and the content size is recovered after.
   //
   // Maximum first, then minimum, in that order: the spec resolves the two that
   // way and it is observable when they contradict each other. A `min-width`
   // larger than a `max-width` wins, and a page that writes both means the
   // minimum.
-  float ClampWidth(float used, float container) const {
-    return ClampBy(used, min_width, max_width, container);
+  float ClampWidth(float used, float container, float padding_border = 0.0f) const {
+    return ClampContent(used, min_width, max_width, container, padding_border);
   }
-  float ClampHeight(float used, float container) const {
-    return ClampBy(used, min_height, max_height, container);
+  float ClampHeight(float used, float container, float padding_border = 0.0f) const {
+    return ClampContent(used, min_height, max_height, container, padding_border);
   }
 
   // The flex properties, grouped.
@@ -536,6 +544,15 @@ struct ComputedStyle {
       used = std::max(used, resolve(low));
     }
     return std::max(0.0f, used);
+  }
+
+  float ClampContent(float used_content, const Length& low, const Length& high, float container,
+                     float padding_border) const {
+    if (box_sizing == BoxSizing::BorderBox && padding_border > 0.0f) {
+      const float border_box = ClampBy(used_content + padding_border, low, high, container);
+      return std::max(0.0f, border_box - padding_border);
+    }
+    return ClampBy(used_content, low, high, container);
   }
 
  public:

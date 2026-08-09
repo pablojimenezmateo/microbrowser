@@ -331,6 +331,19 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "position") return std::string(PositionText(style.position));
   if (property == "overflow-x") return std::string(OverflowText(style.overflow_x));
   if (property == "overflow-y") return std::string(OverflowText(style.overflow_y));
+  // Shorthand: when both axes agree, one token; otherwise the two-value form.
+  // Absent entirely, `cs.overflow` is undefined and iron-fit / consent CSS that
+  // feature-detects or copies `overflow` silently no-ops (youtube's dialog).
+  if (property == "overflow") {
+    if (style.overflow_x == style.overflow_y) {
+      return std::string(OverflowText(style.overflow_x));
+    }
+    return std::string(OverflowText(style.overflow_x)) + " " + OverflowText(style.overflow_y);
+  }
+  if (property == "box-sizing") {
+    return std::string(style.box_sizing == css::BoxSizing::BorderBox ? "border-box"
+                                                                     : "content-box");
+  }
   if (property == "color") return ColorText(style.color);
   if (property == "background-color") return ColorText(style.background_color);
   if (property == "font-size") return Pixels(font_size);

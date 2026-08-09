@@ -520,8 +520,11 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
   // The bounds apply to whatever decided the width above -- a declared one,
   // shrink-to-fit, or the flex algorithm. One place, so a `max-width` cannot
-  // be honoured on a block and forgotten on a float.
-  content_width = style.ClampWidth(std::max(0.0f, content_width), available_width);
+  // be honoured on a block and forgotten on a float. Under `border-box` the
+  // bound describes padding+border+content (iron-fit's `max-height` on youtube).
+  const float width_padding_border = padding_left + padding_right + border_left + border_right;
+  content_width =
+      style.ClampWidth(std::max(0.0f, content_width), available_width, width_padding_border);
 
   // Auto margins absorb whatever the box does not use, which is how
   // `margin: 0 auto` centres a block and how <center> centres a table. A float
@@ -663,8 +666,14 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // A percentage min/max-height resolves against the containing block's
   // height, which a block in normal flow does not have -- so the container
   // passed here is the content height itself, which makes a percentage bound a
-  // no-op rather than a wrong number.
-  content_height = style.ClampHeight(content_height, content_height);
+  // no-op rather than a wrong number. `border-box` subtracts padding+border
+  // from the bound so `max-height: 896px; box-sizing: border-box` actually
+  // yields a 896px border box (youtube consent).
+  const float border_top = geometry.border.top.Resolve(style.font_size);
+  const float border_bottom = geometry.border.bottom.Resolve(style.font_size);
+  const float height_padding_border = padding_top + padding_bottom + border_top + border_bottom;
+  content_height =
+      style.ClampHeight(content_height, content_height, height_padding_border);
 
   geometry.content = gfx::FloatRect{content_left, content_top, content_width, content_height};
   cursor_y = content_top + content_height + padding_bottom +

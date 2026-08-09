@@ -218,6 +218,17 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     }
     return true;
   }
+  if (property == "box-sizing") {
+    if (value == "border-box") {
+      style.box_sizing = BoxSizing::BorderBox;
+      return true;
+    }
+    if (value == "content-box") {
+      style.box_sizing = BoxSizing::ContentBox;
+      return true;
+    }
+    return false;
+  }
 
   if (property == "aspect-ratio") {
     // `auto`, one number, or `w / h`. The `auto <ratio>` form of the spec --
