@@ -3757,5 +3757,19 @@ home feed when the server sends one.
 | `css.styles_resolved` | ~132k | **~51k** (+57k hits) |
 | invalidation mix | opaque | due_work 26, font 11, image 7, sheet 5, script 1 |
 
-**Left:** dirty-subtree box allocation; TD-0020 facade; TD-0018; home feed.
+**Left:** dirty-subtree box allocation; TD-0020 facade (`fmt.unplayable`);
+TD-0018; home feed when the server sends one.
+
+---
+
+## 2026-08-09 — TD-0020 facade: `fmt.unplayable` with working MSE
+
+**Status:** click-to-play works; facade still `isError`
+
+`-eval` on watch shows `#movie_player.playVideo` exists,
+`getPlayerStateObject().isError === true`, `getVideoData().errorCode ===
+"fmt.unplayable"`, while every adaptive mime type returns `canPlayType`
+`"probably"`. Progressive `formats` is empty. Trusted click still plays via
+`ToggleMediaPlaybackAt`. Documented on TD-0020; next is which player check
+sets that error despite the type allowlist.
 

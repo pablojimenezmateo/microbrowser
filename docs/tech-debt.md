@@ -996,6 +996,29 @@ largest remaining invalidation bucket after script/image/font/sheet are counted.
    `#movie_player` toggles the descendant `<video>` through `Page::Play`.
    HTML `muted` now seeds `MediaState` on first touch.
 
+**Update** (2026-08-09). Facade diagnosis with `-eval` on
+`/watch?v=jNQXAC9IVRw`:
+
+| observation | value |
+|---|---|
+| `#movie_player.playVideo` | present (function) |
+| `getPlayerState()` | **-1** |
+| `getPlayerStateObject().isError` | **true** |
+| `getVideoData().errorCode` | **`fmt.unplayable`** |
+| `playabilityStatus.status` | `OK` |
+| adaptive `canPlayType` / `isTypeSupported` | all `probably` / true for offered itags |
+| progressive `streamingData.formats` | **[]** (adaptive-only) |
+| click → `Page::Play` | still works (`paused=false`, `currentTime≈2`) |
+| `AudioContext` | absent (ADR 0028 §4 — deliberate; not this error code) |
+
+So the facade is not a missing binding: it is youtube's player stuck in
+`fmt.unplayable` while MSE has already buffered a playable stream. `playVideo()`
+after a trusted click still leaves `paused=true` because `isError` short-circuits
+the facade. Closing TD-0020 means finding which player-side check sets
+`fmt.unplayable` despite every adaptive mime type answering yes — likely a
+failed SABR/onesie fetch (`fetch.failed` was 2 on one watch snapshot) or an
+init exception masked by the error UI, not another `canPlayType` hole.
+
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 
 | metric | before | after |
@@ -1004,12 +1027,10 @@ largest remaining invalidation bucket after script/image/font/sheet are counted.
 | `video.currentTime` | 0 | **~2 s** |
 | `navigator.userActivation.isActive` | undefined | **true** |
 
-`getPlayer().playVideo()` may still be a no-op when the facade stays in state
-`-1`; watch click-to-play no longer depends on it.
-
-**End state.** Close fully when the facade's `playVideo()` also reaches
-`Page::Play` and the error overlay does not cover a loaded element. Until then,
-the default media click path satisfies Gate C watch.
+**End state.** Close fully when `getPlayerStateObject().isError` is false for a
+loaded watch and `#movie_player.playVideo()` reaches `HTMLMediaElement.play`
+without the `#movie_player` click bypass. Until then Gate C watch is satisfied
+by the default media click path.
 
 ---
 
