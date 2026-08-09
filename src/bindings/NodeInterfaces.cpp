@@ -408,6 +408,26 @@ void DomBindings::EnsureInterfaces() {
     interpreter_->GlobalScope()->Declare("Image", image, false);
   }
 
+  // `Audio` is the same shape as `Image`: a constructible factory for
+  // `<audio>`, and watch throws `ReferenceError: Audio is not defined` when the
+  // name is absent (TD-0020 throw census).
+  const Value audio = interpreter_->NewNativeValue("Audio", [self](js::NativeCall& call) {
+    const Value made = self->CreateElement("audio");
+    if (made.IsObject() && !call.arguments.empty()) {
+      if (dom::Node* made_node = NodeOf(made)) {
+        static_cast<dom::Element&>(*made_node).SetAttribute("src", js::ToString(call.arguments[0]));
+      }
+    }
+    return made;
+  });
+  if (audio.IsObject()) {
+    if (const Value* prototype = interfaces_.object->GetOwn("HTMLAudioElement")) {
+      audio.object->Set("prototype", *prototype);
+    }
+    interpreter_->Global()->Set("Audio", audio);
+    interpreter_->GlobalScope()->Declare("Audio", audio, false);
+  }
+
   // `HTMLUnknownElement`, which is the interface of a tag no specification
   // names. Nothing in this browser is given it: the table above is deliberately
   // short, so "not in the table" means "no interface of its own" rather than

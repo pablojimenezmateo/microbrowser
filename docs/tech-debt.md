@@ -1086,12 +1086,24 @@ partition-scoped; index `keyPath` metadata is bindings-local so a reopen without
 | `getPlayerStateObject().isError` | still **true** |
 | MSE `addSourceBuffer` / `appendBuffer` failures (prelude wrap) | **0** of 139 |
 
-So Gate C watch playback via the media click path works; the facade error is a
-caught throw inside Gal/`Dh` (`trg:"setmediasrc"`) that does not prevent MSE
-from attaching afterward. Original exception name is swallowed by the player's
-`try/catch` — use `MICROBROWSER_JS_THROWS=1` (logs every engine `MakeError`) to
-see it. Closing TD-0020 fully still means `isError === false` and
-`playVideo()` reaching `HTMLMediaElement.play` without the click bypass.
+**Update** (2026-08-09, after versionchange + btoa). Release
+`/watch?v=jNQXAC9IVRw` `-click 456,398`:
+
+| metric | value |
+|---|---|
+| `encoding.btoa` | **30** (was ReferenceError ×17) |
+| IDB upgrade `addEventListener`/`objectStore` of undefined | **gone** |
+| `Woffle: PES is undefined` | still **gone** |
+| `video` after click | **paused=false, t≈4s, buffered≈19s** |
+| `getVideoData().errorCode` | still **`fmt.unplayable`** |
+| `js.steps_exhausted` | **23** (`js.steps_peak` ≈ 20 000 022) |
+| top remaining throws (MICROBROWSER_JS_THROWS) | `info` of undefined ×23, script-too-long ×23, `B` of null ×13 |
+
+The facade error correlates with player code reading `.info` off an empty
+queue / null mediaSource (`@2341091`, `WzT`/`Ty1`) while MSE itself never
+fails an `addSourceBuffer`/`appendBuffer`. The step-budget storms (TD-0018)
+are the likely reason those queues are empty. Closing TD-0020 still means
+`isError === false` and `playVideo()` without the click bypass.
 
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 
