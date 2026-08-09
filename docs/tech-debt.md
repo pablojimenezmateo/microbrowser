@@ -1270,6 +1270,12 @@ full MSE buffer. `playVideo()` after Accept alone may still leave `paused`
 true (`state` -1) until a trusted gesture reaches the player — that is
 autoplay policy, not `fmt.unplayable`.
 
+**Update** (2026-08-09, SPA after TD-0025). Search→watch (Release, cats →
+Accept → thumb) matches cold: `movie`/`video`/`html5` true, `readyState` **4**,
+`buffered` **≈23s**, `isError:false`, `errorCode:null`, `isPlayable:true`,
+and `paused:false` after the trusted thumb click. Remaining TD-0020 surface is
+home-feed stamp (TD-0017/0018), not watch playback.
+
 ---
 
 ## TD-0022 — youtube consent dialog fits at 0×0 and never auto-refits
@@ -1416,8 +1422,8 @@ until MSE buffers — that is playback (TD-0020), not stamp.
 
 **Close when** search→watch stamps `#movie_player` / `<video>` without a cold
 document load, and media reaches a playable `readyState` (or a measured MSE
-blocker is filed separately). Stamp half: **done** 2026-08-09 (`37448fd`).
-MSE on SPA: **done** with TD-0025 (`net.h2_retried` recovers late `base.js`).
+blocker is filed separately). **Closed** 2026-08-09: stamp (`37448fd`) + SPA
+MSE via TD-0025 (`9c6747e`). See Closed.
 
 **Instrumentation.** `MICROBROWSER_LOAD_TIMELINE` kept only 512 rows and truncated
 during font cookies on youtube soft-nav — raised to 4096 so innertube/player
