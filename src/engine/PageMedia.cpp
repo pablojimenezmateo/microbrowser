@@ -90,6 +90,13 @@ bindings::MediaController::PlayResult Page::Play(dom::Element& element) {
   // sets it -- see Page::DispatchPointerDownAt. This is the line ADR 0028 §1's autoplay refusal
   // actually turns on.
   const bool activated = document_ != nullptr && document_->HasUserActivation();
+  // A `src` (including `blob:` for MSE) means resource selection has a candidate. `play()`
+  // before the first SourceBuffer must not reject with `NotSupportedError` — that rejection
+  // is not a failed selection. `ResourceSelected` leaves NO_SOURCE without `BeginLoad`.
+  if (state->NetworkState() == media::MediaState::Network::NoSource &&
+      HasSourceAttribute(element)) {
+    state->ResourceSelected();
+  }
   const media::MediaState::PlayRefusal refusal = state->Play(activated);
   FlushMediaEvents(element);
   switch (refusal) {
@@ -114,6 +121,28 @@ void Page::Pause(dom::Element& element) {
   // Stop the device even if this element had no MediaState yet -- a playing
   // session's sink must not outlive Pause (zero-idle-CPU / ADR 0028 §4).
   video_.StopOutput();
+}
+
+void Page::Load(dom::Element& element) {
+  media::MediaState* state = MediaStateFor(element);
+  if (state == nullptr) {
+    return;
+  }
+  // HTML's media element load algorithm, reduced to what this engine can honour: abort the
+  // current resource selection answer and start again from the `src` on the element. A no-op
+  // would leave stale readiness; a throw made youtube's `playVideo` → `load()` path a hard
+  // failure (TD-0020).
+  if (HasSourceAttribute(element)) {
+    state->BeginLoad();
+    FlushMediaEvents(element);
+    const std::string* src = element.GetAttribute("src");
+    if (src != nullptr && src->rfind("blob:", 0) == 0) {
+      (void)AttachMediaSource(element, *src);
+    }
+  } else {
+    state->MarkNoSource();
+    FlushMediaEvents(element);
+  }
 }
 
 void Page::Seek(dom::Element& element, double seconds) {

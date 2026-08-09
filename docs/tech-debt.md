@@ -1008,17 +1008,23 @@ largest remaining invalidation bucket after script/image/font/sheet are counted.
 | `playabilityStatus.status` | `OK` |
 | adaptive `canPlayType` / `isTypeSupported` | all `probably` / true for offered itags |
 | `response.body instanceof ReadableStream` | **true** (was false — plain object; fixed 2026-08-09) |
-| progressive `streamingData.formats` | **[]** (adaptive-only) |
+| `HTMLMediaElement.currentSrc` | **set** (was missing — empty while `src` held `blob:…`; fixed) |
+| `HTMLMediaElement.error` | **`null`** when nothing failed (was `undefined`) |
+| `SourceBuffer.prototype.changeType` | **present** (was missing; SABR feature-detects it) |
+| empty `<video>` first touch | **no `error` event** (was `FailNoSource` → `error`; fixed via `MarkNoSource`) |
+| MSE attach before first buffer | **`ResourceSelected`** leaves `NO_SOURCE` without wiping readiness |
+| `HTMLMediaElement.load()` | **resets** (was sync `NotSupportedError` throw) |
+| progressive `streamingData.formats` | **[]** (adaptive-only / SABR) |
 | click → `Page::Play` | still works (`paused=false`, `currentTime≈2`) |
 | `AudioContext` | absent (ADR 0028 §4 — deliberate; not this error code) |
 
-So the facade is not a missing binding: it is youtube's player stuck in
+So the facade is not a single missing binding: it is youtube's player stuck in
 `fmt.unplayable` while MSE has already buffered a playable stream. `playVideo()`
-after a trusted click still leaves `paused=true` because `isError` short-circuits
-the facade. Closing TD-0020 means finding which player-side check sets
-`fmt.unplayable` despite every adaptive mime type answering yes — likely a
-failed SABR/onesie fetch (`fetch.failed` was 2 on one watch snapshot) or an
-init exception masked by the error UI, not another `canPlayType` hole.
+after a trusted click still leaves the facade in error even when the element is
+playing via the click bypass. Closing TD-0020 means finding which player-side
+check still sets `fmt.unplayable` — player `base.js` maps MediaError code 4 and
+SABR slicer exceptions (`trg:"sabrslicerqt"`) to that code; early `play()` without
+activation is `NotAllowedError` (handled as autoplay-blocked, not this code).
 
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 

@@ -143,6 +143,20 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
            "error is null when nothing has failed -- not undefined");
   });
 
+  AddTest(tests, "MediaElement/LoadResetsWithoutThrowing", [] {
+    // youtube's media wrapper calls `load()` from `playVideo` when it thinks src is missing.
+    // Throwing NotSupportedError there is a player-visible failure; resetting is the API.
+    ScriptedPage page(
+        "<body><video id=v src='movie.mp4'></video><script>"
+        "const v = document.getElementById('v');"
+        "try { v.load(); console.log('load:ok ns:' + v.networkState); }"
+        "catch (e) { console.log('load:throw:' + e.name); }"
+        "</script></body>");
+    const std::string console = page.Console();
+    Expect(console.find("load:ok") != std::string::npos, "load() does not throw");
+    Expect(console.find("load:throw") == std::string::npos, "and no exception name");
+  });
+
   AddTest(tests, "MediaElement/ThePlayMethodIsAbsentOnAnythingThatIsNotMedia", [] {
     // `document.body.play` must not exist. A media API on every element would make a typo look
     // like a player that does nothing. `canPlayType` shares the MediaSource allowlist --
@@ -222,6 +236,19 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
     ExpectEqString(Events(state), "error", "only a real selection failure errors");
     state.BeginLoad();
     ExpectEqString(Events(state), "loadstart", "and BeginLoad clears the prior error");
+  });
+
+  AddTest(tests, "MediaState/SelectingAResourceLeavesNoSourceSoPlayIsNotUnsupported", [] {
+    // MSE: `src = createObjectURL(mediaSource)` before any SourceBuffer. Still no bytes, but
+    // resource selection succeeded — play() must wait/start, not reject NotSupportedError
+    // (youtube's fmt.unplayable, TD-0020).
+    MediaState state;
+    state.MarkNoSource();
+    state.ResourceSelected();
+    Expect(state.NetworkState() == MediaState::Network::Empty, "no longer NO_SOURCE");
+    Expect(state.Play(true) == MediaState::PlayRefusal::None, "play is allowed");
+    Expect(state.Paused() == false, "and it is no longer paused");
+    ExpectEqString(Events(state), "play,waiting", "waiting for the first buffer");
   });
 
   AddTest(tests, "MediaState/AutoplayIsRefusedUnlessMutedOrActivated", [] {

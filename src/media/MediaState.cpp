@@ -75,6 +75,14 @@ void MediaState::MarkNoSource() {
   ready_ = Ready::Nothing;
 }
 
+void MediaState::ResourceSelected() {
+  // NETWORK_EMPTY rather than LOADING: `BeginLoad` (and `loadstart`) still wait for the
+  // first SourceBuffer so a speculative MediaSource swap does not reset a live ladder.
+  if (network_ == Network::NoSource) {
+    network_ = Network::Empty;
+  }
+}
+
 void MediaState::FailNoSource() {
   // Not Loading, and that is the point: a page polling `networkState` for a stalled load has to
   // be able to tell "there is nothing to load" from "loading slowly".

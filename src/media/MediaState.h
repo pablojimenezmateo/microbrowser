@@ -60,6 +60,12 @@ class MediaState {
   // youtube's player stick on `fmt.unplayable` while MSE later buffered a playable stream
   // (TD-0020).
   void MarkNoSource();
+  // A resource URL was selected (e.g. `video.src = URL.createObjectURL(mediaSource)`) but
+  // the load has not begun. Leaves `NoSource` without `BeginLoad`: a speculative MSE attach
+  // must not wipe a working readiness ladder, yet `play()` must not see `NotSupportedError`
+  // either — that rejection is what youtube records as `fmt.unplayable` before the first
+  // `addSourceBuffer` (TD-0020).
+  void ResourceSelected();
   // Resource selection ran and every candidate failed. `NoSource` plus `error`, and **not**
   // Loading: a page that polls `networkState` for a stalled load must be able to tell
   // "nothing to load" from "loading slowly".

@@ -49,8 +49,15 @@ bool Page::AttachMediaSource(dom::Element& element, const std::string& url) {
   // it has any SourceBuffers; wiping `readyState` on that speculative attach made every successful
   // SABR session look empty the moment the player allocated the next source. The load starts when
   // the first `addSourceBuffer` commits the new source (see `AddSourceBuffer`).
+  //
+  // Leaving `NETWORK_NO_SOURCE` after a successful attach is wrong for a different reason: youtube
+  // calls `play()` before the first buffer, and `NotSupportedError` from that transient state is
+  // recorded as `fmt.unplayable` even though MSE later buffers the whole video (TD-0020).
   media_.AttachSource(element, id);
   source->Attach();
+  if (media::MediaState* state = MediaStateFor(element)) {
+    state->ResourceSelected();
+  }
   return true;
 }
 

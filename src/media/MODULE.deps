@@ -36,7 +36,7 @@ budget: AudioSink       header_lines=60  public_methods=11 members=0
 # ADR 0028 §1's two state machines, as state and nothing else -- no samples, no element, no
 # network. That is what lets the transitions be driven and asserted without a decoder, which
 # is the only way to know they are the specification's rather than an approximation.
-budget: MediaState      header_lines=120 public_methods=25 members=12
+budget: MediaState      header_lines=130 public_methods=26 members=12
 # ADR 0028 §2's playlist parser. Structs rather than a class because a playlist *is* data -- the
 # parse is one function and nothing here has state to protect.
 budget: HlsPlaylist     header_lines=45 public_methods=2 members=6

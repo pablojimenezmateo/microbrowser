@@ -85,11 +85,8 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
         return Value::Undefined();
       }
       if (what == "load") {
-        // `load()` re-runs the resource selection algorithm. Absent behaviour rather than a
-        // no-op that returns: a page calling it expects the element to reset, and pretending
-        // would leave it with stale state. Recorded in the ledger; refused here so it is
-        // visible.
-        return call.Throw("NotSupportedError", "load() is not implemented");
+        owner->media_->Load(element);
+        return Value::Undefined();
       }
       // `canPlayType`. Same allowlist `MediaSource.isTypeSupported` uses
       // (AddSourceBuffer with a zero source id), because two answers to "can we

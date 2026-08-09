@@ -472,6 +472,7 @@ class Page : private layout::ImageProvider,
   // than private inheritance would let anything holding a Page drive playback.
   PlayResult Play(dom::Element& element) override;
   void Pause(dom::Element& element) override;
+  void Load(dom::Element& element) override;
   void Seek(dom::Element& element, double seconds) override;
   void SetMuted(dom::Element& element, bool muted) override;
   void SetVolume(dom::Element& element, double volume) override;

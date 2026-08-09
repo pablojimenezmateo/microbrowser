@@ -35,6 +35,10 @@ class MediaController {
 
   virtual PlayResult Play(dom::Element& element) = 0;
   virtual void Pause(dom::Element& element) = 0;
+  // `load()` — abort the current resource and re-run selection. A throw here is worse than
+  // absence: youtube's wrapper calls `load()` from `playVideo` when it thinks `src` is empty,
+  // and a sync `NotSupportedError` becomes a player-level failure (TD-0020).
+  virtual void Load(dom::Element& element) = 0;
   // A seek. The position moves immediately -- which is what the API promises and what a scrubber
   // depends on -- and the readiness drop that follows is the state machine's business.
   virtual void Seek(dom::Element& element, double seconds) = 0;
