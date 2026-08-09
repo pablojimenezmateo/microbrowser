@@ -375,6 +375,10 @@ bool IsYoutubeWatch(std::string_view url) {
          url.find("youtu.be/") != std::string_view::npos;
 }
 
+bool IsYoutubeResults(std::string_view url) {
+  return url.find("youtube.com/results") != std::string_view::npos;
+}
+
 // SPA search→watch marks `load` finished long before `#movie_player` / `<video>`
 // stamp (player modules + Polymer). The generic 2s post-load drain then exits
 // with ytd-player chrome only. Cold `/watch` stays in IsLoading long enough;
@@ -386,6 +390,22 @@ bool YoutubeWatchLooksReady(microbrowser::engine::Engine& engine) {
   const std::string answer = engine.EvaluateScript(
       "!!(document.querySelector('video') || document.querySelector('#movie_player'))");
   return answer == "true";
+}
+
+// Consent Accept on /results can tear down and restamp the result list. The
+// generic 2s drain then leaves zero `a#thumbnail`, and `-click last` reuses the
+// Accept button's coordinates (TD-0024 diagnostics).
+bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
+  if (!IsYoutubeResults(engine.Url())) {
+    return true;
+  }
+  const std::string answer = engine.EvaluateScript(
+      "document.querySelectorAll('a#thumbnail').length + "
+      "document.querySelectorAll('ytd-video-renderer').length");
+  if (const auto n = ParseLeadingInt(answer)) {
+    return *n > 0;
+  }
+  return false;
 }
 
 void DrainOutgoingPaints(microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
@@ -571,17 +591,25 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
   // the same fifteen-minute wall clock as the load loop rather than twenty
   // seconds (TD-0016 / Gate B). youtube `/watch` (including SPA search→watch)
   // needs the player modules to stamp `<video>` — far longer than the generic
-  // two-second drain, which left ytd-player empty after soft nav. Everyone
-  // else gets a short post-load drain: perpetual rAF + Element.animate on a
-  // settled page must not LayoutAndPaint-spin past -click/-eval (TD-0021).
+  // two-second drain, which left ytd-player empty after soft nav. youtube
+  // `/results` after consent Accept needs a medium drain so the result list can
+  // restamp before `-click last` (otherwise Accept's coordinates are reused).
+  // Everyone else gets a short post-load drain: perpetual rAF + Element.animate
+  // on a settled page must not LayoutAndPaint-spin past -click/-eval (TD-0021).
   const auto drain_deadline = settle_deadline;
   const bool reddit_feed_drain =
       IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url());
   const bool youtube_watch_drain = IsYoutubeWatch(engine.Url());
+  const bool youtube_results_drain = IsYoutubeResults(engine.Url());
+  // Watch: Polymer + player modules often stamp well after `load` on soft nav
+  // (TD-0024). Results: consent Accept reloads and restamps the list; too short
+  // a drain leaves zero thumbs and `-click last` has nothing valid to hit.
   const auto post_load_deadline =
       reddit_feed_drain ? drain_deadline
       : youtube_watch_drain
             ? std::chrono::steady_clock::now() + std::chrono::seconds(90)
+      : youtube_results_drain
+            ? std::chrono::steady_clock::now() + std::chrono::seconds(45)
             : std::chrono::steady_clock::now() + std::chrono::seconds(2);
   const auto yield_after_due = [&]() {
     // Reddit's host-task stamp (TD-0018) must keep turning with deadline 0.
@@ -617,6 +645,9 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (youtube_watch_drain && YoutubeWatchLooksReady(engine)) {
       break;
     }
+    if (youtube_results_drain && YoutubeResultsLooksReady(engine)) {
+      break;
+    }
     if (engine.RunDueWork()) {
       DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       yield_after_due();
@@ -626,10 +657,10 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
         RedditFeedLooksReady(engine, latest.painted ? latest.display_list.Size() : 0)) {
       break;
     }
-    // Soft-nav watch often has no NextDeadlineMs while player fetches are still
-    // in flight — keep waiting on sockets rather than treating "no timer" as
-    // settled chrome.
-    if (youtube_watch_drain) {
+    // Soft-nav watch / post-Accept results often have no NextDeadlineMs while
+    // fetches are still in flight — keep waiting on sockets rather than
+    // treating "no timer" as settled chrome.
+    if (youtube_watch_drain || youtube_results_drain) {
       microbrowser::util::WaitDescriptorList descriptors;
       engine.AppendWaitDescriptors(descriptors);
       if (!descriptors.empty() || engine.HasRunnableWork() || engine.IsLoading()) {
@@ -749,6 +780,7 @@ int main(int argc, char** argv) {
   RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   int last_eval_x = -1;
   int last_eval_y = -1;
+  bool last_eval_has_click = false;
   const auto deliver_click = [&](int x, int y) {
     for (const auto kind : {microbrowser::ipc::PointerInputMessage::Kind::Down,
                             microbrowser::ipc::PointerInputMessage::Kind::Up}) {
@@ -763,6 +795,14 @@ int main(int argc, char** argv) {
     RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
   };
   const auto remember_click_point = [&](const std::string& answer) {
+    // A throw or a probe without coordinates must not leave the previous
+    // Accept button's x,y for `-click last` (youtube consent → search thumb).
+    last_eval_has_click = false;
+    last_eval_x = -1;
+    last_eval_y = -1;
+    if (answer.rfind("throw", 0) == 0) {
+      return;
+    }
     // Prefer a JSON object with numeric x/y (the consent-button shape). Also
     // accept `"click":"x,y"` so a probe can return scroll diagnostics and a
     // point in one object. Fall back to a bare "x,y".
@@ -780,6 +820,11 @@ int main(int argc, char** argv) {
       }
       return end == 0 ? std::nullopt : ParseInt(raw.substr(0, end));
     };
+    const auto mark_if_ready = [&]() {
+      if (last_eval_x >= 0 && last_eval_y >= 0) {
+        last_eval_has_click = true;
+      }
+    };
     const std::size_t click_key = answer.find("\"click\"");
     if (click_key != std::string::npos) {
       const std::size_t colon = answer.find(':', click_key);
@@ -796,7 +841,8 @@ int main(int argc, char** argv) {
           if (const auto y = leading_int(rest.substr(comma + 1))) {
             last_eval_y = *y;
           }
-          if (last_eval_x >= 0 && last_eval_y >= 0) {
+          mark_if_ready();
+          if (last_eval_has_click) {
             return;
           }
         }
@@ -814,6 +860,7 @@ int main(int argc, char** argv) {
         if (const auto y = leading_int(std::string_view{answer}.substr(y_colon + 1))) {
           last_eval_y = *y;
         }
+        mark_if_ready();
         return;
       }
     }
@@ -825,6 +872,7 @@ int main(int argc, char** argv) {
       if (const auto y = leading_int(std::string_view{answer}.substr(comma + 1))) {
         last_eval_y = *y;
       }
+      mark_if_ready();
     }
   };
   for (const Options::Step& step : options.steps) {
@@ -843,11 +891,12 @@ int main(int argc, char** argv) {
         deliver_click(step.x, step.y);
         break;
       case Options::StepKind::ClickLastEval:
-        if (last_eval_x < 0 || last_eval_y < 0) {
-          std::fputs("-click last needs a prior -eval that returned x,y\n", stderr);
+        if (!last_eval_has_click || last_eval_x < 0 || last_eval_y < 0) {
+          std::fputs("-click last needs the immediately prior -eval to return x,y\n", stderr);
           return 2;
         }
         deliver_click(last_eval_x, last_eval_y);
+        last_eval_has_click = false;
         break;
       case Options::StepKind::Key: {
         microbrowser::ipc::KeyInputMessage key = step.key;
@@ -874,6 +923,9 @@ int main(int argc, char** argv) {
       case Options::StepKind::Eval: {
         const std::string answer = engine.EvaluateScript(step.text);
         std::printf("eval: %s\n", answer.c_str());
+        // Line-buffer so a hung settle / timeout still leaves the last probe
+        // on disk (youtube Accept → thumb diagnostics).
+        std::fflush(stdout);
         remember_click_point(answer);
         RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
         break;

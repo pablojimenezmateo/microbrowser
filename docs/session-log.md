@@ -4003,4 +4003,23 @@ have broken Lit's `U3D` for proxied plain objects.
 
 **Left:** innertube/player application on soft nav; home nudge; `Intl` / `eval`.
 
+---
+
+## 2026-08-09 — snapshot settles youtube `/results` and tightens `-click last`
+
+**Status:** post-Accept restamp and click hygiene for search→watch harness
+
+Consent Accept on `/results` reloads and can briefly leave zero thumbnails; the
+generic 2s drain then let `-click last` reuse Accept's coordinates. Results URLs
+now settle up to 45s (or until `a#thumbnail` / `ytd-video-renderer` exist) with
+socket waits like watch. Watch settle restored to 90s. `-click last` requires
+the immediately prior `-eval` to return x,y (throws and non-coordinate probes
+clear the point). Eval stdout is fflush'd so a hung settle still leaves the
+last probe on disk.
+
+**Check:** after Accept, thumbs/vr > 0 before a thumb click; `-click last` after
+`noThumb` exits 2 instead of clicking Accept again.
+
+**Left:** TD-0024 soft-nav player data; home nudge; `Intl` / `eval`.
+
 
