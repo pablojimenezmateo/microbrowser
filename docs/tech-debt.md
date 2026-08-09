@@ -1040,8 +1040,8 @@ while UA still made them `inline-block`; (2) children of replaced hosts
 Box generation does not change — only metrics — so an existing tree now clears
 intrinsic widths and forces `laid_out_width = -1`
 (`engine.box_tree_font_reflow_only`). Cold path (no boxes yet) still drops the
-tree (`engine.box_tree_invalidated_by_font`). Watch after Accept previously paid
-**22** full rebuilds for faces alone.
+tree (`engine.box_tree_invalidated_by_font`). Release `/watch` after Accept:
+**21** `font_reflow_only`, **1** full font invalidation (was **22** full).
 
 **Update** (2026-08-09). **`opacity` as a paint property landed**: cascade +
 `getComputedStyle`, skip the whole subtree at 0, multiply command alphas for
