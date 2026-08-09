@@ -78,46 +78,22 @@ class LayoutEngine {
  private:
   std::unique_ptr<Box> BuildFor(const dom::Node& node, const css::ComputedStyle& parent_style,
                                 std::uint64_t parent_style_id, bool& produced_inline) const;
-  // `floats` is the formatting context this box participates in. A box that
-  // establishes its own -- the root, and every float -- passes a fresh one to
-  // its children, which is what keeps a float inside a sidebar from shortening
-  // the lines of the article next to it.
-  // `center_in_container` is the <center> rule: the containing block centres
-  // its block-level children outright, whatever their margins say. It centres
-  // this box's lines too, but that part is ordinary `text-align: center` and
-  // inherits with it; *this* half is a property of the container, which is why
-  // it is a parameter and why css::ComputedStyle::centers_block_children is
-  // deliberately not inherited. Inheriting it would make every block inside a
-  // <center>, however deep, re-centre itself against a container it already
-  // fits exactly -- and a nested block that fits exactly must not move.
+  // `floats`: BFC this box is in (fresh for root/float). `center_in_container`:
+  // <center> centres block children and is deliberately not inherited.
   void LayoutBlock(Box& box, float container_left, float available_width, float& cursor_y,
                    FloatContext& floats, bool center_in_container = false,
                    const ForcedSize* forced = nullptr) const;
-  // Lays out a flex container's children and returns the content height they
-  // occupy. In its own translation unit: the algorithm is long, and it is the
-  // only place in layout where children are sized against each other rather
-  // than each against the container.
-  //
-  // `definite_main_height` is the column container's definite content height
-  // when it has one (a stated height, a forced size, or a max-height that bound
-  // an auto-height pass). Row containers ignore it: their main size is
-  // `content_width`. Without it a column never grows or shrinks — there is no
-  // free space to speak of — which is how youtube's consent dialog kept
-  // `#content` at its intrinsic ~1490px inside an 896px `max-height` box.
-  //
-  // `definite_cross_size` is the row container's definite content height (the
-  // cross axis). Without it, a ForcedSize / stated height only overwrote the
-  // container box after children were measured — `align-items: stretch` never
-  // saw a line taller than content, and youtube's `ytd-browse` at 844px left
-  // `#dismissible { min-height:0 }` at 0 with overflow:hidden (TD-0028).
+  // Flex entry: resolves definite main/cross size and column max-height
+  // re-layout, then LayoutFlexChildren. Both live in FlexLayout.cpp.
+  float LayoutFlexContainer(Box& box, float content_left, float content_width, float content_top,
+                            float padding_top, float padding_bottom,
+                            const ForcedSize* forced) const;
   float LayoutFlexChildren(Box& box, float content_left, float content_width,
                            float start_y,
                            std::optional<float> definite_main_height = std::nullopt,
                            std::optional<float> definite_cross_size = std::nullopt) const;
-  // Positioning, in its own translation unit. Two passes and not one: an
-  // absolutely positioned box is sized against the padding box of the nearest
-  // positioned ancestor, and that ancestor's height is not known until its
-  // in-flow children have been laid out.
+  // Relative then absolute; two passes because abspos needs the CB's final size
+  // (PositionedLayout.cpp).
   void ApplyRelativeOffset(Box& box) const;
   void LayoutAbsoluteDescendants(Box& container, const gfx::FloatRect& containing_block) const;
   void LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_block) const;

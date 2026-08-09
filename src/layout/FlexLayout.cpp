@@ -153,6 +153,52 @@ float AlignOffset(css::Alignment alignment, float line_cross, float item_cross) 
 
 }  // namespace
 
+// Resolves the definite sizes LayoutFlexChildren needs, then runs it.
+//
+// Column flex needs a definite main size to grow or shrink. A stated or forced
+// height is one; a binding `max-height` on an auto-height column is the other —
+// discovered only after a content-sized first pass (youtube consent:
+// `max-height: 896px` with no height, `#content` at ~1490px). Row flex needs
+// the same number as a *cross* size so stretch fills it (TD-0028 / ytd-browse).
+float LayoutEngine::LayoutFlexContainer(Box& box, float content_left, float content_width,
+                                        float content_top, float padding_top,
+                                        float padding_bottom, const ForcedSize* forced) const {
+  const css::ComputedStyle& style = box.Style();
+  const BoxGeometry& geometry = box.Geometry();
+  const float border_top = geometry.border.top.Resolve(style.font_size);
+  const float border_bottom = geometry.border.bottom.Resolve(style.font_size);
+  const float height_padding_border =
+      padding_top + padding_bottom + border_top + border_bottom;
+  std::optional<float> definite_main;
+  std::optional<float> definite_cross;
+  if (forced != nullptr && forced->content_height.has_value()) {
+    definite_main = *forced->content_height;
+    definite_cross = *forced->content_height;
+  } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
+    const float stated = style.height.Resolve(style.font_size);
+    const float clamped = style.ClampHeight(stated, stated, height_padding_border);
+    definite_main = clamped;
+    definite_cross = clamped;
+  }
+  const bool column = style.flex.direction == css::FlexDirection::Column ||
+                      style.flex.direction == css::FlexDirection::ColumnReverse;
+  float content_height = LayoutFlexChildren(box, content_left, content_width, content_top,
+                                            column ? definite_main : std::nullopt,
+                                            column ? std::nullopt : definite_cross);
+  if (column && !definite_main.has_value() && !style.max_height.IsAuto() &&
+      !style.max_height.IsPercent()) {
+    const float clamped =
+        style.ClampHeight(content_height, content_height, height_padding_border);
+    if (clamped < content_height) {
+      util::AddPerformanceCounter(util::PerfCounterId::LayoutFlexColumnMaxHeightRelayouts);
+      content_height =
+          LayoutFlexChildren(box, content_left, content_width, content_top, clamped,
+                             std::nullopt);
+    }
+  }
+  return content_height;
+}
+
 float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float content_width,
                                        float start_y,
                                        std::optional<float> definite_main_height,

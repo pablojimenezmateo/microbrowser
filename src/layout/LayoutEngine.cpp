@@ -437,6 +437,19 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
   AddPerformanceCounter(PerfCounterId::LayoutMeasureCacheHits);
 }
 
+// `floats` is the formatting context this box participates in. A box that
+// establishes its own -- the root, and every float -- passes a fresh one to
+// its children, which is what keeps a float inside a sidebar from shortening
+// the lines of the article next to it.
+//
+// `center_in_container` is the <center> rule: the containing block centres its
+// block-level children outright, whatever their margins say. It centres this
+// box's lines too, but that part is ordinary `text-align: center` and inherits
+// with it; *this* half is a property of the container, which is why it is a
+// parameter and why css::ComputedStyle::centers_block_children is deliberately
+// not inherited. Inheriting it would make every block inside a <center>,
+// however deep, re-centre itself against a container it already fits exactly
+// -- and a nested block that fits exactly must not move.
 void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_width,
                                float& cursor_y, FloatContext& floats,
                                bool center_in_container, const ForcedSize* forced) const {
@@ -593,44 +606,8 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
 
   if (style.IsFlexContainer()) {
-    // Column flex needs a definite main size to grow or shrink. A stated or
-    // forced height is one; a binding `max-height` on an auto-height column is
-    // the other — discovered only after a content-sized first pass (youtube
-    // consent: `max-height: 896px` with no height, `#content` at ~1490px).
-    // Row flex needs the same number as a *cross* size so stretch fills it
-    // (TD-0028 / ytd-browse).
-    const float border_top_for_flex = geometry.border.top.Resolve(style.font_size);
-    const float border_bottom_for_flex = geometry.border.bottom.Resolve(style.font_size);
-    const float height_padding_border_for_flex =
-        padding_top + padding_bottom + border_top_for_flex + border_bottom_for_flex;
-    std::optional<float> definite_main;
-    std::optional<float> definite_cross;
-    if (forced != nullptr && forced->content_height.has_value()) {
-      definite_main = *forced->content_height;
-      definite_cross = *forced->content_height;
-    } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
-      const float stated = style.height.Resolve(style.font_size);
-      const float clamped =
-          style.ClampHeight(stated, stated, height_padding_border_for_flex);
-      definite_main = clamped;
-      definite_cross = clamped;
-    }
-    const bool column = style.flex.direction == css::FlexDirection::Column ||
-                        style.flex.direction == css::FlexDirection::ColumnReverse;
-    content_height = LayoutFlexChildren(box, content_left, content_width, content_top,
-                                        column ? definite_main : std::nullopt,
-                                        column ? std::nullopt : definite_cross);
-    if (column && !definite_main.has_value() && !style.max_height.IsAuto() &&
-        !style.max_height.IsPercent()) {
-      const float clamped =
-          style.ClampHeight(content_height, content_height, height_padding_border_for_flex);
-      if (clamped < content_height) {
-        AddPerformanceCounter(PerfCounterId::LayoutFlexColumnMaxHeightRelayouts);
-        content_height =
-            LayoutFlexChildren(box, content_left, content_width, content_top, clamped,
-                               std::nullopt);
-      }
-    }
+    content_height = LayoutFlexContainer(box, content_left, content_width, content_top,
+                                         padding_top, padding_bottom, forced);
   } else if (style.display == css::Display::Table) {
     content_height =
         LayoutTableChildren(box, content_left, content_width, content_top, table_columns);
