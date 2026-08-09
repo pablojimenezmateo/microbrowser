@@ -788,6 +788,64 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "focused element is the input, not #bg");
   });
 
+  AddTest(tests, "Page/PositiveZIndexBeatsLaterAutoSibling", [] {
+    // youtube consent: dialog is position:fixed;z-index:2202 under ytd-app
+    // (abspos, z-index:auto), while iron-overlay-backdrop is a later body
+    // sibling with position:fixed;z-index:auto covering the viewport. Paint
+    // already orders by layer; hit-testing must match or Accept focuses the
+    // backdrop/dialog shell instead of the button.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "body{margin:0}"
+              "#app{position:absolute;inset:0}"
+              "#dialog{position:fixed;left:50px;top:50px;width:200px;height:100px;"
+              "z-index:2202}"
+              "button{width:100%;height:100%}"
+              "#backdrop{position:fixed;inset:0;z-index:auto}"
+              "</style>"
+              "<body>"
+              "<div id=app><div id=dialog><button id=accept>Accept</button></div></div>"
+              "<div id=backdrop></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.FocusFromClickAt(gfx::FloatPoint{100.0f, 80.0f}), "click focuses Accept");
+    const dom::Element* focused = page.FocusedElement();
+    Expect(focused != nullptr && focused->GetAttribute("id") != nullptr &&
+               *focused->GetAttribute("id") == "accept",
+           "focused element is #accept, not #backdrop");
+  });
+
+  AddTest(tests, "Page/HitTestsRelativeInsideOverflowScroller", [] {
+    // youtube Accept: position:relative button under #content { overflow:auto }.
+    // Appendix E collects the button into the dialog stacking context; the hit
+    // point must still include #content's scrollTop or the static parent wins.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "body{margin:0}"
+              "#dialog{position:fixed;left:0;top:0;width:200px;height:100px;z-index:2}"
+              "#content{height:100px;overflow:auto}"
+              "#spacer{height:200px}"
+              "button{position:relative;display:block;width:100px;height:40px}"
+              "</style>"
+              "<body>"
+              "<div id=dialog><div id=content><div id=spacer></div>"
+              "<button id=accept>Accept</button></div></div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    page.RunScripts(0);
+    const std::string hit = page.EvaluateScript(
+        "var c=document.getElementById('content');"
+        "c.scrollTop=1e9;"
+        "var r=document.getElementById('accept').getBoundingClientRect();"
+        "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
+        "el && el.id;");
+    ExpectEqString(hit, "accept", "scrolled relative button is hit, not the overflow parent");
+  });
+
   AddTest(tests, "Page/ClickOnVideoTogglesPlayback", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);

@@ -1,19 +1,33 @@
 #include "engine/Page.h"
 
+#include <algorithm>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "html/FormControl.h"
 #include "layout/LayoutEngine.h"
+#include "layout/Stacking.h"
+#include "util/PerformanceCounters.h"
 
 // Hit testing for the page: links, form controls, and the deepest element under
 // a point. Lives here rather than in Page.cpp because that file is at the
 // module's line cap, and because `visibility: hidden` (youtube's closed guide
 // drawer) belongs next to the walk that has to honour it — ADR 0017 §5.
+//
+// Paint order is CSS 2.1 Appendix E (`layout/Stacking.h` + BuildDisplayList).
+// Hit-testing walks that order in reverse. A three-band sibling walk is not
+// enough: youtube's consent dialog is `z-index:2202` under `ytd-app`, while
+// `tp-yt-iron-overlay-backdrop` is a later `body` sibling with `z-index:auto`.
+// Only collecting units into the root stacking context puts the dialog above
+// the backdrop the way paint already does.
 
 namespace microbrowser::engine {
 
 namespace {
+
+using util::AddPerformanceCounter;
+using util::PerfCounterId;
 
 bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
   return point.x >= rect.x && point.x < rect.Right() && point.y >= rect.y &&
@@ -24,28 +38,6 @@ bool ReceivesPointerEvents(const layout::Box& box) {
   const css::ComputedStyle& style = box.Style();
   return style.visibility == css::Visibility::Visible &&
          style.pointer_events != css::PointerEvents::None;
-}
-
-// Where a child paints relative to in-flow siblings (CSS 2.1 Appendix E).
-// Hit-testing walks reverse paint order, so this decides who wins a click.
-//
-// Absolute boxes with `z-index: auto` / non-negative paint above in-flow content;
-// `z-index: -1` (youtube's `#background.ytd-masthead`) paints below and must not
-// steal the search field.
-enum class HitBand : std::uint8_t { BelowInFlow, InFlow, AboveInFlow };
-
-HitBand BandOf(const layout::Box& box) {
-  if (box.IsFloating()) {
-    return HitBand::AboveInFlow;
-  }
-  if (!box.IsAbsolutelyPositioned()) {
-    return HitBand::InFlow;
-  }
-  const std::optional<int>& z = box.Style().z_index;
-  if (z.has_value() && *z < 0) {
-    return HitBand::BelowInFlow;
-  }
-  return HitBand::AboveInFlow;
 }
 
 std::optional<gfx::FloatPoint> UntransformedPoint(const layout::Box& box,
@@ -98,53 +90,132 @@ const std::string* AnchorHref(const dom::Element* element) {
   return href != nullptr && !href->empty() ? href : nullptr;
 }
 
+struct PaintUnit {
+  const layout::Box* box = nullptr;
+  int layer = 0;
+  std::size_t order = 0;
+  // Scroll offsets of overflow ancestors between the collecting stacking context
+  // and this unit. Layout BorderBoxes stay in unscrolled coordinates; jumping
+  // to a collected unit (youtube Accept: position:relative button under
+  // #content { overflow:auto }) must add these or the button never contains
+  // the viewport point and the static yt-button-shape parent steals the hit.
+  gfx::FloatPoint scroll_delta{};
+};
+
+std::vector<PaintUnit> CollectPaintUnits(const layout::Box& parent) {
+  std::vector<PaintUnit> units;
+  const auto recurse = [&units](const layout::Box& box, gfx::FloatPoint scroll_from_sc,
+                                auto& self) -> void {
+    for (const std::unique_ptr<layout::Box>& child : box.Children()) {
+      const bool unit = layout::PaintsAsUnit(*child);
+      if (unit) {
+        units.push_back(
+            PaintUnit{child.get(), layout::PaintLayer(*child), units.size(), scroll_from_sc});
+      }
+      if (!unit || !layout::IsStackingContext(*child)) {
+        gfx::FloatPoint into = scroll_from_sc;
+        if (child->IsScrollContainer()) {
+          into.x += child->ScrollOffset().x;
+          into.y += child->ScrollOffset().y;
+        }
+        self(*child, into, self);
+      }
+    }
+  };
+  recurse(parent, gfx::FloatPoint{}, recurse);
+  std::stable_sort(units.begin(), units.end(), [](const PaintUnit& a, const PaintUnit& b) {
+    return a.layer != b.layer ? a.layer < b.layer : a.order < b.order;
+  });
+  return units;
+}
+
+// Reverse of BuildDisplayList's Appendix E steps for one stacking context:
+// positive layers (high→low), layer 0 (late tree→early), in-flow non-units,
+// then negative layers (high→low).
+template <typename VisitUnit, typename VisitInFlow>
+bool VisitReversePaintChildren(const layout::Box& box, gfx::FloatPoint point, bool collects,
+                               VisitUnit&& visit_unit, VisitInFlow&& visit_in_flow) {
+  const gfx::FloatPoint scrolled = ScrollAdjust(box, point);
+  std::vector<PaintUnit> units;
+  if (collects) {
+    units = CollectPaintUnits(box);
+    for (std::size_t i = units.size(); i-- > 0;) {
+      if (units[i].layer <= 0) {
+        continue;
+      }
+      const gfx::FloatPoint at{scrolled.x + units[i].scroll_delta.x,
+                               scrolled.y + units[i].scroll_delta.y};
+      if (visit_unit(*units[i].box, at, layout::IsStackingContext(*units[i].box))) {
+        return true;
+      }
+    }
+    for (std::size_t i = units.size(); i-- > 0;) {
+      if (units[i].layer != 0) {
+        continue;
+      }
+      const gfx::FloatPoint at{scrolled.x + units[i].scroll_delta.x,
+                               scrolled.y + units[i].scroll_delta.y};
+      if (visit_unit(*units[i].box, at, layout::IsStackingContext(*units[i].box))) {
+        return true;
+      }
+    }
+  }
+  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
+    const auto& children = box.Children();
+    // Appendix E paints in-flow blocks, then floats, then inlines. Reverse for
+    // hit-testing: floats before overlapping in-flow blocks (old.reddit `.side`).
+    for (std::size_t i = children.size(); i-- > 0;) {
+      if (!layout::PaintsAsUnit(*children[i]) && children[i]->IsFloating() &&
+          visit_in_flow(*children[i], *inside)) {
+        return true;
+      }
+    }
+    for (std::size_t i = children.size(); i-- > 0;) {
+      if (!layout::PaintsAsUnit(*children[i]) && !children[i]->IsFloating() &&
+          visit_in_flow(*children[i], *inside)) {
+        return true;
+      }
+    }
+  }
+  if (collects) {
+    for (std::size_t i = units.size(); i-- > 0;) {
+      if (units[i].layer >= 0) {
+        continue;
+      }
+      const gfx::FloatPoint at{scrolled.x + units[i].scroll_delta.x,
+                               scrolled.y + units[i].scroll_delta.y};
+      if (visit_unit(*units[i].box, at, layout::IsStackingContext(*units[i].box))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 using ElementPredicate = bool (*)(const dom::Element&);
 
 dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
-                                 ElementPredicate predicate) {
+                                 ElementPredicate predicate, bool collects) {
   const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
   if (!local.has_value()) {
     return nullptr;
   }
   point = *local;
-  const gfx::FloatPoint scrolled = ScrollAdjust(box, point);
-  // Reverse paint order: above in-flow, then in-flow, then below (negative z).
-  {
-    dom::Element* hit = nullptr;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::AboveInFlow) {
-        hit = HitTestFormControl(*children[i], scrolled, predicate);
-        if (hit != nullptr) {
-          return hit;
-        }
-      }
-    }
+
+  dom::Element* found = nullptr;
+  if (VisitReversePaintChildren(
+          box, point, collects,
+          [&](const layout::Box& child, gfx::FloatPoint p, bool child_collects) {
+            found = HitTestFormControl(child, p, predicate, child_collects);
+            return found != nullptr;
+          },
+          [&](const layout::Box& child, gfx::FloatPoint p) {
+            found = HitTestFormControl(child, p, predicate, false);
+            return found != nullptr;
+          })) {
+    return found;
   }
-  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    dom::Element* hit = nullptr;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::InFlow) {
-        hit = HitTestFormControl(*children[i], *inside, predicate);
-        if (hit != nullptr) {
-          return hit;
-        }
-      }
-    }
-  }
-  {
-    dom::Element* hit = nullptr;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::BelowInFlow) {
-        hit = HitTestFormControl(*children[i], scrolled, predicate);
-        if (hit != nullptr) {
-          return hit;
-        }
-      }
-    }
-  }
+
   if (!ReceivesPointerEvents(box)) {
     return nullptr;
   }
@@ -159,7 +230,7 @@ dom::Element* HitTestFormControl(const layout::Box& box, gfx::FloatPoint point,
 }
 
 const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point,
-                                   const dom::Element* enclosing) {
+                                   const dom::Element* enclosing, bool collects) {
   const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
   if (!local.has_value()) {
     return nullptr;
@@ -168,43 +239,21 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
   if (box.Origin() != nullptr) {
     enclosing = box.Origin();
   }
-  const gfx::FloatPoint scrolled = ScrollAdjust(box, point);
-  {
-    const dom::Element* hit = nullptr;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::AboveInFlow) {
-        hit = HitTestElement(*children[i], scrolled, enclosing);
-        if (hit != nullptr) {
-          return hit;
-        }
-      }
-    }
+
+  const dom::Element* found = nullptr;
+  if (VisitReversePaintChildren(
+          box, point, collects,
+          [&](const layout::Box& child, gfx::FloatPoint p, bool child_collects) {
+            found = HitTestElement(child, p, enclosing, child_collects);
+            return found != nullptr;
+          },
+          [&](const layout::Box& child, gfx::FloatPoint p) {
+            found = HitTestElement(child, p, enclosing, false);
+            return found != nullptr;
+          })) {
+    return found;
   }
-  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    const dom::Element* hit = nullptr;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::InFlow) {
-        hit = HitTestElement(*children[i], *inside, enclosing);
-        if (hit != nullptr) {
-          return hit;
-        }
-      }
-    }
-  }
-  {
-    const dom::Element* hit = nullptr;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::BelowInFlow) {
-        hit = HitTestElement(*children[i], scrolled, enclosing);
-        if (hit != nullptr) {
-          return hit;
-        }
-      }
-    }
-  }
+
   if (!ReceivesPointerEvents(box)) {
     return nullptr;
   }
@@ -223,7 +272,7 @@ const dom::Element* HitTestElement(const layout::Box& box, gfx::FloatPoint point
 }
 
 std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint point,
-                                       const std::string* active_href) {
+                                       const std::string* active_href, bool collects) {
   const std::optional<gfx::FloatPoint> local = UntransformedPoint(box, point);
   if (!local.has_value()) {
     return std::nullopt;
@@ -233,42 +282,18 @@ std::optional<std::string> HitTestLink(const layout::Box& box, gfx::FloatPoint p
     active_href = href;
   }
 
-  const gfx::FloatPoint scrolled = ScrollAdjust(box, point);
-  {
-    std::optional<std::string> hit;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::AboveInFlow) {
-        hit = HitTestLink(*children[i], scrolled, active_href);
-        if (hit.has_value()) {
-          return hit;
-        }
-      }
-    }
-  }
-  if (const std::optional<gfx::FloatPoint> inside = PointInside(box, point)) {
-    std::optional<std::string> hit;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::InFlow) {
-        hit = HitTestLink(*children[i], *inside, active_href);
-        if (hit.has_value()) {
-          return hit;
-        }
-      }
-    }
-  }
-  {
-    std::optional<std::string> hit;
-    const auto& children = box.Children();
-    for (std::size_t i = children.size(); i-- > 0;) {
-      if (BandOf(*children[i]) == HitBand::BelowInFlow) {
-        hit = HitTestLink(*children[i], scrolled, active_href);
-        if (hit.has_value()) {
-          return hit;
-        }
-      }
-    }
+  std::optional<std::string> found;
+  if (VisitReversePaintChildren(
+          box, point, collects,
+          [&](const layout::Box& child, gfx::FloatPoint p, bool child_collects) {
+            found = HitTestLink(child, p, active_href, child_collects);
+            return found.has_value();
+          },
+          [&](const layout::Box& child, gfx::FloatPoint p) {
+            found = HitTestLink(child, p, active_href, false);
+            return found.has_value();
+          })) {
+    return found;
   }
 
   if (!ReceivesPointerEvents(box) || active_href == nullptr) {
@@ -298,7 +323,8 @@ std::optional<std::string> Page::LinkAt(gfx::FloatPoint document_point) const {
   if (boxes_ == nullptr) {
     return std::nullopt;
   }
-  return HitTestLink(*boxes_, document_point, nullptr);
+  AddPerformanceCounter(PerfCounterId::EngineHitTests);
+  return HitTestLink(*boxes_, document_point, nullptr, true);
 }
 
 const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
@@ -306,12 +332,14 @@ const dom::Element* Page::ElementAt(gfx::FloatPoint document_point) const {
   if (boxes_ == nullptr) {
     return nullptr;
   }
-  return HitTestElement(*boxes_, document_point, nullptr);
+  AddPerformanceCounter(PerfCounterId::EngineHitTests);
+  return HitTestElement(*boxes_, document_point, nullptr, true);
 }
 
 dom::Element* HitTestFormControlAt(const layout::Box& root, gfx::FloatPoint document_point,
                                    bool (*predicate)(const dom::Element&)) {
-  return HitTestFormControl(root, document_point, predicate);
+  AddPerformanceCounter(PerfCounterId::EngineHitTests);
+  return HitTestFormControl(root, document_point, predicate, true);
 }
 
 }  // namespace microbrowser::engine

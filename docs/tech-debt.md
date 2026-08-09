@@ -1572,6 +1572,24 @@ inside the visible viewport without `-eval` scroll hacks, and
 
 ---
 
+## TD-0030 — Collected stacking units skip intervening overflow clips
+
+**Opened** 2026-08-09 with the Appendix E hit-test / paint scroll_delta fix.
+
+**Symptom / gap.** Paint and hit-testing now apply intervening *scroll* when a
+stacking context collects a positioned unit from under an `overflow:auto`
+ancestor (youtube Accept). They still do not push that ancestor's clip for the
+collected unit: a partially scrolled relative button can paint outside the
+scroller's padding box, and hit-testing can accept a point the scroller would
+have clipped.
+
+**Close when** collect records clip rects (or re-enters scroll containers' clip
+state) for units the same way `PushClip` does on the tree walk, with a test
+that a `position:relative` control scrolled out of an `overflow:auto` box is
+neither painted nor hit outside that box.
+
+---
+
 ## Closed
 
 - **TD-0029 — Event UAF across DrainMicrotasks in DispatchEventTo** (2026-08-09).

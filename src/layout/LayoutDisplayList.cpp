@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
+#include <vector>
 
 #include "html/FormControl.h"
+#include "layout/Stacking.h"
 #include "text/Bidi.h"
 #include "util/PerformanceCounters.h"
 
@@ -329,54 +332,6 @@ gfx::FloatPoint StickyOffset(const Box& box, const gfx::FloatRect& border_box,
   };
 }
 
-// Whether this box paints as a unit of its own rather than in tree order.
-//
-// CSS 2.1 Appendix E, narrowed to what decides paint order here: a box that is
-// positioned, transformed, or has a `z-index` is collected into its parent unit's
-// z-ordered buckets instead of being painted where the tree walk reached it.
-//
-// This is the model change session 21 was for. Before it, `sticky` and `fixed` were
-// hoisted to a second pass and everything else painted in tree order -- which cannot
-// order *between* subtrees, and old.reddit.com is the page that proves it: its
-// header bar's background is a positioned box in one subtree and the subreddit list
-// is in another.
-//
-// A transform is on the list because it creates a stacking context, which is why
-// M6's remaining work arrives with ADR 0014 §4 rather than on its own schedule.
-bool PaintsAsUnit(const Box& box) {
-  if (box.GetKind() == Box::Kind::Text) {
-    return false;
-  }
-  const css::ComputedStyle& style = box.Style();
-  return style.position != css::Position::Static || !style.transform.IsNone() ||
-         style.z_index.has_value();
-}
-
-// The layer a unit paints in. `auto` orders as zero; what it does *not* do is
-// establish a stacking context, which is the next function.
-int PaintLayer(const Box& box) { return box.Style().z_index.value_or(0); }
-
-// Whether this box collects the units beneath it -- a stacking context.
-//
-// The distinction between this and PaintsAsUnit is the whole of the model, and
-// getting it wrong is not subtle: every ancestor collecting the same descendants
-// paints that descendant once per ancestor, which is a page drawn three times over.
-//
-// `z-index: auto` is a unit but **not** a context, which is exactly what makes auto
-// different from zero: a positioned box with auto lets its own positioned
-// descendants be ordered against its siblings, and one with `z-index: 0` does not.
-// A transform is always a context, which is why M6's remainder arrives with it.
-bool IsStackingContext(const Box& box) {
-  if (box.GetKind() == Box::Kind::Text) {
-    return false;
-  }
-  const css::ComputedStyle& style = box.Style();
-  if (!style.transform.IsNone()) {
-    return true;
-  }
-  return style.position != css::Position::Static && style.z_index.has_value();
-}
-
 }  // namespace
 
 void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint document_offset,
@@ -607,13 +562,21 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
       const Box* box = nullptr;
       int layer = 0;
       std::size_t order = 0;  // tree order, to break ties stably
+      // Intervening overflow scroll between this stacking context and the unit.
+      // Layout geometry is unscrolled; paint translates by -scroll (hit-testing
+      // adds the same delta to the point). Without it, youtube's
+      // position:relative Accept button under #content paints at y≈1421 while
+      // the scrolled viewport shows only the static yt-button-shape parent.
+      gfx::FloatPoint scroll_delta{};
     };
     std::vector<Unit> units;
-    const auto collect = [&units](const Box& parent, auto& recurse) -> void {
+    const auto collect = [&units](const Box& parent, gfx::FloatPoint scroll_from_sc,
+                                  auto& recurse) -> void {
       for (const std::unique_ptr<Box>& child : parent.Children()) {
         const bool unit = PaintsAsUnit(*child);
         if (unit) {
-          units.push_back(Unit{child.get(), PaintLayer(*child), units.size()});
+          units.push_back(
+              Unit{child.get(), PaintLayer(*child), units.size(), scroll_from_sc});
         }
         // A unit that is **not** a stacking context is descended into anyway, and
         // this line is load-bearing: `z-index: auto` means "order me, but let my own
@@ -626,11 +589,16 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
         // Recursing here does not double-paint: a non-context unit paints only its
         // *non*-unit children when its turn comes.
         if (!unit || !IsStackingContext(*child)) {
-          recurse(*child, recurse);
+          gfx::FloatPoint into = scroll_from_sc;
+          if (child->IsScrollContainer()) {
+            into.x += child->ScrollOffset().x;
+            into.y += child->ScrollOffset().y;
+          }
+          recurse(*child, into, recurse);
         }
       }
     };
-    collect(box, collect);
+    collect(box, gfx::FloatPoint{}, collect);
     // Stable in tree order within a layer, which is the tie-break the specification
     // names and the only one that makes a page deterministic.
     std::stable_sort(units.begin(), units.end(), [](const Unit& a, const Unit& b) {
@@ -640,7 +608,9 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     const auto paint_units = [&](int from, int to, bool inclusive) {
       for (const Unit& unit : units) {
         if (unit.layer >= from && (inclusive ? unit.layer <= to : unit.layer < to)) {
-          self(*unit.box, child_offset, child_frame, IsStackingContext(*unit.box), self);
+          const gfx::FloatPoint unit_offset{child_offset.x - unit.scroll_delta.x,
+                                            child_offset.y - unit.scroll_delta.y};
+          self(*unit.box, unit_offset, child_frame, IsStackingContext(*unit.box), self);
         }
       }
     };

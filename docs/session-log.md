@@ -4257,8 +4257,34 @@ consent / settle path:
 **Measured (Release):** no `object%20Object` request; `fetch.object_object_url`
 0; ASAN youtube + `getBoundingClientRect` on the consent dialog completes.
 `HTMLElement.click()` on Accept still sets SOCS; trusted `-click` on the
-paper-button coords still focuses the dialog instead (hit-test / TD-0028).
+paper-button coords still focuses the dialog instead (hit-test — fixed in the
+following entry).
 
-**Left:** TD-0028 page-manager height / nudge visibility; trusted Accept
-click hit-testing; home rich items when the server sends them.
+**Left:** TD-0028 page-manager height / nudge visibility; home rich items when
+the server sends them.
+
+---
+
+## 2026-08-09 — Hit-testing matches Appendix E (youtube Accept)
+
+**Status:** trusted Accept click sets SOCS and dismisses the consent dialog
+
+After `fetch({})` / event UAF fixes, Accept still failed for a real pointer:
+`elementFromPoint` returned `TP-YT-IRON-OVERLAY-BACKDROP` (later `body` sibling,
+`z-index:auto`) over `tp-yt-paper-dialog` (`z-index:2202` under `ytd-app`). Paint
+already sorted by layer; hit-testing used a three-band sibling walk.
+
+**Fix.** Share `layout/Stacking.h` with paint. Hit-test walks reverse Appendix E
+order (collect units into the stacking context). Intervening overflow scroll
+between the context and a collected unit is accumulated (`scroll_delta`) so a
+`position:relative` Accept under `#content { overflow:auto }` is hittable after
+`scrollTop` — without it the static `yt-button-shape` parent always won. Paint
+applies the same delta. Floats still beat overlapping in-flow blocks.
+
+**Measured (Release):** `elementFromPoint` on Accept → `BUTTON`; `-click last`
+→ `SOCS` set, dialog gone; `ytd-rich-item-renderer` 0 with history-off nudge
+(TD-0017). Counter: `engine.hit_tests`.
+
+**Left:** TD-0028 page-manager / nudge height; intervening *clip* for collected
+units (TD-0030); button width ~51px duplicate hosts.
 

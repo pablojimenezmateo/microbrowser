@@ -2,7 +2,7 @@ purpose: The box tree and its geometry. Turns a styled document into positioned 
 
 allow: util dom html css gfx text
 
-public: Box.h FloatContext.h FontTextMeasurer.h LayoutEngine.h
+public: Box.h FloatContext.h FontTextMeasurer.h LayoutEngine.h Stacking.h
 
 extern:
 

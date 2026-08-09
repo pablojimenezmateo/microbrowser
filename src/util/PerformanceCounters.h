@@ -209,6 +209,10 @@ namespace microbrowser::util {
   /* depends on `:hover` at all. It walks the box tree, so it is the one part  */ \
   /* of this path that grows with the page.                                    */ \
   X(StyleHoverHitTests, "style.hover_hit_tests")                                 \
+  /* ElementAt / LinkAt / form hit-tests. Grows with pointer traffic; a jump   */ \
+  /* against style.hover_hit_tests means click routing is walking more than    */ \
+  /* hover invalidation (youtube consent: backdrop vs dialog z-order).         */ \
+  X(EngineHitTests, "engine.hit_tests")                                          \
   /* A cascade re-resolved over the *existing* box tree, because every rule    */ \
   /* keyed on what changed only affects paint. The pair to watch is this       */ \
   /* against layout.runs: a `:hover { color }` rule that starts moving         */ \
