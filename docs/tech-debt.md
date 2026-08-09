@@ -1350,7 +1350,8 @@ inside the viewport without `-eval` fit/scroll, Accept is hit-testable by
 `-click`, and Accept leaves `opened===false` (or navigates) without a scripted
 property write. **Done** for scrollport + trusted click via `-wheel` then
 `-click` (optional eval only to discover Accept's post-scroll coordinates),
-and for not activating whatever was under the dialog.
+for not activating whatever was under the dialog, and for dismiss after
+save→reload (TD-0032, 2026-08-10: `dialogs:0` on home/results/watch).
 
 ---
 
