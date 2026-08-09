@@ -3866,4 +3866,24 @@ in a fixed dialog under a height-0 lightbox, so the wheel fell through while
 **Left:** TD-0018 residual; home feed when the server sends only a nudge;
 `Intl` / `eval` on side scripts.
 
+---
+
+## 2026-08-09 — click default actions follow UI Events retarget
+
+**Status:** Accept over search no longer navigates to a result
+
+Press stored `pointer_down_target_`; release fires `click` at the common
+ancestor of press and release; `ResolveClickActivation` walks that element for
+form / checkable / link / media defaults. A dialog that removes itself on
+`mousedown` can no longer leave the release on a link underneath (youtube
+consent Accept over `/results`). Counter `input.click_retargeted`.
+
+Measured (Release, cats search): after `-wheel` + Accept, URL stays
+`/results?search_query=cats`, `dialogs:0`, SOCS set, ~7 `ytd-video-renderer` at
+500×281. Thumbnail `src` still unset until IntersectionObserver / lazy path
+(TD-0018). Home `ytInitialData` still has only `feedNudgeRenderer` (server).
+
+**Left:** search thumbnail `src` attach; TD-0018; home when the server sends a
+feed; `Intl` / `eval` on side scripts.
+
 
