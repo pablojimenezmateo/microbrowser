@@ -500,6 +500,9 @@ namespace microbrowser::util {
   X(BoxTreeInvalidatedByImage, "engine.box_tree_invalidated_by_image")             \
   X(BoxTreeImagePaintOnly, "engine.box_tree_image_paint_only")                    \
   X(BoxTreeInvalidatedByFont, "engine.box_tree_invalidated_by_font")               \
+  /* font-display:swap when a box tree already exists: metrics change, box      */ \
+  /* generation does not — reflow without BuildBoxTree (TD-0021).               */ \
+  X(BoxTreeFontReflowOnly, "engine.box_tree_font_reflow_only")                    \
   X(BoxTreeInvalidatedByDueWork, "engine.box_tree_invalidated_by_due_work")       \
   X(BoxTreeInvalidatedBySheet, "engine.box_tree_invalidated_by_sheet")           \
   /* display:none ↔ box-generating: RestyleWithoutLayout cannot invent a box,  */ \

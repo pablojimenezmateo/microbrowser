@@ -1035,6 +1035,14 @@ while UA still made them `inline-block`; (2) children of replaced hosts
 **280** ≈ restyles, `BuildBoxTree` **~8.3 s / 390**. After: display **7** against
 **278** restyles, `BuildBoxTree` **~5.2 s / 118**. See TD-0033.
 
+**Update** (2026-08-10). **Web-font swap is reflow-only.** `AddWebFont` used to
+`InvalidateBoxTree` on every successful registration (`font-display: swap`).
+Box generation does not change — only metrics — so an existing tree now clears
+intrinsic widths and forces `laid_out_width = -1`
+(`engine.box_tree_font_reflow_only`). Cold path (no boxes yet) still drops the
+tree (`engine.box_tree_invalidated_by_font`). Watch after Accept previously paid
+**22** full rebuilds for faces alone.
+
 **Update** (2026-08-09). **`opacity` as a paint property landed**: cascade +
 `getComputedStyle`, skip the whole subtree at 0, multiply command alphas for
 (0,1), and treat `opacity < 1` as a stacking context. Youtube's solid-black

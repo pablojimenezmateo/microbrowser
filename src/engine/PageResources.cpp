@@ -545,11 +545,17 @@ bool Page::AddWebFont(const PendingFontFace& face, std::vector<std::byte> bytes)
   AddPerformanceCounter(PerfCounterId::GfxWebFontsRegistered,
                         static_cast<std::uint64_t>(registrations.size()));
   // Text measured before the face arrived was measured in a different font, so
-  // every line box on the page is wrong. This is what `font-display: swap` looks
-  // like from the inside, and it is the whole reason a face arriving late is not
-  // free.
-  InvalidateBoxTree();
-  AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByFont);
+  // every line box on the page is wrong. That is `font-display: swap` from the
+  // inside. Box *generation* does not change — only metrics — so drop the tree
+  // only when there is none yet; otherwise force a reflow (TD-0021).
+  if (boxes_ != nullptr) {
+    boxes_->ClearIntrinsicWidths();
+    layout_.laid_out_width = -1.0f;
+    AddPerformanceCounter(PerfCounterId::BoxTreeFontReflowOnly);
+  } else {
+    InvalidateBoxTree();
+    AddPerformanceCounter(PerfCounterId::BoxTreeInvalidatedByFont);
+  }
   return true;
 }
 

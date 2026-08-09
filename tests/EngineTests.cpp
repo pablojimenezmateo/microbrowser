@@ -1905,6 +1905,37 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
            "assigning img.src must enqueue the URL without a tree rebuild");
   });
 
+  AddTest(tests, "Page/WebFontSwapReflowsWithoutRebuildingBoxTree", [] {
+    // font-display:swap changes metrics, not box generation. Youtube registers
+    // dozens of faces after first layout; each InvalidateBoxTree was a full
+    // BuildBoxTree (TD-0021).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'><p>hello</p></body>", "https://example.org/");
+    page.Layout(400.0f);
+    const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
+    engine::Page::PendingFontFace face;
+    face.url = "https://example.org/swap.ttf";
+    face.family = "SwapFace";
+    face.weight = 400;
+    Expect(page.AddWebFont(face, BuildSyntheticFont()), "face registers");
+    const util::PerfCounterSnapshot after = util::CapturePerformanceCounters();
+    const auto delta = [&](util::PerfCounterId id) {
+      return after[static_cast<std::size_t>(id)] - before[static_cast<std::size_t>(id)];
+    };
+    ExpectEqInt(static_cast<long long>(delta(util::PerfCounterId::BoxTreeInvalidatedByFont)), 0,
+                "a late face must not drop an existing box tree");
+    ExpectEqInt(static_cast<long long>(delta(util::PerfCounterId::BoxTreeFontReflowOnly)), 1,
+                "and must mark a reflow instead");
+    const std::uint64_t builds_before =
+        util::ReadPerformanceCounter(util::PerfCounterId::LayoutTreeBuilds);
+    page.Layout(400.0f);
+    const std::uint64_t builds_after =
+        util::ReadPerformanceCounter(util::PerfCounterId::LayoutTreeBuilds);
+    ExpectEqInt(static_cast<long long>(builds_after - builds_before), 0,
+                "reflow after swap reuses the box tree");
+  });
+
   AddTest(tests, "Layout/AnImageTakesItsSizeFromThePixelsWhenNothingElseSaysOtherwise", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
