@@ -3834,4 +3834,19 @@ not the Woffle report.
 **Left:** dirty-subtree box allocation; TD-0020 facade (`fmt.unplayable`);
 TD-0018; home feed when the server sends one.
 
+---
+
+## 2026-08-09 — TD-0020: MSE `updateend` as macrotask + media step budget
+
+**Status:** facade closed on `/watch?v=jNQXAC9IVRw` (`errorCode` null, `isError` false)
+
+Sync `SourceBuffer` `updateend` re-entered SABR `Ty1` under `wSl`→`appendBuffer`
+and emptied `d9` before the outer `vW` (`@2341091` ×27 → 0). Events now go through
+`TimerQueue::QueueTask` like MessageChannel. `Interpreter::MediaEventBudget` still
+tops up the hang guard for media-element events flushed from that task
+(`js.media_event_budget_resets`). Release: buffered ~19s, `js.steps_exhausted` 2.
+
+**Left:** TD-0018 residual; home feed when the server sends one; Accept still needs
+scroll into `#content` (TD-0022 UX); `Intl` / `eval` throws on side scripts.
+
 
