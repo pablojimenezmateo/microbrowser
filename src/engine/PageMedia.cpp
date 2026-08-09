@@ -231,7 +231,11 @@ bool Page::ToggleMediaPlaybackAt(gfx::FloatPoint document_point) {
   if (hit == nullptr) {
     return false;
   }
-  const dom::Element* media = MediaElementForClickTarget(*hit);
+  return ToggleMediaPlaybackOn(*const_cast<dom::Element*>(hit));
+}
+
+bool Page::ToggleMediaPlaybackOn(dom::Element& hit) {
+  const dom::Element* media = MediaElementForClickTarget(hit);
   if (media == nullptr || !IsMediaTag(*media)) {
     return false;
   }

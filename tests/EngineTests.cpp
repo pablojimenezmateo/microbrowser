@@ -1985,6 +1985,27 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(top, "400", "fixed overflow under a 0-height host takes the wheel");
   });
 
+  AddTest(tests, "Engine/ClickDoesNotActivateLinkUnderDismissedOverlay", [] {
+    // youtube consent Accept sits over search results. mousedown removes (or
+    // hides) the dialog; a release that re-hit-tests the point would activate
+    // the result underneath. UI Events fires click at the common ancestor of
+    // press and release — default actions must follow that, not the point.
+    Session session;
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{DataUrl(
+        "<body style='margin:0'>"
+        "<a href='https://example.org/watch' style='display:block;width:200px;height:100px'>"
+        "video</a>"
+        "<button id='accept' style='position:absolute;left:0;top:0;width:200px;height:100px'"
+        " onmousedown='this.remove()'>Accept</button>"
+        "</body>")});
+    const std::string start = session.LastCommittedUrl();
+    Expect(!start.empty(), "the document committed");
+    session.Click(50.0f, 40.0f);
+    ExpectEqString(session.LastCommittedUrl(), start,
+                   "dismissing an overlay on mousedown must not navigate the link under it");
+  });
+
   AddTest(tests, "Engine/NavigatingToAboutBlankIsAPageRatherThanAFailure", [] {
     Session session;
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});

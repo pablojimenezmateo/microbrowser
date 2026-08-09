@@ -45,16 +45,31 @@ namespace microbrowser::engine {
 // prevented anything, and a handler that prevented the default may have
 // changed nothing at all. Reporting one bit conflated the two, and the visible
 // symptom was a page whose handler ran and whose screen did not change.
-struct DispatchOutcome {
-  bool ran = false;
-  bool prevented = false;
-};
-
 struct FormSubmission {
   std::string url;
   std::string method = "GET";
   std::string body;
   std::string content_type;
+};
+
+struct DispatchOutcome {
+  bool ran = false;
+  bool prevented = false;
+  // Element the `click` event targeted (UI Events common ancestor of press and
+  // release). Default actions must walk *this* rather than re-hit-testing the
+  // point: a dialog that removes itself on mousedown would otherwise leave the
+  // release on whatever was underneath (youtube Accept → search result).
+  dom::Element* click_target = nullptr;
+};
+
+// What a completed primary click's default action should do, resolved from the
+// click target rather than from a fresh hit-test at the pointer.
+struct ClickActivation {
+  std::optional<FormSubmission> form;
+  std::optional<std::string> href;
+  bool reset_form = false;
+  bool toggled_checkable = false;
+  bool toggled_media = false;
 };
 
 // One loaded document: its DOM, its styles, its box tree, and the display list
@@ -382,6 +397,10 @@ class Page : private layout::ImageProvider,
   // Document coordinates, not viewport coordinates: scrolling is state owned
   // by Engine, and the page's box tree is laid out unscrolled.
   std::optional<std::string> LinkAt(gfx::FloatPoint document_point) const;
+  // Default actions for a click that targeted `click_target`. Walks ancestors
+  // of that element — never a fresh hit-test at the pointer — so a press on a
+  // dismissible overlay cannot activate a link that was underneath.
+  ClickActivation ResolveClickActivation(dom::Element* click_target);
 
   // The form submission activated at `document_point`, or nullopt when no
   // supported form control was activated -- or when a `submit` handler called
@@ -673,15 +692,15 @@ class Page : private layout::ImageProvider,
   // the document value changed and layout/paint should run.
   bool ActivateCheckableInputAt(gfx::FloatPoint document_point);
 
+  // Resets the owning form of a reset input at `document_point`. Returns true
+  // when the document value changed and layout/paint should run.
+  bool ResetFormAt(gfx::FloatPoint document_point);
+
   // Default action for a click on `<video>`/`<audio>` or inside `#movie_player`:
   // toggle play/pause when the page did not `preventDefault`. youtube's error
   // overlay sits above the element and its `playVideo()` path stays in -1; the
   // media element itself may already have buffered data (TD-0020).
   bool ToggleMediaPlaybackAt(gfx::FloatPoint document_point);
-
-  // Resets the owning form of a reset input at `document_point`. Returns true
-  // when the document value changed and layout/paint should run.
-  bool ResetFormAt(gfx::FloatPoint document_point);
 
   // Inserts text into the focused text control.
   bool InsertTextIntoFocusedTextControl(std::string_view text);
@@ -781,6 +800,12 @@ class Page : private layout::ImageProvider,
   // callers (a click, Tab, and losing the document) cannot disagree about
   // which of the two paths a page without an interpreter takes.
   bool MoveFocus(dom::Element* target, bool visible);
+  // Element-targeted halves of the click default actions — used by
+  // ResolveClickActivation so a retargeted click cannot activate whatever is
+  // under the pointer after a dialog dismisses itself on mousedown.
+  bool ActivateCheckableInputOn(dom::Element& input);
+  bool ResetFormOn(const dom::Element& reset);
+  bool ToggleMediaPlaybackOn(dom::Element& hit);
   // The focused element when a key can type into it, and null otherwise. Every
   // editing routine starts here, so "is this thing editable" is answered once
   // rather than once per routine.
@@ -927,6 +952,11 @@ class Page : private layout::ImageProvider,
   ScrollState scroll_;
   float content_height_ = 0.0f;
   util::BlobUrlRegistry blob_urls_;
+  // Primary-button press target for the in-flight gesture. Cleared on release
+  // and on navigation. UI Events fires `click` at the common ancestor of this
+  // and the release hit — not at a re-hit-test that can see through a dialog
+  // the press itself just dismissed.
+  dom::Element* pointer_down_target_ = nullptr;
 };
 
 // Form-control hit test shared by Page's click default actions. Lives in

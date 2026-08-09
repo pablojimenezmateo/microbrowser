@@ -166,6 +166,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   workers_.Clear();
   unrequested_worker_scripts_.clear();
   blob_urls_.Clear();
+  pointer_down_target_ = nullptr;
   // **The bytes become text here, before the tokenizer sees them.** ADR 0025 §2: the encoding comes
   // from the BOM, then `Content-Type`, then a prescan of the first 1024 bytes, then windows-1252 --
   // and the tokenizer's input is code points rather than bytes, which is what makes an ill-formed
@@ -390,6 +391,7 @@ bool Page::DispatchPointerDownAt(gfx::FloatPoint document_point,
   }
   const dom::Element* target = ElementAt(document_point);
   if (target == nullptr) {
+    pointer_down_target_ = nullptr;
     return false;
   }
   // User activation on press, not on click: `play()` and fullscreen gates read
@@ -398,6 +400,7 @@ bool Page::DispatchPointerDownAt(gfx::FloatPoint document_point,
     document_->NoteUserActivation();
   }
   auto& element = *const_cast<dom::Element*>(target);
+  pointer_down_target_ = &element;
   (void)script_.DispatchPointerMouse(element, "pointerdown", pointer);
   (void)script_.DispatchPointerMouse(element, "mousedown", pointer);
   (void)FocusFromClickAt(document_point);
@@ -406,19 +409,84 @@ bool Page::DispatchPointerDownAt(gfx::FloatPoint document_point,
 
 DispatchOutcome Page::DispatchPointerReleaseAt(gfx::FloatPoint document_point,
                                                const bindings::PointerInput& pointer) {
-  if (boxes_ == nullptr) {
-    return {};
-  }
-  const dom::Element* target = ElementAt(document_point);
-  if (target == nullptr) {
-    return {};
-  }
-  auto& element = *const_cast<dom::Element*>(target);
   DispatchOutcome outcome;
+  if (boxes_ == nullptr) {
+    pointer_down_target_ = nullptr;
+    return outcome;
+  }
+  dom::Element* down = pointer_down_target_;
+  pointer_down_target_ = nullptr;
+  const dom::Element* up_hit = ElementAt(document_point);
+  dom::Element* up = up_hit != nullptr ? const_cast<dom::Element*>(up_hit) : nullptr;
+
+  // UI Events: pointerup/mouseup fire at the element under the pointer; click
+  // fires at the nearest common ancestor of the press and release targets. A
+  // re-hit-test-only click is how Accept-over-a-result navigates to /watch.
+  auto parent_element = [](dom::Element* element) -> dom::Element* {
+    if (element == nullptr) {
+      return nullptr;
+    }
+    dom::Node* parent = element->Parent();
+    return parent != nullptr && parent->IsElement() ? static_cast<dom::Element*>(parent)
+                                                    : nullptr;
+  };
+  auto in_document = [&](dom::Element* element) {
+    if (element == nullptr || document_ == nullptr) {
+      return false;
+    }
+    for (dom::Node* node = element; node != nullptr; node = node->Parent()) {
+      if (node == document_.get()) {
+        return true;
+      }
+    }
+    return false;
+  };
+  auto common_ancestor = [&](dom::Element* a, dom::Element* b) -> dom::Element* {
+    if (a == nullptr || b == nullptr) {
+      return nullptr;
+    }
+    for (dom::Element* candidate = a; candidate != nullptr; candidate = parent_element(candidate)) {
+      for (dom::Element* other = b; other != nullptr; other = parent_element(other)) {
+        if (candidate == other) {
+          return candidate;
+        }
+      }
+    }
+    return nullptr;
+  };
+
+  if (!in_document(down)) {
+    down = nullptr;
+  }
+  if (!in_document(up)) {
+    up = nullptr;
+  }
+
+  dom::Element* click_target = nullptr;
+  if (down != nullptr && up != nullptr) {
+    click_target = common_ancestor(down, up);
+    if (down != up) {
+      util::AddPerformanceCounter(util::PerfCounterId::InputClickRetargeted);
+    }
+  } else if (down != nullptr) {
+    click_target = down;
+  } else if (up != nullptr) {
+    // No remembered press (or it left the document): fall back to the release
+    // hit so synthetic paths that only release still activate.
+    click_target = up;
+  }
+
+  dom::Element* up_event_target = up != nullptr ? up : click_target;
+  if (up_event_target == nullptr) {
+    return outcome;
+  }
   outcome.ran = script_.HasListeners();
-  (void)script_.DispatchPointerMouse(element, "pointerup", pointer);
-  (void)script_.DispatchPointerMouse(element, "mouseup", pointer);
-  outcome.prevented = script_.DispatchClick(element, pointer);
+  outcome.click_target = click_target;
+  (void)script_.DispatchPointerMouse(*up_event_target, "pointerup", pointer);
+  (void)script_.DispatchPointerMouse(*up_event_target, "mouseup", pointer);
+  if (click_target != nullptr) {
+    outcome.prevented = script_.DispatchClick(*click_target, pointer);
+  }
   return outcome;
 }
 
@@ -687,10 +755,13 @@ bool Page::ActivateCheckableInputAt(gfx::FloatPoint document_point) {
     return false;
   }
   dom::Element* hit = HitTestFormControlAt(*boxes_, document_point, html::IsCheckableInput);
-  if (hit == nullptr) {
+  return hit != nullptr && ActivateCheckableInputOn(*hit);
+}
+
+bool Page::ActivateCheckableInputOn(dom::Element& input) {
+  if (document_ == nullptr || !html::IsCheckableInput(input)) {
     return false;
   }
-  dom::Element& input = *hit;
   if (html::IsCheckboxInput(input)) {
     if (input.HasAttribute("checked")) {
       input.RemoveAttribute("checked");
@@ -723,10 +794,14 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
     return false;
   }
   const dom::Element* reset = HitTestFormControlAt(*boxes_, document_point, html::IsResetControl);
-  if (reset == nullptr) {
+  return reset != nullptr && ResetFormOn(*reset);
+}
+
+bool Page::ResetFormOn(const dom::Element& reset) {
+  if (document_ == nullptr || !html::IsResetControl(reset)) {
     return false;
   }
-  const dom::Element* form = html::FormOwner(*reset, *document_);
+  const dom::Element* form = html::FormOwner(reset, *document_);
   if (form == nullptr) {
     return false;
   }
@@ -765,6 +840,53 @@ bool Page::ResetFormAt(gfx::FloatPoint document_point) {
   }
   InvalidateBoxTree();
   return true;
+}
+
+ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
+  ClickActivation activation;
+  if (click_target == nullptr || document_ == nullptr) {
+    return activation;
+  }
+  EnsureLayoutClean();
+
+  auto parent_element = [](dom::Element* element) -> dom::Element* {
+    if (element == nullptr) {
+      return nullptr;
+    }
+    dom::Node* parent = element->Parent();
+    return parent != nullptr && parent->IsElement() ? static_cast<dom::Element*>(parent)
+                                                    : nullptr;
+  };
+
+  for (dom::Element* at = click_target; at != nullptr; at = parent_element(at)) {
+    if (html::IsSubmitControl(*at)) {
+      const dom::Element* form = html::FormOwner(*at, *document_);
+      if (form != nullptr) {
+        activation.form = SubmitForm(*form, at);
+      }
+      return activation;
+    }
+    if (html::IsResetControl(*at)) {
+      activation.reset_form = ResetFormOn(*at);
+      return activation;
+    }
+    if (html::IsCheckableInput(*at)) {
+      activation.toggled_checkable = ActivateCheckableInputOn(*at);
+      return activation;
+    }
+    if (at->TagName() == "a") {
+      const std::string* href = at->GetAttribute("href");
+      if (href != nullptr && !href->empty()) {
+        activation.href = *href;
+        return activation;
+      }
+    }
+  }
+
+  if (ToggleMediaPlaybackOn(*click_target)) {
+    activation.toggled_media = true;
+  }
+  return activation;
 }
 
 

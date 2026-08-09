@@ -119,24 +119,15 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
     LayoutAndPaint();
     return true;
   }
-  if (const std::optional<FormSubmission> submission =
-          page_.FormSubmissionRequestAt(document_point)) {
-    return Navigate(*submission);
+  const ClickActivation activation = page_.ResolveClickActivation(click.click_target);
+  if (activation.form.has_value()) {
+    return Navigate(*activation.form);
   }
-  if (page_.ResetFormAt(document_point)) {
+  if (activation.reset_form || activation.toggled_checkable || activation.toggled_media) {
     LayoutAndPaint();
     return true;
   }
-  if (page_.ActivateCheckableInputAt(document_point)) {
-    LayoutAndPaint();
-    return true;
-  }
-  if (page_.ToggleMediaPlaybackAt(document_point)) {
-    LayoutAndPaint();
-    return true;
-  }
-  const std::optional<std::string> href = page_.LinkAt(document_point);
-  if (!href.has_value()) {
+  if (!activation.href.has_value()) {
     if (click.ran) {
       page_.InvalidateLayout();
       LayoutAndPaint();
@@ -144,7 +135,7 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
     }
     return ApplyStyleChange(effect);
   }
-  const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
+  const std::optional<std::string> resolved = ResolveLink(*activation.href, page_.Url());
   if (!resolved.has_value()) {
     return ApplyStyleChange(effect);
   }

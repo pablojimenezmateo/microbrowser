@@ -1292,11 +1292,23 @@ Measured (Release, `/watch?v=jNQXAC9IVRw`):
 `-wheel 640,400,950` → `#content.scrollTop === 950`, Accept at `y≈471`;
 `-click last` (from eval `"click":"x,y"`) → `dialogs:0`, `SOCS` set, MSE `readyState` 4.
 
+**Update** (2026-08-09, ghost click). Accept over search results was navigating
+to `/watch`: press hit the button, the dialog left the hit path, release
+re-hit-tested the point and fired `click` + link default action on the result
+underneath. UI Events: remember `pointer_down_target_`, fire `click` at the
+common ancestor of press and release, and resolve default actions from that
+element (`ResolveClickActivation`) — never a fresh `LinkAt(point)`. Counter
+`input.click_retargeted`. Test
+`Engine/ClickDoesNotActivateLinkUnderDismissedOverlay`. After Accept on
+`/results?search_query=cats`: stay on search, `dialogs:0`, `SOCS` set, ~7
+`ytd-video-renderer` at 500×281 (thumbnail `src` still lazy — TD-0018).
+
 **Close when.** After the consent bump stamps, the dialog's border box is
 inside the viewport without `-eval` fit/scroll, Accept is hit-testable by
 `-click`, and Accept leaves `opened===false` (or navigates) without a scripted
 property write. **Done** for scrollport + trusted click via `-wheel` then
-`-click` (optional eval only to discover Accept's post-scroll coordinates).
+`-click` (optional eval only to discover Accept's post-scroll coordinates),
+and for not activating whatever was under the dialog.
 
 ---
 

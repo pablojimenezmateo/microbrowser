@@ -561,6 +561,10 @@ namespace microbrowser::util {
   /* Accept that needs `#content` scrolled should raise the first.           */ \
   X(ScrollOverflowMoved, "scroll.overflow_moved")                                 \
   X(ScrollViewportFallback, "scroll.viewport_fallback")                           \
+  /* Press and release hit different elements; click went to their common      */ \
+  /* ancestor (UI Events). youtube Accept dismissing over a result raises this */ \
+  /* instead of navigating to /watch.                                          */ \
+  X(InputClickRetargeted, "input.click_retargeted")                               \
   /* Element→box map lookups from geometry queries. Hits should track lookups  */ \
   /* once the index is built; the O(boxes) walk is gone (Gate C stamp depth).  */ \
   X(LayoutBoxLookups, "layout.box_lookups")                                      \
