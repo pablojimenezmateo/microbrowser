@@ -724,9 +724,13 @@ float LayoutEngine::Layout(Box& root, float width, float viewport_height) const 
           ? gfx::FloatRect{0.0f, 0.0f, width, viewport_height}
           : root.Geometry().PaddingBox();
   LayoutAbsoluteDescendants(root, icb);
-  // The document is as tall as the lower of its flow content and its floats: a
-  // page that is nothing but a tall float still scrolls.
-  return std::max(cursor, floats.LowestBottom());
+  // Document height is the scrollable overflow of the root after abspos
+  // placement, not only in-flow cursor. Youtube's `ytd-app` is
+  // `position:absolute; min-height:100%` against the ICB — flow collapses and
+  // abspos carries the page; returning cursor alone left scrollHeight at the
+  // viewport and scrollIntoView / wheel unable to reach result thumbs.
+  const float overflow_height = MeasureScrollableOverflow(root).height;
+  return std::max(std::max(cursor, floats.LowestBottom()), overflow_height);
 }
 
 // The width a box states outright, plus its horizontal edges, or nullopt.

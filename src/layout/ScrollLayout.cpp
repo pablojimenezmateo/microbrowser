@@ -59,14 +59,6 @@ bool Contains(const gfx::FloatRect& rect, gfx::FloatPoint point) {
          point.y < rect.Bottom();
 }
 
-gfx::FloatSize MeasureScrollableOverflow(const Box& box) {
-  const gfx::FloatRect padding = box.Geometry().PaddingBox();
-  float right = padding.Right();
-  float bottom = padding.Bottom();
-  AccumulateOverflow(box, true, right, bottom);
-  return gfx::FloatSize{std::max(0.0f, right - padding.x), std::max(0.0f, bottom - padding.y)};
-}
-
 void UpdateSubtree(Box& box, ScrollOffsets& offsets, ScrollOffsets& kept) {
   if (box.IsScrollContainer()) {
     box.SetScrollableOverflow(MeasureScrollableOverflow(box));
@@ -93,6 +85,14 @@ void UpdateSubtree(Box& box, ScrollOffsets& offsets, ScrollOffsets& kept) {
 }
 
 }  // namespace
+
+gfx::FloatSize MeasureScrollableOverflow(const Box& box) {
+  const gfx::FloatRect padding = box.Geometry().PaddingBox();
+  float right = padding.Right();
+  float bottom = padding.Bottom();
+  AccumulateOverflow(box, true, right, bottom);
+  return gfx::FloatSize{std::max(0.0f, right - padding.x), std::max(0.0f, bottom - padding.y)};
+}
 
 gfx::FloatPoint MaxScrollOffset(const Box& box) {
   const gfx::FloatRect padding = box.Geometry().PaddingBox();

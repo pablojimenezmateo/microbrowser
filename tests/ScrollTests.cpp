@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "engine/Page.h"
@@ -440,6 +441,35 @@ void RegisterScrollTests(std::vector<TestCase>& tests) {
     Expect(page.RunDueWork(1) != engine::Page::DueWorkKind::None, "and the frame delivers it");
     Expect(!page.NextWakeDelay(2).has_value(),
            "after which a settled page schedules nothing at all -- the zero-idle invariant");
+  });
+
+  AddTest(tests, "Scroll/DocumentHeightIncludesAbsolutelyPositionedContent", [] {
+    // youtube /results: body collapses (height:0), ytd-app is abspos against the
+    // ICB and carries ~10k of results. Content height that ignored abspos left
+    // documentElement.scrollHeight at the viewport — scrollIntoView and wheel
+    // could not reach thumbs below the fold (TD-0036).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{400.0f, 900.0f, 1.0f});
+    page.Load("<style>"
+              "html,body{margin:0;height:0}"
+              "#app{position:absolute;left:0;top:0;width:400px;height:3000px}"
+              "#target{position:absolute;left:0;top:2000px;width:100px;height:40px}"
+              "</style>"
+              "<body><div id=app><div id=target>x</div></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.ContentHeight() >= 2990.0f,
+           "abspos against the ICB extends document content height");
+    ExpectEqString(page.EvaluateScript("String(Math.round(document.documentElement.scrollHeight))"),
+                   "3000", "scrollHeight reports that height");
+    (void)page.EvaluateScript("document.getElementById('target').scrollIntoView()");
+    ExpectEqString(page.EvaluateScript("String(Math.round(document.documentElement.scrollTop))"),
+                   "2000", "document scroll moved to the abspos target");
+    ExpectEqString(
+        page.EvaluateScript(
+            "String(Math.round(document.getElementById('target').getBoundingClientRect().top))"),
+        "0", "and the target sits at the viewport top");
   });
 }
 

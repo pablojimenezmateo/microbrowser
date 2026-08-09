@@ -157,6 +157,13 @@ using ScrollOffsets = std::map<const dom::Element*, gfx::FloatPoint>;
 // bounded by the document rather than by the history of the document.
 void UpdateScrollState(Box& root, ScrollOffsets& offsets);
 
+// The scrollable overflow region of `box` (CSS Overflow §3): its padding box
+// unioned with descendant border boxes, stopping at nested scroll containers
+// and skipping `position:fixed`. Used for container `scrollHeight` and — after
+// absolute placement — for the document's content height (abspos against the
+// ICB must extend what the viewport can scroll to).
+gfx::FloatSize MeasureScrollableOverflow(const Box& box);
+
 // The largest offset `box` can be scrolled to: its scrollable overflow less
 // what it already shows. Zero on both axes for a box whose content fits.
 gfx::FloatPoint MaxScrollOffset(const Box& box);

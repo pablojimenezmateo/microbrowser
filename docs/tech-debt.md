@@ -1821,8 +1821,34 @@ form ownership is light-DOM by spec).
 
 ---
 
+## TD-0036 — Document content height ignored absolutely positioned content — **fixed 2026-08-10**
+
+**Opened** 2026-08-10 after TD-0035: youtube `/results` thumbs hit correctly but
+stayed unreachable below the fold.
+
+**Symptom.** `ytd-app` / `#page-manager` report ~10 000px via offsetHeight, while
+`document.documentElement.scrollHeight` stayed at the viewport (~900).
+`scrollIntoView` on `a#thumbnail` was a no-op; wheel on the document moved
+nothing. Root cause: `LayoutEngine::Layout` returned in-flow cursor / floats
+only. After abspos against the ICB (the youtube shape — body `height:0`,
+`ytd-app { position:absolute; min-height:100% }`), cursor collapses and the
+tall content never extended document height.
+
+**Fix.** After `LayoutAbsoluteDescendants`, document height is
+`max(cursor, floats, MeasureScrollableOverflow(root))`. The overflow walk
+already includes abspos and skips fixed. Regression:
+`Scroll/DocumentHeightIncludesAbsolutelyPositionedContent`.
+
+**Close when.** Done for document scroll height. Nested abspos overflow edge
+cases stay covered by the same overflow walk used for scroll containers.
+
+---
+
 ## Closed
 
+- **TD-0036 — Document content height ignored abspos** (2026-08-10).
+  Layout return value includes MeasureScrollableOverflow after ICB abspos;
+  youtube results become document-scrollable.
 - **TD-0035 — Click/focus/activation stopped at shadow roots** (2026-08-10).
   Engine click router walks composed parents via `ShadowHostOf`; youtube
   thumbnail `<img>` under `a#thumbnail` activates href.
