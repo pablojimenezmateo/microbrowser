@@ -589,6 +589,7 @@ class DomBindings {
   void MaybeCompleteEsmsFeatureDetection();
   js::Value MakeTimeRanges(const std::vector<double>& flat);
   void DeliverSourceBufferEvents(const js::Value& buffer, std::uint64_t id);
+  void ScheduleSourceBufferEvents(const js::Value& buffer, std::uint64_t id);
   void DeliverMediaSourceEvents(const js::Value& source, std::uint64_t id);
   void RegisterMediaSourceWrapper(std::uint64_t id, const js::Value& wrapper);
   // The wrappers, so that an event the engine produced can be delivered to the object a page is

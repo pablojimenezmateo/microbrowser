@@ -411,6 +411,26 @@ class Interpreter {
   // rAF — resetting those let a post-script storm run forever.
   void BeginTask() { BeginHostTurn(); }
 
+  // Fresh hang-guard allotment for one MSE / HTMLMediaElement event, even when
+  // script frames are still live. `BeginHostTurn` refuses to reset in that
+  // case (nested import stamp hang), but youtube's SABR pump is
+  // updateend → appendBuffer → updateend delivered *before* appendBuffer
+  // returns — so each link inherits a spent budget, aborts mid-`iuT`, leaves
+  // `d9` empty, and the player maps the throw to `fmt.unplayable` (TD-0020).
+  // Cap across the reentrant chain so a storm cannot open through media.
+  class MediaEventBudget {
+   public:
+    explicit MediaEventBudget(Interpreter& interpreter) : interpreter_(interpreter) {
+      interpreter_.EnterMediaEventBudget();
+    }
+    ~MediaEventBudget() { interpreter_.LeaveMediaEventBudget(); }
+    MediaEventBudget(const MediaEventBudget&) = delete;
+    MediaEventBudget& operator=(const MediaEventBudget&) = delete;
+
+   private:
+    Interpreter& interpreter_;
+  };
+
   // The `Symbol.iterator` cell, so a caller can ask for the protocol hook
   // without going through the global object -- which a page can reassign.
   Object* SymbolIterator() const { return well_known_.symbol_iterator; }
@@ -1147,6 +1167,10 @@ class Interpreter {
   // After a step-budget RangeError is caught inside RunFrames, further
   // exhaustion in the same turn aborts rather than looping (TD-0018).
   bool step_budget_absorbed_ = false;
+  // Depth of MediaEventBudget and steps charged across the current sync MSE
+  // pump. See EnterMediaEventBudget.
+  std::size_t media_event_depth_ = 0;
+  std::size_t media_event_chain_steps_ = 0;
   // Re-entrancy depth for `DrainMicrotasks`. Nested drains must not refresh
   // the hang-guard budget (that is the microtask-storm hang TD-0018 forbids);
   // the outermost entry may, when the parent turn already spent most of it.
@@ -1163,10 +1187,15 @@ class Interpreter {
   // late `connectedCallback`s (`js.steps_exhausted`) — that is a stamp/loop
   // bug to fix, not a reason to reset per CallCompiled (that hung the load).
   static constexpr std::size_t kMaxSteps = 20'000'000;
+  // Ceiling for one sync MSE pump chain (updateend → append → updateend…). Five
+  // full budgets is enough for SABR; unbounded resets would re-open TD-0018.
+  static constexpr std::size_t kMaxMediaChainSteps = kMaxSteps * 5;
 
   // Fresh step budget for a top-level script turn (RunCompiled / RunProgram).
   // Not for CallCompiled — microtasks and nested reactions share the caller.
   void BeginHostTurn();
+  void EnterMediaEventBudget();
+  void LeaveMediaEventBudget();
   Result ExhaustedSteps();
 
   // Keeps a scope alive for the collector while it is on the C++ stack.

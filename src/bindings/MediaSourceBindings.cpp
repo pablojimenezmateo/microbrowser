@@ -10,11 +10,14 @@
 // dead id, and every method on it throws `InvalidStateError` -- which is the specified behaviour and
 // also what makes it safe.
 //
-// **`appendBuffer` is asynchronous to a page and synchronous underneath.** The algorithm is not
-// asynchronous; only its observable sequencing is. Events are delivered before `appendBuffer`
-// returns, but a re-entrancy gate flattens `updateend` → `appendBuffer` → `updateend` into one
-// loop rather than nested C++ frames -- nesting blew the stack on youtube's SABR pump, and a
-// microtask/macrotask deferral either starved the pump or raced readiness.
+// **`appendBuffer` is asynchronous to a page and synchronous underneath.** The algorithm runs
+// before `appendBuffer` returns; `updatestart`/`update`/`updateend` are queued as a macrotask
+// (`TimerQueue::QueueTask`), which is the MSE sequencing rule and what stops youtube's SABR
+// `Ty1` → `wSl` → `appendBuffer` → nested `Ty1`/`vW` from emptying `d9` while the outer call still
+// holds the segment (TD-0020 → `fmt.unplayable`). A prior sync delivery with a re-entrancy gate
+// flattened same-buffer nesting for stack depth but could not protect a Ty1 that was *not* already
+// inside `Deliver`. Microtask deferral starved the pump; a host task is what MessageChannel uses
+// for the same "later turn" contract and what `RunDue` already batches.
 //
 // **A refused append is not a failure to hide.** `QuotaExceededError` is the signal a player is
 // waiting for -- it is how a player is told to evict -- so it is thrown with that name, and the
@@ -28,6 +31,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Media.h"
+#include "bindings/Timers.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 #include "js/Value.h"
@@ -47,7 +51,7 @@ constexpr const char* kSourceIdSlot = "#media-source-id";
 constexpr const char* kBufferIdSlot = "#source-buffer-id";
 constexpr const char* kMediaSourcesKey = "media-sources";
 // Page-visible `SourceBuffer.updating`: true from `appendBuffer`/`abort` return until the
-// microtask that fires `updateend`. The media algorithm itself clears its own flag before return.
+// macrotask that fires `updateend`. The media algorithm itself clears its own flag before return.
 constexpr const char* kBufferUpdatingSlot = "#sb-updating";
 
 // `Object::Get` answers with a pointer, which is null for a property that is not there. Every read
@@ -175,7 +179,7 @@ void DomBindings::InstallMediaSource() {
                                    "InvalidStateError: an append is already in progress");
         }
         call.self.object->SetHidden(kBufferUpdatingSlot, Value::Bool(true));
-        owner->DeliverSourceBufferEvents(call.self, id);
+        owner->ScheduleSourceBufferEvents(call.self, id);
         switch (result) {
           case 0:
             return Value::Undefined();
@@ -191,13 +195,13 @@ void DomBindings::InstallMediaSource() {
         const double start = js::ToNumber(Argument(call.arguments, 0));
         const double end = js::ToNumber(Argument(call.arguments, 1));
         owner->media_->RemoveFromSourceBuffer(id, start, end);
-        owner->DeliverSourceBufferEvents(call.self, id);
+        owner->ScheduleSourceBufferEvents(call.self, id);
         return Value::Undefined();
       }
       if (what == "abort") {
         owner->media_->AbortSourceBuffer(id);
         call.self.object->SetHidden(kBufferUpdatingSlot, Value::Bool(true));
-        owner->DeliverSourceBufferEvents(call.self, id);
+        owner->ScheduleSourceBufferEvents(call.self, id);
         return Value::Undefined();
       }
       if (what == "changeType") {
@@ -615,6 +619,10 @@ void FireOn(js::Interpreter& interpreter, const Value& target, const std::string
   if (!target.IsObject()) {
     return;
   }
+  // Each MSE callback is one host-facing event even when delivered inside
+  // appendBuffer (frames still live). Without this, a spent kevlar budget
+  // aborts the SABR pump and youtube maps the empty queue to fmt.unplayable.
+  const js::Interpreter::MediaEventBudget media_budget(interpreter);
   const Value event = interpreter.NewObjectValue();
   if (event.IsObject()) {
     event.object->Set("type", Value::String(type));
@@ -624,11 +632,17 @@ void FireOn(js::Interpreter& interpreter, const Value& target, const std::string
   }
   if (const Value* handler = target.object->Get("on" + type);
       handler != nullptr && handler->IsObject() && handler->object->IsCallable()) {
-    interpreter.CallFunction(*handler, target, {event});
+    const js::Result answer = interpreter.CallFunction(*handler, target, {event});
+    if (answer.completion == js::Completion::Throw) {
+      interpreter.ReportUncaught(answer.value, "mediasource handler");
+    }
   }
   if (const Value* dispatch = target.object->GetOwn("dispatchEvent");
       dispatch != nullptr && dispatch->IsObject()) {
-    interpreter.CallFunction(*dispatch, target, {event});
+    const js::Result answer = interpreter.CallFunction(*dispatch, target, {event});
+    if (answer.completion == js::Completion::Throw) {
+      interpreter.ReportUncaught(answer.value, "mediasource dispatch");
+    }
   }
 }
 
@@ -664,30 +678,58 @@ js::Value DomBindings::MediaSourceWrapper(std::uint64_t id) const {
   return Read(*table, std::to_string(id));
 }
 
+void DomBindings::ScheduleSourceBufferEvents(const js::Value& buffer, std::uint64_t id) {
+  if (interpreter_ == nullptr || !buffer.IsObject()) {
+    return;
+  }
+  // Coalesce: one pending task per buffer. A second append before the first
+  // updateend task runs still leaves its events in the media queue; the task
+  // drains them. Double-queueing would only reorder relative to other hosts.
+  if (const Value* pending = buffer.object->GetOwn("#sb-events-queued");
+      pending != nullptr && pending->type == js::ValueType::Boolean && pending->boolean) {
+    return;
+  }
+  buffer.object->SetHidden("#sb-events-queued", Value::Bool(true));
+  DomBindings* self = this;
+  const Value deliver = interpreter_->NewNativeValue(
+      "sourceBufferEvents", [self, buffer, id](NativeCall&) -> Value {
+        if (buffer.IsObject()) {
+          buffer.object->SetHidden("#sb-events-queued", Value::Bool(false));
+        }
+        self->DeliverSourceBufferEvents(buffer, id);
+        return Value::Undefined();
+      });
+  if (!deliver.IsObject()) {
+    buffer.object->SetHidden("#sb-events-queued", Value::Bool(false));
+    DeliverSourceBufferEvents(buffer, id);
+    return;
+  }
+  deliver.object->Set("#buffer", buffer);
+  if (!TimerQueue::QueueTask(*interpreter_, deliver)) {
+    buffer.object->SetHidden("#sb-events-queued", Value::Bool(false));
+    DeliverSourceBufferEvents(buffer, id);
+  }
+}
+
 void DomBindings::DeliverSourceBufferEvents(const js::Value& buffer, std::uint64_t id) {
   if (media_ == nullptr || interpreter_ == nullptr || !buffer.IsObject()) {
     return;
   }
-  // Per-buffer re-entrancy gate. A *global* gate orphaned the other SourceBuffer's events: video's
-  // updateend often appends audio (or the reverse), and that nested Deliver must run. Flattening
-  // only same-buffer updateend → appendBuffer is what stops the C++ stack from growing with SABR.
-  if (const Value* gate = buffer.object->GetOwn("#sb-delivering");
-      gate != nullptr && gate->type == js::ValueType::Boolean && gate->boolean) {
+  // One Take per invocation. A FireOn handler that appends again schedules a
+  // *later* task via ScheduleSourceBufferEvents; draining those events here
+  // would re-enter Ty1 under the outer call (TD-0020). The old for(;;) +
+  // per-buffer gate flattened C++ stack growth but still fired nested
+  // updateend before the outer handler finished its post-append work (`vW`).
+  const std::vector<std::string> events = media_->TakeSourceBufferEvents(id);
+  if (events.empty()) {
+    media_->FlushMediaEventsForBuffer(id);
     return;
   }
-  buffer.object->SetHidden("#sb-delivering", Value::Bool(true));
-  for (;;) {
-    const std::vector<std::string> events = media_->TakeSourceBufferEvents(id);
-    if (events.empty()) {
-      break;
-    }
-    // Spec order: updating becomes false before update/updateend, so the pump may append again.
-    buffer.object->SetHidden("#sb-updating", Value::Bool(false));
-    for (const std::string& type : events) {
-      FireOn(*interpreter_, buffer, type);
-    }
+  // Spec order: updating becomes false before update/updateend, so the pump may append again.
+  buffer.object->SetHidden(kBufferUpdatingSlot, Value::Bool(false));
+  for (const std::string& type : events) {
+    FireOn(*interpreter_, buffer, type);
   }
-  buffer.object->SetHidden("#sb-delivering", Value::Bool(false));
   media_->FlushMediaEventsForBuffer(id);
 }
 

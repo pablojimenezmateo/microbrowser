@@ -247,6 +247,10 @@ bool DomBindings::DispatchMediaEvent(dom::Element& element, const std::string& t
   //
   // Not bubbling, which is the specification and is load-bearing: media events on a `<video>`
   // inside a list must not reach the list's click-through handler.
+  //
+  // Same MediaEventBudget as SourceBuffer updateend: FlushMediaEventsForBuffer runs
+  // while appendBuffer's frames are still live (TD-0020).
+  const js::Interpreter::MediaEventBudget media_budget(*interpreter_);
   const Value event = MakeEvent(type, false, false, true);
   if (!event.IsObject()) {
     return false;

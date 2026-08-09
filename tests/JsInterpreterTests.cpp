@@ -9,7 +9,9 @@ namespace microbrowser::tests {
 
 using js::Completion;
 using js::Interpreter;
+using js::NativeCall;
 using js::Result;
+using js::Value;
 
 namespace {
 
@@ -402,6 +404,46 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       const Result after_task = interpreter.CallFunction(*fn, js::Value::Undefined(), {});
       Expect(after_task.completion == Completion::Normal, "BeginTask still works");
       ExpectEqString(js::ToString(after_task.value), "42", "BeginTask result");
+    }
+    // MSE updateend runs while appendBuffer's frames are still live, so
+    // BeginHostTurn is a no-op. MediaEventBudget must still refresh the hang
+    // guard for that nested CallFunction (TD-0020 / youtube SABR → fmt.unplayable).
+    {
+      Interpreter interpreter;
+      const Value deliver = interpreter.NewNativeValue(
+          "deliverMedia", [](NativeCall& call) -> Value {
+            const Value* burn = call.interpreter.Global()->GetOwn("burn");
+            const Value* handler = call.interpreter.Global()->GetOwn("handler");
+            if (burn == nullptr || handler == nullptr || !burn->IsObject() ||
+                !handler->IsObject()) {
+              return Value::Undefined();
+            }
+            // Spend the shared budget while `entry`'s frame is still on the
+            // machine — the shape of appendBuffer → updateend under kevlar.
+            (void)call.interpreter.CallFunction(*burn, Value::Undefined(), {});
+            {
+              const Interpreter::MediaEventBudget budget(call.interpreter);
+              const Result out =
+                  call.interpreter.CallFunction(*handler, Value::Undefined(), {});
+              if (out.completion == Completion::Throw) {
+                return call.ThrowValue(out.value);
+              }
+              return out.value;
+            }
+          });
+      Expect(deliver.IsObject(), "install deliverMedia native");
+      interpreter.Global()->Set("deliverMedia", deliver);
+      interpreter.GlobalScope()->Declare("deliverMedia", deliver, false);
+      Expect(interpreter
+                 .Run("globalThis.got = 0;"
+                      "globalThis.burn = () => { while (true) {} };"
+                      "globalThis.handler = () => { got = 1; return got; };"
+                      "function entry() { return deliverMedia(); }"
+                      "entry()")
+                 .completion == Completion::Normal,
+             "media budget lets nested work finish under live frames");
+      ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
+                     "handler completed after MediaEventBudget");
     }
   });
 

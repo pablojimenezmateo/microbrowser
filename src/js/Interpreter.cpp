@@ -37,6 +37,35 @@ void Interpreter::BeginHostTurn() {
   step_budget_absorbed_ = false;
 }
 
+void Interpreter::EnterMediaEventBudget() {
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  if (media_event_depth_ == 0) {
+    media_event_chain_steps_ = 0;
+  } else {
+    media_event_chain_steps_ += steps_;
+  }
+  ++media_event_depth_;
+  if (media_event_chain_steps_ >= kMaxMediaChainSteps) {
+    // Leave steps past the hang guard so the nested CallFunction aborts rather
+    // than opening an unbounded pump. Peak already recorded above.
+    steps_ = kMaxSteps + 1;
+    return;
+  }
+  steps_ = 0;
+  step_budget_absorbed_ = false;
+  util::AddPerformanceCounter(util::PerfCounterId::JsMediaEventBudgetResets);
+}
+
+void Interpreter::LeaveMediaEventBudget() {
+  media_event_chain_steps_ += steps_;
+  if (media_event_depth_ > 0) {
+    --media_event_depth_;
+  }
+  if (media_event_depth_ == 0) {
+    media_event_chain_steps_ = 0;
+  }
+}
+
 void Interpreter::SetTrustedScriptHooks(void* context, bool (*active)(void* context),
                                         void (*apply)(void* context, bool push)) {
   trusted_script_hooks_.context = context;

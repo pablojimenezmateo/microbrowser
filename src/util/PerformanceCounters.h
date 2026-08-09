@@ -293,6 +293,10 @@ namespace microbrowser::util {
   /* stamp — browse `__data` arrived, `ytd-rich-grid-renderer` never did.     */ \
   X(JsStepsPeak, "js.steps_peak")                                                 \
   X(JsStepsExhausted, "js.steps_exhausted")                                       \
+  /* MSE delivers updateend synchronously while appendBuffer's frames are still*/ \
+  /* on the machine, so BeginHostTurn is a no-op. Each media-event budget reset*/ \
+  /* is one SABR pump link getting a fresh hang-guard allotment (TD-0020).     */ \
+  X(JsMediaEventBudgetResets, "js.media_event_budget_resets")                     \
   /* Engine-built throws (`MakeError`), including ones a page's own try/catch  */ \
   /* swallows. youtube's setmediasrc path catches Gal's throw and turns it into */ \
   /* `fmt.unplayable` without ever reaching ReportUncaught -- so the only way  */ \

@@ -765,6 +765,16 @@ network answer is a fresh host turn. Timers/rAF still must **not** reset — tha
 hang remains. Guide data (`/youtubei/v1/guide`) and search stamp continuations
 were dying on a spent budget after kevlar.
 
+**Also** (2026-08-09). MSE is the other gap: `appendBuffer` delivers `updateend`
+*before it returns*, so script frames are still live and `BeginHostTurn` is a
+no-op. youtube's SABR pump (`iuT` → `d9` → `vW`) was aborting mid-link with
+`script ran too long`, leaving `d9` empty; the player maps
+`this.d9.shift().info` / slicer throws to `fmt.unplayable` (TD-0020). Fix:
+`Interpreter::MediaEventBudget` on each SourceBuffer / HTMLMediaElement event
+delivery — fresh hang-guard allotment per event, capped at
+`5 * kMaxSteps` across the reentrant chain so this cannot reopen the stamp hang.
+Counter: `js.media_event_budget_resets`.
+
 **Also** (same day). Every macrotask `BeginTask`s — MessageChannel, idle
 callbacks, and `setTimeout`/`setInterval`. Nested `setTimeout(0)` without the
 HTML 4ms clamp after five nestings was the hang that made “timers must not
@@ -1156,6 +1166,24 @@ fails an `addSourceBuffer`/`appendBuffer`. The step-budget storms (TD-0018)
 are the likely reason those queues are empty. Closing TD-0020 still means
 `isError === false` and `playVideo()` without the click bypass.
 
+**Update** (2026-08-09, media event budget). `Interpreter::MediaEventBudget` on
+SourceBuffer / HTMLMediaElement event delivery gives each sync MSE callback a
+fresh hang-guard allotment while appendBuffer's frames remain live (see
+TD-0018). Expected effect: SABR `iuT` finishes pushing `d9`, `vW` no longer
+throws on `shift().info`, and `fmt.unplayable` via `sabrslicerqt` stops being
+the false positive for a spent step budget. Verify with
+`js.media_event_budget_resets` / `js.steps_exhausted` on a consented watch.
+
+**Update** (2026-08-09, MSE updateend as macrotask). Sync `updateend` was the
+real empty-`d9` bug, not only step budget: player `Ty1` → `wSl`/`DP4` →
+`appendBuffer` re-entered `Ty1`/`vW` while the outer call still held the
+segment from `OP` (`@2341091` stack showed two `Ty1` frames). MSE says queue a
+task for `update`/`updateend`; delivering before `appendBuffer` returns matches
+neither the spec nor Chrome. `ScheduleSourceBufferEvents` posts through
+`TimerQueue::QueueTask` (same host-task drain as MessageChannel). `updating`
+stays true until that task. MediaEventBudget remains for HTMLMediaElement
+events flushed from the task.
+
 **Measured**, Release, `/watch?v=jNQXAC9IVRw`, `-click 456,398` (no `-eval`):
 
 | metric | before | after |
@@ -1200,6 +1228,24 @@ So the MSE/buffer half of TD-0020 is largely unblocked once consent cookies
 round-trip. Remaining: facade state vs element play. Consent UI positioning
 (TD-0022) is fixed; Accept is reachable via scroll + trusted `-click`
 (`-eval` scrollIntoView then `-click last`).
+
+**Update** (2026-08-09, after MSE macrotask `updateend`). Release
+`/watch?v=jNQXAC9IVRw` with Accept scroll+click:
+
+| metric | before (sync updateend) | after |
+|---|---|---|
+| `getVideoData().errorCode` | `fmt.unplayable` | **`null`** |
+| `getPlayerStateObject().isError` | true | **false** |
+| `isPlayable` | true | true |
+| `video.readyState` / buffered | 4 / ~19s | 4 / ~19s |
+| `cannot read property 'info' of undefined` (@2341091) | ×27 | **0** |
+| `js.steps_exhausted` | 7–23 | **2** |
+| `js.media_event_budget_resets` | 554 (sync nest) | **66** |
+
+TD-0020's facade half is closed for this watch URL: `isError === false` with a
+full MSE buffer. `playVideo()` after Accept alone may still leave `paused`
+true (`state` -1) until a trusted gesture reaches the player — that is
+autoplay policy, not `fmt.unplayable`.
 
 ---
 
