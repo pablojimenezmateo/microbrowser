@@ -1356,6 +1356,26 @@ search thumbs get `src` without scroll.
 
 ---
 
+## TD-0024 — SPA search→watch can leave `ytd-player` without `#movie_player`
+
+**Symptom.** Clicking a search thumbnail navigates to `/watch?v=…` but
+`document.querySelector('video')` stays null while cold loads of the same URL
+reach `readyState` 4 after Accept. Soft nav finishes `IsLoading` before the
+player modules stamp; the snapshot tool's generic **2s** post-load drain then
+stopped (and `-eval` saw chrome-only `ytd-player`).
+
+**Landed** (2026-08-09). Snapshot `RunLoadToCompletion` treats youtube watch
+URLs like a longer settle: up to 90s or until `video` / `#movie_player`, and
+keeps waiting on sockets when there is no timer deadline. Constructible
+`Animation` removed a separate SPA abort (`Illegal constructor: Animation`).
+
+**Still open.** Soft-nav player stamp can still lag or fail when search results
+are sparse / not hit-testable; `Error: ad` in observer callbacks (DI) is
+unexplained. Close when search→watch reliably yields a playable `<video>`
+without depending on a cold document load.
+
+---
+
 ## Closed
 
 - **TD-0001 — Measure-then-place walked every flex/float/atomic subtree twice** (2026-08-09).

@@ -370,6 +370,24 @@ bool RedditFeedLooksReady(microbrowser::engine::Engine& engine, std::size_t comm
   return RedditFeedPostCount(engine) > 3 && command_count > 1000;
 }
 
+bool IsYoutubeWatch(std::string_view url) {
+  return url.find("youtube.com/watch") != std::string_view::npos ||
+         url.find("youtu.be/") != std::string_view::npos;
+}
+
+// SPA search→watch marks `load` finished long before `#movie_player` / `<video>`
+// stamp (player modules + Polymer). The generic 2s post-load drain then exits
+// with ytd-player chrome only. Cold `/watch` stays in IsLoading long enough;
+// soft nav does not.
+bool YoutubeWatchLooksReady(microbrowser::engine::Engine& engine) {
+  if (!IsYoutubeWatch(engine.Url())) {
+    return true;
+  }
+  const std::string answer = engine.EvaluateScript(
+      "!!(document.querySelector('video') || document.querySelector('#movie_player'))");
+  return answer == "true";
+}
+
 void DrainOutgoingPaints(microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
                          SnapshotFrame* best, int viewport_width, int viewport_height) {
   while (std::optional<microbrowser::ipc::EngineToUi> message = ui.TryReceive()) {
@@ -551,15 +569,20 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
   //
   // reddit's concat polyfill can run for hundreds of seconds after `load`; use
   // the same fifteen-minute wall clock as the load loop rather than twenty
-  // seconds (TD-0016 / Gate B). Everyone else gets a short post-load drain:
-  // youtube watch keeps rAF + Element.animate forever, and a 4096-pass tight
-  // loop LayoutAndPaint-spun past -click/-eval (TD-0021).
+  // seconds (TD-0016 / Gate B). youtube `/watch` (including SPA search→watch)
+  // needs the player modules to stamp `<video>` — far longer than the generic
+  // two-second drain, which left ytd-player empty after soft nav. Everyone
+  // else gets a short post-load drain: perpetual rAF + Element.animate on a
+  // settled page must not LayoutAndPaint-spin past -click/-eval (TD-0021).
   const auto drain_deadline = settle_deadline;
   const bool reddit_feed_drain =
       IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url());
+  const bool youtube_watch_drain = IsYoutubeWatch(engine.Url());
   const auto post_load_deadline =
       reddit_feed_drain ? drain_deadline
-                        : std::chrono::steady_clock::now() + std::chrono::seconds(2);
+      : youtube_watch_drain
+            ? std::chrono::steady_clock::now() + std::chrono::seconds(90)
+            : std::chrono::steady_clock::now() + std::chrono::seconds(2);
   const auto yield_after_due = [&]() {
     // Reddit's host-task stamp (TD-0018) must keep turning with deadline 0.
     // Everyone else: always yield. A due-now rAF reports deadline 0, and
@@ -591,6 +614,9 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (std::chrono::steady_clock::now() >= post_load_deadline) {
       break;
     }
+    if (youtube_watch_drain && YoutubeWatchLooksReady(engine)) {
+      break;
+    }
     if (engine.RunDueWork()) {
       DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       yield_after_due();
@@ -599,6 +625,28 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (reddit_feed_drain &&
         RedditFeedLooksReady(engine, latest.painted ? latest.display_list.Size() : 0)) {
       break;
+    }
+    // Soft-nav watch often has no NextDeadlineMs while player fetches are still
+    // in flight — keep waiting on sockets rather than treating "no timer" as
+    // settled chrome.
+    if (youtube_watch_drain) {
+      microbrowser::util::WaitDescriptorList descriptors;
+      engine.AppendWaitDescriptors(descriptors);
+      if (!descriptors.empty() || engine.HasRunnableWork() || engine.IsLoading()) {
+        microbrowser::util::PerformanceTrace::Scope wait("wait::Network");
+        const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   post_load_deadline - std::chrono::steady_clock::now())
+                                   .count();
+        if (remaining <= 0) {
+          break;
+        }
+        microbrowser::platform::WaitOnDescriptors(
+            descriptors, static_cast<std::int32_t>(std::min<std::int64_t>(remaining, 200)));
+        if (engine.Advance() || engine.HasRunnableWork() || engine.RunDueWork()) {
+          DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
+        }
+        continue;
+      }
     }
     const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
     if (!deadline.has_value()) {

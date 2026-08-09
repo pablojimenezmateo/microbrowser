@@ -3965,4 +3965,23 @@ callbacks remains (DI / ads slice).
 
 **Left:** SPA watch player stamp; home nudge; `Intl` / `eval`.
 
+---
+
+## 2026-08-09 — snapshot settles youtube `/watch` until `<video>` exists
+
+**Status:** soft-nav and cold watch no longer share the generic 2s drain
+
+`RunLoadToCompletion`'s post-load drain was 2s for every non-reddit URL.
+SPA search→watch marks load finished before Polymer stamps `#movie_player`, so
+the tool evaluated an empty `ytd-player`. Watch URLs now drain up to 90s (or
+until `video` / `#movie_player`), and keep waiting on sockets when there is no
+timer deadline yet.
+
+**Check:** cold `/watch?v=jNQXAC9IVRw` after Accept → `video`/`movie` true,
+`readyState` 4. Search→watch still needs a reliable in-view thumb click when
+the server returns rows.
+
+**Left:** SPA stamp reliability when results are sparse; home nudge; `Intl` /
+`eval`.
+
 
