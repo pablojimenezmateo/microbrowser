@@ -1007,6 +1007,7 @@ largest remaining invalidation bucket after script/image/font/sheet are counted.
 | `getVideoData().errorCode` | **`fmt.unplayable`** |
 | `playabilityStatus.status` | `OK` |
 | adaptive `canPlayType` / `isTypeSupported` | all `probably` / true for offered itags |
+| `response.body instanceof ReadableStream` | **true** (was false — plain object; fixed 2026-08-09) |
 | progressive `streamingData.formats` | **[]** (adaptive-only) |
 | click → `Page::Play` | still works (`paused=false`, `currentTime≈2`) |
 | `AudioContext` | absent (ADR 0028 §4 — deliberate; not this error code) |

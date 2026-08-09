@@ -208,6 +208,7 @@ void DomBindings::InstallFetch() {
     return;
   }
   InstallHeaders();
+  InstallReadableStream();
   InstallResponse();
   InstallRequest();
   InstallAbortController();

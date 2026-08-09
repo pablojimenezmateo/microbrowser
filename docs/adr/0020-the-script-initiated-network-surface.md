@@ -61,9 +61,11 @@ ADR 0011 already says must be impossible.
 not.** `response.body` returns a `ReadableStream` that yields the already-buffered
 body as a single `Uint8Array` chunk. That is enough for SABR / `getReader()`
 consumers (youtube.com) without claiming bytes arrive before the fetch settles.
-`new ReadableStream({start})` remains an illegal constructor until the controller
-model exists — feature detection sees the global; construction does not invent a
-stub.
+The stream is a **branded instance** of `ReadableStream` (`instanceof` and
+`ReadableStream.prototype` hold); a plain object with an own `getReader` is not
+a stream. `new ReadableStream({start})` remains an illegal constructor until the
+controller model exists — feature detection sees the global; construction does
+not invent a stub.
 
 ### 2. CORS is enforced where the attacker is not, and that is the network process
 

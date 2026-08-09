@@ -387,6 +387,8 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
     session.Run(
         "fetch('/d').then(async r => {"
         "  console.log('has ' + !!r.body + ' ' + typeof ReadableStream);"
+        "  console.log((r.body instanceof ReadableStream) + ' ' +"
+        "              (Object.getPrototypeOf(r.body) === ReadableStream.prototype));"
         "  const first = await r.body.getReader().read();"
         "  console.log(first.done + ' ' + first.value.length + ' ' +"
         "              String.fromCharCode(...first.value));"
@@ -395,9 +397,27 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
         "  catch (e) { second = e.name; }"
         "  console.log(second);"
         "});");
-    ExpectEqString(session.Console(), "has true function|false 2 hi|TypeError",
-                   "buffered body as one Uint8Array chunk; a second getReader "
-                   "fails because the stream is locked -- " +
+    ExpectEqString(session.Console(),
+                   "has true function|true true|false 2 hi|TypeError",
+                   "body is a real ReadableStream instance; one Uint8Array "
+                   "chunk; second getReader fails while locked -- " +
+                       session.Errors());
+  });
+
+  AddTest(tests, "Fetch/ReadableStreamPrototypeIsWired", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "x"));
+    session.Run(
+        "fetch('/d').then(async r => {"
+        "  const reader = r.body.getReader();"
+        "  console.log((reader instanceof ReadableStreamDefaultReader) + ' ' +"
+        "              r.body.locked + ' ' +"
+        "              (typeof ReadableStream.prototype.getReader));"
+        "  await reader.read();"
+        "});");
+    ExpectEqString(session.Console(), "true true function",
+                   "reader is branded; locked reflects; getReader is on the "
+                   "prototype -- " +
                        session.Errors());
   });
 

@@ -39,12 +39,33 @@ inline constexpr const char* kBodyLockedSlot = "#bodyLocked";
 // one chunk has already been handed out.
 inline constexpr const char* kStreamResponseSlot = "#streamResponse";
 inline constexpr const char* kReaderDoneSlot = "#readerDone";
+// Brands so `getReader` / `read` refuse a page-built object that only borrowed
+// the prototype. The stream slot on a reader is the stream it locked.
+inline constexpr const char* kStreamBrandSlot = "#readableStream";
+inline constexpr const char* kReaderBrandSlot = "#readableStreamReader";
+inline constexpr const char* kReaderStreamSlot = "#readerStream";
 // A `Request`'s body bytes and whether they came from a JS string (see
 // `ScriptRequest::body_from_string`). Hidden so `ToString` on a typed array
 // cannot turn SABR's protobuf into `"1,2,3,..."`.
 inline constexpr const char* kRequestBodySlot = "#requestBody";
 inline constexpr const char* kRequestBodyFromStringSlot = "#requestBodyFromString";
 inline constexpr const char* kRequestSignalSlot = "#requestSignal";
+
+// A promise that is already settled. Body methods and the one-chunk reader
+// both answer with one of these: the bytes are in hand, and a promise is the
+// shape of the API rather than a claim that anything is still happening.
+inline js::Value SettledPromise(js::Interpreter& interpreter, const js::Value& value,
+                                bool rejected) {
+  const js::Value promise = interpreter.NewPromiseValue();
+  if (promise.IsObject()) {
+    interpreter.SettleAsyncResult(promise.object, value, rejected);
+  }
+  return promise;
+}
+
+// One-chunk `ReadableStream` over a Response's buffered body. Lives in
+// FetchStreams.cpp; declared here so Response.body can call it.
+js::Value MakeBodyStream(js::Interpreter& interpreter, const js::Value& response);
 
 // Bytes a page handed to `fetch` / `new Request` as a body. Strings stay
 // strings; ArrayBuffer and typed-array views are copied as raw bytes.

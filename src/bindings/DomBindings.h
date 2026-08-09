@@ -611,6 +611,7 @@ class DomBindings {
   void InstallFetch();
   void InstallHeaders();
   void InstallResponse();
+  void InstallReadableStream();
   void InstallRequest();
   void InstallAbortController();
   // The requests in flight, as a JavaScript array hung off the interfaces

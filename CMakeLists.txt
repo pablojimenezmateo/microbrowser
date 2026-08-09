@@ -462,6 +462,7 @@ microbrowser_module(bindings
     src/bindings/ElementQueries.cpp
     src/bindings/FetchBindings.cpp
     src/bindings/FetchTypes.cpp
+    src/bindings/FetchStreams.cpp
     src/bindings/GeometryBindings.cpp
     src/bindings/HistoryBindings.cpp
     src/bindings/NodeInterfaces.cpp
