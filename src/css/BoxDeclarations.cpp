@@ -118,6 +118,27 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     }
     return true;
   }
+  if (property == "opacity") {
+    if (value == "inherit") {
+      style.opacity = parent.opacity;
+      return true;
+    }
+    // Number or percentage, clamped to [0, 1]. `opacity: 2` is valid CSS and
+    // means 1; junk is refused so `@supports` stays honest.
+    std::string_view number = value;
+    float scale = 1.0f;
+    if (!number.empty() && number.back() == '%') {
+      number.remove_suffix(1);
+      scale = 0.01f;
+    }
+    const std::optional<double> parsed = util::ParseDouble(number);
+    if (!parsed.has_value()) {
+      return false;
+    }
+    style.opacity =
+        static_cast<float>(std::clamp(*parsed * static_cast<double>(scale), 0.0, 1.0));
+    return true;
+  }
   if (property == "pointer-events") {
     if (value == "auto" || value == "visiblepainted" || value == "visiblefill" ||
         value == "visiblestroke" || value == "visible" || value == "painted" ||

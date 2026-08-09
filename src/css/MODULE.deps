@@ -82,7 +82,10 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # +2 members for `visibility` and `pointer-events` (youtube closed drawer +
 # yt-interaction ink layers that must not steal clicks from the thumbnail link).
 # +1 member for `box-sizing` (iron-fit's border-box max-height on youtube consent).
-budget: ComputedStyle    header_lines=340 public_methods=25 members=39
+# +1 member for `opacity` (paint-only; youtube's yt-interaction .fill and
+# iron-overlay-backdrop are `background:black; opacity:0` / translucent — without
+# the property those layers paint solid black over the page).
+budget: ComputedStyle    header_lines=340 public_methods=25 members=40
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

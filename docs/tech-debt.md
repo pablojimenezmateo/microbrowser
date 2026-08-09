@@ -1027,6 +1027,14 @@ constructible (idle/empty) and the prototype carries `reverse` / `finish` /
 skip (2026-08-09). SPA search→watch no longer dies on Illegal constructor;
 `#movie_player` stamp after soft nav remains a separate gap.
 
+**Update** (2026-08-09). **`opacity` as a paint property landed**: cascade +
+`getComputedStyle`, skip the whole subtree at 0, multiply command alphas for
+(0,1), and treat `opacity < 1` as a stacking context. Youtube's solid-black
+`yt-interaction .fill` bars and the opaque consent backdrop were this gap
+(`background:#000; opacity:0` / `opacity:0.3`), not TD-0028. Animating opacity
+is still discrete (not on `AnimatableProperty`); group offscreen compositing
+is still the SVG-style multiply approximation.
+
 **Update** (2026-08-09). **`Element.animate` / `Animation` landed** through
 `bindings::AnimationSource` → `engine::Animations` programmatic effects (same
 Apply path as CSS `@keyframes`, never `el.style`). Feature detection sees

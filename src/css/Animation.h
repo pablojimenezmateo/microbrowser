@@ -32,10 +32,9 @@ enum class AnimatableProperty : std::uint8_t {
   Color,
   BackgroundColor,
   BorderColor,
-  // **`opacity` is deliberately not here**, and the reason is ADR 0014 §5's own: animating a property
-  // that does not apply gains nothing. This browser has no `opacity` -- painting has no alpha
-  // compositing pass -- so an `AnimatableProperty::Opacity` would interpolate a number nothing reads.
-  // It goes on the list the day the property exists, which is a paint change and not this one.
+  // **`opacity` is deliberately not here yet.** The paint property exists (cascade +
+  // display-list alpha multiply / skip-at-zero). Animating it still wants an
+  // interpolator on this enum; until then a transition on `opacity` flips at the end.
   Width,
   Height,
   MarginTop,

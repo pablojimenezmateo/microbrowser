@@ -309,6 +309,8 @@ bool PropertyAffectsLayout(std::string_view property) {
       "z-index",
       "visibility",
       "pointer-events",
+      // Paint-only: changes alpha of already-laid-out boxes, never their size.
+      "opacity",
   };
   return std::find(std::begin(kPaintOnly), std::end(kPaintOnly), property) ==
          std::end(kPaintOnly);

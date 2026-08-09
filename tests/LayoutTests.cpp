@@ -1520,6 +1520,33 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "a document with no backgrounds or borders paints nothing, which is different "
            "from failing to paint");
   });
+
+  AddTest(tests, "Layout/OpacityZeroSkipsSubtreeInk", [] {
+    // youtube's yt-interaction .fill is `background: #000; opacity: 0`. Without
+    // opacity those paint as solid black bars over the chrome.
+    const LaidOut opaque =
+        Run("<div id=a><div id=b>x</div></div>",
+            "div { background: #000; width: 40px; height: 40px } #a { opacity: 0 }", 200.0f);
+    gfx::DisplayList empty;
+    layout::BuildDisplayList(*opaque.root, empty);
+    for (const gfx::DisplayCommand& command : empty.Commands()) {
+      Expect(!std::holds_alternative<gfx::FillPathCommand>(command),
+             "opacity:0 paints no fill for self or descendants");
+      Expect(!std::holds_alternative<gfx::DrawTextCommand>(command), "and no text either");
+    }
+    const LaidOut visible =
+        Run("<div id=a></div>", "div { background: #000; width: 40px; height: 40px }", 200.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*visible.root, list);
+    bool saw_fill = false;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        saw_fill = true;
+        Expect(fill->color.Alpha() == 255, "opacity:1 keeps opaque black");
+      }
+    }
+    Expect(saw_fill, "control paints a fill");
+  });
 }
 
 }  // namespace microbrowser::tests

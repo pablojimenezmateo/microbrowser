@@ -665,6 +665,22 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     Expect(child.visibility == css::Visibility::Visible, "can re-show under hidden");
   });
 
+  AddTest(tests, "CssParser/OpacityAppliesAndDoesNotInherit", [] {
+    css::ComputedStyle parent = css::StyleResolver::InitialStyle();
+    css::ComputedStyle child = css::StyleResolver::InitialStyle();
+    Expect(ApplyDeclaration(Declaration{"opacity", "0"}, parent, parent), "zero");
+    Expect(parent.opacity == 0.0f, "applied");
+    Expect(ApplyDeclaration(Declaration{"opacity", "50%"}, parent, parent), "percent");
+    Expect(std::abs(parent.opacity - 0.5f) < 1e-6f, "half");
+    Expect(ApplyDeclaration(Declaration{"opacity", "2"}, parent, parent), "clamp high");
+    Expect(parent.opacity == 1.0f, "clamped to one");
+    Expect(!ApplyDeclaration(Declaration{"opacity", "nope"}, parent, parent), "junk refused");
+    Expect(css::SupportsDeclaration("opacity", "0"), "@supports sees it");
+    parent.opacity = 0.25f;
+    css::InheritInto(parent, child);
+    Expect(child.opacity == 1.0f, "not inherited — child stays initial");
+  });
+
   AddTest(tests, "Css/ATransformResolvesAboutItsOriginAndNotTheBoxCorner", [] {
     // The default origin is the centre of the border box, which is why a rotation
     // looks right without the author saying anything -- and why applying the origin

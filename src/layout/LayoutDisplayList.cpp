@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -17,6 +18,22 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
+
+// Multiply a colour's alpha by a paint-time opacity. Group compositing (offscreen
+// + blend) is the spec answer for overlapping translucent descendants; this is
+// the SVG-style approximation and enough for youtube's opacity:0 fills and the
+// consent backdrop's translucent black.
+gfx::Color WithPaintOpacity(gfx::Color color, float opacity) {
+  if (opacity >= 1.0f) {
+    return color;
+  }
+  if (opacity <= 0.0f || color.IsFullyTransparent()) {
+    return gfx::Color::Transparent();
+  }
+  const float alpha = static_cast<float>(color.Alpha()) * opacity + 0.5f;
+  return color.WithAlpha(
+      static_cast<std::uint8_t>(std::clamp(alpha, 0.0f, 255.0f)));
+}
 
 // The user agent's own media controls.
 //
@@ -233,10 +250,11 @@ void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx:
 // not behind an empty border box. An Inline box never receives geometry of its
 // own -- fragments live on Text descendants -- which is why a spoiler span's
 // grey bar was invisible text on white rather than a bar.
-void PaintInlineBackground(const Box& box, gfx::FloatPoint offset, gfx::DisplayList& out) {
+void PaintInlineBackground(const Box& box, gfx::FloatPoint offset, float paint_opacity,
+                           gfx::DisplayList& out) {
   const css::ComputedStyle& style = box.Style();
-  if (style.visibility != css::Visibility::Visible ||
-      style.background_color.IsFullyTransparent()) {
+  const gfx::Color fill = WithPaintOpacity(style.background_color, paint_opacity);
+  if (style.visibility != css::Visibility::Visible || fill.IsFullyTransparent()) {
     return;
   }
   const float font_size = style.font_size;
@@ -257,7 +275,7 @@ void PaintInlineBackground(const Box& box, gfx::FloatPoint offset, gfx::DisplayL
     }
     gfx::Path path;
     path.AddRect(rect);
-    out.FillPath(path, style.background_color);
+    out.FillPath(path, fill);
   };
 
   box.ForEachDescendant([&](const Box& desc) {
@@ -348,8 +366,20 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
   // rather than painting them where the tree walk reached them. The root always is,
   // which is what makes a page with one positioned box work without one.
   const auto paint = [&out](const Box& box, gfx::FloatPoint offset, const PaintFrame& frame,
-                            bool collects, auto& self) -> void {
+                            bool collects, float opacity_mul, auto& self) -> void {
     const css::ComputedStyle& style = box.Style();
+    // Only element boxes establish `opacity`. Anonymous wrappers copy the
+    // parent's style (same trap as `transform`), so multiplying again would
+    // square the alpha.
+    float paint_opacity = opacity_mul;
+    if (box.Origin() != nullptr) {
+      paint_opacity *= style.opacity;
+    }
+    // `opacity: 0` paints nothing in the subtree. Unlike `visibility: hidden`,
+    // visible descendants are also skipped — CSS treats opacity as a group.
+    if (paint_opacity <= 0.0f) {
+      return;
+    }
     // A fixed box is positioned against the viewport, so it drops every scroll
     // translation above it -- which is what makes it stay put while the page
     // moves under it, and what lets the presenter blit a scroll and then repaint
@@ -374,6 +404,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
         return;
       }
       const gfx::FontRequest font = FontRequestFor(style);
+      const gfx::Color ink = WithPaintOpacity(style.color, paint_opacity);
       for (const TextFragment& fragment : box.Fragments()) {
         const std::string_view piece(box.Text().data() + fragment.begin, fragment.length);
         // Rule L4, and it belongs here rather than in the DOM: the *character* is still U+0028, and
@@ -387,12 +418,12 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
         out.DrawText(fragment.right_to_left ? std::string_view(mirrored) : piece,
                      fragment.rect.width, font,
                      gfx::FloatPoint{fragment.rect.x + offset.x, fragment.baseline + offset.y},
-                     style.color, fragment.right_to_left);
+                     ink, fragment.right_to_left);
       }
       return;
     }
     if (box.GetKind() == Box::Kind::Inline) {
-      PaintInlineBackground(box, offset, out);
+      PaintInlineBackground(box, offset, paint_opacity, out);
     }
     const gfx::FloatRect unshifted = box.Geometry().BorderBox();
     const gfx::FloatRect border_box{unshifted.x + offset.x, unshifted.y + offset.y,
@@ -434,11 +465,14 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     // descendants, but skips its own ink. youtube's closed guide drawer relies
     // on that for both painting and hit-testing (ADR 0017 §5).
     const bool paints_self = style.visibility == css::Visibility::Visible;
+    const gfx::Color background = WithPaintOpacity(style.background_color, paint_opacity);
+    const gfx::Color border = WithPaintOpacity(style.border_color, paint_opacity);
+    const gfx::Color ink = WithPaintOpacity(style.color, paint_opacity);
 
-    if (paints_self && !style.background_color.IsFullyTransparent() && !border_box.IsEmpty()) {
-      gfx::Path background;
-      background.AddRect(border_box);
-      out.FillPath(background, style.background_color);
+    if (paints_self && !background.IsFullyTransparent() && !border_box.IsEmpty()) {
+      gfx::Path background_path;
+      background_path.AddRect(border_box);
+      out.FillPath(background_path, background);
     }
     // Over the colour and under the border, which is the order CSS paints a
     // background in and the reason a page can put a translucent image over a
@@ -457,7 +491,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
                                        std::max(0.0f, border_box.height - width)});
         gfx::StrokeStyle stroke;
         stroke.width = width;
-        out.StrokePath(outline, stroke, style.border_color);
+        out.StrokePath(outline, stroke, border);
       }
     }
 
@@ -482,7 +516,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
           const float baseline = content.y + content.height * 0.5f + style.font_size * 0.3f;
           out.DrawText(box.Text(), std::max(0.0f, content.width - 8.0f), font,
                        gfx::FloatPoint{content.x + offset.x + 4.0f, baseline + offset.y},
-                       style.color);
+                       ink);
         }
         PaintCheckedInputIndicator(box, out, offset);
         PaintMediaControls(box, out, offset);
@@ -538,7 +572,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     if (!collects) {
       for (const std::unique_ptr<Box>& child : box.Children()) {
         if (!PaintsAsUnit(*child)) {
-          self(*child, child_offset, child_frame, false, self);
+          self(*child, child_offset, child_frame, false, paint_opacity, self);
         }
       }
       if (clips) {
@@ -610,7 +644,8 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
         if (unit.layer >= from && (inclusive ? unit.layer <= to : unit.layer < to)) {
           const gfx::FloatPoint unit_offset{child_offset.x - unit.scroll_delta.x,
                                             child_offset.y - unit.scroll_delta.y};
-          self(*unit.box, unit_offset, child_frame, IsStackingContext(*unit.box), self);
+          self(*unit.box, unit_offset, child_frame, IsStackingContext(*unit.box), paint_opacity,
+               self);
         }
       }
     };
@@ -620,7 +655,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     paint_units(kLowest, 0, false);
     for (const std::unique_ptr<Box>& child : box.Children()) {
       if (!PaintsAsUnit(*child)) {
-        self(*child, child_offset, child_frame, false, self);
+        self(*child, child_offset, child_frame, false, paint_opacity, self);
       }
     }
     paint_units(0, 1, false);
@@ -632,7 +667,7 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     }
     pop_transform();
   };
-  paint(root, document_offset, root_frame, true, paint);
+  paint(root, document_offset, root_frame, true, 1.0f, paint);
   AddPerformanceCounter(PerfCounterId::LayoutDisplayListsBuilt);
 }
 

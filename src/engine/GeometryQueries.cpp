@@ -403,6 +403,9 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
       case css::Visibility::Hidden: return std::string("hidden");
     }
   }
+  if (property == "opacity") {
+    return Number(style.opacity);
+  }
   if (property == "pointer-events") {
     return std::string(style.pointer_events == css::PointerEvents::None ? "none" : "auto");
   }

@@ -386,6 +386,11 @@ struct ComputedStyle {
   // every hit (ADR 0017 §5).
   Visibility visibility = Visibility::Visible;
   PointerEvents pointer_events = PointerEvents::Auto;
+  // Not inherited. Initial 1. Paint multiplies this into ink (and skips the
+  // whole subtree at 0). `opacity < 1` also forms a stacking context. Without
+  // it, youtube's `yt-interaction .fill { background: #000; opacity: 0 }` and
+  // the consent backdrop paint as solid black rectangles.
+  float opacity = 1.0f;
   // `top`/`right`/`bottom`/`left`. All four default to `auto`, which for a
   // relative box means "no offset" and for an absolute one means "wherever the
   // flow would have put it" -- two different meanings for the same value, and
