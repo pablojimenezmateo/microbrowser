@@ -265,7 +265,12 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     if (!basis_as_auto) {
       item.base_main = basis.Used(main_size, font_size);
       item.base_main += item.main_extra;
-    } else if (!main_length.IsAuto()) {
+    } else if (!main_length.IsAuto() &&
+               !(main_length.IsPercent() && main_size <= 0.0f)) {
+      // Same indefinite-% rule as flex-basis: `height:100%` (or width in a row)
+      // against an auto-sized flex container is treated as `auto` and measured
+      // from content. Resolving against 0 collapsed youtube wrappers that set
+      // both `flex:1` *and* `height:100%` (TD-0028).
       item.base_main = main_length.Used(main_size, font_size);
       item.base_main += item.main_extra;
     } else if (row) {

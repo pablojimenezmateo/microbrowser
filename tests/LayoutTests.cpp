@@ -1547,6 +1547,33 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     }
     Expect(saw_fill, "control paints a fill");
   });
+
+  AddTest(tests, "Layout/AnonymousBoxesDoNotRepaintParentBackground", [] {
+    // A block with mixed inline+block children grows anonymous wrappers that
+    // copy the parent's style. Those wrappers must not emit another full-size
+    // background — youtube's ytd-app white was painted again after the nudge.
+    const LaidOut result =
+        Run("<div id=host>hello<div id=block>x</div></div>",
+            "#host { background: #fff; width: 200px; height: 100px } "
+            "#block { display: block }",
+            400.0f);
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    int white_fills = 0;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      if (const auto* fill = std::get_if<gfx::FillPathCommand>(&command)) {
+        if (fill->color == gfx::Color::Rgb(255, 255, 255)) {
+          if (const gfx::Path* path = list.PathAt(fill->path)) {
+            const gfx::FloatRect b = path->ControlBounds();
+            if (b.width >= 199.0f && b.height >= 99.0f) {
+              ++white_fills;
+            }
+          }
+        }
+      }
+    }
+    ExpectEqInt(white_fills, 1, "host background once, not again on anonymous wrappers");
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -778,6 +778,31 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(item->Geometry().content.height + 0.5f), 80,
                 "0% basis against indefinite main sizes to content, not zero");
   });
+
+  AddTest(tests, "Flex/PercentHeightAgainstIndefiniteMainUsesContent", [] {
+    // Same collapse as above, but via `height:100%` once flex-basis is auto —
+    // youtube wrappers often set both.
+    const Flexed result = Run(
+        "<div class=col><div class=item><p>hello hello hello hello</p>"
+        "<p>more more more more</p></div></div>",
+        "body, div, p { margin: 0; padding: 0 } "
+        ".col { display: flex; flex-direction: column; width: 100px } "
+        ".item { display: flex; flex-direction: column; height: 100%; min-height: 0; "
+        "overflow: hidden } "
+        "p { height: 40px }");
+    const Box* item = nullptr;
+    for (const Box* box : Items(*result.root, "div")) {
+      if (box->Origin() != nullptr) {
+        const auto* cls = box->Origin()->GetAttribute("class");
+        if (cls != nullptr && *cls == "item") {
+          item = box;
+        }
+      }
+    }
+    Expect(item != nullptr, "item box");
+    ExpectEqInt(static_cast<long long>(item->Geometry().content.height + 0.5f), 80,
+                "height:100% against indefinite main sizes to content");
+  });
 }
 
 }  // namespace microbrowser::tests

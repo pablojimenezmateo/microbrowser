@@ -1588,6 +1588,20 @@ so something beyond those three still zeroes the wrapper (box-tree / out-of-
 flow / explicit `flex-basis:0px`). Setting `flex:0 0 auto` via script makes
 the nudge ~163px tall, which confirms the collapse is flex sizing.
 
+**Partial (2026-08-09, continued).** Two more paint/flex fixes:
+4. `height:100%` / main-axis `%` against an indefinite flex main size is
+   treated as `auto` (same rule as `%` flex-basis) — nudge wrappers go from
+   0 → ~163px and `#content` ~291px.
+5. Anonymous boxes no longer re-paint a copied parent `background` — full-
+   viewport white fills from wrappers under `ytd-app` were painting *after*
+   the nudge text and erasing it.
+
+Remaining: `#content` / `ytd-page-manager` still content-sized (~291 / ~235)
+inside a 900px `ytd-app` rather than filling below the masthead (`#content`
+is `display:block`, while `page-manager` has `flex:1 1 0px` that only grows
+inside a flex parent). `getComputedStyle` now exposes flex longhands to
+diagnose that.
+
 **Close when** after Accept, nudge title text (or rich items when present) is
 inside the visible viewport without `-eval` scroll hacks, and
 `ytd-page-manager` height tracks `ytd-app` minus the masthead.

@@ -464,7 +464,13 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     // `visibility: hidden` still generates boxes and still paints *visible*
     // descendants, but skips its own ink. youtube's closed guide drawer relies
     // on that for both painting and hit-testing (ADR 0017 §5).
-    const bool paints_self = style.visibility == css::Visibility::Visible;
+    //
+    // Anonymous boxes (no element origin) copy a parent's style for inheritance
+    // of font/color into text, but must not re-paint that parent's background:
+    // wrappers under `ytd-app` were emitting full-viewport white fills *after*
+    // the feed nudge text and erasing it.
+    const bool paints_self =
+        style.visibility == css::Visibility::Visible && box.Origin() != nullptr;
     const gfx::Color background = WithPaintOpacity(style.background_color, paint_opacity);
     const gfx::Color border = WithPaintOpacity(style.border_color, paint_opacity);
     const gfx::Color ink = WithPaintOpacity(style.color, paint_opacity);

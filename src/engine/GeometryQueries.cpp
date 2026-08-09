@@ -406,6 +406,64 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "opacity") {
     return Number(style.opacity);
   }
+  if (property == "flex-direction") {
+    switch (style.flex.direction) {
+      case css::FlexDirection::Row: return std::string("row");
+      case css::FlexDirection::RowReverse: return std::string("row-reverse");
+      case css::FlexDirection::Column: return std::string("column");
+      case css::FlexDirection::ColumnReverse: return std::string("column-reverse");
+    }
+  }
+  if (property == "flex-wrap") {
+    switch (style.flex.wrap) {
+      case css::FlexWrap::NoWrap: return std::string("nowrap");
+      case css::FlexWrap::Wrap: return std::string("wrap");
+      case css::FlexWrap::WrapReverse: return std::string("wrap-reverse");
+    }
+  }
+  if (property == "flex-grow") {
+    return Number(style.flex.grow);
+  }
+  if (property == "flex-shrink") {
+    return Number(style.flex.shrink);
+  }
+  if (property == "flex-basis") {
+    return LengthText(style.flex.basis, font_size);
+  }
+  if (property == "align-items") {
+    switch (style.flex.align_items) {
+      case css::Alignment::Auto: return std::string("normal");
+      case css::Alignment::Stretch: return std::string("stretch");
+      case css::Alignment::FlexStart: return std::string("flex-start");
+      case css::Alignment::FlexEnd: return std::string("flex-end");
+      case css::Alignment::Center: return std::string("center");
+      case css::Alignment::Baseline: return std::string("baseline");
+    }
+  }
+  if (property == "align-self") {
+    switch (style.flex.align_self) {
+      case css::Alignment::Auto: return std::string("auto");
+      case css::Alignment::Stretch: return std::string("stretch");
+      case css::Alignment::FlexStart: return std::string("flex-start");
+      case css::Alignment::FlexEnd: return std::string("flex-end");
+      case css::Alignment::Center: return std::string("center");
+      case css::Alignment::Baseline: return std::string("baseline");
+    }
+  }
+  if (property == "justify-content") {
+    switch (style.flex.justify_content) {
+      case css::Distribution::FlexStart: return std::string("flex-start");
+      case css::Distribution::FlexEnd: return std::string("flex-end");
+      case css::Distribution::Center: return std::string("center");
+      case css::Distribution::SpaceBetween: return std::string("space-between");
+      case css::Distribution::SpaceAround: return std::string("space-around");
+      case css::Distribution::SpaceEvenly: return std::string("space-evenly");
+      case css::Distribution::Stretch: return std::string("stretch");
+    }
+  }
+  if (property == "order") {
+    return std::to_string(style.flex.order);
+  }
   if (property == "pointer-events") {
     return std::string(style.pointer_events == css::PointerEvents::None ? "none" : "auto");
   }
