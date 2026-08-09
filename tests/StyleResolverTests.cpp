@@ -244,6 +244,8 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "and cells are laid out across that row");
     Expect(StyleOf("<input>", "", "input").display == Display::InlineBlock,
            "an input is an inline-block control, not an invisible void element");
+    Expect(StyleOf("<input type=hidden>", "", "input").display == Display::None,
+           "HTML §15.3.1: hidden inputs are display:none !important in the UA sheet");
     Expect(StyleOf("<button>Go</button>", "", "button").display == Display::InlineBlock,
            "a button is an inline-block control, not ordinary inline text");
     Expect(StyleOf("<textarea>x</textarea>", "", "textarea").display == Display::InlineBlock,

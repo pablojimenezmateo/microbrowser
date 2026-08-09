@@ -36,6 +36,11 @@ tfoot { display: table-footer-group }
 tr { display: table-row }
 td, th { display: table-cell }
 head, style, script, title, meta, link, source { display: none }
+/* HTML §15.3.1. Without this, `input` is inline-block from the rule above and
+   BuildBoxTree still skips hidden inputs via IsHiddenInput — so every
+   RestyleWithoutLayout saw "generates a box but has none" and rebuilt the
+   whole tree (280 times on youtube /results, TD-0021 / TD-0033). */
+input[type=hidden] { display: none !important }
 /* HTML's UA rule. `!important` is load-bearing: an author `display:flex` on the
    same element must lose, or Polymer/boolean `hidden` is a no-op against a
    component stylesheet (youtube's `#content` inside expandable metadata). */

@@ -289,15 +289,27 @@ void Page::RestyleWithoutLayout() {
       // still "generating" in its own style. Only a missing box whose parent
       // *has* one (or is the document root) means this element itself just
       // became box-generating.
+      //
+      // Children of replaced elements never get boxes (BuildBoxTree stops at
+      // the replaced host). `button`/`select`/`video`/… with inner markup are
+      // everywhere on youtube — treating those as "display appeared" rebuilt
+      // the tree on every RestyleWithoutLayout (TD-0033).
       const dom::Node* parent = element.Parent();
       if (parent == nullptr || parent->GetKind() == dom::Node::Kind::Document) {
         box_generation_changed = true;
         return;
       }
-      if (parent->IsElement() &&
-          boxes.find(static_cast<const dom::Element*>(parent)) != boxes.end()) {
-        box_generation_changed = true;
+      if (!parent->IsElement()) {
+        return;
       }
+      const auto parent_box = boxes.find(static_cast<const dom::Element*>(parent));
+      if (parent_box == boxes.end()) {
+        return;
+      }
+      if (parent_box->second->GetKind() == layout::Box::Kind::Replaced) {
+        return;
+      }
+      box_generation_changed = true;
       return;
     }
     if (!style.GeneratesBox()) {

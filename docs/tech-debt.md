@@ -1027,6 +1027,14 @@ constructible (idle/empty) and the prototype carries `reverse` / `finish` /
 skip (2026-08-09). SPA search→watch no longer dies on Illegal constructor;
 `#movie_player` stamp after soft nav remains a separate gap.
 
+**Update** (2026-08-10). **False-positive display invalidations (TD-0033, fixed).**
+`RestyleWithoutLayout` rebuilt whenever an element "should generate a box but
+has none". Two false positives: (1) hidden `<input>`s skipped by `IsHiddenInput`
+while UA still made them `inline-block`; (2) children of replaced hosts
+(`button`/…) that never get boxes. On `/results` before: display invalidations
+**280** ≈ restyles, `BuildBoxTree` **~8.3 s / 390**. After: display **7** against
+**278** restyles, `BuildBoxTree` **~5.2 s / 118**. See TD-0033.
+
 **Update** (2026-08-09). **`opacity` as a paint property landed**: cascade +
 `getComputedStyle`, skip the whole subtree at 0, multiply command alphas for
 (0,1), and treat `opacity < 1` as a stacking context. Youtube's solid-black
@@ -1707,6 +1715,41 @@ snapshot Accept completes save→reload without waiting on stuck fonts/innertube
 
 **Close when.** Unit test green (done); Accept leaves no consent dialog (done);
 ADR 0005 notes the first-party jar rule (done).
+
+---
+
+## TD-0033 — Restyle treated non-box DOM as display changes; rebuilt the tree every time — **fixed 2026-08-10**
+
+**Opened** 2026-08-10 while profiling youtube `/results` after Accept.
+
+**Symptom.** Release `/results?search_query=cats`: `engine::BuildBoxTree`
+**8343 ms self / 390 calls**, `engine.box_tree_invalidated_by_display` **280**
+equal to `RestyleWithoutLayout` call count — every restyle dropped the box tree.
+
+**Cause (two halves).**
+
+1. **Hidden inputs.** `BuildBoxTree` skips `input[type=hidden]` via
+   `IsHiddenInput`, but the UA sheet only said `input { display: inline-block }`.
+   HTML §15.3.1 requires `display: none !important`. Fixed in the UA sheet.
+
+2. **Replaced hosts.** `button` / `select` / `video` / … are replaced: DOM
+   children never get boxes. `RestyleWithoutLayout` saw every inner `span` /
+   custom element as "generates a box but has none under a boxed parent" and
+   set `box_generation_changed`. Youtube's buttons make that fire on **every**
+   restyle. Fixed: skip the check when the parent's box is `Kind::Replaced`.
+
+**Fix.** UA `input[type=hidden] { display: none !important }`; restyle ignores
+missing boxes under replaced parents. Tests:
+`StyleResolver/AppliesTheUserAgentStyleSheet`,
+`Geometry/HiddenInputsDoNotInvalidateBoxTreeOnRestyle`,
+`Geometry/ReplacedChildrenDoNotInvalidateBoxTreeOnRestyle`.
+
+**Measured** (Release `/results` after Accept). Before: display **280** ≈
+restyles, BuildBoxTree **~8.3 s / 390**. After: display **7** vs **278**
+restyles, BuildBoxTree **~5.2 s / 118** (network still dominates wall).
+
+**End state.** Display-change rebuilds only when an element's own box generation
+actually flips; dirty-subtree rebuild (TD-0021) remains the larger end state.
 
 ---
 

@@ -143,6 +143,59 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     Expect(rebuilt >= 1, "display none→box regenerates the box tree");
   });
 
+  AddTest(tests, "Geometry/HiddenInputsDoNotInvalidateBoxTreeOnRestyle", [] {
+    // Hidden inputs generate no boxes (Layout/HiddenInputsGenerateNoBox) but
+    // used to compute as inline-block from the UA `input` rule. Every
+    // RestyleWithoutLayout then treated them as "should have a box" and
+    // rebuilt the tree — 280 times on youtube /results (TD-0033).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'>"
+              "<input type='hidden' name='token' value='x'>"
+              "<div id='a' style='width:100px;height:20px'>hi</div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
+    const std::string width = page.EvaluateScript(
+        "document.getElementById('a').style.height='40px';"
+        "document.getElementById('a').getBoundingClientRect().height;");
+    ExpectEqString(width, "40", "style write + geometry still works");
+    const util::PerfCounterSnapshot after = util::CapturePerformanceCounters();
+    const std::uint64_t rebuilt =
+        after[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)] -
+        before[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)];
+    ExpectEqInt(static_cast<long long>(rebuilt), 0,
+                "a hidden input must not force a display-change box rebuild");
+  });
+
+  AddTest(tests, "Geometry/ReplacedChildrenDoNotInvalidateBoxTreeOnRestyle", [] {
+    // `button` is replaced: its DOM children never get boxes. Restyle used to
+    // see every inner span as "box appeared" and InvalidateBoxTree (TD-0033).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<body style='margin:0'>"
+              "<button id='b'><span class='label'>Accept</span></button>"
+              "<div id='a' style='width:100px;height:20px'>hi</div>"
+              "</body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    Expect(page.EvaluateScript(
+               "document.querySelector('span').getBoundingClientRect().width") == "0",
+           "replaced-host children have no geometry of their own");
+    const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
+    const std::string height = page.EvaluateScript(
+        "document.getElementById('a').style.height='40px';"
+        "document.getElementById('a').getBoundingClientRect().height;");
+    ExpectEqString(height, "40", "geometry after style write");
+    const util::PerfCounterSnapshot after = util::CapturePerformanceCounters();
+    const std::uint64_t rebuilt =
+        after[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)] -
+        before[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)];
+    ExpectEqInt(static_cast<long long>(rebuilt), 0,
+                "markup inside a button must not force a display-change rebuild");
+  });
+
   AddTest(tests, "Geometry/AnInlineElementReportsItsFragments", [] {
     // An Inline box carries no geometry of its own -- its content lives in the
     // line boxes of its container -- so the union of its fragments is the only
