@@ -3903,4 +3903,22 @@ Empty-`src` before scroll or mid-stamp still under TD-0018.
 
 **Left:** TD-0018 empty-src reliability; home nudge; `Intl` / `eval`.
 
+---
+
+## 2026-08-09 — inline replaced percentages fill the containing block
+
+**Status:** youtube search thumb *geometry* fixed
+
+`.ytCoreImageFillParentWidth/Height { width/height: 100% }` matched but
+`ReplacedIntrinsic` skipped percentages and `InlineLayout` placed the baked
+0×0 (or post-decode intrinsic). `ResolveReplacedSize` resolves against the
+line's CB width and the block's definite height; `LayoutInlineChildren` takes
+that height. Counter `layout.replaced_percent_resolved`.
+
+Measured (Release, cats search, Accept, no scroll): above-fold `img` used size
+**500×281** (was 0×0); `layout.replaced_percent_resolved` thousands per load.
+`src` still often unset / `visibility:hidden` until IO assigns (TD-0018).
+
+**Left:** TD-0018 `src` assignment; home nudge; `Intl` / `eval`.
+
 

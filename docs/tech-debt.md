@@ -912,7 +912,9 @@ painted thumbnails for every in-view row without `-eval` force, watch plays via
 the page's own click handler (not only `-eval video.play()`), and home is
 honest about nudge vs UA. Related: TD-0017 (binding-token strip), TD-0007 /
 ADR 0036, **TD-0001 closed** (search layout no longer the wall), **TD-0020**
-(youtube `playVideo` stub).
+(youtube `playVideo` stub), **TD-0023** (img.src recollect). Inline replaced
+`width/height: 100%` now resolves (2026-08-09) — above-fold thumbs are sized
+500×281; empty `src` / `visibility:hidden` until IO assigns remains open here.
 
 ---
 
@@ -1338,6 +1340,15 @@ fetches; empty-`src` reliability stays under TD-0018.
 `engine.images_recollected_after_observation` move, so sampling runs — the
 lazy path still refuses to assign. After `-y 400`, `withSrc`/`complete` rise
 and the first result thumb reaches `naturalWidth` 720 (TD-0023 fetch path).
+
+**Update** (2026-08-09). Root cause of the 0×0 used size: inline replaced
+layout ignored percentage `width`/`height`. `.ytCoreImageFillParent*` matched
+in the cascade (`visibility:hidden` from `.ytCoreImageHost` proved it) but
+`ReplacedIntrinsic` skipped percents and `InlineLayout` reused that geometry.
+Landed `ResolveReplacedSize` + pass the containing block's definite height into
+`LayoutInlineChildren` (`layout.replaced_percent_resolved`). After Accept,
+above-fold imgs are **500×281** (was 0×0). `src` assignment remains flaky —
+separate from the size hole; still TD-0018.
 
 ---
 

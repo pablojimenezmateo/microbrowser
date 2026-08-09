@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -36,8 +37,22 @@ bool HasDefaultControls(const dom::Element& element);
 
 // The used width and height, in the order the cascade, the presentational attributes, the aspect
 // ratio and the intrinsic size are consulted.
+//
+// Percentages need a containing block: without one they behave as `auto` (CSS 2.1 §10.2 / §10.5).
+// Callers that know the CB — line layout, floats, block layout — pass it; the box tree builder
+// leaves percentages unresolved until then.
 float ReplacedWidth(const Box& box);
 float ReplacedHeight(const Box& box);
+
+// Used size of a replaced box once its containing block is known. Percentage
+// `width`/`height` (youtube's `.ytCoreImageFillParentWidth/Height`) resolve
+// here; without a definite CB height a percentage height is treated as auto.
+struct ReplacedUsedSize {
+  float width = 0.0f;
+  float height = 0.0f;
+};
+ReplacedUsedSize ResolveReplacedSize(const Box& box, float containing_block_width,
+                                     std::optional<float> containing_block_height);
 
 // What a form control displays: a `<select>`'s selected option, a `<button>`'s label, a text
 // field's value or placeholder.

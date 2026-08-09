@@ -408,12 +408,11 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
     const float margin_right = style.margin.right.Resolve(style.font_size);
     const float margin_top = style.margin.top.Resolve(style.font_size);
     const float margin_bottom = style.margin.bottom.Resolve(style.font_size);
-    // Recomputed rather than read back out of the geometry, for the reason
-    // LayoutBlock recomputes it: this runs a second time on the same box when
-    // a float is probed and then placed, and the geometry by then holds the
-    // first run's used size rather than the intrinsic one.
-    const float width = ReplacedWidth(child);
-    const float height = ReplacedHeight(child);
+    // Percentages need the float's containing block (the content box being
+    // laid out), same as inline replaced. ReplacedWidth alone skips them.
+    const ReplacedUsedSize used = ResolveReplacedSize(child, content_width, std::nullopt);
+    const float width = used.width;
+    const float height = used.height;
     const gfx::FloatRect placed =
         floats.Place(style.css_float, width + margin_left + margin_right,
                      height + margin_top + margin_bottom, cursor_y, content_left,
@@ -583,6 +582,16 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
 
   float content_height = 0.0f;
+  // Definite height known before children when it does not depend on them
+  // (stated length, or ForcedSize from abspos stretch / flex). Needed for
+  // percentage heights on both block children and inline replaced boxes.
+  std::optional<float> definite_content_height;
+  if (forced != nullptr && forced->content_height.has_value()) {
+    definite_content_height = *forced->content_height;
+  } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
+    definite_content_height = style.height.Resolve(style.font_size);
+  }
+
   if (style.IsFlexContainer()) {
     // Column flex needs a definite main size to grow or shrink. A stated or
     // forced height is one; a binding `max-height` on an auto-height column is
@@ -617,21 +626,11 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     content_height =
         LayoutTableChildren(box, content_left, content_width, content_top, table_columns);
   } else if (!has_block_child && !box.Children().empty()) {
-    content_height =
-        LayoutInlineChildren(box, content_left, content_width, content_top, child_floats);
+    content_height = LayoutInlineChildren(box, content_left, content_width, content_top,
+                                          child_floats, definite_content_height);
   } else {
-    // Definite height this box will end up with, known before its children when
-    // the height does not depend on them. CSS 2.1 §10.5: a percentage height
-    // resolves against that, and is treated as `auto` when the containing
-    // block's height is indefinite. Skipping the definite case left
-    // `ytd-player { height: 100% }` at zero inside youtube's abspos
-    // `#player-container` that already had a stretched height from top/bottom.
-    std::optional<float> definite_content_height;
-    if (forced != nullptr && forced->content_height.has_value()) {
-      definite_content_height = *forced->content_height;
-    } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
-      definite_content_height = style.height.Resolve(style.font_size);
-    }
+    // Block children. Percentage heights resolve against `definite_content_height`
+    // computed above (CSS 2.1 §10.5) — same value inline replaced boxes use.
 
     float child_cursor = content_top;
     for (const std::unique_ptr<Box>& child : box.Children()) {

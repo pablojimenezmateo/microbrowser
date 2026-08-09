@@ -113,7 +113,8 @@ class LayoutEngine {
   void LayoutAbsoluteDescendants(Box& container, const gfx::FloatRect& containing_block) const;
   void LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_block) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
-                             FloatContext& floats) const;
+                             FloatContext& floats,
+                             std::optional<float> definite_content_height = std::nullopt) const;
   // `measured` carries the column bounds in when the caller already needed
   // them to decide the table's own width, and takes them out when it did not.
   float LayoutTableChildren(Box& box, float content_left, float content_width, float start_y,

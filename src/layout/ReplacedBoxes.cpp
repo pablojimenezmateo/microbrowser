@@ -10,6 +10,7 @@
 #include "gfx/Image.h"
 #include "html/FormControl.h"
 #include "util/Parse.h"
+#include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::layout {
@@ -191,6 +192,57 @@ bool IsReplacedElement(const dom::Element& element) {
 float ReplacedWidth(const Box& box) { return ReplacedIntrinsic(box, true); }
 
 float ReplacedHeight(const Box& box) { return ReplacedIntrinsic(box, false); }
+
+ReplacedUsedSize ResolveReplacedSize(const Box& box, float containing_block_width,
+                                     std::optional<float> containing_block_height) {
+  const css::ComputedStyle& style = box.Style();
+  ReplacedUsedSize used;
+  bool resolved_percent = false;
+
+  if (style.width.IsPercent()) {
+    used.width = std::max(0.0f, style.width.Used(containing_block_width, style.font_size));
+    resolved_percent = true;
+  } else if (!style.width.IsAuto()) {
+    used.width = std::max(0.0f, style.width.Resolve(style.font_size, 0.0f));
+  } else {
+    used.width = ReplacedWidth(box);
+  }
+
+  if (style.height.IsPercent()) {
+    if (containing_block_height.has_value()) {
+      used.height =
+          std::max(0.0f, style.height.Used(*containing_block_height, style.font_size));
+      resolved_percent = true;
+    } else {
+      // Indefinite CB height: percentage height computes as auto (§10.5).
+      used.height = ReplacedHeight(box);
+    }
+  } else if (!style.height.IsAuto()) {
+    used.height = std::max(0.0f, style.height.Resolve(style.font_size, 0.0f));
+  } else {
+    used.height = ReplacedHeight(box);
+  }
+
+  // One axis auto, the other definite, and an aspect ratio: fill the auto axis
+  // from the ratio rather than from an intrinsic that would disagree with the
+  // percentage we just applied (FillParent + later-decoded bitmap).
+  if (style.aspect_ratio > 0.0f) {
+    const bool height_definite =
+        !style.height.IsAuto() &&
+        (!style.height.IsPercent() || containing_block_height.has_value());
+    const bool width_definite = !style.width.IsAuto();
+    if (style.width.IsAuto() && height_definite && used.height > 0.0f) {
+      used.width = used.height * style.aspect_ratio;
+    } else if (style.height.IsAuto() && width_definite && used.width > 0.0f) {
+      used.height = used.width / style.aspect_ratio;
+    }
+  }
+
+  if (resolved_percent) {
+    util::AddPerformanceCounter(util::PerfCounterId::LayoutReplacedPercentResolved);
+  }
+  return used;
+}
 
 std::string FormControlText(const dom::Element& element) {
   if (const std::optional<std::string> selected = html::SelectedOptionText(element)) {

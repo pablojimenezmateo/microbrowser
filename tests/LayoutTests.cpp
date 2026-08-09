@@ -498,6 +498,29 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(std::abs(fill->Geometry().content.width - 200.0f) < 0.5f, "and width:100% still works");
   });
 
+  AddTest(tests, "Layout/InlineReplacedPercentFillsDefiniteContainingBlock", [] {
+    // youtube search thumbs: abspos `#thumbnail` hosts
+    // `img.ytCoreImageFillParentWidth/Height { width/height: 100% }` with
+    // `display: inline-block`. Inline replaced layout used to skip percentages,
+    // leaving 0×0 until decode then jumping to intrinsic size.
+    const LaidOut sized = Run(
+        "<body style='margin:0'>"
+        "<div id='host'><img id='pic' src='x.png'></div>"
+        "</body>",
+        "body { margin: 0 } "
+        "#host { position: absolute; left: 0; top: 0; width: 200px; height: 100px } "
+        "#pic { display: inline-block; width: 100%; height: 100%; margin: 0 }",
+        400.0f);
+    const Box* host = FindBox(*sized.root, "div");
+    Expect(host != nullptr, "host");
+    const Box* img = FindBox(*sized.root, "img");
+    Expect(img != nullptr && img->GetKind() == Box::Kind::Replaced, "replaced img");
+    Expect(std::abs(img->Geometry().content.width - 200.0f) < 0.5f,
+           "width:100% on inline replaced uses the CB width");
+    Expect(std::abs(img->Geometry().content.height - 100.0f) < 0.5f,
+           "height:100% on inline replaced uses the CB height");
+  });
+
   AddTest(tests, "Layout/InputControlsGenerateVisibleInlineBoxes", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input size='10'><span>after</span></body>",

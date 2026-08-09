@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <vector>
 
+#include "layout/ReplacedBoxes.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
@@ -238,7 +240,8 @@ void ReorderLineForBidi(std::vector<LineItem>& line, css::Direction direction,
 }  // namespace
 
 float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float content_width,
-                                         float start_y, FloatContext& floats) const {
+                                         float start_y, FloatContext& floats,
+                                         std::optional<float> definite_content_height) const {
 
   std::vector<LineItem> line;
   float y = start_y;
@@ -413,8 +416,22 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       // An atomic inline: one unbreakable rectangle. It wraps to the next line
       // if it does not fit and the line already has something on it, and
       // otherwise overflows -- which is what a too-wide image does.
-      const float width = item->Geometry().content.width;
-      const float height = item->Geometry().content.height;
+      //
+      // Percentage width/height need the containing block (CSS 2.1 §10.3.2 /
+      // §10.6.2). The box tree left them unresolved; without this, youtube's
+      // `.ytCoreImageFillParentWidth/Height` stayed 0×0 (or jumped to intrinsic
+      // after decode) inside a definite abspos thumbnail.
+      const css::ComputedStyle& replaced_style = item->Style();
+      float width = item->Geometry().content.width;
+      float height = item->Geometry().content.height;
+      if (replaced_style.width.IsPercent() || replaced_style.height.IsPercent()) {
+        const ReplacedUsedSize used =
+            ResolveReplacedSize(*item, content_width, definite_content_height);
+        width = used.width;
+        height = used.height;
+        item->Geometry().content.width = width;
+        item->Geometry().content.height = height;
+      }
       if (!line.empty() && x + width > line_right) {
         finish_line();
       }

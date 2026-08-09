@@ -585,6 +585,9 @@ namespace microbrowser::util {
   /* inline place-on-line. Hits are the walks we no longer do; misses are the   */ \
   /* stretch / constraint-change cases that still re-lay out.                   */ \
   X(LayoutMeasureCacheHits, "layout.measure_cache_hits")                         \
+  /* Inline/float replaced boxes whose width/height percentages resolved       */ \
+  /* against a containing block (youtube FillParent thumbs).                   */ \
+  X(LayoutReplacedPercentResolved, "layout.replaced_percent_resolved")           \
   X(LayoutMeasureCacheMisses, "layout.measure_cache_misses")                     \
   /* Column flex containers with `height: auto` and a binding `max-height`: the */ \
   /* first pass sizes by content, then a second pass re-resolves with the max   */ \
