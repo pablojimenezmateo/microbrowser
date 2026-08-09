@@ -671,6 +671,113 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(feet[0]->Geometry().content.y + 0.5f), 80,
                 "footer stays inside the max-height box");
   });
+
+  AddTest(tests, "Flex/NestedColumnInsideRowKeepsContentCrossSize", [] {
+    // youtube home feed nudge: `#dismissible` (row) > `#content-wrapper`
+    // (column) > `#text-container` (column) > title/subtitle. The text lays out
+    // ~127px tall but ancestors stayed 0 with `overflow:hidden`, so the nudge
+    // was invisible inside a 72px page-manager (TD-0028).
+    const Flexed result = Run(
+        "<div id=dismissible>"
+        "<div id=wrapper><div id=header></div>"
+        "<div id=text><h2>Try searching to get started</h2>"
+        "<p>Start watching videos to help us build a feed.</p></div></div></div>",
+        "body, div, h2, p { margin: 0; padding: 0 } "
+        "#dismissible { display: flex; width: 700px; overflow: hidden; min-height: 0 } "
+        "#wrapper { display: flex; flex-direction: column; width: 700px } "
+        "#header { display: flex } "
+        "#text { display: flex; flex-direction: column } "
+        "h2 { display: block; height: 50px } "
+        "p { display: block; height: 60px }");
+    const Box* dismissible = nullptr;
+    const Box* wrapper = nullptr;
+    const Box* text = nullptr;
+    result.root->ForEachDescendant([&](const Box& box) {
+      if (box.Origin() == nullptr || !box.Origin()->IsElement()) {
+        return;
+      }
+      const auto* id = static_cast<const dom::Element*>(box.Origin())->GetAttribute("id");
+      if (id == nullptr) {
+        return;
+      }
+      if (*id == "dismissible") {
+        dismissible = &box;
+      } else if (*id == "wrapper") {
+        wrapper = &box;
+      } else if (*id == "text") {
+        text = &box;
+      }
+    });
+    Expect(dismissible != nullptr && wrapper != nullptr && text != nullptr, "boxes exist");
+    ExpectEqInt(static_cast<long long>(text->Geometry().content.height + 0.5f), 110,
+                "text column is title+subtitle tall");
+    ExpectEqInt(static_cast<long long>(wrapper->Geometry().content.height + 0.5f), 110,
+                "wrapper column grows with the text item");
+    ExpectEqInt(static_cast<long long>(dismissible->Geometry().content.height + 0.5f), 110,
+                "row dismissible cross-size is the wrapper height");
+  });
+
+  AddTest(tests, "Flex/RowStatedHeightStretchesItems", [] {
+    // TD-0028: a row flex with `height: 200px` must stretch items to that cross
+    // size. Overwriting the container height after LayoutFlexChildren left
+    // children at content size (youtube ytd-browse).
+    const Flexed result = Run(
+        "<div class=flex><section>x</section></div>",
+        "body, div, section { margin: 0; padding: 0 } "
+        ".flex { display: flex; width: 400px; height: 200px } "
+        "section { flex: 1; min-height: 0; background: red }");
+    const std::vector<const Box*> containers = Items(*result.root, "div");
+    const std::vector<const Box*> sections = Items(*result.root, "section");
+    ExpectEqInt(static_cast<long long>(containers.size()), 1, "one row");
+    ExpectEqInt(static_cast<long long>(sections.size()), 1, "one item");
+    ExpectEqInt(static_cast<long long>(containers[0]->Geometry().content.height + 0.5f), 200,
+                "row uses its stated height");
+    ExpectEqInt(static_cast<long long>(sections[0]->Geometry().content.height + 0.5f), 200,
+                "stretch fills the definite cross size");
+  });
+
+  AddTest(tests, "Flex/RowItemPercentHeightResolvesAgainstContainer", [] {
+    // height:100% is not `auto`, so stretch does not apply — the percentage
+    // must resolve against the row's definite cross size instead.
+    const Flexed result = Run(
+        "<div class=flex><section>x</section></div>",
+        "body, div, section { margin: 0; padding: 0 } "
+        ".flex { display: flex; width: 400px; height: 200px } "
+        "section { width: 100px; height: 100% }");
+    const std::vector<const Box*> sections = Items(*result.root, "section");
+    ExpectEqInt(static_cast<long long>(sections.size()), 1, "one item");
+    ExpectEqInt(static_cast<long long>(sections[0]->Geometry().content.height + 0.5f), 200,
+                "height:100% fills the row");
+  });
+
+  AddTest(tests, "Flex/PercentFlexBasisAgainstIndefiniteMainUsesContent", [] {
+    // `flex: 1` → `flex-basis: 0%`. Against an auto-height column that
+    // percentage is indefinite and must act as `auto`, so the item sizes to
+    // its content instead of collapsing to 0 (youtube feed nudge / TD-0028).
+    const Flexed result = Run(
+        "<div class=col><div class=item><p>hello hello hello hello</p>"
+        "<p>more more more more</p></div></div>",
+        "body, div, p { margin: 0; padding: 0 } "
+        ".col { display: flex; flex-direction: column; width: 100px } "
+        ".item { display: flex; flex-direction: column; flex: 1; min-height: 0; "
+        "overflow: hidden } "
+        "p { height: 40px }");
+    const std::vector<const Box*> items = Items(*result.root, "div");
+    Expect(items.size() >= 2, "column and item");
+    const Box* item = nullptr;
+    for (const Box* box : items) {
+      if (box->Origin() != nullptr && box->Origin()->IsElement()) {
+        const auto* cls =
+            static_cast<const dom::Element*>(box->Origin())->GetAttribute("class");
+        if (cls != nullptr && *cls == "item") {
+          item = box;
+        }
+      }
+    }
+    Expect(item != nullptr, "item box");
+    ExpectEqInt(static_cast<long long>(item->Geometry().content.height + 0.5f), 80,
+                "0% basis against indefinite main sizes to content, not zero");
+  });
 }
 
 }  // namespace microbrowser::tests

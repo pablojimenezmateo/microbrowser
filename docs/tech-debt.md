@@ -1566,6 +1566,20 @@ item child has a real height; and/or page-manager height rules (`100%` /
 `100vh` / flex grow) that never become definite against the filled app.
 `vh` in lengths is media-query-only today.
 
+**Partial (2026-08-09).** Three flex bugs fixed that youtube hits:
+1. Row flex definite/ForcedSize height now feeds `align-items: stretch`
+   (`definite_cross_size`).
+2. Row item `height:100%` resolves against that definite cross size.
+3. `flex: 1` is `flex-basis: 0%` (not `0px`); percentage basis against an
+   indefinite main size is treated as `auto` so auto-height columns size to
+   content.
+
+After Accept, `#text-container` is still ~127px while `#content-wrapper` /
+`#dismissible` stay 0 (`overflow:hidden`) and `ytd-page-manager` ~72px —
+so something beyond those three still zeroes the wrapper (box-tree / out-of-
+flow / explicit `flex-basis:0px`). Setting `flex:0 0 auto` via script makes
+the nudge ~163px tall, which confirms the collapse is flex sizing.
+
 **Close when** after Accept, nudge title text (or rich items when present) is
 inside the visible viewport without `-eval` scroll hacks, and
 `ytd-page-manager` height tracks `ytd-app` minus the masthead.

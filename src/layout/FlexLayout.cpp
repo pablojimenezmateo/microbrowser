@@ -59,6 +59,9 @@ struct Item {
   float measure_left = 0.0f;
   float measure_top = 0.0f;
   bool measured = false;
+  // Resolved cross-axis content size when the item says a definite or
+  // percentage height/width against a definite container cross size.
+  std::optional<float> forced_cross;
 };
 
 // A run of items that fit on one line, and how tall that line is.
@@ -152,7 +155,8 @@ float AlignOffset(css::Alignment alignment, float line_cross, float item_cross) 
 
 float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float content_width,
                                        float start_y,
-                                       std::optional<float> definite_main_height) const {
+                                       std::optional<float> definite_main_height,
+                                       std::optional<float> definite_cross_size) const {
   const css::ComputedStyle& style = box.Style();
   const css::ComputedStyle::FlexStyle& flex = style.flex;
   const bool row = IsRow(flex.direction);
@@ -161,13 +165,14 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   // The container's cross size, when it has one. A row container with an auto
   // height has none until its lines are measured, which is what makes
   // `align-content` and a stretched line different questions from
-  // `align-items`.
+  // `align-items`. A forced or stated height on a row *is* definite (TD-0028).
   //
   // A column's main size is the definite content height when the caller has
   // one. Zero means indefinite: measure by content, and do not grow or shrink
   // (there is nothing to flex against).
   const float main_size = row ? content_width : definite_main_height.value_or(0.0f);
-  const float cross_size = row ? 0.0f : content_width;
+  const float cross_size =
+      row ? definite_cross_size.value_or(0.0f) : content_width;
   const float main_gap = row ? flex.column_gap : flex.row_gap;
   const float cross_gap = row ? flex.row_gap : flex.column_gap;
 
@@ -235,9 +240,29 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     // property on the main axis, then the content. The order is the spec's and
     // it matters -- `flex-basis: 0` with a declared width is zero, which is
     // what makes `flex: 1` distribute space evenly regardless of content.
+    //
+    // A *percentage* flex-basis against an indefinite main size is treated as
+    // `auto` (CSS Flexbox §7.1 / CSS Sizing). `flex: 1` is `flex-basis: 0%`;
+    // resolving that to 0 when the container's height is auto collapsed
+    // youtube's feed nudge (`min-height: 0`) to a 0px box while its title still
+    // laid out at ~127px inside (TD-0028).
     const css::Length& basis = item_style.flex.basis;
     const css::Length& main_length = row ? item_style.width : item_style.height;
-    if (!basis.IsAuto()) {
+    const css::Length& cross_length = row ? item_style.height : item_style.width;
+    const bool basis_as_auto =
+        basis.IsAuto() || (basis.IsPercent() && main_size <= 0.0f);
+    // Percentage cross sizes resolve against a definite container cross size
+    // (CSS Flexbox §4.5 / CSS 2.1 §10.5). Without this, `height:100%` on a row
+    // item under a definite-height flex left the item content-sized and disabled
+    // stretch (height not auto) — youtube `ytd-browse { height:100% }` stayed ~16px.
+    std::optional<float> forced_cross;
+    if (cross_size > 0.0f && cross_length.IsPercent()) {
+      forced_cross = cross_length.Used(cross_size, font_size);
+    } else if (!cross_length.IsAuto() && !cross_length.IsPercent()) {
+      forced_cross = cross_length.Resolve(font_size);
+    }
+    item.forced_cross = forced_cross;
+    if (!basis_as_auto) {
       item.base_main = basis.Used(main_size, font_size);
       item.base_main += item.main_extra;
     } else if (!main_length.IsAuto()) {
@@ -253,7 +278,12 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
       float probe = 0.0f;
       item.measure_left = content_left;
       item.measure_top = probe;
-      LayoutBlock(*item.box, content_left, cross_size, probe, floats);
+      ForcedSize probe_forced;
+      if (forced_cross.has_value()) {
+        probe_forced.content_width = *forced_cross;
+      }
+      LayoutBlock(*item.box, content_left, cross_size, probe, floats, false,
+                  forced_cross.has_value() ? &probe_forced : nullptr);
       item.base_main = probe;
       item.measured = true;
     }
@@ -388,16 +418,31 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
       item.measure_top = cursor;
       if (row) {
         forced.content_width = std::max(0.0f, item.outer_main - item.main_extra);
+        if (item.forced_cross.has_value()) {
+          forced.content_height = *item.forced_cross;
+        }
         LayoutBlock(*item.box, content_left, item.outer_main, cursor, floats, false, &forced);
       } else {
         forced.content_height = std::max(0.0f, item.outer_main - item.main_extra);
+        if (item.forced_cross.has_value()) {
+          forced.content_width = *item.forced_cross;
+        }
         LayoutBlock(*item.box, content_left, cross_size, cursor, floats, false, &forced);
       }
       item.measured = true;
       // What the item actually occupies across the axis it was not sized on.
-      item.outer_cross = row ? cursor : item.box->Geometry().MarginBox().width;
+      item.outer_cross =
+          row ? (item.forced_cross.has_value() ? *item.forced_cross + item.cross_extra : cursor)
+              : item.box->Geometry().MarginBox().width;
       line.cross_size = std::max(line.cross_size, item.outer_cross);
     }
+  }
+
+  // A single-line row with a definite container height: the line's cross size
+  // is the container's (CSS Flexbox §9.4). Content-sized lines alone left
+  // ForcedSize height as a border-box lie that stretch never saw.
+  if (row && definite_cross_size.has_value() && lines.size() == 1) {
+    lines[0].cross_size = std::max(lines[0].cross_size, *definite_cross_size);
   }
 
   // --- Place the lines, then the items on them ------------------------------
@@ -530,8 +575,11 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   // along the main axis for a column. A definite column height is the used
   // content height even when items overflow it (flex-shrink: 0) — clamping the
   // container after the fact without this would disagree with the size flexing
-  // resolved against.
+  // resolved against. A definite row cross size is the same for the other axis.
   if (row) {
+    if (definite_cross_size.has_value()) {
+      return *definite_cross_size;
+    }
     return lines_total;
   }
   if (main_size > 0.0f) {

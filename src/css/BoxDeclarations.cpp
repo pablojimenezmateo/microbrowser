@@ -405,13 +405,21 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
         ++numbers;
         continue;
       }
+      // Unitless zero as a flex-basis in the shorthand is `0%` (§7.1), so
+      // `flex: 1 1 0` matches `flex: 1`.
+      if (part == "0" || part == "+0" || part == "-0") {
+        style.flex.basis = Length{0.0f, Length::Unit::Percent};
+        saw_basis = true;
+        continue;
+      }
       applied = ApplyBoxDeclaration("flex-basis", std::string(part), parent, style, context) && applied;
       saw_basis = true;
     }
     if (numbers > 0 && !saw_basis) {
-      // The one-value form: `flex: 1` sets the basis to zero, which is what
-      // makes it fill rather than merely absorb.
-      style.flex.basis = Length::Pixels(0.0f);
+      // The one-value form: `flex: 1` sets the basis to `0%` (CSS Flexbox
+      // §7.1.1), not `0px`. A percentage basis against an indefinite main size
+      // is treated as `auto` during layout; absolute zero is not.
+      style.flex.basis = Length{0.0f, Length::Unit::Percent};
     }
     if (numbers == 1) {
       style.flex.shrink = 1.0f;

@@ -104,9 +104,16 @@ class LayoutEngine {
   // `content_width`. Without it a column never grows or shrinks — there is no
   // free space to speak of — which is how youtube's consent dialog kept
   // `#content` at its intrinsic ~1490px inside an 896px `max-height` box.
+  //
+  // `definite_cross_size` is the row container's definite content height (the
+  // cross axis). Without it, a ForcedSize / stated height only overwrote the
+  // container box after children were measured — `align-items: stretch` never
+  // saw a line taller than content, and youtube's `ytd-browse` at 844px left
+  // `#dismissible { min-height:0 }` at 0 with overflow:hidden (TD-0028).
   float LayoutFlexChildren(Box& box, float content_left, float content_width,
                            float start_y,
-                           std::optional<float> definite_main_height = std::nullopt) const;
+                           std::optional<float> definite_main_height = std::nullopt,
+                           std::optional<float> definite_cross_size = std::nullopt) const;
   // Positioning, in its own translation unit. Two passes and not one: an
   // absolutely positioned box is sized against the padding box of the nearest
   // positioned ancestor, and that ancestor's height is not known until its

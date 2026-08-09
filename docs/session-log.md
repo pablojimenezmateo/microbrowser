@@ -4288,3 +4288,31 @@ applies the same delta. Floats still beat overlapping in-flow blocks.
 **Left:** TD-0028 page-manager / nudge height; intervening *clip* for collected
 units (TD-0030); button width ~51px duplicate hosts.
 
+---
+
+## 2026-08-09 — Flex definite cross size + `flex: 1` = `0%`
+
+**Status:** correct flex behaviour landed; youtube nudge still collapses
+
+Trusted Accept works (prior commit). Home after Accept still shows masthead
+over empty main: `#text-container` ~127px inside `#content-wrapper` /
+`#dismissible` at 0 with `overflow:hidden`.
+
+**Fixes.**
+1. Pass row flex ForcedSize/stated height into LayoutFlexChildren as
+   `definite_cross_size`; single-line stretch fills it (was: overwrite
+   container height after children measured).
+2. Resolve item `height:100%` against that cross size (stretch skips
+   non-auto heights).
+3. `flex: 1` / unitless `0` in the shorthand → `flex-basis: 0%`; percentage
+   basis against indefinite main → treat as `auto` (CSS Flexbox), so
+   auto-height columns size to content.
+
+**Measured.** Flex unit tests green (incl. TD-0028 shapes). Natural youtube
+after Accept still `page-manager` ~72 / `dismissible` 0; `-eval` setting
+`flex:0 0 auto` on the nudge chain yields ~163px — remaining collapse is
+not those three bugs alone.
+
+**Left:** TD-0028 remainder (why wrapper stays 0); TD-0030 clips; natural
+`height:100%` / `vh` on `#content` so page-manager fills `ytd-app`.
+
