@@ -4161,3 +4161,21 @@ starves same-turn `requestSubmit`.
 `undefined (bound)` / `ReferenceError: w` noise on the page.
 
 ---
+
+## 2026-08-09 — `Location` interface (prototype + instanceof)
+
+**Status:** `typeof Location === "function"` and `location instanceof Location`
+
+`window.location` was a plain object with own URL parts. Pages and polyfills
+that touch `Location.prototype` or `instanceof Location` saw a missing global.
+`MakeInterface("Location")` now owns the prototype; `href` / parts /
+`assign`/`replace`/`reload` live there; `WriteLocationFields` only refreshes
+`#href`. Same `SplitHref` as anchors/`URL`.
+
+**Check:** DomBindings Location tests; `data:` snapshot
+`location instanceof Location` true.
+
+**Left:** home rich feed when the server sends items; watch settle wall time;
+residual `ReferenceError: w` / `undefined (bound)` throws.
+
+---
