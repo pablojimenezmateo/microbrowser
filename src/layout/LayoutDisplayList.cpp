@@ -644,9 +644,6 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
           int pushed = 0;
           if (!SkipsInterveningOverflowClip(*unit.box)) {
             for (const InterveningClip& clip : unit.intervening_clips) {
-              if (!InterveningClipApplies(clip)) {
-                continue;
-              }
               const float x = clip.padding_box.x + child_offset.x - clip.scroll_before.x;
               const float y = clip.padding_box.y + child_offset.y - clip.scroll_before.y;
               out.PushClip(gfx::IntRect{

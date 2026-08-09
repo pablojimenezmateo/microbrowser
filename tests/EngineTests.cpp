@@ -818,12 +818,11 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Page/HitTestsAbsposUnderNonStackingAbsposAncestor", [] {
-    // youtube search: body often reports height:0 with overflow:scroll while
+    // youtube search: body often has height:0 with overflow:scroll while
     // ytd-app is position:absolute;z-index:auto (unit, not a stacking context)
     // and ytd-search is position:relative;z-index:0 (unit + SC) around the
-    // abspos thumbnail. TD-0030's intervening body clip was empty and rejected
-    // ytd-search — elementFromPoint returned #pm and clicks never navigated
-    // (TD-0034 mitigation: skip zero-area intervening clips).
+    // abspos thumbnail. html/body overflow propagates to the viewport (TD-0034)
+    // so their padding boxes must not clip collected units.
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load("<style>"
@@ -852,6 +851,30 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(focused != nullptr && focused->GetAttribute("id") != nullptr &&
                *focused->GetAttribute("id") == "thumbnail",
            "focused element is #thumbnail");
+  });
+
+  AddTest(tests, "Page/HtmlBodyOverflowDoesNotClipAsLocalScroller", [] {
+    // In-flow content under height:0 body still paints in the viewport; the
+    // document scrolls via the viewport, not a body padding-box scroller.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load("<style>"
+              "html,body{margin:0;height:0;overflow:scroll}"
+              "#tall{height:2000px;width:100px;background:red}"
+              "</style>"
+              "<body><div id=tall></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    gfx::DisplayList list;
+    page.Paint(list);
+    int pushes = 0;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      pushes += std::holds_alternative<gfx::PushClipCommand>(command) ? 1 : 0;
+    }
+    ExpectEqInt(pushes, 0, "html/body must not PushClip their empty padding boxes");
+    const std::string hit = page.EvaluateScript(
+        "document.elementFromPoint(10,10) && document.elementFromPoint(10,10).id;");
+    ExpectEqString(hit, "tall", "in-flow content in the viewport is still hit");
   });
 
   AddTest(tests, "Page/HitTestsRelativeInsideOverflowScroller", [] {

@@ -88,13 +88,4 @@ inline void AccumulateOverflowForCollect(const Box& child, gfx::FloatPoint& scro
   scroll_from_sc.y += child.ScrollOffset().y;
 }
 
-// A zero-area padding box (youtube's `body{height:0;overflow:scroll}` while
-// `ytd-app` is abspos to the ICB) must not discard collected units: Appendix E
-// lifts those units out of the empty clip the way it did before intervening
-// clips were recorded (TD-0030). Non-empty overflow:auto clips still apply
-// (Accept button). Viewport overflow propagation for html/body is TD-0034.
-inline bool InterveningClipApplies(const InterveningClip& clip) {
-  return clip.padding_box.width > 0.0f && clip.padding_box.height > 0.0f;
-}
-
 }  // namespace microbrowser::layout

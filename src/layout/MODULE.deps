@@ -51,7 +51,9 @@ budget: BoxGeometry     header_lines=30 public_methods=6  members=4
 # on the method says so, because the method alone cannot.
 # 225 and 49 for `VideoSurface`: a `<video>` carries a surface id the same way an `<img>` carries
 # pixels, and layout paints the hole before the synthetic controls.
-budget: Box             header_lines=230 public_methods=50 members=13
+# Raised for TD-0034: `ClipsOverflow` documents why html/body never clip locally
+# (CSS Overflow → viewport) and the youtube height-0 body failure mode.
+budget: Box             header_lines=245 public_methods=50 members=13
 # The kinds are documented rather than listed, because each one exists to make
 # a distinction some pass would otherwise have to rediscover from style. The
 # budget is here so that growth in the vocabulary is a decision.

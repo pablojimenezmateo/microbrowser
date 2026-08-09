@@ -191,7 +191,24 @@ class Box {
   // its container's line boxes -- deleted every story title on the front page.
   // They were all in the display list, in the right place, in the right
   // colour; the clip around them was 0x0.
-  bool ClipsOverflow() const { return kind_ != Kind::Inline && style_.ClipsOverflow(); }
+  //
+  // `html` / `body` never clip locally: CSS Overflow propagates their overflow
+  // to the viewport (used value `visible` on the propagator — TD-0034). Their
+  // padding box must not be a scroll container; document scroll is the page's
+  // viewport offset. Youtube's `body{height:0;overflow:scroll}` otherwise
+  // rejected every collected unit under abspos `ytd-app`.
+  bool ClipsOverflow() const {
+    if (kind_ == Kind::Inline) {
+      return false;
+    }
+    if (origin_ != nullptr) {
+      const std::string_view tag = origin_->TagName();
+      if (tag == "html" || tag == "body") {
+        return false;
+      }
+    }
+    return style_.ClipsOverflow();
+  }
 
   // A box that clips its overflow is a **scroll container**: what it cut off is
   // still there, and an offset decides which part of it shows. Every value but

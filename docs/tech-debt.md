@@ -1645,10 +1645,8 @@ documented next to `ScrollAdjust` / `Page/LinkAtThroughOverflowHiddenAncestor`.
 
 **Close when.** Done for relative / in-flow collected units. Abspos under a
 non-covering `overflow:hidden` padding box remains the documented exception
-until thumbnail layout no longer needs it. Zero-area intervening clips (youtube
-`body{height:0;overflow:scroll}` with abspos `ytd-app`) are skipped —
-`InterveningClipApplies`; viewport overflow propagation for html/body is
-TD-0034.
+until thumbnail layout no longer needs it. html/body no longer clip locally
+(TD-0034).
 
 ---
 
@@ -1773,7 +1771,7 @@ actually flips; dirty-subtree rebuild (TD-0021) remains the larger end state.
 
 ---
 
-## TD-0034 — html/body overflow clips to a height-0 padding box instead of the viewport
+## TD-0034 — html/body overflow clips to a height-0 padding box instead of the viewport — **fixed 2026-08-10**
 
 **Opened** 2026-08-10 after TD-0030 made youtube search thumbnails unclickable.
 
@@ -1784,22 +1782,28 @@ overflow:scroll}` (CSSOM), abspos `ytd-app` (unit, not a stacking context),
 TD-0030 recorded body's empty padding box as an intervening clip and rejected
 the `ytd-search` unit.
 
-**Mitigation landed.** `InterveningClipApplies` skips zero-area padding clips
-so collected units work again (test
-`Page/HitTestsAbsposUnderNonStackingAbsposAncestor`). Accept's non-empty
-`overflow:auto` clips are unchanged.
+**Fix.** CSS Overflow propagation for continuous media: `html` / `body` never
+establish a local overflow clip or scroll container (`Box::ClipsOverflow`).
+Document scroll remains the page's viewport offset (`layout_.scroll_y`). The
+zero-area `InterveningClipApplies` workaround is removed. Tests:
+`Page/HitTestsAbsposUnderNonStackingAbsposAncestor`,
+`Page/HtmlBodyOverflowDoesNotClipAsLocalScroller`.
 
-**End state.** CSS overflow propagation: used overflow on the viewport for
-html/body, clip rect = viewport size (not the content-sized / zero padding
-box). Paint tree-walk PushClip for the root scroller should match.
+**Still approximate.** Used overflow is forced `visible` on both elements
+rather than only the CSS propagator, and the viewport does not yet honour
+`overflow:hidden` on html/body as a scroll lock. Good enough that youtube
+search hits work; a later pass can store propagated viewport overflow policy.
 
-**Close when** a height-0 body with overflow still clips in-flow content to the
-viewport (not to empty), and the zero-area skip can be removed.
+**Close when.** Done for the hit/paint clip half. Scroll-lock from
+`body{overflow:hidden}` remains open if a page needs it.
 
 ---
 
 ## Closed
 
+- **TD-0034 — html/body overflow clipped as local scroll containers** (2026-08-10).
+  Used overflow propagates to the viewport; html/body no longer PushClip or
+  reject collected units. See open entry (closed for the clip half).
 - **TD-0033 — Restyle treated non-box DOM as display changes** (2026-08-10).
   UA hidden-input `display:none`; skip missing boxes under replaced parents.
   Youtube `/results`: display invalidations 280 → 7; BuildBoxTree ~8.3 s/390 →

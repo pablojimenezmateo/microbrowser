@@ -126,9 +126,6 @@ bool PointSurvivesInterveningClips(const layout::StackingUnit& unit,
     return true;
   }
   for (const layout::InterveningClip& clip : unit.intervening_clips) {
-    if (!layout::InterveningClipApplies(clip)) {
-      continue;
-    }
     const gfx::FloatPoint at{scrolled.x + clip.scroll_before.x,
                              scrolled.y + clip.scroll_before.y};
     if (!Contains(clip.padding_box, at)) {
