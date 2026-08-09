@@ -387,20 +387,21 @@ bool Engine::RunDueWork() {
   // Paint-only due work (WAAPI style ticks, video frames) must not enter Layout:
   // MutationVersion has moved, so Layout would reflow every frame (TD-0021).
   if (due == Page::DueWorkKind::Paint) {
-    // While a load is outstanding, rebuilding the display list at 60Hz is why
-    // youtube watch never finished the snapshot drain: RunDueWork returning
-    // true skipped the socket wait every frame. Restyle already updated the
-    // boxes; the next real LayoutAndPaint from a completion shows them.
+    // While a load is outstanding, skip PaintAndSend: restyle already updated
+    // the boxes; the next LayoutAndPaint from a completion shows them.
     if (!IsLoading()) {
       PaintAndSend();
     }
-    // Never report paint-only ticks as "runnable work". Snapshot's load/drain
-    // loops treat `true` as "skip the wait", so infinite Element.animate /
-    // CSS animations (TD-0021) would spin the CPU and starve sockets. The app
-    // loop ignores this return and sleeps on NextDeadlineMs either way.
+  } else {
+    LayoutAndPaint();
+  }
+  // While loading, never report due work as runnable to the snapshot/load loop.
+  // A true return skips WaitOnDescriptors; layout-affecting animate() then
+  // LayoutAndPaint-spins at ~60Hz and starves font/media fetches (TD-0021).
+  // The app loop ignores this return and sleeps on NextDeadlineMs either way.
+  if (IsLoading()) {
     return from_workers;
   }
-  LayoutAndPaint();
   return true;
 }
 
