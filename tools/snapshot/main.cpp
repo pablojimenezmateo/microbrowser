@@ -533,14 +533,20 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
       IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url());
   const auto post_load_deadline =
       reddit_feed_drain ? drain_deadline
-                        : std::chrono::steady_clock::now() + std::chrono::seconds(8);
+                        : std::chrono::steady_clock::now() + std::chrono::seconds(2);
   const auto yield_after_due = [&]() {
-    // Host-task storms (TD-0018) arm deadline 0 / none and must keep turning.
-    // A positive deadline is the animation/rAF clock — sleep so we do not burn
-    // the pass budget as fast as LayoutAndPaint can run.
-    const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs();
-    if (!deadline.has_value() || *deadline == 0) {
+    // Reddit's host-task stamp (TD-0018) must keep turning with deadline 0.
+    // Everyone else: always yield. A due-now rAF reports deadline 0, and
+    // skipping the wait LayoutAndPaint-spins the whole post-load budget
+    // (youtube watch, TD-0021).
+    if (reddit_feed_drain) {
       return;
+    }
+    std::uint32_t slice = 16;
+    if (const std::optional<std::uint32_t> deadline = engine.NextDeadlineMs()) {
+      if (*deadline > 0) {
+        slice = std::min(*deadline, 16u);
+      }
     }
     microbrowser::util::WaitDescriptorList descriptors;
     engine.AppendWaitDescriptors(descriptors);
@@ -551,8 +557,8 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (remaining <= 0) {
       return;
     }
-    const std::int32_t wait_ms = static_cast<std::int32_t>(std::min<std::int64_t>(
-        remaining, static_cast<std::int64_t>(std::min<std::uint32_t>(*deadline, 16u))));
+    const std::int32_t wait_ms = static_cast<std::int32_t>(
+        std::min<std::int64_t>(remaining, static_cast<std::int64_t>(slice)));
     microbrowser::platform::WaitOnDescriptors(descriptors, wait_ms);
   };
   for (int pass = 0; pass < 4096; ++pass) {
