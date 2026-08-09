@@ -527,6 +527,9 @@ class DomBindings {
   void InstallClipboard(const js::Value& navigator);
   void InstallNotification();
   void InstallCrypto();
+  // `TextEncoder` / `TextDecoder` (Encoding Standard, UTF-8). In EncodingBindings.cpp; installed
+  // from InstallWindow because they are window globals, not navigator answers.
+  void InstallTextEncoding();
   // `screen.*` and `devicePixelRatio`, both quantised (ADR 0029 §6). In PrivacyAnswers.cpp with the
   // rest of the table, and installed from InstallWindow because they are window properties.
   void InstallScreenAndPixelRatio();

@@ -368,6 +368,12 @@ namespace microbrowser::util {
   X(EncodingReplacements, "encoding.replacements")                                 \
   X(EncodingFromPrescan, "encoding.from_prescan")                                 \
   X(EncodingFellBackToWindows1252, "encoding.fell_back_to_windows1252")            \
+  X(EncodingTextEncoderConstructed, "encoding.text_encoder_constructed")           \
+  X(EncodingTextEncoderEncode, "encoding.text_encoder_encode")                     \
+  X(EncodingTextEncoderBytes, "encoding.text_encoder_bytes")                       \
+  X(EncodingTextDecoderConstructed, "encoding.text_decoder_constructed")           \
+  X(EncodingTextDecoderDecode, "encoding.text_decoder_decode")                     \
+  X(EncodingTextDecoderBytes, "encoding.text_decoder_bytes")                       \
   X(MatroskaFilesParsed, "matroska.files_parsed")                                 \
   X(MatroskaRefusals, "matroska.refusals")                                        \
   X(HlsPlaylistsParsed, "hls.playlists_parsed")                                    \

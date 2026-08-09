@@ -3800,3 +3800,24 @@ only `NotAllowedError` on `play()` (blob src already set), many empty-`src`
 `load()` calls, and `Woffle: PES is undefined` Errors — not MediaError / not
 `NotSupportedError`. Click-to-play still works.
 
+---
+
+## 2026-08-09 — TextEncoder / TextDecoder (Encoding Standard UTF-8)
+
+**Status:** landed; watch uses them; facade still `fmt.unplayable`
+
+`TextEncoder` / `TextDecoder` are window globals (EncodingBindings.cpp). Only
+UTF-8; other labels `RangeError`. Counters: `encoding.text_encoder_*` /
+`encoding.text_decoder_*`. On `/watch?v=jNQXAC9IVRw` Release: 47 encodes /
+~48KB, 257 decodes — the player PES path was calling `new TextEncoder` against
+an undefined name. After this, `typeof TextEncoder === "function"` and those
+counters move, but `Woffle: PES is undefined` still appears (3–4×) and
+`getVideoData().errorCode` stays `fmt.unplayable`. Next platform gaps on that
+path: `crypto.subtle` (`au()` wants `importKey`/`sign`/`encrypt`) and
+IndexedDB + `BroadcastChannel` (Woffle `g.D8` / `plI`); page sends
+`allowWoffleManagement:true`.
+
+**Left:** dirty-subtree box allocation; TD-0020 facade (`fmt.unplayable`);
+TD-0018; home feed when the server sends one.
+
+

@@ -458,6 +458,7 @@ microbrowser_module(bindings
     src/bindings/AnimationFrames.cpp
     src/bindings/IdleCallbacks.cpp
     src/bindings/BlobBindings.cpp
+    src/bindings/EncodingBindings.cpp
     src/bindings/DomBindings.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/FetchBindings.cpp

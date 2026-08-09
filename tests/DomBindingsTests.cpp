@@ -63,6 +63,25 @@ constexpr const char* kPage =
 }  // namespace
 
 void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "DomBindings/TextEncoderAndDecoderRoundTripUtf8", [] {
+    // Encoding Standard: encode produces UTF-8 bytes; decode undoes them.
+    // youtube's PES path is `(new TextEncoder).encode(s).subarray(0, 16)`.
+    ExpectScript("<html><body></body></html>",
+                 "const e = new TextEncoder();"
+                 "const d = new TextDecoder();"
+                 "const u = e.encode('hi café');"
+                 "u instanceof Uint8Array && d.decode(u) === 'hi café' && e.encoding === 'utf-8'",
+                 "true");
+    ExpectScript("<html><body></body></html>",
+                 "Array.from(new TextEncoder().encode('A')).join(',')", "65");
+    ExpectScript("<html><body></body></html>",
+                 "(() => { try { new TextDecoder('windows-1252'); return 'ok'; }"
+                 "catch (err) { return err.name; } })()",
+                 "RangeError");
+    ExpectScript("<html><body></body></html>",
+                 "new TextDecoder().decode(new Uint8Array([0xEF,0xBB,0xBF,0x61]))", "a");
+  });
+
   // The type hierarchy. `HTMLElement is not defined` is where youtube.com's
   // application bundle stopped, and it is not a missing method -- it is a
   // missing *type*, so `class X extends HTMLElement` could not be written at

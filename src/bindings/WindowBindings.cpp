@@ -176,6 +176,7 @@ void DomBindings::InstallWindow() {
   }
   InstallNotification();
   InstallCrypto();
+  InstallTextEncoding();
   InstallScreenAndPixelRatio();
   const Value post_message = interpreter_->NewNativeValue("postMessage", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
