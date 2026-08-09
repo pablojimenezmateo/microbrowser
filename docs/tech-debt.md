@@ -1332,6 +1332,13 @@ callback is not assigning (0×0 `yt-image` geometry / step budget / race), which
 is separate from the fetch-list hole. Close this TD when a set `src` always
 fetches; empty-`src` reliability stays under TD-0018.
 
+**Measured** (2026-08-09, Release, after Accept, no scroll): `ytd-thumbnail`
+500×281 in view; child `yt-image` stays `display:inline` / 0×0; `img` is
+`inline-block` 0×0 with no `src`. `view.intersection_records` ~1000 and
+`engine.images_recollected_after_observation` move, so sampling runs — the
+lazy path still refuses to assign. After `-y 400`, `withSrc`/`complete` rise
+and the first result thumb reaches `naturalWidth` 720 (TD-0023 fetch path).
+
 ---
 
 ## Closed
