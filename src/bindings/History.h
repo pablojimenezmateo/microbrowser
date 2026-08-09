@@ -65,14 +65,15 @@ class HistorySource {
   // turn ends.
   virtual void RequestHistoryTraversal(int delta) = 0;
 
-  // `location.assign` / `location.replace` / `location.href = …`. Same deferred
-  // boundary as traversal and form submit: a navigation tears the document down,
-  // and doing that while the script that asked is still on the stack is the
-  // use-after-free ADR 0026 §3 names. `url` is whatever the page wrote
-  // (relative, absolute, or the current href); the engine resolves it. `replace`
-  // chooses between assign (push a history entry) and replace (rewrite the
-  // current one) — youtube's consent Accept sets SOCS then `location.assign`s
-  // `consent.youtube.com/save?…`, and without this the dialog never leaves.
+  // `location.assign` / `location.replace` / `location.reload` /
+  // `location.href = …`. Same deferred boundary as traversal and form submit:
+  // a navigation tears the document down, and doing that while the script that
+  // asked is still on the stack is the use-after-free ADR 0026 §3 names. `url`
+  // is whatever the page wrote (relative, absolute, or the current href); the
+  // engine resolves it. `replace` chooses between assign (push a history entry)
+  // and replace (rewrite the current one). `reload` is replace of the current
+  // URL — youtube's consent Accept POSTs then `location.reload()`s so the watch
+  // document returns with SOCS set.
   virtual void RequestNavigation(std::string_view url, bool replace) = 0;
 };
 

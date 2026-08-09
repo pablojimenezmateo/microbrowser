@@ -155,9 +155,15 @@ bool Engine::FollowPendingLocationNavigation() {
   if (pending.replace) {
     replacing_document_ = true;
   }
-  util::LoadTimeline::MarkWith(pending.replace ? "navigation.location_replace"
-                                               : "navigation.location_assign",
-                               resolved);
+  // Same URL + replace is `location.reload()`: still a network load, but not a
+  // new history entry. Distinguish it in the timeline so a consent Accept that
+  // reloads the watch page is not read as a replace to somewhere else.
+  const char* milestone = "navigation.location_assign";
+  if (pending.replace) {
+    milestone = (resolved == page_.Url()) ? "navigation.location_reload"
+                                         : "navigation.location_replace";
+  }
+  util::LoadTimeline::MarkWith(milestone, resolved);
   NavigateFromCurrentDocument(resolved, {});
   return true;
 }

@@ -1221,11 +1221,11 @@ lands near `y≈1887` — off-screen. `max-height` *is* written (`896px`) once
 | `box-sizing: border-box` honoured for min/max size | **done** (iron-fit's pair with `max-height`) |
 | `getComputedStyle().overflow` shorthand | **done** |
 | column flex grow/shrink + `max-height` re-layout | **done** — `#content` is now ~840px inside the 896px dialog (`layout.flex_column_max_height_relayouts`); Accept still needs `scrollIntoView` because it sits at the end of the scrollable policy text |
-| `location.assign` / `replace` / `href=` | **done** (ADR 0026 §3) — deferred through `HistorySource::RequestNavigation`; manual `location.assign(savePreferenceUrl)` navigates |
-| Accept → `consent.youtube.com/save` | **open** — Accept sets `SOCS` from `saveConsentAction.socsCookie` but never calls `location.assign` / form POST; a manual GET to the save URL returns **405**; save likely needs **POST** (and the command executor that should drive it is not reaching navigation) |
+| `location.assign` / `replace` / `href=` / **`reload`** | **done** (ADR 0026 §3) — deferred through `HistorySource::RequestNavigation`; Accept's Fy8 ends in `location.reload()` after POSTing `savePreferenceUrl` (GET is 405; POST returns 204) |
+| Accept → `consent.youtube.com/save` | **done** for the network half — click fires `yt-save-consent-action` → `handleSaveConsent` → `Fy8` (set SOCS, POST `/upgrade_visitor_cookie`, POST save URL); dismiss needs `location.reload()` (above) |
 | auto-refit after stamp | **open** — `notifyResize()` schedules a refit that lands on the next drain (`top/left` → `0/266`), but nothing calls it after the bump stamps; youtube forces `ShadyDOM` (`force:true`, `ShadyCSS.disableRuntime:true`) |
 | inflated `#content.scrollHeight` (~1e5–4e5) | **open** — scrollport height is right; overflow measurement is not |
-| real `-click` Accept → user activation → play | blocked on dismiss / save navigation |
+| real `-click` Accept → user activation → play | check after reload dismiss |
 
 `dialog.refit()` / `resetFit(); fit()` recentres correctly when called. After
 Accept sets `SOCS`, MSE buffers the full zoo clip (`readyState` 4, ~19s) once

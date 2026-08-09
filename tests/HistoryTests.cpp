@@ -348,19 +348,30 @@ void RegisterHistoryTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "History/LocationAssignNavigatesAfterTheTurn", [] {
-    // youtube consent Accept sets SOCS then location.assign(savePreferenceUrl).
-    // Without assign the dialog never leaves; without the turn boundary the
-    // assign would tear the document down under the script that asked.
+    // Location navigations are deferred past the turn (ADR 0026 §3).
     Session session;
     session.Run(
-        "console.log(typeof location.assign + ' ' + typeof location.replace);");
-    ExpectEqString(session.Console(), "function function",
-                   "assign and replace exist. Errors: " + session.Errors());
+        "console.log(typeof location.assign + ' ' + typeof location.replace + ' ' + "
+        "typeof location.reload);");
+    ExpectEqString(session.Console(), "function function function",
+                   "assign, replace and reload exist. Errors: " + session.Errors());
 
     Session navigate;
     navigate.Run("location.assign('https://page.example/second');");
     ExpectEqString(navigate.DisplayedUrl(), "https://page.example/second",
                    "location.assign loads after the turn. Errors: " + navigate.Errors());
+  });
+
+  AddTest(tests, "History/LocationReloadReloadsTheCurrentDocument", [] {
+    // youtube consent Accept: POST savePreferenceUrl, then location.reload() so
+    // the watch page returns with SOCS. Without reload the dialog stays.
+    Session session;
+    session.Run("location.reload();");
+    ExpectEqString(session.DisplayedUrl(), "https://page.example/start",
+                   "reload stays on the current URL. Errors: " + session.Errors());
+    // A second request for the same URL: the initial load plus the reload.
+    Expect(session.factory.log.requests.size() >= 2,
+           "reload must fetch again, not be a no-op same-document walk");
   });
 
   AddTest(tests, "History/LocationReplaceRewritesTheCurrentEntry", [] {

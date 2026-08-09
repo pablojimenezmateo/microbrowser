@@ -499,9 +499,9 @@ class Engine : private bindings::NetworkSource,
   // document, and doing that with the interpreter on the stack is a
   // use-after-free.
   int pending_traversal_ = 0;
-  // A `location.assign` / `replace` / `href=` that script asked for. First one
-  // in a turn wins, for the same reason as PendingSubmit: the first navigation
-  // is what tears the document down.
+  // A `location.assign` / `replace` / `reload` / `href=` that script asked for.
+  // First one in a turn wins, for the same reason as PendingSubmit: the first
+  // navigation is what tears the document down.
   struct PendingLocationNavigation {
     std::string url;
     bool replace = false;

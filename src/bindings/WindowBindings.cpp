@@ -150,10 +150,11 @@ void DomBindings::InstallWindow() {
     if (to_string.IsObject()) {
       location.object->Set("toString", to_string);
     }
-    // `assign` / `replace` / writable `href` — ADR 0026 §3. Deferred through
-    // HistorySource so the navigation runs after the turn ends. Without these,
-    // youtube's consent Accept sets SOCS and never leaves the dialog: its
-    // saveConsentAction finishes with `location.assign(savePreferenceUrl)`.
+    // `assign` / `replace` / `reload` / writable `href` — ADR 0026 §3. Deferred
+    // through HistorySource so the navigation runs after the turn ends.
+    // youtube's consent Accept POSTs to consent.youtube.com/save, then
+    // `location.reload()` so the watch page comes back with SOCS set; without
+    // reload the cookie lands and the dialog stays forever.
     if (history_ != nullptr) {
       const auto install_nav = [this, &location](const char* name, bool replace) {
         const Value method = interpreter_->NewNativeValue(name, [replace](NativeCall& call) {
@@ -172,6 +173,24 @@ void DomBindings::InstallWindow() {
       };
       install_nav("assign", false);
       install_nav("replace", true);
+
+      const Value reload = interpreter_->NewNativeValue("reload", [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->history_ == nullptr) {
+          return Value::Undefined();
+        }
+        // Same URL, replace: a new load of the current entry, not a push.
+        // Empty `url_` would ResolveUrl to nothing and be dropped — refuse
+        // silently rather than invent a navigation target.
+        if (!owner->url_.empty()) {
+          owner->history_->RequestNavigation(owner->url_, true);
+        }
+        return Value::Undefined();
+      });
+      if (reload.IsObject()) {
+        reload.object->Set(kOwnerSlot, PointerValue(this));
+        location.object->Set("reload", reload);
+      }
 
       const Value href_get = interpreter_->NewNativeValue("href", [](NativeCall& call) {
         if (!call.self.IsObject()) {
