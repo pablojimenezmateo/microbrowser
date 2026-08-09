@@ -33,9 +33,10 @@ media::MediaState* MediaElements::For(const dom::Element& element, bool has_sour
       fresh.SetMuted(true);
     }
   } else {
-    // No source is `NO_SOURCE` immediately, which is what makes `play()` on an empty element a
-    // `NotSupportedError` rather than a promise that never settles.
-    fresh.FailNoSource();
+    // No source yet is `NO_SOURCE` without `error`: `play()` still refuses with
+    // `NotSupportedError`, but the element is not a failed selection. `FailNoSource`
+    // is for after every candidate was rejected (see MediaState).
+    fresh.MarkNoSource();
   }
   return &states_.emplace(&element, std::move(fresh)).first->second;
 }

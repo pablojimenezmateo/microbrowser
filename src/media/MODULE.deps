@@ -36,7 +36,7 @@ budget: AudioSink       header_lines=60  public_methods=11 members=0
 # ADR 0028 §1's two state machines, as state and nothing else -- no samples, no element, no
 # network. That is what lets the transitions be driven and asserted without a decoder, which
 # is the only way to know they are the specification's rather than an approximation.
-budget: MediaState      header_lines=115 public_methods=24 members=12
+budget: MediaState      header_lines=120 public_methods=25 members=12
 # ADR 0028 §2's playlist parser. Structs rather than a class because a playlist *is* data -- the
 # parse is one function and nothing here has state to protect.
 budget: HlsPlaylist     header_lines=45 public_methods=2 members=6
@@ -63,6 +63,6 @@ budget: BufferedRanges  header_lines=60 public_methods=10 members=1
 budget: Range           header_lines=15 public_methods=2  members=2
 # The append algorithm as a pure object, for the reason MediaState is one: it is the part that is
 # easy to get subtly wrong, and only a pure object can be asserted.
-budget: SourceBufferState header_lines=115 public_methods=24 members=14
+budget: SourceBufferState header_lines=125 public_methods=25 members=14
 budget: MediaSourceState  header_lines=60 public_methods=18 members=5
 budget: Segment         header_lines=15 public_methods=2  members=2

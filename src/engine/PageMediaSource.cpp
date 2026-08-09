@@ -174,6 +174,22 @@ void Page::AbortSourceBuffer(std::uint64_t buffer_id) {
   }
 }
 
+bindings::MediaController::AddBufferError Page::ChangeSourceBufferType(
+    std::uint64_t buffer_id, const std::string& mime_type) {
+  media::SourceBufferState* buffer = media_.Buffer(buffer_id);
+  if (buffer == nullptr) {
+    return bindings::MediaController::AddBufferError::InvalidState;
+  }
+  if (!media::IsSupportedMediaSourceType(mime_type)) {
+    return bindings::MediaController::AddBufferError::NotSupported;
+  }
+  if (!buffer->ChangeType(mime_type)) {
+    // Supported type but mid-append (or otherwise refused).
+    return bindings::MediaController::AddBufferError::InvalidState;
+  }
+  return bindings::MediaController::AddBufferError::None;
+}
+
 void Page::SetTimestampOffset(std::uint64_t buffer_id, double seconds) {
   if (media::SourceBufferState* buffer = media_.Buffer(buffer_id)) {
     buffer->SetTimestampOffset(seconds);

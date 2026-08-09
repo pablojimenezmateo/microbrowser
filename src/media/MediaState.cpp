@@ -62,8 +62,17 @@ void MediaState::BeginLoad() {
   duration_ = 0.0;
   current_time_ = 0.0;
   last_time_update_ = -1.0;
+  // A new load aborts any prior selection, including a queued `error` from a failed
+  // candidate list. Keeping that event would fire it after `loadstart` on the next
+  // successful MediaSource attach (TD-0020).
+  events_.clear();
   events_.push_back("loadstart");
   util::AddPerformanceCounter(util::PerfCounterId::MediaLoadsStarted);
+}
+
+void MediaState::MarkNoSource() {
+  network_ = Network::NoSource;
+  ready_ = Ready::Nothing;
 }
 
 void MediaState::FailNoSource() {

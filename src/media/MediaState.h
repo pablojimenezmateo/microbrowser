@@ -54,9 +54,15 @@ class MediaState {
   // gets a fresh element, which is why `duration` becomes NaN-shaped (zero here) rather than
   // keeping the old media's.
   void BeginLoad();
-  // No source at all -- an empty `src`, or every `<source>` rejected. `NoSource` plus `error`,
-  // and **not** Loading: a page that polls `networkState` for a stalled load must be able to
-  // tell "nothing to load" from "loading slowly".
+  // The element has no resource yet (no `src`, no `<source>` children). `NoSource` and
+  // **no** `error`: HTML's resource-selection algorithm leaves an empty element at
+  // NETWORK_NO_SOURCE without MEDIA_ERR_SRC_NOT_SUPPORTED. Firing `error` here is what made
+  // youtube's player stick on `fmt.unplayable` while MSE later buffered a playable stream
+  // (TD-0020).
+  void MarkNoSource();
+  // Resource selection ran and every candidate failed. `NoSource` plus `error`, and **not**
+  // Loading: a page that polls `networkState` for a stalled load must be able to tell
+  // "nothing to load" from "loading slowly".
   void FailNoSource();
   // The container was parsed: duration is known, no frame yet.
   void MetadataArrived(double duration_seconds);

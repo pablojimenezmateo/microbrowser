@@ -209,6 +209,21 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
     Expect(state.Play(true) == MediaState::PlayRefusal::NotSupported, "play is not supported");
   });
 
+  AddTest(tests, "MediaState/AnEmptyElementIsNoSourceWithoutError", [] {
+    // HTML: no src and no source children → NETWORK_NO_SOURCE without MEDIA_ERR_SRC_NOT_SUPPORTED.
+    // Firing `error` on first touch is what stuck youtube on fmt.unplayable (TD-0020).
+    MediaState state;
+    state.MarkNoSource();
+    Expect(state.NetworkState() == MediaState::Network::NoSource, "NO_SOURCE");
+    ExpectEqString(Events(state), "", "and no error event");
+    Expect(state.Play(true) == MediaState::PlayRefusal::NotSupported, "play still refuses");
+    // A later load must not resurrect a phantom error either.
+    state.FailNoSource();
+    ExpectEqString(Events(state), "error", "only a real selection failure errors");
+    state.BeginLoad();
+    ExpectEqString(Events(state), "loadstart", "and BeginLoad clears the prior error");
+  });
+
   AddTest(tests, "MediaState/AutoplayIsRefusedUnlessMutedOrActivated", [] {
     // ADR 0028 §1 over ADR 0017's user activation. This is the behaviour pages are written
     // against: they call `play()`, catch `NotAllowedError`, and show a play button.

@@ -506,6 +506,8 @@ class Page : private layout::ImageProvider,
   int AppendToSourceBuffer(std::uint64_t buffer_id, std::string_view bytes) override;
   void RemoveFromSourceBuffer(std::uint64_t buffer_id, double start, double end) override;
   void AbortSourceBuffer(std::uint64_t buffer_id) override;
+  bindings::MediaController::AddBufferError ChangeSourceBufferType(
+      std::uint64_t buffer_id, const std::string& mime_type) override;
   void SetTimestampOffset(std::uint64_t buffer_id, double seconds) override;
   double TimestampOffset(std::uint64_t buffer_id) const override;
   void SetAppendWindow(std::uint64_t buffer_id, double start, double end) override;

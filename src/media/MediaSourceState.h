@@ -92,6 +92,12 @@ class SourceBufferState {
   // frames that were already processed.
   void Abort();
 
+  // `SourceBuffer.changeType`. Updates the MIME type for subsequent appends. The next media
+  // segment must be preceded by a fresh initialization segment for the new type -- retained
+  // frames stay; only the type and init-segment expectation move. False when the type is not
+  // supported or the buffer is mid-append.
+  bool ChangeType(std::string mime_type);
+
   // Events this buffer produced, in order, taken by the caller. Same contract as
   // `MediaState::TakeEvents`: nothing here dispatches anything.
   std::vector<std::string_view> TakeEvents();

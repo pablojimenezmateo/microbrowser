@@ -110,6 +110,11 @@ class MediaController {
   virtual int AppendToSourceBuffer(std::uint64_t buffer_id, std::string_view bytes) = 0;
   virtual void RemoveFromSourceBuffer(std::uint64_t buffer_id, double start, double end) = 0;
   virtual void AbortSourceBuffer(std::uint64_t buffer_id) = 0;
+  // `SourceBuffer.changeType`. Same two refusals as `addSourceBuffer`: unsupported MIME, or
+  // the buffer is mid-append / gone. youtube feature-detects the method and SABR calls it when
+  // switching itags (TD-0020).
+  virtual AddBufferError ChangeSourceBufferType(std::uint64_t buffer_id,
+                                                const std::string& mime_type) = 0;
   virtual void SetTimestampOffset(std::uint64_t buffer_id, double seconds) = 0;
   virtual double TimestampOffset(std::uint64_t buffer_id) const = 0;
   virtual void SetAppendWindow(std::uint64_t buffer_id, double start, double end) = 0;

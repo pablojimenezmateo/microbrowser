@@ -325,6 +325,26 @@ void SourceBufferState::Abort() {
   events_.push_back("updateend");
 }
 
+bool SourceBufferState::ChangeType(std::string mime_type) {
+  if (updating_) {
+    return false;
+  }
+  if (!IsSupportedMediaSourceType(mime_type)) {
+    return false;
+  }
+  // Subsequent appends must include a new initialization segment for the new
+  // type. Clearing tracks/timescale is what makes a bare media segment fail
+  // until that init arrives -- the same rule `Append` already enforces.
+  mime_type_ = std::move(mime_type);
+  tracks_.clear();
+  timescale_ = 0;
+  if (!init_segment_.empty()) {
+    bytes_held_ -= init_segment_.size();
+    init_segment_.clear();
+  }
+  return true;
+}
+
 std::vector<std::string_view> SourceBufferState::TakeEvents() {
   std::vector<std::string_view> taken;
   taken.swap(events_);

@@ -189,6 +189,20 @@ void RegisterMediaSourceTests(std::vector<TestCase>& tests) {
     ExpectEqString(EventsOf(source), "sourceclose", "sourceclose");
   });
 
+  AddTest(tests, "MediaSource/ChangeTypeUpdatesTheMimeForLaterAppends", [] {
+    // youtube feature-detects SourceBuffer.prototype.changeType and SABR calls it when
+    // switching itags (TD-0020). Absent meant the detect was false; throwing meant
+    // fmt.unplayable via sabrslicerqt.
+    SourceBufferState buffer{std::string(kMp4)};
+    Expect(buffer.Append(Mp4InitSegment(), MediaSourceState::kQuotaBytes) == AppendResult::Ok,
+           "init");
+    Expect(buffer.HasInitSegment(), "has init");
+    Expect(buffer.ChangeType("video/webm; codecs=\"vp9\""), "changeType to a supported type");
+    ExpectEqString(buffer.MimeType(), "video/webm; codecs=\"vp9\"", "mime updated");
+    Expect(!buffer.HasInitSegment(), "and expects a fresh init segment");
+    Expect(!buffer.ChangeType("video/mp2t"), "unsupported type refused");
+  });
+
   // --- Append, and the coded frame processing algorithm ---------------------------------------
 
   AddTest(tests, "MediaSource/AMediaSegmentBeforeAnInitSegmentIsRefused", [] {

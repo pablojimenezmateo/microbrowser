@@ -200,6 +200,20 @@ void DomBindings::InstallMediaSource() {
         owner->DeliverSourceBufferEvents(call.self, id);
         return Value::Undefined();
       }
+      if (what == "changeType") {
+        const std::string type = js::ToString(Argument(call.arguments, 0));
+        const MediaController::AddBufferError error =
+            owner->media_->ChangeSourceBufferType(id, type);
+        if (error == MediaController::AddBufferError::NotSupported) {
+          return ThrowDomException(call, "NotSupportedError",
+                                   "NotSupportedError: unsupported MIME type or codec");
+        }
+        if (error == MediaController::AddBufferError::InvalidState) {
+          return ThrowDomException(call, "InvalidStateError",
+                                   "InvalidStateError: SourceBuffer.changeType while updating");
+        }
+        return Value::Undefined();
+      }
       return Value::Undefined();
     });
     if (native.IsObject()) {
@@ -211,6 +225,7 @@ void DomBindings::InstallMediaSource() {
   buffer_method("appendBuffer");
   buffer_method("remove");
   buffer_method("abort");
+  buffer_method("changeType");
 
   // `buffered`, as a `TimeRanges`. Built fresh on every read, because that is what it is: a snapshot
   // of the ranges at the moment a player asked, and a cached one would tell it about the append

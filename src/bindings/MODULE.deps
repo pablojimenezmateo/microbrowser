@@ -185,7 +185,7 @@ budget: CookieSource    header_lines=35 public_methods=6  members=0
 budget: CanvasOp        header_lines=70 public_methods=0 members=12
 budget: Kind            header_lines=50 public_methods=0 members=0
 budget: CanvasSurface   header_lines=45 public_methods=12 members=0
-budget: MediaController header_lines=155 public_methods=49 members=0
+budget: MediaController header_lines=160 public_methods=50 members=0
 budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the
 # SocketSource this module declares, and the three delivery entry points -- C++-only,
