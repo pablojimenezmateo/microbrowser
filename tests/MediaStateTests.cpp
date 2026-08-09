@@ -127,6 +127,22 @@ void RegisterMediaStateTests(std::vector<TestCase>& tests) {
            "and assigning currentTime is a seek, which moves the position immediately");
   });
 
+  AddTest(tests, "MediaElement/CurrentSrcReflectsTheSrcAttribute", [] {
+    // youtube's player reads `currentSrc` (not only `src`) when deciding whether a
+    // resource is playable. An absent `currentSrc` left `fmt.unplayable` set while
+    // MSE already had HAVE_ENOUGH_DATA (TD-0020).
+    ScriptedPage page(
+        "<body><video id=v src='movie.mp4'></video><script>"
+        "const v = document.getElementById('v');"
+        "console.log('src:' + v.src + ' current:' + v.currentSrc + ' err:' + v.error);"
+        "</script></body>");
+    const std::string console = page.Console();
+    Expect(console.find("current:movie.mp4") != std::string::npos,
+           "currentSrc answers the chosen resource URL");
+    Expect(console.find("err:null") != std::string::npos,
+           "error is null when nothing has failed -- not undefined");
+  });
+
   AddTest(tests, "MediaElement/ThePlayMethodIsAbsentOnAnythingThatIsNotMedia", [] {
     // `document.body.play` must not exist. A media API on every element would make a typo look
     // like a player that does nothing. `canPlayType` shares the MediaSource allowlist --

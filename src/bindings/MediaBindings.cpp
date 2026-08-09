@@ -158,6 +158,18 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
       if (what == "videoHeight") {
         return Value::Number(static_cast<double>(owner->media_->VideoHeight(element)));
       }
+      // Absolute URL of the chosen resource. Missing this, youtube's player sees
+      // an empty `currentSrc` while `src` holds `blob:…` and reports
+      // `fmt.unplayable` (TD-0020) even with MSE at HAVE_ENOUGH_DATA.
+      if (what == "currentSrc") {
+        const std::string* src = element.GetAttribute("src");
+        return Value::String(src == nullptr ? std::string() : *src);
+      }
+      // No MediaError object yet when nothing failed: `null`, not `undefined`.
+      // A missing `error` made feature tests and player lastError paths diverge.
+      if (what == "error") {
+        return Value::Null();
+      }
       return Value::Bool(owner->media_->Muted(element));
     });
     const Value setter = interpreter_->NewNativeValue(name, [](NativeCall& call) -> Value {
@@ -203,6 +215,8 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
   accessor("muted");
   accessor("videoWidth");
   accessor("videoHeight");
+  accessor("currentSrc");
+  accessor("error");
 
   // `buffered` as a TimeRanges snapshot of whatever MediaSource ranges are
   // attached. Absent rather than always-empty when there is no media controller
