@@ -478,16 +478,19 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
 // After a trusted click/key, Accept's chain is page `fetch` → save →
 // `location.reload()`. `RunLoadToCompletion` only watches `IsDocumentLoading`,
 // so it returned while those fetches were still on the wire and the process
-// exited before reload (TD-0031 / TD-0032). Wait for script fetches (not fonts)
-// with a short cap — long-lived innertube must not reopen the 15‑minute hang.
+// exited before reload (TD-0031 / TD-0032). Wait briefly for script fetches
+// (not fonts). Cap is short on purpose: youtube leaves innertube/`GenerateIT`
+// open indefinitely, and waiting on those reopens the hang TD-0031 removed.
+// Once reload starts, hand off to `RunLoadToCompletion` and stop — do not
+// keep draining the new document's long-lived fetches.
 void RunPostInteractionDrain(microbrowser::engine::Engine& engine,
                              microbrowser::ipc::UiEndpoint& ui, SnapshotFrame& latest,
                              SnapshotFrame* best, int viewport_width, int viewport_height) {
-  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
   while (std::chrono::steady_clock::now() < deadline) {
     if (engine.IsDocumentLoading()) {
       RunLoadToCompletion(engine, ui, latest, best, viewport_width, viewport_height);
-      continue;
+      return;
     }
     if (!engine.HasInFlightScriptFetches() && !engine.HasRunnableWork()) {
       microbrowser::util::WaitDescriptorList descriptors;

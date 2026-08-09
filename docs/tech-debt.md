@@ -1688,19 +1688,25 @@ finish; re-measure `opened` / dialog count on home.
 **Fix.** `CookiePartitionMatches`: first-party lookups share all first-party
 entries under `(container, top_level site)`; third-party still matches the full
 key including origin. Snapshot `RunPostInteractionDrain` after click/key waits
-up to 60s for `HasInFlightScriptFetches` (not fonts), and re-enters
-`RunLoadToCompletion` when reload sets document loading. Test
-`Cookie/FirstPartySameSiteOriginsShareJar`.
+up to 20 s for `HasInFlightScriptFetches` (not fonts), runs
+`RunLoadToCompletion` when reload starts, then **returns** so innertube cannot
+re-open a long settle. Test `Cookie/FirstPartySameSiteOriginsShareJar`.
 
 **Measured** (Release, before): Accept click → save `cookies=0`, no reload,
-`propOpened: true`. After: `dialogs:0`, `SOCS` set, `focus: none`, home
-reloads (~21 s wall with post-interaction drain).
+`propOpened: true`. After: `dialogs:0`, `SOCS` set, home Accept wall **~16 s**.
+Watch after Accept: `#movie_player` + `<video>` `readyState` 4 / ~19 s buffer /
+`isPlayable`; trusted click on the player (not the pre-play `top:-660px` video
+box) reaches `paused:false` / `getPlayerState()===3`.
+
+**Update** (2026-08-10). Post-click drain must **return** after reload's
+`RunLoadToCompletion`, not keep waiting on the new document's long-lived
+innertube fetches (was burning the full cap after every Accept).
 
 **End state.** Same-site first-party cookie visibility matches browsers;
-snapshot Accept harness completes save→reload without waiting on stuck fonts.
+snapshot Accept completes save→reload without waiting on stuck fonts/innertube.
 
-**Close when.** Unit test green (done); Accept on home leaves no consent dialog
-(done on Release snapshot 2026-08-10); ADR 0005 notes the first-party jar rule.
+**Close when.** Unit test green (done); Accept leaves no consent dialog (done);
+ADR 0005 notes the first-party jar rule (done).
 
 ---
 
