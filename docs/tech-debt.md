@@ -2107,9 +2107,9 @@ document navigation. Globally raising `kMaxSteps` would re-open TD-0018
 `focus: div#movie_player`, `path:/watch`, `#movie_player video` with
 `blob:` src — SPA path, not the thin href shell. `js.steps_peak` still
 hits `20_000_001` once on a later stamp turn (ordinary ceiling after the
-input budget ends); SABR still `videoplayback` starts with 0 dones /
-`media.source_appends` absent / `readyState` 0 (`media.video_configure_failures=1`).
-SPA stamp half of the close condition is met; MSE half remains TD-0042.
+input budget ends); SABR still needed TD-0046's drain Advance for appends.
+SPA stamp half of the close condition is met when the thumb is upgraded;
+intermittent hard-nav (`focus: a#thumbnail`) is TD-0047 (mid-gesture layout).
 
 **Close when.** Soft-nav Release cats search→thumb stays on the SPA
 (`#movie_player` present, no hard-nav shell), `preventDefault` wins over href
@@ -2143,12 +2143,59 @@ snapshot both Advance every turn (`Application::RunOneIteration`, load
 `history.push_states=1`, `focus: div#movie_player`, player `readyState` **4**,
 buffered **~50s**, SABR `videoplayback` **29 start / 18 done / 11 aborted**,
 `media.source_appends=35`, `snapshot.drain_advances=10`. Occasional runs still
-hard-nav (`focus: a#thumbnail`, no player) — TD-0045 flake, not this drain bug.
+hard-nav (`focus: a#thumbnail`, no player) — TD-0047 (mid-gesture box rebuild),
+not this drain bug.
 
 **Close when.** Soft-nav Release shows `videoplayback` `request.done` (or
 explicit `request.aborted`), `snapshot.drain_advances > 0` during settle,
 `media.source_appends > 0` / player `readyState >= 2` — **met** on the
-successful SPA path above; keep open only until hard-nav flake rate is low.
+successful SPA path above; keep open only until hard-nav flake is rare
+(TD-0047).
+
+---
+
+## TD-0047 — Pointerdown rebuilt the box tree mid-gesture
+
+**Opened** 2026-08-10 after soft-nav sometimes hard-navigated (`focus:
+a#thumbnail`, thin `/watch` shell) despite TD-0045's input step budget.
+Successful runs had `history.push_states=1` and `#movie_player`; failures
+followed the thumb `href` as a document navigation.
+
+**Cause.** `Engine::HandlePointer` on primary-button Down always called
+`InvalidateLayout` + `LayoutAndPaint`, ignoring the `:hover`/`:active`
+invalidation index. Snapshot (and any batched Down+Up) then rebuilt youtube's
+result list under the press; click dispatched against a restamping tree and
+SPA `preventDefault` lost to `ResolveClickActivation`'s href. The real app
+separates Down and Up by a wait turn; the engine still must not drop boxes on
+press.
+
+**Fix.** Down applies `ApplyStyleChange(effect)` only. Snapshot `deliver_click`
+runs Advance/RunDueWork between Down and Up. Counters `input.click_prevented`
+/ `input.click_default_href`. Test `Page/PointerDownDoesNotDropTheBoxTree`.
+
+**Close when.** Soft-nav Release cats→thumb is SPA (`push_states`, movie_player)
+across repeated runs; `input.click_default_href` on that path is rare and
+explained.
+
+---
+
+## TD-0048 — Youtube `/results` Accept reload often fails the document fetch
+
+**Opened** 2026-08-10 while remasuring TD-0047. Soft-nav harness: initial
+`/results` can show consent (`Accept` coords), then Accept's `location.reload()`
+ends as `request.done … FAILED the connection failed` / title
+**Cannot load page**. Cold `/watch` in the same window still reaches `rs:4`.
+`curl --http2` to `/results` returns 200. `net.h2_retried` sometimes spikes
+(140+) on the failed reload path — distinct from TD-0044's ALPN wipe (memo is
+kept; test still passes).
+
+**Hypothesis.** Rapid CancelAll + new document GET to the same origin after
+consent's save/fetch burst races H2/TLS; or youtube resets the new stream.
+Needs a timeline that stamps every navigation's document attempt and the
+IoStatus behind `"the connection failed"`.
+
+**Close when.** Release Accept on `/results` recommits results (thumbs ≥12)
+across repeated runs without the error interstitial.
 
 ---
 

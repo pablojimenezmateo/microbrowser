@@ -5,6 +5,7 @@
 #include <string>
 
 #include "engine/LinkResolution.h"
+#include "util/PerformanceCounters.h"
 
 // The two things a user's hands do, and what the engine does about them.
 //
@@ -97,12 +98,12 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
 
   if (pointer.kind == ipc::PointerInputMessage::Kind::Down) {
     const bool pressed = page_.DispatchPointerDownAt(document_point, input);
-    if (pressed) {
-      page_.InvalidateLayout();
-      LayoutAndPaint();
-      return true;
-    }
-    return ApplyStyleChange(effect);
+    // :active / :hover through the invalidation index only. The pointerdown/up
+    // split used to InvalidateLayout+LayoutAndPaint on every press, which rebuilt
+    // youtube's result list under the finger; click then raced a restamping tree
+    // and SPA `preventDefault` lost to href activation (TD-0047). Paint after the
+    // gesture completes (release / prevented path below).
+    return ApplyStyleChange(effect) || pressed;
   }
   if (pointer.kind != ipc::PointerInputMessage::Kind::Up) {
     return ApplyStyleChange(effect);
@@ -115,6 +116,7 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
     return true;
   }
   if (click.prevented) {
+    util::AddPerformanceCounter(util::PerfCounterId::InputClickPrevented);
     page_.InvalidateLayout();
     LayoutAndPaint();
     return true;
@@ -135,6 +137,7 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
     }
     return ApplyStyleChange(effect);
   }
+  util::AddPerformanceCounter(util::PerfCounterId::InputClickDefaultHref);
   const std::optional<std::string> resolved = ResolveLink(*activation.href, page_.Url());
   if (!resolved.has_value()) {
     return ApplyStyleChange(effect);

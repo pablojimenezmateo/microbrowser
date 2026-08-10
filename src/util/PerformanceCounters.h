@@ -148,6 +148,8 @@ namespace microbrowser::util {
   /* open stream; without this, youtube SPA loses player base.js with the     */ \
   /* font SVGs that shared its socket (TD-0025).                              */ \
   X(NetHttp2Retried, "net.h2_retried")                                           \
+  /* H2 Receive returned IoStatus::Failed (TD-0048 Accept-reload flakes).      */ \
+  X(NetHttp2IoFailures, "net.h2_io_failures")                                    \
   X(NetHttp2StreamStalls, "net.h2_stream_stalls")                                \
   /* HPACK, as the two halves of one ratio. On the wire against decoded, so    */ \
   /* the compression the protocol claims is a division rather than a belief;   */ \
@@ -595,6 +597,11 @@ namespace microbrowser::util {
   /* ancestor (UI Events). youtube Accept dismissing over a result raises this */ \
   /* instead of navigating to /watch.                                          */ \
   X(InputClickRetargeted, "input.click_retargeted")                               \
+  /* Trusted click outcomes after dispatch (TD-0045 / TD-0047). The pair says  */ \
+  /* whether SPA preventDefault won or the engine followed an href — soft-nav  */ \
+  /* hard-nav flakes show up as default_href without a matching prevented.     */ \
+  X(InputClickPrevented, "input.click_prevented")                                 \
+  X(InputClickDefaultHref, "input.click_default_href")                            \
   /* Element→box map lookups from geometry queries. Hits should track lookups  */ \
   /* once the index is built; the O(boxes) walk is gone (Gate C stamp depth).  */ \
   X(LayoutBoxLookups, "layout.box_lookups")                                      \

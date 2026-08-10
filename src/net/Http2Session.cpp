@@ -115,6 +115,9 @@ bool Http2Session::Read() {
       return true;
     }
     if (read.status != IoStatus::Ready) {
+      // Only Failed reaches here (Closed is handled above). Count it so Accept
+      // reload flakes (TD-0048) are visible beside h2_retried.
+      AddPerformanceCounter(PerfCounterId::NetHttp2IoFailures);
       for (Stream& stream : streams_) {
         if (!stream.complete && stream.error == nullptr) {
           stream.error = "the connection failed";

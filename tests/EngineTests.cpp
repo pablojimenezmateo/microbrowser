@@ -492,6 +492,36 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(outcome.prevented, "preventDefault is reached on a fresh task budget");
   });
 
+  AddTest(tests, "Page/PointerDownDoesNotDropTheBoxTree", [] {
+    // TD-0047: pointerdown used to InvalidateLayout+LayoutAndPaint unconditionally,
+    // rebuilding youtube search results under the press so click raced a new tree.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<body style='margin:0'>"
+                   "<a href='/next' style='display:block;width:80px;height:40px'>go</a>"
+                   "</body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html", "<title>Next</title><body>next page</body>")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/start"});
+    const auto builds_before =
+        util::ReadPerformanceCounter(util::PerfCounterId::LayoutTreeBuilds);
+    session.channel.Ui().Send(ClickAt(5.0f, 5.0f));
+    session.engine.HandlePendingMessages();
+    ExpectEqInt(
+        static_cast<long long>(util::ReadPerformanceCounter(util::PerfCounterId::LayoutTreeBuilds)),
+        static_cast<long long>(builds_before),
+        "pointerdown must not drop the box tree when no layout-affecting state changed");
+    session.Send(ClickReleaseAt(5.0f, 5.0f));
+    ExpectEqString(session.LastCommittedUrl(), "https://example.org/next",
+                   "pointerup still follows the link default action");
+  });
+
   AddTest(tests, "Page/MediaSourceOpenRunsAsAHostTask", [] {
     // TD-0040: sourceopen used to FireOn synchronously from video.src = blob:…
     // under the same hang-guard allotment as the stamp that set src. Soft-nav

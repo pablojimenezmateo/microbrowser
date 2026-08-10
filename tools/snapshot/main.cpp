@@ -941,16 +941,23 @@ int main(int argc, char** argv) {
   int last_eval_y = -1;
   bool last_eval_has_click = false;
   const auto deliver_click = [&](int x, int y) {
-    for (const auto kind : {microbrowser::ipc::PointerInputMessage::Kind::Down,
-                            microbrowser::ipc::PointerInputMessage::Kind::Up}) {
+    // Down and Up are separate turns, matching Application: pointerdown may
+    // schedule microtasks/rAF that must run before click, and a full layout
+    // between them used to restamp youtube results under the press (TD-0047).
+    const auto send_pointer = [&](microbrowser::ipc::PointerInputMessage::Kind kind) {
       microbrowser::ipc::PointerInputMessage pointer;
       pointer.kind = kind;
       pointer.position =
           microbrowser::gfx::FloatPoint{static_cast<float>(x), static_cast<float>(y)};
       pointer.buttons = kind == microbrowser::ipc::PointerInputMessage::Kind::Down ? 1 : 0;
       channel.Ui().Send(pointer);
-    }
-    engine.HandlePendingMessages();
+      engine.HandlePendingMessages();
+      (void)engine.Advance();
+      (void)engine.RunDueWork();
+      DrainOutgoingPaints(channel.Ui(), latest, &best, options.width, options.height);
+    };
+    send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Down);
+    send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Up);
     RunLoadToCompletion(engine, channel.Ui(), latest, &best, options.width, options.height);
     RunPostInteractionDrain(engine, channel.Ui(), latest, &best, options.width, options.height);
   };
