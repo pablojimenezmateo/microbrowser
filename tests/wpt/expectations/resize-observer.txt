@@ -1,0 +1,50 @@
+[resize-observer/callback-cross-realm-report-exception.html]
+harness=TIMEOUT
+[resize-observer/change-layout-in-error.html]
+FAIL=Changing layout in window error handler should not result in lifecyle loop when resize observer loop limit is reached.
+[resize-observer/eventloop.html]
+harness=TIMEOUT
+[resize-observer/fragments.html]
+FAIL=Adding 2nd fragment
+FAIL=Resizing 2nd fragment
+FAIL=Resizing all fragments
+[resize-observer/idlharness.window.html]
+FAIL=idl_test setup
+[resize-observer/notify.html]
+harness=TIMEOUT
+[resize-observer/observe-003.html]
+FAIL=throw exception when observing non-element
+[resize-observer/observe-006.html]
+harness=TIMEOUT
+[resize-observer/observe-007.html]
+harness=TIMEOUT
+[resize-observer/observe-008.html]
+FAIL=callback.this
+[resize-observer/observe-012.html]
+FAIL=simple observation with vertical writing mode
+[resize-observer/observe-013.html]
+FAIL=no observation is fired after the change of writing mode when box's specified size comes from logical size properties.
+[resize-observer/observe-014.html]
+FAIL=an observation is fired after the change of writing mode when box's specified size comes from physical size properties.
+[resize-observer/observe-015.html]
+FAIL=observe the same target but using a different box should override the previous one
+[resize-observer/observe-016.html]
+FAIL=an observation is fired with box dimensions 0 when element's display property is set to inline
+[resize-observer/observe-018.html]
+FAIL=Box sizing and Resize Observer notifications
+[resize-observer/observe-019.html]
+FAIL=an observation is fired when device-pixel-content-box is being observed
+[resize-observer/observe-020.html]
+harness=TIMEOUT
+[resize-observer/observer-in-cross-origin-frame.sub.html]
+harness=TIMEOUT
+[resize-observer/scrollbars.html]
+FAIL=ResizeObserver content-box size and scrollbars
+[resize-observer/svg-with-css-box-001.html]
+harness=TIMEOUT
+[resize-observer/svg-with-css-box-002.svg]
+harness=TIMEOUT
+[resize-observer/svg.html]
+harness=TIMEOUT
+[resize-observer/zoom.html]
+FAIL=ResizeObserver sizes account for zoom

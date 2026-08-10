@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-2387 of 23887 subtests pass (10.0%) over 1651 tests.
+2400 of 23916 subtests pass (10.0%) over 1686 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `shadow-dom/declarative` alone is 32% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -53,6 +53,7 @@ it is a page that never reported, which almost always means something threw befo
 | `mimesniff/mime-types` | 3 | 1 | 0 | 2 | 0 | 1939 | 2 | 0.1 |
 | `mimesniff/sniffing` | 3 | 3 | 0 | 0 | 0 | 7 | 3 | 42.9 |
 | `png` | 3 | 0 | 0 | 3 | 0 | 1 | 0 | 0.0 |
+| `resize-observer` | 35 | 25 | 0 | 10 | 0 | 29 | 13 | 44.8 |
 | `selection` | 83 | 34 | 34 | 15 | 0 | 143 | 0 | 0.0 |
 | `selection/anonymous` | 3 | 2 | 0 | 1 | 0 | 12 | 0 | 0.0 |
 | `selection/bidi` | 3 | 0 | 0 | 3 | 0 | 0 | 0 | 0.0 |
@@ -90,7 +91,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 242 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 249 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
 | 92 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
@@ -103,9 +104,9 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
 | 5 | TIMEOUT: the page never reported; first script error: support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected a pro... | `cors/credentials-flag.htm` |
 | 4 | TIMEOUT: killed after the wall-clock budget | `dom/nodes/Node-insertBefore.html` |
+| 4 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot set property 'onerror' of undefined TypeError: cannot set p... | `custom-elements/cross-realm-callback-report-exception.html` |
 | 3 | ERROR: TypeError: undefined (createDocument) is not a function | `dom/nodes/Document-createAttribute.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'insertRule' of undefined TypeError: cannot r... | `dom/events/webkit-animation-end-event.html` |
-| 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot set property 'onerror' of undefined TypeError: cannot set p... | `custom-elements/cross-realm-callback-report-exception.html` |
 | 2 | ERROR: ReferenceError: DOMParser is not defined | `domparsing/DOMParser-parseFromString-html.html` |
 | 2 | ERROR: Test named 'Repeated declarative shadow roots keep only the first' specified N 'cleanup' function, and N failed. | `shadow-dom/declarative/declarative-shadow-dom-repeats.html` |
 | 2 | TIMEOUT: the page never reported; first script error: ../editing/include/editor-test-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expect... | `selection/move-by-word-korean.html` |
@@ -167,9 +168,11 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: released is not defined ReferenceError: released is not defin... | `uievents/order-of-events/mouse-events/mouseover-out.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetDiv is not defined ReferenceError: targetDiv is not def... | `dom/events/scrolling/scrollend-event-fired-for-scroll-attr-change.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetXDiv is not defined ReferenceError: targetXDiv is not d... | `dom/events/scrolling/scrollend-event-fired-to-element-with-overscroll-behavior.html` |
+| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `resize-observer/svg-with-css-box-002.svg` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: expected ')' after a for head (line N) SyntaxError: expected ')'... | `dom/nodes/Document-getElementsByTagName-xhtml.xhtml` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'defaultView' of undefined TypeError: cannot ... | `custom-elements/registries/define.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'querySelector' of null TypeError: cannot rea... | `selection/shadow-dom/cross-shadow-boundary-extend.html` |
+| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `resize-observer/svg.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getElementById) is not a function TypeError: undefined ... | `selection/drag-disabled-textarea-shadow-dom.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getHTML) is not a function TypeError: undefined (getHTM... | `shadow-dom/declarative/gethtml-ordering.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getSelection) is not a function TypeError: undefined (g... | `selection/extend-selection-in-shadow-tree.html` |
@@ -191,7 +194,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 29 | 56 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
-| 25 | 65 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
+| 26 | 66 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 34 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
@@ -275,6 +278,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 3 | 1635 | assert_equals: expected (boolean) false but got (undefined) undefined | `shadow-dom/event-composed.html` |
 | 3 | 1634 | assert_equals: expected (boolean) true but got (undefined) undefined | `shadow-dom/event-composed.html` |
 | 3 | 12 | assert_equals: expected (object) Element node <div></div> but got (undefined) undefined | `dom/events/Event-dispatch-other-document.html` |
+| 3 | 3 | assert_equals: target width expected N but got N | `resize-observer/observe-012.html` |
 | 3 | 4 | assert_object_equals: unexpected property "N" | `dom/collections/HTMLCollection-live-mutations.window.html` |
 | 3 | 10 | assert_throws_exactly: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
 | 3 | 4 | cannot read property 'body' of undefined | `custom-elements/registries/scoped-registry-append.html` |
@@ -283,6 +287,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 3 | 494 | cannot read property 'documentElement' of undefined | `custom-elements/registries/scoped-registry-append.html` |
 | 3 | 7 | cannot read property 'querySelector' of null | `custom-elements/registries/CustomElementRegistry-initialize.html` |
 | 3 | 3 | iframe is not defined | `dom/abort/abort-signal-timeout.html` |
-| 3 | 14 | myCE is not defined | `custom-elements/state/state-css-selector-nth-of.html` |
 
-1665 distinct subtest messages and 84 distinct harness messages behind these numbers.
+1675 distinct subtest messages and 86 distinct harness messages behind these numbers.
