@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-2400 of 23916 subtests pass (10.0%) over 1686 tests.
+4442 of 33311 subtests pass (13.3%) over 1757 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `shadow-dom/declarative` alone is 32% of every subtest here.
+**Do not quote that number.** Subtests are not comparable across areas: `url` alone is 28% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
 one that tests an algorithm. The per-area column is the measurement; the aggregate
 is an artefact of how the suite is written.
@@ -82,6 +82,7 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/mouse` | 17 | 11 | 0 | 6 | 0 | 71 | 1 | 1.4 |
 | `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
+| `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
 
 ## Why the harness never reported
 
@@ -91,8 +92,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 249 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
-| 92 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
+| 275 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 98 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -188,17 +189,18 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | tests | subtests | message | example |
 |--:|--:|---|---|
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 40 | 79 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 41 | 80 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 34 | 1655 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 33 | 855 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
-| 29 | 56 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
+| 30 | 59 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
-| 26 | 66 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
+| 21 | 470 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
+| 19 | 957 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 34 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
-| 17 | 767 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 17 | 85 | getSelection is not defined | `selection/modify-extend-word-trailing-inline-block.tentative.html` |
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
 | 16 | 50 | undefined (createDocument) is not a function | `custom-elements/registries/scoped-registry-initialize-upgrades.html` |
@@ -210,7 +212,6 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 14 | 14 | promise_test: Unhandled rejection with value: object "ReferenceError: createStylesheetHost is not defined" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html` |
 | 13 | 29 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
-| 13 | 32 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
 | 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
@@ -225,6 +226,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 9 | 9 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 9 | 435 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
 | 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
@@ -232,7 +234,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 8 | 10 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
 | 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
-| 8 | 8 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
+| 7 | 12 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 7 | 9 | assert_true: Initially visible expected true got undefined | `intersection-observer/v2/svg-foreign-object-filter-occlusion.html` |
 | 7 | 28 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
 | 7 | 22 | cannot read property 'getElementById' of null | `domxpath/xpath-shadow-dom.html` |
@@ -241,14 +243,17 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 7 | 7 | target is not defined | `dom/events/mouse-event-retarget.html` |
 | 6 | 22 | Illegal constructor: Text | `dom/nodes/adoption.window.html` |
 | 6 | 53 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got ["constructed"] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
+| 6 | 900 | assert_equals: username expected (string) "" but got (undefined) undefined | `url/url-constructor.any.html?include=javascript` |
 | 6 | 8 | assert_false: expected false got null | `intersection-observer/transformed-iframe-001-same-origin.html` |
-| 6 | 10 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 6 | 12 | cannot read property 'length' of undefined | `custom-elements/form-associated/form-associated-callback.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
+| 5 | 720 | Failed to construct URL: invalid URL | `url/url-constructor.any.html?include=file` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
 | 5 | 12 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 5 | 14 | assert_array_equals: lengths differ, expected array ["constructed", "connected"] length N, got [] length N | `custom-elements/reactions/customized-builtins/HTMLButtonElement.html` |
+| 5 | 7 | assert_equals: expected "" but got "me" | `url/url-setters-a-area.window.html?include=file` |
+| 5 | 7 | assert_equals: expected "" but got "secret" | `url/url-setters-a-area.window.html?include=file` |
 | 5 | 36 | assert_equals: expected Document node with N child but got Document node with N children | `dom/nodes/Document-importNode.html` |
 | 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
 | 5 | 25 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'getElementById' of null" | `shadow-dom/reference-target/tentative/dom-mutation.html` |
@@ -260,6 +265,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 4 | 4 | DocumentType is not defined | `dom/nodes/Document-doctype.html` |
 | 4 | 4 | NodeList is not defined | `dom/nodes/Document-getElementsByTagName.html` |
 | 4 | 6 | assert_equals: expected "" but got "null" | `dom/nodes/CharacterData-data.html` |
+| 4 | 22 | assert_equals: expected (string) "" but got (undefined) undefined | `custom-elements/registries/template.window.html` |
 | 4 | 4 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
 | 4 | 4 | cannot read property 'N' of undefined | `custom-elements/state/state-pseudo-class.html` |
 | 4 | 5 | cannot read property 'adoptedStyleSheets' of null | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-basic.html` |
@@ -274,18 +280,13 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 3 | 27 | assert_array_equals: lengths differ, expected array ["constructed", "connected", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/customized-builtins/HTMLButtonElement.html` |
 | 3 | 6 | assert_array_equals: lengths differ, expected array ["disconnected", "adopted", "connected"] length N, got ["disconnected"] length N | `custom-elements/reactions/ChildNode.html` |
 | 3 | 5 | assert_equals: A custom element HTML must use HTML namespace expected (string) "http://www.wN.org/N/xhtml" but got (undefined) undefined | `custom-elements/Document-createElement-customized-builtins.html` |
+| 3 | 4 | assert_equals: expected "" but got "N" | `url/url-setters-a-area.window.html?include=file` |
 | 3 | 3 | assert_equals: expected "function" but got "undefined" | `custom-elements/registries/CustomElementRegistry-initialize.html` |
 | 3 | 1635 | assert_equals: expected (boolean) false but got (undefined) undefined | `shadow-dom/event-composed.html` |
 | 3 | 1634 | assert_equals: expected (boolean) true but got (undefined) undefined | `shadow-dom/event-composed.html` |
 | 3 | 12 | assert_equals: expected (object) Element node <div></div> but got (undefined) undefined | `dom/events/Event-dispatch-other-document.html` |
-| 3 | 3 | assert_equals: target width expected N but got N | `resize-observer/observe-012.html` |
-| 3 | 4 | assert_object_equals: unexpected property "N" | `dom/collections/HTMLCollection-live-mutations.window.html` |
-| 3 | 10 | assert_throws_exactly: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
-| 3 | 4 | cannot read property 'body' of undefined | `custom-elements/registries/scoped-registry-append.html` |
-| 3 | 20 | cannot read property 'clear' of undefined | `dom/ranges/tentative/OpaqueRange-highlight.html` |
-| 3 | 4 | cannot read property 'customElements' of undefined | `custom-elements/registries/Document-customElementRegistry.html` |
-| 3 | 494 | cannot read property 'documentElement' of undefined | `custom-elements/registries/scoped-registry-append.html` |
-| 3 | 7 | cannot read property 'querySelector' of null | `custom-elements/registries/CustomElementRegistry-initialize.html` |
-| 3 | 3 | iframe is not defined | `dom/abort/abort-signal-timeout.html` |
+| 3 | 3 | assert_equals: href expected "http://example.com/%EF%BF%BD%FN%N%NF%BE%EF%BF%BD%EF%BN%N%EF%BN%NF%EF%BN%AF%EF%BN%BN%EF%BF%BE%EF%BF%BF?%EF%BF%B... | `url/url-constructor.any.html?exclude=(file|javascript|mailto)` |
+| 3 | 6 | assert_equals: href expected "non-special:opaque %N#hi" but got "non-special:opaque #hi" | `url/url-constructor.any.html?exclude=(file|javascript|mailto)` |
+| 3 | 3 | assert_equals: href expected "non-special:opaque %N?hi" but got "non-special:opaque ?hi" | `url/url-constructor.any.html?exclude=(file|javascript|mailto)` |
 
-1675 distinct subtest messages and 86 distinct harness messages behind these numbers.
+2748 distinct subtest messages and 86 distinct harness messages behind these numbers.
