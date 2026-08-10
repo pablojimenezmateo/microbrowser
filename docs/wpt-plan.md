@@ -82,6 +82,64 @@ on that one-line commit is the cheapest possible collision.
 
 ---
 
+## 0.5 What the baseline found · **2026-08-10, M-B done**
+
+`docs/wpt-baseline.md` is the measurement and is generated; this is what it
+changed about *the plan*. All 21,265 testharness tests in the checkout now have
+a committed expectation.
+
+**Five causes account for more of the suite than every layout bug combined.**
+Ranked by distinct tests, out of 21,265:
+
+| cause | tests | where it belongs |
+|---|--:|---|
+| `importScripts` is not defined | 1,380 | G5, and it is 18% of all 7,718 timeouts |
+| `NOTRUN` behind one earlier failure | 1,603 | mostly `IndexedDB` — I2 |
+| `OffscreenCanvas is not defined` | 889 | F6 |
+| `Python handlers are not implemented` | 512 | H1, exactly as ADR 0040 §2 predicted |
+| `assert_throws_js: … is not an Error subtype` | 117 | **C2** |
+| `document.elementsFromPoint unsupported` | 131 | D4 |
+| `action_sequence() is not implemented` | 147 | **B5** |
+
+C1 and C2 are confirmed as the right first tasks, but not for the reason the
+plan gave: the exception-identity signatures are everywhere, and they are
+*behind* the five above in raw test count. Do them first anyway — they are
+cheap, and every area's negative tests are gated on them.
+
+**Targets that the measurement says are wrong.** The plan set these before
+anything had been run; each needs revising with a reason, which is what §2 says
+to do. The gap is not uniform — three of these are a missing binding rather
+than a partial implementation:
+
+| task | target | measured | why the gap is what it is |
+|---|--:|--:|---|
+| I2 `IndexedDB` | 55% | 4.2% | 200,592 `NOTRUN` subtests behind a first failure |
+| G5 `workers` | 60% | 1.8% | `importScripts`; 200 of 284 tests time out |
+| H4 `fetch/api` | 60% | 7.4% | but `fetch/corb` is 86.8% — the `.py` gap is not uniform |
+| F6 `html/canvas` | 60% | 12.2% | `OffscreenCanvas`, 889 tests |
+| D5 `css/selectors` | 80% | 24.4% | |
+| E2 `css-flexbox` | 80% | 15.1% | **183 of 369 tests time out** — investigate that before layout |
+| D6 `css-conditional` | 70% | **88.2%** | already past it; 184 harness ERRORs are container queries |
+
+**Three areas are much better than anyone claimed.** `html/rendering` 85.8%
+over 7,169 subtests, `webstorage` 92.5%, `navigation-timing` 64.9%. The UA
+stylesheet and presentational-attribute work is genuinely done.
+
+**Three assumptions in this document are now known to be false.**
+
+- **H2 assumed `url/` would "reach very high" because it is a JSON data file
+  needing no server.** It is 21.7%, and **32 of its 71 tests time out**. A
+  timeout in a data-driven test is not a URL-parser failure; look at the harness
+  path before touching `src/url`.
+- **F7 assumed `svg/` could not be measured because this browser renders SVG as
+  an image.** `svg/animations` runs 251 of its 289 tests to completion and
+  passes 1.4%. The suite runs fine; the API is absent. F7 is an implementation
+  task, not a scoping ADR.
+- **H8 assumed `upgrade-insecure-requests` would need a deviation argument.**
+  All 196 tests run to completion and pass 0 of 992 subtests, with no harness
+  failure at all — it is a clean "not implemented", which is the easiest
+  possible thing to record.
+
 ## 1. Where this browser actually is
 
 Complete or near-complete, per `CLAUDE.md` and the session log: HTML parsing and
@@ -215,8 +273,8 @@ reftests, which makes them cheap to run and unambiguous to read.
 | D2 | Viewport units (`vw`/`vh`/`vmin`/`vmax`/`dv*`/`sv*`) — needs a viewport size in the cascade, which is a `css`↔`layout` seam decision | D1 | `css-values` +10% |
 | D3 | CSSOM: `CSSStyleSheet`, `CSSRuleList`, `cssText` round-tripping, `insertRule`/`deleteRule`, `document.styleSheets` | M-C C1 | `cssom` 70% |
 | D4 | CSSOM-View: `scroll*`, `client*`, `getClientRects`, `elementFromPoint`, `matchMedia` completeness | D3 | `cssom-view` 70% |
-| D5 | `:has()`, `An+B of S`, `:dir()`, `:lang()`, and the specificity consequences (ADR 0016 priced `:has()` behind a measurement — take the measurement) | — | `selectors` 80% |
-| D6 | `@media` evaluated at cascade time rather than parse time (ledger session 49's leftover), `@supports` nesting, `@layer` | — | `css-conditional` 70% |
+| D5 | `:has()`, `An+B of S`, `:dir()`, `:lang()`, and the specificity consequences (ADR 0016 priced `:has()` behind a measurement — take the measurement) | — | `selectors` 55% (§0.5) |
+| D6 | `@media` evaluated at cascade time rather than parse time (ledger session 49's leftover), `@supports` nesting, `@layer`, and **container queries** — 184 of this area's 223 tests are a harness ERROR on them | — | `css-conditional` 90% (§0.5) |
 | D7 | Serialization: every computed and specified value's exact string form. Dull, mechanical, enormous, and a prerequisite for most of `cssom` | D3 | `cssom` +10% |
 | D8 | `css-syntax/` — error recovery to the letter, nested rules, custom property grammar | — | 85% |
 
@@ -237,7 +295,7 @@ fuzzy-matching story exists (task A-follow-up F2 below).
 | id | task | depends on | target |
 |---|---|---|---|
 | E1 | `css/CSS2/` — the normative block/inline model. Split by subdirectory across several agents; `normal-flow`, `floats`, `positioning`, `tables` are natural pieces | F2 | 60% |
-| E2 | `css/css-flexbox/` — finish it: `align-content`, baseline alignment, `min-content` sizing of flex items, nested flex | F2 | 80% |
+| E2 | `css/css-flexbox/` — finish it: `align-content`, baseline alignment, `min-content` sizing of flex items, nested flex | F2 | 50% (§0.5) |
 | E3 | `css/css-grid/` — the in-flight session 39, finished against the suite rather than against a page | F2 | 60% |
 | E4 | `css/css-sizing/` — `min-content`/`max-content`/`fit-content`, `aspect-ratio` interactions | — | 75% |
 | E5 | `css/css-position/` — `sticky` against a real scrollport, `inset` shorthand, abspos containing-block edge cases (the old.reddit `#header-bottom-right` bug is here) | F2 | 75% |
@@ -265,7 +323,7 @@ in these areas failing for a *harness* reason.
 | F3 | `css/css-color/` — `color()`, `lab()`/`lch()`/`oklab()`, `color-mix()`, and the serialization rules | — | 60% |
 | F4 | Gradients — `linear-gradient` interpolation, `repeating-*`, `conic-gradient` | F2 | `css-images` 60% |
 | F5 | `css/css-transforms/` — 3D transforms, `perspective`, `transform-style`, and what a stacking context does to them | F2 | 60% |
-| F6 | `html/canvas/` — the 2D context against the suite rather than against hand-written tests | — | 60% |
+| F6 | `html/canvas/` — the 2D context against the suite rather than against hand-written tests | — | 35% (§0.5) |
 | F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
 
@@ -285,7 +343,7 @@ supported.
 | G2 | **Script time-slicing** — ADR 0036 exists; TD-0007 is the "app is not responding" the user reported. A 9.7-second uninterruptible call is a correctness bug about the event loop, not a performance nicety | G1 | TD-0007 closed |
 | G3 | `streams/` — `ReadableStream` and friends. Large, self-contained, and the thing `response.body` is absent for | — | 60% |
 | G4 | `web-animations/` — the API surface over the animations that exist | — | 55% |
-| G5 | `workers/` — module workers, `SharedWorker` (decide: ADR or implement), worker `fetch`, `importScripts` edge cases | — | 60% |
+| G5 | `workers/` — `importScripts` **first**: it is 1,380 timeouts suite-wide. Then module workers, `SharedWorker` (decide: ADR or implement), worker `fetch` | — | 40% (§0.5) |
 | G6 | `webmessaging/` — `postMessage` across every context, ports, structured clone completeness | M-J J1 | 70% |
 | G7 | Timing APIs — `PerformanceResourceTiming`, `PerformanceNavigationTiming`, `PerformanceObserver` buffering | — | 65% |
 | G8 | `console/` — the whole surface, which is one file and cheap | — | 90% |
@@ -310,7 +368,7 @@ approximate. Task H1 decides what replaces them.
 | H1 | **Harness:** the handler question. Options: implement the ~20 most-used handlers natively in `tools/wpt/`; or a `--python-handlers` mode that shells out to a real `wpt serve` when Python is present; or declare the area out of scope and say so. Decide and amend ADR 0040 | — | ADR amendment |
 | H2 | `url/` — the WHATWG URL test suite is a JSON data file and needs no server at all. Run it, fix it, and it should reach very high | — | 95% |
 | H3 | `mimesniff/` — sniffing rules, which this browser does by magic number ad hoc | — | 80% |
-| H4 | `fetch/api/` — request/response objects, headers guards, `body` mixin methods (`formData()` needs `FormData`, deliberately absent today) | H1 | 60% |
+| H4 | `fetch/api/` — request/response objects, headers guards, `body` mixin methods (`formData()` needs `FormData`, deliberately absent today) | H1 | 35% (§0.5) |
 | H5 | `xhr/` — the shim over `fetch`; `timeout`, `upload`, `overrideMimeType`, response types are all deliberately absent (ADR: revisit) | H1 | 60% |
 | H6 | `content-security-policy/` + `subresource-integrity/` — the enforcement points exist; the suite will find the ones that are enforced in the wrong place | H1 | 60% |
 | H7 | `cookies/` — the attribute parsing, `SameSite`, and the partitioning this browser does by default | — | 70% |
@@ -329,7 +387,7 @@ approximate. Task H1 decides what replaces them.
 | id | task | depends on | target |
 |---|---|---|---|
 | I1 | `webstorage/` — quota, events, partitioning | — | 80% |
-| I2 | `IndexedDB/` — the largest single-API suite in WPT. Split by subdirectory: keys/ordering, transactions, cursors, indexes | M-C C1 | 55% |
+| I2 | `IndexedDB/` — the largest single-API suite in WPT. Split by subdirectory: keys/ordering, transactions, cursors, indexes | M-C C1 | 25% (§0.5) |
 | I3 | `FileAPI/` — `Blob`, `File`, `FileReader`, `URL.createObjectURL` | M-C C1 | 70% |
 | I4 | `storage/` — `navigator.storage`, quota estimation, and what this browser refuses to persist (ADR 0021) | I1 | recorded |
 

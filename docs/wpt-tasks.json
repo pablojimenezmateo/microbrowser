@@ -22,7 +22,7 @@
   "updated": "2026-08-10",
   "milestones": [
     { "id": "M-A", "title": "the instrument", "status": "done" },
-    { "id": "M-B", "title": "the baseline", "status": "in_progress" },
+    { "id": "M-B", "title": "the baseline", "status": "done" },
     { "id": "M-C", "title": "the DOM and its bindings", "status": "not_started" },
     { "id": "M-D", "title": "CSS: cascade, values, object model", "status": "not_started" },
     { "id": "M-E", "title": "layout", "status": "not_started" },
@@ -41,25 +41,25 @@
       "id": "B1", "milestone": "M-B", "title": "full baseline run", "area": "",
       "scope": "Run every checked-out area, commit the expectation files it produces.",
       "check": "tests/wpt/expectations/ has a file per top-level area and `microbrowser_wpt` exits 0 against it.",
-      "depends": [], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": ""
+      "depends": [], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": ""
     },
     {
       "id": "B2", "milestone": "M-B", "title": "triage the baseline by cause", "area": "",
       "scope": "Group failures by message and by cause, rank by tests-unblocked-per-fix, write docs/wpt-baseline.md.",
       "check": "docs/wpt-baseline.md ranks at least the top 25 causes with the subtest count behind each.",
-      "depends": ["B1"], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": "The first 150 dom/ tests showed four messages behind most failures. This is what turns 20,000 failures into 40 sessions."
+      "depends": ["B1"], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": "The first 150 dom/ tests showed four messages behind most failures. This is what turns 20,000 failures into 40 sessions."
     },
     {
       "id": "B3", "milestone": "M-B", "title": "harness gaps", "area": "",
       "scope": "Which areas are unrunnable and why: .py handlers, testdriver.js, https origins.",
       "check": "ADR 0040 amended with the list and a decision for each.",
-      "depends": ["B1"], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": ""
+      "depends": ["B1"], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": ""
     },
     {
       "id": "B4", "milestone": "M-B", "title": "per-area pass-rate table", "area": "",
       "scope": "A committed, regenerable table of pass rate per area.",
       "check": "microbrowser_wpt --summary docs/wpt-baseline.md regenerates the table from a run.",
-      "depends": ["B1"], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": ""
+      "depends": ["B1"], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": ""
     },
 
     {
@@ -158,15 +158,15 @@
     {
       "id": "D5", "milestone": "M-D", "title": ":has() and the rest of selectors", "area": "css/selectors/",
       "scope": ":has(), An+B of S, :dir(), :lang(), and the specificity consequences.",
-      "check": "css/selectors/ >= 80%.", "depends": [], "target": "80%",
-      "status": "not_started", "agent": null, "adr": "0016", "notes": "ADR 0016 priced :has() behind a measurement nobody has taken. Take it."
+      "check": "css/selectors/ >= 80%.", "depends": [], "target": "55%",
+      "status": "not_started", "agent": null, "adr": "0016", "notes": "ADR 0016 priced :has() behind a measurement nobody has taken. Take it. Baseline 2026-08-10: 24.4%."
     },
     {
       "id": "D6", "milestone": "M-D", "title": "@media at cascade time", "area": "css/css-conditional/",
       "scope": "Keep the condition on the rule and ask during the cascade rather than at parse time; @supports nesting; @layer.",
       "check": "css/css-conditional/ >= 70% and a viewport resize does not re-parse the author sheets.",
-      "depends": [], "target": "70%", "status": "not_started", "agent": null, "adr": "0014",
-      "notes": "Ledger session 49 left the design half done on purpose."
+      "depends": [], "target": "90%", "status": "not_started", "agent": null, "adr": "0014",
+      "notes": "Ledger session 49 left the design half done on purpose. Baseline 2026-08-10: already 88.2%, the best CSS area in the suite. The 184 harness ERRORs are container queries, which is what is left."
     },
     {
       "id": "D7", "milestone": "M-D", "title": "value serialization", "area": "css/cssom/",
@@ -190,8 +190,8 @@
     {
       "id": "E2", "milestone": "M-E", "title": "finish flexbox", "area": "css/css-flexbox/",
       "scope": "align-content, baseline alignment, min-content sizing of items, nested flex.",
-      "check": "css/css-flexbox/ >= 80%.", "depends": ["F2"], "target": "80%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/css-flexbox/ >= 80%.", "depends": ["F2"], "target": "50%",
+      "status": "not_started", "agent": null, "adr": "", "notes": "Baseline 2026-08-10: 15.1%, and 183 of 369 tests TIME OUT. Find out why before writing any flexbox code."
     },
     {
       "id": "E3", "milestone": "M-E", "title": "grid", "area": "css/css-grid/",
@@ -282,8 +282,8 @@
     {
       "id": "F6", "milestone": "M-F", "title": "canvas 2D against the suite", "area": "html/canvas/",
       "scope": "The 2D context measured by WPT rather than by hand-written tests.",
-      "check": "html/canvas/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0029", "notes": ""
+      "check": "html/canvas/ >= 60%.", "depends": [], "target": "35%",
+      "status": "not_started", "agent": null, "adr": "0029", "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own."
     },
     {
       "id": "F7", "milestone": "M-F", "title": "SVG scope decision", "area": "svg/",
@@ -325,8 +325,8 @@
     {
       "id": "G5", "milestone": "M-G", "title": "workers", "area": "workers/",
       "scope": "Module workers, SharedWorker (ADR or implement), worker fetch, importScripts edge cases.",
-      "check": "workers/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0022", "notes": ""
+      "check": "workers/ >= 60%.", "depends": [], "target": "40%",
+      "status": "not_started", "agent": null, "adr": "0022", "notes": "Baseline 2026-08-10: 1.8%. importScripts is not defined; 200 of 284 tests time out on it, and it is 1,380 timeouts suite-wide."
     },
     {
       "id": "G6", "milestone": "M-G", "title": "webmessaging", "area": "webmessaging/",
@@ -369,8 +369,8 @@
     {
       "id": "H4", "milestone": "M-H", "title": "the fetch API surface", "area": "fetch/api/",
       "scope": "Request/Response objects, header guards, the body mixin. formData() needs FormData, deliberately absent today.",
-      "check": "fetch/api/ >= 60%.", "depends": ["H1"], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": ""
+      "check": "fetch/api/ >= 60%.", "depends": ["H1"], "target": "35%",
+      "status": "not_started", "agent": null, "adr": "0020", "notes": "Baseline 2026-08-10: 7.4%. But fetch/corb is 86.8%, so the .py gap is not uniform and there is real code to write here."
     },
     {
       "id": "H5", "milestone": "M-H", "title": "XHR", "area": "xhr/",
@@ -418,8 +418,8 @@
     {
       "id": "I2", "milestone": "M-I", "title": "IndexedDB", "area": "IndexedDB/",
       "scope": "The largest single-API suite in WPT. Split by subdirectory: keys and ordering, transactions, cursors, indexes.",
-      "check": "IndexedDB/ >= 55%.", "depends": ["C1"], "target": "55%",
-      "status": "not_started", "agent": null, "adr": "0038", "notes": ""
+      "check": "IndexedDB/ >= 55%.", "depends": ["C1"], "target": "25%",
+      "status": "not_started", "agent": null, "adr": "0038", "notes": "Baseline 2026-08-10: 4.2%. 200,592 NOTRUN subtests sit behind a first failure, so the number moves in steps rather than smoothly."
     },
     {
       "id": "I3", "milestone": "M-I", "title": "FileAPI", "area": "FileAPI/",
