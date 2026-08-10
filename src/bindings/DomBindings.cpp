@@ -1,6 +1,7 @@
 #include "bindings/DomBindings.h"
 
 #include "bindings/BindingSupport.h"
+#include "bindings/WebIdl.h"
 #include "css/StyleSheet.h"
 #include "dom/FlatTree.h"
 #include "util/Env.h"
@@ -96,147 +97,6 @@ bool DomBindings::MatchesSelectorList(const dom::Element& element,
   }
   return MatchesAny(element, selectors);
 }
-
-js::Value DomBindings::MakeClassList(dom::Element& element) {
-  const Value list = interpreter_->NewObjectValue();
-  if (!list.IsObject()) {
-    return list;
-  }
-  // The element travels on the object rather than in a capture, the same rule
-  // every native in this engine follows: a capture is invisible to the
-  // collector, and a raw pointer in one is a lifetime nobody is tracking.
-  list.object->Set(kNodeSlot, PointerValue(&element));
-
-  const auto class_names = [](const dom::Element& target) {
-    const std::string* current = target.GetAttribute("class");
-    std::vector<std::string> names;
-    std::string word;
-    for (const char c : current == nullptr ? std::string() : *current) {
-      if (c == ' ' || c == '\t' || c == '\n') {
-        if (!word.empty()) {
-          names.push_back(word);
-          word.clear();
-        }
-        continue;
-      }
-      word.push_back(c);
-    }
-    if (!word.empty()) {
-      names.push_back(word);
-    }
-    return names;
-  };
-
-  // length + item + Symbol.iterator: DOMTokenList is iterable. youtube builds
-  // a CSS-path diagnostic with `for (const c of _.A(el.classList))`, and our
-  // four-method object was truthy but neither iterable nor length-bearing --
-  // Closure's `_.A` then threw `Error: c\`[object Object]` and aborted the
-  // custom-element reaction mid-stamp.
-  const Value length = interpreter_->NewNativeValue("length", [class_names](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    if (self == nullptr || !self->IsElement()) {
-      return Value::Number(0);
-    }
-    return Value::Number(
-        static_cast<double>(class_names(*static_cast<dom::Element*>(self)).size()));
-  });
-  if (length.IsObject()) {
-    length.object->Set(kOwnerSlot, PointerValue(this));
-    list.object->DefineAccessor("length", length.object, nullptr);
-  }
-  const Value item = interpreter_->NewNativeValue("item", [class_names](NativeCall& call) {
-    dom::Node* self = NodeOf(call.self);
-    if (self == nullptr || !self->IsElement()) {
-      return Value::Null();
-    }
-    const auto names = class_names(*static_cast<dom::Element*>(self));
-    const double index = js::ToNumber(Argument(call.arguments, 0));
-    if (!(index >= 0) || index >= static_cast<double>(names.size())) {
-      return Value::Null();
-    }
-    return Value::String(names[static_cast<std::size_t>(index)]);
-  });
-  if (item.IsObject()) {
-    item.object->Set(kOwnerSlot, PointerValue(this));
-    list.object->Set("item", item);
-  }
-  const Value iterate =
-      interpreter_->NewNativeValue("[Symbol.iterator]", [class_names](NativeCall& call) {
-        dom::Node* self = NodeOf(call.self);
-        std::vector<Value> out;
-        if (self != nullptr && self->IsElement()) {
-          for (const std::string& name : class_names(*static_cast<dom::Element*>(self))) {
-            out.push_back(Value::String(name));
-          }
-        }
-        const Value entries = call.interpreter.NewArrayValue(std::move(out));
-        if (!entries.IsObject()) {
-          return Value::Undefined();
-        }
-        const js::Value* protocol = entries.object->Get(
-            js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
-        if (protocol == nullptr) {
-          return Value::Undefined();
-        }
-        const js::Result made = call.interpreter.CallFunction(*protocol, entries, {});
-        return made.completion == js::Completion::Throw ? Value::Undefined() : made.value;
-      });
-  if (iterate.IsObject()) {
-    iterate.object->Set(kOwnerSlot, PointerValue(this));
-    list.object->Set(js::PropertyKey::Symbol(interpreter_->SymbolIterator()), iterate);
-  }
-
-  // The four methods a page uses, each reading and rewriting the `class`
-  // attribute. Nothing is cached between calls: a parsed copy would go stale
-  // the moment anything else touched the attribute, and `class` is the one
-  // attribute two pieces of code fight over.
-  enum class Change { Add, Remove, Toggle, Contains };
-  const auto operate = [this, &list, class_names](const char* name, Change change) {
-    const Value native = interpreter_->NewNativeValue(name, [change, class_names](NativeCall& call) {
-      dom::Node* self = NodeOf(call.self);
-      if (self == nullptr || !self->IsElement()) {
-        return Value::Undefined();
-      }
-      auto& target = static_cast<dom::Element&>(*self);
-      const std::string wanted = js::ToString(Argument(call.arguments, 0));
-      if (wanted.empty()) {
-        return Value::Undefined();
-      }
-      std::vector<std::string> names = class_names(target);
-
-      const auto found = std::find(names.begin(), names.end(), wanted);
-      const bool present = found != names.end();
-      if (change == Change::Contains) {
-        return Value::Bool(present);
-      }
-      const bool wants = change == Change::Add || (change == Change::Toggle && !present);
-      if (wants && !present) {
-        names.push_back(wanted);
-      } else if (!wants && present) {
-        names.erase(found);
-      }
-      std::string rewritten;
-      for (const std::string& each : names) {
-        if (!rewritten.empty()) {
-          rewritten.push_back(' ');
-        }
-        rewritten += each;
-      }
-      target.SetAttribute("class", rewritten);
-      return change == Change::Toggle ? Value::Bool(wants) : Value::Undefined();
-    });
-    if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
-      list.object->Set(name, native);
-    }
-  };
-  operate("add", Change::Add);
-  operate("remove", Change::Remove);
-  operate("toggle", Change::Toggle);
-  operate("contains", Change::Contains);
-  return list;
-}
-
 
 js::Value DomBindings::WrapperFor(dom::Node* node) {
   if (node == nullptr) {
@@ -513,6 +373,16 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
+  const auto rw_accessor = [this, &target](const char* name, js::NativeFunction get,
+                                           js::NativeFunction set) {
+    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
+    const Value setter = interpreter_->NewNativeValue(name, std::move(set));
+    if (getter.IsObject() && setter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      setter.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->DefineAccessor(name, getter.object, setter.object);
+    }
+  };
 
   // The same string `nodeName` gives, because the DOM says they are the same
   // string. See NodeNameOf.
@@ -615,17 +485,49 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     }
     return Value::Null();
   });
-  // `classList`, as a fresh object per read holding the four methods a page
-  // uses. Not cached, because it reads and writes the `class` attribute on
-  // every call rather than holding a parsed copy that could go stale.
-  accessor("classList", [](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr || !self->IsElement()) {
-      return Value::Undefined();
-    }
-    return owner->MakeClassList(static_cast<dom::Element&>(*self));
-  });
+  // `classList`, as the `DOMTokenList` the DOM defines. See TokenList.cpp.
+  //
+  // Cached on the wrapper, which is the one thing about it that is not
+  // obvious: the list is *live* -- it reads the `class` attribute on every
+  // operation -- so caching it costs nothing in staleness, and not caching it
+  // makes `el.classList !== el.classList`. Pages compare them.
+  //
+  // The setter is WebIDL's `[PutForwards=value]`: `el.classList = "foo"` is
+  // legal and assigns the *attribute*, leaving the list object itself in
+  // place. Without a setter at all, the same line is a silent no-op in sloppy
+  // mode and a TypeError under `"use strict"`.
+  rw_accessor(
+      "classList",
+      [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner == nullptr || self == nullptr || !self->IsElement()) {
+          return Value::Undefined();
+        }
+        if (call.self.IsObject()) {
+          if (const Value* cached = call.self.object->GetOwn(kClassListSlot)) {
+            return *cached;
+          }
+        }
+        const Value list = owner->MakeTokenList(static_cast<dom::Element&>(*self), "class");
+        if (call.self.IsObject()) {
+          call.self.object->SetHidden(kClassListSlot, list);
+        }
+        return list;
+      },
+      [](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner == nullptr || self == nullptr || !self->IsElement()) {
+          return Value::Undefined();
+        }
+        std::string value;
+        if (!CoerceToString(call, Argument(call.arguments, 0), value)) {
+          return call.ThrownValue();
+        }
+        owner->SetElementAttribute(static_cast<dom::Element&>(*self), "class", value);
+        return Value::Undefined();
+      });
   // `el.style.display = 'none'`, backed by the `style` attribute the cascade
   // already reads. A fresh object per read, like `classList`, and for the
   // same reason: the attribute is the state, and a parsed copy would go
@@ -667,6 +569,13 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (!CoerceToString(call, Argument(call.arguments, 0), name) ||
         !CoerceToString(call, Argument(call.arguments, 1), value)) {
       return call.ThrownValue();
+    }
+    // An attribute name with a space or an `=` in it cannot be serialised back
+    // into markup, so it is refused rather than stored. The attribute rule is
+    // the element one plus `=`, which is what separates a name from its value.
+    if (!IsValidLocalName(name, NameKind::Attribute)) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "'" + name + "' is not a valid attribute name");
     }
     owner->SetElementAttribute(*static_cast<dom::Element*>(self), LowerCase(name), value);
     return Value::Undefined();

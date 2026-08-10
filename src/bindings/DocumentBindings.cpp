@@ -12,6 +12,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 #include "css/StyleSheet.h"
 #include "js/Heap.h"
 
@@ -118,24 +119,74 @@ void DomBindings::Install() {
     return owner == nullptr ? Value::Null()
                             : owner->CreateText(js::ToString(Argument(call.arguments, 0)));
   });
-  method("createElement", [](NativeCall& call) {
+  method("createElement", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "Document", "createElement", 1)) {
+      return call.ThrownValue();
+    }
+    std::string name;
+    if (!ToDomString(call, call.arguments[0], name)) {
+      return call.ThrownValue();
+    }
+    // A name that cannot be written back out as markup is refused, rather than
+    // becoming an element no serialiser can produce and no parser can read.
+    if (!IsValidLocalName(name, NameKind::Element)) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "'" + name + "' is not a valid element name");
+    }
     if (owner == nullptr) {
       return Value::Null();
     }
-    return owner->CreateElement(LowerCase(js::ToString(Argument(call.arguments, 0))));
+    // ASCII-lower-cased, and only ASCII: `createElement("İnput")` must not
+    // become an `<input>`, which is exactly what a locale-aware fold would do.
+    return owner->CreateElement(LowerCase(name));
   });
-  // The namespace is accepted and ignored, which is honest for this parser:
-  // it produces one tree with no XML in it, so `createElementNS(HTML_NS, 'div')`
-  // and `createElement('div')` describe the same element. A page that asks for
-  // a genuinely foreign namespace gets an HTML element and not a wrong answer
-  // about one -- SVG is rendered from its own decoder, not from the DOM.
-  method("createElementNS", [](NativeCall& call) {
+  // The namespace is *validated* and then ignored, which is the honest shape
+  // for this parser: it produces one tree with no foreign content in it, so
+  // `createElementNS(HTML_NS, 'div')` and `createElement('div')` describe the
+  // same element. What the validation buys is the half a page can actually
+  // observe -- a qualified name with an empty prefix, or a prefix with no
+  // namespace to put it in, is a refusal rather than an element with a colon
+  // in its tag name that nothing downstream can match. The other half -- an
+  // element that *remembers* its namespace and prefix, so `namespaceURI` and
+  // `localName` differ from what an HTML element answers -- is docs/wpt-plan.md
+  // task C4, and it is a change to `dom::Element` rather than to this file.
+  method("createElementNS", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "Document", "createElementNS", 2)) {
+      return call.ThrownValue();
+    }
+    bool namespace_is_null = false;
+    std::string namespace_uri;
+    std::string qualified;
+    if (!ToNullableDomString(call, call.arguments[0], namespace_is_null, namespace_uri) ||
+        !ToDomString(call, call.arguments[1], qualified)) {
+      return call.ThrownValue();
+    }
+    if (namespace_uri.empty()) {
+      namespace_is_null = true;  // step 1: an empty namespace *is* no namespace
+    }
+    std::string prefix;
+    std::string local;
+    if (!ValidateAndExtract(call, namespace_is_null, namespace_uri, qualified, NameKind::Element,
+                            prefix, local)) {
+      return call.ThrownValue();
+    }
     if (owner == nullptr) {
       return Value::Null();
     }
-    return owner->CreateElement(LowerCase(js::ToString(Argument(call.arguments, 1))));
+    // The *qualified* name is what is stored, not the local name that was just
+    // extracted -- and that is a deliberate choice between two wrong answers
+    // while an element cannot carry a prefix. `dom::Element` has one name, and
+    // it feeds both `tagName` (the qualified name, upper-cased) and
+    // `localName` (the local part). Storing the qualified name makes the first
+    // right and the second wrong; storing the local name makes the second
+    // right and the first wrong, and also loses the name
+    // `getElementsByTagName("x:b")` has to match on. So: qualified, until an
+    // element remembers its prefix (task C4), at which point neither is a
+    // choice any more.
+    (void)prefix;
+    return owner->CreateElement(LowerCase(qualified));
   });
   method("createDocumentFragment", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -203,9 +254,26 @@ void DomBindings::Install() {
     }
     return owner->CreateComment(js::ToString(Argument(call.arguments, 0)));
   });
-  method("createEvent", [](NativeCall& call) {
+  method("createEvent", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
-    return owner == nullptr ? Value::Null() : owner->CreateLegacyEvent();
+    if (!RequireArguments(call, "Document", "createEvent", 1)) {
+      return call.ThrownValue();
+    }
+    std::string name;
+    if (!ToDomString(call, call.arguments[0], name)) {
+      return call.ThrownValue();
+    }
+    // A name outside the DOM's legacy table is a NotSupportedError, and that
+    // includes the *pluralised* forms of interfaces that have no legacy alias
+    // ("FocusEvents") and the interfaces that exist but were added after the
+    // table closed ("CloseEvent"). Answering with a plain Event for those
+    // would hand a page an object of the wrong type under a name it chose.
+    const char* interface = DomBindings::LegacyEventInterface(name);
+    if (interface == nullptr) {
+      return ThrowDom(call, "NotSupportedError",
+                      "'" + name + "' is not a legacy event interface name");
+    }
+    return owner == nullptr ? Value::Null() : owner->CreateLegacyEvent(interface);
   });
   // `readyState`, and now it moves.
   //
@@ -258,6 +326,35 @@ void DomBindings::Install() {
   };
   element_accessor("body", "body");
   element_accessor("documentElement", "html");
+
+  // `document.defaultView`: the window a document is displayed in, or null for
+  // one that is in no window at all.
+  //
+  // It was simply missing, and the cost of that is larger than it looks:
+  // `doc.defaultView.DOMException`, `doc.defaultView.getComputedStyle(el)` and
+  // `ownerDocument.defaultView` are how a script that was handed a *node*
+  // reaches the global its constructors live in -- which is the only correct
+  // way to write that once more than one document can exist. Every one of them
+  // was `undefined.something`, and web-platform-tests' `assert_throws_dom`
+  // takes the global that way on every negative test it runs.
+  //
+  // Null for a document `createHTMLDocument` made, which is the distinction
+  // the property exists to draw: that document has no browsing context, so it
+  // has no window, and a page that treats the two the same ends up asking one
+  // document's global about another's nodes.
+  {
+    const Value native = interpreter_->NewNativeValue("defaultView", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      if (owner == nullptr || owner->DocumentOf(call.self) != owner->MainDocument()) {
+        return Value::Null();
+      }
+      return Value::Obj(call.interpreter.Global());
+    });
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->DefineAccessor("defaultView", native.object, nullptr);
+    }
+  }
 
   // `document.all` (HTML obsolete / [[IsHTMLDDA]]). Absent, `undefined !==
   // document.all` is false and polymer_resin's `!Z && Z !== document.all`

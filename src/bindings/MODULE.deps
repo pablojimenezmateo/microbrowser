@@ -46,7 +46,12 @@ extern:
 # IndexedDbRequests.cpp, both stay well under this cap on their own.
 # Raised to 930 for TD-0040's `ScheduleMediaSourceOpened` declaration (MSE
 # `sourceopen` as a host task, beside `ScheduleSourceBufferEvents`).
-max_tu_lines: 930
+# Raised to 950 for `DOMTokenList` (TokenList.cpp): three declarations, and the
+# thing they bought was a deletion -- `MakeClassList` built a plain object with
+# four methods on it inline in DomBindings.cpp, and the ordered-set algorithm
+# behind `class` now exists once, over an attribute *name*, so `rel` and
+# `sandbox` cannot grow a second copy of it that disagrees.
+max_tu_lines: 950
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
 # safe while nothing frees a node before its document. `Node::Remove` would;

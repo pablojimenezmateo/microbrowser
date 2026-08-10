@@ -85,14 +85,15 @@
     {
       "id": "C3", "milestone": "M-C", "title": "WebIDL argument conversion", "area": "dom/",
       "scope": "undefined/null/missing/extra arguments, per-type coercion, [EnforceRange].",
-      "check": "dom/ subtest pass rate up 10 points against the C2 baseline.",
-      "depends": ["C1", "C2"], "target": "", "status": "not_started", "agent": null, "adr": "0012", "notes": ""
+      "check": "dom/ subtest pass rate up 10 points against the C2 baseline. Run 2026-08-10: 23.5% -> 44.0% (1539 of 6543 -> 2893 of 6570 subtests), 0 unexpected results; a re-validation run under load reported 44.2% and two timing flakes, which is the documented TIMEOUT class rather than a regression.",
+      "depends": ["C1", "C2"], "target": "", "status": "done", "agent": "wpt-c3", "adr": "0012",
+      "notes": "Done, +20.6 points. The conversion layer is src/bindings/WebIdl.h/.cpp -- arity, DOMString through ToStringOf (which can run a page's own toString and therefore can throw), nullable DOMString, `unsigned long` with the Modulo/Enforce/Clamp rules applied in double before any cast, the DOM's name productions, and DOMString offsets in UTF-16 code units (js/StringUnits.h is public for that: a DOMString *is* code units, and a second copy of that indexing is a second answer to 'what is position 3'). **The layer was not where the subtests were.** Four things it made possible were: DOMTokenList as a real type (+885 in one file), CharacterData's five mutation operations, which did not exist at all (+112), document.createEvent over the legacy alias table (+159), and element/attribute name validation plus document.defaultView (+160). insertAdjacentElement and insertAdjacentText landed with them -- the second is the four-line method whose absence broke testharness.js's own reporting (ADR 0040). Deliberate deviations, recorded as expectations: createEvent throws NotSupportedError for BeforeUnloadEvent, CompositionEvent, DeviceMotionEvent, DeviceOrientationEvent, StorageEvent and TextEvent, because this browser has no interface behind any of them and a table row mapping them to Event is ADR 0012's stub -- and for the two sensor events it is an ADR 0029 fingerprinting surface opened by a table row. createElementNS validates the namespace and then stores the *qualified* name, which makes tagName right and localName wrong: dom::Element has one name field, so the choice is between those two, and getElementsByTagName('x:b') needs the qualified one. Elements carrying a namespace is C4."
     },
     {
       "id": "C4", "milestone": "M-C", "title": "dom/nodes", "area": "dom/nodes/",
       "scope": "Mutation algorithms, node comparison, adoption, ownerDocument.",
       "check": "dom/nodes/ >= 85%.", "depends": ["C1"], "target": "85%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "\"cannot read property 'document' of undefined\" is the ownerDocument/defaultView chain."
+      "status": "not_started", "agent": null, "adr": "", "notes": "\"cannot read property 'document' of undefined\" is the ownerDocument/defaultView chain -- `document.defaultView` landed with C3 and had simply never existed. What is left of this task's namespace half is now specific: dom::Element has one name field, so it cannot answer tagName (the qualified name), localName (the local part), prefix and namespaceURI independently. dom/nodes/case.html (285 subtests) and the non-throwing two thirds of Document-createElementNS.html are all waiting on that one field."
     },
     {
       "id": "C5", "milestone": "M-C", "title": "traversal and ranges", "area": "dom/ranges/",
@@ -122,7 +123,7 @@
       "id": "C9", "milestone": "M-C", "title": "domparsing", "area": "domparsing/",
       "scope": "DOMParser, XMLSerializer, insertAdjacentHTML/Text/Element.",
       "check": "domparsing/ >= 80%.", "depends": ["C1"], "target": "80%",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": "insertAdjacentText is missing entirely and is what broke the harness on its first run -- ADR 0040."
+      "status": "not_started", "agent": null, "adr": "0020", "notes": "insertAdjacentText and insertAdjacentElement landed with C3 (src/bindings/HtmlParsing.cpp). They are the DOM's 'insert adjacent', which is a different algorithm from insertAdjacentHTML's: a beforebegin/afterend insertion on a parentless element answers null rather than throwing NoModificationAllowedError. DOMParser and XMLSerializer are what is left."
     },
     {
       "id": "C10", "milestone": "M-C", "title": "reflected IDL attributes", "area": "html/dom/",

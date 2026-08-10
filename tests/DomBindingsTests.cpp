@@ -3149,6 +3149,149 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "2");
   });
 
+  AddTest(tests, "DomBindings/ClassListIsOneLiveOrderedSet", [] {
+    // Identity, because a page stores the list and compares it later -- and a
+    // fresh object per read answered false for years.
+    ExpectScript(kPage, "const e = document.getElementById('title');"
+                        "e.classList === e.classList", "true");
+    // An ordered set, not a word list: duplicates collapse and the order of
+    // first appearance is kept.
+    ExpectScript(kPage, "const e = document.getElementById('title');"
+                        "e.setAttribute('class', 'a A b b a');"
+                        "e.classList.length + ' ' + e.classList[1] + ' ' + e.classList.value",
+                 "3 A a A b b a");
+    // Live through the Proxy: the attribute is the state, so a write anywhere
+    // else is visible without re-reading the list.
+    ExpectScript(kPage, "const e = document.getElementById('title');"
+                        "const list = e.classList;"
+                        "e.setAttribute('class', 'x y');"
+                        "list.length + ' ' + list[0] + ' ' + list.contains('y')",
+                 "2 x true");
+    // Validation, which was absent: an empty token is a SyntaxError and a
+    // token with whitespace in it an InvalidCharacterError -- and neither may
+    // touch the attribute on the way out.
+    ExpectScript(kPage, "const e = document.getElementById('title');"
+                        "e.setAttribute('class', 'a');"
+                        "let names = [];"
+                        "try { e.classList.add(''); } catch (err) { names.push(err.name); }"
+                        "try { e.classList.add('a b'); } catch (err) { names.push(err.name); }"
+                        "names.join(',') + ' ' + e.getAttribute('class')",
+                 "SyntaxError,InvalidCharacterError a");
+    // `add` runs the update steps even when nothing was appended, so the
+    // attribute is normalised; a *forced* toggle that changes nothing does not.
+    ExpectScript(kPage, "const e = document.getElementById('title');"
+                        "e.setAttribute('class', 'a a a  b'); e.classList.add('a');"
+                        "const after = e.getAttribute('class');"
+                        "e.setAttribute('class', 'a a a  b'); e.classList.toggle('a', true);"
+                        "after + '|' + e.getAttribute('class')",
+                 "a b|a a a  b");
+    // `[PutForwards=value]`: assigning writes the attribute and leaves the
+    // list object where it was.
+    ExpectScript(kPage, "const e = document.getElementById('title');"
+                        "const list = e.classList; e.classList = 'one two';"
+                        "(e.classList === list) + ' ' + e.getAttribute('class')",
+                 "true one two");
+  });
+
+  AddTest(tests, "DomBindings/CharacterDataCountsCodeUnits", [] {
+    // Offsets are UTF-16 code units over UTF-8 storage. Measuring bytes made
+    // every non-ASCII text node report the wrong length and every offset
+    // computed from it address the wrong character.
+    ExpectScript("<p id=t>café</p>",
+                 "const t = document.getElementById('t').firstChild;"
+                 "t.length + ' ' + t.substringData(3, 1)",
+                 "4 é");
+    // `unsigned long`, so a negative offset wraps to an enormous one and is an
+    // IndexSizeError rather than a clamp to zero.
+    ExpectScript("<p id=t>test</p>",
+                 "const t = document.getElementById('t').firstChild;"
+                 "try { t.substringData(-1, 0); } catch (err) { err.name }",
+                 "IndexSizeError");
+    // Arity, before anything else happens.
+    ExpectScript("<p id=t>test</p>",
+                 "const t = document.getElementById('t').firstChild;"
+                 "try { t.substringData(0); } catch (err) { err.constructor.name }",
+                 "TypeError");
+    ExpectScript("<p id=t>test</p>",
+                 "const t = document.getElementById('t').firstChild;"
+                 "t.replaceData(1, 2, 'XY'); t.data",
+                 "tXYt");
+  });
+
+  AddTest(tests, "DomBindings/NamesAreValidatedBeforeTheTreeIsTouched", [] {
+    ExpectScript(kPage, "try { document.createElement('fo o'); } catch (err) { err.name }",
+                 "InvalidCharacterError");
+    ExpectScript(kPage, "try { document.createElement('-foo'); } catch (err) { err.name }",
+                 "InvalidCharacterError");
+    // Valid, and only ASCII is folded: `İnput` must not become an `<input>`.
+    ExpectScript(kPage, "document.createElement('f<oo').localName", "f<oo");
+    ExpectScript(kPage, "document.createElement('\\u0130nput').localName", "İnput");
+    // The namespace rules, which are what `createElementNS` adds over
+    // `createElement`: a prefix with no namespace to put it in is refused.
+    ExpectScript(kPage, "try { document.createElementNS(null, 'f:oo'); } catch (err) { err.name }",
+                 "NamespaceError");
+    ExpectScript(kPage, "try { document.createElementNS(null, ':foo'); } catch (err) { err.name }",
+                 "InvalidCharacterError");
+    // The qualified name is what is stored while an element cannot carry a
+    // prefix, so `tagName` is right and `localName` is not. See the comment in
+    // DocumentBindings.cpp: the choice is between those two, and this is the
+    // half a `getElementsByTagName` can still find.
+    ExpectScript(kPage,
+                 "document.createElementNS('http://example.org/', 'a:b').tagName", "A:B");
+    // An attribute name may not contain `=`, which is what separates it from
+    // its value in the markup. An element name may.
+    ExpectScript(kPage, "const e = document.createElement('div');"
+                        "try { e.setAttribute('a=b', '1'); } catch (err) { err.name }",
+                 "InvalidCharacterError");
+  });
+
+  AddTest(tests, "DomBindings/CreateEventNamesAClosedTable", [] {
+    ExpectScript(kPage,
+                 "const e = document.createEvent('MouseEvents');"
+                 "(Object.getPrototypeOf(e) === MouseEvent.prototype) + ' ' + e.type + ' ' +"
+                 "e.eventPhase + ' ' + e.isTrusted",
+                 "true  0 false");
+    // Case-insensitive over ASCII only -- the dotted and dotless Turkish i must
+    // not fold into "uievent".
+    ExpectScript(kPage,
+                 "Object.getPrototypeOf(document.createEvent('uievents')) === UIEvent.prototype",
+                 "true");
+    ExpectScript(kPage, "try { document.createEvent('U\\u0130Event'); } catch (err) { err.name }",
+                 "NotSupportedError");
+    ExpectScript(kPage, "try { document.createEvent('CloseEvent'); } catch (err) { err.name }",
+                 "NotSupportedError");
+  });
+
+  AddTest(tests, "DomBindings/InsertAdjacentPlacesNodesAndText", [] {
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "list.insertAdjacentText('afterbegin', 'first');"
+                 "list.firstChild.data",
+                 "first");
+    ExpectScript(kPage,
+                 "const list = document.getElementById('list');"
+                 "const made = document.createElement('b');"
+                 "list.insertAdjacentElement('beforebegin', made) === made &&"
+                 "list.previousSibling === made",
+                 "true");
+    ExpectScript(kPage,
+                 "try { document.body.insertAdjacentText('nowhere', 'x'); }"
+                 "catch (err) { err.name }",
+                 "SyntaxError");
+    // A detached element has no parent, and "insert adjacent" answers null
+    // rather than throwing -- which is where it differs from insertAdjacentHTML.
+    ExpectScript(kPage,
+                 "document.createElement('div')"
+                 ".insertAdjacentElement('beforebegin', document.createElement('i'))",
+                 "null");
+  });
+
+  AddTest(tests, "DomBindings/DefaultViewIsTheWindowAndOnlyForTheOne", [] {
+    ExpectScript(kPage, "document.defaultView === window", "true");
+    ExpectScript(kPage,
+                 "document.implementation.createHTMLDocument('x').defaultView", "null");
+  });
+
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {
     // The point of the whole layer: a change made by script is a change to the
     // document, not to a copy of it.

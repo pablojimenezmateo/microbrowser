@@ -7,13 +7,23 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-**Partly re-measured, 2026-08-10 (C1 + C2).** The per-area rows for `dom/`, `FileAPI/`, `xhr/`,
-`domparsing/`, `custom-elements/`, `shadow-dom/` and `IndexedDB/` are from that session's run and
-were merged into this file by hand; every other row, and the whole ranked-cause section below, is
-still the M-B baseline and predates the exception-identity work. That merge was necessary because
-`--summary` rewrites this document from `--summary-state` alone: a run started with no state file
-silently produces a document describing only the areas it ran. **The state file is this
-document's memory. Keep it, or re-measure everything.**
+**Partly re-measured, 2026-08-10 (C1 + C2, then C3).** The per-area rows for `dom/`, `FileAPI/`,
+`xhr/`, `domparsing/`, `custom-elements/`, `shadow-dom/` and `IndexedDB/` are from the C1+C2 run;
+every `dom/` row was re-measured again by the C3 run (argument conversion, `DOMTokenList`,
+`CharacterData`, name validation) -- `dom/nodes` 23.4% -> **49.4%**, `dom/lists` 61.2% -> 67.3%,
+and the whole area 23.5% -> **44.2%**. Subtest *counts* moved too (`dom/nodes` 5177 -> 5221,
+`dom/events` 540 -> 549): a test whose harness used to die partway now runs to the end, so the
+denominator grows with the numerator. Every other row, and the whole ranked-cause section below,
+is still the M-B baseline.
+
+Both merges were done **by hand**, and that is a defect in the tooling rather than a choice:
+`--summary` rewrites this document from `--summary-state` alone, so a run whose state file does
+not already describe every area silently produces a document about only the areas it ran. The
+state file at `/tmp/microbrowser-wpt-state.tsv` is a *temporary* file holding this document's
+memory, which is the wrong place for it -- it does not survive a reboot, and the failure mode
+when it does not is a generated document that looks complete and is not. **The state file
+belongs in the repository beside this one.** Until it is there: keep it, or re-measure
+everything, and check the row count before committing a regenerated summary.
 
 53220 of 479500 subtests pass (11.1%) over 21265 tests.
 
@@ -140,15 +150,15 @@ it is a page that never reported, which almost always means something threw befo
 | `custom-elements/registries` | 40 | 28 | 2 | 10 | 0 | 2207 | 225 | 10.2 |
 | `custom-elements/state` | 5 | 4 | 1 | 0 | 0 | 28 | 1 | 3.6 |
 | `custom-elements/upgrading` | 7 | 2 | 0 | 5 | 0 | 7 | 1 | 14.3 |
-| `dom` | 10 | 10 | 0 | 0 | 0 | 125 | 66 | 52.8 |
+| `dom` | 10 | 9 | 0 | 1 | 0 | 125 | 66 | 52.8 |
 | `dom/abort` | 10 | 6 | 0 | 4 | 0 | 37 | 10 | 27.0 |
 | `dom/collections` | 10 | 10 | 0 | 0 | 0 | 53 | 7 | 13.2 |
-| `dom/events` | 178 | 85 | 1 | 92 | 0 | 540 | 157 | 29.1 |
-| `dom/lists` | 5 | 4 | 1 | 0 | 0 | 49 | 30 | 61.2 |
-| `dom/nodes` | 327 | 233 | 7 | 86 | 1 | 5177 | 1214 | 23.4 |
+| `dom/events` | 178 | 85 | 1 | 92 | 0 | 549 | 157 | 28.6 |
+| `dom/lists` | 5 | 4 | 1 | 0 | 0 | 49 | 33 | 67.3 |
+| `dom/nodes` | 327 | 233 | 7 | 86 | 1 | 5221 | 2580 | 49.4 |
 | `dom/observable` | 52 | 25 | 0 | 27 | 0 | 242 | 0 | 0.0 |
 | `dom/ranges` | 57 | 32 | 24 | 1 | 0 | 242 | 21 | 8.7 |
-| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 55 | 30 | 54.5 |
+| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 56 | 30 | 53.6 |
 | `domparsing` | 34 | 21 | 3 | 10 | 0 | 245 | 77 | 31.4 |
 | `domparsing/tentative` | 26 | 17 | 0 | 9 | 0 | 905 | 28 | 3.1 |
 | `domxpath` | 32 | 24 | 0 | 8 | 0 | 87 | 1 | 1.1 |

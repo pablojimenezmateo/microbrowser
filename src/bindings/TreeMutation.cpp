@@ -1,7 +1,10 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -668,6 +671,14 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
     }
   };
 
+  const auto method = [this, &target](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->SetHidden(name, native);
+    }
+  };
+
   // Polymer's text bindings set `textNode.data` after stamping. Without a
   // setter the binding token stays literal in the tree -- which is why
   // youtube.com painted `[[errorMessage]]` rather than the string.
@@ -677,28 +688,149 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
         dom::Node* self = NodeOf(call.self);
         return self == nullptr ? Value::Undefined() : Value::String(CharacterDataOf(self));
       },
-      [](NativeCall& call) {
+      [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
         dom::Node* self = NodeOf(call.self);
         if (owner == nullptr || self == nullptr) {
           return Value::Undefined();
         }
-        if (!owner->SetCharacterData(self, js::ToString(Argument(call.arguments, 0)))) {
+        std::string data;
+        if (!ToDomString(call, Argument(call.arguments, 0), data)) {
+          return call.ThrownValue();
+        }
+        if (!owner->SetCharacterData(self, std::move(data))) {
           return call.Throw("TypeError", "data can only be set on a text or comment node");
         }
         return Value::Undefined();
       });
 
+  // **Code units, not bytes.** `length` is the number of UTF-16 code units in
+  // the data, because that is what a DOMString is; measuring `std::string::size`
+  // made every non-ASCII text node report its byte count, so `"é".length` was 2
+  // and every offset computed from it addressed the wrong character. The same
+  // measurement runs through all five mutation methods below -- an offset is an
+  // offset in the same units `length` counts, or none of them agree.
   accessor(
       "length",
       [](NativeCall& call) {
         dom::Node* self = NodeOf(call.self);
-        return self == nullptr ? Value::Undefined()
-                               : Value::Number(static_cast<double>(CharacterDataOf(self).size()));
+        return self == nullptr
+                   ? Value::Undefined()
+                   : Value::Number(static_cast<double>(DomStringLength(CharacterDataOf(self))));
       },
-      [](NativeCall& call) {
-        return call.Throw("TypeError", "length is read-only");
-      });
+      [](NativeCall& call) { return call.Throw("TypeError", "length is read-only"); });
+
+  // The five mutation operations, which were simply absent -- `data` and
+  // `length` were the whole of CharacterData here. Each is "replace data" with
+  // different arguments, and they are written that way rather than five times:
+  // the specification defines the other four in terms of it, and the ordering
+  // that matters (bounds check, then the write, then the record) is in one
+  // place.
+  //
+  // `offset` and `count` are `unsigned long`, so a negative argument wraps to
+  // an enormous one and lands in the IndexSizeError below rather than clamping
+  // to zero. `substringData(-1, 0)` throwing is not pedantry -- it is the
+  // difference between a page's bounds check running and it silently reading
+  // from position 4294967295.
+  const auto replace_data = [](NativeCall& call, const char* operation,
+                               std::uint32_t offset, std::uint32_t count,
+                               const std::string& insertion) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", std::string(operation) + " called on a non-CharacterData");
+    }
+    const std::string data = CharacterDataOf(self);
+    const std::size_t length = DomStringLength(data);
+    if (offset > length) {
+      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
+    }
+    const std::size_t end = std::min<std::size_t>(length, static_cast<std::size_t>(offset) + count);
+    std::string rewritten = DomSubstring(data, 0, offset);
+    rewritten += insertion;
+    rewritten += DomSubstring(data, end, length);
+    if (!owner->SetCharacterData(self, std::move(rewritten))) {
+      return call.Throw("TypeError", std::string(operation) + " called on a non-CharacterData");
+    }
+    return Value::Undefined();
+  };
+
+  method("substringData", [](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "CharacterData", "substringData", 2)) {
+      return call.ThrownValue();
+    }
+    std::uint32_t offset = 0;
+    std::uint32_t count = 0;
+    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
+        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, count)) {
+      return call.ThrownValue();
+    }
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr) {
+      return call.Throw("TypeError", "substringData called on a non-CharacterData");
+    }
+    const std::string data = CharacterDataOf(self);
+    const std::size_t length = DomStringLength(data);
+    if (offset > length) {
+      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
+    }
+    const std::size_t end = std::min<std::size_t>(length, static_cast<std::size_t>(offset) + count);
+    return Value::String(DomSubstring(data, offset, end));
+  });
+
+  method("appendData", [replace_data](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "CharacterData", "appendData", 1)) {
+      return call.ThrownValue();
+    }
+    std::string insertion;
+    if (!ToDomString(call, call.arguments[0], insertion)) {
+      return call.ThrownValue();
+    }
+    dom::Node* self = NodeOf(call.self);
+    const std::size_t length = self == nullptr ? 0 : DomStringLength(CharacterDataOf(self));
+    return replace_data(call, "appendData", static_cast<std::uint32_t>(length), 0, insertion);
+  });
+
+  method("insertData", [replace_data](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "CharacterData", "insertData", 2)) {
+      return call.ThrownValue();
+    }
+    std::uint32_t offset = 0;
+    std::string insertion;
+    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
+        !ToDomString(call, call.arguments[1], insertion)) {
+      return call.ThrownValue();
+    }
+    return replace_data(call, "insertData", offset, 0, insertion);
+  });
+
+  method("deleteData", [replace_data](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "CharacterData", "deleteData", 2)) {
+      return call.ThrownValue();
+    }
+    std::uint32_t offset = 0;
+    std::uint32_t count = 0;
+    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
+        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, count)) {
+      return call.ThrownValue();
+    }
+    return replace_data(call, "deleteData", offset, count, std::string());
+  });
+
+  method("replaceData", [replace_data](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "CharacterData", "replaceData", 3)) {
+      return call.ThrownValue();
+    }
+    std::uint32_t offset = 0;
+    std::uint32_t count = 0;
+    std::string insertion;
+    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
+        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, count) ||
+        !ToDomString(call, call.arguments[2], insertion)) {
+      return call.ThrownValue();
+    }
+    return replace_data(call, "replaceData", offset, count, insertion);
+  });
 }
 
 }  // namespace microbrowser::bindings

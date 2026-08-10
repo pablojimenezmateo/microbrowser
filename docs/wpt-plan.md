@@ -286,6 +286,18 @@ Known causes already visible from 150 tests:
 C1 and C2 are the two that unblock the rest of the suite and should be done
 first, by one agent, in that order. C4–C10 are parallel after them.
 
+**C1, C2 and C3 are done. `dom/` is at 44.0%, from 11.6% at the baseline.**
+C3's lesson is worth reading before starting C4–C10, because it applies to
+every one of them: the *ability* the task names was not where the subtests
+were. Writing the conversion layer moved almost nothing on its own; what moved
+1,354 subtests was the four DOM types it made cheap to notice were absent or
+approximate — `DOMTokenList`, `CharacterData`'s five mutation operations,
+`document.createEvent`'s alias table, and name validation. **Rank the area's
+test files by failing-subtest count before writing any code.** One `python3`
+over `tests/wpt/expectations/<area>.txt` does it, and it is the difference
+between a session that fixes the thing it guessed and one that fixes the thing
+that costs.
+
 **Exit:** `dom/` ≥ 85%, `shadow-dom/` ≥ 75%, `custom-elements/` ≥ 75%,
 `domparsing/` ≥ 80%.
 

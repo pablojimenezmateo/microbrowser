@@ -32,6 +32,10 @@ inline constexpr const char* kBlobMarkerSlot = "#isBlob";
 // `js::Value` in a field -- the same rule the wrapper cache follows.
 inline constexpr const char* kReadyStateSlot = "#readyState";
 inline constexpr const char* kCSSStyleSheetMarkerSlot = "#isCSSStyleSheet";
+// Where an element's wrapper keeps its one `DOMTokenList`. The list is live,
+// so this is identity rather than a cache: `el.classList === el.classList` is
+// something pages assert, and a fresh object per read answers false.
+inline constexpr const char* kClassListSlot = "#classList";
 // A heap-allocated `std::shared_ptr<std::string>` holding the parsed text.
 // Shared by every root that adopts the sheet; `replaceSync` mutates it in place.
 inline constexpr const char* kCSSSheetStorageSlot = "#cssSheetStorage";
@@ -84,6 +88,24 @@ js::Value ThrowDom(js::NativeCall& call, std::string_view name, std::string mess
 
 class DomBindings;
 
+// What a `Proxy` wraps, following a chain of them, or the object itself.
+//
+// A live binding object -- `el.style`, `el.dataset`, `el.classList` -- is a
+// Proxy over a plain target that carries the element. When such an object is
+// the *receiver* of a method read off a shared prototype, `this` is the proxy
+// and the element is on the target behind it, so every "which node is this?"
+// question has to look through. Bounded, because a page can nest proxies.
+inline js::Object* BehindProxies(js::Object* object) {
+  for (int depth = 0; object != nullptr && depth < 16; ++depth) {
+    if (object->GetKind() != js::Object::Kind::Proxy) {
+      return object;
+    }
+    const js::Value* behind = object->GetOwn("#target");
+    object = behind != nullptr && behind->IsObject() ? behind->object : nullptr;
+  }
+  return object;
+}
+
 // The node behind a wrapper, or null for anything that is not one.
 //
 // Every binding starts here rather than trusting its receiver, because a page
@@ -93,11 +115,46 @@ inline dom::Node* NodeOf(const js::Value& value) {
   if (!value.IsObject()) {
     return nullptr;
   }
-  const js::Value* slot = value.object->GetOwn(kNodeSlot);
+  const js::Object* behind = BehindProxies(value.object);
+  const js::Value* slot = behind == nullptr ? nullptr : behind->GetOwn(kNodeSlot);
   if (slot == nullptr || !slot->IsNumber()) {
     return nullptr;
   }
   return reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(slot->number));
+}
+
+// A property key as an array index, or `kNotAnIndex`.
+//
+// The canonical form only: "0", "1", … and nothing with a leading zero, a
+// sign or a decimal point. That strictness is the specification's -- `list["01"]`
+// is a named property and not element 1 -- and it is what keeps an indexed
+// getter from shadowing a name a page put on the object.
+inline constexpr std::size_t kNotAnIndex = static_cast<std::size_t>(-1);
+inline std::size_t ArrayIndexOf(std::string_view text) {
+  if (text.empty() || text.size() > 10) {
+    return kNotAnIndex;
+  }
+  if (text.size() > 1 && text[0] == '0') {
+    return kNotAnIndex;
+  }
+  std::size_t index = 0;
+  for (const char c : text) {
+    if (c < '0' || c > '9') {
+      return kNotAnIndex;
+    }
+    index = index * 10 + static_cast<std::size_t>(c - '0');
+  }
+  return index > 4294967294ULL ? kNotAnIndex : index;
+}
+
+// The key a Proxy trap was handed. It arrives as a value -- a string or a
+// symbol -- and every trap in this module has to turn it back into the key it
+// came from without letting a symbol's description collide with a string.
+inline js::PropertyKey KeyOfTrapArgument(const js::Value& value) {
+  if (value.IsSymbol()) {
+    return js::PropertyKey::Symbol(value.object);
+  }
+  return js::PropertyKey(js::ToString(value));
 }
 
 // The bindings instance a native belongs to. Carried on the function object

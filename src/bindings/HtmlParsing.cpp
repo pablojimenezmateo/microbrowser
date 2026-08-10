@@ -6,6 +6,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 #include "html/TreeBuilder.h"
 #include "util/PerformanceCounters.h"
 
@@ -276,6 +277,79 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
         position == "beforebegin" ? &element : NextSibling(*parent, element);
     owner->InsertAdjacentParsedHtml(*parent, reference, markup);
     return Value::Undefined();
+  });
+
+  // `insertAdjacentElement` and `insertAdjacentText`, over the DOM's "insert
+  // adjacent" -- which is *not* the algorithm `insertAdjacentHTML` above uses,
+  // and the difference is the only interesting thing about them: a
+  // beforebegin/afterend insertion on a node with no parent returns null here
+  // and throws NoModificationAllowedError there. Two algorithms, because one
+  // parses markup into a context and the other places a node that already
+  // exists.
+  //
+  // `insertAdjacentText` is the one that earned this: testharness.js's own
+  // `show_results` calls it, so a *missing* four-line method meant every WPT
+  // page whose tests had all run reported nothing at all. It is invisible on
+  // every real page and it silently destroyed a reporting path (ADR 0040).
+  const auto insert_adjacent = [](NativeCall& call, const char* operation,
+                                  dom::Node* node) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || !self->IsElement() || node == nullptr) {
+      return call.Throw("TypeError", std::string(operation) + " called on a non-element");
+    }
+    auto& element = static_cast<dom::Element&>(*self);
+    std::string position;
+    if (!ToDomString(call, Argument(call.arguments, 0), position)) {
+      return call.ThrownValue();
+    }
+    position = LowerCase(position);
+    if (position == "afterbegin") {
+      return owner->InsertNodeBefore(element, node, element.FirstChild());
+    }
+    if (position == "beforeend") {
+      return owner->InsertNodeBefore(element, node, nullptr);
+    }
+    if (position != "beforebegin" && position != "afterend") {
+      return ThrowDom(call, "SyntaxError", "'" + position + "' is not a valid insert position");
+    }
+    dom::Node* parent = element.Parent();
+    if (parent == nullptr) {
+      return Value::Null();  // and deliberately not a throw -- see above
+    }
+    return owner->InsertNodeBefore(
+        *parent, node, position == "beforebegin" ? &element : NextSibling(*parent, element));
+  };
+
+  method("insertAdjacentElement", [insert_adjacent](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Element", "insertAdjacentElement", 2)) {
+      return call.ThrownValue();
+    }
+    dom::Node* node = NodeOf(call.arguments[1]);
+    if (node == nullptr || !node->IsElement()) {
+      return call.Throw("TypeError", "insertAdjacentElement requires an element");
+    }
+    return insert_adjacent(call, "insertAdjacentElement", node);
+  });
+
+  method("insertAdjacentText", [insert_adjacent](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "Element", "insertAdjacentText", 2)) {
+      return call.ThrownValue();
+    }
+    std::string text;
+    if (!ToDomString(call, call.arguments[1], text)) {
+      return call.ThrownValue();
+    }
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    dom::Node* node = NodeOf(owner->CreateText(text));
+    (void)insert_adjacent(call, "insertAdjacentText", node);
+    // Undefined whatever happened -- the node went in or the element had no
+    // parent, and the caller is told neither. That asymmetry with
+    // insertAdjacentElement is the specification's.
+    return call.HasThrown() ? call.ThrownValue() : Value::Undefined();
   });
 }
 

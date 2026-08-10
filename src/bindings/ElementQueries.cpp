@@ -335,6 +335,25 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     }
     return Value::String(static_cast<dom::Element*>(self)->TagName());
   });
+  // `prefix` and `namespaceURI`, and both are constants here for the same
+  // reason `localName` above is `tagName` lowercased: this DOM holds exactly
+  // one kind of element. `src/html` builds no foreign content, `createElementNS`
+  // discards the namespace it validated, and SVG is rendered from its own
+  // decoder rather than becoming elements -- so every element in this tree
+  // really is an HTML element with no prefix, and answering so is a fact rather
+  // than a placeholder. When elements carry a namespace (task C4), these two
+  // are where it surfaces.
+  accessor("prefix", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return self == nullptr || !self->IsElement() ? Value::Undefined() : Value::Null();
+  });
+  accessor("namespaceURI", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    return Value::String(std::string("http://www.w3.org/1999/xhtml"));
+  });
   // A method, not an accessor: `el.hasAttributes()` is a call.
   method("hasAttributes", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);

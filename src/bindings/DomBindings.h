@@ -331,6 +331,9 @@ class DomBindings {
                                const std::function<void(dom::Element&)>& visit);
   void ForEachElement(const std::function<void(dom::Element&)>& visit) const;
   dom::Node* DocumentOf(const js::Value& self) const;
+  // The one document that is *in* a window, as against one a script made with
+  // `createHTMLDocument`. What `defaultView` is null for.
+  const dom::Node* MainDocument() const { return document_; }
   // A new element, owned here until something appends it. A node's owner is
   // its parent, so one without a parent needs somewhere to live -- and the
   // alternative, handing script a node it owns, would put a raw pointer's
@@ -390,7 +393,20 @@ class DomBindings {
   // runs -- a handler that reparents the target must not change it.
   void InstallComposedPath(const js::Value& event, const std::vector<js::Value>& path);
   void SetReadyState(const char* state);
-  js::Value MakeClassList(dom::Element& element);
+  // `DOMTokenList`, in TokenList.cpp. The interface is shared and installed
+  // once; a list is a live Proxy over (element, attribute) and is cached on the
+  // element's wrapper, because `el.classList === el.classList` is something
+  // pages check and a fresh object per read answers false.
+  js::Value TokenListInterface();
+  js::Value MakeTokenList(dom::Element& element, const char* attribute);
+  // The specification's "run the update steps", which is not simply a write:
+  // an element with no such attribute and an empty token set is left alone, so
+  // `classList.remove('x')` cannot give an element a `class=""` it never had.
+  // A member rather than a free function because the write has to go through
+  // SetElementAttribute -- the mutation record and the custom-element reaction
+  // are not optional for a class change.
+  void UpdateTokenList(dom::Element& element, const std::string& attribute,
+                       const std::vector<std::string>& tokens);
   js::Value MakeStyle(dom::Element& element);
   // Live `data-*` map. A snapshot cannot accept `el.dataset.version = url`, which
   // is how youtube's player stamps the script URL J14 later compares.
@@ -442,9 +458,13 @@ class DomBindings {
   // the interface it extends, or null for Event itself -- which is the one
   // that carries the methods.
   js::Value EventPrototype(const char* name, const char* parent);
-  // What `document.createEvent` returns: an event with no type yet, and the
-  // `initEvent` that gives it one.
-  js::Value CreateLegacyEvent();
+  // The interface `document.createEvent(name)` names, or null when the name is
+  // not in the DOM's legacy table -- which is the whole of the answer, because
+  // that table is closed and anything outside it is a NotSupportedError.
+  static const char* LegacyEventInterface(std::string_view name);
+  // What `document.createEvent` returns: an event of the named interface with
+  // no type yet, and the `initEvent` that gives it one.
+  js::Value CreateLegacyEvent(const char* interface);
   void InstallMutationMethods(const js::Value& wrapper);
   // `data`, `length` and the shared behaviour Text and Comment inherit.
   void InstallCharacterData(const js::Value& target);

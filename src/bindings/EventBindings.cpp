@@ -533,6 +533,11 @@ void DomBindings::InstallEventConstructors() {
   // hands one to its listener, so this is the interface behind an object that
   // already exists rather than a name in front of nothing.
   EventPrototype("MessageEvent", "Event");
+  // `HashChangeEvent`, which this browser really dispatches: a same-document
+  // navigation that only moves the fragment fires one at the window, and until
+  // the interface existed that event was an `Event` with two extra properties
+  // on it -- so `e instanceof HashChangeEvent` was a ReferenceError.
+  EventPrototype("HashChangeEvent", "Event");
   // `ProgressEvent`, which is what an XHR's `progress`/`load`/`error` are.
   EventPrototype("ProgressEvent", "Event");
   // `PromiseRejectionEvent`. Nothing dispatches one -- an unhandled rejection
@@ -556,7 +561,53 @@ void DomBindings::InstallEventConstructors() {
   InstallDomException(*interpreter_);
 }
 
-js::Value DomBindings::CreateLegacyEvent() {
+const char* DomBindings::LegacyEventInterface(std::string_view name) {
+  // The DOM's `createEvent` table, which is a *closed* list of legacy names
+  // matched ASCII-case-insensitively -- `document.createEvent("mouseevents")`
+  // is the spelling half the pages that use this API were written with.
+  //
+  // Case-insensitive over ASCII only, and that is not a detail: the test suite
+  // asks for `"UİEvent"` and `"UıEvent"` -- the Turkish dotted and
+  // dotless i -- and both must be *unrecognised*. A locale-aware fold makes
+  // one of them "uievent" and hands the page an interface it never named.
+  //
+  // Names this browser has no interface behind are absent from the table
+  // rather than mapped to `Event`. `document.createEvent("DeviceMotionEvent")`
+  // throwing NotSupportedError is the answer a browser with no motion sensor
+  // gives; handing back an Event with the wrong prototype would tell a page
+  // the feature is there, which is ADR 0012's rule at the point it matters --
+  // and for the sensor events it would also be a fingerprinting surface
+  // (ADR 0029) opened by a table entry.
+  struct Alias {
+    std::string_view name;
+    const char* interface;
+  };
+  static constexpr Alias kAliases[] = {
+      {"event", "Event"},
+      {"events", "Event"},
+      {"htmlevents", "Event"},
+      {"svgevents", "Event"},
+      {"customevent", "CustomEvent"},
+      {"uievent", "UIEvent"},
+      {"uievents", "UIEvent"},
+      {"mouseevent", "MouseEvent"},
+      {"mouseevents", "MouseEvent"},
+      {"keyboardevent", "KeyboardEvent"},
+      {"focusevent", "FocusEvent"},
+      {"dragevent", "DragEvent"},
+      {"messageevent", "MessageEvent"},
+      {"hashchangeevent", "HashChangeEvent"},
+  };
+  const std::string folded = util::AsciiLowerCase(name);
+  for (const Alias& alias : kAliases) {
+    if (alias.name == folded) {
+      return alias.interface;
+    }
+  }
+  return nullptr;
+}
+
+js::Value DomBindings::CreateLegacyEvent(const char* interface) {
   // `document.createEvent('Event')` makes an *uninitialised* event: it has no
   // type until `initEvent` is called, and dispatching it before that does
   // nothing. That two-step shape is the whole reason this exists separately
@@ -565,6 +616,17 @@ js::Value DomBindings::CreateLegacyEvent() {
   const Value event = MakeEvent("", false, false, false);
   if (!event.IsObject()) {
     return Value::Undefined();
+  }
+  // The prototype the *named* interface has, not Event's. `createEvent` is
+  // documented by its return type, and a page that asks for a MouseEvent and
+  // gets something that is not one takes the branch written for browsers that
+  // never had the API.
+  if (interface != nullptr) {
+    if (const Value* prototype = interfaces_.IsObject() ? interfaces_.object->GetOwn(interface)
+                                                        : nullptr;
+        prototype != nullptr && prototype->IsObject()) {
+      event.object->SetPrototype(prototype->object);
+    }
   }
   const Value init = interpreter_->NewNativeValue("initEvent", [](NativeCall& call) {
     if (!call.self.IsObject()) {

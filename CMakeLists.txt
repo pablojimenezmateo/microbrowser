@@ -470,6 +470,7 @@ microbrowser_module(bindings
     src/bindings/EncodingBindings.cpp
     src/bindings/DomBindings.cpp
     src/bindings/DomExceptions.cpp
+    src/bindings/WebIdl.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/FetchBindings.cpp
     src/bindings/FetchTypes.cpp
@@ -488,6 +489,7 @@ microbrowser_module(bindings
     src/bindings/Timers.cpp
     src/bindings/TrustedScript.cpp
     src/bindings/TrustedScriptHooks.cpp
+    src/bindings/TokenList.cpp
     src/bindings/TreeMutation.cpp
     src/bindings/TreeWalkers.cpp
     src/bindings/MessageChannels.cpp

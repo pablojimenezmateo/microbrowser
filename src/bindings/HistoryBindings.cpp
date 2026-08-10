@@ -234,6 +234,14 @@ bool DomBindings::DispatchHashChange(const std::string& old_url, const std::stri
   if (!event.IsObject()) {
     return false;
   }
+  // Its own interface, not Event's. `MakeEvent` gives every event
+  // `Event.prototype`, which is right for the ones with no interface of their
+  // own -- but a router that does `if (e instanceof HashChangeEvent)` before
+  // reading `e.newURL` is checking the one thing that distinguishes this event
+  // from every other, and it answered false.
+  if (const Value prototype = InterfaceNamed("HashChangeEvent"); prototype.IsObject()) {
+    event.object->SetPrototype(prototype.object);
+  }
   event.object->Set("oldURL", Value::String(old_url));
   event.object->Set("newURL", Value::String(new_url));
   const bool ran = DispatchAtWindowWith("hashchange", event);

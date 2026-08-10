@@ -16,7 +16,10 @@ First-stop operating guide for agents working in this repository.
   `tools/wpt/fetch.sh` once, then `./build/microbrowser-perf/microbrowser/microbrowser_wpt dom/`.
   Real pages are still the primary *discovery* signal; both stay, they answer different questions.
   `docs/wpt-baseline.md` is where it stands, `docs/wpt-plan.md` is the work,
-  `docs/wpt-tasks.json` is its state.
+  `docs/wpt-tasks.json` is its state. **Before writing code for an area, rank its test files by
+  failing-subtest count** — one `python3` over `tests/wpt/expectations/<area>.txt`. C3 spent an
+  afternoon on the thing its title named and got its 20 points from four types that ranking made
+  visible; the ability a task names is rarely where its subtests are.
 - `AGENTS.md` owns repo policy. `guidelines/` owns the durable how-to. `docs/adr/` owns decisions.
 - Build with `cmake`, test with `ctest`, and prefer `tools/run-checks.sh` so results are readable
   afterward without rerunning.

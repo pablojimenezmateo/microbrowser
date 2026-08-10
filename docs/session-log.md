@@ -4540,3 +4540,93 @@ exceptions. The document-specific pre-insertion constraints — one element chil
 by the parser and a page that reaches them is doing something no page does. `assert_throws_dom`'s
 remaining suite-wide failure mode is `did not throw`, 88 tests, which is missing *checks* rather
 than a missing type, and is C3/C4's work.
+
+## 2026-08-10 — C3: the conversion layer, and the four absences it uncovered
+
+**Status:** done
+**Check:** `microbrowser_wpt dom/` — **23.5% → 44.0%** (1539 of 6543 → 2893 of 6570 subtests),
+**0 unexpected results**. C3's target was +10 points; this is +20.5. A re-validation run started
+while the full `ctest` was building reported 44.2% and two unexpected results, both a `TIMEOUT`
+turning into an `OK` or the reverse — the documented flake class, and the reason a WPT number
+should say what else the machine was doing. `ctest -E microbrowser_wpt` 24/24 green, 2068
+assertions (six new cases). ASan is dirty and was dirty before this branch — see item 5.
+
+**Landed.** `src/bindings/WebIdl.h`/`.cpp` (new): arity, DOMString through `ToStringOf`, nullable
+DOMString, `unsigned long` with the Modulo/Enforce/Clamp rules, the DOM's name productions, and
+DOMString offsets in UTF-16 code units. `src/bindings/TokenList.cpp` (new): `DOMTokenList` as a
+real type. CharacterData's five mutation operations. `document.createEvent` over the legacy alias
+table. Element and attribute name validation. `document.defaultView`. `Element.prefix` and
+`Element.namespaceURI`. `insertAdjacentElement` and `insertAdjacentText`.
+
+**Found — five things a diff does not say.**
+
+1. **The conversion layer was not where the subtests were, and that is the lesson.** C3 is named
+   "WebIDL argument conversion", and writing it took an afternoon and moved almost nothing on its
+   own. What moved 1,354 subtests was what having it made cheap to *notice*: four DOM types that
+   were absent or approximate, each of which failed a table-driven test file hundreds of times.
+   `Element-classlist.html` alone went 535 → **1420 of 1420**. A task phrased as an *ability*
+   ("convert arguments properly") is worth what it unblocks, and the way to find that is to rank
+   the area's test files by failing-subtest count before writing any code — which took one
+   `python3` over the expectation file and should be the first thing every M-C..M-N task does.
+
+2. **`classList` was an object with four methods on it, and every one of the four was the same
+   bug.** It treated the `class` attribute as a list of words rather than as an *ordered set*, so
+   `"a a b"` had length 3; it had no `value`, no `item`, no indexed access, no `replace`, no
+   iteration protocol and no type for `instanceof`; `el.classList !== el.classList`; and — the one
+   that is a real-page bug rather than a conformance bug — **`classList.add("a b")` silently wrote
+   a class attribute with a space inside a token**, which no selector can ever match again, and
+   `classList.add("")` silently did nothing. The specification throws `InvalidCharacterError` and
+   `SyntaxError` for those two, and that is the difference between a page's error handler running
+   and a page quietly styling nothing. It is a live `Proxy` over (element, attribute) now, cached
+   on the wrapper, and parameterised by attribute name so `rel` and `sandbox` cannot grow a second
+   copy of the ordered-set algorithm.
+
+3. **`CharacterData.length` was counting bytes.** `data`, `length` and nothing else was the whole
+   of CharacterData here — no `substringData`, `appendData`, `insertData`, `deleteData` or
+   `replaceData` — and `length` returned `std::string::size()`. So `"café".length` was 5, and every
+   offset a page computed from it addressed the wrong character. A DOMString *is* a sequence of
+   UTF-16 code units; `src/js/StringUnits.h` already converts between a code-unit index and a byte
+   offset with an ASCII fast path, so it is `public:` now rather than reimplemented one seam over.
+   Two answers to "what is position 3" is the bug this prevents.
+
+4. **`document.defaultView` was missing, and that is worth more than one property.** It is how a
+   script that was handed a *node* reaches the global its constructors live in —
+   `ownerDocument.defaultView.DOMException`, `doc.defaultView.getComputedStyle(el)` — which is the
+   only correct way to write that once more than one document can exist. Every such expression was
+   `undefined.something`. `Document-createElementNS.html` went 1 → 111 subtests from this alone,
+   because `assert_throws_dom` takes the global that way on **every negative test in the suite**.
+
+5. **Two measurements that would have been wrong, and how they were caught.** First, `--summary`
+   rewrites `docs/wpt-baseline.md` from `--summary-state` alone, and that state file lives in
+   `/tmp` — so a regenerated summary silently described 38 areas instead of 200 and looked
+   complete. Restored and hand-merged, as the previous session had to; the header now says the
+   state file belongs in the repository. Second, ASan reports leaks in
+   `ConstructableStylesheets`/`CustomElements` under the ShadowDom tests. Rather than assume they
+   were pre-existing because the stack named no file of mine, the branch was stashed and the ASan
+   build re-run on a clean tree: 368 bytes in 12 allocations, identical shape. Pre-existing,
+   confirmed rather than asserted.
+
+**Deliberate deviations, recorded as expectations rather than papered over.**
+`document.createEvent` throws `NotSupportedError` for `BeforeUnloadEvent`, `CompositionEvent`,
+`DeviceMotionEvent`, `DeviceOrientationEvent`, `StorageEvent` and `TextEvent` — 18 subtests — because
+this browser has no interface behind any of them, and a table row mapping them to `Event` is exactly
+ADR 0012's stub: a page that feature-tests one takes the native path into a wall. For the two sensor
+events it is also an ADR 0029 fingerprinting surface opened by a table row.
+
+**One choice between two wrong answers, written down where it is made.**
+`createElementNS` validates the namespace and then stores the *qualified* name. `dom::Element` has
+one name field, which feeds both `tagName` (the qualified name, upper-cased) and `localName` (the
+local part) — so storing the qualified name makes the first right and the second wrong, and storing
+the local name makes the second right, the first wrong, and loses the name
+`getElementsByTagName("x:b")` has to match. Extracting the local name was tried first and cost four
+subtests across three files, which is how the trade became visible. Elements carrying a namespace
+and a prefix is task C4, and `dom/nodes/case.html` (285 subtests) plus the non-throwing two thirds of
+`Document-createElementNS.html` are all waiting on that one field.
+
+**Also: attribute names are looser than element names, and the suite is the reason we know.**
+The DOM's "valid element local name" was applied to attributes first, which rejected `setAttribute`
+names every browser accepts — `0`, `~`, `'`, `"`, `invalid^Name`, all of which
+`dom/nodes/productions.js` lists as **valid**. An attribute name is only ever read inside a start
+tag, so only the characters that would break the markup are refused. Getting that backwards is a
+page whose `setAttribute` throws where no other browser's does, and it was caught by one subtest
+named "Basic functionality should be intact."

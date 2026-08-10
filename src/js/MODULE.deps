@@ -10,7 +10,15 @@ allow: util
 # a live value, because a history entry outlives the document that created it.
 # ADR 0021's storage and ADR 0022's workers want the same function for the same
 # reason.
-public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h Bytecode.h StructuredClone.h
+#
+# StringUnits.h is public for the same shape of reason. A DOMString is defined as
+# a sequence of UTF-16 code units, so `data.length`, every CharacterData offset
+# and every Range boundary in `src/bindings` is counted in them -- over storage
+# that is UTF-8 everywhere in this browser. That conversion exists here already,
+# with an ASCII fast path and the lone-surrogate rule written down; a second copy
+# in the binding layer would be a second answer to "what is position 3", which is
+# precisely the disagreement the header exists to prevent.
+public: Token.h Lexer.h Ast.h Parser.h Value.h Heap.h Interpreter.h Bytecode.h StructuredClone.h StringUnits.h
 
 extern:
 
