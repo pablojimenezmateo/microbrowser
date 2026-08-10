@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-5881 of 269026 subtests pass (2.2%) over 2396 tests.
+5916 of 270332 subtests pass (2.2%) over 2535 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -106,6 +106,12 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
 | `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
+| `web-animations` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
+| `web-animations/animation-model` | 25 | 25 | 0 | 0 | 0 | 146 | 20 | 13.7 |
+| `web-animations/animation-trigger` | 3 | 3 | 0 | 0 | 0 | 3 | 0 | 0.0 |
+| `web-animations/interfaces` | 42 | 34 | 0 | 8 | 0 | 663 | 5 | 0.8 |
+| `web-animations/responsive` | 40 | 39 | 0 | 1 | 0 | 99 | 4 | 4.0 |
+| `web-animations/timing-model` | 28 | 24 | 0 | 4 | 0 | 394 | 6 | 1.5 |
 | `webmessaging` | 60 | 15 | 1 | 44 | 0 | 34 | 12 | 35.3 |
 | `webmessaging/broadcastchannel` | 14 | 6 | 0 | 8 | 0 | 34 | 13 | 38.2 |
 | `webmessaging/message-channels` | 23 | 9 | 0 | 14 | 0 | 16 | 8 | 50.0 |
@@ -123,8 +129,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 460 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 212 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 464 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 220 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -180,6 +186,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | TIMEOUT: the page never reported; first script error: /streams/queuing-strategies.any.js: ReferenceError: CountQueuingStrategy is not defined Referen... | `streams/queuing-strategies.any.html` |
 | 1 | TIMEOUT: the page never reported; first script error: /streams/transferable/transform-stream-members.any.js: ReferenceError: TransformStream is not d... | `streams/transferable/transform-stream-members.any.html` |
 | 1 | TIMEOUT: the page never reported; first script error: /wai-aria/scripts/aria-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (... | `shadow-dom/reference-target/tentative/aria-labelledby.html` |
+| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: AnimationEffect is not defined ReferenceError: AnimationEffec... | `web-animations/interfaces/KeyframeEffect/style-change-events.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DocumentTimeline is not defined ReferenceError: DocumentTimel... | `hr-time/raf-coarsened-time.https.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLAreaElement is not defined ReferenceError: HTMLAreaElemen... | `custom-elements/reactions/customized-builtins/HTMLAreaElement.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLBaseElement is not defined ReferenceError: HTMLBaseElemen... | `custom-elements/reactions/customized-builtins/HTMLBaseElement.html` |
@@ -226,64 +233,72 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 69 | 189040 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
-| 66 | 276 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 74 | 287 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 72 | 189087 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 48 | 1861 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
+| 55 | 1912 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 35 | 514 | Illegal constructor: ReadableStream | `streams/piping/close-propagation-backward.any.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 32 | 64 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
-| 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
+| 31 | 90 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
+| 30 | 494 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 30 | 274 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
-| 29 | 489 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
+| 21 | 393 | KeyframeEffect is not defined | `web-animations/animation-model/animation-types/clamping-001.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
-| 19 | 957 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
+| 20 | 959 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
+| 18 | 35 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
-| 17 | 34 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 17 | 85 | getSelection is not defined | `selection/modify-extend-word-trailing-inline-block.tentative.html` |
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
 | 16 | 50 | undefined (createDocument) is not a function | `custom-elements/registries/scoped-registry-initialize-upgrades.html` |
 | 15 | 15 | assert_equals: IntersectionObserverEntryCount expected N but got N | `intersection-observer/scroll-and-root-margin.html` |
+| 15 | 15 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 14 | 124 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
 | 14 | 136 | DOMParser is not defined | `dom/nodes/Node-normalize.html` |
 | 14 | 42 | FileReader is not defined | `FileAPI/fileReader.any.html` |
 | 14 | 68 | Illegal constructor: HTMLElement | `custom-elements/HTMLElement-attachInternals.html` |
 | 14 | 95 | promise_test: Unhandled rejection with value: object "ReferenceError: Observable is not defined" | `dom/observable/tentative/crashtests/observable-gc.any.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "ReferenceError: createStylesheetHost is not defined" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html` |
-| 14 | 14 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 13 | 29 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
+| 13 | 42 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
 | 12 | 114 | TransformStream is not defined | `streams/transferable/transform-stream.html` |
 | 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
-| 12 | 41 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
 | 12 | 12 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `intersection-observer/cross-origin-tall-iframe.sub.html` |
 | 12 | 33 | undefined (createAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
 | 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
 | 11 | 132 | Observable is not defined | `dom/observable/tentative/observable-catch.any.html` |
+| 11 | 13 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
+| 11 | 30 | promise_test: Unhandled rejection with value: object "ReferenceError: KeyframeEffect is not defined" | `web-animations/animation-trigger/event-trigger-before-handlers.tentative.html` |
 | 11 | 23 | promise_test: Unhandled rejection with value: object "TypeError: undefined (moveBefore) is not a function" | `dom/nodes/moveBefore/Node-moveBefore.html` |
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
+| 10 | 147 | Failed to execute 'animate': keyframes are required | `web-animations/interfaces/Animation/oncancel.html` |
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 10 | 96 | cannot read property 'getComputedTiming' of undefined | `web-animations/animation-model/animation-types/discrete.html` |
 | 10 | 13 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 9 | 13 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
 | 9 | 9 | cannot read property 'postMessage' of undefined | `dom/events/EventListener-incumbent-global-1.sub.html` |
+| 9 | 15 | cannot read property 'then' of undefined | `web-animations/animation-model/keyframe-effects/effect-value-context.html` |
 | 9 | 435 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
 | 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
 | 8 | 3025 | The encoding label provided ('iso-N-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 8 | 65 | assert_array_equals: lengths differ, expected array ["attributeChanged"] length N, got [] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
-| 8 | 10 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
 | 8 | 14 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
+| 8 | 17 | promise_test: Unhandled rejection with value: object "TypeError: undefined (updatePlaybackRate) is not a function" | `web-animations/timing-model/animations/pausing-an-animation.html` |
 | 7 | 20 | The encoding label provided ('utf-Nbe') is invalid. | `encoding/api-basics.any.html` |
 | 7 | 2588 | The encoding label provided ('windows-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
+| 7 | 14 | assert_equals: expected "Npx" but got "" | `web-animations/responsive/assorted-lengths.html` |
 | 7 | 12 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 7 | 9 | assert_true: Initially visible expected true got undefined | `intersection-observer/v2/svg-foreign-object-filter-occlusion.html` |
 | 7 | 28 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
@@ -291,14 +306,17 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 7 | 16 | document.elementsFromPoint unsupported | `uievents/order-of-events/mouse-events/click-cancel.html` |
 | 7 | 64 | promise_test: Unhandled rejection with value: object "ReferenceError: DataTransfer is not defined" | `FileAPI/file/send-file-form-controls.html` |
 | 7 | 46 | promise_test: Unhandled rejection with value: object "ReferenceError: getSelection is not defined" | `dom/nodes/moveBefore/selection-preserve.html` |
+| 7 | 20 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'currentTime' of undefined" | `web-animations/interfaces/Animatable/getAnimations.html` |
 | 7 | 7 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'estimate' of undefined" | `storage/estimate-parallel.https.any.html` |
 | 7 | 7 | target is not defined | `dom/events/mouse-event-retarget.html` |
 | 6 | 22 | Illegal constructor: Text | `dom/nodes/adoption.window.html` |
 | 6 | 260 | The encoding label provided ('koiN-u') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 6 | 260 | The encoding label provided ('x-mac-cyrillic') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 6 | 53 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got ["constructed"] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
+| 6 | 17 | assert_equals: expected "Npx" but got "N.Npx" | `web-animations/interfaces/KeyframeEffect/setKeyframes.html` |
 | 6 | 900 | assert_equals: username expected (string) "" but got (undefined) undefined | `url/url-constructor.any.html?include=javascript` |
 | 6 | 8 | assert_false: expected false got null | `intersection-observer/transformed-iframe-001-same-origin.html` |
+| 6 | 6 | assert_not_equals: window.KeyframeEffect got disallowed value undefined | `web-animations/animation-model/animation-types/accumulation-per-property-002.html` |
 | 6 | 19 | assert_throws_exactly: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor-dom.window.html` |
 | 6 | 3428 | assert_throws_js: function "function RangeError() { [native code] }" is not an Error subtype | `encoding/api-replacement-encodings.any.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
@@ -311,20 +329,9 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 262 | The encoding label provided ('ibmN') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 5 | 226 | The encoding label provided ('iso-N-N-i') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 5 | 260 | The encoding label provided ('macintosh') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
+| 5 | 9 | assert_approx_equals: expected a number but got a "object" | `web-animations/timing-model/animations/playing-an-animation.html` |
 | 5 | 12 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 5 | 14 | assert_array_equals: lengths differ, expected array ["constructed", "connected"] length N, got [] length N | `custom-elements/reactions/customized-builtins/HTMLButtonElement.html` |
 | 5 | 7 | assert_equals: expected "" but got "me" | `url/url-setters-a-area.window.html?include=file` |
-| 5 | 7 | assert_equals: expected "" but got "secret" | `url/url-setters-a-area.window.html?include=file` |
-| 5 | 487 | assert_equals: expected "%N%N%NB" but got "U+Nc" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
-| 5 | 54 | assert_equals: expected "%N%N%NB" but got "U+Nef" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
-| 5 | 28 | assert_equals: expected "%N%N%NB" but got "U+aN" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
-| 5 | 30 | assert_equals: expected (string) "" but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
-| 5 | 36 | assert_equals: expected Document node with N child but got Document node with N children | `dom/nodes/Document-importNode.html` |
-| 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
-| 5 | 65 | promise_test: Unhandled rejection with value: object "ReferenceError: File is not defined" | `FileAPI/unicode.any.html` |
-| 5 | 24 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
-| 5 | 25 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'getElementById' of null" | `shadow-dom/reference-target/tentative/dom-mutation.html` |
-| 5 | 7 | promise_test: Unhandled rejection with value: object "TypeError: undefined (getElementById) is not a function" | `shadow-dom/accesskey.tentative.html` |
-| 5 | 28 | promise_test: Unhandled rejection with value: object "TypeError: undefined (setHTMLUnsafe) is not a function" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-shared.html` |
 
-8894 distinct subtest messages and 93 distinct harness messages behind these numbers.
+9026 distinct subtest messages and 94 distinct harness messages behind these numbers.

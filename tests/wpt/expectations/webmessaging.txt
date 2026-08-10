@@ -32,12 +32,10 @@ FAIL=An entangled port transferred to the same origin receives messages in order
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_with_transfer_incoming_messages.any.html]
 FAIL=When transferring a non-enabled port mutiple times,
-    incoming messages sent at various transfer steps are received in order upon enablement.
 [webmessaging/Channel_postMessage_with_transfer_incoming_messages.any.worker.html]
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_with_transfer_outgoing_messages.any.html]
 FAIL=When transferring a port,
-    outgoing messages sent at each transfer step are received in order by the entangled port.
 [webmessaging/Channel_postMessage_with_transfer_outgoing_messages.any.worker.html]
 harness=TIMEOUT
 [webmessaging/MessageEvent-trusted.any.html]
