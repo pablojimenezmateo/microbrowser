@@ -12944,19 +12944,14 @@ FAIL=@import url(nonexist.css) layer; should be a valid layered import rule
 [css/css-cascade/parsing/layer.html]
 FAIL=@layer A . A; should be an invalid rule
 FAIL=@layer A . B {
-} should be an invalid rule
 FAIL=@layer A {
-} should be a valid rule
 FAIL=@layer A, B, C {
-} should be an invalid rule
 FAIL=@layer A, B, C; should be a valid rule
 FAIL=@layer A, B.C.D, C; should be a valid rule
 FAIL=@layer A.A; should be a valid rule
 FAIL=@layer A.B {
-} should be a valid rule
 FAIL=@layer A; should be a valid rule
 FAIL=@layer {
-} should be a valid rule
 FAIL=@layer; should be an invalid rule
 [css/css-cascade/parsing/supports-import-parsing.html]
 FAIL=@import "nonexist.css" supports(display:block); should be a valid supports() import rule
@@ -19016,7 +19011,6 @@ FAIL=Property color value 'oklch(none none none / none)'
 FAIL=Property color value 'oklch(none none none)'
 [css/css-color/parsing/color-computed-named-color.html]
 FAIL=Property color value ' transparent
-' [Should parse to completely transparent]
 FAIL=Property color value '/**/transparent' [Should parse to completely transparent]
 FAIL=Property color value 'ALICEBLUE' [Keywords should be case-insensitive]
 FAIL=Property color value 'ANTIQUEWHITE' [Keywords should be case-insensitive]
@@ -35199,9 +35193,8 @@ FAIL='inline-grid' with: grid-template-areas: "a a a" "b b b";
 FAIL='inline-grid' with: grid-template-areas: "a a" "b b";
 FAIL='inline-grid' with: grid-template-areas: "a b a";
 FAIL='inline-grid' with: grid-template-areas: "a b c" "d e";
-FAIL='inline-grid' with: grid-template-areas: "a b"	"c d";
 FAIL='inline-grid' with: grid-template-areas: "a b"
-"c d";
+FAIL='inline-grid' with: grid-template-areas: "a b"	"c d";
 FAIL='inline-grid' with: grid-template-areas: "a b" "a b";
 FAIL='inline-grid' with: grid-template-areas: "a b" "b a";
 FAIL='inline-grid' with: grid-template-areas: "a b" "b b";
@@ -35285,9 +35278,8 @@ FAIL='grid' with: grid-template-areas: "a a a" "b b b";
 FAIL='grid' with: grid-template-areas: "a a" "b b";
 FAIL='grid' with: grid-template-areas: "a b a";
 FAIL='grid' with: grid-template-areas: "a b c" "d e";
-FAIL='grid' with: grid-template-areas: "a b"	"c d";
 FAIL='grid' with: grid-template-areas: "a b"
-"c d";
+FAIL='grid' with: grid-template-areas: "a b"	"c d";
 FAIL='grid' with: grid-template-areas: "a b" "a b";
 FAIL='grid' with: grid-template-areas: "a b" "b a";
 FAIL='grid' with: grid-template-areas: "a b" "b b";
@@ -37655,37 +37647,11 @@ FAIL=grid-lanes: normal 100px, then grid-template-rows: 200px
 FAIL=grid-lanes: row 100px, then grid-lanes-direction: normal
 FAIL=grid-template-columns: 10px, grid-lanes-direction: column, then grid-lanes: row 100px
 FAIL=grid-template-rows: 10% 20% 40%,
-        grid-template-columns: none,
-        grid-template-areas: "a" "b" "c",
-        grid-lanes-direction: row fill-reverse track-reverse should be valid.
 FAIL=grid-template-rows: 10px 20px,
-        grid-template-columns: 10% 20%,
-        grid-template-areas: none,
-        grid-lanes-direction: row should be valid.
 FAIL=grid-template-rows: 10px,
-        grid-template-columns: none,
-        grid-template-areas: none,
-        grid-lanes-direction: column should be valid.
 FAIL=grid-template-rows: 20% 40%,
-        grid-template-columns: none,
-        grid-template-areas: "b" "a",
-        grid-lanes-direction: row should be valid.
 FAIL=grid-template-rows: none,
-        grid-template-columns: 1fr 1fr 3fr,
-        grid-template-areas: "a a b",
-        grid-lanes-direction: column should be valid.
-FAIL=grid-template-rows: none,
-        grid-template-columns: fit-content(calc(0.5em + 10px)),
-        grid-template-areas: none,
-        grid-lanes-direction: column track-reverse fill-reverse should be valid.
-FAIL=grid-template-rows: none,
-        grid-template-columns: none,
-        grid-template-areas: none,
-        grid-lanes-direction: column should be valid.
 FAIL=grid-template-rows: repeat(2, 1fr),
-        grid-template-columns: 10px 20px,
-        grid-template-areas: "a b",
-        grid-lanes-direction: normal should be valid.
 [css/css-grid/grid-lanes/tentative/parsing/grid-lanes-shorthand-valid.html]
 FAIL=e.style['grid-lanes'] = "10px" should not set unrelated longhands
 FAIL=e.style['grid-lanes'] = "10px" should set grid-lanes-direction
@@ -46097,7 +46063,7 @@ FAIL=.abspos 7
 FAIL=.abspos 8
 FAIL=.abspos 9
 [css/css-position/position-fixed-at-bottom-right-on-viewport.html]
-FAIL=position:fixed 
+FAIL=position:fixed
 [css/css-position/position-relative-015.html]
 FAIL=Auto height containing block, top: 50%
 FAIL=Chain of resolvable percentages, top: 50%
@@ -55492,7 +55458,7 @@ FAIL=Table recalculations should match the reference
 [css/css-tables/width-distribution/computing-table-width-0.html]
 FAIL=Width is 100px due to 100px content size of caption
 [css/css-tables/width-distribution/distribution-algo-min-content-percent-guess.html]
-FAIL=The first cell is 200px due to its 50% specified width is greater than 
+FAIL=The first cell is 200px due to its 50% specified width is greater than
 [css/css-tables/width-distribution/distribution-algo-min-content-specified-guess.1.html]
 FAIL=The box should be 75px due to its min-content size.
 [css/css-tables/width-distribution/distribution-algo-min-content-specified-guess.html]
@@ -67524,31 +67490,18 @@ FAIL=The revert-rule works in an attr() fallback
 [css/css-values/attr-security-animation.html]
 FAIL=CSS Values and Units Test: attr() security limitations
 [css/css-values/attr-security-if.html]
+if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+else: url(https://does-not-exist.test/404.png);))' with data-foo="1"
+if(style(--str < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+else: url(https://does-not-exist.test/404.png);))' with data-foo="attr(data-foo type(*))"
+else: attr(data-foo);))' with data-foo="https://does-not-exist-2.test/404.png"
+if(style(--some-string): url(https://does-not-exist.test/404.png);))' with data-foo="https://does-not-exist.test/404.png"
+if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="text"
 FAIL='--x: image-set(if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
 FAIL='--x: image-set(if(style(--condition-val: if(style(--true): attr(data-foo type(*));)): url(https://does-not-exist.test/404.png);))' with data-foo="3"
 FAIL='--x: image-set(if(style(--true): attr(data-foo);))' with data-foo="https://does-not-exist.test/404.png"
 FAIL='background-image: image-set(
-                if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="text"
-FAIL='background-image: image-set(
-                if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--condition-val: attr(data-foo type(*))): url(https://does-not-exist.test/404.png);
-                   style(--true): url(https://does-not-exist.test/404.png);
-                   else: url(https://does-not-exist.test/404.png);))' with data-foo="1"
-FAIL='background-image: image-set(
-                if(style(--condition-val: attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--some-string): url(https://does-not-exist.test/404.png);))' with data-foo="https://does-not-exist.test/404.png"
-FAIL='background-image: image-set(
-                if(style(--str < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--true): url(https://does-not-exist-2.test/404.png);
-                   else: attr(data-foo);))' with data-foo="https://does-not-exist-2.test/404.png"
 FAIL='background-image: image-set(if(style(--true): url(https://does-not-exist.test/404.png);
-                            style(--condition-val): url(https://does-not-exist.test/404.png);
-                            else: url(https://does-not-exist.test/404.png);))' with data-foo="attr(data-foo type(*))"
 [css/css-values/attr-security-transition-interpolated.html]
 FAIL=Transitioning <length> from attr() should remain attr-tainted in if(style())
 FAIL=Transitioning <number> from attr() should remain attr-tainted in if(style())
@@ -74283,7 +74236,6 @@ FAIL=Shared by property 'animation-timeline' with values 'view(random(1px, 30000
 FAIL=Shared by property 'aspect-ratio' with values 'random(1, 3000000, 1) / random(3000000, 9000000, 1)', 'random(property-index-scoped, 1, 3000000, 1) / random(property-index-scoped, 3000000, 9000000, 1)'
 FAIL=Shared by property 'color' with values 'color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0))', 'color-mix(in srgb, rgb(from blue random(property-index-scoped, 10, 30) random(property-index-scoped, g, g + 30) random(property-index-scoped, b, b)), rgb(random(property-index-scoped, 10, 90) 0 0))'
 FAIL=Shared by property 'color' with values 'light-dark(rgb(random(10, 30) random(10, 60) random(10, 90)),  rgb(random(30, 10) random(60, 10) random(90, 10)))', 'light-dark(rgb(random(property-index-scoped, 10, 30) random(property-index-scoped, 10, 60) random(property-index-scoped, 10, 90)),
-                                           rgb(random(property-index-scoped, 30, 10) random(property-index-scoped, 60, 10) random(property-index-scoped, 90, 10)))'
 FAIL=Shared by property 'filter' with values 'drop-shadow(random(1px, 300000px) random(1px, 600000px) random(1px, 900000px) black)', 'drop-shadow(random(property-index-scoped, 1px, 300000px) random(property-index-scoped, 1px, 600000px) random(property-index-scoped, 1px, 900000px) black)'
 FAIL=Shared by property 'font-palette' with values 'palette-mix(in lch, --blue calc(90% * random(0, 1)), --yellow)', 'palette-mix(in lch, --blue calc(90% * random(property-index-scoped, 0, 1)), --yellow)'
 FAIL=Shared by property 'font-palette' with values 'palette-mix(in lch, --blue random(10%, 90%), --yellow)', 'palette-mix(in lch, --blue random(property-index-scoped, 10%, 90%), --yellow)'
@@ -77199,10 +77151,8 @@ FAIL=Element.scrollTo(smooth): promise behavior
 FAIL=Element.scrollTo(smooth): return type
 [css/cssom-view/elementFromPoint-002.html]
 FAIL=Checking whether dynamic changes to visibility interact correctly with
-  table anonymous boxes
 [css/cssom-view/elementFromPoint-003.html]
 FAIL=Checking whether dynamic changes to visibility interact correctly with
-  table anonymous boxes
 [css/cssom-view/elementFromPoint-list-001.html]
 FAIL=<li>Image Inside 1</li>
 FAIL=<li>Image Inside 2</li>
@@ -77460,26 +77410,26 @@ harness=TIMEOUT
 [css/cssom-view/scroll-behavior-smooth-positions.html]
 FAIL=Scroll positions when aborting a smooth scrolling with an instant scrolling
 FAIL=Scroll positions when aborting a smooth scrolling with another smooth scrolling
-FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scroll() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scrollBy() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scrollIntoView() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scrollTo() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scroll() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scrollBy() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scrollIntoView() 
-FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scrollTo() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scroll() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scrollBy() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scrollIntoView() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scrollTo() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scroll() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scrollBy() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scrollIntoView() 
-FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scrollTo() 
-FAIL=Scroll positions when performing smooth scrolling from 0 to 250 by setting scrollTop 
-FAIL=Scroll positions when performing smooth scrolling from 0 to 500 by setting scrollLeft 
-FAIL=Scroll positions when performing smooth scrolling from 1000 to 500 by setting scrollLeft 
-FAIL=Scroll positions when performing smooth scrolling from 500 to 250 by setting scrollTop 
+FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scroll()
+FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scrollBy()
+FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scrollIntoView()
+FAIL=Scroll positions when performing smooth scrolling from (0, 0) to (500, 250) using scrollTo()
+FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scroll()
+FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scrollBy()
+FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scrollIntoView()
+FAIL=Scroll positions when performing smooth scrolling from (0, 500) to (500, 250) using scrollTo()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scroll()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scrollBy()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scrollIntoView()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 0) to (500, 250) using scrollTo()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scroll()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scrollBy()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scrollIntoView()
+FAIL=Scroll positions when performing smooth scrolling from (1000, 500) to (500, 250) using scrollTo()
+FAIL=Scroll positions when performing smooth scrolling from 0 to 250 by setting scrollTop
+FAIL=Scroll positions when performing smooth scrolling from 0 to 500 by setting scrollLeft
+FAIL=Scroll positions when performing smooth scrolling from 1000 to 500 by setting scrollLeft
+FAIL=Scroll positions when performing smooth scrolling from 500 to 250 by setting scrollTop
 [css/cssom-view/scroll-behavior-smooth.html]
 FAIL=HTML element scroll-behavior should propagate to viewport
 FAIL=scroll-behavior: smooth on DIV element
@@ -78550,10 +78500,9 @@ FAIL=This pseudo-element should not parse: :view-transition-image-pair(name)
 FAIL=This pseudo-element should not parse: :view-transition-new(name)
 FAIL=This pseudo-element should not parse: :view-transition-old(name)
 FAIL=This pseudo-element should parse: ::highlight(
-name
 FAIL=This pseudo-element should parse: ::highlight( n\61me )
-FAIL=This pseudo-element should parse: ::highlight( name 
-FAIL=This pseudo-element should parse: ::highlight(name	
+FAIL=This pseudo-element should parse: ::highlight( name
+FAIL=This pseudo-element should parse: ::highlight(name
 FAIL=This pseudo-element should parse: ::highlight(name)
 [css/cssom/getComputedStyle-pseudo.html]
 FAIL=::file-selector-button resolves to the file input button element
@@ -79798,10 +79747,6 @@ FAIL=:nth-child(  N- 123) should be parsed and serialized correctly
 FAIL=:nth-child(  n +12 3) should not parse
 FAIL=:nth-child( +n + 7 ) should be parsed and serialized correctly
 FAIL=:nth-child( 23n
-
-+
-
-123 ) should be parsed and serialized correctly
 FAIL=:nth-child(+ 1n) should not parse
 FAIL=:nth-child(+ n + 7) should not parse
 FAIL=:nth-child(+12 N ) should not parse
@@ -79810,7 +79755,6 @@ FAIL=:nth-child(+12n-0+1) should not parse
 FAIL=:nth-child(+n+3) should be parsed and serialized correctly
 FAIL=:nth-child(-1n- b1) should not parse
 FAIL=:nth-child(-n
-- 1) should be parsed and serialized correctly
 FAIL=:nth-child(-n -b1) should not parse
 FAIL=:nth-child(-n) should be parsed and serialized correctly
 FAIL=:nth-child(-n+0) should be parsed and serialized correctly
@@ -79831,10 +79775,6 @@ FAIL=:nth-last-child(  N- 123) should be parsed and serialized correctly
 FAIL=:nth-last-child(  n +12 3) should not parse
 FAIL=:nth-last-child( +n + 7 ) should be parsed and serialized correctly
 FAIL=:nth-last-child( 23n
-
-+
-
-123 ) should be parsed and serialized correctly
 FAIL=:nth-last-child(+ 1n) should not parse
 FAIL=:nth-last-child(+ n + 7) should not parse
 FAIL=:nth-last-child(+12 N ) should not parse
@@ -79843,7 +79783,6 @@ FAIL=:nth-last-child(+12n-0+1) should not parse
 FAIL=:nth-last-child(+n+3) should be parsed and serialized correctly
 FAIL=:nth-last-child(-1n- b1) should not parse
 FAIL=:nth-last-child(-n
-- 1) should be parsed and serialized correctly
 FAIL=:nth-last-child(-n -b1) should not parse
 FAIL=:nth-last-child(-n) should be parsed and serialized correctly
 FAIL=:nth-last-child(-n+0) should be parsed and serialized correctly
@@ -79864,10 +79803,6 @@ FAIL=:nth-last-of-type(  N- 123) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(  n +12 3) should not parse
 FAIL=:nth-last-of-type( +n + 7 ) should be parsed and serialized correctly
 FAIL=:nth-last-of-type( 23n
-
-+
-
-123 ) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(+ 1n) should not parse
 FAIL=:nth-last-of-type(+ n + 7) should not parse
 FAIL=:nth-last-of-type(+12 N ) should not parse
@@ -79876,7 +79811,6 @@ FAIL=:nth-last-of-type(+12n-0+1) should not parse
 FAIL=:nth-last-of-type(+n+3) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(-1n- b1) should not parse
 FAIL=:nth-last-of-type(-n
-- 1) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(-n -b1) should not parse
 FAIL=:nth-last-of-type(-n) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(-n+0) should be parsed and serialized correctly
@@ -79897,10 +79831,6 @@ FAIL=:nth-of-type(  N- 123) should be parsed and serialized correctly
 FAIL=:nth-of-type(  n +12 3) should not parse
 FAIL=:nth-of-type( +n + 7 ) should be parsed and serialized correctly
 FAIL=:nth-of-type( 23n
-
-+
-
-123 ) should be parsed and serialized correctly
 FAIL=:nth-of-type(+ 1n) should not parse
 FAIL=:nth-of-type(+ n + 7) should not parse
 FAIL=:nth-of-type(+12 N ) should not parse
@@ -79909,7 +79839,6 @@ FAIL=:nth-of-type(+12n-0+1) should not parse
 FAIL=:nth-of-type(+n+3) should be parsed and serialized correctly
 FAIL=:nth-of-type(-1n- b1) should not parse
 FAIL=:nth-of-type(-n
-- 1) should be parsed and serialized correctly
 FAIL=:nth-of-type(-n -b1) should not parse
 FAIL=:nth-of-type(-n) should be parsed and serialized correctly
 FAIL=:nth-of-type(-n+0) should be parsed and serialized correctly
