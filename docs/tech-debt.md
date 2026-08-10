@@ -1869,9 +1869,13 @@ are not the hit-test default action.
 thumbnail / `ytd-video-renderer` client rects contain `(x,y)`, but
 `document.elementFromPoint(x,y)` is `YTD-SEARCH` (chain stops there). Paint
 still shows the thumb; SPA click can still reach `/watch` via page script.
-`pointer-events` on the thumb chain is `auto`. Simplified fixtures with
-`position:relative;z-index:0` and with `z-index:auto` under an abspos app SC
-still hit the thumbnail — live tree not yet reduced.
+`pointer-events` on the thumb chain is `auto`.
+
+**Live computed style (2026-08-10).** `ytd-app` `position:absolute;z-index:auto`;
+`ytd-search` `position:relative;z-index:0;display:flex;
+overflow-x:visible;overflow-y:hidden`; `a#thumbnail` `position:absolute;
+overflow:hidden`. Fixtures that copy that shape (plus shadow `img`) still hit
+the thumbnail after document scroll — the live miss is not yet reduced.
 
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView; regression
