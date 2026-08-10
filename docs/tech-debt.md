@@ -1881,10 +1881,11 @@ thumbnail. The live miss is not steady-state CSS; it correlates with early
 post-Accept drain / incomplete stamp (self-hit on `ytd-search` after descendant
 units miss).
 
-**Harness mitigation (2026-08-10).** `YoutubeResultsLooksReady` now requires
+**Harness mitigation (2026-08-10).** `YoutubeResultsLooksReady` requires
 `elementFromPoint` on the first `a#thumbnail` centre to hit the thumb chain
-(not stop at `YTD-SEARCH`), in addition to ≥12 renderers. Engine hit-test root
-cause still open.
+after Accept (not stop at `YTD-SEARCH`), in addition to ≥12 renderers. While
+`tp-yt-paper-dialog` is visible the hit-test is skipped so Accept is not
+starved for the full 45s. Engine hit-test root cause still open.
 
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across

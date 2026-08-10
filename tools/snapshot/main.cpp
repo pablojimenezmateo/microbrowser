@@ -436,14 +436,22 @@ bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
   if (!IsYoutubeResults(engine.Url())) {
     return true;
   }
-  // Count alone was not enough: early post-Accept stamps can show ≥12 thumbs
+  // Count alone was not enough after Accept: early stamps can show ≥12 thumbs
   // while `elementFromPoint` on the first thumb's centre still returns
   // `YTD-SEARCH` (TD-0037). Soft-nav `-click last` then misses SPA activation.
+  // While the consent dialog is open, do **not** require the hit-test — the
+  // dialog covers the list and would burn the whole 45s drain before Accept.
   const std::string answer = engine.EvaluateScript(
       "(function(){"
       "  var n=document.querySelectorAll('a#thumbnail').length +"
       "    document.querySelectorAll('ytd-video-renderer').length;"
       "  if(n < 12) return '0';"
+      "  var dlg=document.querySelector('tp-yt-paper-dialog');"
+      "  if(dlg){"
+      "    var st=window.getComputedStyle(dlg);"
+      "    if(st.display!=='none' && st.visibility!=='hidden' && dlg.getClientRects().length)"
+      "      return String(n);"
+      "  }"
       "  var a=document.querySelector('a#thumbnail');"
       "  if(!a) return '0';"
       "  var r=a.getBoundingClientRect();"
