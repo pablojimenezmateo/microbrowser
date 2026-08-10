@@ -1,0 +1,123 @@
+[performance-timeline/back-forward-cache-restoration.tentative.html]
+FAIL=Performance API for the back forward cache restoration entry.
+[performance-timeline/buffered-flag-after-timeout.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/buffered-flag-observer.any.html]
+harness=TIMEOUT
+[performance-timeline/buffered-flag-observer.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/buffered-flag-with-entryTypes-observer.tentative.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/case-sensitivity.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/droppedentriescount.any.html]
+harness=TIMEOUT
+[performance-timeline/droppedentriescount.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/get-invalid-entries.html]
+harness=TIMEOUT
+[performance-timeline/idlharness.any.html]
+FAIL=idl_test setup
+[performance-timeline/multiple-buffered-flag-observers.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/navigation-id-detached-frame.tentative.html]
+harness=TIMEOUT
+[performance-timeline/navigation-id-element-timing.tentative.html]
+FAIL=Element Timing navigation id test
+[performance-timeline/navigation-id-initial-load.tentative.html]
+harness=TIMEOUT
+[performance-timeline/navigation-id-long-task-task-attribution.tentative.html]
+FAIL=Long Task/Task Attribution navigation id test
+[performance-timeline/navigation-id-mark-measure.tentative.html]
+FAIL=Mark/Measure navigation id test
+[performance-timeline/navigation-id-reset.tentative.html]
+FAIL=Navigation Id should be re-generated after reload.
+[performance-timeline/navigation-id-resource-timing.tentative.html]
+FAIL=Resource Timing navigation id test
+[performance-timeline/navigation-id-worker-created-entries.html]
+harness=TIMEOUT
+[performance-timeline/not-clonable.html]
+harness=TIMEOUT
+[performance-timeline/not-restored-reasons/abort-block-bfcache.window.html]
+FAIL=aborting a parser should block bfcache.
+[performance-timeline/not-restored-reasons/performance-navigation-timing-attributes.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-bfcache-reasons-stay.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-bfcache.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-cross-origin-bfcache.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-fetch.tentative.window.html]
+FAIL=Ensure that ongoing fetch upon entering bfcache blocks bfcache and recorded.
+[performance-timeline/not-restored-reasons/performance-navigation-timing-iframes-without-attributes.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-navigation-failure.tentative.window.html]
+FAIL=Ensure that navigation failure blocks bfcache and gets recorded.
+[performance-timeline/not-restored-reasons/performance-navigation-timing-not-bfcached.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-redirect-on-history.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-reload.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-same-origin-bfcache.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/not-restored-reasons/performance-navigation-timing-same-origin-replace.tentative.window.html]
+FAIL=RemoteContextHelper navigation using BFCache
+[performance-timeline/observer-buffered-false.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/performanceentry-tojson.any.html]
+FAIL=Test toJSON() in PerformanceEntry
+[performance-timeline/performanceentry-tojson.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-callback-mutate.any.html]
+FAIL=PerformanceObserver modifications inside callback should update filtering and not clear buffer
+[performance-timeline/po-callback-mutate.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-disconnect-removes-observed-types.any.html]
+FAIL=Types observed are forgotten when disconnect() is called.
+[performance-timeline/po-disconnect-removes-observed-types.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-disconnect.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-entries-sort.any.html]
+FAIL=getEntries, getEntriesByType, getEntriesByName sort order
+[performance-timeline/po-entries-sort.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-getentries.any.html]
+FAIL=getEntries, getEntriesByType and getEntriesByName work
+[performance-timeline/po-getentries.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-mark-measure.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-observe-repeated-type.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-observe-type.any.html]
+FAIL=Calling observe() with entryTypes and then type should throw an InvalidModificationError
+FAIL=Calling observe() with type and entryTypes should throw a TypeError
+FAIL=Calling observe() with type and then entryTypes should throw an InvalidModificationError
+FAIL=Calling observe() without 'type' or 'entryTypes' throws a TypeError
+[performance-timeline/po-observe-type.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-observe.any.html]
+FAIL=Check observer callback parameter and this values
+FAIL=entryTypes must be a sequence or throw a TypeError
+FAIL=replace observer if already present
+[performance-timeline/po-observe.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/po-observe.html]
+harness=TIMEOUT
+[performance-timeline/po-resource.html]
+harness=TIMEOUT
+[performance-timeline/po-takeRecords.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/supportedEntryTypes.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/timing-removed-iframe.html]
+FAIL=Test that a removed iframe which timing is accessed does not crash the renderer.
+[performance-timeline/webtiming-resolution.any.html]
+harness=TIMEOUT
+[performance-timeline/webtiming-resolution.any.worker.html]
+harness=TIMEOUT
+[performance-timeline/worker-with-performance-observer.html]
+harness=TIMEOUT
