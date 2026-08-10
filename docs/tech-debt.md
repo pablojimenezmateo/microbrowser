@@ -2286,7 +2286,7 @@ above (`movie:true`, `rs:4`, 127 appends).
 
 ---
 
-## TD-0051 — `Element.getClientRects` was absent
+## TD-0051 — `Element.getClientRects` was absent — **fixed 2026-08-10**
 
 **Opened** 2026-08-10 after soft-nav diagnostics showed dozens of
 `TypeError: undefined (getClientRects) is not a function` on youtube results
@@ -2302,13 +2302,16 @@ today). Tests extend `Geometry/AnElementWithNoBoxIsAllZeros`,
 `Geometry/ClientRectsMatchesTheBorderBox`.
 
 **Close when.** Soft-nav / consent overlays stop throwing on `getClientRects`
-and dialog visibility probes agree with `getBoundingClientRect`. Landed; leave
-open until a remasure shows the throw count drop.
+and dialog visibility probes agree with `getBoundingClientRect`. **Met**
+(Release soft8: `getClientRects` throw count **0**; soft7 soft-nav MSE
+remasure already closed TD-0049/0050).
 
 ---
 
 ## Closed
 
+- **TD-0051 — `Element.getClientRects` was absent** (2026-08-10). Installed
+  beside `getBoundingClientRect`; youtube overlay throws gone.
 - **TD-0050 — `pushState` LayoutAndPaint re-entered observers mid-script** (2026-08-10).
   Defer paint from URL-changing `pushState`; soft-nav stamps `#movie_player` and
   reaches `readyState` 4 / 127 appends (see open entry).
