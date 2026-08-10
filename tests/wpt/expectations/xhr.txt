@@ -1,0 +1,1566 @@
+[xhr/XMLHttpRequest-withCredentials.any.html]
+FAIL=setting on synchronous XHR
+FAIL=setting withCredentials when in DONE state (synchronous)
+FAIL=setting withCredentials when not in UNSENT, OPENED state (asynchronous)
+[xhr/XMLHttpRequest-withCredentials.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-after-receive.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-after-send.any.html]
+FAIL=XMLHttpRequest: abort() after send()
+[xhr/abort-after-send.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-after-stop.window.html]
+FAIL=XMLHttpRequest: abort event should fire when stop() method is used
+[xhr/abort-after-timeout.any.html]
+FAIL=XMLHttpRequest: abort() after a timeout should not fire "abort" event
+[xhr/abort-after-timeout.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-during-done.window.html]
+FAIL=XMLHttpRequest: abort() during DONE (async)
+FAIL=XMLHttpRequest: abort() during DONE (sync aborted in readystatechange)
+FAIL=XMLHttpRequest: abort() during DONE (sync)
+[xhr/abort-during-headers-received.window.html]
+FAIL=XMLHttpRequest: abort() during HEADERS_RECEIVED
+[xhr/abort-during-loading.window.html]
+FAIL=XMLHttpRequest: abort() during LOADING
+[xhr/abort-during-navigation.window.html]
+harness=TIMEOUT
+[xhr/abort-during-open.any.html]
+FAIL=XMLHttpRequest: abort() during OPEN
+[xhr/abort-during-open.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-during-readystatechange.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-during-unsent.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-during-upload.any.html]
+FAIL=XMLHttpRequest: abort() while sending data
+[xhr/abort-during-upload.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-event-abort.any.html]
+FAIL=XMLHttpRequest: The abort() method: do not fire abort event in OPENED state when send() flag is unset.
+[xhr/abort-event-abort.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-event-listeners.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-event-loadend.any.html]
+FAIL=XMLHttpRequest: The abort() method: Fire a progress event named loadend
+[xhr/abort-event-loadend.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-event-order.htm]
+harness=TIMEOUT
+[xhr/abort-progress-events.any.html]
+FAIL=Calling open/abort in readystatechange should not crash
+[xhr/abort-progress-events.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-upload-event-abort.any.html]
+harness=TIMEOUT
+[xhr/abort-upload-event-abort.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-upload-event-loadend.any.html]
+harness=TIMEOUT
+[xhr/abort-upload-event-loadend.any.worker.html]
+harness=TIMEOUT
+[xhr/abort-with-error.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-and-redirects-async-same-origin.any.html]
+FAIL=Request with credentials is redirected to a cross-origin response with Access-Control-Allow-Origin=* (with star)
+FAIL=Request with credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin
+FAIL=Request with credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin (no credentials)
+FAIL=Request without credentials is redirected to a cross-origin response with Access-Control-Allow-Origin=* (with star)
+FAIL=Request without credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin
+FAIL=Request without credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin (no credentials)
+[xhr/access-control-and-redirects-async-same-origin.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-and-redirects-async.any.html]
+FAIL=Request is redirected to a response with Access-Control-Allow-Origin=*
+FAIL=Request is redirected to a same-origin resource file
+[xhr/access-control-and-redirects-async.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-and-redirects.any.html]
+FAIL=Local sync redirect to remote origin
+FAIL=Remote sync redirect to local origin
+FAIL=Remote sync redirect to same remote origin
+[xhr/access-control-and-redirects.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-access-control-origin-header-data-url.htm]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-access-control-origin-header.any.html]
+FAIL=Access control test with origin header
+[xhr/access-control-basic-allow-access-control-origin-header.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-async.any.html]
+FAIL=Basic async cross-origin XHR request
+[xhr/access-control-basic-allow-async.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-non-cors-safelisted-method-async.any.html]
+FAIL=Allow async PUT request
+[xhr/access-control-basic-allow-non-cors-safelisted-method-async.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-non-cors-safelisted-method.any.html]
+FAIL=Allow PUT request
+[xhr/access-control-basic-allow-non-cors-safelisted-method.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-preflight-cache-invalidation-by-header.any.html]
+FAIL=Preflight cache should be invalidated in presence of custom header
+[xhr/access-control-basic-allow-preflight-cache-invalidation-by-header.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-preflight-cache-invalidation-by-method.any.html]
+FAIL=Preflight cache should be invalidated by changed method
+[xhr/access-control-basic-allow-preflight-cache-invalidation-by-method.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-preflight-cache-timeout.any.html]
+FAIL=Preflight cache should be invalidated on timeout
+[xhr/access-control-basic-allow-preflight-cache-timeout.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-preflight-cache.any.html]
+FAIL=Preflight cache should allow second request
+[xhr/access-control-basic-allow-preflight-cache.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow-star.any.html]
+FAIL=Allow star
+[xhr/access-control-basic-allow-star.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-allow.any.html]
+FAIL=Allow basic
+[xhr/access-control-basic-allow.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-basic-cors-safelisted-request-headers.htm]
+FAIL=Request with CORS-safelisted headers
+[xhr/access-control-basic-cors-safelisted-response-headers.htm]
+FAIL=Response with CORS-safelisted headers
+[xhr/access-control-basic-denied.htm]
+FAIL=Cross-origin request denied
+FAIL=Same-origin request accepted
+[xhr/access-control-basic-get-fail-non-simple.htm]
+FAIL=Preflighted cross-origin request denied
+[xhr/access-control-basic-non-cors-safelisted-content-type.htm]
+FAIL=Deny cross-origin request with non-CORS-safelisted content type
+[xhr/access-control-basic-post-success-no-content-type.htm]
+FAIL=POST request with text content and no Content-Type header
+[xhr/access-control-basic-post-with-non-cors-safelisted-content-type.htm]
+FAIL=CORS request with non-safelisted content type sends preflight and fails
+FAIL=Same-origin request with non-safelisted content type succeeds
+[xhr/access-control-expose-headers-on-redirect.html]
+FAIL=XHR should respect access-control-expose-headers header on redirect
+[xhr/access-control-preflight-async-header-denied.htm]
+FAIL=Async request denied at preflight
+[xhr/access-control-preflight-async-method-denied.htm]
+FAIL=Async request denied at preflight
+[xhr/access-control-preflight-async-not-supported.htm]
+FAIL=Async PUT request denied at preflight
+[xhr/access-control-preflight-credential-async.htm]
+FAIL=CORS async request with URL credentials
+[xhr/access-control-preflight-credential-sync.htm]
+FAIL=CORS sync request with URL credentials
+[xhr/access-control-preflight-headers-async.htm]
+FAIL=Preflighted async request with custom header
+[xhr/access-control-preflight-headers-sync.htm]
+FAIL=Preflighted sync request with custom header
+[xhr/access-control-preflight-request-allow-headers-returns-star.any.html]
+FAIL=Access-Control-Allow-Headers supports *
+[xhr/access-control-preflight-request-allow-headers-returns-star.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-preflight-request-header-lowercase.htm]
+FAIL=Request with uppercase header set
+[xhr/access-control-preflight-request-header-returns-origin.any.html]
+FAIL=Access-Control-Request-Origin accept different origin between preflight and actual request
+[xhr/access-control-preflight-request-header-returns-origin.any.worker.html]
+harness=TIMEOUT
+[xhr/access-control-preflight-request-header-sorted.htm]
+FAIL=Tests that Access-Control-Request-Headers are sorted.
+[xhr/access-control-preflight-request-headers-origin.htm]
+FAIL='Origin' should not be included in CORS Request-Headers
+[xhr/access-control-preflight-request-must-not-contain-cookie.htm]
+FAIL=Preflight request must not contain any cookie header
+[xhr/access-control-preflight-sync-header-denied.htm]
+FAIL=Sync request denied at preflight
+[xhr/access-control-preflight-sync-method-denied.htm]
+FAIL=Sync request denied at preflight because of non-CORS-safelisted method
+[xhr/access-control-preflight-sync-not-supported.htm]
+FAIL=Sync PUT request denied at preflight
+[xhr/access-control-response-with-body-sync.htm]
+FAIL=Tests body from CORS preflight response and actual response with sync request
+[xhr/access-control-response-with-body.htm]
+FAIL=Tests that XHR doesn't prepend the body from CORS preflight response to the actual response
+[xhr/access-control-response-with-exposed-headers.htm]
+FAIL=Test CORS response with 'Access-Control-Expose-Headers' header
+[xhr/access-control-sandboxed-iframe-allow-origin-null.htm]
+harness=TIMEOUT
+[xhr/access-control-sandboxed-iframe-allow.htm]
+harness=TIMEOUT
+[xhr/access-control-sandboxed-iframe-denied-without-wildcard.htm]
+harness=TIMEOUT
+[xhr/access-control-sandboxed-iframe-denied.htm]
+harness=TIMEOUT
+[xhr/allow-lists-starting-with-comma.htm]
+FAIL=Allow lists starting with a comma should be parsed correctly
+[xhr/anonymous-mode-unsupported.htm]
+FAIL=XMLHttpRequest: anonymous mode unsupported
+[xhr/blob-range.any.html]
+FAIL=A blob range request with no end.
+FAIL=A blob range request with no start.
+FAIL=A blob range request with no type.
+FAIL=A simple blob range request with whitespace.
+FAIL=A simple blob range request.
+FAIL=Blob content with short content and a large range end
+FAIL=Blob content with short content and a large range start
+FAIL=Blob content with short content and a range end matching content length
+FAIL=Blob content with short content and a range start matching the content length
+FAIL=Blob range end should be an ASCII digit
+FAIL=Blob range request with multiple range values
+FAIL=Blob range request with multiple range values and whitespace
+FAIL=Blob range request with short range end
+FAIL=Blob range request with trailing comma
+FAIL=Blob range should have a dash
+FAIL=Blob range should include '-'
+FAIL=Blob range should include '='
+FAIL=Blob range should include 'bytes='
+FAIL=Blob range start should be an ASCII digit
+FAIL=Blob range with incorrect range header
+FAIL=Blob range with incorrect range header #2
+FAIL=Blob range with incorrect range header #3
+FAIL=Blob range with no start or end
+FAIL=Blob range with no value
+FAIL=Blob range with whitespace after hyphen
+FAIL=Blob range with whitespace around equals sign
+FAIL=Blob range with whitespace before and after hyphen
+[xhr/blob-range.any.worker.html]
+harness=TIMEOUT
+[xhr/close-worker-with-xhr-in-progress.html]
+harness=TIMEOUT
+[xhr/content-type-unmodified.any.html]
+FAIL=content-type-unmodified
+[xhr/content-type-unmodified.any.worker.html]
+harness=TIMEOUT
+[xhr/cookies.http.html]
+FAIL=Basic non-cross-site cookie handling in XHR
+[xhr/cors-expose-star.sub.any.html]
+FAIL=* can be one of several values
+FAIL=* for credentialed fetches only matches literally
+FAIL=Basic Access-Control-Expose-Headers: * support
+[xhr/cors-expose-star.sub.any.worker.html]
+harness=TIMEOUT
+[xhr/cors-upload.any.html]
+harness=TIMEOUT
+[xhr/cors-upload.any.worker.html]
+harness=TIMEOUT
+[xhr/data-uri.htm]
+FAIL=XHR method DELETE with MIME type text/plain
+FAIL=XHR method GET with MIME type image/png
+FAIL=XHR method GET with MIME type text/html
+FAIL=XHR method GET with MIME type text/html;charset=UTF-8
+FAIL=XHR method GET with MIME type text/plain
+FAIL=XHR method GET with MIME type text/plain (base64)
+FAIL=XHR method HEAD with MIME type text/plain
+FAIL=XHR method POST with MIME type text/plain
+FAIL=XHR method PUT with MIME type text/plain
+FAIL=XHR method UNICORN with MIME type text/plain
+[xhr/event-abort.any.worker.html]
+harness=TIMEOUT
+[xhr/event-error-order.sub.html]
+FAIL=XMLHttpRequest: event - error (order of events)
+[xhr/event-error.sub.any.html]
+FAIL=error while reading body should report zeros for loaded and total
+FAIL=onerror should be called
+[xhr/event-error.sub.any.worker.html]
+harness=TIMEOUT
+[xhr/event-load.any.html]
+harness=TIMEOUT
+[xhr/event-load.any.worker.html]
+harness=TIMEOUT
+[xhr/event-loadend.any.html]
+FAIL=XMLHttpRequest: loadend event
+[xhr/event-loadend.any.worker.html]
+harness=TIMEOUT
+[xhr/event-loadstart-upload.any.html]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named loadstart on upload object (synchronous flag is unset)
+[xhr/event-loadstart-upload.any.worker.html]
+harness=TIMEOUT
+[xhr/event-loadstart.any.html]
+FAIL=XMLHttpRequest: loadstart event
+[xhr/event-loadstart.any.worker.html]
+harness=TIMEOUT
+[xhr/event-progress.any.html]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named progress (synchronous flag is unset)
+[xhr/event-progress.any.worker.html]
+harness=TIMEOUT
+[xhr/event-readystate-sync-open.any.html]
+FAIL=XMLHttpRequest: open() call fires sync readystate event (sync)
+[xhr/event-readystate-sync-open.any.worker.html]
+harness=TIMEOUT
+[xhr/event-readystatechange-loaded.any.html]
+FAIL=XMLHttpRequest: the LOADING state change may be emitted multiple times
+[xhr/event-readystatechange-loaded.any.worker.html]
+harness=TIMEOUT
+[xhr/event-timeout-order.any.html]
+FAIL=XMLHttpRequest: event - timeout (order of events)
+[xhr/event-timeout-order.any.worker.html]
+harness=TIMEOUT
+[xhr/event-timeout.any.html]
+FAIL=XMLHttpRequest: timeout event
+[xhr/event-timeout.any.worker.html]
+harness=TIMEOUT
+[xhr/event-upload-progress-crossorigin.any.html]
+FAIL=Upload events registered on time (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+[xhr/event-upload-progress-crossorigin.any.worker.html]
+harness=TIMEOUT
+[xhr/event-upload-progress.any.html]
+FAIL=Upload events registered on time (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+[xhr/event-upload-progress.any.worker.html]
+harness=TIMEOUT
+[xhr/firing-events-http-content-length.html]
+FAIL=ProgressEvent: firing events for HTTP with Content-Length
+[xhr/firing-events-http-no-content-length.html]
+FAIL=ProgressEvent: firing events for HTTP with no Content-Length
+[xhr/formdata.html]
+harness=TIMEOUT
+[xhr/formdata/append-formelement.html]
+FAIL=testFormDataAppendToForm1
+FAIL=testFormDataAppendToForm2
+FAIL=testFormDataAppendToFormNull1
+FAIL=testFormDataAppendToFormNull2
+FAIL=testFormDataAppendToFormString
+FAIL=testFormDataAppendToFormUndefined1
+FAIL=testFormDataAppendToFormUndefined2
+FAIL=testFormDataAppendToFormWrongPlatformObject
+[xhr/formdata/append.any.html]
+FAIL=testFormDataAppend1
+FAIL=testFormDataAppend2
+FAIL=testFormDataAppendEmptyBlob
+FAIL=testFormDataAppendNull1
+FAIL=testFormDataAppendNull2
+FAIL=testFormDataAppendUndefined1
+FAIL=testFormDataAppendUndefined2
+[xhr/formdata/append.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/constructor-formelement.html]
+FAIL=test that FormData is correctly constructed from the form data set
+[xhr/formdata/constructor-submitter-coordinate.html]
+FAIL=The constructed FormData object should contain correct entries for Image Button submitter's dispatched coordinate
+[xhr/formdata/constructor-submitter.html]
+FAIL=FormData construction should allow a null submitter
+FAIL=FormData construction should allow an undefined form and a null submitter
+FAIL=FormData construction should allow an undefined form and an undefined submitter
+FAIL=FormData construction should throw a 'NotFoundError' DOMException if a non-null submitter is not owned by the form
+FAIL=FormData construction should throw a TypeError if a non-null submitter is not a submit button
+FAIL=The constructed FormData object should contain an in-tree-order entry for a named submit button submitter
+FAIL=The constructed FormData object should contain in-tree-order entries for an activated Image Button submitter
+FAIL=The constructed FormData object should contain in-tree-order entries for an unactivated Image Button submitter
+FAIL=The constructed FormData object should not contain an entry for an unnamed submit button submitter
+[xhr/formdata/constructor.any.html]
+FAIL=Constructors should throw a type error
+[xhr/formdata/constructor.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/delete-formelement.html]
+FAIL=testFormDataDeleteFromEmptyForm
+FAIL=testFormDataDeleteFromForm
+FAIL=testFormDataDeleteFromFormNonExistentKey
+FAIL=testFormDataDeleteFromFormOtherKey
+[xhr/formdata/delete.any.html]
+FAIL=testFormDataDelete
+FAIL=testFormDataDeleteNonExistentKey
+FAIL=testFormDataDeleteOtherKey
+[xhr/formdata/delete.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/foreach.any.html]
+harness=TIMEOUT
+[xhr/formdata/foreach.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/get-formelement.html]
+FAIL=testFormDataGetAllFromEmptyForm
+FAIL=testFormDataGetAllFromForm
+FAIL=testFormDataGetAllFromFormNull
+FAIL=testFormDataGetFromEmptyForm
+FAIL=testFormDataGetFromForm
+FAIL=testFormDataGetFromFormNull
+[xhr/formdata/get.any.html]
+FAIL=testFormDataGet
+FAIL=testFormDataGetAll
+FAIL=testFormDataGetAllEmpty1
+FAIL=testFormDataGetAllEmpty2
+FAIL=testFormDataGetNull1
+FAIL=testFormDataGetNull2
+[xhr/formdata/get.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/has-formelement.html]
+FAIL=testFormDataHasFromEmptyForm
+FAIL=testFormDataHasFromForm
+FAIL=testFormDataHasFromFormNull
+[xhr/formdata/has.any.html]
+FAIL=testFormDataHas
+FAIL=testFormDataHasEmpty1
+FAIL=testFormDataHasEmpty2
+[xhr/formdata/has.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/iteration.any.html]
+FAIL=Appending a value pair during iteration causes it to be reached during iteration
+FAIL=Iteration skips elements removed while iterating
+FAIL=Removing elements already iterated over causes an element to be skipped during iteration
+[xhr/formdata/iteration.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/set-blob.any.html]
+harness=TIMEOUT
+[xhr/formdata/set-blob.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/set-formelement.html]
+FAIL=testFormDataSetToForm1
+FAIL=testFormDataSetToForm2
+FAIL=testFormDataSetToFormNull1
+FAIL=testFormDataSetToFormNull2
+FAIL=testFormDataSetToFormString
+FAIL=testFormDataSetToFormUndefined1
+FAIL=testFormDataSetToFormUndefined2
+FAIL=testFormDataSetToFormWrongPlatformObject
+[xhr/formdata/set.any.html]
+FAIL=testFormDataSet1
+FAIL=testFormDataSet2
+FAIL=testFormDataSetEmptyBlob
+FAIL=testFormDataSetNull1
+FAIL=testFormDataSetNull2
+FAIL=testFormDataSetUndefined1
+FAIL=testFormDataSetUndefined2
+[xhr/formdata/set.any.worker.html]
+harness=TIMEOUT
+[xhr/formdata/submitter-coordinate-value.html]
+FAIL=dispatched event coordinates should match user intention coordinates
+[xhr/getallresponseheaders-after-reuse.html]
+harness=TIMEOUT
+[xhr/getallresponseheaders-cookies.htm]
+FAIL=XMLHttpRequest: getAllResponseHeaders() excludes cookies
+[xhr/getallresponseheaders.htm]
+FAIL=XMLHttpRequest: getAllResponseHeaders()
+FAIL=XMLHttpRequest: getAllResponseHeaders() 1
+FAIL=XMLHttpRequest: getAllResponseHeaders() 2
+FAIL=XMLHttpRequest: getAllResponseHeaders() 3
+FAIL=XMLHttpRequest: getAllResponseHeaders() 4
+FAIL=XMLHttpRequest: getAllResponseHeaders() 5
+FAIL=XMLHttpRequest: getAllResponseHeaders() 6
+[xhr/getresponseheader-case-insensitive.htm]
+FAIL=XMLHttpRequest: getResponseHeader() case-insensitive matching
+[xhr/getresponseheader-chunked-trailer.htm]
+FAIL=XMLHttpRequest: getResponseHeader() and HTTP trailer
+[xhr/getresponseheader-cookies-and-more.htm]
+FAIL=XMLHttpRequest: getResponseHeader() custom/non-existent headers and cookies
+[xhr/getresponseheader-server-date.htm]
+FAIL=XMLHttpRequest: getResponseHeader() server and date
+[xhr/getresponseheader-special-characters.htm]
+FAIL=XMLHttpRequest: getResponseHeader() funny characters
+[xhr/getresponseheader.any.html]
+FAIL=getResponseHeader('content-length') expects 0
+FAIL=getResponseHeader('content-length') expects 0, 0
+FAIL=getResponseHeader('double-trouble') expects , 
+FAIL=getResponseHeader('foo-test') expects 1, 2, 3
+FAIL=getResponseHeader('heya') expects , , 1, , , 2
+FAIL=getResponseHeader('www-authenticate') expects 1, 2, 3, 4
+[xhr/getresponseheader.any.worker.html]
+harness=TIMEOUT
+[xhr/header-user-agent-async.htm]
+FAIL=Async request has User-Agent header
+[xhr/header-user-agent-sync.htm]
+FAIL=Sync request has User-Agent header
+[xhr/headers-normalize-response.htm]
+FAIL=Header value: 
+FAIL=Header value: [tab]
+FAIL=Header value: [tab]hello_world
+FAIL=Header value: [tab]hello_world[tab]
+FAIL=Header value: \0
+FAIL=Header value: \0hello world
+FAIL=Header value: ___
+FAIL=Header value: __hello_world
+FAIL=Header value: __hello_world__
+FAIL=Header value: hello world\0
+FAIL=Header value: hello[tab]world
+FAIL=Header value: hello\0world
+FAIL=Header value: hello______world
+FAIL=Header value: hello_world[tab]
+FAIL=Header value: hello_world__
+[xhr/idlharness.any.html]
+FAIL=idl_test setup
+[xhr/idlharness.any.worker.html]
+harness=TIMEOUT
+[xhr/json.any.html]
+FAIL=Ensure the correct JSON parser is used
+[xhr/json.any.worker.html]
+harness=TIMEOUT
+[xhr/loadstart-and-state.html]
+harness=TIMEOUT
+[xhr/open-after-setrequestheader.htm]
+FAIL=XMLHttpRequest: open() after setRequestHeader()
+[xhr/open-after-stop.window.html]
+FAIL=open() after window.stop()
+[xhr/open-during-abort-event.htm]
+FAIL=XMLHttpRequest: open() during abort event - abort() called from upload.onloadstart
+[xhr/open-during-abort-processing.htm]
+FAIL=XMLHttpRequest: open() during abort processing - abort() called from onloadstart
+[xhr/open-during-abort.htm]
+FAIL=XMLHttpRequest: open() during abort()
+[xhr/open-method-bogus.htm]
+FAIL=XMLHttpRequest: open() - bogus methods ( GET)
+FAIL=XMLHttpRequest: open() - bogus methods ()
+FAIL=XMLHttpRequest: open() - bogus methods (>)
+FAIL=XMLHttpRequest: open() - bogus methods (@GET)
+FAIL=XMLHttpRequest: open() - bogus methods (G T)
+FAIL=XMLHttpRequest: open() - bogus methods (G:ET)
+FAIL=XMLHttpRequest: open() - bogus methods (GET
+)
+FAIL=XMLHttpRequest: open() - bogus methods (GET?)
+[xhr/open-method-case-insensitive.htm]
+FAIL=XMLHttpRequest: open() - case-insensitive methods test (DELETE)
+FAIL=XMLHttpRequest: open() - case-insensitive methods test (GET)
+FAIL=XMLHttpRequest: open() - case-insensitive methods test (HEAD)
+FAIL=XMLHttpRequest: open() - case-insensitive methods test (OPTIONS)
+FAIL=XMLHttpRequest: open() - case-insensitive methods test (POST)
+FAIL=XMLHttpRequest: open() - case-insensitive methods test (PUT)
+[xhr/open-method-case-sensitive.htm]
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (COpy)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (PATCH)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (XUNICORN)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (chiCKEN)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (copy)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (inDEX)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (movE)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (patCH)
+FAIL=XMLHttpRequest: open() - case-sensitive methods test (xUNIcorn)
+[xhr/open-method-insecure.htm]
+FAIL=XMLHttpRequest: open() - "insecure" methods (CONNECT)
+FAIL=XMLHttpRequest: open() - "insecure" methods (TRACE)
+FAIL=XMLHttpRequest: open() - "insecure" methods (TRACK)
+FAIL=XMLHttpRequest: open() - "insecure" methods (connECT)
+FAIL=XMLHttpRequest: open() - "insecure" methods (connect)
+FAIL=XMLHttpRequest: open() - "insecure" methods (trAck)
+FAIL=XMLHttpRequest: open() - "insecure" methods (traCE)
+FAIL=XMLHttpRequest: open() - "insecure" methods (trace)
+FAIL=XMLHttpRequest: open() - "insecure" methods (track)
+[xhr/open-method-responsetype-set-sync.htm]
+FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (arraybuffer)
+FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (blob)
+FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (document)
+FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (json)
+FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (text)
+[xhr/open-open-send.htm]
+FAIL=XMLHttpRequest: open() - open() - send()
+[xhr/open-open-sync-send.htm]
+FAIL=XMLHttpRequest: open() - open() (sync) - send()
+[xhr/open-parameters-toString.htm]
+FAIL=XMLHttpRequest: open() attempts to toString its string parameters
+[xhr/open-referer.htm]
+FAIL=XMLHttpRequest: open() - value of Referer header
+[xhr/open-send-during-abort.htm]
+FAIL=XMLHttpRequest: open() during abort()
+[xhr/open-send-open.htm]
+FAIL=XMLHttpRequest: open() - send() - open()
+[xhr/open-sync-open-send.htm]
+FAIL=XMLHttpRequest: open() (sync) - send() - open()
+[xhr/open-url-about-blank-window.htm]
+FAIL=XMLHttpRequest: open() resolving URLs (about:blank iframe)
+[xhr/open-url-base-inserted-after-open.htm]
+FAIL=XMLHttpRequest: open() resolving URLs - insert <base> after open()
+[xhr/open-url-base-inserted.htm]
+FAIL=XMLHttpRequest: open() resolving URLs - insert <base>
+[xhr/open-url-base.htm]
+FAIL=XMLHttpRequest: open() resolving URLs - <base>
+[xhr/open-url-encoding.htm]
+FAIL=lone surrogate
+FAIL=percent encode characters
+[xhr/open-url-fragment.htm]
+FAIL=XMLHttpRequest: open() resolving URLs - fragment identifier
+FAIL=make sure escaped # is not removed
+FAIL=make sure fragment is removed from URL before request
+FAIL=make sure fragment is removed from URL before request (with query string)
+[xhr/open-url-javascript-window-2.htm]
+harness=TIMEOUT
+[xhr/open-url-javascript-window.htm]
+harness=TIMEOUT
+[xhr/open-url-multi-window-2.htm]
+harness=TIMEOUT
+[xhr/open-url-multi-window-3.htm]
+harness=TIMEOUT
+[xhr/open-url-multi-window-4.htm]
+harness=TIMEOUT
+[xhr/open-url-multi-window-5.htm]
+harness=TIMEOUT
+[xhr/open-url-multi-window-6.htm]
+harness=TIMEOUT
+[xhr/open-url-multi-window.htm]
+harness=TIMEOUT
+[xhr/open-url-redirected-sharedworker-origin.htm]
+harness=TIMEOUT
+[xhr/open-url-redirected-worker-origin.htm]
+harness=TIMEOUT
+[xhr/open-url-worker-origin.htm]
+harness=TIMEOUT
+[xhr/open-url-worker-simple.htm]
+harness=TIMEOUT
+[xhr/open-user-password-non-same-origin.htm]
+FAIL=XMLHttpRequest: open() - user/pass argument and non same-origin URL doesn't throw
+[xhr/over-1-meg.any.worker.html]
+harness=TIMEOUT
+[xhr/overridemimetype-blob.html]
+FAIL=1) MIME types need to be parsed and serialized: text/html;charset=gbk
+FAIL=10) MIME types need to be parsed and serialized: text/html;charset= gbk
+FAIL=11) MIME types need to be parsed and serialized: text/html;charset= "gbk"
+FAIL=12) MIME types need to be parsed and serialized: text/html;charset=gbk
+FAIL=13) MIME types need to be parsed and serialized: text/html;charset=gbk
+FAIL=14) MIME types need to be parsed and serialized: text/html;charset=gbk
+FAIL=15) MIME types need to be parsed and serialized: text/html;charset=gbk
+FAIL=16) MIME types need to be parsed and serialized: text/html;charset='gbk'
+FAIL=17) MIME types need to be parsed and serialized: text/html;charset='gbk
+FAIL=18) MIME types need to be parsed and serialized: text/html;charset=gbk'
+FAIL=19) MIME types need to be parsed and serialized: text/html;charset=';charset=GBK
+FAIL=2) MIME types need to be parsed and serialized: TEXT/HTML;CHARSET=GBK
+FAIL=20) MIME types need to be parsed and serialized: text/html;test;charset=gbk
+FAIL=21) MIME types need to be parsed and serialized: text/html;test=;charset=gbk
+FAIL=22) MIME types need to be parsed and serialized: text/html;';charset=gbk
+FAIL=23) MIME types need to be parsed and serialized: text/html;";charset=gbk
+FAIL=24) MIME types need to be parsed and serialized: text/html ; ; charset=gbk
+FAIL=25) MIME types need to be parsed and serialized: text/html;;;;charset=gbk
+FAIL=26) MIME types need to be parsed and serialized: text/html;charset= ";charset=GBK
+FAIL=27) MIME types need to be parsed and serialized: text/html;charset=";charset=foo";charset=GBK
+FAIL=28) MIME types need to be parsed and serialized: text/html;charset="gbk"
+FAIL=29) MIME types need to be parsed and serialized: text/html;charset="gbk
+FAIL=3) MIME types need to be parsed and serialized: text/html;charset=gbk(
+FAIL=30) MIME types need to be parsed and serialized: text/html;charset=gbk"
+FAIL=31) MIME types need to be parsed and serialized: text/html;charset=" gbk"
+FAIL=32) MIME types need to be parsed and serialized: text/html;charset="gbk "
+FAIL=33) MIME types need to be parsed and serialized: text/html;charset="\ gbk"
+FAIL=34) MIME types need to be parsed and serialized: text/html;charset="\g\b\k"
+FAIL=35) MIME types need to be parsed and serialized: text/html;charset="gbk"x
+FAIL=36) MIME types need to be parsed and serialized: text/html;charset="";charset=GBK
+FAIL=37) MIME types need to be parsed and serialized: text/html;charset=";charset=GBK
+FAIL=38) MIME types need to be parsed and serialized: text/html;charset={gbk}
+FAIL=39) MIME types need to be parsed and serialized: text/html;0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789=x;charset=gbk
+FAIL=4) MIME types need to be parsed and serialized: text/html;x=(;charset=gbk
+FAIL=40) MIME types need to be parsed and serialized: 0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+FAIL=41) MIME types need to be parsed and serialized: text/html;a]=bar;b[=bar;c=bar
+FAIL=42) MIME types need to be parsed and serialized: text/html;valid=";";foo=bar
+FAIL=43) MIME types need to be parsed and serialized: text/html;in]valid=";asd=foo";foo=bar
+FAIL=44) MIME types need to be parsed and serialized: !#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz;!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz=!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+FAIL=45) MIME types need to be parsed and serialized: x/x;x="	 !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~U+80U+81U+82U+83U+84U+85U+86U+87U+88U+89U+8aU+8bU+8cU+8dU+8eU+8fU+90U+91U+92U+93U+94U+95U+96U+97U+98U+99U+9aU+9bU+9cU+9dU+9eU+9fU+a0U+a1U+a2U+a3U+a4U+a5U+a6U+a7U+a8U+a9U+aaU+abU+acU+adU+aeU+afU+b0U+b1U+b2U+b3U+b4U+b5U+b6U+b7U+b8U+b9U+baU+bbU+bcU+bdU+beU+bfU+c0U+c1U+c2U+c3U+c4U+c5U+c6U+c7U+c8U+c9U+caU+cbU+ccU+cdU+ceU+cfU+d0U+d1U+d2U+d3U+d4U+d5U+d6U+d7U+d8U+d9U+daU+dbU+dcU+ddU+deU+dfU+e0U+e1U+e2U+e3U+e4U+e5U+e6U+e7U+e8U+e9U+eaU+ebU+ecU+edU+eeU+efU+f0U+f1U+f2U+f3U+f4U+f5U+f6U+f7U+f8U+f9U+faU+fbU+fcU+fdU+feU+ff"
+FAIL=46) MIME types need to be parsed and serialized: x/x;test
+FAIL=47) MIME types need to be parsed and serialized: x/x;test="\
+FAIL=48) MIME types need to be parsed and serialized: x/x;x= 
+FAIL=49) MIME types need to be parsed and serialized: x/x;x=	
+FAIL=5) MIME types need to be parsed and serialized: text/html;charset=gbk;charset=windows-1255
+FAIL=50) MIME types need to be parsed and serialized: x/x
+	 ;x=x
+FAIL=51) MIME types need to be parsed and serialized: 
+	 x/x;x=x
+	 
+FAIL=52) MIME types need to be parsed and serialized: x/x;
+	 x=x
+	 ;x=y
+FAIL=53) MIME types need to be parsed and serialized: text/html;test=U+ff;charset=gbk
+FAIL=54) MIME types need to be parsed and serialized: x/x;test=U+fffd;x=x
+FAIL=55) MIME types need to be parsed and serialized: x/x
+FAIL=56) MIME types need to be parsed and serialized: x/x
+FAIL=57) MIME types need to be parsed and serialized: x/x
+FAIL=58) MIME types need to be parsed and serialized: x/x
+FAIL=59) MIME types need to be parsed and serialized: 
+FAIL=6) MIME types need to be parsed and serialized: text/html;charset=();charset=GBK
+FAIL=60) MIME types need to be parsed and serialized: 	
+FAIL=61) MIME types need to be parsed and serialized: /
+FAIL=62) MIME types need to be parsed and serialized: bogus
+FAIL=63) MIME types need to be parsed and serialized: bogus/
+FAIL=64) MIME types need to be parsed and serialized: bogus/ 
+FAIL=65) MIME types need to be parsed and serialized: bogus/bogus/;
+FAIL=66) MIME types need to be parsed and serialized: </>
+FAIL=67) MIME types need to be parsed and serialized: (/)
+FAIL=68) MIME types need to be parsed and serialized: U+ff/U+ff
+FAIL=69) MIME types need to be parsed and serialized: text/html(;doesnot=matter
+FAIL=7) MIME types need to be parsed and serialized: text/html;charset =gbk
+FAIL=70) MIME types need to be parsed and serialized: {/}
+FAIL=71) MIME types need to be parsed and serialized: U+100/U+100
+FAIL=72) MIME types need to be parsed and serialized: text /html
+FAIL=73) MIME types need to be parsed and serialized: text/ html
+FAIL=74) MIME types need to be parsed and serialized: "text/html"
+FAIL=8) MIME types need to be parsed and serialized: text/html ;charset=gbk
+FAIL=9) MIME types need to be parsed and serialized: text/html; charset=gbk
+FAIL=Use text/xml as fallback MIME type
+FAIL=Use text/xml as fallback MIME type, 2
+[xhr/overridemimetype-done-state.any.html]
+FAIL=overridemimetype-done-state
+[xhr/overridemimetype-done-state.any.worker.html]
+harness=TIMEOUT
+[xhr/overridemimetype-edge-cases.window.html]
+FAIL=Charset can be overridden by overrideMimeType() with a bogus charset
+FAIL=If charset is not overridden by overrideMimeType() the original continues to be used
+FAIL=overrideMimeType() is not reset by open()
+FAIL=overrideMimeType() is not reset by open(), basic
+[xhr/overridemimetype-headers-received-state-force-shiftjis.htm]
+FAIL=XMLHttpRequest: overrideMimeType() in HEADERS RECEIVED state, enforcing Shift-JIS encoding
+[xhr/overridemimetype-invalid-mime-type.htm]
+FAIL=Bogus MIME type does not override encoding
+FAIL=Bogus MIME type does not override encoding, 2
+FAIL=Bogus MIME type does override MIME type
+[xhr/overridemimetype-loading-state.htm]
+FAIL=XMLHttpRequest: overrideMimeType() in LOADING state
+[xhr/overridemimetype-open-state-force-utf-8.htm]
+FAIL=XMLHttpRequest: overrideMimeType() in open state, enforcing UTF-8 encoding
+[xhr/overridemimetype-open-state-force-xml.htm]
+FAIL=XMLHttpRequest: overrideMimeType() in open state, XML MIME type with UTF-8 charset
+[xhr/overridemimetype-unsent-state-force-shiftjis.any.html]
+FAIL=XMLHttpRequest: overrideMimeType() in unsent state, enforcing Shift-JIS encoding
+[xhr/overridemimetype-unsent-state-force-shiftjis.any.worker.html]
+harness=TIMEOUT
+[xhr/preserve-ua-header-on-redirect.htm]
+FAIL=XMLHttpRequest: User-Agent header is preserved on redirect
+FAIL=XMLHttpRequest: User-Agent header is preserved on redirect 1
+[xhr/progress-events-response-data-gzip.htm]
+FAIL=XMLHttpRequest: progress events and GZIP encoding
+[xhr/progressevent-constructor.html]
+FAIL=Decimal number test.
+FAIL=Default event values.
+FAIL=ECMAScript value conversion test.
+FAIL=Mixed integer and decimal number test.
+FAIL=Negative number.
+FAIL=Positive integer number test.
+FAIL=ProgressEventInit members must be matched case-sensitively.
+FAIL=Zero test.
+[xhr/progressevent-interface.html]
+FAIL=Interface objects properties should not be Enumerable
+FAIL=Should be able to delete ProgressEvent.
+FAIL=The ProgressEvent interface
+FAIL=The ProgressEvent interface 1
+FAIL=The ProgressEvent interface 2
+FAIL=The ProgressEvent interface 3
+FAIL=interface prototype object
+[xhr/request-content-length.any.html]
+FAIL=Fetched blob: URLs set the Content-Length header
+FAIL=Uploads need to set the Content-Length header
+[xhr/request-content-length.any.worker.html]
+harness=TIMEOUT
+[xhr/response-body-errors.any.html]
+FAIL=Asynchronous XMLHttpRequest should clear response on bad chunk
+FAIL=Synchronous XMLHttpRequest should throw on bad chunk
+[xhr/response-body-errors.any.worker.html]
+harness=TIMEOUT
+[xhr/response-data-arraybuffer.htm]
+FAIL=XMLHttpRequest: The response attribute: ArrayBuffer data
+[xhr/response-data-blob.htm]
+FAIL=XMLHttpRequest: The response attribute: Blob data
+[xhr/response-data-deflate.htm]
+FAIL=XMLHttpRequest: content-encoding:deflate response was correctly inflated
+[xhr/response-data-gzip.htm]
+FAIL=XMLHttpRequest: GZIP response was correctly inflated
+[xhr/response-data-progress.htm]
+FAIL=XMLHttpRequest: progress events grow response body size, known content-length
+FAIL=XMLHttpRequest: progress events grow response body size, unknown content-length
+[xhr/response-json.htm]
+FAIL=JSON object roundtrip
+FAIL=JSON roundtrip with Japanese text
+FAIL=json response with malformed data: response property is null
+FAIL=json response with no data: response property is null
+[xhr/response-method.htm]
+FAIL=GET
+FAIL=HEAD
+FAIL=POST
+[xhr/responseText-status.html]
+FAIL=XMLHttpRequest Test: responseText - status
+[xhr/responseType-document-in-worker.html]
+harness=TIMEOUT
+[xhr/responseXML-unavailable-in-worker.html]
+harness=TIMEOUT
+[xhr/responsedocument-decoding.htm]
+FAIL=XMLHttpRequest: response document decoding (application/xml %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
+FAIL=XMLHttpRequest: response document decoding (application/xml;charset=utf-8 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
+FAIL=XMLHttpRequest: response document decoding (application/xml;charset=windows-1252 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
+FAIL=XMLHttpRequest: response document decoding (text/html %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
+FAIL=XMLHttpRequest: response document decoding (text/html;charset=utf-8 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
+FAIL=XMLHttpRequest: response document decoding (text/html;charset=windows-1252 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
+[xhr/responsetext-decoding.htm]
+FAIL=XMLHttpRequest: responseText decoding (application/xml %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
+FAIL=XMLHttpRequest: responseText decoding (application/xml %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
+FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=utf-8 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
+FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=utf-8 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
+FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=windows-1252 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
+FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=windows-1252 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
+FAIL=XMLHttpRequest: responseText decoding (text/html %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
+FAIL=XMLHttpRequest: responseText decoding (text/html %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
+FAIL=XMLHttpRequest: responseText decoding (text/html;charset=utf-8 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
+FAIL=XMLHttpRequest: responseText decoding (text/html;charset=utf-8 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
+FAIL=XMLHttpRequest: responseText decoding (text/html;charset=windows-1252 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
+FAIL=XMLHttpRequest: responseText decoding (text/html;charset=windows-1252 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %C2  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %C2 empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %E3%81%B2  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %E3%81%B2 empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF%EF%BB%BF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF%EF%BB%BF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %FE%FF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %FE%FF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %FE%FF%FE%FF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %FE%FF%FE%FF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %FF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain %FF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/plain;charset=bogus %C2  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain;charset=windows-1252 %FF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/plain;charset=windows-1252 %FF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %EF%BB%BF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %EF%BB%BF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %EF%BB%BF%EF%BB%BF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %EF%BB%BF%EF%BB%BF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %FE%FF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %FE%FF empty)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %FE%FF%FE%FF  text)
+FAIL=XMLHttpRequest: responseText decoding (text/xml %FE%FF%FE%FF empty)
+[xhr/responsetype.any.html]
+FAIL=Set responseType to "" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "" when readyState is DONE.
+FAIL=Set responseType to "" when readyState is LOADING.
+FAIL=Set responseType to "" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "arraybuffer" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "arraybuffer" when readyState is DONE.
+FAIL=Set responseType to "arraybuffer" when readyState is HEADERS_RECEIVED.
+FAIL=Set responseType to "arraybuffer" when readyState is LOADING.
+FAIL=Set responseType to "arraybuffer" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "arraybuffer" when readyState is OPENED.
+FAIL=Set responseType to "arraybuffer" when readyState is UNSENT.
+FAIL=Set responseType to "blob" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "blob" when readyState is DONE.
+FAIL=Set responseType to "blob" when readyState is HEADERS_RECEIVED.
+FAIL=Set responseType to "blob" when readyState is LOADING.
+FAIL=Set responseType to "blob" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "blob" when readyState is OPENED.
+FAIL=Set responseType to "blob" when readyState is UNSENT.
+FAIL=Set responseType to "document" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "document" when readyState is DONE.
+FAIL=Set responseType to "document" when readyState is HEADERS_RECEIVED.
+FAIL=Set responseType to "document" when readyState is LOADING.
+FAIL=Set responseType to "document" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "document" when readyState is OPENED.
+FAIL=Set responseType to "document" when readyState is UNSENT.
+FAIL=Set responseType to "json" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "json" when readyState is DONE.
+FAIL=Set responseType to "json" when readyState is LOADING.
+FAIL=Set responseType to "json" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "nosuchtype" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "nosuchtype" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "text" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "text" when readyState is DONE.
+FAIL=Set responseType to "text" when readyState is LOADING.
+FAIL=Set responseType to "text" when readyState is OPENED and the sync flag is set.
+[xhr/responsetype.any.worker.html]
+harness=TIMEOUT
+[xhr/responseurl-after-abort.any.html]
+FAIL=abort() during DONE clears responseURL (async)
+FAIL=abort() during DONE clears responseURL (sync)
+FAIL=abort() during HEADERS_RECEIVED clears responseURL
+FAIL=abort() during LOADING clears responseURL
+[xhr/responseurl-after-abort.any.worker.html]
+harness=TIMEOUT
+[xhr/responseurl.html]
+FAIL=404 response has proper responseURL
+FAIL=Redirected response has proper responseURL
+[xhr/responsexml-basic.htm]
+FAIL=XMLHttpRequest: responseXML basic test
+FAIL=responseXML on empty response documents
+[xhr/responsexml-document-properties.htm]
+harness=TIMEOUT
+[xhr/responsexml-get-twice.htm]
+FAIL=Getting response, then response
+FAIL=Getting response, then responseXML
+FAIL=Getting responseXML, then response
+FAIL=Getting responseXML, then responseXML
+[xhr/responsexml-invalid-type.html]
+FAIL=XMLHttpRequest: response with an invalid responseXML document
+[xhr/responsexml-media-type.htm]
+FAIL=XMLHttpRequest: responseXML MIME type tests ('', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('application', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('application/rdf', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('application/xhtml+xml', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('bogus', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('bogus+xml', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('image/svg+xml', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('text/html', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('text/plain', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('text/plain;+xml', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('text/plainxml', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('text/xml', should  parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('text/xsl', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('video/x-awesome', should not parse)
+FAIL=XMLHttpRequest: responseXML MIME type tests ('video/x-awesome+xml', should  parse)
+[xhr/responsexml-non-document-types.htm]
+FAIL=XMLHttpRequest: responseXML/responseText on other responseType (arraybuffer)
+FAIL=XMLHttpRequest: responseXML/responseText on other responseType (blob)
+FAIL=XMLHttpRequest: responseXML/responseText on other responseType (document)
+FAIL=XMLHttpRequest: responseXML/responseText on other responseType (json)
+FAIL=XMLHttpRequest: responseXML/responseText on other responseType (text)
+[xhr/responsexml-non-well-formed.htm]
+FAIL=XMLHttpRequest: responseXML non well-formed tests
+FAIL=XMLHttpRequest: responseXML non well-formed tests 1
+FAIL=XMLHttpRequest: responseXML non well-formed tests 2
+FAIL=XMLHttpRequest: responseXML non well-formed tests 3
+FAIL=XMLHttpRequest: responseXML non well-formed tests 4
+FAIL=XMLHttpRequest: responseXML non well-formed tests 5
+FAIL=XMLHttpRequest: responseXML non well-formed tests 6
+[xhr/security-consideration.sub.html]
+FAIL=ProgressEvent: security consideration
+[xhr/send-accept-language.htm]
+FAIL=Send "sensible" default value, whatever that means
+FAIL=XMLHttpRequest: send() - Accept-Language
+[xhr/send-accept.htm]
+FAIL=XMLHttpRequest: send() - Accept
+[xhr/send-after-setting-document-domain.htm]
+harness=TIMEOUT
+[xhr/send-authentication-basic-cors-not-enabled.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated CORS requests with user name and password passed to open() (asserts failure)
+[xhr/send-authentication-basic-repeat-no-args.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated requests with user name and password passed to open() in first request, without in second
+[xhr/send-authentication-basic-setrequestheader-and-arguments.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated request using setRequestHeader() and open() arguments (asserts header wins)
+[xhr/send-authentication-basic-setrequestheader-existing-session.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated request using setRequestHeader() when there is an existing session
+[xhr/send-authentication-basic-setrequestheader.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated request using setRequestHeader()
+[xhr/send-authentication-basic.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated requests with user name and password passed to open()
+[xhr/send-authentication-competing-names-passwords.htm]
+FAIL=XMLHttpRequest user/pass options: another user/pass in open(); must override cached credentials from previous test
+FAIL=XMLHttpRequest user/pass options: pass in URL, user in open()
+FAIL=XMLHttpRequest user/pass options: pass in URL, user/pass in open()
+FAIL=XMLHttpRequest user/pass options: user in URL
+FAIL=XMLHttpRequest user/pass options: user in URL and open()
+FAIL=XMLHttpRequest user/pass options: user in URL, pass in open()
+FAIL=XMLHttpRequest user/pass options: user in URL; user/pass in open()
+FAIL=XMLHttpRequest user/pass options: user in open()
+FAIL=XMLHttpRequest user/pass options: user/pass in URL
+FAIL=XMLHttpRequest user/pass options: user/pass in URL and open()
+FAIL=XMLHttpRequest user/pass options: user/pass in URL; pass in open()
+FAIL=XMLHttpRequest user/pass options: user/pass in URL; user in open()
+FAIL=XMLHttpRequest user/pass options: user/pass in open()
+[xhr/send-authentication-cors-basic-setrequestheader.htm]
+FAIL=XMLHttpRequest: send() - "Basic" authenticated CORS request using setRequestHeader() (expects to succeed)
+[xhr/send-authentication-cors-setrequestheader-no-cred.htm]
+FAIL=CORS request with setRequestHeader auth to URL NOT accepting Authorization header
+FAIL=CORS request with setRequestHeader auth to URL accepting Authorization header
+[xhr/send-blob-with-no-mime-type.html]
+FAIL=Asynchronous blob loading with invalid mime type [POST]
+FAIL=Asynchronous blob loading with invalid mime type [PUT]
+FAIL=Asynchronous blob loading with no mime type [POST]
+FAIL=Asynchronous blob loading with no mime type [PUT]
+FAIL=Synchronous blob loading with invalid mime type [POST]
+FAIL=Synchronous blob loading with invalid mime type [PUT]
+FAIL=Synchronous blob loading with no mime type [POST]
+FAIL=Synchronous blob loading with no mime type [PUT]
+[xhr/send-conditional-cors.htm]
+FAIL=304 with appropriate CORS header
+FAIL=304 without appropriate CORS header
+[xhr/send-conditional.htm]
+FAIL=XMLHttpRequest: send() - conditional requests (date)
+FAIL=XMLHttpRequest: send() - conditional requests (tag)
+[xhr/send-content-type-charset.htm]
+FAIL=If charset= param is UTF-8 (case-insensitive), it should not be changed
+FAIL=If charset= param is UTF-8 (case-insensitive), it should not be changed (bogus charset)
+FAIL=If no charset= param is given, implementation should not add one - known MIME
+FAIL=If no charset= param is given, implementation should not add one - known MIME, unknown param, two spaces
+FAIL=If no charset= param is given, implementation should not add one - unknown MIME
+FAIL=Multiple non-UTF-8 charset parameters deduplicate, bogus parameter dropped
+FAIL=No content type set, give MIME and charset
+FAIL=bogus charset and bogus header - missing MIME type
+FAIL=charset given but wrong, fix it (known MIME, actual charset)
+FAIL=charset given but wrong, fix it (unknown MIME, bogus charset)
+FAIL=charset in double quotes that is UTF-8 does not change
+FAIL=charset in double quotes with backslashes that is UTF-8 does not change
+FAIL=charset in double quotes with space
+FAIL=charset with leading space that is UTF-8 does change
+FAIL=charset with trailing space that is UTF-8 does not change
+FAIL=header with invalid MIME type (empty string) is not changed
+FAIL=header with invalid MIME type is not changed
+FAIL=known charset but bogus header - missing MIME type
+FAIL=unknown parameters need to be preserved
+[xhr/send-content-type-string.htm]
+FAIL=XMLHttpRequest: send() - Content-Type
+[xhr/send-data-arraybuffer.any.html]
+FAIL=XMLHttpRequest.send(arraybuffer)
+[xhr/send-data-arraybuffer.any.worker.html]
+harness=TIMEOUT
+[xhr/send-data-arraybufferview.any.html]
+FAIL=XMLHttpRequest.send(arraybufferview)
+[xhr/send-data-arraybufferview.any.worker.html]
+harness=TIMEOUT
+[xhr/send-data-blob.htm]
+FAIL=XMLHttpRequest: The send() method: Blob data
+[xhr/send-data-es-object.any.html]
+FAIL=sending a new XHR instance
+FAIL=sending a plain empty object
+FAIL=sending the ES Math object
+[xhr/send-data-es-object.any.worker.html]
+harness=TIMEOUT
+[xhr/send-data-formdata.any.html]
+FAIL=XMLHttpRequest.send(formdata)
+[xhr/send-data-formdata.any.worker.html]
+harness=TIMEOUT
+[xhr/send-data-sharedarraybuffer.any.html]
+FAIL=sending a BigInt64Array backed by a SharedArrayBuffer
+FAIL=sending a BigUint64Array backed by a SharedArrayBuffer
+FAIL=sending a DataView backed by a SharedArrayBuffer
+FAIL=sending a Float16Array backed by a SharedArrayBuffer
+FAIL=sending a Float32Array backed by a SharedArrayBuffer
+FAIL=sending a Float64Array backed by a SharedArrayBuffer
+FAIL=sending a Int16Array backed by a SharedArrayBuffer
+FAIL=sending a Int32Array backed by a SharedArrayBuffer
+FAIL=sending a Int8Array backed by a SharedArrayBuffer
+FAIL=sending a SharedArrayBuffer
+FAIL=sending a Uint16Array backed by a SharedArrayBuffer
+FAIL=sending a Uint32Array backed by a SharedArrayBuffer
+FAIL=sending a Uint8Array backed by a SharedArrayBuffer
+FAIL=sending a Uint8ClampedArray backed by a SharedArrayBuffer
+[xhr/send-data-sharedarraybuffer.any.worker.html]
+harness=TIMEOUT
+[xhr/send-data-string-invalid-unicode.any.html]
+FAIL=invalid unicode '\u{d83d}' should be fixed with replacement character
+FAIL=invalid unicode '\u{d83d}ab' should be fixed with replacement character
+FAIL=invalid unicode '\u{dc94}' should be fixed with replacement character
+FAIL=invalid unicode '\u{dc94}ab' should be fixed with replacement character
+FAIL=invalid unicode 'a\u{d83d}b' should be fixed with replacement character
+FAIL=invalid unicode 'a\u{dc94}b' should be fixed with replacement character
+FAIL=invalid unicode 'ab\u{d83d}' should be fixed with replacement character
+FAIL=invalid unicode 'ab\u{dc94}' should be fixed with replacement character
+FAIL=valid unicode should be sent correctly
+[xhr/send-data-string-invalid-unicode.any.worker.html]
+harness=TIMEOUT
+[xhr/send-data-unexpected-tostring.htm]
+FAIL=open() called from data stringification
+FAIL=send() called from data stringification
+[xhr/send-entity-body-basic.htm]
+FAIL=XMLHttpRequest: send() - data argument (1)
+FAIL=XMLHttpRequest: send() - data argument (10000000)
+FAIL=XMLHttpRequest: send() - data argument (1=2&3=4)
+FAIL=XMLHttpRequest: send() - data argument (2,2)
+FAIL=XMLHttpRequest: send() - data argument (A A)
+FAIL=XMLHttpRequest: send() - data argument (false)
+[xhr/send-entity-body-document-bogus.htm]
+harness=TIMEOUT
+[xhr/send-entity-body-document.htm]
+harness=TIMEOUT
+[xhr/send-entity-body-empty.htm]
+FAIL=XMLHttpRequest: send("") - empty entity body (HEAD)
+FAIL=XMLHttpRequest: send("") - empty entity body (POST)
+FAIL=XMLHttpRequest: send("") - empty entity body (PUT)
+[xhr/send-entity-body-get-head-async.htm]
+harness=TIMEOUT
+[xhr/send-entity-body-get-head.htm]
+FAIL=XMLHttpRequest: send() - non-empty data argument and GET/HEAD (GET)
+FAIL=XMLHttpRequest: send() - non-empty data argument and GET/HEAD (HEAD)
+[xhr/send-entity-body-none.htm]
+FAIL=Explicit content type (HEAD)
+FAIL=Explicit content type (POST)
+FAIL=Explicit content type (PUT)
+FAIL=No content type (HEAD)
+FAIL=No content type (POST)
+FAIL=No content type (PUT)
+[xhr/send-network-error-async-events.sub.htm]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named error when Network error happens (synchronous flag is unset)
+[xhr/send-network-error-sync-events.sub.htm]
+FAIL=data URL
+FAIL=http URL
+[xhr/send-no-response-event-loadend.htm]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named loadend (no response entity body)
+[xhr/send-no-response-event-loadstart.htm]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named loadstart (no response entity body and the state is LOADING)
+[xhr/send-no-response-event-order.htm]
+FAIL=XMLHttpRequest: The send() method: event order when there is no response entity body
+[xhr/send-non-same-origin.htm]
+FAIL=XMLHttpRequest: send() - non same-origin (about:blank)
+FAIL=XMLHttpRequest: send() - non same-origin (blob:bogusidentifier)
+FAIL=XMLHttpRequest: send() - non same-origin (folder.txt)
+FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:45003)
+FAIL=XMLHttpRequest: send() - non same-origin (javascript:alert('FAIL'))
+FAIL=XMLHttpRequest: send() - non same-origin (mailto:test@example.org)
+FAIL=XMLHttpRequest: send() - non same-origin (tel:+31600000000)
+[xhr/send-receive-utf16.htm]
+harness=TIMEOUT
+[xhr/send-redirect-bogus-sync.sub.htm]
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (301: foobar://abcd)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (302: http://nonexistent.localhost)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (302: mailto:someone@example.org)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (303: http://nonexistent.localhost)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (303: tel:1234567890)
+[xhr/send-redirect-bogus.sub.htm]
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (302: http://nonexistent.localhost)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (302: mailto:someone@example.org)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (303: foobar:someone@example.org)
+FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (303: http://nonexistent.localhost)
+[xhr/send-redirect-infinite-sync.htm]
+FAIL=XMLHttpRequest: send() - Redirects (infinite loop; sync) (301)
+[xhr/send-redirect-infinite.htm]
+FAIL=XMLHttpRequest: send() - Redirects (infinite loop)
+[xhr/send-redirect-no-location.htm]
+FAIL=XMLHttpRequest: send() - Redirects (no Location header) (301)
+FAIL=XMLHttpRequest: send() - Redirects (no Location header) (302)
+FAIL=XMLHttpRequest: send() - Redirects (no Location header) (303)
+FAIL=XMLHttpRequest: send() - Redirects (no Location header) (307)
+[xhr/send-redirect-post-upload.htm]
+FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (301)
+FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (302)
+FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (303)
+FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (blob))
+FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (string))
+[xhr/send-redirect-to-cors.htm]
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 GET with explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 GET with explicit Content-Type)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 POST with string and explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 POST with string and explicit Content-Type)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302 FOO with string and explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302 POST with string and explicit Content-Type)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303 FOO with string and explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303 GET with explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 FOO with string and explicit Content-Type)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 POST with string and explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 POST with string and explicit Content-Type)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with null)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with string)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with typed array)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type multipart/form-data)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type safelisted)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type text/plain)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type)
+FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 POST with string and explicit Content-Type)
+[xhr/send-redirect-to-non-cors.htm]
+FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (301)
+FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (302)
+FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (303)
+FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (307)
+[xhr/send-redirect.htm]
+harness=TIMEOUT
+[xhr/send-response-event-order.htm]
+FAIL=XMLHttpRequest: The send() method: event order when synchronous flag is unset
+[xhr/send-response-upload-event-loadend.htm]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named loadend on the XMLHttpRequestUpload (synchronous flag is unset)
+[xhr/send-response-upload-event-loadstart.htm]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named loadstart on the XMLHttpRequestUpload (synchronous flag is unset)
+[xhr/send-response-upload-event-progress.htm]
+FAIL=XMLHttpRequest: The send() method: Fire a progress event named progress on the XMLHttpRequestUpload (synchronous flag is unset)
+[xhr/send-send.any.html]
+FAIL=XMLHttpRequest: send() - send()
+[xhr/send-send.any.worker.html]
+harness=TIMEOUT
+[xhr/send-sync-blocks-async.htm]
+FAIL=XMLHttpRequest: sync requests should block events on pending async requests
+[xhr/send-sync-no-response-event-load.htm]
+FAIL=XMLHttpRequest: The send() method: Fire an event named load (no response entity body and the synchronous flag is set)
+[xhr/send-sync-no-response-event-loadend.htm]
+FAIL=XMLHttpRequest: The send() method: Fire an event named loadend (no response entity body and the synchronous flag is set)
+[xhr/send-sync-no-response-event-order.htm]
+FAIL=XMLHttpRequest: The send() method: event order when synchronous flag is set and there is no response entity body
+[xhr/send-sync-response-event-order.htm]
+FAIL=XMLHttpRequest: The send() method: event order when synchronous flag is set
+[xhr/send-sync-timeout.htm]
+FAIL=XMLHttpRequest: timeout during sync send() should not run
+[xhr/send-timeout-events.htm]
+FAIL=XMLHttpRequest: The send() method: timeout is not 0 
+[xhr/send-usp.any.html]
+FAIL=XMLHttpRequest.send(URLSearchParams) (0)
+FAIL=XMLHttpRequest.send(URLSearchParams) (1)
+FAIL=XMLHttpRequest.send(URLSearchParams) (10)
+FAIL=XMLHttpRequest.send(URLSearchParams) (100)
+FAIL=XMLHttpRequest.send(URLSearchParams) (101)
+FAIL=XMLHttpRequest.send(URLSearchParams) (102)
+FAIL=XMLHttpRequest.send(URLSearchParams) (103)
+FAIL=XMLHttpRequest.send(URLSearchParams) (104)
+FAIL=XMLHttpRequest.send(URLSearchParams) (105)
+FAIL=XMLHttpRequest.send(URLSearchParams) (106)
+FAIL=XMLHttpRequest.send(URLSearchParams) (107)
+FAIL=XMLHttpRequest.send(URLSearchParams) (108)
+FAIL=XMLHttpRequest.send(URLSearchParams) (109)
+FAIL=XMLHttpRequest.send(URLSearchParams) (11)
+FAIL=XMLHttpRequest.send(URLSearchParams) (110)
+FAIL=XMLHttpRequest.send(URLSearchParams) (111)
+FAIL=XMLHttpRequest.send(URLSearchParams) (112)
+FAIL=XMLHttpRequest.send(URLSearchParams) (113)
+FAIL=XMLHttpRequest.send(URLSearchParams) (114)
+FAIL=XMLHttpRequest.send(URLSearchParams) (115)
+FAIL=XMLHttpRequest.send(URLSearchParams) (116)
+FAIL=XMLHttpRequest.send(URLSearchParams) (117)
+FAIL=XMLHttpRequest.send(URLSearchParams) (118)
+FAIL=XMLHttpRequest.send(URLSearchParams) (119)
+FAIL=XMLHttpRequest.send(URLSearchParams) (12)
+FAIL=XMLHttpRequest.send(URLSearchParams) (120)
+FAIL=XMLHttpRequest.send(URLSearchParams) (121)
+FAIL=XMLHttpRequest.send(URLSearchParams) (122)
+FAIL=XMLHttpRequest.send(URLSearchParams) (123)
+FAIL=XMLHttpRequest.send(URLSearchParams) (124)
+FAIL=XMLHttpRequest.send(URLSearchParams) (125)
+FAIL=XMLHttpRequest.send(URLSearchParams) (126)
+FAIL=XMLHttpRequest.send(URLSearchParams) (127)
+FAIL=XMLHttpRequest.send(URLSearchParams) (13)
+FAIL=XMLHttpRequest.send(URLSearchParams) (14)
+FAIL=XMLHttpRequest.send(URLSearchParams) (15)
+FAIL=XMLHttpRequest.send(URLSearchParams) (16)
+FAIL=XMLHttpRequest.send(URLSearchParams) (17)
+FAIL=XMLHttpRequest.send(URLSearchParams) (18)
+FAIL=XMLHttpRequest.send(URLSearchParams) (19)
+FAIL=XMLHttpRequest.send(URLSearchParams) (2)
+FAIL=XMLHttpRequest.send(URLSearchParams) (20)
+FAIL=XMLHttpRequest.send(URLSearchParams) (21)
+FAIL=XMLHttpRequest.send(URLSearchParams) (22)
+FAIL=XMLHttpRequest.send(URLSearchParams) (23)
+FAIL=XMLHttpRequest.send(URLSearchParams) (24)
+FAIL=XMLHttpRequest.send(URLSearchParams) (25)
+FAIL=XMLHttpRequest.send(URLSearchParams) (26)
+FAIL=XMLHttpRequest.send(URLSearchParams) (27)
+FAIL=XMLHttpRequest.send(URLSearchParams) (28)
+FAIL=XMLHttpRequest.send(URLSearchParams) (29)
+FAIL=XMLHttpRequest.send(URLSearchParams) (3)
+FAIL=XMLHttpRequest.send(URLSearchParams) (30)
+FAIL=XMLHttpRequest.send(URLSearchParams) (31)
+FAIL=XMLHttpRequest.send(URLSearchParams) (32)
+FAIL=XMLHttpRequest.send(URLSearchParams) (33)
+FAIL=XMLHttpRequest.send(URLSearchParams) (34)
+FAIL=XMLHttpRequest.send(URLSearchParams) (35)
+FAIL=XMLHttpRequest.send(URLSearchParams) (36)
+FAIL=XMLHttpRequest.send(URLSearchParams) (37)
+FAIL=XMLHttpRequest.send(URLSearchParams) (38)
+FAIL=XMLHttpRequest.send(URLSearchParams) (39)
+FAIL=XMLHttpRequest.send(URLSearchParams) (4)
+FAIL=XMLHttpRequest.send(URLSearchParams) (40)
+FAIL=XMLHttpRequest.send(URLSearchParams) (41)
+FAIL=XMLHttpRequest.send(URLSearchParams) (42)
+FAIL=XMLHttpRequest.send(URLSearchParams) (43)
+FAIL=XMLHttpRequest.send(URLSearchParams) (44)
+FAIL=XMLHttpRequest.send(URLSearchParams) (45)
+FAIL=XMLHttpRequest.send(URLSearchParams) (46)
+FAIL=XMLHttpRequest.send(URLSearchParams) (47)
+FAIL=XMLHttpRequest.send(URLSearchParams) (48)
+FAIL=XMLHttpRequest.send(URLSearchParams) (49)
+FAIL=XMLHttpRequest.send(URLSearchParams) (5)
+FAIL=XMLHttpRequest.send(URLSearchParams) (50)
+FAIL=XMLHttpRequest.send(URLSearchParams) (51)
+FAIL=XMLHttpRequest.send(URLSearchParams) (52)
+FAIL=XMLHttpRequest.send(URLSearchParams) (53)
+FAIL=XMLHttpRequest.send(URLSearchParams) (54)
+FAIL=XMLHttpRequest.send(URLSearchParams) (55)
+FAIL=XMLHttpRequest.send(URLSearchParams) (56)
+FAIL=XMLHttpRequest.send(URLSearchParams) (57)
+FAIL=XMLHttpRequest.send(URLSearchParams) (58)
+FAIL=XMLHttpRequest.send(URLSearchParams) (59)
+FAIL=XMLHttpRequest.send(URLSearchParams) (6)
+FAIL=XMLHttpRequest.send(URLSearchParams) (60)
+FAIL=XMLHttpRequest.send(URLSearchParams) (61)
+FAIL=XMLHttpRequest.send(URLSearchParams) (62)
+FAIL=XMLHttpRequest.send(URLSearchParams) (63)
+FAIL=XMLHttpRequest.send(URLSearchParams) (64)
+FAIL=XMLHttpRequest.send(URLSearchParams) (65)
+FAIL=XMLHttpRequest.send(URLSearchParams) (66)
+FAIL=XMLHttpRequest.send(URLSearchParams) (67)
+FAIL=XMLHttpRequest.send(URLSearchParams) (68)
+FAIL=XMLHttpRequest.send(URLSearchParams) (69)
+FAIL=XMLHttpRequest.send(URLSearchParams) (7)
+FAIL=XMLHttpRequest.send(URLSearchParams) (70)
+FAIL=XMLHttpRequest.send(URLSearchParams) (71)
+FAIL=XMLHttpRequest.send(URLSearchParams) (72)
+FAIL=XMLHttpRequest.send(URLSearchParams) (73)
+FAIL=XMLHttpRequest.send(URLSearchParams) (74)
+FAIL=XMLHttpRequest.send(URLSearchParams) (75)
+FAIL=XMLHttpRequest.send(URLSearchParams) (76)
+FAIL=XMLHttpRequest.send(URLSearchParams) (77)
+FAIL=XMLHttpRequest.send(URLSearchParams) (78)
+FAIL=XMLHttpRequest.send(URLSearchParams) (79)
+FAIL=XMLHttpRequest.send(URLSearchParams) (8)
+FAIL=XMLHttpRequest.send(URLSearchParams) (80)
+FAIL=XMLHttpRequest.send(URLSearchParams) (81)
+FAIL=XMLHttpRequest.send(URLSearchParams) (82)
+FAIL=XMLHttpRequest.send(URLSearchParams) (83)
+FAIL=XMLHttpRequest.send(URLSearchParams) (84)
+FAIL=XMLHttpRequest.send(URLSearchParams) (85)
+FAIL=XMLHttpRequest.send(URLSearchParams) (86)
+FAIL=XMLHttpRequest.send(URLSearchParams) (87)
+FAIL=XMLHttpRequest.send(URLSearchParams) (88)
+FAIL=XMLHttpRequest.send(URLSearchParams) (89)
+FAIL=XMLHttpRequest.send(URLSearchParams) (9)
+FAIL=XMLHttpRequest.send(URLSearchParams) (90)
+FAIL=XMLHttpRequest.send(URLSearchParams) (91)
+FAIL=XMLHttpRequest.send(URLSearchParams) (92)
+FAIL=XMLHttpRequest.send(URLSearchParams) (93)
+FAIL=XMLHttpRequest.send(URLSearchParams) (94)
+FAIL=XMLHttpRequest.send(URLSearchParams) (95)
+FAIL=XMLHttpRequest.send(URLSearchParams) (96)
+FAIL=XMLHttpRequest.send(URLSearchParams) (97)
+FAIL=XMLHttpRequest.send(URLSearchParams) (98)
+FAIL=XMLHttpRequest.send(URLSearchParams) (99)
+FAIL=XMLHttpRequest.send(URLSearchParams): GET keeps an author-set Content-Type
+FAIL=XMLHttpRequest.send(URLSearchParams): GET sends neither a body nor a Content-Type
+FAIL=XMLHttpRequest.send(URLSearchParams): HEAD sends neither a body nor a Content-Type
+FAIL=XMLHttpRequest.send(URLSearchParams): POST keeps an author-set Content-Type
+FAIL=XMLHttpRequest.send(URLSearchParams): POST replaces the charset parameter of an author-set Content-Type
+FAIL=XMLHttpRequest.send(URLSearchParams): POST uses the URLSearchParams MIME type when no Content-Type was set
+[xhr/send-usp.any.worker.html]
+harness=TIMEOUT
+[xhr/setrequestheader-after-send.htm]
+FAIL=XMLHttpRequest: setRequestHeader() after send()
+[xhr/setrequestheader-allow-empty-value.htm]
+FAIL=XMLHttpRequest: setRequestHeader() - empty header ()
+FAIL=XMLHttpRequest: setRequestHeader() - empty header (null)
+FAIL=XMLHttpRequest: setRequestHeader() - empty header (undefined)
+[xhr/setrequestheader-allow-whitespace-in-value.htm]
+FAIL=XMLHttpRequest: setRequestHeader() - header value with whitespace ( )
+FAIL=XMLHttpRequest: setRequestHeader() - header value with whitespace ( t )
+FAIL=XMLHttpRequest: setRequestHeader() - header value with whitespace ( t)
+FAIL=XMLHttpRequest: setRequestHeader() - header value with whitespace (t )
+[xhr/setrequestheader-before-open.htm]
+FAIL=setRequestHeader invoked before open()
+[xhr/setrequestheader-bogus-name.htm]
+FAIL=setRequestHeader should throw with header name " ".
+FAIL=setRequestHeader should throw with header name " tt".
+FAIL=setRequestHeader should throw with header name "".
+FAIL=setRequestHeader should throw with header name "(".
+FAIL=setRequestHeader should throw with header name "()[]{}".
+FAIL=setRequestHeader should throw with header name ")".
+FAIL=setRequestHeader should throw with header name ",".
+FAIL=setRequestHeader should throw with header name "/".
+FAIL=setRequestHeader should throw with header name ":".
+FAIL=setRequestHeader should throw with header name ":tt".
+FAIL=setRequestHeader should throw with header name ";".
+FAIL=setRequestHeader should throw with header name "<".
+FAIL=setRequestHeader should throw with header name "=".
+FAIL=setRequestHeader should throw with header name ">".
+FAIL=setRequestHeader should throw with header name "?".
+FAIL=setRequestHeader should throw with header name "@".
+FAIL=setRequestHeader should throw with header name "U+ff83U+ff7dU+ff84".
+FAIL=setRequestHeader should throw with header name "X-U+ff83U+ff7dU+ff84".
+FAIL=setRequestHeader should throw with header name "[".
+FAIL=setRequestHeader should throw with header name "\"".
+FAIL=setRequestHeader should throw with header name "\\".
+FAIL=setRequestHeader should throw with header name "\b".
+FAIL=setRequestHeader should throw with header name "\f".
+FAIL=setRequestHeader should throw with header name "\n".
+FAIL=setRequestHeader should throw with header name "\r".
+FAIL=setRequestHeader should throw with header name "\t".
+FAIL=setRequestHeader should throw with header name "\ttt".
+FAIL=setRequestHeader should throw with header name "\uffff".
+FAIL=setRequestHeader should throw with header name "\v".
+FAIL=setRequestHeader should throw with header name "\vtt".
+FAIL=setRequestHeader should throw with header name "\x01".
+FAIL=setRequestHeader should throw with header name "\x02".
+FAIL=setRequestHeader should throw with header name "\x03".
+FAIL=setRequestHeader should throw with header name "\x04".
+FAIL=setRequestHeader should throw with header name "\x05".
+FAIL=setRequestHeader should throw with header name "\x06".
+FAIL=setRequestHeader should throw with header name "\x07".
+FAIL=setRequestHeader should throw with header name "\x0e".
+FAIL=setRequestHeader should throw with header name "\x0f".
+FAIL=setRequestHeader should throw with header name "\x10".
+FAIL=setRequestHeader should throw with header name "\x11".
+FAIL=setRequestHeader should throw with header name "\x12".
+FAIL=setRequestHeader should throw with header name "\x13".
+FAIL=setRequestHeader should throw with header name "\x14".
+FAIL=setRequestHeader should throw with header name "\x15".
+FAIL=setRequestHeader should throw with header name "\x16".
+FAIL=setRequestHeader should throw with header name "\x17".
+FAIL=setRequestHeader should throw with header name "\x18".
+FAIL=setRequestHeader should throw with header name "\x19".
+FAIL=setRequestHeader should throw with header name "\x1a".
+FAIL=setRequestHeader should throw with header name "\x1b".
+FAIL=setRequestHeader should throw with header name "\x1c".
+FAIL=setRequestHeader should throw with header name "\x1d".
+FAIL=setRequestHeader should throw with header name "\x1e".
+FAIL=setRequestHeader should throw with header name "\x1f".
+FAIL=setRequestHeader should throw with header name "]".
+FAIL=setRequestHeader should throw with header name "a=B".
+FAIL=setRequestHeader should throw with header name "a?B".
+FAIL=setRequestHeader should throw with header name "t t".
+FAIL=setRequestHeader should throw with header name "t,t".
+FAIL=setRequestHeader should throw with header name "t: t".
+FAIL=setRequestHeader should throw with header name "t:t".
+FAIL=setRequestHeader should throw with header name "t;t".
+FAIL=setRequestHeader should throw with header name "t<t".
+FAIL=setRequestHeader should throw with header name "t\"t".
+FAIL=setRequestHeader should throw with header name "t\nt".
+FAIL=setRequestHeader should throw with header name "t\rt".
+FAIL=setRequestHeader should throw with header name "t\ufffft".
+FAIL=setRequestHeader should throw with header name "{".
+FAIL=setRequestHeader should throw with header name "}".
+FAIL=setRequestHeader should throw with header name "".
+[xhr/setrequestheader-bogus-value.htm]
+FAIL=Omitted value argument
+FAIL=XMLHttpRequest: setRequestHeader() value argument checks
+FAIL=XMLHttpRequest: setRequestHeader() value argument checks 1
+FAIL=XMLHttpRequest: setRequestHeader() value argument checks 2
+FAIL=XMLHttpRequest: setRequestHeader() value argument checks 3
+[xhr/setrequestheader-case-insensitive.htm]
+FAIL=XMLHttpRequest: setRequestHeader() - headers that differ in case
+FAIL=XMLHttpRequest: setRequestHeader() - headers that differ in case 1
+[xhr/setrequestheader-combining.window.html]
+FAIL=setRequestHeader() combining header values
+[xhr/setrequestheader-content-type.htm]
+FAIL=ArrayBuffer request keeps setRequestHeader() Content-Type and charset
+FAIL=ArrayBuffer request respects setRequestHeader("")
+FAIL=ArrayBuffer request sends no Content-Type without setRequestHeader() call
+FAIL=ArrayBufferView request keeps setRequestHeader() Content-Type and charset
+FAIL=ArrayBufferView request respects setRequestHeader("")
+FAIL=ArrayBufferView request sends no Content-Type without setRequestHeader() call
+FAIL=Blob request respects setRequestHeader("") to be specified
+FAIL=Blob request with set type keeps setRequestHeader() Content-Type and charset
+FAIL=Blob request with set type respects setRequestHeader("") to be specified
+FAIL=Blob request with set type uses that it for Content-Type unless setRequestHeader()
+FAIL=Blob request with unset type keeps setRequestHeader() Content-Type and charset
+FAIL=Blob request with unset type sends no Content-Type without setRequestHeader() call
+FAIL=FormData request has correct default Content-Type of "multipart/form-data; boundary=_"
+FAIL=FormData request keeps setRequestHeader() Content-Type and charset
+FAIL=FormData request respects setRequestHeader("")
+FAIL=HTML Document request has correct default Content-Type of "text/html;charset=UTF-8"
+FAIL=HTML Document request keeps setRequestHeader() Content-Type without charset
+FAIL=HTML Document request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+FAIL=HTML Document request respects setRequestHeader("")
+FAIL=String request has correct default Content-Type of "text/plain;charset=UTF-8"
+FAIL=String request keeps setRequestHeader() Content-Type without charset
+FAIL=String request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+FAIL=URLSearchParams request has correct default Content-Type of "application/x-www-form-urlencoded;charset=UTF-8"
+FAIL=URLSearchParams request keeps setRequestHeader() Content-Type without charset
+FAIL=URLSearchParams request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+FAIL=URLSearchParams respects setRequestHeader("")
+FAIL=XML Document request has correct default Content-Type of "application/xml;charset=UTF-8"
+FAIL=XML Document request keeps setRequestHeader() Content-Type without charset
+FAIL=XML Document request keeps setRequestHeader() Content-Type, with charset adjusted to UTF-8
+FAIL=XML Document request respects setRequestHeader("")
+FAIL=setRequestHeader(" ") sends the string " "
+FAIL=setRequestHeader("") sends a blank string
+FAIL=setRequestHeader(null) sends the string "null"
+FAIL=setRequestHeader(undefined) sends the string "undefined"
+[xhr/setrequestheader-header-allowed.htm]
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (Authorization)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (Content-Transfer-Encoding)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (Content-Type)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (If)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (Overwrite)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (Pragma)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (Status-URI)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (User-Agent)
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are allowed (X-Pink-Unicorn)
+[xhr/setrequestheader-header-forbidden.htm]
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are forbidden
+FAIL=XMLHttpRequest: setRequestHeader() - headers that are forbidden 1
+[xhr/setrequestheader-open-setrequestheader.htm]
+FAIL=XMLHttpRequest: setRequestHeader() and open()
+[xhr/status-async.htm]
+harness=TIMEOUT
+[xhr/status-basic.htm]
+FAIL=XMLHttpRequest: status/statusText - various responses 1 (GET 204)
+FAIL=XMLHttpRequest: status/statusText - various responses 10 (GET 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 11 (HEAD 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 12 (CHICKEN 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 13 (GET 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 14 (HEAD 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 15 (CHICKEN 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 16 (GET 502)
+FAIL=XMLHttpRequest: status/statusText - various responses 17 (HEAD 502)
+FAIL=XMLHttpRequest: status/statusText - various responses 18 (CHICKEN 502)
+FAIL=XMLHttpRequest: status/statusText - various responses 19 (GET 502)
+FAIL=XMLHttpRequest: status/statusText - various responses 2 (HEAD 204)
+FAIL=XMLHttpRequest: status/statusText - various responses 20 (HEAD 502)
+FAIL=XMLHttpRequest: status/statusText - various responses 21 (CHICKEN 502)
+FAIL=XMLHttpRequest: status/statusText - various responses 22 (GET 503)
+FAIL=XMLHttpRequest: status/statusText - various responses 23 (HEAD 503)
+FAIL=XMLHttpRequest: status/statusText - various responses 24 (CHICKEN 503)
+FAIL=XMLHttpRequest: status/statusText - various responses 25 (GET 699)
+FAIL=XMLHttpRequest: status/statusText - various responses 26 (HEAD 699)
+FAIL=XMLHttpRequest: status/statusText - various responses 27 (CHICKEN 699)
+FAIL=XMLHttpRequest: status/statusText - various responses 3 (CHICKEN 204)
+FAIL=XMLHttpRequest: status/statusText - various responses 4 (GET 401)
+FAIL=XMLHttpRequest: status/statusText - various responses 5 (HEAD 401)
+FAIL=XMLHttpRequest: status/statusText - various responses 6 (CHICKEN 401)
+FAIL=XMLHttpRequest: status/statusText - various responses 7 (GET 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 8 (HEAD 402)
+FAIL=XMLHttpRequest: status/statusText - various responses 9 (CHICKEN 402)
+[xhr/status-error.htm]
+harness=TIMEOUT
+[xhr/status.h2.window.html]
+FAIL=statusText over H2 for status 200 should be the empty string
+FAIL=statusText over H2 for status 210 should be the empty string
+FAIL=statusText over H2 for status 400 should be the empty string
+FAIL=statusText over H2 for status 404 should be the empty string
+FAIL=statusText over H2 for status 410 should be the empty string
+FAIL=statusText over H2 for status 500 should be the empty string
+FAIL=statusText over H2 for status 502 should be the empty string
+[xhr/sync-no-progress.any.html]
+FAIL=progress event should not be fired by sync XHR
+[xhr/sync-no-progress.any.worker.html]
+harness=TIMEOUT
+[xhr/sync-no-timeout.any.html]
+FAIL=Sync XHR should not have a timeout
+[xhr/sync-no-timeout.any.worker.html]
+harness=TIMEOUT
+[xhr/sync-xhr-and-window-onload.html]
+harness=TIMEOUT
+[xhr/sync-xhr-supported-by-permissions-policy.tentative.html]
+FAIL=document.permissionsPolicy.features should advertise sync-xhr.
+[xhr/template-element.html]
+FAIL=XMLHttpRequest: template element parsing
+FAIL=XMLHttpRequest: template element parsing 1
+FAIL=XMLHttpRequest: template element parsing 2
+[xhr/thrown-error-in-events.html]
+harness=TIMEOUT
+[xhr/timeout-cors-async.htm]
+FAIL=XMLHttpRequest: timeout event and cross-origin request
+[xhr/timeout-multiple-fetches.html]
+harness=TIMEOUT
+[xhr/timeout-sync.htm]
+FAIL=open() with async false when timeout is set
+FAIL=setting timeout attribute on sync request
+[xhr/xhr-authorization-redirect.any.html]
+FAIL=getAuthorizationHeaderValue - cross origin redirection
+FAIL=getAuthorizationHeaderValue - no redirection
+FAIL=getAuthorizationHeaderValue - same origin redirection
+[xhr/xhr-authorization-redirect.any.worker.html]
+harness=TIMEOUT
+[xhr/xhr-timeout-longtask.any.worker.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-basic.htm]
+FAIL=XMLHttpRequest: prototype and members
+[xhr/xmlhttprequest-network-error-sync.htm]
+FAIL=XMLHttpRequest: members during network errors (sync)
+[xhr/xmlhttprequest-network-error.htm]
+FAIL=XMLHttpRequest: members during network errors
+[xhr/xmlhttprequest-sync-block-defer-scripts.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-sync-block-scripts.html]
+FAIL=Check that while a sync XHR is in flight async script loads don't complete and run script
+[xhr/xmlhttprequest-sync-default-permissions-policy.tentative.sub.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-sync-not-hang-scriptloader.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-aborted.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-abortedonmain.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-overrides.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-overridesexpires.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-reused.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-simple.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-synconmain.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-twice.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-worker-aborted.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-worker-overrides.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-worker-overridesexpires.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-worker-simple.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-worker-synconworker.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-timeout-worker-twice.html]
+harness=TIMEOUT
+[xhr/xmlhttprequest-unsent.htm]
+FAIL=XMLHttpRequest: members during UNSENT

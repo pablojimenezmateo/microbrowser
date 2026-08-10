@@ -304,7 +304,7 @@ FAIL=Throw InvalidStateError when the cursor is being iterated
 FAIL=Attempt to remove a record in a read-only transaction
 FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
 FAIL=Index - attempt to remove a record in an inactive transaction
-FAIL=Remove a record from the object store 
+FAIL=Remove a record from the object store
 FAIL=Throw InvalidStateError when the cursor is being iterated
 [IndexedDB/idbcursor_iterating.any.html]
 FAIL=Iterate and Delete elements
@@ -312,7 +312,7 @@ FAIL=Iterate and Delete elements
 FAIL=Attempt to modify a record after the cursor's source or effective object store has been deleted. The implementation MUST throw a DOMException of type InvalidStateError
 FAIL=Attempt to modify a record in a read-only transaction
 FAIL=Attempt to modify a record in an inactive transaction
-FAIL=Modify a record in the object store 
+FAIL=Modify a record in the object store
 FAIL=Modify records during cursor iteration and verify updated records
 FAIL=No argument
 FAIL=Throw DataCloneError
@@ -321,8 +321,8 @@ FAIL=Throw InvalidStateError when the cursor is being iterated
 [IndexedDB/idbcursor_update_objectstore.any.html]
 FAIL=Attempt to modify a record after the cursor's source or effective object store has been deleted. The implementation MUST throw a DOMException of type InvalidStateError
 FAIL=Attempt to modify a record in a read-only transaction
-FAIL=Index - modify a record in the object store 
-FAIL=Modify a record in the object store 
+FAIL=Index - modify a record in the object store
+FAIL=Modify a record in the object store
 FAIL=No argument
 FAIL=Object store - attempt to modify a record in an inactive transaction
 FAIL=Throw DataCloneError
@@ -345,16 +345,16 @@ FAIL=IDBDatabase.transaction throws exception on invalid mode
 FAIL=Unblock the delete database request.
 FAIL=Unblock the version change transaction created by an open database request
 [IndexedDB/idbdatabase_createObjectStore.any.html]
-FAIL=Attempt to create an object store outside of a version change transaction 
-FAIL=Attempt to create an object store that already exists 
-FAIL=Attempt to create an object store with an invalid key path 
-FAIL=Attempting to create an existing object store with a different keyPath throw ConstraintError 
+FAIL=Attempt to create an object store outside of a version change transaction
+FAIL=Attempt to create an object store that already exists
+FAIL=Attempt to create an object store with an invalid key path
+FAIL=Attempting to create an existing object store with a different keyPath throw ConstraintError
 FAIL=Both with empty name
 FAIL=Create 1000 object stores, add one item and delete
-FAIL=Create an object store with an unknown optional parameter 
+FAIL=Create an object store with an unknown optional parameter
 FAIL=Empty name
-FAIL=Object store 'name' and 'keyPath' properties are correctly set 
-FAIL=Object store's name appears in database's list 
+FAIL=Object store 'name' and 'keyPath' properties are correctly set
+FAIL=Object store's name appears in database's list
 FAIL=Returns an instance of IDBObjectStore
 FAIL=autoInc and empty keyPath
 FAIL=autoInc and keyPath array
@@ -681,15 +681,15 @@ FAIL=add() where an index has unique:true specified
 FAIL=add() with an inline key
 FAIL=add() with an out-of-line key
 [IndexedDB/idbobjectstore_clear.any.html]
-FAIL=Clear removes all records from an index 
-FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError 
-FAIL=If the transaction this IDBObjectStore belongs to has its mode set to readonly, throw ReadOnlyError 
-FAIL=Verify clear removes all records 
+FAIL=Clear removes all records from an index
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError
+FAIL=If the transaction this IDBObjectStore belongs to has its mode set to readonly, throw ReadOnlyError
+FAIL=Verify clear removes all records
 [IndexedDB/idbobjectstore_count.any.html]
-FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError 
-FAIL=Returns the number of records in the object store 
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError
+FAIL=Returns the number of records in the object store
 FAIL=Returns the number of records that have keys with the key
-FAIL=Returns the number of records that have keys within the range 
+FAIL=Returns the number of records that have keys within the range
 [IndexedDB/idbobjectstore_createIndex.any.html]
 harness=TIMEOUT
 [IndexedDB/idbobjectstore_delete.any.html]
@@ -976,7 +976,7 @@ harness=TIMEOUT
 [IndexedDB/nested-cloning-small.any.html]
 harness=TIMEOUT
 [IndexedDB/objectstore_keyorder.any.html]
-FAIL=Verify key sort order in an object store is 'number < Date < DOMString' 
+FAIL=Verify key sort order in an object store is 'number < Date < DOMString'
 [IndexedDB/open-request-queue.any.html]
 harness=TIMEOUT
 [IndexedDB/parallel-cursors-upgrade.any.html]
@@ -1060,7 +1060,7 @@ FAIL=number: NaN
 FAIL=object: null
 FAIL=undefined: undefined
 [IndexedDB/structured-clone.any.html?101-last]
-FAIL=Array: 
+FAIL=Array:
 FAIL=Array: 1,2,3
 FAIL=Array: foo,bar
 FAIL=Array: foo,bar,,,,,,,,,true,false,,,,,,,,,123,456,,,,,,,,,
@@ -1087,7 +1087,7 @@ FAIL=number: -5e-324
 FAIL=number: -Infinity
 FAIL=number: Infinity
 FAIL=number: NaN
-FAIL=string: 
+FAIL=string:
 FAIL=string: null( )
 FAIL=string: this is a sample string
 [IndexedDB/structured-clone.any.html?41-60]
@@ -1108,7 +1108,7 @@ FAIL=number: 2147483648
 FAIL=number: 4294967295
 FAIL=number: 5e-324
 FAIL=number: Infinity
-FAIL=string: 
+FAIL=string:
 FAIL=string: null( )
 FAIL=string: this is a sample string
 [IndexedDB/structured-clone.any.html?61-80]
@@ -1130,7 +1130,7 @@ FAIL=RegExp: /abc/gm
 FAIL=RegExp: /abc/i
 FAIL=RegExp: /abc/im
 FAIL=RegExp: /abc/m
-FAIL=Uint8Array: 
+FAIL=Uint8Array:
 FAIL=Uint8Array: 0,1,254,255
 [IndexedDB/structured-clone.any.html?81-100]
 FAIL=Error: Error
