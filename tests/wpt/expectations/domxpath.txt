@@ -1,0 +1,126 @@
+[domxpath/booleans.html]
+FAIL="!=" operator depending on the context node
+FAIL="<" operator depending on the context node
+FAIL="<=" operator depending on the context node
+FAIL="=" operator depending on the context node
+FAIL=">" operator depending on the context node
+FAIL=">=" operator depending on the context node
+FAIL="or" operator depending on the context node
+[domxpath/document.tentative.html]
+FAIL=XPath parent of documentElement
+[domxpath/elements-are-parents-of-their-attributes.html]
+FAIL=Attributes are not children of their parents
+FAIL=Elements are parents of their attributes
+[domxpath/evaluator-constructor.html]
+FAIL=Constructor with 'new'
+FAIL=Constructor without 'new'
+[domxpath/evaluator-cross-realm.tentative.html]
+harness=TIMEOUT
+[domxpath/evaluator-different-document.tentative.html]
+harness=TIMEOUT
+[domxpath/expression-cross-realm.tentative.html]
+harness=TIMEOUT
+[domxpath/expression-different-document.tentative.html]
+harness=TIMEOUT
+[domxpath/fn-concat.html]
+FAIL=concat() arguments depending on the context node
+[domxpath/fn-contains.html]
+FAIL=contains() arguments depending on the context node
+[domxpath/fn-id.html]
+harness=TIMEOUT
+[domxpath/fn-lang.html]
+harness=TIMEOUT
+[domxpath/fn-normalize-space.html]
+FAIL=normalize-space() should handle only #x20, #x9, #xD, and #xA
+FAIL=normalize-space() without arguments
+[domxpath/fn-starts-with.html]
+FAIL=starts-with() arguments depending on the context node
+[domxpath/fn-substring-after.html]
+FAIL=substring-after() arguments depending on the context node
+[domxpath/fn-substring-before.html]
+FAIL=substring-before() arguments depending on the context node
+[domxpath/fn-substring.html]
+FAIL=substring() arguments depending on the context node
+[domxpath/fn-translate.html]
+FAIL=translate() arguments depending on the context node
+[domxpath/lexical-structure.html]
+FAIL=ExprWhitespace: Only #x20 #x9 #xD or #xA must be handled as a whitespace.
+FAIL=Literal: Only ' and " should be handled as literal quotes.
+[domxpath/node-set-tree-order.html]
+FAIL=Temporary node sets created during evaluation must be in tree order
+[domxpath/node-sets.html]
+FAIL=| operator should evaluate both sides of expressions with the same context node
+[domxpath/numbers.html]
+FAIL="*" operator depending on the context node
+FAIL="+" operator depending on the context node
+FAIL="-" operator depending on the context node
+FAIL="div" operator depending on the context node
+FAIL="mod" operator depending on the context node
+[domxpath/predicates.html]
+FAIL=An expression in a predicate should not change the context node
+[domxpath/resolver-callback-interface-cross-realm.tentative.html]
+FAIL=XPathNSResolver is cross-realm callable revoked Proxy
+FAIL=XPathNSResolver is cross-realm non-callable revoked Proxy
+FAIL=XPathNSResolver is cross-realm plain object with non-callable 'lookupNamespaceURI' property
+FAIL=XPathNSResolver is cross-realm plain object with revoked Proxy as 'lookupNamespaceURI' property
+FAIL=XPathNSResolver is cross-realm plain object without 'lookupNamespaceURI' property
+[domxpath/resolver-callback-interface.html]
+FAIL=callable resolver
+FAIL=callable resolver: abrupt completion from Call
+FAIL=callable resolver: no 'lookupNamespaceURI' lookups
+FAIL=callable resolver: result is not cached
+FAIL=object resolver
+FAIL=object resolver: 'lookupNamespaceURI' is falsy and not callable
+FAIL=object resolver: 'lookupNamespaceURI' is not cached
+FAIL=object resolver: 'lookupNamespaceURI' is thruthy and not callable
+FAIL=object resolver: abrupt completion from Get
+FAIL=object resolver: this value and `prefix` argument
+[domxpath/resolver-non-string-result.html]
+FAIL=boolean
+FAIL=null
+FAIL=number
+FAIL=object coercion (abrupt completion)
+FAIL=symbol
+FAIL=undefined
+[domxpath/result-iterateNext.html]
+FAIL=Calling iterateNext after having modified the DOM should throw an exception even if the iterator is exhausted.
+FAIL=Calling iterateNext after having modified the DOM should throw an exception.
+FAIL=Calling iterateNext on a non-iterable XPathResult after modifying the DOM should throw a TypeError.
+FAIL=Calling iterateNext on a non-iterable XPathResult should throw a TypeError.
+FAIL=Using an ordered iterator without modifying the dom should yield the expected elements in correct order without errors.
+FAIL=Using an unordered iterator without modifying the dom should yield the correct number of elements without errors.
+FAIL=invalidIteratorState should be false for non-iterable results.
+[domxpath/text-html-attributes.html]
+FAIL=Select HTML element with non-ascii attribute 1
+FAIL=Select HTML element with non-ascii attribute 2
+FAIL=Select HTML element with non-ascii attribute 3
+FAIL=Select SVG element based on mixed case attribute
+FAIL=Select SVG element with non-ascii attribute 1
+FAIL=Select SVG element with non-ascii attribute 2
+FAIL=Select SVG elements with refX attribute
+FAIL=Select SVG elements with refX attribute incorrect case
+FAIL=Select SVG elements with refX attribute lowercase
+FAIL=Select both HTML and SVG elements based on attribute
+FAIL=Select both HTML and SVG elements based on mixed case attribute
+FAIL=Select html element based on attribute
+FAIL=Select html element based on attribute mixed case
+FAIL=svg element with XLink attribute
+FAIL=xmlns attribute
+[domxpath/text-html-elements.html]
+FAIL=HTML elements mixed case
+FAIL=HTML elements mixed use of prefix
+FAIL=HTML elements namespace prefix
+FAIL=HTML elements no namespace prefix
+FAIL=Non-ascii HTML element
+FAIL=Non-ascii HTML element2
+FAIL=Non-ascii HTML element3
+FAIL=SVG elements mixed case selector
+FAIL=SVG elements namespace prefix
+FAIL=SVG elements no namespace prefix
+FAIL=Throw with invalid prefix
+[domxpath/xml_xpath_runner.html]
+harness=TIMEOUT
+[domxpath/xpath-shadow-dom.html]
+FAIL=XPath //span should find element in Declarative Shadow DOM when evaluated on the element itself
+[domxpath/xpathevaluatorbase-creatensresolver.html]
+harness=TIMEOUT
