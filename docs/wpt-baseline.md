@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-6141 of 271592 subtests pass (2.3%) over 2950 tests.
+6143 of 272700 subtests pass (2.3%) over 3032 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -33,6 +33,23 @@ it is a page that never reported, which almost always means something threw befo
 | `FileAPI/reading-data-section` | 26 | 13 | 0 | 13 | 0 | 48 | 0 | 0.0 |
 | `FileAPI/url` | 15 | 3 | 0 | 12 | 0 | 40 | 12 | 30.0 |
 | `console` | 19 | 12 | 0 | 7 | 0 | 29 | 6 | 20.7 |
+| `cookies` | 3 | 3 | 0 | 0 | 0 | 3 | 1 | 33.3 |
+| `cookies/attributes` | 9 | 3 | 0 | 6 | 0 | 524 | 0 | 0.0 |
+| `cookies/domain` | 5 | 0 | 0 | 5 | 0 | 6 | 0 | 0.0 |
+| `cookies/encoding` | 1 | 0 | 0 | 1 | 0 | 6 | 0 | 0.0 |
+| `cookies/name` | 2 | 0 | 0 | 2 | 0 | 111 | 0 | 0.0 |
+| `cookies/ordering` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
+| `cookies/origin-bound-cookies` | 2 | 1 | 0 | 1 | 0 | 2 | 0 | 0.0 |
+| `cookies/partitioned-cookies` | 7 | 1 | 1 | 5 | 0 | 7 | 0 | 0.0 |
+| `cookies/path` | 2 | 0 | 0 | 2 | 0 | 16 | 0 | 0.0 |
+| `cookies/prefix` | 11 | 5 | 6 | 0 | 0 | 183 | 0 | 0.0 |
+| `cookies/samesite` | 22 | 15 | 0 | 7 | 0 | 119 | 0 | 0.0 |
+| `cookies/samesite-none-secure` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
+| `cookies/schemeful-same-site` | 4 | 2 | 0 | 2 | 0 | 5 | 0 | 0.0 |
+| `cookies/secure` | 6 | 3 | 0 | 3 | 0 | 5 | 1 | 20.0 |
+| `cookies/size` | 2 | 0 | 0 | 2 | 0 | 25 | 0 | 0.0 |
+| `cookies/third-party-cookies` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
+| `cookies/value` | 2 | 0 | 0 | 2 | 0 | 94 | 0 | 0.0 |
 | `cors` | 27 | 20 | 0 | 7 | 0 | 227 | 36 | 15.9 |
 | `custom-elements` | 44 | 25 | 0 | 19 | 0 | 598 | 104 | 17.4 |
 | `custom-elements/form-associated` | 18 | 14 | 3 | 1 | 0 | 103 | 1 | 1.0 |
@@ -139,8 +156,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 584 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 269 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 596 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 296 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -173,6 +190,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'append' of undefined TypeError: cannot read ... | `resource-timing/TAO-match.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'customElements' of undefined TypeError: cann... | `dom/nodes/create-element-realm-after-adoption.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createProcessingInstruction) is not a function TypeErro... | `dom/nodes/Node-isEqualNode-xhtml.xhtml` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (open) is not a function TypeError: undefined (open) is ... | `cookies/domain/domain-attribute-idn-host.sub.https.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: [object Object] Error: undefined at get_stack (@N) at AssertionError (@N) at ... | `dom/nodes/Document-createCDATASection.html` |
 | 1 | ERROR: N duplicate test name: "Should throw TypeError for function "function () { [source unavailable] }"." | `webstorage/missing_arguments.window.html` |
 | 1 | ERROR: N duplicate test name: "sending ND canvas ImageBitmap to http://N.N.N.N:N" | `webmessaging/postMessage_cross_domain_image_transfer_2d.sub.htm` |
@@ -187,7 +205,14 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | ERROR: Test named 'Drag rightward out of a floated block extends the selection forward, not backward to the start of the float's content.' specifie... | `selection/drag-out-of-floated-content.html` |
 | 1 | ERROR: Test named 'Focused element is removed' specified N 'cleanup' function, and N failed. | `selection/selection-focused-element-becomes-nonfocusable.html` |
 | 1 | ERROR: Test named 'HTMLSubmitButtonBehavior properties have correct default values' specified N 'cleanup' function, and N failed. | `custom-elements/form-associated/ElementInternals-submit-behavior.tentative.html` |
+| 1 | ERROR: Test named 'In top-level contexts, partitioned cookies default to the same SameSite attribute as unpartitioned cookies.' specified N 'cleanu... | `cookies/partitioned-cookies/partitioned-cookies-samesite-attribute.https.html` |
 | 1 | ERROR: Test named 'Text with user-select:text is selectable even if it is inside a user-select:none element.' specified N 'cleanup' function, and N... | `selection/drag-selection-extend-to-user-select-none.html` |
+| 1 | ERROR: Test named '__Host-Http: Does not set via HTTP with 'Secure; Path=/'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__Host-Http.https.html` |
+| 1 | ERROR: Test named '__Host: Non-secure origin: Does not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__host.header.html` |
+| 1 | ERROR: Test named '__Host: Secure origin: Does not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__host.header.https.html` |
+| 1 | ERROR: Test named '__Http: Does not set via HTTP with 'Path=/;' (without Secure)' specified N 'cleanup' function, and N failed. | `cookies/prefix/__Http.https.html` |
+| 1 | ERROR: Test named '__Secure: Non-secure origin: Should not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__secure.header.html` |
+| 1 | ERROR: Test named '__Secure: secure origin: Should not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__secure.header.https.html` |
 | 1 | ERROR: Test named 'delegatesFocus shouldn't cause extra focus steps' specified N 'cleanup' function, and N failed. | `shadow-dom/focus/focus-scroll-under-delegatesFocus.html` |
 | 1 | ERROR: Test named 'shadowrootslotassignment=manual is serialized and appears before shadowrootclonable and shadowrootserializable' specified N 'cle... | `shadow-dom/declarative/declarative-shadow-dom-slot-assignment-serialization.html` |
 | 1 | ERROR: Test named 'state selector has influence on nth-of when state is applied' specified N 'cleanup' functions, and N failed. | `custom-elements/state/state-css-selector-nth-of.html` |
@@ -231,14 +256,6 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetDiv is not defined ReferenceError: targetDiv is not def... | `dom/events/scrolling/scrollend-event-fired-for-scroll-attr-change.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetXDiv is not defined ReferenceError: targetXDiv is not d... | `dom/events/scrolling/scrollend-event-fired-to-element-with-overscroll-behavior.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `resize-observer/svg-with-css-box-002.svg` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: expected ')' after a for head (line N) SyntaxError: expected ')'... | `dom/nodes/Document-getElementsByTagName-xhtml.xhtml` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ReadableStream' of undefined TypeError: cann... | `streams/readable-streams/global.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'defaultView' of undefined TypeError: cannot ... | `custom-elements/registries/define.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'querySelector' of null TypeError: cannot rea... | `selection/shadow-dom/cross-shadow-boundary-extend.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `resize-observer/svg.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'set' of undefined TypeError: cannot read pro... | `resource-timing/content-encoding.https.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getElementById) is not a function TypeError: undefined ... | `selection/drag-disabled-textarea-shadow-dom.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getHTML) is not a function TypeError: undefined (getHTM... | `shadow-dom/declarative/gethtml-ordering.html` |
 
 ## Why subtests fail
 
@@ -249,8 +266,8 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 100 | 348 | Test timed out | `FileAPI/FileReader/workers.html` |
-| 80 | 189490 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
+| 123 | 373 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 103 | 189839 | NOTRUN (no message) | `cookies/attributes/invalid.html` |
 | 57 | 1915 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
 | 35 | 514 | Illegal constructor: ReadableStream | `streams/piping/close-propagation-backward.any.html` |
@@ -260,6 +277,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 32 | 64 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 30 | 274 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
+| 28 | 145 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
 | 26 | 1012 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 21 | 393 | KeyframeEffect is not defined | `web-animations/animation-model/animation-types/clamping-001.html` |
@@ -271,7 +289,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
 | 16 | 50 | undefined (createDocument) is not a function | `custom-elements/registries/scoped-registry-initialize-upgrades.html` |
 | 15 | 15 | assert_equals: IntersectionObserverEntryCount expected N but got N | `intersection-observer/scroll-and-root-margin.html` |
-| 15 | 40 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cors/preflight-cache-partitioning.sub.window.html` |
+| 15 | 48 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
 | 14 | 124 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
 | 14 | 136 | DOMParser is not defined | `dom/nodes/Node-normalize.html` |
 | 14 | 42 | FileReader is not defined | `FileAPI/fileReader.any.html` |
@@ -284,6 +302,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 13 | 42 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
+| 13 | 16 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 12 | 114 | TransformStream is not defined | `streams/transferable/transform-stream.html` |
 | 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
 | 12 | 22 | promise_test: Unhandled rejection with value: object "Error: observe_entry: timeout" | `resource-timing/cross-origin-iframe.html` |
@@ -293,6 +312,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
 | 11 | 132 | Observable is not defined | `dom/observable/tentative/observable-catch.any.html` |
 | 11 | 13 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
+| 11 | 58 | promise_test: Unhandled rejection with value: object "Error: Python handlers are not implemented" | `cookies/prefix/__Host-Http.https.html` |
 | 11 | 30 | promise_test: Unhandled rejection with value: object "ReferenceError: KeyframeEffect is not defined" | `web-animations/animation-trigger/event-trigger-before-handlers.tentative.html` |
 | 11 | 23 | promise_test: Unhandled rejection with value: object "TypeError: undefined (moveBefore) is not a function" | `dom/nodes/moveBefore/Node-moveBefore.html` |
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
@@ -300,14 +320,12 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
 | 10 | 96 | cannot read property 'getComputedTiming' of undefined | `web-animations/animation-model/animation-types/discrete.html` |
-| 10 | 13 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
 | 9 | 13 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
 | 9 | 9 | cannot read property 'postMessage' of undefined | `dom/events/EventListener-incumbent-global-1.sub.html` |
 | 9 | 15 | cannot read property 'then' of undefined | `web-animations/animation-model/keyframe-effects/effect-value-context.html` |
-| 9 | 31 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
 | 9 | 10 | promise_test: Unhandled rejection with value: object "TypeError: undefined (addEventListener) is not a function" | `resource-timing/buffer-full-add-then-clear.html` |
 | 9 | 435 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
 | 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
@@ -348,6 +366,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
 | 6 | 6 | undefined (removeSourceBuffer) is not a function | `media-source/SourceBuffer-abort-removed.html` |
 | 6 | 287 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
-| 5 | 5 | DataCloneError: transferring objects is not supported | `FileAPI/blob/Blob-constructor.any.html` |
 
-9186 distinct subtest messages and 104 distinct harness messages behind these numbers.
+9205 distinct subtest messages and 111 distinct harness messages behind these numbers.
