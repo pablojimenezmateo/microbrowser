@@ -153,7 +153,7 @@ harness=TIMEOUT
 [workers/Worker_cross_origin_security_err.htm]
 harness=TIMEOUT
 [workers/Worker_dispatchEvent_ErrorEvent.htm]
-FAIL= ErrorEvent and Worker.dispatchEvent() 
+FAIL= ErrorEvent and Worker.dispatchEvent()
 FAIL=ErrorEvent constructor called as normal function
 [workers/Worker_script_mimetype.htm]
 harness=TIMEOUT
@@ -604,13 +604,13 @@ harness=TIMEOUT
 [workers/postMessage_block.https.html]
 harness=TIMEOUT
 [workers/postMessage_clone_port.htm]
-FAIL= postMessage(): clone a port 
+FAIL= postMessage(): clone a port
 [workers/postMessage_clone_port_error.htm]
-FAIL= postMessage(): cloning source port 
+FAIL= postMessage(): cloning source port
 [workers/postMessage_event_properties.htm]
-FAIL= postMessage(): MessageEvent properties 
+FAIL= postMessage(): MessageEvent properties
 [workers/postMessage_ports_readonly_array.htm]
-FAIL= postMessage(): read-only ports array 
+FAIL= postMessage(): read-only ports array
 [workers/same-origin-check.sub.html]
 harness=TIMEOUT
 [workers/same-site-cookies/first-party.all.tentative.https.window.html]

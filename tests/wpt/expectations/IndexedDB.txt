@@ -1,0 +1,1258 @@
+[IndexedDB/abort-in-initial-upgradeneeded.any.html]
+FAIL=An abort() in the initial onupgradeneeded sets version back to 0
+[IndexedDB/back-forward-cache-open-connection.window.html]
+FAIL=Testing BFCache support for page with open IndexedDB connection, and eviction behavior when receiving versionchange event.
+[IndexedDB/back-forward-cache-open-transaction.window.html]
+FAIL=BFCache support test for page with open IndexedDB transaction
+[IndexedDB/bindings-inject-keys-bypass.any.html]
+FAIL=Returning keys to script should bypass prototype setters
+[IndexedDB/bindings-inject-values-bypass.any.html]
+FAIL=Returning values to script should bypass prototype chain
+FAIL=Returning values to script should bypass prototype setters
+[IndexedDB/blob-composite-blob-reads.any.html]
+harness=TIMEOUT
+[IndexedDB/blob-composite-blob-reads.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/blob-contenttype.any.html]
+FAIL=Ensure that content type round trips when reading blob data
+[IndexedDB/blob-contenttype.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/blob-delete-objectstore-db.any.html]
+harness=TIMEOUT
+[IndexedDB/blob-delete-objectstore-db.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/blob-valid-after-abort.any.html]
+harness=TIMEOUT
+[IndexedDB/blob-valid-after-deletion.any.html]
+FAIL=Blobs stay alive after their records are deleted.
+[IndexedDB/blob-valid-after-deletion.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/blob-valid-before-commit.any.html]
+FAIL=Blobs can be read back before their records are committed.
+[IndexedDB/blob-valid-before-commit.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/clone-before-keypath-eval.any.html]
+FAIL=Blob expando properties are stripped in the clone used for index key path evaluation
+FAIL=Cursor update checks and keypath evaluations operate on a clone
+FAIL=Failing key path validity check operates on a clone
+FAIL=Index key path evaluations operate on a clone
+FAIL=Key generator and key path validity check operates on a clone
+FAIL=Store and index key path evaluations operate on the same clone
+[IndexedDB/close-in-upgradeneeded.any.html]
+FAIL=When db.close() is called in onupgradeneeded, the db is cleaned up on refresh
+[IndexedDB/cursor-overloads.any.html]
+FAIL=Validate the overloads of IDBObjectStore.openCursor(), IDBIndex.openCursor() and IDBIndex.openKeyCursor()
+[IndexedDB/database-names-by-origin.html]
+harness=TIMEOUT
+[IndexedDB/delete-range.any.html]
+harness=TIMEOUT
+[IndexedDB/delete-range.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/error-attributes.any.html]
+FAIL=IDBRequest and IDBTransaction error properties should be DOMExceptions
+[IndexedDB/event-dispatch-active-flag.any.html]
+FAIL=Active during error handlers
+FAIL=Active during error listeners
+FAIL=Active during success handlers
+FAIL=Active during success listeners
+[IndexedDB/file_support.sub.html]
+FAIL=Composed slices of a file can be stored and retrieved from IndexedDB
+FAIL=Saves and loads back File objects from IndexedDB
+FAIL=Sliced file can be stored and retrieved from IndexedDB
+[IndexedDB/fire-error-event-exception.any.html]
+harness=TIMEOUT
+[IndexedDB/fire-success-event-exception.any.html]
+FAIL=Exception in first success event listener, tx active in second
+FAIL=Exception in second success event listener on request
+FAIL=Exception in success event handler on request
+FAIL=Exception in success event listener ("handleEvent" lookup) on request
+FAIL=Exception in success event listener (non-callable "handleEvent") on request
+FAIL=Exception in success event listener on request
+[IndexedDB/fire-upgradeneeded-event-exception.any.html]
+FAIL=Exception in first upgradeneeded listener, tx active in second
+FAIL=Exception in second upgradeneeded listener
+FAIL=Exception in upgradeneeded "handleEvent" lookup
+FAIL=Exception in upgradeneeded due to non-callable "handleEvent"
+FAIL=Exception in upgradeneeded handler
+FAIL=Exception in upgradeneeded listener
+[IndexedDB/get-databases.any.html]
+FAIL=Ensure that databases() doesn't pick up changes that haven't commited.
+FAIL=Ensure that databases() returns a promise.
+FAIL=Enumerate multiple databases.
+FAIL=Enumerate one database.
+FAIL=Make sure an empty list is returned for the case of no databases.
+[IndexedDB/get-databases.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/historical.any.html]
+FAIL="version" should not be supported on IDBVersionChangeEvent.
+[IndexedDB/idb-binary-key-detached.any.html]
+FAIL=Detached ArrayBuffers must throw DataError when used as a key
+FAIL=Detached TypedArrays must throw DataError when used as a key
+[IndexedDB/idb-binary-key-roundtrip.any.html]
+FAIL=ArrayBuffer can be used to supply a binary key
+FAIL=Binary keys can be supplied using the view type Float16Array
+FAIL=Binary keys can be supplied using the view type Float32Array
+FAIL=Binary keys can be supplied using the view type Float64Array
+FAIL=Binary keys can be supplied using the view type Int16Array
+FAIL=Binary keys can be supplied using the view type Int32Array
+FAIL=Binary keys can be supplied using the view type Int8Array
+FAIL=Binary keys can be supplied using the view type Uint16Array
+FAIL=Binary keys can be supplied using the view type Uint32Array
+FAIL=Binary keys can be supplied using the view type Uint8Array
+FAIL=Binary keys can be supplied using the view type Uint8ClampedArray
+FAIL=DataView can be used to supply a binary key
+FAIL=DataView with explicit offset and length can be used to supply a binary key
+FAIL=DataView with explicit offset can be used to supply a binary key
+FAIL=Uint8Array with explicit offset and length can be used to supply a binary key
+FAIL=Uint8Array with explicit offset can be used to supply a binary key
+[IndexedDB/idb-explicit-commit-throw.any.html]
+FAIL=Any errors in callbacks that run after an explicit commit will not stop the commit from being processed.
+[IndexedDB/idb-explicit-commit-throw.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idb-explicit-commit.any.html]
+FAIL=A committed transaction becomes inactive immediately.
+FAIL=A committed transaction is inactive in future request callbacks.
+FAIL=Calling abort on a committed transaction throws and does not prevent persisting the data.
+FAIL=Calling commit on a committed transaction throws.
+FAIL=Calling commit on an aborted transaction throws.
+FAIL=Calling txn.commit() when txn is inactive should throw.
+FAIL=Explicitly committed data can be read back out.
+FAIL=Puts issued after commit are not fulfilled.
+FAIL=Transactions that explicitly commit and have errors should abort.
+FAIL=Transactions that handle all errors properly should behave as expected when an explicit commit is called in an onerror handler.
+FAIL=Transactions with same scope should stay in program order, even if one calls commit.
+FAIL=commit() on a version change transaction does not cause errors.
+[IndexedDB/idb-explicit-commit.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idb-partitioned-basic.sub.html]
+harness=TIMEOUT
+[IndexedDB/idb-partitioned-coverage.sub.html]
+harness=TIMEOUT
+[IndexedDB/idb-partitioned-persistence.sub.html]
+harness=TIMEOUT
+[IndexedDB/idb_binary_key_conversion.any.html]
+FAIL=Array of TypedArray(Int8Array)
+FAIL=ArrayBuffer
+FAIL=DataView
+FAIL=Empty ArrayBuffer
+FAIL=TypedArray(Int8Array)
+[IndexedDB/idb_webworkers.htm]
+harness=TIMEOUT
+[IndexedDB/idbcursor-advance-continue-async.any.html]
+FAIL=IDBCursor asyncness - advance
+FAIL=IDBCursor asyncness - continue
+FAIL=IDBCursor asyncness - fresh advance still async
+FAIL=IDBCursor asyncness - fresh continue still async
+[IndexedDB/idbcursor-advance-exception-order.any.html]
+FAIL=IDBCursor.advance exception order: TransactionInactiveError vs. InvalidStateError #1
+FAIL=IDBCursor.advance exception order: TransactionInactiveError vs. InvalidStateError #2
+FAIL=IDBCursor.advance exception order: TypeError vs. TransactionInactiveError
+[IndexedDB/idbcursor-advance-invalid.any.html]
+FAIL=IDBCursor.advance() - invalid - attempt to call advance twice
+FAIL=IDBCursor.advance() - invalid - got value not set on exception
+FAIL=IDBCursor.advance() - invalid - missing argument
+FAIL=IDBCursor.advance() - invalid - pass negative numbers
+FAIL=IDBCursor.advance() - invalid - pass null/undefined
+FAIL=IDBCursor.advance() - invalid - pass something other than number
+[IndexedDB/idbcursor-advance.any.html]
+FAIL=IDBCursor.advance() - advances
+FAIL=IDBCursor.advance() - advances backwards
+FAIL=IDBCursor.advance() - skip far forward
+FAIL=IDBCursor.advance() - within range
+FAIL=IDBCursor.advance() - within single key range
+FAIL=IDBCursor.advance() - within single key range, with several results
+[IndexedDB/idbcursor-continue-exception-order.any.html]
+harness=TIMEOUT
+[IndexedDB/idbcursor-continue.any.html]
+FAIL=IDBCursor.continue() - continues
+FAIL=IDBCursor.continue() - continues in prev direction
+FAIL=IDBCursor.continue() - skip far forward
+FAIL=IDBCursor.continue() - with given key
+FAIL=IDBCursor.continue() - with given key in prev direction
+FAIL=IDBCursor.continue() - within range
+FAIL=IDBCursor.continue() - within single key range
+FAIL=IDBCursor.continue() - within single key range, with several results
+[IndexedDB/idbcursor-continuePrimaryKey-exception-order.any.html]
+FAIL=DataError(keys are larger then current one) in 'prev' direction
+FAIL=DataError(keys are lower then current one) in 'next' direction
+FAIL=DataError(unset key)
+FAIL=DataError(unset primary key)
+FAIL=InvalidAccessError(incorrect direction) v.s. InvalidStateError(iteration complete)
+FAIL=InvalidAccessError(incorrect direction) v.s. InvalidStateError(iteration ongoing)
+FAIL=InvalidAccessError(incorrect source) v.s. InvalidStateError(iteration complete)
+FAIL=InvalidAccessError(incorrect source) v.s. InvalidStateError(iteration ongoing)
+FAIL=InvalidStateError(deleted source) v.s. InvalidAccessError(incorrect direction)
+FAIL=InvalidStateError(deleted source) v.s. InvalidAccessError(incorrect source)
+FAIL=InvalidStateError(iteration complete) v.s. DataError(unset key)
+FAIL=InvalidStateError(iteration ongoing) v.s. DataError(unset key)
+FAIL=TransactionInactiveError v.s. InvalidStateError(deleted index)
+[IndexedDB/idbcursor-continuePrimaryKey-exceptions.any.html]
+FAIL=IDBCursor continuePrimaryKey() on "nextunique" cursor
+FAIL=IDBCursor continuePrimaryKey() on "prevunique" cursor
+FAIL=IDBCursor continuePrimaryKey() on object store cursor
+[IndexedDB/idbcursor-continuePrimaryKey.any.html]
+FAIL=IDBCursor.continuePrimaryKey() with "prev" direction
+FAIL=IndexedDB: IDBCursor method continuePrimaryKey()
+[IndexedDB/idbcursor-delete-exception-order.any.html]
+FAIL=IDBCursor.delete exception order: ReadOnlyError vs. InvalidStateError #1
+FAIL=IDBCursor.delete exception order: ReadOnlyError vs. InvalidStateError #2
+FAIL=IDBCursor.delete exception order: TransactionInactiveError vs. ReadOnlyError
+[IndexedDB/idbcursor-direction-index-keyrange.any.html]
+FAIL=IDBCursor direction - index with keyrange - next
+FAIL=IDBCursor direction - index with keyrange - nextunique
+FAIL=IDBCursor direction - index with keyrange - prev
+FAIL=IDBCursor direction - index with keyrange - prevunique
+[IndexedDB/idbcursor-direction-index.any.html]
+FAIL=IDBCursor direction - index - next
+FAIL=IDBCursor direction - index - nextunique
+FAIL=IDBCursor direction - index - prev
+FAIL=IDBCursor direction - index - prevunique
+[IndexedDB/idbcursor-direction-objectstore-keyrange.any.html]
+FAIL=IDBCursor direction - object store with keyrange - next
+FAIL=IDBCursor direction - object store with keyrange - nextunique
+FAIL=IDBCursor direction - object store with keyrange - prev
+FAIL=IDBCursor direction - object store with keyrange - prevunique
+[IndexedDB/idbcursor-direction-objectstore.any.html]
+FAIL=IDBCursor direction - object store - next
+FAIL=IDBCursor direction - object store - nextunique
+FAIL=IDBCursor direction - object store - prev
+FAIL=IDBCursor direction - object store - prevunique
+[IndexedDB/idbcursor-direction.any.html]
+FAIL=IDBCursor.direction - undefined
+[IndexedDB/idbcursor-iterating-update.any.html]
+harness=ERROR
+[IndexedDB/idbcursor-key.any.html]
+FAIL=IDBCursor.key
+FAIL=IDBCursor.key 1
+FAIL=IDBCursor.key 2
+[IndexedDB/idbcursor-primarykey.any.html]
+FAIL=IDBCursor.primaryKey
+FAIL=IDBCursor.primaryKey 1
+FAIL=IDBCursor.primaryKey 2
+[IndexedDB/idbcursor-request-source.any.html]
+FAIL=IDBIndex::openCursor's request source must be the IDBIndex instance that opened the cursor
+FAIL=IDBIndex::openKeyCursor's request source must be the IDBIndex instance that opened the cursor
+FAIL=IDBObjectStore::openCursor's request source must be the IDBObjectStore instance that opened the cursor
+FAIL=IDBObjectStore::openKeyCursor's request source must be the IDBObjectStore instance that opened the cursor
+FAIL=The source of the request from IDBIndex::delete() is the cursor itself
+FAIL=The source of the request from IDBIndex::update() is the cursor itself
+FAIL=The source of the request from IDBObjectStore::delete() is the cursor itself
+FAIL=The source of the request from IDBObjectStore::update() is the cursor itself
+[IndexedDB/idbcursor-request.any.html]
+FAIL=cursor.request from IDBIndex.openCursor
+FAIL=cursor.request from IDBIndex.openKeyCursor
+FAIL=cursor.request from IDBObjectStore.openCursor
+FAIL=cursor.request from IDBObjectStore.openKeyCursor
+[IndexedDB/idbcursor-request.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idbcursor-reused.any.html]
+FAIL=IDBCursor is reused
+[IndexedDB/idbcursor-source.any.html]
+FAIL=IDBCursor.source - IDBIndex
+FAIL=IDBCursor.source - IDBObjectStore
+[IndexedDB/idbcursor-update-exception-order.any.html]
+FAIL=IDBCursor.update exception order: InvalidStateError vs. DataError
+FAIL=IDBCursor.update exception order: ReadOnlyError vs. InvalidStateError #1
+FAIL=IDBCursor.update exception order: ReadOnlyError vs. InvalidStateError #2
+FAIL=IDBCursor.update exception order: TransactionInactiveError vs. ReadOnlyError
+[IndexedDB/idbcursor_advance_index.any.html]
+FAIL=Calling advance() should throw DOMException when the cursor is currently being iterated.
+FAIL=Calling advance() should throws an exception TransactionInactiveError when the transaction is not active.
+FAIL=Calling advance() with count argument 0 should throw TypeError.
+FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
+FAIL=attempt to pass a count parameter that is not a number
+FAIL=index - attempt to advance backwards
+FAIL=index - iterate cursor number of times specified by count
+FAIL=index - iterate to the next record
+[IndexedDB/idbcursor_advance_objectstore.any.html]
+FAIL=Calling advance() should throw DOMException when the cursor is currently being iterated.
+FAIL=Calling advance() should throws an exception TransactionInactiveError when the transaction is not active
+FAIL=Calling advance() with count argument 0 should throw TypeError.
+FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
+FAIL=object store - iterate cursor number of times specified by count
+[IndexedDB/idbcursor_continue_delete_objectstore.any.html]
+FAIL=Object store - remove a record from the object store while iterating cursor
+[IndexedDB/idbcursor_continue_index.any.html]
+FAIL=Add next element, and iterate to it
+FAIL=Attempt to iterate to the next record when the direction is set for the previous record
+FAIL=Attempt to iterate to the previous record when the direction is set for the next record
+FAIL=Attempt to pass a key parameter that is not a valid key
+FAIL=Calling continue() should throw an exception TransactionInactiveError when the transaction is not active.
+FAIL=Delete next element, and iterate to it
+FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
+FAIL=Iterate to the next record
+FAIL=Iterate using 'prevunique'
+FAIL=Iterate using nextunique
+[IndexedDB/idbcursor_continue_invalid.any.html]
+FAIL=Attempt to call continue two times
+[IndexedDB/idbcursor_continue_objectstore.any.html]
+FAIL=Add next element, and iterate to it
+FAIL=Attempt to iterate to the next record when the direction is set for the next record
+FAIL=Attempt to iterate to the previous record when the direction is set for the next record
+FAIL=Attempt to pass a key parameter is not a valid key
+FAIL=Calling continue() should throws an exception TransactionInactiveError when the transaction is not active.
+FAIL=Delete next element, and iterate to it
+FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
+FAIL=Iterate to the next record
+[IndexedDB/idbcursor_delete_index.any.html]
+FAIL=Attempt to remove a record in a read-only transaction
+FAIL=Attempt to remove a record in an inactive transaction
+FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
+FAIL=Remove a record from the object store
+FAIL=Throw InvalidStateError when the cursor is being iterated
+[IndexedDB/idbcursor_delete_objectstore.any.html]
+FAIL=Attempt to remove a record in a read-only transaction
+FAIL=If the cursor's source or effective object store has been deleted, the implementation MUST throw a DOMException of type InvalidStateError
+FAIL=Index - attempt to remove a record in an inactive transaction
+FAIL=Remove a record from the object store 
+FAIL=Throw InvalidStateError when the cursor is being iterated
+[IndexedDB/idbcursor_iterating.any.html]
+FAIL=Iterate and Delete elements
+[IndexedDB/idbcursor_update_index.any.html]
+FAIL=Attempt to modify a record after the cursor's source or effective object store has been deleted. The implementation MUST throw a DOMException of type InvalidStateError
+FAIL=Attempt to modify a record in a read-only transaction
+FAIL=Attempt to modify a record in an inactive transaction
+FAIL=Modify a record in the object store 
+FAIL=Modify records during cursor iteration and verify updated records
+FAIL=No argument
+FAIL=Throw DataCloneError
+FAIL=Throw DataError
+FAIL=Throw InvalidStateError when the cursor is being iterated
+[IndexedDB/idbcursor_update_objectstore.any.html]
+FAIL=Attempt to modify a record after the cursor's source or effective object store has been deleted. The implementation MUST throw a DOMException of type InvalidStateError
+FAIL=Attempt to modify a record in a read-only transaction
+FAIL=Index - modify a record in the object store 
+FAIL=Modify a record in the object store 
+FAIL=No argument
+FAIL=Object store - attempt to modify a record in an inactive transaction
+FAIL=Throw DataCloneError
+FAIL=Throw DataError
+FAIL=Throw InvalidStateError when the cursor is being iterated
+[IndexedDB/idbdatabase-createObjectStore-exception-order.any.html]
+FAIL=IDBDatabase.createObjectStore exception order: ConstraintError vs. InvalidAccessError
+FAIL=IDBDatabase.createObjectStore exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBDatabase.createObjectStore exception order: SyntaxError vs. ConstraintError
+FAIL=IDBDatabase.createObjectStore exception order: TransactionInactiveError vs. SyntaxError
+[IndexedDB/idbdatabase-deleteObjectStore-exception-order.any.html]
+FAIL=IDBDatabase.deleteObjectStore exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBDatabase.deleteObjectStore exception order: TransactionInactiveError vs. NotFoundError
+[IndexedDB/idbdatabase-transaction-exception-order.any.html]
+FAIL=IDBDatabase.transaction exception order: InvalidStateError vs. InvalidAccessError
+FAIL=IDBDatabase.transaction exception order: InvalidStateError vs. NotFoundError
+FAIL=IDBDatabase.transaction exception order: NotFoundError vs. TypeError
+FAIL=IDBDatabase.transaction throws exception on invalid mode
+[IndexedDB/idbdatabase_close.any.html]
+FAIL=Unblock the delete database request.
+FAIL=Unblock the version change transaction created by an open database request
+[IndexedDB/idbdatabase_createObjectStore.any.html]
+FAIL=Attempt to create an object store outside of a version change transaction 
+FAIL=Attempt to create an object store that already exists 
+FAIL=Attempt to create an object store with an invalid key path 
+FAIL=Attempting to create an existing object store with a different keyPath throw ConstraintError 
+FAIL=Both with empty name
+FAIL=Create 1000 object stores, add one item and delete
+FAIL=Create an object store with an unknown optional parameter 
+FAIL=Empty name
+FAIL=Object store 'name' and 'keyPath' properties are correctly set 
+FAIL=Object store's name appears in database's list 
+FAIL=Returns an instance of IDBObjectStore
+FAIL=autoInc and empty keyPath
+FAIL=autoInc and keyPath array
+FAIL=autoInc and keyPath array 2
+FAIL=autoInc and keyPath object
+FAIL=autoInc false, keyPath array
+FAIL=autoInc false, keyPath empty
+FAIL=autoInc false, keyPath string
+FAIL=autoInc true
+FAIL=autoInc true, keyPath null
+FAIL=autoInc true, keyPath string
+FAIL=autoInc true, keyPath undefined
+FAIL=keyPath array
+FAIL=keyPath empty
+FAIL=keyPath null
+FAIL=keyPath string
+FAIL=keyPath undefined
+[IndexedDB/idbdatabase_deleteObjectStore.any.html]
+FAIL=Attempting to access an index that was deleted as part of object store deletion and then recreated using the same object store name should throw a NotFoundError
+FAIL=Attempting to remove an object store that does not exist should throw a NotFoundError
+FAIL=Deleted object store's name should be removed from database's list. Attempting to use a deleted IDBObjectStore should throw an InvalidStateError
+[IndexedDB/idbdatabase_transaction.any.html]
+FAIL=Attempt to open a transaction from closed database connection
+FAIL=Attempt to open a transaction with invalid mode
+FAIL=Attempt to open a transaction with invalid scope
+FAIL=If storeNames is an empty list, the implementation must throw a DOMException of type InvalidAccessError
+FAIL=Opening a transaction defaults to a read-only mode
+[IndexedDB/idbfactory-databases-opaque-origin.html]
+harness=TIMEOUT
+[IndexedDB/idbfactory-deleteDatabase-opaque-origin.html]
+harness=TIMEOUT
+[IndexedDB/idbfactory-open-error-properties.any.html]
+FAIL=Properties of error event from failed open()
+[IndexedDB/idbfactory-open-opaque-origin.html]
+harness=TIMEOUT
+[IndexedDB/idbfactory-open-request-error.any.html]
+FAIL=Properties of IDBOpenDBRequest during failed IDBFactory open()
+[IndexedDB/idbfactory-open-request-success.any.html]
+FAIL=Properties of IDBOpenDBRequest during successful IDBFactory open()
+[IndexedDB/idbfactory-origin-isolation.html]
+FAIL=Test to make sure that origins have separate locking schemes
+[IndexedDB/idbfactory_cmp.any.html]
+FAIL=Array vs. Binary
+FAIL=Binary vs. String
+FAIL=Compare in unsigned octet values (in the range [0, 255])
+FAIL=Compare values of different lengths
+FAIL=Compare values of the same length
+FAIL=Compare when values in the range of their minimal length are the same
+FAIL=Date vs. Number
+FAIL=IDBFactory.cmp() - NaN
+FAIL=IDBFactory.cmp() - compared keys return correct value
+FAIL=IDBFactory.cmp() - no argument
+FAIL=IDBFactory.cmp() - null
+FAIL=String vs. Date
+[IndexedDB/idbfactory_deleteDatabase.any.html]
+FAIL=Result of the deleteDatabase() request is set to undefined.
+FAIL=The deleteDatabase() request's success event is an IDBVersionChangeEvent.
+FAIL=deleteDatabase() request should have no source, and deleting a non-existent database should succeed with oldVersion of 0.
+[IndexedDB/idbfactory_open.any.html]
+FAIL=Calling open() with version argument "foo" should throw TypeError.
+FAIL=Calling open() with version argument -0.5 should throw TypeError.
+FAIL=Calling open() with version argument -1 should throw TypeError.
+FAIL=Calling open() with version argument -Infinity should throw TypeError.
+FAIL=Calling open() with version argument 0 should throw TypeError.
+FAIL=Calling open() with version argument 0.5 should throw TypeError.
+FAIL=Calling open() with version argument 0.8 should throw TypeError.
+FAIL=Calling open() with version argument 1.5 should not throw.
+FAIL=Calling open() with version argument 9007199254740991 should not throw.
+FAIL=Calling open() with version argument 9007199254740992 should throw TypeError.
+FAIL=Calling open() with version argument Infinity should throw TypeError.
+FAIL=Calling open() with version argument NaN should throw TypeError.
+FAIL=Calling open() with version argument false should throw TypeError.
+FAIL=Calling open() with version argument null should throw TypeError.
+FAIL=Calling open() with version argument object (second) should throw TypeError.
+FAIL=Calling open() with version argument object (third) should throw TypeError.
+FAIL=Calling open() with version argument object should throw TypeError.
+FAIL=Calling open() with version argument undefined should not throw.
+FAIL=IDBFactory.open() - database 'name' and 'version' are correctly set
+FAIL=IDBFactory.open() - error in upgradeneeded resets db
+FAIL=IDBFactory.open() - error in version change transaction aborts open
+FAIL=IDBFactory.open() - new database has default version
+FAIL=IDBFactory.open() - new database is empty
+FAIL=IDBFactory.open() - no version opens current database
+FAIL=IDBFactory.open() - open database with a higher version than current
+FAIL=IDBFactory.open() - open database with a lower version than current
+FAIL=IDBFactory.open() - request has no source
+FAIL=IDBFactory.open() - second open's transaction is available to get objectStores
+FAIL=IDBFactory.open() - upgradeneeded gets VersionChangeEvent
+[IndexedDB/idbindex-cross-realm-methods.html]
+harness=TIMEOUT
+[IndexedDB/idbindex-getAll-enforcerange.any.html]
+harness=TIMEOUT
+[IndexedDB/idbindex-getAllKeys-enforcerange.any.html]
+harness=TIMEOUT
+[IndexedDB/idbindex-multientry.any.html]
+FAIL=A 1000 entry multiEntry array
+FAIL=Adding keys
+FAIL=Array keyPath with multiEntry
+[IndexedDB/idbindex-query-exception-order.any.html]
+FAIL=IDBIndex.count exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBIndex.count exception order: TransactionInactiveError vs. DataError
+FAIL=IDBIndex.get exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBIndex.get exception order: TransactionInactiveError vs. DataError
+FAIL=IDBIndex.getAll exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBIndex.getAll exception order: TransactionInactiveError vs. DataError
+FAIL=IDBIndex.getAllKeys exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBIndex.getAllKeys exception order: TransactionInactiveError vs. DataError
+FAIL=IDBIndex.openCursor exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBIndex.openCursor exception order: TransactionInactiveError vs. DataError
+FAIL=IDBIndex.openKeyCursor exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBIndex.openKeyCursor exception order: TransactionInactiveError vs. DataError
+[IndexedDB/idbindex-rename-abort.any.html]
+FAIL=IndexedDB index creation and rename in an aborted transaction
+FAIL=IndexedDB index rename in aborted transaction
+[IndexedDB/idbindex-rename-errors.any.html]
+FAIL=IndexedDB deleted index rename throws
+FAIL=IndexedDB index rename handles exceptions when stringifying names
+FAIL=IndexedDB index rename throws in a readonly transaction
+FAIL=IndexedDB index rename throws in a readwrite transaction
+FAIL=IndexedDB index rename throws in an inactive transaction
+FAIL=IndexedDB index rename to the name of another index throws
+[IndexedDB/idbindex-rename.any.html]
+FAIL=IndexedDB index can be renamed to ""
+FAIL=IndexedDB index can be renamed to "\u0000"
+FAIL=IndexedDB index can be renamed to "\uDC00\uD800"
+FAIL=IndexedDB index rename in new transaction
+FAIL=IndexedDB index rename in the transaction where it is created
+FAIL=IndexedDB index rename stringifies non-string names
+FAIL=IndexedDB index rename to the name of a deleted index succeeds
+FAIL=IndexedDB index rename to the same name succeeds
+FAIL=IndexedDB index swapping via renames succeeds
+[IndexedDB/idbindex-request-source.any.html]
+harness=ERROR
+[IndexedDB/idbindex_count.any.html]
+FAIL=count() returns the number of records in the index
+FAIL=count() returns the number of records that have keys with the key
+FAIL=count() returns the number of records that have keys within the range
+FAIL=count() throws DataError when using invalid key
+[IndexedDB/idbindex_get.any.html]
+FAIL=get() attempts to retrieve a record that does not exist
+FAIL=get() returns the record
+FAIL=get() returns the record where the index contains duplicate values
+FAIL=get() returns the record with the first key in the range
+FAIL=get() throws DataError when using invalid key
+FAIL=get() throws InvalidStateError on index deleted by aborted upgrade
+FAIL=get() throws InvalidStateError when the index is deleted
+FAIL=get() throws TransactionInactiveError on aborted transaction
+[IndexedDB/idbindex_getAll-options.any.html]
+FAIL=Empty object store
+FAIL=Get all
+FAIL=Get all with generated keys
+FAIL=Get all with large values
+FAIL=Single item get
+FAIL=maxCount=10
+[IndexedDB/idbindex_getAll.any.html]
+FAIL=Get all with generated keys
+FAIL=Single item get
+FAIL=maxCount=10
+[IndexedDB/idbindex_getAllKeys-options.any.html]
+FAIL=Empty object store
+FAIL=Get all generated keys
+FAIL=Get all keys
+FAIL=Single item get
+FAIL=maxCount=10
+[IndexedDB/idbindex_getAllKeys.any.html]
+FAIL=Empty object store
+FAIL=Get all generated keys
+FAIL=Get all keys
+FAIL=Single item get
+FAIL=maxCount=10
+[IndexedDB/idbindex_getAllRecords.any.html]
+FAIL=Count
+FAIL=Empty index
+FAIL=Get all records
+FAIL=Get all records with empty options
+FAIL=Get all records with large value
+FAIL=Single item
+[IndexedDB/idbindex_getKey.any.html]
+FAIL=getKey() attempt to retrieve the primary key of a record that doesn't exist
+FAIL=getKey() returns the key of the first record within the range
+FAIL=getKey() returns the record's primary key
+FAIL=getKey() returns the record's primary key where the index contains duplicate values
+FAIL=getKey() throws DataError when using invalid key
+FAIL=getKey() throws InvalidStateError on index deleted by aborted upgrade
+FAIL=getKey() throws InvalidStateError when the index is deleted
+FAIL=getKey() throws TransactionInactiveError on aborted transaction
+[IndexedDB/idbindex_indexNames.any.html]
+FAIL=Verify IDBObjectStore.indexNames property
+[IndexedDB/idbindex_keyPath.any.html]
+FAIL=IDBIndex's keyPath array with a single value
+FAIL=IDBIndex's keyPath array with multiple values
+[IndexedDB/idbindex_keyPath.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idbindex_openCursor.any.html]
+FAIL=If the index is deleted by an aborted upgrade, throw InvalidStateError
+FAIL=If the index is deleted, throw InvalidStateError
+FAIL=If the transaction has been aborted, throw TransactionInactiveError
+[IndexedDB/idbindex_openKeyCursor.any.html]
+FAIL=Throw DataError when using a invalid key
+FAIL=Throw InvalidStateError on index deleted by aborted upgrade
+FAIL=Throw InvalidStateError when the index is deleted
+FAIL=Throw TransactionInactiveError on aborted transaction
+[IndexedDB/idbindex_reverse_cursor.any.html]
+harness=TIMEOUT
+[IndexedDB/idbindex_reverse_cursor.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idbindex_tombstones.any.html]
+FAIL=Backward iteration over an index in a readonly transaction
+FAIL=Backward iteration over an index in a readwrite transaction
+FAIL=Forward iteration over an index in a readonly transaction
+FAIL=Forward iteration over an index in a readwrite transaction
+[IndexedDB/idbindex_tombstones.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idbkeyrange-includes.any.html]
+FAIL=IDBKeyRange.includes() with a closed range
+FAIL=IDBKeyRange.includes() with a lower-closed upper-open range
+FAIL=IDBKeyRange.includes() with a lower-open upper-closed range
+FAIL=IDBKeyRange.includes() with an closed lower-bounded range
+FAIL=IDBKeyRange.includes() with an closed upper-bounded range
+FAIL=IDBKeyRange.includes() with an only range
+FAIL=IDBKeyRange.includes() with an open lower-bounded range
+FAIL=IDBKeyRange.includes() with an open range
+FAIL=IDBKeyRange.includes() with an open upper-bounded range
+FAIL=IDBKeyRange.includes() with invalid input
+FAIL=IDBKeyRange.includes() with non-numeric keys
+[IndexedDB/idbkeyrange.any.html]
+FAIL=IDBKeyRange.bound() - 'lowerOpen' and 'upperOpen' parameters have correct defaults set
+FAIL=IDBKeyRange.bound() - returns an IDBKeyRange and the properties are set correctly
+FAIL=IDBKeyRange.lowerBound() - 'open' parameter has correct default set
+FAIL=IDBKeyRange.lowerBound() - returns an IDBKeyRange and the properties are set correctly
+FAIL=IDBKeyRange.lowerBound() - throws on invalid keys
+FAIL=IDBKeyRange.only() - throws on invalid keys
+FAIL=IDBKeyRange.upperBound() - 'open' parameter has correct default set
+FAIL=IDBKeyRange.upperBound() - returns an IDBKeyRange and the properties are set correctly
+FAIL=IDBKeyRange.upperBound() - throws on invalid keys
+[IndexedDB/idbkeyrange_incorrect.any.html]
+FAIL=IDBKeyRange.bound() - bound requires more than 0 arguments.
+FAIL=IDBKeyRange.bound(1, null / null, 1) - null parameter is incorrect.
+FAIL=IDBKeyRange.bound(DOMString/Date/Array, 1) - A DOMString, Date and Array are greater than a float.
+FAIL=IDBKeyRange.bound(lower, upper / lower > upper) - lower' is greater than 'upper'.
+FAIL=IDBKeyRange.bound(noExistingVariable, 1 / goodVariable, noExistingVariable) -    noExistingVariable is not defined.
+FAIL=IDBKeyRange.bound(null, null) - null parameters are incorrect.
+FAIL=IDBKeyRange.bound(true, 1) - boolean is not a valid key type.
+[IndexedDB/idbobjectstore-add-put-exception-order.any.html]
+FAIL=IDBObjectStore.add exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.add exception order: ReadOnlyError vs. DataError
+FAIL=IDBObjectStore.add exception order: TransactionInactiveError vs. ReadOnlyError
+FAIL=IDBObjectStore.put exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.put exception order: ReadOnlyError vs. DataError
+FAIL=IDBObjectStore.put exception order: TransactionInactiveError vs. ReadOnlyError
+[IndexedDB/idbobjectstore-clear-exception-order.any.html]
+FAIL=IDBObjectStore.clear exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.clear exception order: TransactionInactiveError vs. ReadOnlyError
+[IndexedDB/idbobjectstore-cross-realm-methods.html]
+harness=TIMEOUT
+[IndexedDB/idbobjectstore-delete-exception-order.any.html]
+FAIL=IDBObjectStore.delete exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.delete exception order: ReadOnlyError vs. DataError
+FAIL=IDBObjectStore.delete exception order: TransactionInactiveError vs. ReadOnlyError
+[IndexedDB/idbobjectstore-deleteIndex-exception-order.any.html]
+FAIL=IDBObjectStore.deleteIndex exception order: InvalidStateError #1 vs. TransactionInactiveError
+FAIL=IDBObjectStore.deleteIndex exception order: InvalidStateError #2 vs. TransactionInactiveError
+FAIL=IDBObjectStore.deleteIndex exception order: TransactionInactiveError vs. NotFoundError
+[IndexedDB/idbobjectstore-getAll-enforcerange.any.html]
+FAIL=IDBObjectStore.getAll() uses [EnforceRange]
+[IndexedDB/idbobjectstore-getAllKeys-enforcerange.any.html]
+FAIL=IDBObjectStore.getAllKeys() uses [EnforceRange]
+[IndexedDB/idbobjectstore-index-finished.any.html]
+FAIL=IDBObjectStore index() behavior when transaction is finished
+[IndexedDB/idbobjectstore-put-unique-index-constraint-is-atomic.any.html]
+FAIL=A put() that fails a unique index constraint must not delete the record it would have overwritten
+[IndexedDB/idbobjectstore-query-exception-order.any.html]
+FAIL=IDBObjectStore.count exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.count exception order: TransactionInactiveError vs. DataError
+FAIL=IDBObjectStore.get exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.get exception order: TransactionInactiveError vs. DataError
+FAIL=IDBObjectStore.getAll exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.getAll exception order: TransactionInactiveError vs. DataError
+FAIL=IDBObjectStore.getAllKeys exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.getAllKeys exception order: TransactionInactiveError vs. DataError
+FAIL=IDBObjectStore.openCursor exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.openCursor exception order: TransactionInactiveError vs. DataError
+FAIL=IDBObjectStore.openKeyCursor exception order: InvalidStateError vs. TransactionInactiveError
+FAIL=IDBObjectStore.openKeyCursor exception order: TransactionInactiveError vs. DataError
+[IndexedDB/idbobjectstore-rename-abort.any.html]
+FAIL=IndexedDB object store creation and rename in an aborted transaction
+FAIL=IndexedDB object store rename in aborted transaction
+[IndexedDB/idbobjectstore-rename-errors.any.html]
+FAIL=IndexedDB deleted object store rename throws
+FAIL=IndexedDB object store rename handles exceptions when stringifying names
+FAIL=IndexedDB object store rename throws in a readonly transaction
+FAIL=IndexedDB object store rename throws in a readwrite transaction
+FAIL=IndexedDB object store rename throws in an inactive transaction
+FAIL=IndexedDB object store rename to the name of another store throws
+[IndexedDB/idbobjectstore-rename-store.any.html]
+FAIL=IndexedDB object store can be renamed to ""
+FAIL=IndexedDB object store can be renamed to "\u0000"
+FAIL=IndexedDB object store can be renamed to "\uDC00\uD800"
+FAIL=IndexedDB object store rename covers index
+FAIL=IndexedDB object store rename covers key generator
+FAIL=IndexedDB object store rename in new transaction
+FAIL=IndexedDB object store rename in the transaction where it is created
+FAIL=IndexedDB object store rename stringifies non-string names
+FAIL=IndexedDB object store rename to the name of a deleted store succeeds
+FAIL=IndexedDB object store rename to the same name succeeds
+FAIL=IndexedDB object store swapping via renames succeeds
+[IndexedDB/idbobjectstore-request-source.any.html]
+harness=ERROR
+[IndexedDB/idbobjectstore_add.any.html]
+FAIL=Attempt to 'add()' a record that does not meet the constraints of an   object store's inline key requirements
+FAIL=Attempt to 'add()' a record where the out of line key provided does not meet the constraints of a valid key
+FAIL=Attempt to 'add()' a record where the record's in-line key is not  defined
+FAIL=Attempt to 'add()' a record where the record's key does not meet the constraints of a valid key
+FAIL=Attempt to call 'add()' without a key parameter when the object store uses out-of-line keys
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError
+FAIL=If the transaction this IDBObjectStore belongs to has its mode set to readonly, throw ReadOnlyError
+FAIL=Object store has autoIncrement:true and the key path is an object attribute
+FAIL=add() a record where a value being indexed does not meet the constraints of a valid key
+FAIL=add() autoIncrement and inline keys
+FAIL=add() autoIncrement and out-of-line keys
+FAIL=add() object store's key path is an object attribute
+FAIL=add() record with same key already exists
+FAIL=add() where an index has unique:true specified
+FAIL=add() with an inline key
+FAIL=add() with an out-of-line key
+[IndexedDB/idbobjectstore_clear.any.html]
+FAIL=Clear removes all records from an index 
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError 
+FAIL=If the transaction this IDBObjectStore belongs to has its mode set to readonly, throw ReadOnlyError 
+FAIL=Verify clear removes all records 
+[IndexedDB/idbobjectstore_count.any.html]
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError 
+FAIL=Returns the number of records in the object store 
+FAIL=Returns the number of records that have keys with the key
+FAIL=Returns the number of records that have keys within the range 
+[IndexedDB/idbobjectstore_createIndex.any.html]
+harness=TIMEOUT
+[IndexedDB/idbobjectstore_delete.any.html]
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError
+FAIL=If the transaction this IDBObjectStore belongs to has its mode set to readonly, throw ReadOnlyError
+FAIL=Object store's key path is an object attribute
+FAIL=delete() key doesn't match any records
+FAIL=delete() removes all of the records in the range
+FAIL=delete() removes record (inline keys)
+FAIL=delete() removes record (out-of-line keys)
+[IndexedDB/idbobjectstore_deleteIndex.any.html]
+FAIL=IDBObjectStore.deleteIndex() removes the index
+[IndexedDB/idbobjectstore_get.any.html]
+FAIL=Attempts to retrieve a record that doesn't exist
+FAIL=Key is a date
+FAIL=Key is a number
+FAIL=Key is a string
+FAIL=Returns the record with the first key in the range
+FAIL=When a transaction is aborted, throw TransactionInactiveError
+FAIL=When an invalid key is used, throw DataError
+[IndexedDB/idbobjectstore_getAll-options.any.html]
+FAIL=Get all values
+FAIL=Get all with large values
+FAIL=Single item get
+FAIL=Single item get (generated key)
+FAIL=Test maxCount
+FAIL=getAll on empty object store
+[IndexedDB/idbobjectstore_getAll.any.html]
+FAIL=Single item get
+FAIL=Single item get (generated key)
+FAIL=Test maxCount
+[IndexedDB/idbobjectstore_getAllKeys-options.any.html]
+FAIL=Get all keys
+FAIL=Single item get
+FAIL=Single item get (generated key)
+FAIL=Test maxCount
+FAIL=getAllKeys on empty object store
+[IndexedDB/idbobjectstore_getAllKeys.any.html]
+FAIL=Get all keys
+FAIL=Single item get
+FAIL=Single item get (generated key)
+FAIL=Test maxCount
+FAIL=getAllKeys on empty object store
+[IndexedDB/idbobjectstore_getAllRecords.any.html]
+FAIL=Count
+FAIL=Empty object store
+FAIL=Get all records
+FAIL=Get all records with empty options
+FAIL=Get all records with large values
+FAIL=Single item
+FAIL=Single item with generated key
+[IndexedDB/idbobjectstore_getKey.any.html]
+FAIL=IDBObjectStore.getKey() - basic - key
+FAIL=IDBObjectStore.getKey() - basic - key - no match
+FAIL=IDBObjectStore.getKey() - basic - range
+FAIL=IDBObjectStore.getKey() - basic - range - no match
+FAIL=IDBObjectStore.getKey() - invalid parameters
+FAIL=IDBObjectStore.getKey() - key generator - key
+FAIL=IDBObjectStore.getKey() - key generator - key - no match
+FAIL=IDBObjectStore.getKey() - key generator - range
+FAIL=IDBObjectStore.getKey() - key generator - range - no match
+FAIL=IDBObjectStore.getKey() - key generator and key path - key
+FAIL=IDBObjectStore.getKey() - key generator and key path - key - no match
+FAIL=IDBObjectStore.getKey() - key generator and key path - range
+FAIL=IDBObjectStore.getKey() - key generator and key path - range - no match
+FAIL=IDBObjectStore.getKey() - key path - key
+FAIL=IDBObjectStore.getKey() - key path - key - no match
+FAIL=IDBObjectStore.getKey() - key path - range
+FAIL=IDBObjectStore.getKey() - key path - range - no match
+[IndexedDB/idbobjectstore_getKey.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idbobjectstore_index.any.html]
+FAIL=IDBObjectStore.index() - returns an index
+[IndexedDB/idbobjectstore_keyPath.any.html]
+FAIL=IDBObjectStore's keyPath attribute returns the same object.
+[IndexedDB/idbobjectstore_keyPath.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/idbobjectstore_openCursor.any.html]
+FAIL=IDBObjectStore.openCursor() - iterate through 100 objects
+[IndexedDB/idbobjectstore_openCursor_invalid.any.html]
+FAIL=IDBObjectStore.openCursor() - invalid - pass something other than number
+[IndexedDB/idbobjectstore_openKeyCursor.any.html]
+FAIL=IDBObjectStore.openKeyCursor() - forward iteration
+FAIL=IDBObjectStore.openKeyCursor() - forward iteration with range
+FAIL=IDBObjectStore.openKeyCursor() - invalid inputs
+FAIL=IDBObjectStore.openKeyCursor() - reverse iteration
+FAIL=IDBObjectStore.openKeyCursor() - reverse iteration with range
+[IndexedDB/idbobjectstore_put.any.html]
+FAIL=Attempt to call put() without an key parameter when the object store uses out-of-line keys
+FAIL=Attempt to put() a record that does not meet the constraints of an object store's inline key requirements
+FAIL=Attempt to put() a record where the out of line key provided does not meet the constraints of a valid key
+FAIL=Attempt to put() a record where the record's in-line key is not defined
+FAIL=Attempt to put() a record where the record's key does not meet the constraints of a valid key
+FAIL=If the object store has been deleted, the implementation must throw a DOMException of type InvalidStateError
+FAIL=If the transaction this IDBObjectStore belongs to has its mode set to readonly, throw ReadOnlyError
+FAIL=Object store has autoIncrement:true and the key path is an object attribute
+FAIL=Object store's key path is an object attribute
+FAIL=autoIncrement and inline keys
+FAIL=autoIncrement and out-of-line keys
+FAIL=put() a record where a value being indexed does not meet the constraints of a valid key
+FAIL=put() record with key already exists
+FAIL=put() where an index has unique:true specified
+FAIL=put() with an inline key
+FAIL=put() with an out-of-line key
+[IndexedDB/idbrequest-onupgradeneeded.any.html]
+FAIL=Abort transaction after deleting database in upgradeneeded event handler
+FAIL=Abort transaction before deleting database in upgradeneeded handler
+FAIL=indexedDB.delete called from upgradeneeded handler
+FAIL=transaction oncomplete ordering relative to open request onsuccess
+[IndexedDB/idbrequest_error.any.html]
+FAIL=IDBRequest.error throws if ready state is pending
+[IndexedDB/idbrequest_result.any.html]
+FAIL=IDBRequest.result throws if ready state is pending
+[IndexedDB/idbtransaction-objectStore-exception-order.any.html]
+harness=TIMEOUT
+[IndexedDB/idbtransaction-objectStore-finished.any.html]
+FAIL=IDBTransaction objectStore() behavior when transaction is finished
+[IndexedDB/idbtransaction-oncomplete.any.html]
+FAIL=IDBTransaction - complete event
+[IndexedDB/idbtransaction.any.html]
+FAIL=IDBTransaction - request returned by open()
+[IndexedDB/idbtransaction_abort.any.html]
+FAIL=Abort event should fire during transaction
+FAIL=Abort on completed transaction should throw InvalidStateError.
+[IndexedDB/idbtransaction_objectStoreNames.any.html]
+FAIL=IDBTransaction.objectStoreNames - during upgrade transaction
+FAIL=IDBTransaction.objectStoreNames - no duplicates
+FAIL=IDBTransaction.objectStoreNames - sorting
+FAIL=IDBTransaction.objectStoreNames - unusual names
+FAIL=IDBTransaction.objectStoreNames - value after abort
+FAIL=IDBTransaction.objectStoreNames - value after close
+[IndexedDB/idbversionchangeevent.any.html]
+FAIL=IDBVersionChangeEvent fired in upgradeneeded, versionchange and deleteDatabase
+[IndexedDB/idlharness.any.html]
+FAIL=idl_test setup
+[IndexedDB/index_sort_order.any.html]
+FAIL=Verify IDBIndex key sort order is 'number < Date < DOMString'
+[IndexedDB/interleaved-cursors-large.any.html]
+FAIL=250 cursors
+[IndexedDB/interleaved-cursors-small.any.html]
+FAIL=1 cursors
+FAIL=10 cursors
+FAIL=100 cursors
+[IndexedDB/key-conversion-exceptions.any.html]
+FAIL=IDBCursor continue() method with throwing/invalid keys
+FAIL=IDBCursor update() method with throwing/invalid keys
+FAIL=IDBFactory cmp() static with throwing/invalid keys
+FAIL=IDBIndex count() method with throwing/invalid keys
+FAIL=IDBIndex get() method with throwing/invalid keys
+FAIL=IDBIndex getAll() method with throwing/invalid keys
+FAIL=IDBIndex getAllKeys() method with throwing/invalid keys
+FAIL=IDBIndex getKey() method with throwing/invalid keys
+FAIL=IDBIndex openCursor() method with throwing/invalid keys
+FAIL=IDBIndex openKeyCursor() method with throwing/invalid keys
+FAIL=IDBKeyRange bound() static with throwing/invalid keys
+FAIL=IDBKeyRange lowerBound() static with throwing/invalid keys
+FAIL=IDBKeyRange only() static with throwing/invalid keys
+FAIL=IDBKeyRange upperBound() static with throwing/invalid keys
+FAIL=IDBObjectStore add() method with throwing/invalid keys
+FAIL=IDBObjectStore count() method with throwing/invalid keys
+FAIL=IDBObjectStore delete() method with throwing/invalid keys
+FAIL=IDBObjectStore get() method with throwing/invalid keys
+FAIL=IDBObjectStore getAll() method with throwing/invalid keys
+FAIL=IDBObjectStore getAllKeys() method with throwing/invalid keys
+FAIL=IDBObjectStore getKey() method with throwing/invalid keys
+FAIL=IDBObjectStore openCursor() method with throwing/invalid keys
+FAIL=IDBObjectStore openKeyCursor() method with throwing/invalid keys
+FAIL=IDBObjectStore put() method with throwing/invalid keys
+FAIL=IndexedDB: Exceptions thrown during key conversion
+[IndexedDB/key_invalid.any.html]
+FAIL=Invalid key - /foo/
+FAIL=Invalid key - Array (object)
+FAIL=Invalid key - Array cloneU+2019s instance
+FAIL=Invalid key - Math
+FAIL=Invalid key - NaN
+FAIL=Invalid key - String (object)
+FAIL=Invalid key - [,1]
+FAIL=Invalid key - [1,2,3,,]
+FAIL=Invalid key - [[1], [3], [7], [[ sparse array ]]]
+FAIL=Invalid key - [[], [], [], [[ Date ]]]
+FAIL=Invalid key - [undefined]
+FAIL=Invalid key - [{}]
+FAIL=Invalid key - array directly contains self
+FAIL=Invalid key - array indirectly contains self
+FAIL=Invalid key - array member contains self
+FAIL=Invalid key - document.getElementsByTagName("script")
+FAIL=Invalid key - false
+FAIL=Invalid key - function() {}
+FAIL=Invalid key - new Boolean()
+FAIL=Invalid key - new Date(Infinity)
+FAIL=Invalid key - new Date(NaN)
+FAIL=Invalid key - new Number()
+FAIL=Invalid key - new RegExp()
+FAIL=Invalid key - new String()
+FAIL=Invalid key - null
+FAIL=Invalid key - proxy of an array
+FAIL=Invalid key - self
+FAIL=Invalid key - sparse array
+FAIL=Invalid key - sparse array 2
+FAIL=Invalid key - true
+FAIL=Invalid key - undefined
+FAIL=Invalid key - undefined2
+FAIL=Invalid key - { obj: 1 }
+FAIL=Invalid key - {length:0,constructor:Array}
+FAIL=Invalid key - {}
+[IndexedDB/key_valid.any.html]
+FAIL=Valid key - ""
+FAIL=Valid key - "NaN"
+FAIL=Valid key - "\""
+FAIL=Valid key - "\n"
+FAIL=Valid key - "\u0000"
+FAIL=Valid key - "\u1234"
+FAIL=Valid key - "foo"
+FAIL=Valid key - -Infinity
+FAIL=Valid key - 0
+FAIL=Valid key - 1.5
+FAIL=Valid key - 3e-38
+FAIL=Valid key - 3e38
+FAIL=Valid key - Infinity
+FAIL=Valid key - ["undefined"]
+FAIL=Valid key - []
+FAIL=Valid key - new Array()
+FAIL=Valid key - new Date()
+FAIL=Valid key - new Date(0)
+[IndexedDB/keygenerator.any.html]
+FAIL=Keygenerator - starts at one, and increments by one
+[IndexedDB/keyorder.any.html]
+FAIL=Database readback sort - "" < "a" < "ab" < "b" < "ba"
+FAIL=Database readback sort - -1.1 < 1 < 1.01337 < 1.013373 < 2
+FAIL=Database readback sort - -Infinity < -0.01 < 0 < Infinity
+FAIL=Database readback sort - Array.length: 10,000 < Array.length: 10,001
+FAIL=Database readback sort - Arrays
+FAIL=Database readback sort - Date(1 sec ago) < Date(now) < Date(1 minute in future)
+FAIL=Database readback sort - Infinity inside arrays
+FAIL=Database readback sort - String < Array
+FAIL=Database readback sort - Test different stuff at once
+FAIL=Database readback sort - float < Date
+FAIL=Database readback sort - float < Date < String < Array
+FAIL=Database readback sort - float < String
+FAIL=IDBKey.cmp sort - "" < "a" < "ab" < "b" < "ba"
+FAIL=IDBKey.cmp sort - -1.1 < 1 < 1.01337 < 1.013373 < 2
+FAIL=IDBKey.cmp sort - -Infinity < -0.01 < 0 < Infinity
+FAIL=IDBKey.cmp sort - Array.length: 10,000 < Array.length: 10,001
+FAIL=IDBKey.cmp sort - Arrays
+FAIL=IDBKey.cmp sort - Date(1 sec ago) < Date(now) < Date(1 minute in future)
+FAIL=IDBKey.cmp sort - Infinity inside arrays
+FAIL=IDBKey.cmp sort - String < Array
+FAIL=IDBKey.cmp sort - Test different stuff at once
+FAIL=IDBKey.cmp sort - float < Date
+FAIL=IDBKey.cmp sort - float < Date < String < Array
+FAIL=IDBKey.cmp sort - float < String
+[IndexedDB/keypath-exceptions.any.html]
+FAIL=Key path evaluation: Exceptions from enumerable getters
+FAIL=Key path evaluation: Exceptions from enumerable getters on prototype
+FAIL=Key path evaluation: Exceptions from non-enumerable getters
+FAIL=Key path evaluation: Exceptions from non-enumerable getters on prototype
+FAIL=The last element of keypath is validated
+[IndexedDB/keypath-special-identifiers.any.html]
+harness=TIMEOUT
+[IndexedDB/keypath.any.html]
+FAIL=undefined - my.key
+[IndexedDB/keypath_invalid.any.html]
+FAIL=Invalid keyPath - "j a"
+[IndexedDB/keypath_maxsize.any.html]
+FAIL=undefined - ~260 chars
+[IndexedDB/large-requests-abort.any.html]
+FAIL=large value followed by small values
+FAIL=large values
+FAIL=large values mixed with small values
+FAIL=small values
+[IndexedDB/list_ordering.any.html]
+FAIL=Validate ObjectStoreNames and indexNames list order - numbers
+[IndexedDB/name-scopes.any.html]
+FAIL=Non-unique index keys
+FAIL=Unique index keys
+[IndexedDB/nested-cloning-basic.any.html]
+FAIL=blob
+FAIL=small typed array
+[IndexedDB/nested-cloning-large-multiple.any.html]
+FAIL=multiple requests of objects with blobs and large typed arrays
+FAIL=multiple requests of objects with blobs and large typed arrays with key generator
+[IndexedDB/nested-cloning-large.any.html]
+harness=TIMEOUT
+[IndexedDB/nested-cloning-small.any.html]
+harness=TIMEOUT
+[IndexedDB/objectstore_keyorder.any.html]
+FAIL=Verify key sort order in an object store is 'number < Date < DOMString' 
+[IndexedDB/open-request-queue.any.html]
+harness=TIMEOUT
+[IndexedDB/parallel-cursors-upgrade.any.html]
+FAIL=2 cursors
+FAIL=20 cursors
+FAIL=200 cursors
+FAIL=2000 cursors
+[IndexedDB/reading-autoincrement-indexes-cursors.any.html]
+FAIL=IDBIndex.openCursor() iterates over an index not covering the autoincrement key
+FAIL=IDBIndex.openCursor() iterates over an index on the autoincrement key
+FAIL=IDBIndex.openKeyCursor() iterates over an index not covering the autoincrement key
+FAIL=IDBIndex.openKeyCursor() iterates over an index on the autoincrement key
+[IndexedDB/reading-autoincrement-indexes-cursors.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/reading-autoincrement-indexes.any.html]
+FAIL=IDBIndex.get() for an index not covering the autoincrement key
+FAIL=IDBIndex.get() for an index on the autoincrement key
+FAIL=IDBIndex.getAll() for an index not covering the autoincrement key
+FAIL=IDBIndex.getAll() for an index on the autoincrement key
+FAIL=IDBIndex.getAllKeys() for an index on the autoincrement key
+FAIL=IDBIndex.getAllKeys() returns correct result for an index not covering the autoincrement key
+[IndexedDB/reading-autoincrement-indexes.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/reading-autoincrement-store-cursors.any.html]
+FAIL=IDBObjectStore.openCursor() iterates over an autoincrement store
+FAIL=IDBObjectStore.openKeyCursor() iterates over an autoincrement store
+[IndexedDB/reading-autoincrement-store-cursors.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/reading-autoincrement-store.any.html]
+FAIL=IDBObjectStore.get() for an autoincrement store
+FAIL=IDBObjectStore.getAll() for an autoincrement store
+FAIL=IDBObjectStore.getAllKeys() for an autoincrement store
+[IndexedDB/reading-autoincrement-store.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/ready-state-destroyed-execution-context.html]
+harness=TIMEOUT
+[IndexedDB/request-abort-ordering.any.html]
+FAIL=IndexedDB: request abort events are delivered in order
+[IndexedDB/request-event-ordering-large-mixed-with-small-values.any.html]
+FAIL=large values mixed with small values
+[IndexedDB/request-event-ordering-large-then-small-values.any.html]
+FAIL=large value followed by small values
+[IndexedDB/request-event-ordering-large-values.any.html]
+harness=TIMEOUT
+[IndexedDB/request-event-ordering-small-values.any.html]
+FAIL=small values
+[IndexedDB/request_bubble-and-capture.any.html]
+FAIL=IndexedDB Request Event Propagation: Bubbling and Capturing
+[IndexedDB/serialize-sharedarraybuffer-throws.https.html]
+FAIL=IndexedDB: Attempting to serialize a SharedArrayBuffer should throw
+[IndexedDB/storage-buckets.https.any.html]
+FAIL=Basic test that buckets create independent databases.
+FAIL=Tests trying to use indexedDB in a deleted bucket.
+[IndexedDB/string-list-ordering.any.html]
+FAIL=Test string list ordering in IndexedDB
+[IndexedDB/structured-clone-transaction-state.any.html]
+FAIL=Transaction inactive during structured clone in IDBCursor.update()
+FAIL=Transaction inactive during structured clone in IDBObjectStore.add()
+FAIL=Transaction inactive during structured clone in IDBObjectStore.put()
+[IndexedDB/structured-clone-transaction-state.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/structured-clone.any.html?1-20]
+FAIL=boolean: false
+FAIL=boolean: true
+FAIL=number: -0
+FAIL=number: -1
+FAIL=number: -1.7976931348623157e+308
+FAIL=number: -2147483647
+FAIL=number: -2147483648
+FAIL=number: -4294967295
+FAIL=number: -5e-324
+FAIL=number: -Infinity
+FAIL=number: 0
+FAIL=number: 1
+FAIL=number: 1.7976931348623157e+308
+FAIL=number: 2147483647
+FAIL=number: 2147483648
+FAIL=number: 4294967295
+FAIL=number: 5e-324
+FAIL=number: NaN
+FAIL=object: null
+FAIL=undefined: undefined
+[IndexedDB/structured-clone.any.html?101-last]
+FAIL=Array: 
+FAIL=Array: 1,2,3
+FAIL=Array: foo,bar
+FAIL=Array: foo,bar,,,,,,,,,true,false,,,,,,,,,123,456,,,,,,,,,
+FAIL=Object: [object Object]
+FAIL=TypeError: TypeError
+FAIL=TypeError: TypeError: ghi
+FAIL=URIError: URIError
+FAIL=URIError: URIError: ghi
+[IndexedDB/structured-clone.any.html?21-40]
+FAIL=bigint: -1
+FAIL=bigint: -12345678901234567890
+FAIL=bigint: 0
+FAIL=bigint: 1
+FAIL=bigint: 12345678901234567890
+FAIL=boolean: false
+FAIL=boolean: true
+FAIL=number: -0
+FAIL=number: -1
+FAIL=number: -1.7976931348623157e+308
+FAIL=number: -2147483647
+FAIL=number: -2147483648
+FAIL=number: -4294967295
+FAIL=number: -5e-324
+FAIL=number: -Infinity
+FAIL=number: Infinity
+FAIL=number: NaN
+FAIL=string: 
+FAIL=string: null( )
+FAIL=string: this is a sample string
+[IndexedDB/structured-clone.any.html?41-60]
+FAIL=Date: Mon Feb 10 1653 05:58:36 GMT-0015
+FAIL=Date: Sat Dec 20 1969 11:13:20 GMT+0100
+FAIL=Date: Sun Apr 24 1938 23:13:20 GMT+0100
+FAIL=Date: Thu Jan 01 1970 00:43:20 GMT+0100
+FAIL=bigint: -1
+FAIL=bigint: -12345678901234567890
+FAIL=bigint: 0
+FAIL=bigint: 1
+FAIL=bigint: 12345678901234567890
+FAIL=number: 0
+FAIL=number: 1
+FAIL=number: 1.7976931348623157e+308
+FAIL=number: 2147483647
+FAIL=number: 2147483648
+FAIL=number: 4294967295
+FAIL=number: 5e-324
+FAIL=number: Infinity
+FAIL=string: 
+FAIL=string: null( )
+FAIL=string: this is a sample string
+[IndexedDB/structured-clone.any.html?61-80]
+FAIL=ArrayBuffer: [object ArrayBuffer]
+FAIL=Date: Mon Jan 12 1970 14:46:40 GMT+0100
+FAIL=Date: Sat Nov 20 2286 18:46:40 GMT+0100
+FAIL=Date: Sun Sep 09 2001 03:46:40 GMT+0200
+FAIL=Date: Thu Jan 01 1970 00:59:59 GMT+0100
+FAIL=Date: Thu Jan 01 1970 01:00:00 GMT+0100
+FAIL=Date: Thu Jan 01 1970 01:00:01 GMT+0100
+FAIL=Date: Thu Jan 01 1970 01:16:40 GMT+0100
+FAIL=RegExp: /(?:)/
+FAIL=RegExp: /abc/
+FAIL=RegExp: /abc/g
+FAIL=RegExp: /abc/gi
+FAIL=RegExp: /abc/gim
+FAIL=RegExp: /abc/gimsuy
+FAIL=RegExp: /abc/gm
+FAIL=RegExp: /abc/i
+FAIL=RegExp: /abc/im
+FAIL=RegExp: /abc/m
+FAIL=Uint8Array: 
+FAIL=Uint8Array: 0,1,254,255
+[IndexedDB/structured-clone.any.html?81-100]
+FAIL=Error: Error
+FAIL=Error: Error: abc
+FAIL=EvalError: EvalError
+FAIL=EvalError: EvalError: ghi
+FAIL=Float32Array: -Infinity,-1.5,-1,-0.5,0,0.5,1,1.5,Infinity,NaN
+FAIL=Float64Array: -Infinity,-1.7976931348623157e+308,-5e-324,0,5e-324,1.7976931348623157e+308,Infinity,NaN
+FAIL=Int16Array: 0,1,-2,-1
+FAIL=Int32Array: 0,1,-2,-1
+FAIL=Int8Array: 0,1,-2,-1
+FAIL=Map: [object Object]
+FAIL=RangeError: RangeError
+FAIL=RangeError: RangeError: ghi
+FAIL=ReferenceError: ReferenceError
+FAIL=ReferenceError: ReferenceError: ghi
+FAIL=Set: [object Object]
+FAIL=SyntaxError: SyntaxError
+FAIL=SyntaxError: SyntaxError: ghi
+FAIL=Uint16Array: 0,1,65534,65535
+FAIL=Uint32Array: 0,1,4294967294,4294967295
+FAIL=Uint8ClampedArray: 0,1,254,255
+[IndexedDB/structured-clone.any.worker.html?1-20]
+harness=TIMEOUT
+[IndexedDB/structured-clone.any.worker.html?101-last]
+harness=TIMEOUT
+[IndexedDB/structured-clone.any.worker.html?21-40]
+harness=TIMEOUT
+[IndexedDB/structured-clone.any.worker.html?41-60]
+harness=TIMEOUT
+[IndexedDB/structured-clone.any.worker.html?61-80]
+harness=TIMEOUT
+[IndexedDB/structured-clone.any.worker.html?81-100]
+harness=TIMEOUT
+[IndexedDB/transaction-abort-generator-revert.any.html]
+FAIL=The current number of a key generator is reverted when a readwrite transaction aborts
+FAIL=The current number of a key generator is reverted when a versionchange transaction aborts
+[IndexedDB/transaction-abort-index-metadata-revert.any.html]
+FAIL=Created indexes get marked as deleted after their transaction aborts
+FAIL=Created stores get their indexes marked as deleted after the transaction that created them aborts
+FAIL=Created+deleted indexes are still marked as deleted after their transaction aborts
+FAIL=Created+deleted stores still have their indexes marked as deleted after the transaction aborts
+FAIL=Deleted indexes get marked as not-deleted after the transaction aborts
+FAIL=Deleted stores get their indexes marked as not-deleted after the transaction that deleted them aborts
+[IndexedDB/transaction-abort-multiple-metadata-revert.any.html]
+FAIL=Deleted indexes in created+deleted stores are still marked as deleted after their transaction aborts
+FAIL=Deleted indexes in deleted stores are still marked as not-deleted after the transaction aborts
+FAIL=Deleted indexes in newly created stores are still marked as deleted after the transaction aborts
+[IndexedDB/transaction-abort-object-store-metadata-revert.any.html]
+FAIL=Created stores get marked as deleted after their transaction aborts
+FAIL=Created+deleted stores are still marked as deleted after their transaction aborts
+FAIL=Deleted stores get marked as not-deleted after the transaction aborts
+FAIL=Un-instantiated deleted stores get marked as not-deleted after the transaction aborts
+[IndexedDB/transaction-abort-request-error.any.html]
+FAIL=Properties of error events fired at requests when aborting a transaction
+[IndexedDB/transaction-create_in_versionchange.any.html]
+FAIL=Attempt to create new transactions inside a versionchange transaction
+[IndexedDB/transaction-deactivation-timing.any.html]
+FAIL=Deactivation of new transactions happens at end of invocation
+FAIL=New transactions are deactivated before next task
+FAIL=New transactions from microtask are deactivated before next task
+[IndexedDB/transaction-lifetime-empty.any.html]
+harness=TIMEOUT
+[IndexedDB/transaction-lifetime.any.html]
+FAIL=Blocked event
+FAIL=No Blocked event
+[IndexedDB/transaction-relaxed-durability.any.html]
+FAIL=Committed data can be read back out: case 0
+FAIL=Committed data can be read back out: case 1
+FAIL=Committed data can be read back out: case 2
+FAIL=Committed data can be read back out: case 3
+FAIL=Committed data can be read back out: case 4
+FAIL=Invalid durability option throws a TypeError
+[IndexedDB/transaction-relaxed-durability.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-requestqueue.any.html]
+FAIL=Transactions have a request queue
+[IndexedDB/transaction-scheduling-across-connections.any.html]
+FAIL=Check that readwrite transactions with overlapping scopes do not run in parallel.
+[IndexedDB/transaction-scheduling-across-connections.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-scheduling-across-databases.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-scheduling-mixed-scopes.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-scheduling-ordering.any.html]
+FAIL=Verify Indexed DB transactions are ordered per spec
+[IndexedDB/transaction-scheduling-ordering.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-scheduling-ro-waits-for-rw.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-scheduling-rw-scopes.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction-scheduling-within-database.any.worker.html]
+harness=TIMEOUT
+[IndexedDB/transaction_bubble-and-capture.any.html]
+FAIL=Capture and bubble
+[IndexedDB/upgrade-transaction-deactivation-timing.any.html]
+harness=TIMEOUT
+[IndexedDB/upgrade-transaction-lifecycle-backend-aborted.any.html]
+FAIL=in a setTimeout(0) callback after the abort event is fired for a transaction aborted due to an unhandled request failure
+FAIL=in the abort event handler for a transaction aborted due to an unhandled request error
+[IndexedDB/upgrade-transaction-lifecycle-committed.any.html]
+FAIL=in a setTimeout(0) callback after the complete event is fired for a committed transaction
+FAIL=in the complete event handler for a committed transaction
+[IndexedDB/upgrade-transaction-lifecycle-user-aborted.any.html]
+FAIL=in a promise microtask after abort() is called, before the transaction abort event is fired
+FAIL=in a setTimeout(0) callback after the abort event is fired for a transaction aborted due to an abort() call
+FAIL=in the abort event handler for a transaction aborted due to an abort() call
+FAIL=synchronously after abort() is called
+[IndexedDB/value.any.html]
+FAIL=BigInts as keys in IndexedDB - BigInt object
+FAIL=BigInts as keys in IndexedDB - primitive BigInt
+FAIL=BigInts as values in IndexedDB - BigInt object
+FAIL=BigInts as values in IndexedDB - BigInt object inside object
+FAIL=BigInts as values in IndexedDB - primitive BigInt
+FAIL=BigInts as values in IndexedDB - primitive BigInt inside object
+FAIL=Values - Array
+FAIL=Values - Date
+[IndexedDB/value_recursive.any.html]
+FAIL=Recursive value - array directly contains self
+[IndexedDB/worker-termination-aborts-upgrade.window.html]
+harness=TIMEOUT
+[IndexedDB/writer-starvation.any.html]
+FAIL=IDB read requests should not starve write requests
