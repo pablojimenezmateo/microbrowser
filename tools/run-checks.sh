@@ -8,8 +8,13 @@
 #   tools/run-checks.sh ubsan   -> /tmp/microbrowser-ubsan.log
 #   tools/run-checks.sh tsan    -> /tmp/microbrowser-tsan.log
 #   tools/run-checks.sh all     -> all of the above, in sequence
+#   tools/run-checks.sh wpt     -> /tmp/microbrowser-wpt.log
 #
 # After a run, READ the log instead of rebuilding.
+#
+# `wpt` is web-platform-tests against the committed expectations (ADR 0040). It
+# needs the checkout that tools/wpt/fetch.sh makes and says so rather than
+# failing when it is absent.
 
 set -uo pipefail
 
@@ -71,6 +76,38 @@ run_target() {
   return "$status"
 }
 
+# web-platform-tests. Its own function rather than a preset, because it is not a
+# build configuration: it is the debug build plus a checkout that may not exist.
+run_wpt() {
+  local log="/tmp/microbrowser-wpt.log"
+  shift || true
+  {
+    echo "=== microbrowser: wpt ==="
+    echo "=== started: $(date -Is) ==="
+    echo
+    if [[ ! -d third_party/wpt ]]; then
+      echo "third_party/wpt is absent. Run tools/wpt/fetch.sh to check it out."
+      echo "=== exit status: 0 (skipped) ==="
+      exit 0
+    fi
+    cmake -S . -B build -G Ninja \
+      && cmake --build build --target microbrowser_wpt -j "$JOBS" \
+      && ./build/microbrowser/microbrowser_wpt --jobs "$JOBS" "$@"
+    local status=$?
+    echo
+    echo "=== finished: $(date -Is) ==="
+    echo "=== exit status: ${status} ==="
+    exit $status
+  } 2>&1 | tee "$log"
+  local status="${PIPESTATUS[0]}"
+  if [[ "$status" -eq 0 ]]; then
+    echo "OK   wpt  (log: ${log})"
+  else
+    echo "FAIL wpt  (log: ${log})"
+  fi
+  return "$status"
+}
+
 target="${1:-tests}"
 overall=0
 
@@ -79,6 +116,7 @@ case "$target" in
   asan)  run_target asan  microbrowser-asan  "$CTEST_SAN_JOBS" || overall=1 ;;
   ubsan) run_target ubsan microbrowser-ubsan "$CTEST_SAN_JOBS" || overall=1 ;;
   tsan)  run_target tsan  microbrowser-tsan  "$CTEST_SAN_JOBS" || overall=1 ;;
+  wpt)   run_wpt "$@" || overall=1 ;;
   all)
     run_target tests microbrowser-debug "$CTEST_JOBS"     || overall=1
     run_target asan  microbrowser-asan  "$CTEST_SAN_JOBS" || overall=1
@@ -86,7 +124,7 @@ case "$target" in
     run_target tsan  microbrowser-tsan  "$CTEST_SAN_JOBS" || overall=1
     ;;
   *)
-    echo "usage: tools/run-checks.sh [tests|asan|ubsan|tsan|all]" >&2
+    echo "usage: tools/run-checks.sh [tests|asan|ubsan|tsan|wpt|all]" >&2
     exit 2
     ;;
 esac

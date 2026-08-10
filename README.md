@@ -130,6 +130,23 @@ a milestone within it**, and the 12–18 month estimate below does not survive
 that. The roadmap's ordering still holds; the schedule does not. ADR 0007 says
 so in detail rather than leaving it to be discovered at the end.
 
+## Correctness
+
+Since 2026-08-10 the primary correctness signal is
+[web-platform-tests](https://web-platform-tests.org/) rather than "load a real
+page and look at it". Real pages are still how bugs are *discovered*; WPT is how
+we know what is implemented, and whether a fix broke something else.
+
+```bash
+tools/wpt/fetch.sh                            # pinned, sparse, ~600MB
+./build/microbrowser/microbrowser_wpt dom/
+```
+
+Every test runs in its own process, the server is ours and needs no Python, and
+`tests/wpt/expectations/` records only failures — so an expectation diff that is
+all deletions is a session that made the browser more correct. The reasoning is
+in `docs/adr/0040-web-platform-tests.md`; the work is in `docs/wpt-plan.md`.
+
 ## Roadmap
 
 | | | |

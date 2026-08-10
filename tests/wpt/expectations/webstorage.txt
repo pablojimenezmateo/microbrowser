@@ -1,0 +1,153 @@
+[webstorage/defineProperty.window.html]
+FAIL=Defining data property for key 9 on localStorage
+FAIL=Defining data property for key 9 on localStorage twice
+FAIL=Defining data property for key 9 on sessionStorage
+FAIL=Defining data property for key 9 on sessionStorage twice
+FAIL=Defining data property for key x on localStorage
+FAIL=Defining data property for key x on localStorage twice
+FAIL=Defining data property for key x on sessionStorage
+FAIL=Defining data property for key x on sessionStorage twice
+FAIL=Defining data property with toString for key 9 on localStorage
+FAIL=Defining data property with toString for key 9 on sessionStorage
+FAIL=Defining data property with toString for key x on localStorage
+FAIL=Defining data property with toString for key x on sessionStorage
+[webstorage/document-domain.html]
+FAIL=localStorage and document.domain
+[webstorage/event_basic.html]
+harness=TIMEOUT
+[webstorage/event_body_attribute.html]
+FAIL=localStorage mutations fire StorageEvents that are caught by the event listener specified as an attribute on the body.
+FAIL=sessionStorage mutations fire StorageEvents that are caught by the event listener specified as an attribute on the body.
+[webstorage/event_case_sensitive.html]
+harness=TIMEOUT
+[webstorage/event_constructor.window.html]
+FAIL=StorageEvent constructor called as normal function
+FAIL=constructor with just type argument
+FAIL=constructor with no arguments
+FAIL=constructor with null type argument and members
+FAIL=constructor with sensible type argument and members
+FAIL=constructor with undefined type argument and members
+[webstorage/event_initstorageevent.window.html]
+FAIL=initStorageEvent with 0 arguments
+FAIL=initStorageEvent with 1 argument
+FAIL=initStorageEvent with 8 null arguments
+FAIL=initStorageEvent with 8 sensible arguments
+FAIL=initStorageEvent with 8 undefined arguments
+[webstorage/event_local_key.html]
+harness=TIMEOUT
+[webstorage/event_local_newvalue.html]
+harness=TIMEOUT
+[webstorage/event_local_oldvalue.html]
+harness=TIMEOUT
+[webstorage/event_local_removeitem.html]
+harness=TIMEOUT
+[webstorage/event_local_storagearea.html]
+harness=TIMEOUT
+[webstorage/event_local_url.html]
+harness=TIMEOUT
+[webstorage/event_local_window_open_oldvalue.html]
+FAIL=oldValue property test of local event from window.open() - Local event is fired due to an invocation of the setItem(), clear() methods.
+[webstorage/event_no_duplicates.html]
+harness=TIMEOUT
+[webstorage/event_session_key.html]
+harness=TIMEOUT
+[webstorage/event_session_newvalue.html]
+harness=TIMEOUT
+[webstorage/event_session_oldvalue.html]
+harness=TIMEOUT
+[webstorage/event_session_removeitem.html]
+harness=TIMEOUT
+[webstorage/event_session_storagearea.html]
+harness=TIMEOUT
+[webstorage/event_session_url.html]
+harness=TIMEOUT
+[webstorage/event_session_window_open_scope.html]
+FAIL=sessionStorage events from a new window opened via window.open() should not fire in the opener
+[webstorage/event_setattribute.html]
+FAIL=localStorage mutations fire StorageEvents that are caught by the event listener attached via setattribute.
+FAIL=sessionStorage mutations fire StorageEvents that are caught by the event listener attached via setattribute.
+[webstorage/localstorage-about-blank-3P-iframe-opens-3P-window.partitioned.html]
+harness=TIMEOUT
+[webstorage/localstorage-basic-partitioned.sub.html]
+harness=TIMEOUT
+[webstorage/localstorage-cross-origin-iframe.https.window.html]
+FAIL=LocalStorage should be accessible on both same_origin and cross_origin iframes
+[webstorage/localstorage-share-data-unrelated-origins.html]
+harness=TIMEOUT
+[webstorage/missing_arguments.window.html]
+harness=ERROR
+[webstorage/sessionStorage-basic-partitioned.sub.html]
+harness=TIMEOUT
+[webstorage/set.window.html]
+FAIL=Setting property for key 9 on localStorage with accessor property on prototype
+FAIL=Setting property for key 9 on localStorage with data property on prototype
+FAIL=Setting property for key 9 on localStorage with data property on prototype and existing item
+FAIL=Setting property for key 9 on sessionStorage with accessor property on prototype
+FAIL=Setting property for key 9 on sessionStorage with data property on prototype
+FAIL=Setting property for key 9 on sessionStorage with data property on prototype and existing item
+FAIL=Setting property for key x on localStorage with accessor property on prototype
+FAIL=Setting property for key x on localStorage with data property on prototype
+FAIL=Setting property for key x on localStorage with data property on prototype and existing item
+FAIL=Setting property for key x on sessionStorage with accessor property on prototype
+FAIL=Setting property for key x on sessionStorage with data property on prototype
+FAIL=Setting property for key x on sessionStorage with data property on prototype and existing item
+FAIL=Setting property with toString for key 9 on localStorage
+FAIL=Setting property with toString for key 9 on sessionStorage
+FAIL=Setting property with toString for key x on localStorage
+FAIL=Setting property with toString for key x on sessionStorage
+[webstorage/storage_builtins.window.html]
+FAIL=Builtins in localStorage
+FAIL=Builtins in sessionStorage
+[webstorage/storage_enumerate.window.html]
+FAIL=localStorage: enumerate a Storage object and get only the keys as a result and the built-in properties of the Storage object should be ignored
+FAIL=localStorage: test enumeration of numeric and non-numeric keys
+FAIL=sessionStorage: enumerate a Storage object and get only the keys as a result and the built-in properties of the Storage object should be ignored
+FAIL=sessionStorage: test enumeration of numeric and non-numeric keys
+[webstorage/storage_key.window.html]
+FAIL=localStorage.key(4294967296) should return the right thing.
+FAIL=localStorage.key(4294967297) should return the right thing.
+FAIL=localStorage.key(4294967298) should return the right thing.
+FAIL=localStorage.key(4294967299) should return the right thing.
+FAIL=sessionStorage.key(4294967296) should return the right thing.
+FAIL=sessionStorage.key(4294967297) should return the right thing.
+FAIL=sessionStorage.key(4294967298) should return the right thing.
+FAIL=sessionStorage.key(4294967299) should return the right thing.
+[webstorage/storage_local_quota_independent_from_session.window.html]
+FAIL=localStorage retains comparable quota after sessionStorage exhaustion
+[webstorage/storage_local_setitem_quotaexceedederr.window.html]
+FAIL=Throws QuotaExceededError when the quota has been exceeded
+[webstorage/storage_local_window_open.window.html]
+FAIL=A new window to make sure there is a copy of the previous window's localStorage, and that they do not diverge after a change
+[webstorage/storage_session_quota_independent_from_local.window.html]
+FAIL=sessionStorage retains comparable quota after localStorage exhaustion
+[webstorage/storage_session_setitem_quotaexceedederr.window.html]
+FAIL=Throws QuotaExceededError when the quota has been exceeded
+[webstorage/storage_session_window_noopener.window.html]
+FAIL=A new noopener window to make sure there is a not copy of the previous window's sessionStorage
+[webstorage/storage_session_window_open.window.html]
+FAIL=A new window to make sure there is a copy of the previous window's sessionStorage, and that they diverge after a change
+[webstorage/storage_session_window_reopen.window.html]
+FAIL=ensure that re-opening a named window doesn't copy sessionStorage
+[webstorage/storage_setitem.window.html]
+FAIL=localStorage.setItem({ throws })
+FAIL=localStorage[] = { throws }
+FAIL=sessionStorage.setItem({ throws })
+FAIL=sessionStorage[] = { throws }
+[webstorage/storage_string_conversion.window.html]
+FAIL=localStorage only stores strings
+FAIL=sessionStorage only stores strings
+[webstorage/symbol-props.window.html]
+FAIL=localStorage: defineProperty + get
+FAIL=localStorage: defineProperty not configurable
+FAIL=localStorage: delete existing property
+FAIL=localStorage: delete non-existent property
+FAIL=localStorage: get with symbol on prototype
+FAIL=localStorage: plain set + get (loose)
+FAIL=localStorage: plain set + get (strict)
+FAIL=sessionStorage: defineProperty + get
+FAIL=sessionStorage: defineProperty not configurable
+FAIL=sessionStorage: delete existing property
+FAIL=sessionStorage: delete non-existent property
+FAIL=sessionStorage: get with symbol on prototype
+FAIL=sessionStorage: plain set + get (loose)
+FAIL=sessionStorage: plain set + get (strict)

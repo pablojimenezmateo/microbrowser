@@ -1,0 +1,512 @@
+# The plan: from "renders Hacker News" to "runs the web"
+
+**Owner:** nobody in particular. This document is the decomposition several
+agents work from at once. · **Started:** 2026-08-10 · **State:**
+`docs/wpt-tasks.json`
+
+`docs/adr/0040-web-platform-tests.md` is the argument for the instrument. This
+is the work.
+
+Read this first if you are about to start a session. It supersedes the ordering
+in `CLAUDE.md`'s "Where To Pick Up" and in `docs/roadmap-to-any-page.md`
+wherever the three disagree — those two sequence work by *which page it
+unblocks*, which was the right question when there was no other signal and is
+now the second-best one.
+
+---
+
+## 0. How this is meant to be worked
+
+### The unit of work is a WPT area, not a feature
+
+A task is "raise `css/css-flexbox/` from 31% to 80%". That phrasing is doing
+several things at once:
+
+- It has a **number before and after**, so a session that did nothing is
+  visible, and so is a session that fixed the wrong thing.
+- It **fits one agent's context**. An area is a few hundred tests with a few
+  dozen distinct causes behind them.
+- It is **disjoint from every other task**, so agents do not collide. Two agents
+  in `src/layout` at once is a merge conflict; two agents, one in flexbox and
+  one in `dom/nodes/`, is not.
+- It **does not decide the fix in advance**. Almost every area's failures turn
+  out to be three or four causes with a long tail, and which three is not
+  knowable until the tests are run. A task that named the fix would be a guess.
+
+### The loop, for one task
+
+```bash
+tools/wpt/fetch.sh                                  # once per machine
+./build/microbrowser/microbrowser_wpt --list css/css-flexbox/ | wc -l
+./build/microbrowser/microbrowser_wpt css/css-flexbox/       # see where you are
+./build/microbrowser/microbrowser_wpt --verbose css/css-flexbox/align-content-001.html
+# ... fix ...
+./build/microbrowser/microbrowser_wpt --update-expectations css/css-flexbox/
+git diff tests/wpt/expectations/                    # this diff is the session
+```
+
+The expectation diff **is** the deliverable. A session whose expectation diff is
+all deletions did the work; one that adds lines had better say why in the commit
+message.
+
+### Six rules that are not negotiable
+
+1. **A failing test is a question, not a task.** Read the test, decide what the
+   specification says, then decide whether this browser is wrong. WPT contains
+   tests for things this project has deliberately refused (`docs/adr/0012`,
+   `0029`, `0033`). A refusal gets an expectation line **and** a comment saying
+   which ADR it comes from. Making a refusal pass by implementing what it
+   refuses is a change to an ADR, which is a separate commit and a separate
+   argument.
+2. **Fix the cause, not the test.** Ten tests failing on one missing method is
+   one fix. If a change makes exactly one test pass, suspect it.
+3. **No new copy of anything.** Every area below has an existing owner module;
+   the fix belongs there, behind that module's `MODULE.deps` contract. A helper
+   that two modules want goes in the lower one. `tools/budget-report.sh` before
+   a refactor.
+4. **A parser or decoder lands with its fuzz target on the same commit.**
+   Unchanged from `guidelines/security.md`. WPT does not test hostile input and
+   never will.
+5. **Measure before optimising.** `docs/tech-debt.md` first, then
+   `MICROBROWSER_PERF_SUMMARY=1`, then a benchmark in `bench/`. A page-load
+   timing on a shared machine is not a measurement.
+6. **The check must have been run.** `status: done` in `docs/wpt-tasks.json`
+   means the number in `target` was reached and the run that reached it is in
+   the commit message. Nothing else may set it.
+
+### Claiming a task
+
+`docs/wpt-tasks.json` is the state. Set `status: "in_progress"` and `agent` to
+something identifying, commit *that alone*, and push before starting. A conflict
+on that one-line commit is the cheapest possible collision.
+
+---
+
+## 1. Where this browser actually is
+
+Complete or near-complete, per `CLAUDE.md` and the session log: HTML parsing and
+fragment parsing, the CSS cascade with custom properties and `calc()`, block and
+inline layout, floats, tables, flexbox, positioning, the JavaScript language
+(bytecode VM, modules, async, generators, `Proxy`, regex), the DOM bindings
+including shadow DOM and custom elements, `fetch`/XHR/CORS/CSP/SRI, HTTP/1.1 and
+HTTP/2 with a connection pool, cookies, storage including IndexedDB, workers,
+transforms and stacking contexts, `@font-face` with WOFF2, encodings, UAX #9
+bidi and UAX #14 line breaking, canvas 2D, animations, media containers and MSE.
+
+Not started or in flight: grid (in progress), same-origin and cross-origin
+iframes, the process split and sandbox, incremental parsing and first paint,
+`vertical-align`, `min()`/`max()`/`clamp()`, viewport units, `:has()`.
+
+That is a large browser with no idea how correct it is. The point of what
+follows is to find out and then to move the number.
+
+---
+
+## 2. Milestones
+
+Each milestone has **entry criteria** (what must be true to start), **tasks**
+(each one an agent-session, parallel unless a dependency is named), and **exit
+criteria** (a number, run, and recorded).
+
+Percentages are *subtests passing* over *subtests run* in that WPT path, as
+`microbrowser_wpt` reports them. They are targets for planning, not contracts:
+an area that turns out to be 40% specification-refusals gets its target revised
+in this document, with the reason.
+
+---
+
+### M-A — The instrument · **done 2026-08-10**
+
+`tools/wpt/`, `tests/wpt/expectations/`, ADR 0040. The runner, the server, the
+manifest scanner, the expectation format, per-test process isolation, `ctest`
+integration.
+
+**Exit:** `./build/microbrowser/microbrowser_wpt dom/nodes/Node-appendChild.html`
+reports per-subtest results. Reached.
+
+---
+
+### M-B — The baseline · **next, blocks nothing but informs everything**
+
+One full run of every checked-out area, recorded, with the failures grouped by
+*cause* rather than by test. This is the only milestone that must happen before
+the others, and it is one long machine run plus one session of reading.
+
+| id | task | parallel with | output |
+|---|---|---|---|
+| B1 | Full run, all areas, expectations committed | — | `tests/wpt/expectations/*.txt` |
+| B2 | Triage: group failures by cause, rank by tests-unblocked | B1 | `docs/wpt-baseline.md` |
+| B3 | Harness gaps: which areas are unrunnable and why (`.py` handlers, `testdriver.js`, https) | B1 | ADR 0040 amendment |
+| B4 | Per-area pass-rate table, committed, regenerable | B1 | `docs/wpt-baseline.md` |
+
+**Why B2 is a whole session.** The first run of `dom/` produced 132 unexpected
+results in the first 150 tests, and the interesting quantity is not that number
+— it is that four messages account for most of them (`cannot read property
+'document' of undefined`, `is not an Error subtype`, `Illegal constructor`,
+`did not throw`). Each is one fix worth dozens of tests. A ranked cause list is
+what turns 20,000 failures into 40 sessions.
+
+**Exit:** every area has a committed expectation file and a line in the table;
+`ctest` is green against them.
+
+---
+
+### M-C — The DOM and its bindings
+
+The largest single lever: `dom/`, `domparsing/`, `shadow-dom/`,
+`custom-elements/`, `html/dom/`. Almost everything else in the suite depends on
+these being right, and the first run says they are not.
+
+Known causes already visible from 150 tests:
+
+- **Exceptions are not `DOMException`s and not subtypes of `Error`.**
+  `assert_throws_dom` needs `e instanceof DOMException`, `e.code`, `e.name`.
+  `assert_throws_js` needs the thrown value to be an instance of the *page's*
+  `TypeError`. This single cause is worth a four-figure number of subtests
+  across every area of the suite.
+- **`Document` is not fully receiver-based.** "cannot read property 'document'
+  of undefined" is the `ownerDocument`/`defaultView` chain.
+- **Interface constructors are not callable/newable per WebIDL** ("Illegal
+  constructor: HTMLScriptElement" is correct for `new HTMLScriptElement()`, and
+  the test is checking something else near it).
+- **`insertAdjacentText` is missing** (ADR 0040 §Consequences).
+
+| id | task | depends on | target |
+|---|---|---|---|
+| C1 | `DOMException`: real type, `name`/`code`/`message`, thrown by every binding that should throw one; audit every `Throw` in `src/bindings` | — | `assert_throws_dom` works |
+| C2 | Native error types are the page's own: `TypeError`/`RangeError` from bindings are instances of the page's constructors | — | `assert_throws_js` works |
+| C3 | WebIDL argument conversion: `undefined`/`null`/missing/extra-argument behaviour, per-type coercion, `[EnforceRange]` where the spec says so | C1, C2 | `dom/` +10% |
+| C4 | `dom/nodes/` — mutation algorithms, `Node` comparison, adoption, `ownerDocument` | C1 | 85% |
+| C5 | `dom/traversal/`, `dom/ranges/` — the content-mutation half of `Range` (ADR 0012 lists it absent) | C1 | 80% |
+| C6 | `dom/events/` — the full dispatch algorithm, `composedPath`, retargeting, passive/once/capture, `Event` constructors | C1 | 85% |
+| C7 | `dom/abort/`, `dom/observable/` triage — implement or refuse with an ADR line | C1 | recorded |
+| C8 | `shadow-dom/` + `custom-elements/` — reactions, `adoptedCallback`, `:host`/`::slotted`, slot assignment | C4, C6 | 75% |
+| C9 | `domparsing/` — `DOMParser`, `XMLSerializer`, `insertAdjacent*` | C1 | 80% |
+| C10 | `html/dom/` — reflection: every reflected IDL attribute, `Element` interface mixins | C3 | 70% |
+
+C1 and C2 are the two that unblock the rest of the suite and should be done
+first, by one agent, in that order. C4–C10 are parallel after them.
+
+**Exit:** `dom/` ≥ 85%, `shadow-dom/` ≥ 75%, `custom-elements/` ≥ 75%,
+`domparsing/` ≥ 80%.
+
+---
+
+### M-D — CSS: the cascade, values, and the object model
+
+`css/css-syntax/`, `css/css-values/`, `css/css-cascade/`, `css/css-variables/`,
+`css/css-conditional/`, `css/selectors/`, `css/cssom/`, `css/cssom-view/`.
+
+These are mostly script-visible and therefore mostly `testharness` rather than
+reftests, which makes them cheap to run and unambiguous to read.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| D1 | `min()`, `max()`, `clamp()`, and nested math; `calc()` with more than one relative term | — | `css-values` +15% |
+| D2 | Viewport units (`vw`/`vh`/`vmin`/`vmax`/`dv*`/`sv*`) — needs a viewport size in the cascade, which is a `css`↔`layout` seam decision | D1 | `css-values` +10% |
+| D3 | CSSOM: `CSSStyleSheet`, `CSSRuleList`, `cssText` round-tripping, `insertRule`/`deleteRule`, `document.styleSheets` | M-C C1 | `cssom` 70% |
+| D4 | CSSOM-View: `scroll*`, `client*`, `getClientRects`, `elementFromPoint`, `matchMedia` completeness | D3 | `cssom-view` 70% |
+| D5 | `:has()`, `An+B of S`, `:dir()`, `:lang()`, and the specificity consequences (ADR 0016 priced `:has()` behind a measurement — take the measurement) | — | `selectors` 80% |
+| D6 | `@media` evaluated at cascade time rather than parse time (ledger session 49's leftover), `@supports` nesting, `@layer` | — | `css-conditional` 70% |
+| D7 | Serialization: every computed and specified value's exact string form. Dull, mechanical, enormous, and a prerequisite for most of `cssom` | D3 | `cssom` +10% |
+| D8 | `css-syntax/` — error recovery to the letter, nested rules, custom property grammar | — | 85% |
+
+**Exit:** `css/css-values` ≥ 75%, `css/cssom` ≥ 70%, `css/selectors` ≥ 80%,
+`css/css-cascade` ≥ 80%.
+
+---
+
+### M-E — Layout
+
+The largest area by test count and the one where reftests dominate, which means
+it is also the milestone that will find bugs in the rasterizer by accident.
+
+Depends on nothing in M-C or M-D, so it can run fully in parallel from the
+start — with one caveat: reftest results are only trustworthy once the harness's
+fuzzy-matching story exists (task A-follow-up F2 below).
+
+| id | task | depends on | target |
+|---|---|---|---|
+| E1 | `css/CSS2/` — the normative block/inline model. Split by subdirectory across several agents; `normal-flow`, `floats`, `positioning`, `tables` are natural pieces | F2 | 60% |
+| E2 | `css/css-flexbox/` — finish it: `align-content`, baseline alignment, `min-content` sizing of flex items, nested flex | F2 | 80% |
+| E3 | `css/css-grid/` — the in-flight session 39, finished against the suite rather than against a page | F2 | 60% |
+| E4 | `css/css-sizing/` — `min-content`/`max-content`/`fit-content`, `aspect-ratio` interactions | — | 75% |
+| E5 | `css/css-position/` — `sticky` against a real scrollport, `inset` shorthand, abspos containing-block edge cases (the old.reddit `#header-bottom-right` bug is here) | F2 | 75% |
+| E6 | `css/css-overflow/` — scrollports, `overflow: clip`, `text-overflow`, scrollbar gutters | E5 | 70% |
+| E7 | `vertical-align` — absent entirely today; `css/CSS2/vertical-align` plus inline layout's baseline table | E1 | `CSS2/vertical-align` 70% |
+| E8 | `css/css-text/` — white-space processing, `word-break`, `overflow-wrap`, `text-indent`, `tab-size` | — | 65% |
+| E9 | `css/css-writing-modes/` — vertical writing modes are a whole coordinate system this browser does not have. Scope it, ADR it, then do it | E1 | ADR + 40% |
+| E10 | `css/css-tables/` + `css/CSS2/tables/` — `border-spacing`, `border-collapse`, column sizing | — | 60% |
+| E11 | `css/css-display/`, `css/css-box/`, `css/css-multicol/` | — | 60% / 70% / 30% |
+
+**Exit:** `css/CSS2` ≥ 60%, `css-flexbox` ≥ 80%, `css-grid` ≥ 60%, and no reftest
+in these areas failing for a *harness* reason.
+
+---
+
+### M-F — Paint, colour and graphics
+
+`css/css-backgrounds/`, `css/css-images/`, `css/css-color/`,
+`css/css-transforms/`, `css/css-ui/`, `svg/`, `html/canvas/`.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| F1 | `background` on inline boxes (a known old.reddit gap), `background-clip`/`origin`/`repeat` in full | — | `css-backgrounds` 70% |
+| F2 | **Harness:** fuzzy reftests (`<meta name=fuzzy>`), and a reftest failure that writes both PPMs and a diff next to each other | — | reftests trustworthy |
+| F3 | `css/css-color/` — `color()`, `lab()`/`lch()`/`oklab()`, `color-mix()`, and the serialization rules | — | 60% |
+| F4 | Gradients — `linear-gradient` interpolation, `repeating-*`, `conic-gradient` | F2 | `css-images` 60% |
+| F5 | `css/css-transforms/` — 3D transforms, `perspective`, `transform-style`, and what a stacking context does to them | F2 | 60% |
+| F6 | `html/canvas/` — the 2D context against the suite rather than against hand-written tests | — | 60% |
+| F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
+| F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
+
+**Exit:** `css-backgrounds` ≥ 70%, `css-transforms` ≥ 60%, fuzzy reftests
+supported.
+
+---
+
+### M-G — Script, the event loop, and timing
+
+`html/webappapis/`, `hr-time/`, `user-timing/`, `performance-timeline/`,
+`web-animations/`, `workers/`, `streams/`, `webmessaging/`, `console/`.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| G1 | The event loop to the letter: task sources, microtask checkpoints, `queueMicrotask`, rendering opportunities | — | `html/webappapis` +15% |
+| G2 | **Script time-slicing** — ADR 0036 exists; TD-0007 is the "app is not responding" the user reported. A 9.7-second uninterruptible call is a correctness bug about the event loop, not a performance nicety | G1 | TD-0007 closed |
+| G3 | `streams/` — `ReadableStream` and friends. Large, self-contained, and the thing `response.body` is absent for | — | 60% |
+| G4 | `web-animations/` — the API surface over the animations that exist | — | 55% |
+| G5 | `workers/` — module workers, `SharedWorker` (decide: ADR or implement), worker `fetch`, `importScripts` edge cases | — | 60% |
+| G6 | `webmessaging/` — `postMessage` across every context, ports, structured clone completeness | M-J J1 | 70% |
+| G7 | Timing APIs — `PerformanceResourceTiming`, `PerformanceNavigationTiming`, `PerformanceObserver` buffering | — | 65% |
+| G8 | `console/` — the whole surface, which is one file and cheap | — | 90% |
+
+**Exit:** `hr-time` ≥ 90%, `html/webappapis` ≥ 60%, `streams` ≥ 60%, TD-0007
+closed.
+
+---
+
+### M-H — The network, and the security around it
+
+`fetch/`, `xhr/`, `cors/`, `url/`, `mimesniff/`,
+`content-security-policy/`, `subresource-integrity/`, `referrer-policy/`,
+`upgrade-insecure-requests/`, `cookies/`, `websockets/`, `eventsource/`.
+
+**This milestone is gated on a harness decision.** Most of `fetch/` and nearly
+all of `cors/` point at `.py` handlers, which ADR 0040 §2 refuses to
+approximate. Task H1 decides what replaces them.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| H1 | **Harness:** the handler question. Options: implement the ~20 most-used handlers natively in `tools/wpt/`; or a `--python-handlers` mode that shells out to a real `wpt serve` when Python is present; or declare the area out of scope and say so. Decide and amend ADR 0040 | — | ADR amendment |
+| H2 | `url/` — the WHATWG URL test suite is a JSON data file and needs no server at all. Run it, fix it, and it should reach very high | — | 95% |
+| H3 | `mimesniff/` — sniffing rules, which this browser does by magic number ad hoc | — | 80% |
+| H4 | `fetch/api/` — request/response objects, headers guards, `body` mixin methods (`formData()` needs `FormData`, deliberately absent today) | H1 | 60% |
+| H5 | `xhr/` — the shim over `fetch`; `timeout`, `upload`, `overrideMimeType`, response types are all deliberately absent (ADR: revisit) | H1 | 60% |
+| H6 | `content-security-policy/` + `subresource-integrity/` — the enforcement points exist; the suite will find the ones that are enforced in the wrong place | H1 | 60% |
+| H7 | `cookies/` — the attribute parsing, `SameSite`, and the partitioning this browser does by default | — | 70% |
+| H8 | `referrer-policy/` + `upgrade-insecure-requests/` — where this browser deliberately deviates (privacy defaults, ADR 0033), record the deviation as an expectation with the ADR named | — | recorded |
+| H9 | TLS in the harness: an https origin, so the `.https.html` half of the suite runs at all. Self-signed, trusted only by the runner | H1 | `.https.` tests runnable |
+| H10 | `websockets/` + `eventsource/` — both need server support beyond static files | H1, H9 | scoped |
+
+**Exit:** `url/` ≥ 95%, `mimesniff/` ≥ 80%, and a written decision on `.py`.
+
+---
+
+### M-I — Storage
+
+`webstorage/`, `IndexedDB/`, `storage/`, `FileAPI/`.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| I1 | `webstorage/` — quota, events, partitioning | — | 80% |
+| I2 | `IndexedDB/` — the largest single-API suite in WPT. Split by subdirectory: keys/ordering, transactions, cursors, indexes | M-C C1 | 55% |
+| I3 | `FileAPI/` — `Blob`, `File`, `FileReader`, `URL.createObjectURL` | M-C C1 | 70% |
+| I4 | `storage/` — `navigator.storage`, quota estimation, and what this browser refuses to persist (ADR 0021) | I1 | recorded |
+
+**Exit:** `webstorage` ≥ 80%, `IndexedDB` ≥ 55%, `FileAPI` ≥ 70%.
+
+---
+
+### M-J — Navigation, browsing contexts, and the process split
+
+`html/browsers/`, plus the parts of `html/semantics/` about `<iframe>`.
+
+This is the milestone with the most *architecture* in it and the least test
+count, and it is on the critical path for the acceptance sites: gmail, maps and
+plex are all iframe-heavy.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| J1 | Same-origin iframes — roadmap session 40. The binding layer is already receiver-based for `document`, which was the hard part | — | `html/browsers/the-window-object` 60% |
+| J2 | Cross-origin iframes and the `Window` proxy — roadmap session 41 | J1 | 50% |
+| J3 | The process split and the sandbox — roadmap session 42, ADR 0004. The engine has no `platform` on its `allow:` line precisely so this is a scheduling decision | J2 | one renderer per site |
+| J4 | Session history to the letter — `history.state`, traversal, `popstate`/`hashchange` ordering, `beforeunload` | — | 65% |
+| J5 | Navigation: form submission methods, `target`, redirects, fragment navigation, `<base>` | J4 | 65% |
+| J6 | `window.open`, named contexts, `opener`, and what this browser refuses to open | J1 | recorded |
+
+**Exit:** J1–J2 landed; `html/browsers/` ≥ 55%; ADR 0027 no longer describes
+something that does not exist.
+
+---
+
+### M-K — Text and internationalisation
+
+`encoding/`, and the text halves of `css/css-text/`, `css/css-fonts/`,
+`css/css-writing-modes/`.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| K1 | `encoding/` — the legacy decoders exist (roadmap session 32); the suite tests every index table exhaustively and will find the gaps | — | 85% |
+| K2 | `TextEncoder`/`TextDecoder` streaming, `encodeInto`, every label alias | K1 | 90% |
+| K3 | `css/css-fonts/` — `font-feature-settings`, `font-variant`, `@font-face` descriptors, `unicode-range` | — | 60% |
+| K4 | Unicode data currency: `normalize()`, the rest of `\p{...}`, and the generator that produces the tables (`tools/unicode/generate.py`) | — | `Intl`-free but complete |
+
+**Exit:** `encoding/` ≥ 85%.
+
+---
+
+### M-L — Media
+
+`media-source/`, `html/semantics/embedded-content/media-elements/`.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| L1 | `HTMLMediaElement` state machine — `readyState`, `networkState`, the event order, `seek`, `play()`'s promise | — | 55% |
+| L2 | `media-source/` — `SourceBuffer` append/remove, buffered ranges, `MediaSource` lifecycle | L1 | 50% |
+| L3 | Track handling — `<track>`, `TextTrack`, `<source>` selection | L1 | 50% |
+| L4 | The codec question end-to-end: roadmap session 27 is still `in_progress` | — | session 27 done |
+
+**Exit:** `media-elements` ≥ 55%.
+
+---
+
+### M-M — Speed, memory, and idle CPU, as a first-class milestone
+
+Not a WPT milestone: WPT has almost nothing to say about any of the four core
+principles except correctness. This runs continuously alongside everything else
+and has its own exit criteria.
+
+| id | task | depends on | target |
+|---|---|---|---|
+| M1 | Incremental parsing and first paint — roadmap session 46, ADR 0030. A page appears when it is finished, which is the single largest perceived-latency defect left | — | first paint before load |
+| M2 | TD-0005: `CollectImages` resolves the whole cascade a second time. 1.58s on wikipedia, larger than laying the page out | — | TD-0005 closed |
+| M3 | TD-0003: 1.33M individually allocated AST nodes, three quarters of the parse | — | TD-0003 closed |
+| M4 | TD-0010: `kMaxConnectionsPerPartition` bounds requests rather than connections, and six was the HTTP/1.1 number | — | TD-0010 closed |
+| M5 | A memory budget with a number in it: peak RSS on each acceptance page, tracked like the pass rates | — | `docs/performance/` entry |
+| M6 | Idle CPU regression test: a settled page must cost zero wakeups. Assert it, in `ctest`, per page | — | test exists |
+| M7 | Benchmarks for layout and the DOM, in `bench/`, because timing a page load on a shared machine is worthless | — | two new bench files |
+
+**Exit:** every open entry in `docs/tech-debt.md` is either closed or has a
+measurement and a reason it is still open; idle CPU is asserted rather than
+claimed.
+
+---
+
+### M-N — The acceptance sites
+
+The five sites in `docs/adr/0007-compatibility-targets.md` plus the four the
+user named. These are **gates, not tasks**: each one is checked at the end of a
+milestone, and what it finds becomes tasks in the *next* milestone.
+
+| site | what it exercises that nothing else does | gate after |
+|---|---|---|
+| news.ycombinator.com | already renders — keep it green | every milestone |
+| old.reddit.com | already renders — `vertical-align`, inline backgrounds | M-E, M-F |
+| en.wikipedia.org | already renders — the CSS breadth | M-D, M-E |
+| itch.io game page | canvas, WebGL(!), gamepad, fullscreen, audio | M-F, M-G |
+| www.linkedin.com | SPA routing, huge bundles, service workers | M-G, M-J |
+| www.youtube.com | the DI container bug at `EhE (@1323410)`, MSE, SPA | M-G, M-L |
+| mail.google.com | iframes, IndexedDB, workers, long-lived script | M-I, M-J |
+| maps.google.com | WebGL, canvas, pointer events, workers | M-F, M-J |
+| plex (local) | MSE, HLS, codecs, media session | M-L |
+
+**Two of these need capabilities nobody has scoped yet**: WebGL (ADR 0029
+discusses the fingerprinting surface and stops short) and service workers (ADR
+0022 refuses background work — maps and linkedin will both want one). Each needs
+an ADR before it needs code, and the ADR may well be a refusal with a fallback.
+
+---
+
+## 3. Cross-cutting work that never finishes
+
+These are not milestones and have no exit. They are what a session does *as
+well as* its task.
+
+- **W1 — the harness itself.** Fuzzy reftests (F2), `testdriver.js` for tests
+  that need synthesised input, the `.py` question (H1), https (H9), `wpt`
+  revision bumps, and keeping the run under ten minutes. When the harness costs
+  a session more than it saves, fix the harness.
+- **W2 — fuzzing.** Every parser gets a target on the commit it lands, and the
+  corpora get run. `guidelines/security.md`.
+- **W3 — the architecture lint.** `MODULE.deps` and the budgets. When one fires,
+  fix the design it points at; raising a budget is sometimes right and is always
+  a decision.
+- **W4 — tech debt.** `docs/tech-debt.md` is read before optimising anything and
+  written to when a shape is left wrong on purpose.
+- **W5 — the session log.** `docs/session-log.md` records what a session *found*
+  that its diff does not say. A session that cannot hand off through the git
+  log, the session log and the ledger has not finished.
+
+---
+
+## 4. Parallelism: what can actually run at once
+
+Four to six agents, sustainably, once M-B is done:
+
+```
+        M-B baseline  (one agent, one long run)
+              │
+   ┌──────────┼───────────┬──────────────┬───────────────┐
+   ▼          ▼           ▼              ▼               ▼
+ M-C C1,C2  M-E E2,E4   M-D D1,D8     M-H H2,H3       M-K K1
+ (bindings) (layout)    (css values)  (url, sniff)    (encoding)
+   │          │           │              │
+   ▼          ▼           ▼              ▼
+ C4..C10    E1,E3,E5..  D3,D4,D5..     H4..H8  (after H1)
+ (parallel) (parallel)  (parallel)     (parallel)
+```
+
+The dependency edges that actually matter, and are the only ones worth
+serialising on:
+
+- **C1 and C2 before everything in M-C, M-I and much of M-H.** Exception
+  identity is load-bearing for `assert_throws_*`, which is most of the suite's
+  negative tests.
+- **F2 (fuzzy reftests) before any reftest-heavy layout task.** Otherwise M-E's
+  numbers are noise.
+- **H1 (the `.py` decision) before any `fetch/`-adjacent task.**
+- **J1 (same-origin iframes) before J2, J3 and G6.**
+
+Everything else is independent. Two agents in the same `src/` module at the same
+time is the real collision risk, so the table above is also a rough map of which
+tasks touch which module:
+
+| module | tasks that touch it |
+|---|---|
+| `src/bindings` | C1–C10, D3, D4, G1, G6, I2, I3, J1, J6 |
+| `src/layout` | E1–E11, F1 |
+| `src/css` | D1–D8, E4, F1, F3, K3 |
+| `src/gfx` | F2–F8 |
+| `src/net` | H1–H10, M4 |
+| `src/engine` | G1, G2, J1–J6, M1, M2 |
+| `src/js` | C2, G3, K4 |
+| `src/html` | C9, E1, J5, M1 |
+
+---
+
+## 5. What "done" looks like
+
+Not a percentage on a suite. Three things, in order:
+
+1. **The nine acceptance pages in M-N load, render and are usable**, with no
+   site-specific code anywhere in `src/` or `tools/` — the settling heuristics
+   in `tools/snapshot/main.cpp` are gone because nothing needs them.
+2. **The four principles have numbers.** Correctness is the WPT table. Privacy
+   is the deviation list in the expectation files, each one deliberate and
+   ADR-backed. Speed is `docs/performance/`, on the perf preset, per page.
+   CPU and memory are M-M's M5 and M6, asserted in `ctest` rather than claimed
+   in a README.
+3. **A regression cannot land quietly.** Every one of the above runs in `ctest`
+   or in one command that a session is required to run, and the expectation
+   files make an improvement and a regression equally loud.

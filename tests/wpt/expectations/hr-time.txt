@@ -1,0 +1,32 @@
+[hr-time/basic.any.html]
+FAIL=High resolution time has approximately the right relative magnitude
+FAIL=Performance interface extends EventTarget.
+FAIL=self.performance.now() returns a positive number
+[hr-time/basic.any.worker.html]
+harness=TIMEOUT
+[hr-time/clamped-time-origin-isolated.https.html]
+FAIL=timeOrigins are clamped.
+[hr-time/clamped-time-origin.html]
+FAIL=timeOrigins are clamped.
+[hr-time/cross-origin-isolated-timing-attack.https.html]
+FAIL=The recommended minimum resolution of the Performance interface has been set to 5 microseconds for cross-origin isolated contexts.
+[hr-time/idlharness.any.html]
+FAIL=idl_test setup
+[hr-time/monotonic-clock.any.html]
+FAIL=self.performance.now() returns a positive number
+[hr-time/monotonic-clock.any.worker.html]
+harness=TIMEOUT
+[hr-time/navigation-start-post-before-unload.html]
+harness=TIMEOUT
+[hr-time/performance-tojson.html]
+FAIL=Test performance.toJSON()
+[hr-time/raf-coarsened-time.https.html]
+harness=TIMEOUT
+[hr-time/test_cross_frame_start.html]
+harness=TIMEOUT
+[hr-time/timeOrigin.html]
+harness=TIMEOUT
+[hr-time/timing-attack.html]
+FAIL=The recommended minimum resolution of the Performance interface has been set to 100 microseconds for cross-origin isolated contexts.
+[hr-time/window-worker-timeOrigin.window.html]
+harness=TIMEOUT

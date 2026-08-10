@@ -610,6 +610,21 @@ target_link_libraries(microbrowser_bidiconf PRIVATE microbrowser_text)
 add_executable(microbrowser_jsshell tools/jsshell/main.cpp)
 target_link_libraries(microbrowser_jsshell PRIVATE microbrowser_js)
 
+# web-platform-tests: the server, the runner, and the expectations. See
+# docs/adr/0036-web-platform-tests.md. The checkout itself is not vendored --
+# tools/wpt/fetch.sh pins it -- so this target builds whether or not it is
+# present and says so when it is not.
+add_executable(microbrowser_wpt
+  tools/wpt/main.cpp
+  tools/wpt/Server.cpp
+  tools/wpt/TestList.cpp
+  tools/wpt/Expectations.cpp)
+target_include_directories(microbrowser_wpt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+target_compile_definitions(microbrowser_wpt PRIVATE
+  MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(microbrowser_wpt PRIVATE microbrowser_engine microbrowser_gfx
+                                               microbrowser_ipc microbrowser_platform)
+
 add_executable(microbrowser_tests
   tests/TestMain.cpp
   tests/TestSupport.cpp
@@ -831,4 +846,38 @@ if(MICROBROWSER_TEST_SHARDS GREATER 1)
   endforeach()
 else()
   add_test(NAME microbrowser_tests COMMAND microbrowser_tests)
+endif()
+
+# --- web-platform-tests ------------------------------------------------------
+# Registered only when the checkout exists. A contributor who has not run
+# tools/wpt/fetch.sh still gets a green build rather than a failure about a
+# directory they were never told about -- and `microbrowser_wpt` says what to
+# run when it is invoked without one. See docs/adr/0040-web-platform-tests.md.
+#
+# **One ctest test, not N shards**, unlike the unit suite. The runner already
+# forks a process per test and saturates the machine by itself; a sharded
+# registration would multiply ctest's -j by the runner's --jobs and put four
+# times the cores' worth of browsers on the machine.
+#
+# `--areas` is what keeps this honest: it runs the areas that have committed
+# expectations, and nothing else. Every other area would otherwise default to
+# "expected to pass" and fail by the thousand. Growing that file is task B1 in
+# docs/wpt-plan.md.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt")
+  add_test(NAME microbrowser_wpt
+           COMMAND microbrowser_wpt
+                   --wpt-root "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt"
+                   --expectations "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/expectations"
+                   --areas "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/areas.txt"
+                   # Reftests are excluded until fuzzy matching exists (task F2
+                   # in docs/wpt-plan.md). Without a tolerance, an exact pixel
+                   # comparison against a reference rendered by the same
+                   # rasterizer says "different" for antialiasing noise, and a
+                   # suite whose failures are noise is one nobody reads.
+                   --testharness-only)
+  # A WPT run is minutes, not seconds. ctest's default 1500s cap would kill it
+  # mid-run and report a timeout that says nothing about the browser.
+  set_tests_properties(microbrowser_wpt PROPERTIES TIMEOUT 5400)
+else()
+  message(STATUS "web-platform-tests: third_party/wpt absent; run tools/wpt/fetch.sh to enable")
 endif()

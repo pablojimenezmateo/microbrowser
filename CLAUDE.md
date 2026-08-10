@@ -12,6 +12,10 @@ First-stop operating guide for agents working in this repository.
 - **Idle CPU is zero and must stay zero.** The process blocks in one place: the platform event wait.
 - Every `src/` directory has a `MODULE.deps` contract enforced by the architecture lint. Read the
   manifest before adding a file, an include, or a class member.
+- **web-platform-tests is now the primary correctness signal** (ADR 0040).
+  `tools/wpt/fetch.sh` once, then `./build/microbrowser/microbrowser_wpt dom/`. Real pages are
+  still the primary *discovery* signal; they answer different questions and both stay.
+  `docs/wpt-plan.md` is the work, `docs/wpt-tasks.json` is its state.
 - `AGENTS.md` owns repo policy. `guidelines/` owns the durable how-to. `docs/adr/` owns decisions.
 - Build with `cmake`, test with `ctest`, and prefer `tools/run-checks.sh` so results are readable
   afterward without rerunning.
@@ -471,8 +475,40 @@ tools/run-checks.sh tests   # -> /tmp/microbrowser-tests.log
 tools/run-checks.sh asan    # -> /tmp/microbrowser-asan.log
 tools/run-checks.sh ubsan   # -> /tmp/microbrowser-ubsan.log
 tools/run-checks.sh tsan    # -> /tmp/microbrowser-tsan.log
+tools/run-checks.sh wpt     # -> /tmp/microbrowser-wpt.log
 tools/run-checks.sh all
 ```
+
+## web-platform-tests
+
+**Read `docs/adr/0040-web-platform-tests.md` before touching `tools/wpt/`, and
+`docs/wpt-plan.md` before deciding what to work on.**
+
+```bash
+tools/wpt/fetch.sh                                       # once; ~600MB, pinned and sparse
+./build/microbrowser/microbrowser_wpt --list | wc -l      # 42,185 tests in scope
+./build/microbrowser/microbrowser_wpt dom/                # check an area
+./build/microbrowser/microbrowser_wpt --verbose dom/nodes/Node-appendChild.html
+./build/microbrowser/microbrowser_wpt --update-expectations dom/
+./build/microbrowser/microbrowser_wpt --serve --port 8010 # browse the tests by hand
+```
+
+Every test runs in **its own process**, so a hang is one `TIMEOUT` line and a crash is one
+`CRASH` line rather than the end of the run. The server is ours and single-threaded, forked
+before anything else exists — no Python, no `/etc/hosts`, no WebDriver. Cross-origin comes
+from `*.localhost`, which glibc resolves to loopback and `url::Host::IsLoopbackOrLocalhost`
+already treats as local.
+
+`tests/wpt/expectations/*.txt` records **only failures**; PASS is the default. A newly
+passing subtest fails the run exactly like a newly failing one, and the diff of those files
+is what a session delivers.
+
+**The first thing it found was in the harness path itself**: testharness.js runs its
+completion callbacks in one loop with no `try`/`catch`, so a throw inside `show_results` eats
+every callback after it — and `show_results` calls `insertAdjacentText`, which this browser
+does not implement. A page whose tests had all run reported nothing at all. That is the
+argument for the whole thing in one bug: four missing lines, invisible on every real page,
+silently destroying a reporting path.
 
 **After a run, READ `/tmp/microbrowser-<target>.log` instead of rebuilding and rerunning.**
 
@@ -616,6 +652,10 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0033` — privacy first, correct, and very fast: Ladybird's shape, LibreWolf's defaults, from scratch
 - `docs/adr/0034` — the JavaScript heap is a bounded, collectable resource
 - `docs/adr/0035` — request concurrency is not connection concurrency
+- `docs/adr/0040` — web-platform-tests as the primary correctness signal, and why the server,
+  the runner and the expectation format are all ours
+- `docs/wpt-plan.md` — the whole road from here, in milestones and parallelizable tasks
+- `docs/wpt-tasks.json` — the same tasks as state: claimed, done, refused, with the check
 - `docs/roadmap-to-any-page.md` — the above, sequenced into sessions with a check on each
 - `docs/roadmap-sessions.json` — the same sessions as state: what is done, what the check is
 - `docs/tech-debt.md` — shapes that are wrong by design, each with the measurement that says

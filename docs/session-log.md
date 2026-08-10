@@ -4316,3 +4316,79 @@ not those three bugs alone.
 **Left:** TD-0028 remainder (why wrapper stays 0); TD-0030 clips; natural
 `height:100%` / `vh` on `#content` so page-manager fills `ytd-app`.
 
+
+---
+
+## 2026-08-10 — web-platform-tests, and a plan that several agents can work at once
+
+**Status:** done
+**Check:** `./build/microbrowser/microbrowser_wpt --testharness-only --areas tests/wpt/areas.txt`
+over 14 areas: **2,432 tests, 260,186 subtests, 5,909 passed (2.3%), 1 crash, 815 timeouts**.
+The committed expectations are that run. `dom/` alone: 667 tests, 5,253 subtests, 936 passed
+(17.8%), 0 crashes, 228 timeouts.
+
+**No wall-clock number in this entry is a measurement.** Every run was on a loaded machine and a
+Debug build, which is four to seven times slower than the perf preset. Where a duration appears it
+is context for the timeout entries, nothing more.
+
+**Landed.** `tools/wpt/` — a single-threaded static server (`.sub.` substitution, generated
+`.any.js`/`.window.js` tests, `.headers` sidecars), a manifest scanner that classifies 42,185
+tests without Python, an expectation store, and a runner that forks a process per test.
+`tests/wpt/expectations/` (68,012 lines over 12 files), `tests/wpt/areas.txt`,
+`docs/adr/0040-web-platform-tests.md`, `docs/wpt-plan.md`, `docs/wpt-tasks.json` (87 tasks,
+14 milestones), `ctest` registration, `tools/run-checks.sh wpt`.
+
+**Found — five things a diff does not say.**
+
+1. **The first bug it found was in the reporting path, and it made the harness report nothing
+   at all.** testharness.js runs its completion callbacks in one `forEach` with no try/catch,
+   so a throw inside `show_results` silently eats every callback registered after it — ours.
+   `show_results` calls `insertAdjacentText`, which this browser does not implement. The page
+   had run all eleven of its tests and rendered "1 Pass 10 Fail" into `#log`; the runner saw a
+   timeout. `setup({output: false})` in `tools/wpt/harness/testharnessreport.js` is the fix and
+   must stay after `insertAdjacentText` lands: the next missing method in that path fails the
+   same way.
+
+2. **`*.localhost` is why this needs no root and no /etc/hosts.** glibc resolves every label
+   under it to loopback and `url::Host::IsLoopbackOrLocalhost` already treats the whole suffix
+   as local, so `www1.localhost:8001` is a real cross-origin origin. WPT's own hostnames need a
+   privileged edit; this changes nothing on the machine. The server binds 127.0.0.1 *and* [::1]
+   because getaddrinfo answers `::1` for `www.localhost`.
+
+3. **A blocking `read()` on a child's pipe cost the first full run.** `poll` says a descriptor
+   is readable, not how much is there; reading in a loop until zero parks the parent inside the
+   second `read` of a child that is still working. Symptom: eleven zombies, one live child, and
+   a runner that never reaps another — `dom/` sat *stuck at 350 of 667* and finished all 667
+   promptly once the read end was made non-blocking. Anything added to that loop must not
+   reintroduce a blocking call.
+
+4. **A harness status that is not OK subsumes the subtests, and this had to be learned the
+   expensive way.** The first baseline wrote **188,172 `NOTRUN` lines** into `encoding.txt`
+   (217,843 lines, one file) — every subtest after the point a test timed out. Those are one
+   failure's consequence, not a thousand facts. With the rule, the same run is 29,503 lines and
+   the whole store is 60,097 rather than 256,235.
+
+5. **The 2.3% is dominated by `encoding/`**, which has ~250,000 subtests (one per code point in
+   the legacy index tables) against ~5,000 for everything else combined. Do not quote the
+   aggregate as "this browser passes 2% of the web platform" — `dom/` is 17.8% and the areas
+   differ by an order of magnitude. Per-area numbers only, which is task B4.
+
+6. **`TIMEOUT` is the one status that is a property of the machine as much as of the browser,
+and it is why the runner retries.** The page's own testharness gives up after ten seconds; a test
+that finishes in nine loses that race whenever the box is busy. Two runs of the *same binary*
+disagreed on **66 of 2,432** tests, almost all flipping between OK and TIMEOUT. `--retries 1` (the
+default) re-runs any result that disagrees with its expectation, and recording additionally re-runs
+any TIMEOUT — otherwise the afternoon's load average is baked into the expectations and the next
+agent's first run is red for a reason that has nothing to do with their change. Residual flake after
+that was 43 of 2,432 on a heavily loaded machine. **The committed expectations were recorded under
+load**, so some of the 815 timeout entries are artefacts; re-recording them on an idle machine is
+part of task B1. `--retries 0` is how you look for a genuine intermittent.
+
+**Left:** task B1 in `docs/wpt-plan.md` — the full baseline over every checked-out area, then
+B2, which is the one that matters: the first 150 `dom/` tests had four distinct messages behind
+most of their failures, and a ranked cause list is what turns 20,000 failures into 40 sessions.
+Reftests (20,920 of the 42,185) are excluded from `ctest` until fuzzy matching exists (task F2);
+without a tolerance an exact comparison against a reference rendered by the same rasterizer
+reports antialiasing noise as a failure. `.py` handlers are refused rather than approximated, so
+most of `fetch/` and nearly all of `cors/` are unrunnable — that is task H1 and it needs a
+decision, not code.

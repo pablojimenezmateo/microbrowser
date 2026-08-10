@@ -1,0 +1,103 @@
+# Which of web-platform-tests is checked out, one git sparse-checkout pattern
+# per line. WPT is ~1.5M files; a sparse partial clone of this list is under a
+# tenth of that, and every directory here is one this browser has code for.
+#
+# Adding a line is how a new area comes into scope. Removing one is how an area
+# that will not be worked on this year stops costing clone time. Neither is a
+# statement about conformance -- that is what the expectation files say.
+
+# --- Required by every test. -------------------------------------------------
+/resources/
+/common/
+/fonts/
+/images/
+/media/
+
+# --- The document, and script's view of it. ----------------------------------
+/dom/
+/domparsing/
+/shadow-dom/
+/custom-elements/
+/domxpath/
+/selection/
+/uievents/
+/intersection-observer/
+/resize-observer/
+/mimesniff/
+/console/
+
+# --- HTML: the parser, the elements, the loading model. ----------------------
+/html/
+
+# --- CSS. The whole of /css is 30k files; these are the areas with code. -----
+/css/CSS2/
+/css/css-align/
+/css/css-animations/
+/css/css-backgrounds/
+/css/css-box/
+/css/css-cascade/
+/css/css-color/
+/css/css-conditional/
+/css/css-display/
+/css/css-flexbox/
+/css/css-fonts/
+/css/css-grid/
+/css/css-images/
+/css/css-multicol/
+/css/css-overflow/
+/css/css-position/
+/css/css-shapes/
+/css/css-sizing/
+/css/css-syntax/
+/css/css-tables/
+/css/css-text/
+/css/css-text-decor/
+/css/css-transforms/
+/css/css-transitions/
+/css/css-ui/
+/css/css-values/
+/css/css-variables/
+/css/css-writing-modes/
+/css/cssom/
+/css/cssom-view/
+/css/selectors/
+/css/support/
+/css/reference/
+
+# --- The network a page asks for itself. -------------------------------------
+/fetch/
+/xhr/
+/cors/
+/url/
+/websockets/
+/eventsource/
+/content-security-policy/
+/subresource-integrity/
+/referrer-policy/
+/upgrade-insecure-requests/
+/cookies/
+
+# --- Encodings and text. -----------------------------------------------------
+/encoding/
+
+# --- Storage. ----------------------------------------------------------------
+/webstorage/
+/IndexedDB/
+/storage/
+
+# --- Timing, animation, workers. ---------------------------------------------
+/hr-time/
+/user-timing/
+/performance-timeline/
+/navigation-timing/
+/resource-timing/
+/web-animations/
+/workers/
+/FileAPI/
+/streams/
+/webmessaging/
+
+# --- Media and graphics. -----------------------------------------------------
+/media-source/
+/svg/
+/png/

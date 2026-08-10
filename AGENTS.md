@@ -189,6 +189,11 @@ Not a feature area — a constraint on every other area. See `guidelines/privacy
 - Every meaningful bug fix adds or tightens regression coverage.
 - Run `tools/run-checks.sh tests` before considering work complete; sanitizers for anything touching
   memory, threads, or untrusted input.
+- **Anything that changes what the platform does to a page runs web-platform-tests for the areas it
+  touches** (ADR 0040): `./build/microbrowser/microbrowser_wpt dom/ css/css-flexbox/`. The
+  expectation files under `tests/wpt/expectations/` record only failures, so the diff of a session
+  that fixed something is a deletion. A line added there needs a reason in the commit message, and a
+  line that records a *deliberate* deviation needs a comment naming the ADR it comes from.
 - Every parser that touches network bytes gets a fuzz target on the commit it lands.
 - Pixel reference tests for anything that changes rendered output.
 - Update docs when a durable architecture decision or shipped capability changes.

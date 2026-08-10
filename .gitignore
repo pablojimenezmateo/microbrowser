@@ -41,3 +41,9 @@ slow-unit-*
 # clangd index (created whenever compile_commands.json is exported).
 /.cache/
 /compile_commands.json
+
+# web-platform-tests is fetched, not vendored: 1.5 million files that change
+# daily would be a fork nobody maintains and would drown every real diff. What
+# is tracked is the pin (tools/wpt/REVISION) and the scope
+# (tools/wpt/directories.txt). See docs/adr/0040-web-platform-tests.md.
+/third_party/

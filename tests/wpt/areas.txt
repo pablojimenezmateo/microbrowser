@@ -1,0 +1,27 @@
+# The web-platform-tests areas `ctest` runs, one path prefix per line.
+#
+# This file exists because an area with no committed expectations defaults to
+# "every subtest passes", which is false for every area nobody has looked at
+# yet -- so running everything would fail by the thousand and mean nothing.
+#
+# **Growing this file is the work.** An area joins it when somebody has run it,
+# read the failures, and committed an expectation file that describes them.
+# That is task B1 in docs/wpt-plan.md, and every task after it adds a line or
+# deletes failures from one.
+#
+# There are 42,185 tests in the checkout. This list covers a starter set.
+
+dom/
+domparsing/
+custom-elements/
+shadow-dom/
+console/
+encoding/
+url/
+hr-time/
+user-timing/
+webstorage/
+mimesniff/
+css/cssom/
+css/css-values/
+css/css-flexbox/
