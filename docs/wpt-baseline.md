@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-6622 of 280109 subtests pass (2.4%) over 4603 tests.
+6815 of 282130 subtests pass (2.4%) over 5320 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 41% of every subtest here.
+**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 40% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
 one that tests an algorithm. The per-area column is the measurement; the aggregate
 is an artefact of how the suite is written.
@@ -149,6 +149,27 @@ it is a page that never reported, which almost always means something threw befo
 | `subresource-integrity/integrity-policy` | 5 | 0 | 0 | 5 | 0 | 37 | 0 | 0.0 |
 | `subresource-integrity/signatures` | 15 | 14 | 0 | 1 | 0 | 177 | 43 | 24.3 |
 | `subresource-integrity/unencoded-digest` | 9 | 6 | 0 | 3 | 0 | 84 | 28 | 33.3 |
+| `svg` | 3 | 3 | 0 | 0 | 0 | 70 | 45 | 64.3 |
+| `svg/animations` | 289 | 251 | 1 | 37 | 0 | 282 | 4 | 1.4 |
+| `svg/coordinate-systems` | 8 | 7 | 0 | 1 | 0 | 39 | 0 | 0.0 |
+| `svg/embedded` | 2 | 1 | 0 | 1 | 0 | 2 | 0 | 0.0 |
+| `svg/extensibility` | 7 | 5 | 0 | 2 | 0 | 5 | 3 | 60.0 |
+| `svg/fonts` | 3 | 3 | 0 | 0 | 0 | 3 | 0 | 0.0 |
+| `svg/geometry` | 61 | 12 | 0 | 49 | 0 | 283 | 27 | 9.5 |
+| `svg/import` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
+| `svg/interact` | 33 | 14 | 0 | 19 | 0 | 97 | 46 | 47.4 |
+| `svg/linking` | 18 | 5 | 0 | 13 | 0 | 34 | 0 | 0.0 |
+| `svg/painting` | 70 | 6 | 0 | 64 | 0 | 283 | 0 | 0.0 |
+| `svg/path` | 41 | 29 | 0 | 12 | 0 | 208 | 0 | 0.0 |
+| `svg/pservers` | 12 | 3 | 0 | 9 | 0 | 11 | 0 | 0.0 |
+| `svg/render` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
+| `svg/scripted` | 9 | 3 | 0 | 6 | 0 | 4 | 0 | 0.0 |
+| `svg/shapes` | 7 | 0 | 0 | 7 | 0 | 0 | 0 | 0.0 |
+| `svg/struct` | 16 | 6 | 0 | 10 | 0 | 40 | 5 | 12.5 |
+| `svg/styling` | 16 | 13 | 0 | 3 | 0 | 50 | 4 | 8.0 |
+| `svg/svg-in-svg` | 1 | 1 | 0 | 0 | 0 | 1 | 1 | 100.0 |
+| `svg/text` | 32 | 9 | 0 | 23 | 0 | 39 | 0 | 0.0 |
+| `svg/types` | 86 | 58 | 4 | 24 | 0 | 569 | 58 | 10.2 |
 | `uievents` | 3 | 3 | 0 | 0 | 0 | 5 | 2 | 40.0 |
 | `uievents/click` | 7 | 0 | 0 | 7 | 0 | 3 | 0 | 0.0 |
 | `uievents/constructors` | 2 | 2 | 0 | 0 | 0 | 20 | 0 | 0.0 |
@@ -195,16 +216,19 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 1060 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 465 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 1106 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 471 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 215 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
-| 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
 | 17 | TIMEOUT: killed after the wall-clock budget | `dom/nodes/Node-insertBefore.html` |
 | 14 | ERROR: [object Object] | `domparsing/DOMParser-parseFromString-encoding.html` |
 | 13 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: getSelection is not defined ReferenceError: getSelection is n... | `selection/getRangeAt.html` |
+| 12 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `resize-observer/svg-with-css-box-002.svg` |
 | 9 | ERROR: RangeError: script ran too long | `encoding/legacy-mb-japanese/iso-2022-jp/iso2022jp-encode-form-csiso2022jp.html` |
+| 9 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: async_test is not defined ReferenceError: async_test is not d... | `svg/animations/scripted/end-element-on-inactive-element.svg` |
 | 8 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: SharedWorker is not defined ReferenceError: SharedWorker is n... | `fetch/metadata/sharedworker.https.sub.html` |
+| 8 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `resize-observer/svg.html` |
 | 7 | TIMEOUT: the page never reported; first script error: ./support/helpers.js: SyntaxError: expected ')' to close a dynamic import (line N) SyntaxError:... | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect-iframe.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createDocument) is not a function TypeError: undefined ... | `dom/nodes/append-on-Document.html` |
 | 6 | TIMEOUT: the page never reported; first script error: /service-workers/service-worker/resources/test-helpers.sub.js: SyntaxError: expected ';' (line ... | `fetch/api/policies/referrer-no-referrer-service-worker.https.html` |
@@ -212,10 +236,12 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: target is not defined ReferenceError: target is not defined a... | `intersection-observer/grow-height-and-scrolled.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
 | 5 | TIMEOUT: the page never reported; first script error: support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected a pro... | `cors/credentials-flag.htm` |
+| 4 | ERROR: TypeError: cannot read property 'baseVal' of undefined | `svg/types/scripted/SVGLength-convertToSpecifiedUnits-font-change.html` |
 | 4 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot set property 'onerror' of undefined TypeError: cannot set p... | `custom-elements/cross-realm-callback-report-exception.html` |
 | 4 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (open) is not a function TypeError: undefined (open) is ... | `cookies/domain/domain-attribute-idn-host.sub.https.html` |
 | 4 | TIMEOUT: the page never reported; first script error: resources/webperftestharness.js: ReferenceError: ﻿ is not defined ReferenceError: ﻿ is not ... | `resource-timing/resource_connection_reuse_mixed_content.html` |
 | 3 | ERROR: TypeError: undefined (createDocument) is not a function | `dom/nodes/Document-createAttribute.html` |
+| 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'baseVal' of undefined TypeError: cannot read... | `svg/types/scripted/SVGLength-ch.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'insertRule' of undefined TypeError: cannot r... | `dom/events/webkit-animation-end-event.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (write) is not a function TypeError: undefined (write) i... | `custom-elements/parser/parser-constructs-custom-element-in-document-write.html` |
 | 2 | CRASH: killed by signal Segmentation fault | `dom/nodes/moveBefore/relevant-mutations.html` |
@@ -225,6 +251,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 2 | ERROR: TypeError: cannot read property 'supports' of undefined | `fetch/metadata/generated/element-link-prefetch.https.optional.sub.html` |
 | 2 | TIMEOUT: the page never reported; first script error: ../editing/include/editor-test-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expect... | `selection/move-by-word-korean.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DOMParser is not defined ReferenceError: DOMParser is not def... | `domxpath/fn-lang.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: feConvlveMatrix is not defined ReferenceError: feConvlveMatri... | `svg/animations/svginteger-animation-1.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: host is not defined ReferenceError: host is not defined at <a... | `dom/events/shadow-relatedTarget.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: input is not defined ReferenceError: input is not defined at ... | `selection/textcontrols/selectionchange-bubble.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: outside is not defined ReferenceError: outside is not defined... | `shadow-dom/focus/click-focus-delegatesFocus-click.html` |
@@ -264,6 +291,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | ERROR: Test named 'shadowrootslotassignment=manual is serialized and appears before shadowrootclonable and shadowrootserializable' specified N 'cle... | `shadow-dom/declarative/declarative-shadow-dom-slot-assignment-serialization.html` |
 | 1 | ERROR: Test named 'state selector has influence on nth-of when state is applied' specified N 'cleanup' functions, and N failed. | `custom-elements/state/state-css-selector-nth-of.html` |
 | 1 | ERROR: TypeError: undefined (createProcessingInstruction) is not a function | `dom/nodes/CharacterData-remove.html` |
+| 1 | ERROR: TypeError: undefined (pauseAnimations) is not a function | `svg/animations/smil-clock-value-parsing.html` |
 | 1 | PRECONDITION_FAILED: [object Object] | `fetch/orb/tentative/hls.html` |
 | 1 | TIMEOUT: the page never reported; first script error: ../../editing/include/tests.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (l... | `selection/contenteditable/initial-selection-on-focus.tentative.html` |
 | 1 | TIMEOUT: the page never reported; first script error: ./resources/stale-script.py?token=fNceNbNa-NbN-NeNb-N-dcNeNcNbfN: SyntaxError: expected ';' (li... | `fetch/stale-while-revalidate/stale-script.html` |
@@ -288,13 +316,6 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: AnimationEffect is not defined ReferenceError: AnimationEffec... | `web-animations/interfaces/KeyframeEffect/style-change-events.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DocumentTimeline is not defined ReferenceError: DocumentTimel... | `hr-time/raf-coarsened-time.https.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: FormData is not defined ReferenceError: FormData is not defin... | `xhr/formdata.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLAreaElement is not defined ReferenceError: HTMLAreaElemen... | `custom-elements/reactions/customized-builtins/HTMLAreaElement.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLBaseElement is not defined ReferenceError: HTMLBaseElemen... | `custom-elements/reactions/customized-builtins/HTMLBaseElement.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLDataElement is not defined ReferenceError: HTMLDataElemen... | `custom-elements/reactions/customized-builtins/HTMLDataElement.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLDetailsElement is not defined ReferenceError: HTMLDetails... | `custom-elements/reactions/customized-builtins/HTMLDetailsElement.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLEmbedElement is not defined ReferenceError: HTMLEmbedElem... | `custom-elements/reactions/customized-builtins/HTMLEmbedElement.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLFieldSetElement is not defined ReferenceError: HTMLFieldS... | `custom-elements/reactions/customized-builtins/HTMLFieldSetElement.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLMapElement is not defined ReferenceError: HTMLMapElement ... | `custom-elements/reactions/customized-builtins/HTMLMapElement.html` |
 
 ## Why subtests fail
 
@@ -305,12 +326,13 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 231 | 793 | Test timed out | `FileAPI/FileReader/workers.html` |
-| 143 | 190303 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
+| 236 | 805 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 202 | 202 | undefined (pauseAnimations) is not a function | `svg/animations/additive-type-by-animation.html` |
+| 145 | 190322 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
 | 90 | 303 | synchronous XMLHttpRequest is not supported | `xhr/XMLHttpRequest-withCredentials.any.html` |
 | 68 | 1945 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `IndexedDB/idbfactory_cmp.any.html` |
+| 58 | 200 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 57 | 89 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `IndexedDB/file_support.sub.html` |
-| 56 | 190 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 55 | 276 | undefined (__defineSetter__) is not a function | `IndexedDB/abort-in-initial-upgradeneeded.any.html` |
 | 48 | 230 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
 | 46 | 562 | Illegal constructor: ReadableStream | `fetch/api/basic/request-upload.any.html` |
@@ -318,50 +340,57 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 44 | 553 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 44 | 306 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 43 | 239 | assert_equals: Expected success event, but got upgradeneeded event instead expected "success" but got "upgradeneeded" | `IndexedDB/bindings-inject-keys-bypass.any.html` |
-| 42 | 75 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
+| 43 | 80 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 38 | 414 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 36 | 1118 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 35 | 210 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
 | 33 | 295 | assert_unreached: Should have rejected: undefined Reached unreachable code | `fetch/api/basic/header-value-null-byte.any.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
+| 30 | 320 | cannot read property 'baseVal' of undefined | `svg/animations/attribute-value-unaffected-by-animation-002.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
+| 29 | 29 | undefined (setCurrentTime) is not a function | `svg/animations/conditional-processing-02.html` |
+| 27 | 149 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 27 | 297 | promise_rejects_js: function "function TypeError() { [native code] }" is not an Error subtype | `FileAPI/url/url-with-fetch.any.html` |
-| 26 | 143 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
+| 22 | 22 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 21 | 393 | KeyframeEffect is not defined | `web-animations/animation-model/animation-types/clamping-001.html` |
-| 21 | 21 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 20 | 75 | FormData is not defined | `custom-elements/form-associated/form-disabled-callback.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 85 | getSelection is not defined | `selection/modify-extend-word-trailing-inline-block.tentative.html` |
 | 17 | 116 | promise_test: Unhandled rejection with value: object "ReferenceError: SharedWorker is not defined" | `fetch/api/cors/data-url-shared-worker.html` |
 | 17 | 67 | undefined (add) is not a function | `IndexedDB/error-attributes.any.html` |
+| 16 | 19 | SVGAnimatedEnumeration is not defined | `svg/types/scripted/SVGAnimatedEnumeration-SVGClipPathElement.html` |
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
 | 16 | 50 | undefined (createDocument) is not a function | `custom-elements/registries/scoped-registry-initialize-upgrades.html` |
 | 15 | 126 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
 | 15 | 144 | DOMParser is not defined | `dom/nodes/Node-normalize.html` |
 | 15 | 15 | assert_equals: IntersectionObserverEntryCount expected N but got N | `intersection-observer/scroll-and-root-margin.html` |
+| 15 | 46 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 14 | 42 | FileReader is not defined | `FileAPI/fileReader.any.html` |
 | 14 | 68 | Illegal constructor: HTMLElement | `custom-elements/HTMLElement-attachInternals.html` |
 | 14 | 34 | fetchLater is not defined | `fetch/fetch-later/basic.https.window.html` |
 | 14 | 95 | promise_test: Unhandled rejection with value: object "ReferenceError: Observable is not defined" | `dom/observable/tentative/crashtests/observable-gc.any.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "ReferenceError: createStylesheetHost is not defined" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'append' of undefined" | `IndexedDB/back-forward-cache-open-transaction.window.html` |
+| 14 | 183 | undefined (getBBox) is not a function | `svg/coordinate-systems/svgtransformlist-replaceitem.html` |
 | 13 | 29 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
 | 13 | 139 | assert_equals: Response N status is N, not N expected N but got N | `fetch/http-cache/304-update.any.html` |
-| 13 | 29 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
+| 13 | 522 | assert_true: 'from' value should be supported expected true got false | `svg/geometry/animations/cx-composition.html` |
 | 13 | 42 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
+| 13 | 24 | promise_test: Unhandled rejection with value: object "Error: observe_entry: timeout" | `resource-timing/cross-origin-iframe.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
 | 12 | 114 | TransformStream is not defined | `streams/transferable/transform-stream.html` |
 | 12 | 133 | assert_equals: HTTP status is N expected N but got N | `fetch/api/basic/accept-header.any.html` |
 | 12 | 102 | assert_false: expected false got true | `cors/preflight-failure.htm` |
+| 12 | 16 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
 | 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
-| 12 | 22 | promise_test: Unhandled rejection with value: object "Error: observe_entry: timeout" | `resource-timing/cross-origin-iframe.html` |
 | 12 | 12 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `intersection-observer/cross-origin-tall-iframe.sub.html` |
 | 12 | 33 | undefined (createAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
 | 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
+| 12 | 88 | undefined (getTotalLength) is not a function | `svg/path/parsing/arc-commands.html` |
 | 12 | 307 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
 | 11 | 132 | Observable is not defined | `dom/observable/tentative/observable-catch.any.html` |
 | 11 | 13 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
@@ -375,16 +404,15 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
 | 10 | 147 | Failed to execute 'animate': keyframes are required | `web-animations/interfaces/Animation/oncancel.html` |
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
-| 10 | 14 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
 | 10 | 96 | cannot read property 'getComputedTiming' of undefined | `web-animations/animation-model/animation-types/discrete.html` |
 | 10 | 16 | cannot read property 'then' of undefined | `fetch/api/response/response-cancel-stream.any.html` |
+| 10 | 47 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
 | 9 | 9 | cannot read property 'postMessage' of undefined | `dom/events/EventListener-incumbent-global-1.sub.html` |
 | 9 | 38 | document.elementsFromPoint unsupported | `fetch/metadata/generated/audioworklet.https.sub.html` |
 | 9 | 10 | promise_test: Unhandled rejection with value: object "TypeError: undefined (addEventListener) is not a function" | `resource-timing/buffer-full-add-then-clear.html` |
-| 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
 | 8 | 9 | DataCloneError: transferring objects is not supported | `FileAPI/blob/Blob-constructor.any.html` |
 | 8 | 3025 | The encoding label provided ('iso-N-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
@@ -398,12 +426,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 8 | 8 | promise_test: Unhandled rejection with value: object "ReferenceError: fetchLater is not defined" | `fetch/fetch-later/policies/csp-allowed.https.window.html` |
 | 8 | 15 | promise_test: Unhandled rejection with value: object "ReferenceError: with_iframe is not defined" | `fetch/content-encoding/br/br-navigation.https.window.html` |
 | 8 | 17 | promise_test: Unhandled rejection with value: object "TypeError: undefined (updatePlaybackRate) is not a function" | `web-animations/timing-model/animations/pausing-an-animation.html` |
-| 7 | 20 | The encoding label provided ('utf-Nbe') is invalid. | `encoding/api-basics.any.html` |
-| 7 | 2588 | The encoding label provided ('windows-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
-| 7 | 98 | assert_array_equals: expected property N to be N but got N (expected array [N, "OK"] got [N, "Python handlers are not implemented"]) | `fetch/api/request/request-cache-default.any.html` |
-| 7 | 14 | assert_equals: expected "Npx" but got "" | `web-animations/responsive/assorted-lengths.html` |
-| 7 | 3429 | assert_throws_js: function "function RangeError() { [native code] }" is not an Error subtype | `encoding/api-replacement-encodings.any.html` |
-| 7 | 9 | assert_true: Initially visible expected true got undefined | `intersection-observer/v2/svg-foreign-object-filter-occlusion.html` |
-| 7 | 7 | assert_true: sourceBuffer.updating during range removal expected true got false | `media-source/mediasource-config-change-mp4-a-bitrate.html` |
 
-9760 distinct subtest messages and 136 distinct harness messages behind these numbers.
+9889 distinct subtest messages and 147 distinct harness messages behind these numbers.
