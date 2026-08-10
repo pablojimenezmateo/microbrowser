@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <string_view>
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
@@ -40,6 +41,9 @@ constexpr const char* kUpgradeSlot = "#upgrading";
 constexpr const char* kWhenDefinedPendingSlot = "#whenDefinedPending";
 // On a wrapper, once its class has run. An element is upgraded at most once.
 constexpr const char* kUpgradedSlot = "#upgraded";
+// On a wrapper: whether this element is currently connected, as the reactions have been told it.
+// The specification's own state, in the only per-element place this module has.
+constexpr const char* kConnectedSlot = "#connected";
 
 // A custom element name has a dash. That is the whole rule, and it is what
 // keeps a page from redefining `<div>`.
@@ -302,6 +306,29 @@ void DomBindings::RunElementReaction(dom::Element& element, const char* callback
   const Value wrapper = WrapperFor(&element);
   if (!wrapper.IsObject() || wrapper.object->GetOwn(kUpgradedSlot) == nullptr) {
     return;
+  }
+  // Connected and disconnected are *transitions*, not announcements. The specification enqueues
+  // `connectedCallback` in the insertion steps only when a node **becomes** connected, so a
+  // component may assume the two alternate: everything one sets up, the other tears down.
+  //
+  // This engine reaches those steps from three places -- an upgrade of something already in the
+  // document, an insertion, and a fragment insertion -- and a subtree can be walked by more than
+  // one of them for a single operation. On youtube's consent dialog that walked each
+  // `yt-button-shape` two to four times, and the component renders itself on connect: the dialog
+  // ended up offering "Accept allAccept all" from two `<button>` children inside one control.
+  // The flag is where the specification's is, on the element's own state, and it is the thing
+  // that makes an extra walk cost a comparison rather than a second component.
+  const bool connecting = std::string_view(callback) == "connectedCallback";
+  const bool disconnecting = std::string_view(callback) == "disconnectedCallback";
+  if (connecting || disconnecting) {
+    const Value* was = wrapper.object->GetOwn(kConnectedSlot);
+    const bool connected = was != nullptr && js::ToBoolean(*was);
+    if (connected == connecting) {
+      util::AddPerformanceCounter(connecting ? util::PerfCounterId::DomCustomElementConnectRepeats
+                                             : util::PerfCounterId::DomCustomElementDisconnectRepeats);
+      return;
+    }
+    wrapper.object->Set(kConnectedSlot, Value::Bool(connecting));
   }
   const Value* handler = wrapper.object->Get(callback);
   if (handler == nullptr || !handler->IsObject() || !handler->object->IsCallable()) {

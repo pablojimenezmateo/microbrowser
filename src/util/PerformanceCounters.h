@@ -368,6 +368,14 @@ namespace microbrowser::util {
   /* in the tree, it has a prototype, its methods are simply somebody else's.   */ \
   X(DomCustomElementUpgrades, "dom.custom_element_upgrades")                      \
   X(DomCustomElementConstructorThrows, "dom.custom_element_constructor_throws")   \
+  /* A connection walk that reached an element already in the state it was      */ \
+  /* about to be told about, so no reaction ran. Connected and disconnected are */ \
+  /* transitions: one operation can walk a subtree from more than one entry     */ \
+  /* point, and a component that renders on connect renders twice if each walk  */ \
+  /* is announced. Above zero is normal; a large number against                 */ \
+  /* `dom.custom_element_upgrades` means a subtree is being walked repeatedly.  */ \
+  X(DomCustomElementConnectRepeats, "dom.custom_element_connect_repeats")         \
+  X(DomCustomElementDisconnectRepeats, "dom.custom_element_disconnect_repeats")   \
   /* An upgrade whose class had no usable `prototype` to apply, so the element  */ \
   /* kept whatever the construction left on it. Above zero means every          */ \
   /* component of that class renders as a plain element.                       */ \

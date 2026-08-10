@@ -106,6 +106,13 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
   }
   std::vector<dom::Node*> added;
   while (dom::Node* first = fragment.FirstChild()) {
+    // The removal half, for the same reason `InsertInto` owes it: `UpgradeSubtree` above ran the
+    // page's constructors, and a constructor is allowed to put its own element in the document.
+    // Moving it here without saying so left a custom element connected twice over.
+    NotifyConnection(*first, false);
+    if (first->Parent() != &fragment) {
+      continue;  // a reaction moved it out from under us; the loop re-reads the new first child
+    }
     std::unique_ptr<dom::Node> moved = fragment.Detach(first);
     if (moved == nullptr) {
       break;

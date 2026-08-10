@@ -380,9 +380,17 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // A node with a parent is moved rather than refused, now that detaching is
   // possible: `parent.appendChild(existing)` is how a page reorders a list,
   // and it only works because the node survives leaving its old parent.
-  std::unique_ptr<dom::Node> owned;
+  // A move is a removal followed by an insertion, and the removal half owes the same
+  // `disconnectedCallback` and the same childList record a `removeChild` owes -- before the
+  // detach, while "is this in the document" still answers yes. Reactions are script and script can
+  // move the node again, so where it lives is re-read afterwards rather than remembered.
   if (child->Parent() != nullptr) {
-    owned = child->Parent()->Detach(child);
+    NotifyConnection(*child, false);
+  }
+  std::unique_ptr<dom::Node> owned;
+  if (dom::Node* old_parent = child->Parent(); old_parent != nullptr) {
+    RecordMutation(*old_parent, "childList", {}, Value::Null(), {}, {child});
+    owned = old_parent->Detach(child);
   } else {
     for (std::size_t i = 0; i < unattached_.size(); ++i) {
       if (unattached_[i].get() == child) {

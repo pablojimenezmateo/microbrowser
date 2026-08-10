@@ -563,6 +563,67 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "holder.appendChild(document.createElement('x-t'));"
                  "log.length + ':' + (document.body.appendChild(holder), log.join())",
                  "0:in");
+    // Moving a connected element is a removal *and* an insertion, so it is told it left before it
+    // is told it arrived. Without the removal half a component that renders itself on connect
+    // rendered itself twice, and youtube's `yt-button-shape` ended up holding two `<button>`
+    // children -- "Accept allAccept all" in a control sized for one label.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { connectedCallback(){ log.push('in') }"
+                 "  disconnectedCallback(){ log.push('out') } }"
+                 "customElements.define('x-t', T);"
+                 "var a = document.createElement('div');"
+                 "var b = document.createElement('div');"
+                 "document.body.appendChild(a); document.body.appendChild(b);"
+                 "var e = document.createElement('x-t');"
+                 "a.appendChild(e); b.appendChild(e); log.join()",
+                 "in,out,in");
+    // A move inside a detached subtree was never connected and stays silent.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "class T extends HTMLElement { connectedCallback(){ log.push('in') }"
+                 "  disconnectedCallback(){ log.push('out') } }"
+                 "customElements.define('x-t', T);"
+                 "var a = document.createElement('div');"
+                 "var b = document.createElement('div');"
+                 "var e = document.createElement('x-t');"
+                 "a.appendChild(e); b.appendChild(e); log.length + ':' + log.join()",
+                 "0:");
+    // And an observer sees the removal from the old parent, not only the addition to the new one.
+    ExpectScript(kPage,
+                 "var a = document.createElement('div');"
+                 "var b = document.createElement('div');"
+                 "a.id = 'a'; b.id = 'b';"
+                 "document.body.appendChild(a); document.body.appendChild(b);"
+                 "var e = document.createElement('span');"
+                 "a.appendChild(e);"
+                 "var o = new MutationObserver(function(){});"
+                 "o.observe(document.body, {childList: true, subtree: true});"
+                 "b.appendChild(e);"
+                 "o.takeRecords().map(function(r){"
+                 "  return r.target.id + ':' + r.addedNodes.length + '+' + r.removedNodes.length;"
+                 "}).join()",
+                 "a:0+1,b:1+0");
+    // Connected and disconnected are transitions. One operation can walk a subtree from more than
+    // one entry point -- here the upgrade that runs during the fragment parse connects the element
+    // itself, and the fragment's own move would have announced it a second time. A component that
+    // renders on connect rendered twice: youtube's consent dialog grew two `<button>` children per
+    // control and offered "Accept allAccept all" in the width of one label.
+    ExpectScript(kPage,
+                 "var log = [];"
+                 "var sink = document.createElement('div');"
+                 "document.body.appendChild(sink);"
+                 "var placed = false;"
+                 "class T extends HTMLElement {"
+                 "  constructor(){ super(); if (!placed) { placed = true; sink.appendChild(this) } }"
+                 "  connectedCallback(){ log.push('in') }"
+                 "  disconnectedCallback(){ log.push('out') } }"
+                 "customElements.define('x-t', T);"
+                 "var d = document.createElement('div');"
+                 "document.body.appendChild(d);"
+                 "d.innerHTML = '<x-t></x-t>';"
+                 "log.join() + '|' + d.children.length + '|' + sink.children.length",
+                 "in|0|1");
     // The parser makes elements and knows nothing about a registry, so a
     // subtree that arrived through `innerHTML` has to be upgraded before it is
     // announced as connected -- `connectedCallback` is a method of the
