@@ -1,0 +1,225 @@
+[cors/304.htm]
+FAIL=A 304 can change Access-Control-Allow-Origin
+FAIL=A 304 can contract Access-Control-Expose-Headers
+FAIL=A 304 can expand Access-Control-Expose-Headers
+FAIL=A 304 response with no CORS headers inherits from the stored response
+[cors/access-control-expose-headers-parsing.window.html]
+FAIL=Parsing: Access-Control-Expose-Headers%3A%0D%0AAccess-Control-Expose-Headers%3A%20bb-8
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20%22bb-8%22%2Cbb-8
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20%2Cbb-8
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20%40%23%24%23%25%25%26%5E%26%5E*()()11!%2Cbb-8
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20'bb-8'
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20'bb-8'%2Cbb-8
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0B
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0B%2Cbb-8
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0C
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0D%0AAccess-Control-Expose-Headers%3A%20no
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0D%0AAccess-Control-Expose-Headers%3A%20no%20no
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%2C%20no%20no
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%2C%2C%40%23%24%23%25%25%26%5E%26%5E*()()11!
+FAIL=Parsing: Access-Control-Expose-Headers%3A%20no%0D%0AAccess-Control-Expose-Headers%3A%20bb-8
+FAIL=Parsing: access-control-expose-headers%3A%20BB-8
+[cors/basic.htm]
+FAIL=Same domain basic usage, origin: echo
+FAIL=Same domain basic usage, origin: none
+[cors/client-hint-request-headers-2.tentative.htm]
+FAIL=Client hint headers are simple headers
+[cors/client-hint-request-headers.htm]
+FAIL=Test invalid downlink value is disallowed
+FAIL=Test invalid ect value is disallowed
+FAIL=Test invalid rtt value is disallowed
+FAIL=Unextractable DPR client hint header is disallowed
+FAIL=Unextractable device-memory client hint header is disallowed
+FAIL=Unextractable viewport-width client hint header is disallowed
+FAIL=Unextractable width client hint header is disallowed
+FAIL=Unspecified request headers are disallowed
+[cors/cors-safelisted-request-header.any.html]
+FAIL=No preflight for {"content-type":"multipart/form-data"}
+FAIL=No preflight for {"content-type":"text/plain;"}
+FAIL=No preflight for {"content-type":"text/plain;garbage"}
+FAIL=No preflight for {"range":"bytes=100-200"}
+FAIL=No preflight for {"range":"bytes=200-"}
+FAIL=Preflight for {"content-type":",text/plain"}
+FAIL=Preflight for {"content-type":"application/www-form-urlencoded"}
+FAIL=Preflight for {"content-type":"application/x-www-form-urlencoded;"}
+FAIL=Preflight for {"content-type":"multipart/form-data;\""}
+FAIL=Preflight for {"content-type":"text /plain"}
+FAIL=Preflight for {"content-type":"text/plain,"}
+FAIL=Preflight for {"content-type":"text/plain,text/plain"}
+FAIL=Preflight for {"content-type":"text/plain,x/x"}
+FAIL=Preflight for {"content-type":"text/plain;garbage\u0001\u0002"}
+FAIL=Preflight for {"content-type":"text/plain\f"}
+FAIL=Preflight for {"content-type":"text/plain\u000b"}
+FAIL=Preflight for {"content-type":"text\t/\tplain"}
+FAIL=Preflight for {"range":",bytes=100-200"}
+FAIL=Preflight for {"range":"100-200"}
+FAIL=Preflight for {"range":"BYTES=100-200"}
+FAIL=Preflight for {"range":"Bytes=100-200"}
+FAIL=Preflight for {"range":"MB=100-200"}
+FAIL=Preflight for {"range":"bytes 100-200"}
+FAIL=Preflight for {"range":"bytes = 100-200"}
+FAIL=Preflight for {"range":"bytes =100-200"}
+FAIL=Preflight for {"range":"bytes=  100-200"}
+FAIL=Preflight for {"range":"bytes= \t100-200"}
+FAIL=Preflight for {"range":"bytes=+0-100"}
+FAIL=Preflight for {"range":"bytes=+5-"}
+FAIL=Preflight for {"range":"bytes=,100-200"}
+FAIL=Preflight for {"range":"bytes=-200"}
+FAIL=Preflight for {"range":"bytes=0-+100"}
+FAIL=Preflight for {"range":"bytes=0--1"}
+FAIL=Preflight for {"range":"bytes=100 -200"}
+FAIL=Preflight for {"range":"bytes=100- 200"}
+FAIL=Preflight for {"range":"bytes=100-200,300-400"}
+FAIL=Preflight for {"range":"bytes=100-200hello"}
+FAIL=Preflight for {"range":"bytes=100-\t200"}
+FAIL=Preflight for {"range":"bytes=1000000000000000000000000000000000000000000000000000000000000-2000000000000000000000000000000000000000000000000000000000000"}
+FAIL=Preflight for {"range":"bytes=100\t-200"}
+FAIL=Preflight for {"range":"bytes=200-100"}
+FAIL=Preflight for {"range":"bytes=\t\t100-200"}
+FAIL=Preflight for {"range":"bytes=abc-def"}
+FAIL=Preflight for {"range":"bytes\t=100-200"}
+[cors/cors-safelisted-request-header.any.worker.html]
+harness=TIMEOUT
+[cors/credentials-flag.htm]
+harness=TIMEOUT
+[cors/image-tainting-in-cross-origin-iframe.sub.html]
+harness=TIMEOUT
+[cors/late-upload-events.htm]
+FAIL=Late listeners: No preflight
+FAIL=Late listeners: Preflight
+[cors/origin.htm]
+FAIL=Allow origin: *
+FAIL=Allow origin: [tab]*
+FAIL=Allow origin: [tab]http://localhost:33303
+FAIL=Allow origin: _*__
+FAIL=Allow origin: _http://localhost:33303
+FAIL=Allow origin: _http://localhost:33303___[tab]_
+FAIL=Allow origin: http://localhost:33303
+[cors/preflight-cache-partitioning.sub.window.html]
+FAIL=The preflight cache should be partitioned
+[cors/preflight-cache.htm]
+FAIL=Test preflight
+FAIL=age = -1, should not be cached
+FAIL=age = 0, should not be cached
+FAIL=age = blank, should be cached
+FAIL=preflight first request, second from cache, wait, third should preflight again
+FAIL=preflight for x-print should be cached
+[cors/preflight-failure.htm]
+FAIL=Should succeed if preflight has status 200
+FAIL=Should succeed if preflight has status 299
+[cors/redirect-origin.htm]
+harness=TIMEOUT
+[cors/redirect-preflight-2.htm]
+FAIL=Same-origin custom-header request, redirect to cross-origin fails after doing a non-successful preflight
+FAIL=Same-origin custom-header request, redirect to cross-origin succeeds after doing a preflight
+[cors/redirect-preflight.htm]
+harness=TIMEOUT
+[cors/redirect-userinfo.htm]
+harness=TIMEOUT
+[cors/remote-origin.htm]
+harness=TIMEOUT
+[cors/request-headers.htm]
+FAIL=INVALID_STATE_ERR on setRequestHeader after send()
+FAIL=INVALID_STATE_ERR on setRequestHeader before open()
+FAIL=Simple request headers need not be in allow-headers
+FAIL=Strange allowheaders (case insensitive)
+FAIL=Unspecified request headers are disallowed
+FAIL=basic request header
+[cors/response-headers.htm]
+FAIL=getAllResponseHeaders: don't expose x-nonexposed
+FAIL=getResponse: don't expose x-nonexposed
+FAIL=getResponseHeader: Cache-Control: readable by default
+FAIL=getResponseHeader: Combined testing of cors response headers
+FAIL=getResponseHeader: Content-Language: readable by default
+FAIL=getResponseHeader: Content-Length: readable by default
+FAIL=getResponseHeader: Content-Type: readable by default
+FAIL=getResponseHeader: Don't trim whitespace
+FAIL=getResponseHeader: Expires: readable by default
+FAIL=getResponseHeader: Expose Access-Control-Expose-Headers (x-custom-header-comma)
+FAIL=getResponseHeader: Expose second Access-Control-Expose-Headers (x-second-expose)
+FAIL=getResponseHeader: Exposed server field readable (Date)
+FAIL=getResponseHeader: Last-Modified: readable by default
+FAIL=getResponseHeader: Pragma: readable by default
+FAIL=getResponseHeader: Server: unreadable by default
+FAIL=getResponseHeader: X-Powered-By: unreadable by default
+FAIL=getResponseHeader: x-custom-header bytes
+[cors/script-304.html]
+FAIL=Load a fresh cross-origin script
+FAIL=Reload same cross-origin script from the memory cache after revalidation
+[cors/simple-requests-ch.tentative.htm]
+FAIL=No preflight GET and {"save-data":"on","device-memory":"2.0","dpr":"3.0","width":"1200","viewport-width":"1300","rtt":"1","downlink":"1.0","ect":"2g"}
+FAIL=No preflight HEAD and {"save-data":"on","device-memory":"2.0","dpr":"3.0","width":"1200","viewport-width":"1300","rtt":"1","downlink":"1.0","ect":"2g"}
+FAIL=No preflight POST and {"save-data":"on","device-memory":"2.0","dpr":"3.0","width":"1200","viewport-width":"1300","rtt":"1","downlink":"1.0","ect":"2g"}
+[cors/simple-requests.htm]
+FAIL=Check simple headers (async)
+FAIL=No preflight GET and {"Accept":"test"}
+FAIL=No preflight GET and {"CONTENT-language":"test"}
+FAIL=No preflight GET and {"Content-Type":"application/x-www-form-urlencoded"}
+FAIL=No preflight GET and {"accept":"test","accept-language":"test","content-language":"test","content-type":"text/plain; parameter=whatever"}
+FAIL=No preflight GET and {"accept-language":"test"}
+FAIL=No preflight GET and {"content-type":"multipart/form-data"}
+FAIL=No preflight GET and {"content-type":"text/plain"}
+FAIL=No preflight Get and {"content-type":"text/plain; parameter=extra_bonus"}
+FAIL=No preflight HEAD and {"Accept":"test"}
+FAIL=No preflight HEAD and {"CONTENT-language":"test"}
+FAIL=No preflight HEAD and {"Content-Type":"application/x-www-form-urlencoded"}
+FAIL=No preflight HEAD and {"accept":"test","accept-language":"test","content-language":"test","content-type":"text/plain; parameter=whatever"}
+FAIL=No preflight HEAD and {"accept-language":"test"}
+FAIL=No preflight HEAD and {"content-type":"multipart/form-data"}
+FAIL=No preflight HEAD and {"content-type":"text/plain"}
+FAIL=No preflight POST and {"Accept":"test"}
+FAIL=No preflight POST and {"CONTENT-language":"test"}
+FAIL=No preflight POST and {"Content-Type":"application/x-www-form-urlencoded"}
+FAIL=No preflight POST and {"accept":"test","accept-language":"test","content-language":"test","content-type":"text/plain; parameter=whatever"}
+FAIL=No preflight POST and {"accept-language":"test"}
+FAIL=No preflight POST and {"content-type":"multipart/form-data"}
+FAIL=No preflight POST and {"content-type":"text/plain"}
+FAIL=No preflight post and {"content-type":"text/plain"}
+[cors/status-async.htm]
+FAIL=Status on CHICKEN 200
+FAIL=Status on CHICKEN 501
+FAIL=Status on CHICKEN 501 (nonsimple)
+FAIL=Status on GET 200
+FAIL=Status on GET 201
+FAIL=Status on GET 202
+FAIL=Status on GET 203
+FAIL=Status on GET 204
+FAIL=Status on GET 205
+FAIL=Status on GET 206
+FAIL=Status on GET 209
+FAIL=Status on GET 299
+FAIL=Status on GET 400
+FAIL=Status on GET 400 (nonsimple)
+FAIL=Status on HEAD 200
+FAIL=Status on HEAD 401
+FAIL=Status on HEAD 401 (nonsimple)
+FAIL=Status on POST 200
+FAIL=Status on POST 404
+FAIL=Status on POST 404 (nonsimple)
+FAIL=Status on POST 500
+FAIL=Status on PUT 200
+FAIL=Status on PUT 699
+FAIL=Status on PUT 699 (nonsimple)
+[cors/status-preflight.htm]
+FAIL=CORS - status after preflight on CHICKEN 501
+FAIL=CORS - status after preflight on GET 200
+FAIL=CORS - status after preflight on GET 204
+FAIL=CORS - status after preflight on GET 400
+FAIL=CORS - status after preflight on GET 401
+FAIL=CORS - status after preflight on HEAD 200
+FAIL=CORS - status after preflight on HEAD 204
+FAIL=CORS - status after preflight on HEAD 400
+FAIL=CORS - status after preflight on HEAD 401
+FAIL=CORS - status after preflight on HEAD 501
+FAIL=CORS - status after preflight on HEAD 699
+FAIL=CORS - status after preflight on POST 204
+FAIL=CORS - status after preflight on POST 400
+FAIL=CORS - status after preflight on POST 401
+FAIL=CORS - status after preflight on POST 404
+FAIL=CORS - status after preflight on PUT 699
+[cors/status.htm]
+FAIL=1. CORS disallowed, response status 400.
+FAIL=2. CORS disallowed, preflight status 200.
+FAIL=3. CORS allowed, response status 400.
+FAIL=4. CORS allowed, preflight status 200, response status 400.
+FAIL=5. CORS allowed, preflight status 400.
