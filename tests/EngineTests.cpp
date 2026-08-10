@@ -942,6 +942,38 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "scrolled abspos thumbnail stays the top hit, not the search SC");
   });
 
+  AddTest(tests, "Page/HitTestsAbsposInFlexOverflowYHiddenAfterScroll", [] {
+    // TD-0037 live shape: ytd-search is display:flex with asymmetric
+    // overflow-x:visible;overflow-y:hidden. Prior fixtures used overflow:hidden
+    // without flex; this pins the measured CSS so a miss cannot hide behind
+    // "fixtures don't match youtube".
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{400.0f, 400.0f, 1.0f});
+    page.Load("<style>"
+              "html,body{margin:0;height:0}"
+              "#app{position:absolute;left:0;top:0;width:400px;height:3000px}"
+              "#search{position:relative;z-index:0;display:flex;"
+              "flex-direction:column;width:400px;height:2500px;"
+              "overflow-x:visible;overflow-y:hidden}"
+              "#container{flex:1;min-height:0;position:relative}"
+              "#thumb{position:relative;width:200px;height:100px;margin-top:800px}"
+              "a{position:absolute;inset:0;overflow:hidden}"
+              "</style>"
+              "<body><div id=app><div id=search><div id=container>"
+              "<div id=thumb><a id=thumbnail href='/watch?v=1'></a></div>"
+              "</div></div></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    (void)page.EvaluateScript("document.getElementById('thumbnail').scrollIntoView()");
+    const std::string hit = page.EvaluateScript(
+        "var r=document.getElementById('thumbnail').getBoundingClientRect();"
+        "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
+        "el && (el.id||el.tagName);");
+    ExpectEqString(hit, "thumbnail",
+                   "flex + overflow-y:hidden search SC still hits the abspos thumb");
+  });
+
   AddTest(tests, "Page/HitTestsAbsposUnderPositionedNonStackingAncestor", [] {
     // `position:relative; z-index:auto` is a paint unit but not a stacking
     // context (Appendix E). Positioned descendants belong to the ancestor

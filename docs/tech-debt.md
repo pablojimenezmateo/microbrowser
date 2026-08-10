@@ -1874,8 +1874,11 @@ thumb either way; SPA navigation can still succeed.
 `ytd-search` `position:relative;z-index:0;display:flex;
 overflow-x:visible;overflow-y:hidden`; light children `#container` / `#survey`;
 `a#thumbnail` `position:absolute; overflow:hidden`. Fixtures that copy that
-shape still hit the thumbnail after document scroll — the live miss is not yet
-reduced and may correlate with early post-Accept drain / incomplete stamp.
+shape — including flex + asymmetric overflow after `scrollIntoView`
+(`Page/HitTestsAbsposInFlexOverflowYHiddenAfterScroll`) — still hit the
+thumbnail. The live miss is not steady-state CSS; it correlates with early
+post-Accept drain / incomplete stamp (self-hit on `ytd-search` after descendant
+units miss).
 
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across
