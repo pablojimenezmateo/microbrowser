@@ -404,10 +404,16 @@ bool YoutubeWatchLooksReady(microbrowser::engine::Engine& engine) {
   if (!IsYoutubeWatch(engine.Url())) {
     return true;
   }
+  // Prefer `#movie_player video` (and any `src=`/`currentSrc` media). The first
+  // `document.querySelector('video')` on watch is often a poster/placeholder
+  // without a MediaSource attachment — `readyState` 0 forever while the player
+  // video already has init segments and decoder frames (TD-0043).
   const std::string answer = engine.EvaluateScript(
       "(function(){"
-      "  var v=document.querySelector('video');"
       "  var p=document.querySelector('#movie_player');"
+      "  var v=(p && p.querySelector('video')) ||"
+      "    document.querySelector('video[src]') ||"
+      "    document.querySelector('video');"
       "  if(!v && !p) return 'absent';"
       "  try {"
       "    if(p && p.getPlayerStateObject && p.getPlayerStateObject().isError) return 'error';"
@@ -430,9 +436,26 @@ bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
   if (!IsYoutubeResults(engine.Url())) {
     return true;
   }
+  // Count alone was not enough: early post-Accept stamps can show ≥12 thumbs
+  // while `elementFromPoint` on the first thumb's centre still returns
+  // `YTD-SEARCH` (TD-0037). Soft-nav `-click last` then misses SPA activation.
   const std::string answer = engine.EvaluateScript(
-      "document.querySelectorAll('a#thumbnail').length + "
-      "document.querySelectorAll('ytd-video-renderer').length");
+      "(function(){"
+      "  var n=document.querySelectorAll('a#thumbnail').length +"
+      "    document.querySelectorAll('ytd-video-renderer').length;"
+      "  if(n < 12) return '0';"
+      "  var a=document.querySelector('a#thumbnail');"
+      "  if(!a) return '0';"
+      "  var r=a.getBoundingClientRect();"
+      "  if(r.width < 2 || r.height < 2) return '0';"
+      "  var el=document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);"
+      "  for(var n2=el; n2; n2=n2.parentElement){"
+      "    if(n2.id==='thumbnail' || n2.tagName==='YTD-VIDEO-RENDERER' ||"
+      "       n2.tagName==='YTD-RICH-ITEM-RENDERER' || n2.tagName==='IMG') return String(n);"
+      "    if(n2.tagName==='YTD-SEARCH' || n2.tagName==='YTD-APP') break;"
+      "  }"
+      "  return '0';"
+      "})()");
   if (const auto n = ParseLeadingInt(answer)) {
     return *n >= 12;
   }

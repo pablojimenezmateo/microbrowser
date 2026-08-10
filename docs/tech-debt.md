@@ -1881,6 +1881,11 @@ thumbnail. The live miss is not steady-state CSS; it correlates with early
 post-Accept drain / incomplete stamp (self-hit on `ytd-search` after descendant
 units miss).
 
+**Harness mitigation (2026-08-10).** `YoutubeResultsLooksReady` now requires
+`elementFromPoint` on the first `a#thumbnail` centre to hit the thumb chain
+(not stop at `YTD-SEARCH`), in addition to ≥12 renderers. Engine hit-test root
+cause still open.
+
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across
 runs; regression from a minimal fixture once one exists.
@@ -2011,8 +2016,40 @@ fair body pump + BeginNetworkTask).
 `js.fetch_delivery_budget_resets`). Tests:
 `Http2/TwoPostBodiesShareTheSendWindow`, BeginNetworkTask under live frames.
 
-**Close when.** Soft-nav `videoplayback` dones ≈ starts, `source_append_attempts`
-and `source_appends` > 0, `readyState >= 2` on Release.
+**Remeasure (Release, 2026-08-10, after fix).** Soft-nav search→watch:
+SABR `videoplayback` **12 start / 1 done (200)** (was 8/0); progressive
+itag=18 still **403**; `media.source_append_attempts` absent; `js.steps_exhausted=2`;
+`net.h2_stream_stalls` 0. A second run with a fetch/`appendBuffer` probe saw
+**2 SABR 200s**, **4 appends**, init segments, decoder frames — so TD-0042
+unblocks the path when a POST completes, but most SABR streams still end as
+`fetch.aborted` without `request.done` (player retry). Watch readiness was also
+reading the wrong `<video>` (TD-0043).
+
+**Close when.** Soft-nav `videoplayback` dones ≈ starts (or aborts accounted),
+`source_append_attempts` and `source_appends` > 0 stably, player
+`readyState >= 2` on Release.
+
+---
+
+## TD-0043 — Watch readiness / eval queried a non-player `<video>`
+
+**Opened** 2026-08-10 after soft-nav runs showed `media.source_appends` /
+`media.decoder_frames` / `media.video_sessions` while
+`document.querySelector('video').readyState` stayed **0** and `buffered` empty.
+
+**Cause.** Youtube watch can stamp more than one `<video>`. The first in tree
+order is often a placeholder without `src` / MediaSource; MSE attaches to
+`#movie_player video`. `YoutubeWatchLooksReady` and ad-hoc `-eval` probes used
+the first match, so the snapshot's 90s settle never saw HAVE_* and reported a
+dead player beside a live decoder session.
+
+**Fix (harness).** Prefer `#movie_player video`, then `video[src]`, then any
+`video`. Results drain also waits until `elementFromPoint` on the first thumb
+hits the thumb chain (TD-0037), not merely ≥12 renderers.
+
+**Close when.** Soft-nav Release cats search→watch reports player
+`readyState >= 2` (or buffered > 0) when appends/decoder counters are non-zero;
+document any remaining engine-side multi-`<video>` confusion separately.
 
 ---
 
