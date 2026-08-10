@@ -1,6 +1,6 @@
 // The geometry a page can ask its own layout about.
 //
-// `getBoundingClientRect`, `offsetWidth`/`offsetHeight`,
+// `getBoundingClientRect`, `getClientRects`, `offsetWidth`/`offsetHeight`,
 // `clientWidth`/`clientHeight`, and `getComputedStyle` -- 891 measured
 // occurrences across the survey's 16.2MB of application script, which is the
 // largest single category in it and larger than events, networking and storage
@@ -13,6 +13,7 @@
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
@@ -128,6 +129,29 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
   if (rect_of.IsObject()) {
     rect_of.object->Set(kOwnerSlot, PointerValue(this));
     element_interface.object->Set("getBoundingClientRect", rect_of);
+  }
+
+  // `getClientRects`. CSSOM View: one DOMRect per CSS border box fragment, or
+  // an empty list when the element has no box. ADR 0012 lists it with
+  // `getBoundingClientRect`; youtube's overlay/dialog code calls it and threw
+  // `getClientRects is not a function` (TD-0051). Fragmentation is still one
+  // border box today — the honest empty/one answer, not a stub that lies.
+  const Value rects_of = interpreter_->NewNativeValue(
+      "getClientRects", [](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
+          return Value::Undefined();
+        }
+        std::vector<Value> rects;
+        if (const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self)) {
+          rects.push_back(MakeDomRect(*owner->interpreter_, found->border_box));
+        }
+        return owner->interpreter_->NewArrayValue(std::move(rects));
+      });
+  if (rects_of.IsObject()) {
+    rects_of.object->Set(kOwnerSlot, PointerValue(this));
+    element_interface.object->Set("getClientRects", rects_of);
   }
 
   // The four integer metrics. `offset*` is the border box and `client*` is the

@@ -2282,6 +2282,26 @@ after search→thumb (MSE appends remain TD-0049).
 
 ---
 
+## TD-0051 — `Element.getClientRects` was absent
+
+**Opened** 2026-08-10 after soft-nav diagnostics showed dozens of
+`TypeError: undefined (getClientRects) is not a function` on youtube results
+(overlay / iron-overlay visibility: `getClientRects().length > 0`). ADR 0012
+lists it with `getBoundingClientRect`; absence is correct without a geometry
+source, but with one the name must exist.
+
+**Fix.** Install `getClientRects` beside `getBoundingClientRect` through the
+same `GeometrySource` seam: empty array when there is no box, otherwise a
+one-element array of the border box (fragmentation still unions into one box
+today). Tests extend `Geometry/AnElementWithNoBoxIsAllZeros`,
+`Geometry/NamesAreAbsentWithoutALayoutToAnswer`, and
+`Geometry/ClientRectsMatchesTheBorderBox`.
+
+**Close when.** Soft-nav / consent overlays stop throwing on `getClientRects`
+and dialog visibility probes agree with `getBoundingClientRect`.
+
+---
+
 ## Closed
 
 - **TD-0039 — Trusted click/key inherited a spent JS step budget** (2026-08-10).

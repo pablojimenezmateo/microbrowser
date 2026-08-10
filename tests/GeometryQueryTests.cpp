@@ -78,6 +78,27 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 1), "20,20,170,90", "and the same four numbers under both names");
   });
 
+  AddTest(tests, "Geometry/ClientRectsMatchesTheBorderBox", [] {
+    // CSSOM View: one fragment today equals getBoundingClientRect; length>0 is
+    // what youtube dialog visibility probes (TD-0051 / snapshot readiness).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'>"
+        "<div id='a' style='width:80px;height:20px;margin:10px'></div>"
+        "<script>"
+        "var e = document.getElementById('a');"
+        "var r = e.getBoundingClientRect();"
+        "var list = e.getClientRects();"
+        "console.log(list.length);"
+        "console.log(list[0].width + ',' + list[0].height + ',' + list[0].x + ',' + list[0].y);"
+        "console.log(r.width + ',' + r.height + ',' + r.x + ',' + r.y);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "1", "one border box");
+    ExpectEqString(Line(output, 1), Line(output, 2), "same numbers as getBoundingClientRect");
+  });
+
   AddTest(tests, "Geometry/OffsetAndClientMetricsDifferByTheBorder", [] {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
@@ -108,10 +129,12 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
         // specification says and what a page that measures before showing
         // depends on.
         "console.log(getComputedStyle(e).display);"
+        "console.log(e.getClientRects().length);"
         "</script></body>");
     ExpectEqString(Line(output, 0), "0,0,0,0", "no box means no geometry, honestly reported");
     ExpectEqString(Line(output, 1), "0,0", "and the same for the integer metrics");
     ExpectEqString(Line(output, 2), "none", "but the cascade still has an answer");
+    ExpectEqString(Line(output, 3), "0", "getClientRects is empty when there is no box");
   });
 
   AddTest(tests, "Geometry/ClearingDisplayNoneRebuildsTheBox", [] {
@@ -439,6 +462,8 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(js::ToString(
                        interpreter.Run("typeof document.body.getBoundingClientRect").value),
                    "undefined", "no layout, so no name to detect");
+    ExpectEqString(js::ToString(interpreter.Run("typeof document.body.getClientRects").value),
+                   "undefined", "getClientRects stays absent with it");
     ExpectEqString(js::ToString(interpreter.Run("typeof getComputedStyle").value), "undefined",
                    "and none on the window either");
 
@@ -450,10 +475,12 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
         RunAndCollect(page,
                       "<body><script>"
                       "console.log(typeof document.body.getBoundingClientRect);"
+                      "console.log(typeof document.body.getClientRects);"
                       "console.log(typeof getComputedStyle);"
                       "</script></body>");
     ExpectEqString(Line(output, 0), "function", "a page with a layout behind it has the name");
-    ExpectEqString(Line(output, 1), "function", "and the window one too");
+    ExpectEqString(Line(output, 1), "function", "and getClientRects with it (ADR 0012)");
+    ExpectEqString(Line(output, 2), "function", "and the window one too");
   });
 
   AddTest(tests, "Geometry/BoxLookupsUseTheElementIndex", [] {
