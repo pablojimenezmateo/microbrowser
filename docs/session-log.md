@@ -4392,3 +4392,65 @@ without a tolerance an exact comparison against a reference rendered by the same
 reports antialiasing noise as a failure. `.py` handlers are refused rather than approximated, so
 most of `fetch/` and nearly all of `cors/` are unrunnable — that is task H1 and it needs a
 decision, not code.
+
+---
+
+## 2026-08-10 — M-B: the baseline, taken an area at a time
+
+**Status:** done
+**Check:** filled in below from the run that produced `docs/wpt-baseline.md`.
+
+**Landed.** `docs/wpt-baseline.md` (generated), the expectation files behind it, three harness
+fixes, and four runner options that exist because the first three attempts at this run failed.
+
+**Found — six things a diff does not say.**
+
+1. **`.any.worker.html` served a worker URL that nothing answered, and it cost five CPU-hours
+   per baseline run.** The generated wrapper dropped `.html` from `foo.any.worker.html` without
+   putting `.js` back, so `new Worker()` named `foo.any.worker`, got a 404, and the page then
+   waited out its ten-second harness deadline for results that could never arrive. 1,763 of the
+   suite's 42,185 tests are `.any.worker.html`. They still TIMEOUT — the worker now loads and
+   dies on `importScripts`, which does not exist — but the cause moved from the harness to the
+   browser, which is the difference between a bug nobody can act on and plan task G5.
+
+2. **`/resources/WebIDLParser.js` is a rewrite rule, not a file**, and `/interfaces/` was not
+   checked out. Every `idlharness` test in the suite — one per specification, each covering that
+   specification's whole interface surface — 404ed its parser and reported one failed
+   `idl_test setup`. With both fixed, `hr-time/idlharness.any.html` reaches
+   `TypeError: cannot set property 'name' of undefined`, which is a bug in this browser and is
+   what an idlharness test is for.
+
+3. **`--update-expectations` writes only when the run finishes, and the run does not finish.**
+   Three attempts died — two to my own `pkill`, one to a rebuild — and each lost everything.
+   21,265 testharness tests is the better part of a day on this machine. The fix is
+   `--summary-state`: the summary carries its counts between invocations in a tab-separated
+   sidecar keyed by area, an area a run measured replaces what the file said about it, and the
+   baseline is therefore taken an area at a time with a commit after each. **Causes are counted
+   per area for exactly this reason** — a global count could not be un-counted when its area is
+   re-run.
+
+4. **Do not rebuild the binary a driver script is invoking.** ninja's link step leaves the
+   output non-executable for as long as LTO takes; every area launched in that window died with
+   exit 126 in milliseconds, and the driver cheerfully committed 35 empty results. The rebuild
+   was a two-line comment fix. The driver now aborts on exit ≥ 126, and the script says so at
+   the top.
+
+5. **The long-timeout budget, not the number of tests, is what makes a baseline expensive.**
+   2,946 tests say `timeout=long` — 1,001 of them in `referrer-policy/gen` alone — and it was
+   `--timeout * 6`, so each one that will never report cost a minute, plus a minute of retry.
+   `--long-timeout` is now its own option, set to 20000 for the baseline: a test in this browser
+   reports in well under a second or never, and a long test that genuinely needed more is a
+   TIMEOUT expectation, which is visible and revisable rather than six hours of run time.
+
+6. **Reftests are not in the baseline, and that is a decision rather than an omission.**
+   20,923 of the 42,185 are reftests; recording them projected the run at nine hours against
+   ninety minutes for the testharness half, because a reftest renders two pages — and it buys an
+   expectation file that plan task F2 rewrites in full, since an exact-pixel comparison against
+   a reference rendered by the same rasterizer calls antialiasing noise a difference. ADR 0040
+   §6 is the amendment, with the other five gaps and a decision for each.
+
+**Left:** the ranked cause list in `docs/wpt-baseline.md` is what the next sessions are. C1 and
+C2 — `DOMException` as a real type, and native errors that are the page's own — are visible at
+the top of it in every area, exactly as the plan predicted. `testdriver.js` came out of the
+triage with no decision attached to it at all and is now plan task B5: 1,158 tests need
+synthesised input, this browser has an input path, and nothing exposes it to a page.
