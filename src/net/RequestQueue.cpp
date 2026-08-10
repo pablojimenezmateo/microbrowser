@@ -340,7 +340,7 @@ bool RequestQueue::Cancel(Id id) {
 }
 
 void RequestQueue::CancelAll() {
-  // Dropping the FetchRequest closes its connection in the destructor, so a
+  // Dropping the FetchRequest closes its stream in the destructor, so a
   // response in flight for a document that is gone has nowhere to be delivered.
   // That is what "dropped by construction" means here.
   active_.clear();
@@ -351,6 +351,12 @@ void RequestQueue::CancelAll() {
   // server granted is state that page caused, and ADR 0011's rule is that a
   // navigation leaves nothing of the last document behind.
   preflights_.Clear();
+  // H2 sessions and idle HTTP/1.1 sockets too. CancelAll used to leave pooled
+  // sessions alive after mass RST; youtube consent's `location.reload()` then
+  // reused a half-dead socket and the document load failed with "the connection
+  // failed" (TD-0044). Engine::Navigate's comment already promised "connections
+  // and all" — this is that half.
+  pool_.Clear();
 }
 
 }  // namespace microbrowser::net

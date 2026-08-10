@@ -1888,10 +1888,6 @@ after Accept (not stop at `YTD-SEARCH`), in addition to ≥12 renderers. While
 present (initial drain); after Accept, wait out teardown then hit-test. Engine
 hit-test root cause still open.
 
-**Cold watch (Release, 2026-08-10).** Direct `/watch?v=jNQXAC9IVRw` after Accept:
-player `readyState` **4**, buffered **~19s**, SABR **1/1** 200, **7**
-`source_appends`. Soft-nav remains the unstable path (TD-0042 / TD-0037).
-
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across
 runs; regression from a minimal fixture once one exists.
@@ -2056,6 +2052,32 @@ hits the thumb chain (TD-0037), not merely ≥12 renderers.
 **Close when.** Soft-nav Release cats search→watch reports player
 `readyState >= 2` (or buffered > 0) when appends/decoder counters are non-zero;
 document any remaining engine-side multi-`<video>` confusion separately.
+
+**Cold watch (Release, 2026-08-10).** Direct `/watch?v=jNQXAC9IVRw` after Accept:
+player `readyState` **4**, buffered **~19s**, SABR **1/1** 200, **7**
+`source_appends`. Soft-nav still gated on Accept reload (TD-0044) and SABR
+completion (TD-0042).
+
+---
+
+## TD-0044 — `CancelAll` left pooled H2 sessions for the next navigation
+
+**Opened** 2026-08-10 after youtube `/results` Accept → `location.reload()`
+showed title **Cannot load page** / `the connection failed`. Cold `/watch`
+MSE worked; the results reload shared the same site and partition.
+
+**Cause.** `Engine::Navigate` calls `loader_.CancelAll()` and comments
+"connections and all", but `RequestQueue::CancelAll` only dropped in-flight
+`FetchRequest`s (RST streams) and left `ConnectionPool` H2 sessions + idle
+HTTP/1.1 sockets pooled. The reload acquired the half-dead session; the peer
+had already torn the TCP connection down after the mass RST.
+
+**Fix.** `CancelAll` also `pool_.Clear()`. Test
+`Http2Fetch/CancelAllDropsPooledSessions`.
+
+**Close when.** Release `/results` Accept reload recommits the results
+document (not the error page); soft-nav search→watch can reach the player
+again without a connection-failed interstitial.
 
 ---
 

@@ -297,6 +297,34 @@ void RegisterHttp2FetchTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(factory.paths.size()), 2,
                 "asked twice — dead session then retry");
   });
+
+  AddTest(tests, "Http2Fetch/CancelAllDropsPooledSessions", [] {
+    // TD-0044: Navigate → CancelAll left H2 sessions pooled. Consent
+    // location.reload() reused a socket the peer had closed after mass RST.
+    Http2ScriptedFactory factory;
+    factory.routes.push_back({"/a", 200, "text/plain", "a", ""});
+    factory.routes.push_back({"/b", 200, "text/plain", "b", ""});
+    PrivacyPolicy policy;
+    CookieJar cookies;
+    HttpCache cache;
+    RequestQueue queue(policy, factory, cookies, cache);
+    queue.Start(policy.Decide(RequestFor("https://example.com/a")), FetchOptions{}, 1000);
+    const std::vector<RequestQueue::Completion> first = Drain(queue);
+    ExpectEqInt(static_cast<long long>(first.size()), 1, "warm-up request finished");
+    Expect(first[0].result.ok, first[0].result.error.c_str());
+    Expect(queue.Connections().SessionCount() >= 1, "session was pooled after the first fetch");
+    const std::size_t connects_before = factory.connects;
+    queue.CancelAll();
+    ExpectEqInt(static_cast<long long>(queue.Connections().SessionCount()), 0,
+                "CancelAll drops pooled H2 sessions");
+    queue.Start(policy.Decide(RequestFor("https://example.com/b")), FetchOptions{}, 2000);
+    const std::vector<RequestQueue::Completion> second = Drain(queue);
+    ExpectEqInt(static_cast<long long>(second.size()), 1, "post-CancelAll fetch finished");
+    Expect(second[0].result.ok, second[0].result.error.c_str());
+    ExpectEqString(BodyOf(second[0].result.response), "b", "fresh connection answered");
+    Expect(factory.connects > connects_before,
+           "post-CancelAll fetch opened a new socket rather than reviving the old session");
+  });
 }
 
 }  // namespace microbrowser::tests
