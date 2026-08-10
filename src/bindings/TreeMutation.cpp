@@ -27,6 +27,73 @@ namespace microbrowser::bindings {
 using js::NativeCall;
 using js::Value;
 
+namespace {
+
+// DOM §4.2.3, "ensure pre-insertion validity": the WebIDL error name this
+// insertion must be refused with, or null when it is allowed.
+//
+// One function for all three of `appendChild`, `insertBefore` and
+// `replaceChild`, because the specification has one and three copies is three
+// chances to disagree. Before this the checks were absent: appending a document
+// to an element, or anything at all to a text node, quietly built a tree no
+// other browser would produce -- and the *reason* a page cares is that the DOM
+// answers these with an exception it can catch, not with a corrupt tree it
+// cannot see.
+const char* PreInsertionError(const dom::Node& parent, const dom::Node& node,
+                              const dom::Node* reference) {
+  // 1. Only these three can have children.
+  switch (parent.GetKind()) {
+    case dom::Node::Kind::Document:
+    case dom::Node::Kind::DocumentFragment:
+    case dom::Node::Kind::Element:
+      break;
+    case dom::Node::Kind::DocumentType:
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+      return "HierarchyRequestError";
+  }
+  // 2. A node cannot be inserted into itself or into its own descendant. The
+  // walk is up from the parent, which is bounded by the tree's depth -- and it
+  // is the check that stops a page turning its document into a cycle.
+  for (const dom::Node* walk = &parent; walk != nullptr; walk = walk->Parent()) {
+    if (walk == &node) {
+      return "HierarchyRequestError";
+    }
+  }
+  // 3. The reference node has to be a child of this parent. `null` means
+  // "append", which is always in range.
+  if (reference != nullptr && reference->Parent() != &parent) {
+    return "NotFoundError";
+  }
+  // 4. And only these four kinds can be inserted at all.
+  switch (node.GetKind()) {
+    case dom::Node::Kind::DocumentFragment:
+    case dom::Node::Kind::DocumentType:
+    case dom::Node::Kind::Element:
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+      break;
+    case dom::Node::Kind::Document:
+      return "HierarchyRequestError";
+  }
+  // 5. Text does not belong directly in a document, and a doctype belongs
+  // nowhere else. The remaining document constraints -- one element child, the
+  // doctype before it -- are deliberately not here: this browser has one
+  // document, built by the parser, and a page that reaches them is doing
+  // something no page does. They are named in docs/wpt-plan.md task C4 with the
+  // rest of the mutation algorithms.
+  const bool parent_is_document = parent.GetKind() == dom::Node::Kind::Document;
+  if (node.IsText() && parent_is_document) {
+    return "HierarchyRequestError";
+  }
+  if (node.GetKind() == dom::Node::Kind::DocumentType && !parent_is_document) {
+    return "HierarchyRequestError";
+  }
+  return nullptr;
+}
+
+}  // namespace
+
 // A copy of `node`, with its children when `deep`.
 //
 // Copied rather than shared: a clone is a new node, and two parents pointing
@@ -160,9 +227,11 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
       return call.Throw("TypeError", "removeChild requires a node");
     }
     if (child->Parent() != self) {
-      // The spec's NotFoundError. A node that is not a child here is a caller
-      // bug, and removing it from wherever it actually is would be worse.
-      return call.Throw("TypeError", "the node to remove is not a child of this node");
+      // The specification's NotFoundError, and it is one now rather than a
+      // TypeError with that name in a comment: `assert_throws_dom` reads
+      // `e.name` and `e.code`, and so does every page that tells "not a child"
+      // apart from "not a node".
+      return ThrowDom(call, "NotFoundError", "the node to remove is not a child of this node");
     }
     const Value wrapper_for_child = owner->WrapperFor(child);
     owner->DetachFromTree(*child);
@@ -186,6 +255,9 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
       return call.Throw("TypeError", "insertBefore requires a node");
     }
     dom::Node* reference = NodeOf(Argument(call.arguments, 1));
+    if (const char* refusal = PreInsertionError(*self, *child, reference); refusal != nullptr) {
+      return ThrowDom(call, refusal, "insertBefore would not produce a valid tree");
+    }
     return owner->InsertNodeBefore(*self, child, reference);
   });
   method("replaceChild", [](NativeCall& call) {
@@ -196,8 +268,11 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     if (owner == nullptr || self == nullptr || fresh == nullptr || stale == nullptr) {
       return call.Throw("TypeError", "replaceChild requires two nodes");
     }
+    if (const char* refusal = PreInsertionError(*self, *fresh, stale); refusal != nullptr) {
+      return ThrowDom(call, refusal, "replaceChild would not produce a valid tree");
+    }
     if (stale->Parent() != self) {
-      return call.Throw("TypeError", "the node to replace is not a child of this node");
+      return ThrowDom(call, "NotFoundError", "the node to replace is not a child of this node");
     }
     // In before out, so the new node lands where the old one was rather than
     // at the end -- which is the entire difference from remove-then-append.
@@ -216,6 +291,9 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     dom::Node* child = NodeOf(Argument(call.arguments, 0));
     if (owner == nullptr || self == nullptr || child == nullptr) {
       return call.Throw("TypeError", "appendChild requires a node");
+    }
+    if (const char* refusal = PreInsertionError(*self, *child, nullptr); refusal != nullptr) {
+      return ThrowDom(call, refusal, "appendChild would not produce a valid tree");
     }
     // A node that already has a parent is *moved*, which is how a page
     // reorders a list. That works now because detaching hands the node over
@@ -283,7 +361,11 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     }
     dom::Node* parent = self->Parent();
     if (parent == nullptr) {
-      return call.Throw("NotFoundError", "replaceWith on a node with no parent");
+      // DOM §"replace this with nodes": "If parent is null, then return." Not
+      // an exception -- this threw a NotFoundError until the specification was
+      // read next to it, and a page that calls `replaceWith` on a node it has
+      // already detached is doing something ordinary.
+      return Value::Undefined();
     }
     for (std::size_t i = 0; i < call.arguments.size(); ++i) {
       insert_argument(*parent, self, Argument(call.arguments, i));

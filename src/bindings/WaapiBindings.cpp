@@ -603,7 +603,7 @@ bool DomBindings::DeliverFinishedAnimations() {
     const Value* promise = animation->object->GetOwn(kWaapiFinishedSlot);
     if (promise != nullptr && promise->IsObject()) {
       if (notice.cancelled) {
-        Value error = interpreter_->MakeError("AbortError", "The animation was cancelled");
+        Value error = MakeDomException(*interpreter_, "AbortError", "The animation was cancelled");
         interpreter_->SettleAsyncResult(promise->object, error, true);
       } else {
         interpreter_->SettleAsyncResult(promise->object, *animation, false);

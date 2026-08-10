@@ -223,7 +223,7 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
           // The specification's NoModificationAllowedError. A node with no
           // parent has no place to put a replacement, and silently doing
           // nothing is how a page ends up debugging the wrong line.
-          return call.Throw("NoModificationAllowedError",
+          return ThrowDom(call, "NoModificationAllowedError",
                             "outerHTML on a node with no parent");
         }
         // §"the fragment parsing algorithm" for outerHTML: the context is the
@@ -264,11 +264,11 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
       // The specification's SyntaxError, and it is worth throwing rather than
       // guessing: the four names are easy to mistype and a silent no-op looks
       // exactly like markup the parser dropped.
-      return call.Throw("SyntaxError", "'" + position + "' is not a valid insert position");
+      return ThrowDom(call, "SyntaxError", "'" + position + "' is not a valid insert position");
     }
     dom::Node* parent = element.Parent();
     if (parent == nullptr) {
-      return call.Throw("NoModificationAllowedError",
+      return ThrowDom(call, "NoModificationAllowedError",
                         "insertAdjacentHTML '" + position + "' on a node with no parent");
     }
     // The context is the parent, for the reason outerHTML's is.

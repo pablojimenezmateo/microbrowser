@@ -23,11 +23,7 @@ harness=TIMEOUT
 [dom/abort/abort-signal-timeout.html]
 FAIL=Signal returned by AbortSignal.timeout() is not aborted after frame detach
 [dom/abort/event.any.html]
-FAIL=AbortController abort() should fire event synchronously
-FAIL=AbortController abort(undefined) creates an "AbortError" DOMException
-FAIL=AbortController.signal.reason returns the same DOMException
 FAIL=AbortSignal.reason returns the same DOMException
-FAIL=aborting AbortController without reason creates an "AbortError" DOMException
 FAIL=static aborting signal should have right properties
 FAIL=static aborting signal with reason should set signal.reason
 FAIL=throwIfAborted() should not throw if signal not aborted
@@ -180,13 +176,13 @@ FAIL=attached to shadow dom checkbox should emit input and change events on disp
 FAIL=attached to shadow dom radio should emit input and change events on click().
 FAIL=attached to shadow dom radio should emit input and change events on dispatchEvent(new MouseEvent('click')).
 [dom/events/Event-dispatch-handlers-changed.html]
-FAIL= Dispatch additional events inside an event listener
+FAIL:esc= Dispatch additional events inside an event listener 
 [dom/events/Event-dispatch-listener-order.window.html]
 FAIL=Event-dispatch-listener-order
 [dom/events/Event-dispatch-multiple-cancelBubble.html]
 FAIL=Multiple dispatchEvent() and cancelBubble
 [dom/events/Event-dispatch-multiple-stopPropagation.html]
-FAIL= Multiple dispatchEvent() and stopPropagation()
+FAIL:esc= Multiple dispatchEvent() and stopPropagation() 
 [dom/events/Event-dispatch-on-disabled-elements.html]
 harness=TIMEOUT
 [dom/events/Event-dispatch-order-at-target.html]
@@ -194,7 +190,7 @@ FAIL=Listeners are invoked in correct order (AT_TARGET phase)
 [dom/events/Event-dispatch-other-document.html]
 FAIL=Custom event on an element in another document
 [dom/events/Event-dispatch-propagation-stopped.html]
-FAIL= Calling stopPropagation() prior to dispatchEvent()
+FAIL:esc= Calling stopPropagation() prior to dispatchEvent() 
 [dom/events/Event-dispatch-redispatch.html]
 harness=TIMEOUT
 [dom/events/Event-dispatch-single-activation-behavior.html]
@@ -450,7 +446,6 @@ harness=TIMEOUT
 FAIL=Return value of EventTarget.dispatchEvent() affected by preventDefault().
 FAIL=Return value of EventTarget.dispatchEvent() affected by returnValue.
 [dom/events/EventTarget-dispatchEvent.html]
-FAIL=Calling dispatchEvent(null).
 FAIL=Capturing event listeners should be called before non-capturing ones
 FAIL=If the event's dispatch flag is set, an InvalidStateError must be thrown.
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (BeforeUnloadEvent).
@@ -799,27 +794,21 @@ FAIL=Attr.prefix present (HTML)
 FAIL=Attr.prefix present (MathML)
 FAIL=Attr.prefix present (SVG)
 [dom/nodes/CharacterData-appendChild.html]
-FAIL=Comment.appendChild(Comment)
 FAIL=Comment.appendChild(ProcessingInstruction)
-FAIL=Comment.appendChild(Text)
 FAIL=ProcessingInstruction.appendChild(Comment)
 FAIL=ProcessingInstruction.appendChild(ProcessingInstruction)
 FAIL=ProcessingInstruction.appendChild(Text)
-FAIL=Text.appendChild(Comment)
 FAIL=Text.appendChild(ProcessingInstruction)
-FAIL=Text.appendChild(Text)
 [dom/nodes/CharacterData-appendData.html]
 FAIL=Comment.appendData('')
 FAIL=Comment.appendData('', 'bar')
 FAIL=Comment.appendData('bar')
-FAIL=Comment.appendData()
 FAIL=Comment.appendData(non-ASCII)
 FAIL=Comment.appendData(null)
 FAIL=Comment.appendData(undefined)
 FAIL=Text.appendData('')
 FAIL=Text.appendData('', 'bar')
 FAIL=Text.appendData('bar')
-FAIL=Text.appendData()
 FAIL=Text.appendData(non-ASCII)
 FAIL=Text.appendData(null)
 FAIL=Text.appendData(undefined)
@@ -915,7 +904,6 @@ FAIL=Comment.substringData() with negative offset
 FAIL=Comment.substringData() with non-ASCII data
 FAIL=Comment.substringData() with non-BMP data
 FAIL=Comment.substringData() with string offset
-FAIL=Comment.substringData() with too few arguments
 FAIL=Comment.substringData() with too many arguments
 FAIL=Comment.substringData() with very large count
 FAIL=Comment.substringData() with very large offset
@@ -929,7 +917,6 @@ FAIL=Text.substringData() with negative offset
 FAIL=Text.substringData() with non-ASCII data
 FAIL=Text.substringData() with non-BMP data
 FAIL=Text.substringData() with string offset
-FAIL=Text.substringData() with too few arguments
 FAIL=Text.substringData() with too many arguments
 FAIL=Text.substringData() with very large count
 FAIL=Text.substringData() with very large offset
@@ -1036,17 +1023,13 @@ FAIL=Text.before() with the empty string as an argument.
 FAIL=Text.before() with undefined as an argument.
 FAIL=Text.before() without any argument.
 [dom/nodes/ChildNode-replaceWith.html]
-FAIL=Comment.replaceWith() on a parentless child with two elements as arguments.
 FAIL=Comment.replaceWith() with one sibling of child and child itself as arguments.
-FAIL=Element.replaceWith() on a parentless child with two elements as arguments.
 FAIL=Element.replaceWith() with one sibling of child and child itself as arguments.
-FAIL=Text.replaceWith() on a parentless child with two elements as arguments.
 FAIL=Text.replaceWith() with one sibling of child and child itself as arguments.
 [dom/nodes/Comment-constructor.html]
 harness=TIMEOUT
 [dom/nodes/DOMImplementation-createDocument.html]
 FAIL=DOMImplementation.createDocument(namespace, qualifiedName, doctype)
-FAIL=createDocument with missing arguments
 [dom/nodes/DOMImplementation-createDocumentType.html]
 FAIL=createDocumentType("", "", "") should work
 FAIL=createDocumentType("#", "", "") should work
@@ -2205,7 +2188,6 @@ FAIL=Should throw an INVALID_CHARACTER_ERR for target 0 and data "x".
 [dom/nodes/Document-createTreeWalker.html]
 FAIL=Optional arguments to createTreeWalker should be optional (1 passed).
 FAIL=Optional arguments to createTreeWalker should be optional (2 passed).
-FAIL=Required arguments to createTreeWalker should be required.
 [dom/nodes/Document-doctype.html]
 FAIL=Window document with doctype
 FAIL=new Document()
@@ -2294,11 +2276,6 @@ harness=TIMEOUT
 FAIL=HTMLCollection edge cases
 FAIL=HTMLCollection edge cases 1
 [dom/nodes/Element-classlist.html]
-FAIL=.supports() must throw TypeError (HTML node)
-FAIL=.supports() must throw TypeError (MathML node)
-FAIL=.supports() must throw TypeError (XHTML node)
-FAIL=.supports() must throw TypeError (XML node with null namespace)
-FAIL=.supports() must throw TypeError (foo node)
 FAIL=Assigning to classList (HTML node)
 FAIL=Assigning to classList (MathML node)
 FAIL=Assigning to classList (XHTML node)
@@ -3324,13 +3301,7 @@ FAIL=Custom element reactions follow script execution
 FAIL=Adopting a non-orphan
 FAIL=Adopting an orphan
 FAIL=Appending a document
-FAIL=Appending null to a comment
-FAIL=Appending null to a doctype
-FAIL=Appending null to a text node
-FAIL=Appending to a comment
 FAIL=Appending to a doctype
-FAIL=Appending to a text node
-FAIL=WebIDL tests
 [dom/nodes/Node-baseURI.html]
 FAIL=For attributes in elements belonging to document fragments in document, baseURI should be document URL
 FAIL=For attributes in elements belonging to document fragments, baseURI should be document URL
@@ -3419,7 +3390,30 @@ FAIL=Constants for createDocumentPosition on Text object.
 [dom/nodes/Node-contains.html]
 harness=ERROR
 [dom/nodes/Node-insertBefore.html]
-harness=TIMEOUT
+FAIL=Calling insertBefore an a leaf node DocumentType must throw HIERARCHY_REQUEST_ERR.
+FAIL=Calling insertBefore an a leaf node ProcessingInstruction must throw HIERARCHY_REQUEST_ERR.
+FAIL=Calling insertBefore with a non-Node first argument on a leaf node ProcessingInstruction must throw TypeError.
+FAIL=Calling insertBefore with second argument missing, or other than Node, null, or undefined, must throw TypeError.
+FAIL=If node is a DocumentFragment with an element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
+FAIL=If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
+FAIL=If node is a doctype and parent is a document with an element, then throw a HierarchyRequestError DOMException.
+FAIL=If node is a doctype and parent is a document with another doctype, then throw a HierarchyRequestError DOMException.
+FAIL=If node is a doctype and parent is not a document, then throw a HierarchyRequestError DOMException.
+FAIL=If node is an Element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
+FAIL=If the context node is a document and a doctype is following the reference child, inserting a DocumentFragment with an element should throw a HierarchyRequestError.
+FAIL=If the context node is a document and a doctype is following the reference child, inserting an element should throw a HierarchyRequestError.
+FAIL=If the context node is a document with and element child, appending a doctype should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting a DocumentFragment that contains a text node or too many elements should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting a DocumentFragment with an element before the doctype should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting a DocumentFragment with an element if there already is an element child should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting a doctype after the document element should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting a doctype if there already is a doctype child should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting an element before the doctype should throw a HierarchyRequestError.
+FAIL=If the context node is a document, inserting an element if there already is an element child should throw a HierarchyRequestError.
+FAIL=Inserting a node before itself should not move the node
+FAIL=Should check the 'parent' type before checking whether 'child' is a child of 'parent'
+FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' can be inserted into the document given the kids the document has right now.
+FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' is of a type that can have a parent of the type that 'parent' is.
 [dom/nodes/Node-isConnected.html]
 FAIL=Test with iframes
 [dom/nodes/Node-isEqualNode-xhtml.xhtml]
@@ -3558,58 +3552,40 @@ harness=ERROR
 [dom/nodes/Node-removeChild.html]
 FAIL=Calling removeChild on a comment from a frame document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a comment from a synthetic document with no children should throw NOT_FOUND_ERR.
-FAIL=Calling removeChild on a comment from the main document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a element from a frame document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a element from a synthetic document with no children should throw NOT_FOUND_ERR.
-FAIL=Calling removeChild on a element from the main document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a text from a frame document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a text from a synthetic document with no children should throw NOT_FOUND_ERR.
-FAIL=Calling removeChild on a text from the main document with no children should throw NOT_FOUND_ERR.
 FAIL=Passing a detached comment from a frame document to removeChild should not affect it.
 FAIL=Passing a detached comment from a synthetic document to removeChild should not affect it.
-FAIL=Passing a detached comment from the main document to removeChild should not affect it.
 FAIL=Passing a detached element from a frame document to removeChild should not affect it.
 FAIL=Passing a detached element from a synthetic document to removeChild should not affect it.
-FAIL=Passing a detached element from the main document to removeChild should not affect it.
 FAIL=Passing a detached text from a frame document to removeChild should not affect it.
 FAIL=Passing a detached text from a synthetic document to removeChild should not affect it.
-FAIL=Passing a detached text from the main document to removeChild should not affect it.
 FAIL=Passing a non-detached comment from a frame document to removeChild should not affect it.
 FAIL=Passing a non-detached comment from a synthetic document to removeChild should not affect it.
-FAIL=Passing a non-detached comment from the main document to removeChild should not affect it.
 FAIL=Passing a non-detached element from a frame document to removeChild should not affect it.
 FAIL=Passing a non-detached element from a synthetic document to removeChild should not affect it.
-FAIL=Passing a non-detached element from the main document to removeChild should not affect it.
 FAIL=Passing a non-detached text from a frame document to removeChild should not affect it.
 FAIL=Passing a non-detached text from a synthetic document to removeChild should not affect it.
-FAIL=Passing a non-detached text from the main document to removeChild should not affect it.
-FAIL=Passing a value that is not a Node reference to removeChild should throw TypeError.
 [dom/nodes/Node-replaceChild.html]
-FAIL=If child's parent is not the context node, a NotFoundError exception should be thrown
-FAIL=If node is an inclusive ancestor of the context node, a HierarchyRequestError should be thrown.
-FAIL=If the context node is a DocumentFragment, inserting a document or a doctype should throw a HierarchyRequestError.
 FAIL=If the context node is a document (without element children), inserting a DocumentFragment that contains multiple elements should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting a DocumentFragment that contains a text node or too many elements should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting a DocumentFragment with an element before the doctype should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting a DocumentFragment with an element if there already is an element child should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting a doctype after the document element should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting a doctype if there already is a doctype child should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a document or text node should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting a new doctype should work.
 FAIL=If the context node is a document, inserting an element before the doctype should throw a HierarchyRequestError.
 FAIL=If the context node is a document, inserting an element if there already is an element child should throw a HierarchyRequestError.
-FAIL=If the context node is an element, inserting a document or a doctype should throw a HierarchyRequestError.
 FAIL=If the context node is not a node that can contain children, a HierarchyRequestError exception should be thrown
-FAIL=Passing null to replaceChild should throw a TypeError.
 FAIL=Replacing a node with itself should not move the node
 FAIL=Replacing the document element with a DocumentFragment containing a single element and comments should work.
 FAIL=Replacing the document element with a DocumentFragment containing a single element should work.
 FAIL=Replacing the document element with a single element should work.
-FAIL=Should check that 'node' is not an ancestor of 'parent' before checking whether 'child' is a child of 'parent'
 FAIL=Should check the 'parent' type before checking whether 'child' is a child of 'parent'
 FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' can be inserted into the document given the kids the document has right now.
 FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' is of a type that can have a parent of the type that 'parent' is.
-FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' is of a type that can have a parent.
 [dom/nodes/Node-textContent.html]
 harness=ERROR
 [dom/nodes/NodeList-Iterable.html]
@@ -4076,7 +4052,6 @@ FAIL=insertAdjacentText(beforebegin, raclette )
 FAIL=insertAdjacentText(beforeend, lasagne )
 FAIL=invalid caller object insertAdjacentElement
 FAIL=invalid caller object insertAdjacentText
-FAIL=invalid object argument insertAdjacentElement
 FAIL=invalid syntax for insertAdjacentElement
 FAIL=invalid syntax for insertAdjacentText
 [dom/nodes/insertion-removing-steps/Node-append-form-and-script-from-fragment.html]
@@ -4124,8 +4099,6 @@ FAIL=Removing steps (replaceChildren): script does not run synchronously during 
 [dom/nodes/insertion-removing-steps/insertion-removing-steps-script.window.html]
 FAIL=Script execution happens after all batched DOM insertions complete through post-connection steps
 [dom/nodes/moveBefore/Node-moveBefore.html]
-FAIL=Calling moveBefore with a non-Node first argument must throw TypeError.
-FAIL=Calling moveBefore with second argument missing, or other than Node, null, or undefined, must throw TypeError.
 FAIL=If node is a DocumentFragment with an element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
 FAIL=If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
 FAIL=If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
@@ -4345,11 +4318,14 @@ FAIL=Distinct attribute name (source: xml-dom): x123A and x123a
 FAIL=Distinct attribute name (source: xml-parser): ABC and abc
 FAIL=Distinct attribute name (source: xml-parser): abC and abc
 FAIL=Distinct attribute name (source: xml-parser): x123A and x123a
-FAIL=Invalid attribute name:
 FAIL=Invalid attribute name: 	x (source: html-dom)
 FAIL=Invalid attribute name: 	x (source: html-parser)
 FAIL=Invalid attribute name: 	x (source: xml-dom)
 FAIL=Invalid attribute name: 	x (source: xml-parser)
+FAIL:esc=Invalid attribute name: \nx (source: html-dom)
+FAIL:esc=Invalid attribute name: \nx (source: html-parser)
+FAIL:esc=Invalid attribute name: \nx (source: xml-dom)
+FAIL:esc=Invalid attribute name: \nx (source: xml-parser)
 FAIL=Invalid attribute name: / (source: html-dom)
 FAIL=Invalid attribute name: / (source: html-parser)
 FAIL=Invalid attribute name: / (source: xml-dom)
@@ -4382,11 +4358,14 @@ FAIL=Invalid attribute name: b> (source: html-dom)
 FAIL=Invalid attribute name: b> (source: html-parser)
 FAIL=Invalid attribute name: b> (source: xml-dom)
 FAIL=Invalid attribute name: b> (source: xml-parser)
-FAIL=Invalid attribute name: x
 FAIL=Invalid attribute name: x	 (source: html-dom)
 FAIL=Invalid attribute name: x	 (source: html-parser)
 FAIL=Invalid attribute name: x	 (source: xml-dom)
 FAIL=Invalid attribute name: x	 (source: xml-parser)
+FAIL:esc=Invalid attribute name: x\n (source: html-dom)
+FAIL:esc=Invalid attribute name: x\n (source: html-parser)
+FAIL:esc=Invalid attribute name: x\n (source: xml-dom)
+FAIL:esc=Invalid attribute name: x\n (source: xml-parser)
 FAIL=Invalid attribute name: x (source: html-dom)
 FAIL=Invalid attribute name: x (source: html-parser)
 FAIL=Invalid attribute name: x (source: xml-dom)
@@ -4571,7 +4550,7 @@ FAIL=drop(): Observable passes through completions from source observable even b
 FAIL=drop(): Observable passes through errors from source Observable
 FAIL=drop(): Observable passes through errors from source observable even before drop count is met
 FAIL=drop(): Observable should skip the first n values from the source observable, then pass through the rest of the values and completion
-FAIL=drop(): Passing negative value wraps to maximum value
+FAIL:esc=drop(): Passing negative value wraps to maximum value 
 FAIL=drop(): Unsubscribing from the Observable returned by drop() also unsubscribes from the source Observable
 [dom/observable/tentative/observable-drop.any.worker.html]
 harness=TIMEOUT
@@ -4827,7 +4806,6 @@ FAIL=intersectsNode() with an Attr node not sharing the range's root returns fal
 FAIL=intersectsNode() with an Attr node sharing the range's root returns true
 FAIL=isPointInRange() with an Attr node not sharing the range's root returns false
 FAIL=isPointInRange() with an Attr node sharing the range's root
-FAIL=selectNode() with an Attr node throws InvalidNodeTypeError (null parent)
 FAIL=selectNodeContents() on an Attr node selects an empty range rooted at the Attr
 FAIL=setEnd() to an Attr node at offset 0 is allowed
 FAIL=setEnd() to an Attr node past its length (0) throws IndexSizeError
@@ -4850,7 +4828,6 @@ harness=ERROR
 harness=ERROR
 [dom/ranges/Range-comparePoint-2.html]
 FAIL=Range.comparePoint
-FAIL=Range.comparePoint 1
 FAIL=Range.comparePoint 2
 [dom/ranges/Range-comparePoint.html]
 harness=ERROR
@@ -4864,8 +4841,6 @@ harness=ERROR
 harness=ERROR
 [dom/ranges/Range-intersectsNode-2.html]
 FAIL=Range.intersectsNode() simple cases
-[dom/ranges/Range-intersectsNode-binding.html]
-FAIL=Calling intersectsNode without an argument or with an invalid argument should throw a TypeError.
 [dom/ranges/Range-intersectsNode-shadow.html]
 FAIL=Range.intersectsNode() doesn't return true for shadow children in other trees
 [dom/ranges/Range-intersectsNode.html]
@@ -5134,7 +5109,6 @@ FAIL=rethrows errors when getting `acceptNode`
 FAIL=Construct a TreeWalker by document.createTreeWalker(root).
 FAIL=Construct a TreeWalker by document.createTreeWalker(root, null, null).
 FAIL=Construct a TreeWalker by document.createTreeWalker(root, undefined, undefined).
-FAIL=Give an invalid root node to document.createTreeWalker().
 [dom/traversal/TreeWalker-currentNode.html]
 FAIL=Test how we handle the case when the traversed to node is within the root, but the currentElement is not.
 FAIL=Test that setting currentNode to non-Node values throws.

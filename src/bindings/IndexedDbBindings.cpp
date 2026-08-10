@@ -79,22 +79,6 @@ std::string IdbIndexMetaName(const std::string& db, const std::string& store,
   return db + "\x1e" + store + "\x1e" + index;
 }
 
-// The exception every failed request throws or delivers. `DOMException` is
-// installed by InstallEventConstructors, so it exists by the time a page can
-// reach this -- IndexedDB is declared after the document, never before it.
-Value MakeIdbException(js::Interpreter& interpreter, const std::string& name,
-                       const std::string& message) {
-  if (js::Value* ctor = interpreter.GlobalScope()->Lookup("DOMException"); ctor != nullptr &&
-                                                                          ctor->IsObject()) {
-    const js::Result made =
-        interpreter.CallFunction(*ctor, Value::Undefined(), {Value::String(message), Value::String(name)});
-    if (!made.IsAbrupt()) {
-      return made.value;
-    }
-  }
-  return Value::String(name + ": " + message);
-}
-
 }  // namespace
 
 js::Value DomBindings::IdbIndexMetaTable() {
@@ -290,7 +274,7 @@ void DomBindings::DeliverIdbError(const js::Value& request, const std::string& n
           return Value::Undefined();
         }
         request.object->Set("result", Value::Undefined());
-        request.object->Set("error", MakeIdbException(call.interpreter, name, message));
+        request.object->Set("error", MakeDomException(call.interpreter, name, message));
         request.object->Set("readyState", Value::String(std::string("done")));
         self->DeliverIdbEvent(request, "error", "onerror");
         return Value::Undefined();
@@ -444,7 +428,7 @@ void DomBindings::InstallIndexedDb() {
       }
       const IndexedDbKeyPath key_path = ParseIdbKeyPath(key_path_option);
       if (!source->CreateObjectStore(db, store, key_path)) {
-        return call.Throw("ConstraintError", "object store '" + store + "' already exists");
+        return ThrowDom(call, "ConstraintError", "object store '" + store + "' already exists");
       }
       return self->MakeIdbObjectStore(db, store, Value::Undefined());
     });
@@ -676,7 +660,7 @@ void DomBindings::InstallIndexedDb() {
         }
       }
       if (!source->CreateIndex(db, store, index, unique)) {
-        return call.Throw("ConstraintError", "index '" + index + "' already exists");
+        return ThrowDom(call, "ConstraintError", "index '" + index + "' already exists");
       }
       self->RememberIdbIndexMeta(db, store, index, key_path, unique);
       return self->MakeIdbIndex(db, store, index, SlotValue(call.self, kIdbTxnSlot));
@@ -687,7 +671,7 @@ void DomBindings::InstallIndexedDb() {
       const std::string index = js::ToString(Argument(call.arguments, 0));
       const std::vector<std::string> names = source->IndexNames(db, store);
       if (std::find(names.begin(), names.end(), index) == names.end()) {
-        return call.Throw("NotFoundError", "index '" + index + "' does not exist");
+        return ThrowDom(call, "NotFoundError", "index '" + index + "' does not exist");
       }
       return self->MakeIdbIndex(db, store, index, SlotValue(call.self, kIdbTxnSlot));
     });

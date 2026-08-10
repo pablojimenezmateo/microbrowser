@@ -933,6 +933,11 @@ class Interpreter {
   // group of builtins and Builtins.cpp is already near the module's TU limit.
   void InstallStringPrototype(Object* string_constructor);
   void InstallArrayPrototype();
+  // `Error` and the seven NativeError kinds, in their own translation unit:
+  // they are one feature and the only builtins whose *constructors* form a
+  // prototype chain, which is the part that is invisible until something walks
+  // it.
+  void InstallErrors();
   void InstallFunctionPrototype();
   // RegExp.prototype and the regex-aware String methods, in their own
   // translation unit: they are one feature, and splitting them across the two

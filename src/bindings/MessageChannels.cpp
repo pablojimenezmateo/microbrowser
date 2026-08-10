@@ -91,13 +91,12 @@ void DomBindings::InstallMessageChannel() {
     const Value transfer = Argument(call.arguments, 1);
     if (transfer.IsObject() && transfer.object->GetKind() == js::Object::Kind::Array &&
         transfer.object->ElementCount() != 0) {
-      return call.Throw("Error",
-                        "DataCloneError: transferring objects is not supported");
+      return ThrowDom(call, "DataCloneError", "transferring objects is not supported");
     }
     const std::optional<js::SerializedValue> serialized =
         js::StructuredSerialize(call.interpreter, Argument(call.arguments, 0));
     if (!serialized.has_value()) {
-      return call.Throw("Error", "DataCloneError: the message could not be cloned");
+      return ThrowDom(call, "DataCloneError", "the message could not be cloned");
     }
     const Value* other = call.self.object->GetOwn(kEntangledSlot);
     if (other == nullptr || !other->IsObject() || FlagOn(*other, kClosedSlot) ||

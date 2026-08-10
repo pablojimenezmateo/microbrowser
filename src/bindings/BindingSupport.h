@@ -68,6 +68,20 @@ inline bool CoerceToString(js::NativeCall& call, const js::Value& value, std::st
   return true;
 }
 
+// `DOMException`: the type a *web API* throws, as against the `Error` types the
+// language throws. Defined in DomExceptions.cpp, where the WebIDL error-names
+// table lives.
+//
+// `ThrowDom` is the only way a binding should raise one, and it is a free
+// function rather than a method on anything because the call sites are natives
+// with no receiver in common. `name` is a WebIDL error name -- "NotFoundError",
+// "InvalidStateError" -- and the numeric `code` a page reads is derived from it
+// rather than passed, so the two cannot disagree.
+void InstallDomException(js::Interpreter& interpreter);
+js::Value MakeDomException(js::Interpreter& interpreter, std::string_view name,
+                           std::string message);
+js::Value ThrowDom(js::NativeCall& call, std::string_view name, std::string message);
+
 class DomBindings;
 
 // The node behind a wrapper, or null for anything that is not one.

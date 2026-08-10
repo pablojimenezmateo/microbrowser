@@ -378,11 +378,11 @@ void DomBindings::InstallTextEncoding() {
              (static_cast<unsigned char>(input[i + 3]) & 0x3F);
         width = 4;
       } else {
-        return call.Throw("InvalidCharacterError",
+        return ThrowDom(call, "InvalidCharacterError",
                           "InvalidCharacterError: btoa requires a Latin1 string");
       }
       if (cp > 0xFF) {
-        return call.Throw("InvalidCharacterError",
+        return ThrowDom(call, "InvalidCharacterError",
                           "InvalidCharacterError: btoa requires a Latin1 string");
       }
       bytes.push_back(static_cast<char>(cp));
@@ -409,7 +409,7 @@ void DomBindings::InstallTextEncoding() {
     }
     const std::optional<std::string> decoded = util::Base64Decode(stripped);
     if (!decoded.has_value()) {
-      return call.Throw("InvalidCharacterError",
+      return ThrowDom(call, "InvalidCharacterError",
                         "InvalidCharacterError: atob received an invalid character");
     }
     // Re-encode each byte as a Latin-1 code unit in a UTF-8 string (bytes

@@ -4475,3 +4475,68 @@ synthesised input, this browser has an input path, and nothing exposes it to a p
 **Before anything else, though, finish item 7.** An expectation file that disagrees with itself
 makes every later session's first run red for a reason that has nothing to do with their change,
 which is exactly the failure mode ADR 0040 §5 exists to prevent.
+
+## 2026-08-10 — C1 + C2: exception identity, and the expectation file that could not spell its own subtests
+
+**Status:** done
+**Check:** `microbrowser_wpt dom/nodes/Node-appendChild.html` — 0 unexpected, 7 of 11 subtests
+passing against 5 before; `ctest -E microbrowser_wpt` 24/24 green. Areas re-recorded below.
+
+**Landed.** `Object.getPrototypeOf(TypeError) === Error` (`src/js/ErrorBuiltins.cpp`, new);
+`DOMException` as a real type with WebIDL's error-names table (`src/bindings/DomExceptions.cpp`,
+new); every binding that raises a DOM error converted to the one `ThrowDom`; the DOM's
+"ensure pre-insertion validity"; and a harness fix without which none of it could be measured.
+
+**Found — five things a diff does not say.**
+
+1. **One missing pointer was worth 117 tests and 2,014 subtests.** `assert_throws_js` does not
+   use `instanceof`. It walks `Object.getPrototypeOf` up from the *constructor* looking for a
+   function named `Error`, and in this engine that walk ended at `Function.prototype` — the
+   NativeError constructors inherited from it rather than from `Error` (ECMA-262 §20.5.6.1).
+   Every negative test in the suite that names a native error type failed on it, with a message
+   about the constructor rather than about the thrown value, which is why the baseline's ranked
+   cause list read `function TypeError() { [native code] } is not an Error subtype` and nobody
+   could tell from that what was wrong. It is one line.
+
+2. **The DOMException bug was not the missing type. It was fourteen sites that put the name in
+   the *message*.** `call.Throw("Error", "InvalidStateError: BroadcastChannel is closed")` reads
+   correctly to a human and answers `e.name === "Error"` to a page — and
+   `catch (e) { if (e.name === 'AbortError') }` is exactly how every cancellable API is used. Two
+   more threw a `TypeError` with a comment saying "the spec's NotFoundError" beside it. The audit
+   C1 asks for is the whole task; the type was the easy half.
+
+3. **`name`, `message` and `code` are own data properties here, and WebIDL puts them on the
+   prototype as accessors.** That is a deliberate deviation with a measurement behind it: the two
+   things that print an exception — `js::ToString`, which every console line and every uncaught
+   report goes through, and the internal `String(e)` — are pure functions with no interpreter to
+   invoke a getter with. With the accessors on the prototype, an uncaught DOMException logged as
+   `[object Object]`, which is the most useful line a failing page produces reduced to nothing.
+   Non-enumerable keeps the visible half of the shape: `Object.keys(e)` is empty.
+
+4. **The expectation files disagree with themselves for a reason that is not timing, and this is
+   the previous session's item 7.** Twelve of `dom/`'s subtests reported `FAIL (expected PASS)`
+   beside `MISSING (expected FAIL)` — for the same subtest, deterministically, against the binary
+   that recorded them. The cause is in `tools/wpt/Expectations.cpp`: the loader trimmed trailing
+   whitespace from every line, and a subtest name can *end in a space* — `test(function(){...})`
+   with no name takes the page's `<title>`, and a title written with spaces inside its tags has
+   two of them — or contain a newline. Such a name could never match its own recorded
+   expectation. Fixed by escaping, marked on the **key** (`FAIL:esc=`) rather than on the value:
+   names holding a literal backslash and names beginning with a quote are both already in the
+   corpus, written raw, so a value-side convention rewrites thousands that were fine and
+   invalidates every file not re-recorded on the same commit. The round trip now has a unit test
+   (`tests/WptExpectationsTests.cpp`) — the thing that did not exist and cost a session.
+
+5. **A rate is not a cause, and this one was two causes.** The previous session estimated ~3%
+   flake from 25 unexpected results in the first 800 tests and attributed it to `TIMEOUT`s
+   recorded under load. At least twelve of `dom/`'s are the escaping bug above and have nothing
+   to do with load. Whoever finishes that estimate should re-run the gate *after* re-recording an
+   area rather than before: an area recorded by the fixed writer cannot produce this class of
+   disagreement again.
+
+**Not done, and named rather than left implicit.** `Node-appendChild.html`'s last two failures
+need `frames[0].document` (plan task J1) and `document.doctype` as a node (C10); neither is about
+exceptions. The document-specific pre-insertion constraints — one element child, doctype ordering
+— are left to C4 with a comment where they would go, because this browser has one document built
+by the parser and a page that reaches them is doing something no page does. `assert_throws_dom`'s
+remaining suite-wide failure mode is `did not throw`, 88 tests, which is missing *checks* rather
+than a missing type, and is C3/C4's work.

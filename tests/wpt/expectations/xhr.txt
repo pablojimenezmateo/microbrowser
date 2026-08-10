@@ -267,7 +267,7 @@ FAIL=onerror should be called
 [xhr/event-error.sub.any.worker.html]
 harness=TIMEOUT
 [xhr/event-load.any.html]
-harness=TIMEOUT
+FAIL=XMLHttpRequest: The send() method: Fire an event named load (synchronous flag is unset)
 [xhr/event-load.any.worker.html]
 harness=TIMEOUT
 [xhr/event-loadend.any.html]
@@ -303,17 +303,17 @@ FAIL=XMLHttpRequest: timeout event
 [xhr/event-timeout.any.worker.html]
 harness=TIMEOUT
 [xhr/event-upload-progress-crossorigin.any.html]
-FAIL=Upload events registered on time (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
-FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress-crossorigin.any.worker.html]
 harness=TIMEOUT
 [xhr/event-upload-progress.any.html]
-FAIL=Upload events registered on time (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
-FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (http://127.0.0.1:45003/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:45003/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress.any.worker.html]
 harness=TIMEOUT
 [xhr/firing-events-http-content-length.html]
@@ -432,7 +432,7 @@ harness=TIMEOUT
 [xhr/formdata/submitter-coordinate-value.html]
 FAIL=dispatched event coordinates should match user intention coordinates
 [xhr/getallresponseheaders-after-reuse.html]
-harness=TIMEOUT
+FAIL=getAllResponseHeaders() must not return the previous response's headers
 [xhr/getallresponseheaders-cookies.htm]
 FAIL=XMLHttpRequest: getAllResponseHeaders() excludes cookies
 [xhr/getallresponseheaders.htm]
@@ -456,7 +456,7 @@ FAIL=XMLHttpRequest: getResponseHeader() funny characters
 [xhr/getresponseheader.any.html]
 FAIL=getResponseHeader('content-length') expects 0
 FAIL=getResponseHeader('content-length') expects 0, 0
-FAIL=getResponseHeader('double-trouble') expects ,
+FAIL:esc=getResponseHeader('double-trouble') expects , 
 FAIL=getResponseHeader('foo-test') expects 1, 2, 3
 FAIL=getResponseHeader('heya') expects , , 1, , , 2
 FAIL=getResponseHeader('www-authenticate') expects 1, 2, 3, 4
@@ -467,7 +467,7 @@ FAIL=Async request has User-Agent header
 [xhr/header-user-agent-sync.htm]
 FAIL=Sync request has User-Agent header
 [xhr/headers-normalize-response.htm]
-FAIL=Header value:
+FAIL:esc=Header value: 
 FAIL=Header value: [tab]
 FAIL=Header value: [tab]hello_world
 FAIL=Header value: [tab]hello_world[tab]
@@ -509,7 +509,7 @@ FAIL=XMLHttpRequest: open() - bogus methods (>)
 FAIL=XMLHttpRequest: open() - bogus methods (@GET)
 FAIL=XMLHttpRequest: open() - bogus methods (G T)
 FAIL=XMLHttpRequest: open() - bogus methods (G:ET)
-FAIL=XMLHttpRequest: open() - bogus methods (GET
+FAIL:esc=XMLHttpRequest: open() - bogus methods (GET\n)
 FAIL=XMLHttpRequest: open() - bogus methods (GET?)
 [xhr/open-method-case-insensitive.htm]
 FAIL=XMLHttpRequest: open() - case-insensitive methods test (DELETE)
@@ -645,25 +645,25 @@ FAIL=44) MIME types need to be parsed and serialized: !#$%&'*+-.^_`|~0123456789A
 FAIL=45) MIME types need to be parsed and serialized: x/x;x="	 !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~U+80U+81U+82U+83U+84U+85U+86U+87U+88U+89U+8aU+8bU+8cU+8dU+8eU+8fU+90U+91U+92U+93U+94U+95U+96U+97U+98U+99U+9aU+9bU+9cU+9dU+9eU+9fU+a0U+a1U+a2U+a3U+a4U+a5U+a6U+a7U+a8U+a9U+aaU+abU+acU+adU+aeU+afU+b0U+b1U+b2U+b3U+b4U+b5U+b6U+b7U+b8U+b9U+baU+bbU+bcU+bdU+beU+bfU+c0U+c1U+c2U+c3U+c4U+c5U+c6U+c7U+c8U+c9U+caU+cbU+ccU+cdU+ceU+cfU+d0U+d1U+d2U+d3U+d4U+d5U+d6U+d7U+d8U+d9U+daU+dbU+dcU+ddU+deU+dfU+e0U+e1U+e2U+e3U+e4U+e5U+e6U+e7U+e8U+e9U+eaU+ebU+ecU+edU+eeU+efU+f0U+f1U+f2U+f3U+f4U+f5U+f6U+f7U+f8U+f9U+faU+fbU+fcU+fdU+feU+ff"
 FAIL=46) MIME types need to be parsed and serialized: x/x;test
 FAIL=47) MIME types need to be parsed and serialized: x/x;test="\
-FAIL=48) MIME types need to be parsed and serialized: x/x;x=
-FAIL=49) MIME types need to be parsed and serialized: x/x;x=
+FAIL:esc=48) MIME types need to be parsed and serialized: x/x;x= 
+FAIL:esc=49) MIME types need to be parsed and serialized: x/x;x=\t
 FAIL=5) MIME types need to be parsed and serialized: text/html;charset=gbk;charset=windows-1255
-FAIL=50) MIME types need to be parsed and serialized: x/x
-FAIL=51) MIME types need to be parsed and serialized:
-FAIL=52) MIME types need to be parsed and serialized: x/x;
+FAIL:esc=50) MIME types need to be parsed and serialized: x/x\n\t ;x=x
+FAIL:esc=51) MIME types need to be parsed and serialized: \n\t x/x;x=x\n\t 
+FAIL:esc=52) MIME types need to be parsed and serialized: x/x;\n\t x=x\n\t ;x=y
 FAIL=53) MIME types need to be parsed and serialized: text/html;test=U+ff;charset=gbk
 FAIL=54) MIME types need to be parsed and serialized: x/x;test=U+fffd;x=x
 FAIL=55) MIME types need to be parsed and serialized: x/x
 FAIL=56) MIME types need to be parsed and serialized: x/x
 FAIL=57) MIME types need to be parsed and serialized: x/x
 FAIL=58) MIME types need to be parsed and serialized: x/x
-FAIL=59) MIME types need to be parsed and serialized:
+FAIL:esc=59) MIME types need to be parsed and serialized: 
 FAIL=6) MIME types need to be parsed and serialized: text/html;charset=();charset=GBK
-FAIL=60) MIME types need to be parsed and serialized:
+FAIL:esc=60) MIME types need to be parsed and serialized: \t
 FAIL=61) MIME types need to be parsed and serialized: /
 FAIL=62) MIME types need to be parsed and serialized: bogus
 FAIL=63) MIME types need to be parsed and serialized: bogus/
-FAIL=64) MIME types need to be parsed and serialized: bogus/
+FAIL:esc=64) MIME types need to be parsed and serialized: bogus/ 
 FAIL=65) MIME types need to be parsed and serialized: bogus/bogus/;
 FAIL=66) MIME types need to be parsed and serialized: </>
 FAIL=67) MIME types need to be parsed and serialized: (/)
@@ -679,8 +679,6 @@ FAIL=8) MIME types need to be parsed and serialized: text/html ;charset=gbk
 FAIL=9) MIME types need to be parsed and serialized: text/html; charset=gbk
 FAIL=Use text/xml as fallback MIME type
 FAIL=Use text/xml as fallback MIME type, 2
-x=x
-;x=y
 [xhr/overridemimetype-done-state.any.html]
 FAIL=overridemimetype-done-state
 [xhr/overridemimetype-done-state.any.worker.html]
@@ -1070,12 +1068,14 @@ FAIL=XMLHttpRequest: The send() method: event order when there is no response en
 FAIL=XMLHttpRequest: send() - non same-origin (about:blank)
 FAIL=XMLHttpRequest: send() - non same-origin (blob:bogusidentifier)
 FAIL=XMLHttpRequest: send() - non same-origin (folder.txt)
-FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:45003)
+FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:42801)
 FAIL=XMLHttpRequest: send() - non same-origin (javascript:alert('FAIL'))
 FAIL=XMLHttpRequest: send() - non same-origin (mailto:test@example.org)
 FAIL=XMLHttpRequest: send() - non same-origin (tel:+31600000000)
 [xhr/send-receive-utf16.htm]
-harness=TIMEOUT
+FAIL=UTF-16 with BOM, no encoding in content-type
+FAIL=UTF-16 without BOM, mislabelled as UTF-8 in content-type
+FAIL=UTF-16 without BOM, with charset label in content-type
 [xhr/send-redirect-bogus-sync.sub.htm]
 FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (301: foobar://abcd)
 FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (302: http://nonexistent.localhost)
@@ -1158,7 +1158,7 @@ FAIL=XMLHttpRequest: The send() method: event order when synchronous flag is set
 [xhr/send-sync-timeout.htm]
 FAIL=XMLHttpRequest: timeout during sync send() should not run
 [xhr/send-timeout-events.htm]
-FAIL=XMLHttpRequest: The send() method: timeout is not 0
+FAIL:esc=XMLHttpRequest: The send() method: timeout is not 0 
 [xhr/send-usp.any.html]
 FAIL=XMLHttpRequest.send(URLSearchParams) (0)
 FAIL=XMLHttpRequest.send(URLSearchParams) (1)

@@ -7,7 +7,15 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-53104 of 479617 subtests pass (11.1%) over 21265 tests.
+**Partly re-measured, 2026-08-10 (C1 + C2).** The per-area rows for `dom/`, `FileAPI/`, `xhr/`,
+`domparsing/`, `custom-elements/`, `shadow-dom/` and `IndexedDB/` are from that session's run and
+were merged into this file by hand; every other row, and the whole ranked-cause section below, is
+still the M-B baseline and predates the exception-identity work. That merge was necessary because
+`--summary` rewrites this document from `--summary-state` alone: a run started with no state file
+silently produces a document describing only the areas it ran. **The state file is this
+document's memory. Keep it, or re-measure everything.**
+
+53220 of 479500 subtests pass (11.1%) over 21265 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 24% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -26,13 +34,13 @@ it is a page that never reported, which almost always means something threw befo
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
 | `FileAPI` | 11 | 6 | 0 | 5 | 0 | 26 | 10 | 38.5 |
 | `FileAPI/BlobURL` | 5 | 4 | 0 | 1 | 0 | 16 | 0 | 0.0 |
-| `FileAPI/FileReader` | 2 | 1 | 0 | 1 | 0 | 2 | 0 | 0.0 |
+| `FileAPI/FileReader` | 2 | 1 | 0 | 1 | 0 | 1 | 0 | 0.0 |
 | `FileAPI/blob` | 23 | 13 | 0 | 10 | 0 | 259 | 1 | 0.4 |
 | `FileAPI/file` | 21 | 14 | 0 | 7 | 0 | 163 | 0 | 0.0 |
 | `FileAPI/filelist-section` | 1 | 1 | 0 | 0 | 0 | 7 | 0 | 0.0 |
 | `FileAPI/reading-data-section` | 26 | 13 | 0 | 13 | 0 | 48 | 0 | 0.0 |
-| `FileAPI/url` | 15 | 3 | 0 | 12 | 0 | 40 | 12 | 30.0 |
-| `IndexedDB` | 265 | 198 | 3 | 64 | 0 | 1040 | 43 | 4.1 |
+| `FileAPI/url` | 15 | 3 | 0 | 12 | 0 | 39 | 21 | 53.8 |
+| `IndexedDB` | 265 | 208 | 3 | 53 | 1 | 1032 | 49 | 4.7 |
 | `IndexedDB/crashtests` | 1 | 1 | 0 | 0 | 0 | 1 | 1 | 100.0 |
 | `console` | 19 | 12 | 0 | 7 | 0 | 29 | 6 | 20.7 |
 | `content-security-policy` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0.0 |
@@ -124,25 +132,25 @@ it is a page that never reported, which almost always means something threw befo
 | `css/cssom` | 190 | 149 | 5 | 36 | 0 | 1435 | 708 | 49.3 |
 | `css/cssom-view` | 225 | 187 | 0 | 38 | 0 | 1349 | 365 | 27.1 |
 | `css/selectors` | 277 | 210 | 10 | 57 | 0 | 1367 | 334 | 24.4 |
-| `custom-elements` | 44 | 25 | 0 | 19 | 0 | 598 | 104 | 17.4 |
+| `custom-elements` | 44 | 25 | 0 | 19 | 0 | 549 | 105 | 19.1 |
 | `custom-elements/form-associated` | 18 | 14 | 3 | 1 | 0 | 103 | 1 | 1.0 |
 | `custom-elements/htmlconstructor` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
 | `custom-elements/parser` | 11 | 8 | 0 | 3 | 0 | 20 | 2 | 10.0 |
 | `custom-elements/reactions` | 57 | 26 | 0 | 31 | 0 | 372 | 57 | 15.3 |
 | `custom-elements/registries` | 40 | 28 | 2 | 10 | 0 | 2207 | 225 | 10.2 |
 | `custom-elements/state` | 5 | 4 | 1 | 0 | 0 | 28 | 1 | 3.6 |
-| `custom-elements/upgrading` | 7 | 2 | 0 | 5 | 0 | 16 | 1 | 6.2 |
+| `custom-elements/upgrading` | 7 | 2 | 0 | 5 | 0 | 7 | 1 | 14.3 |
 | `dom` | 10 | 10 | 0 | 0 | 0 | 125 | 66 | 52.8 |
-| `dom/abort` | 10 | 6 | 0 | 4 | 0 | 37 | 6 | 16.2 |
+| `dom/abort` | 10 | 6 | 0 | 4 | 0 | 37 | 10 | 27.0 |
 | `dom/collections` | 10 | 10 | 0 | 0 | 0 | 53 | 7 | 13.2 |
-| `dom/events` | 178 | 85 | 1 | 92 | 0 | 552 | 156 | 28.3 |
+| `dom/events` | 178 | 85 | 1 | 92 | 0 | 540 | 157 | 29.1 |
 | `dom/lists` | 5 | 4 | 1 | 0 | 0 | 49 | 30 | 61.2 |
-| `dom/nodes` | 327 | 232 | 7 | 87 | 1 | 5158 | 1153 | 22.4 |
-| `dom/observable` | 52 | 25 | 0 | 27 | 0 | 244 | 0 | 0.0 |
-| `dom/ranges` | 57 | 32 | 24 | 1 | 0 | 242 | 18 | 7.4 |
-| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 55 | 29 | 52.7 |
-| `domparsing` | 34 | 21 | 3 | 10 | 0 | 290 | 72 | 24.8 |
-| `domparsing/tentative` | 26 | 17 | 0 | 9 | 0 | 905 | 6 | 0.7 |
+| `dom/nodes` | 327 | 233 | 7 | 86 | 1 | 5177 | 1214 | 23.4 |
+| `dom/observable` | 52 | 25 | 0 | 27 | 0 | 242 | 0 | 0.0 |
+| `dom/ranges` | 57 | 32 | 24 | 1 | 0 | 242 | 21 | 8.7 |
+| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 55 | 30 | 54.5 |
+| `domparsing` | 34 | 21 | 3 | 10 | 0 | 245 | 77 | 31.4 |
+| `domparsing/tentative` | 26 | 17 | 0 | 9 | 0 | 905 | 28 | 3.1 |
 | `domxpath` | 32 | 24 | 0 | 8 | 0 | 87 | 1 | 1.1 |
 | `encoding` | 74 | 40 | 0 | 34 | 0 | 11801 | 68 | 0.6 |
 | `encoding/legacy-mb-japanese` | 51 | 5 | 9 | 37 | 0 | 113882 | 1 | 0.0 |
@@ -229,11 +237,11 @@ it is a page that never reported, which almost always means something threw befo
 | `selection/contenteditable` | 10 | 6 | 0 | 4 | 0 | 61 | 0 | 0.0 |
 | `selection/shadow-dom` | 12 | 8 | 0 | 4 | 0 | 51 | 1 | 2.0 |
 | `selection/textcontrols` | 7 | 3 | 0 | 4 | 0 | 3 | 0 | 0.0 |
-| `shadow-dom` | 66 | 58 | 0 | 8 | 0 | 728 | 71 | 9.8 |
-| `shadow-dom/declarative` | 56 | 40 | 4 | 12 | 0 | 7648 | 5 | 0.1 |
+| `shadow-dom` | 66 | 58 | 0 | 8 | 0 | 728 | 73 | 10.0 |
+| `shadow-dom/declarative` | 56 | 40 | 4 | 12 | 0 | 7647 | 5 | 0.1 |
 | `shadow-dom/focus` | 37 | 31 | 1 | 5 | 0 | 78 | 5 | 6.4 |
-| `shadow-dom/focus-navigation` | 45 | 44 | 0 | 1 | 0 | 89 | 2 | 2.2 |
-| `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 16 | 6 | 37.5 |
+| `shadow-dom/focus-navigation` | 45 | 45 | 0 | 0 | 0 | 89 | 2 | 2.2 |
+| `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 15 | 6 | 40.0 |
 | `shadow-dom/reference-target` | 15 | 14 | 0 | 1 | 0 | 768 | 0 | 0.0 |
 | `shadow-dom/untriaged` | 54 | 52 | 0 | 2 | 0 | 248 | 157 | 63.3 |
 | `storage` | 28 | 11 | 0 | 17 | 0 | 23 | 0 | 0.0 |
@@ -319,7 +327,7 @@ it is a page that never reported, which almost always means something threw befo
 | `workers/multi-globals` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
 | `workers/same-site-cookies` | 6 | 6 | 0 | 0 | 0 | 6 | 0 | 0.0 |
 | `workers/semantics` | 30 | 9 | 0 | 21 | 0 | 17 | 1 | 5.9 |
-| `xhr` | 374 | 247 | 0 | 127 | 0 | 1056 | 68 | 6.4 |
+| `xhr` | 374 | 250 | 0 | 124 | 0 | 1049 | 69 | 6.6 |
 | `xhr/formdata` | 27 | 16 | 0 | 11 | 0 | 71 | 0 | 0.0 |
 
 ## Why the harness never reported

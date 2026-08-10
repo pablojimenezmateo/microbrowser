@@ -106,6 +106,38 @@ plan gave: the exception-identity signatures are everywhere, and they are
 *behind* the five above in raw test count. Do them first anyway — they are
 cheap, and every area's negative tests are gated on them.
 
+### What C1 and C2 turned out to be · **done 2026-08-10**
+
+Both landed, and neither was what this section predicted.
+
+- **C2 was one pointer.** `assert_throws_js` does not use `instanceof`: it walks
+  `Object.getPrototypeOf` up from the *constructor* looking for a function named
+  `Error`. The NativeError constructors inherited from `Function.prototype`
+  rather than from `Error`, so that walk never terminated in a match. 117 tests
+  and 2,014 subtests, one line.
+- **C1 was not the missing type.** `DOMException` existed. What did not was any
+  binding actually throwing one: fourteen sites raised a plain `Error` with the
+  DOM name inside the *message text* (`"InvalidStateError: …"`), which reads
+  right to a human and answers `e.name === "Error"` to a page. The audit is the
+  task; the type was the easy half. The DOM's ensure-pre-insertion-validity
+  landed with it, because a type nothing throws cannot be measured.
+
+Re-measured, per-area subtest pass rate, before → after: `dom/nodes` 22.4 → 23.4,
+`dom/abort` 16.2 → 27.0, `dom/ranges` 7.4 → 8.7, `dom/traversal` 52.7 → 54.5,
+`dom/events` 28.3 → 29.1, `FileAPI/url` 30.0 → 53.8, `domparsing` 24.8 → 31.4,
+`domparsing/tentative` 0.7 → 3.1, `custom-elements` 17.4 → 19.1,
+`custom-elements/upgrading` 6.2 → 14.3, `IndexedDB` 4.1 → 4.7, `xhr` 6.4 → 6.6.
+
+**And a harness bug that made all of this unmeasurable, which is W1's whole
+argument.** A subtest name ending in a space — what `test(function(){…})` with
+no name gets from a `<title>` written with spaces inside its tags — could not
+survive being written to an expectation file and read back, because the loader
+trimmed the line. The runner then reported `FAIL (expected PASS)` beside
+`MISSING (expected FAIL)` for the same subtest, deterministically, against the
+binary that recorded it. Twelve of `dom/`'s were in that state. That is part of
+the "~3% flake" the M-B session left as its first task, and it is *not* the
+timeout half: a rate was two causes.
+
 **Targets that the measurement says are wrong.** The plan set these before
 anything had been run; each needs revising with a reason, which is what §2 says
 to do. The gap is not uniform — three of these are a missing binding rather

@@ -156,7 +156,7 @@ void DomBindings::InstallWebSocket() {
                     // The specified failure for a send on a socket that is not open, and
                     // a page catches it: sending into a socket that silently dropped the
                     // message is a page that believes it delivered.
-                    return inner.Throw("InvalidStateError",
+                    return ThrowDom(inner, "InvalidStateError",
                                        "WebSocket is not open");
                   }
                   return Value::Undefined();

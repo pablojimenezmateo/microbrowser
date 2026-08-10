@@ -125,13 +125,9 @@ void DomBindings::InstallHistory() {
               // it liked, so this is a throw rather than a silent no-op --
               // ADR 0026 §2.
               AddPerformanceCounter(PerfCounterId::HistoryOriginRefusals);
-              Value error = call.interpreter.MakeError(
-                  "Error",
-                  std::string(name) + ": '" + url + "' is not the document's origin");
-              if (error.IsObject()) {
-                error.object->Set("name", Value::String("SecurityError"));
-              }
-              return call.ThrowValue(error);
+              return ThrowDom(call, "SecurityError",
+                              std::string(name) + ": '" + url +
+                                  "' is not the document's origin");
             }
           }
           AddPerformanceCounter(replace ? PerfCounterId::HistoryReplaceStates

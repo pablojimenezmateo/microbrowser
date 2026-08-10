@@ -1,8 +1,10 @@
 #include "wpt/Expectations.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 
 namespace microbrowser::wpt {
 namespace {
@@ -14,27 +16,105 @@ std::string TopLevel(const std::string& url_path) {
   return slash == std::string::npos ? url_path : url_path.substr(0, slash);
 }
 
-std::string Trim(std::string value) {
-  while (!value.empty() && (value.back() == '\r' || value.back() == ' ' || value.back() == '\t')) {
-    value.pop_back();
+// A subtest's name is a string the *page* chose, and this file is line-based.
+// A name can therefore contain a newline, or -- the case that actually bit --
+// end in a space, which is what `test(function(){...})` with no name gets when
+// the page's `<title>` is written with spaces inside the tags. Neither survives
+// a line-based file that trims: what the runner then prints is
+// `FAIL (expected PASS)` beside `MISSING (expected FAIL)` for the same subtest,
+// which reads exactly like a regression and is not one. Twelve of `dom/`'s
+// subtests were in that state, deterministically, against the very binary that
+// recorded them.
+//
+// Only a name that needs it is escaped, and one that does not is written
+// exactly as before. That is not cosmetic: testharness itself escapes control
+// characters into names -- `Blob with type "\timage/gif\t"` is a *literal*
+// backslash and `t` -- so a scheme that escaped unconditionally would
+// reinterpret thousands of already-recorded names and silently invalidate every
+// expectation file that was not re-recorded on the same commit.
+//
+// The encoded form is marked on the **key**, not on the value: `FAIL=x` is a
+// raw name and `FAIL:esc=x` is an escaped one. A quoted-value convention was
+// tried first and is wrong here -- `FAIL="U+fffd" should match with "#\u0000"`
+// is already in the corpus, raw, and any rule that reads a leading quote as
+// "this is encoded" mangles it. A status never contains a colon, so the marker
+// cannot collide with anything already recorded, and every line that does not
+// need it stays byte-identical.
+constexpr std::string_view kEscapedSuffix = ":esc";
+
+// What a line-based file cannot carry as written: a name that ends in
+// whitespace, which the loader strips, or one that spans lines.
+//
+// A backslash is deliberately **not** in this list. It survives the raw path
+// untouched, and adding it would put `:esc` on the several thousand names
+// testharness has already escaped into the corpus itself -- churn with no
+// round-trip to buy it.
+bool NeedsEscaping(std::string_view value) {
+  if (value.empty()) {
+    return false;
   }
-  std::size_t start = 0;
-  while (start < value.size() && (value[start] == ' ' || value[start] == '\t')) {
-    ++start;
+  if (value.back() == ' ' || value.back() == '\t') {
+    return true;
   }
-  return value.substr(start);
+  return value.find_first_of("\n\r") != std::string_view::npos;
+}
+
+std::string Encode(std::string_view value) {
+  std::string out;
+  for (const char character : value) {
+    switch (character) {
+      case '\\': out += "\\\\"; break;
+      case '\n': out += "\\n"; break;
+      case '\r': out += "\\r"; break;
+      case '\t': out += "\\t"; break;
+      default: out.push_back(character); break;
+    }
+  }
+  return out;
+}
+
+std::string Decode(std::string_view value) {
+  std::string out;
+  out.reserve(value.size());
+  for (std::size_t i = 0; i < value.size(); ++i) {
+    if (value[i] != '\\' || i + 1 == value.size()) {
+      out.push_back(value[i]);
+      continue;
+    }
+    switch (value[++i]) {
+      case 'n': out.push_back('\n'); break;
+      case 'r': out.push_back('\r'); break;
+      case 't': out.push_back('\t'); break;
+      case '\\': out.push_back('\\'); break;
+      // An escape this writer never produces. Kept as written rather than
+      // dropped, so an unknown sequence cannot silently change a name.
+      default: out.push_back('\\'); out.push_back(value[i]); break;
+    }
+  }
+  return out;
+}
+
+// One line: `FAIL=name`, or `FAIL:esc=escaped-name` when the raw form would not
+// survive the round trip. Both halves of that decision are made here so they
+// cannot disagree -- escaping the value while writing the plain key is how the
+// first attempt at this rewrote several thousand names that were already fine.
+std::string Line(std::string_view status, std::string_view value) {
+  if (!NeedsEscaping(value)) {
+    return std::string(status) + "=" + std::string(value) + "\n";
+  }
+  return std::string(status) + std::string(kEscapedSuffix) + "=" + Encode(value) + "\n";
 }
 
 std::string Serialize(const std::string& url_path, const TestExpectation& expectation) {
   std::string text = "[" + url_path + "]\n";
   if (expectation.disabled) {
-    text += "disabled=" + expectation.disabled_reason + "\n";
+    text += Line("disabled", expectation.disabled_reason);
   }
   if (expectation.harness != "OK") {
     text += "harness=" + expectation.harness + "\n";
   }
   for (const auto& [name, status] : expectation.subtests) {
-    text += status + "=" + name + "\n";
+    text += Line(status, name);
   }
   return text;
 }
@@ -55,7 +135,11 @@ void ExpectationStore::Load(const std::string& directory) {
     std::string line;
     std::string current;
     while (std::getline(stream, line)) {
-      line = Trim(line);
+      // Only the line ending: a trailing space belongs to the name, and
+      // trimming it is what made a name ending in one unmatchable.
+      while (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+      }
       if (line.empty() || line[0] == '#') {
         continue;
       }
@@ -71,8 +155,13 @@ void ExpectationStore::Load(const std::string& directory) {
       if (equals == std::string::npos) {
         continue;
       }
-      const std::string key = line.substr(0, equals);
-      const std::string value = line.substr(equals + 1);
+      std::string key = line.substr(0, equals);
+      std::string value = line.substr(equals + 1);
+      if (key.size() > kEscapedSuffix.size() &&
+          std::string_view(key).substr(key.size() - kEscapedSuffix.size()) == kEscapedSuffix) {
+        key.resize(key.size() - kEscapedSuffix.size());
+        value = Decode(value);
+      }
       TestExpectation& expectation = tests_[current];
       if (key == "harness") {
         expectation.harness = value;

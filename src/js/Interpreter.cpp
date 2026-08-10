@@ -298,15 +298,22 @@ Value Interpreter::MakeError(std::string_view kind, std::string message) {
     }
   }
   error->SetPrototype(prototype);
-  error->Set("name", Value::String(std::string(kind)));
+  // Non-enumerable, like every own property of an error the language makes:
+  // `Object.keys(e)` on a caught engine throw must be empty, and a page that
+  // spreads or JSON-stringifies one must not find these in it.
+  //
+  // `name` is own rather than inherited because the prototype above is a
+  // *fallback* -- during startup, and for a kind with no constructor, there is
+  // no prototype carrying the right name and `e.name` would answer "Error".
+  error->SetHidden("name", Value::String(std::string(kind)));
   const std::string text(message);
-  error->Set("message", Value::String(std::move(message)));
+  error->SetHidden("message", Value::String(std::move(message)));
   // An error the *engine* threw gets the same stack an error a page
   // constructed does. Without this the two kinds are told apart by whether
   // `e.stack` is undefined, and the engine's -- the TypeError from calling
   // something that is not a function -- is exactly the one worth locating: it
   // says what went wrong and, until now, nothing at all about where.
-  error->Set("stack", Value::String(CaptureStack(kind, text)));
+  error->SetHidden("stack", Value::String(CaptureStack(kind, text)));
   return Value::Obj(error);
 }
 

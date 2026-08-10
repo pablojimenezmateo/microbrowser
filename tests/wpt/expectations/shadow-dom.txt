@@ -12,7 +12,6 @@ FAIL=document.caretPositionFromPoint() should return a CaretPosition at the spec
 FAIL=document.caretPositionFromPoint() should return a CaretPosition at the specified location pointing to the outer shadow tree when the point is in an inner shadow tree and the outer shadow tree is specified as an argument
 FAIL=document.caretPositionFromPoint() should return a CaretPosition at the specified location pointing to the shadow host's parent when the shadow tree is not specified as an argument
 FAIL=document.caretPositionFromPoint() should return a CaretPosition at the specified location when the non-intersecting shadow tree is specified as an argument
-FAIL=document.caretPositionFromPoint() throws when called without the correct parameters
 [shadow-dom/Document-prototype-adoptNode.html]
 FAIL=adoptNode on a shadow root in closed mode must throw a HierarchyRequestError
 FAIL=adoptNode on a shadow root in open mode must throw a HierarchyRequestError
@@ -125,7 +124,6 @@ FAIL=cloneNode on a shadow root in open mode must throw a NotSupportedError
 [shadow-dom/Range-prototype-insertNode.html]
 FAIL=Test if Range.prototype.insertNode() should accept ShadowRoot input.
 [shadow-dom/ShadowRoot-interface.html]
-FAIL=ShadowRoot must not be a constructor
 FAIL=ShadowRoot.activeElement must return the focused element of the context object when shadow root is closed.
 FAIL=ShadowRoot.activeElement must return the focused element of the context object when shadow root is open.
 FAIL=ShadowRoot.styleSheets must return a StyleSheetList sequence containing the shadow root style sheets when shadow root is closed.
@@ -8325,7 +8323,10 @@ FAIL=Slot is a grid with reading-flow.
 FAIL=Slot is inside a grid container with reading-flow.
 FAIL=Slot is not inside a shadow host.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order.html]
-harness=TIMEOUT
+FAIL=Grid items with `order` property
+FAIL=Grid items with `order` property and tabindex. Positive tabindex doesn't reorder reading flow item, but can affect its descendants.
+FAIL=Grid items without `order` property
+FAIL=Items in display block are not in parent grid container.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-rows.html]
 FAIL=Grid items in grid template columns should follow grid-rows reading flow
 [shadow-dom/focus-navigation/reading-flow/tentative/normal.html]

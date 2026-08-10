@@ -118,12 +118,12 @@ void DomBindings::InstallBroadcastChannel() {
       // which is the opposite of a `MessagePort`'s close -- there the *other*
       // end may still be live and posting into a closed one is routine.
       // Here the object itself is what closed.
-      return call.Throw("Error", "InvalidStateError: BroadcastChannel is closed");
+      return ThrowDom(call, "InvalidStateError", "BroadcastChannel is closed");
     }
     const std::optional<js::SerializedValue> serialized =
         js::StructuredSerialize(call.interpreter, Argument(call.arguments, 0));
     if (!serialized.has_value()) {
-      return call.Throw("Error", "DataCloneError: the message could not be cloned");
+      return ThrowDom(call, "DataCloneError", "the message could not be cloned");
     }
     util::AddPerformanceCounter(util::PerfCounterId::BroadcastChannelMessagesPosted);
     owner->DeliverBroadcastMessage(call.self, *serialized);

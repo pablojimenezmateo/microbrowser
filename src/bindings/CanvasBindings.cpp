@@ -422,8 +422,7 @@ void DomBindings::InstallImageData(const js::Value& context) {
         // cross-origin pixels drawn into it, and a page reading them would be reading an image it was
         // never allowed to see. `SecurityError` is the specified name and the one a page switches on.
         if (owner->canvas_->CanvasIsTainted(*element)) {
-          return call.Throw("Error",
-                            "SecurityError: the canvas has been tainted by cross-origin data");
+          return ThrowDom(call, "SecurityError", "the canvas has been tainted by cross-origin data");
         }
         const int x = static_cast<int>(js::ToNumber(Argument(call.arguments, 0)));
         const int y = static_cast<int>(js::ToNumber(Argument(call.arguments, 1)));
@@ -433,7 +432,7 @@ void DomBindings::InstallImageData(const js::Value& context) {
           // Zero is an `IndexSizeError` in the specification, and it is worth throwing rather than
           // handing back an empty buffer: a page that asked for zero pixels has a bug, and an empty
           // `data` array would let it run on.
-          return call.Throw("Error", "IndexSizeError: the source rectangle is empty");
+          return ThrowDom(call, "IndexSizeError", "the source rectangle is empty");
         }
         const std::vector<std::uint8_t> pixels =
             owner->canvas_->ReadCanvasPixels(*element, x, y, width, height);
@@ -498,7 +497,7 @@ void DomBindings::InstallImageData(const js::Value& context) {
         const int width = static_cast<int>(js::ToNumber(Argument(call.arguments, 0)));
         const int height = static_cast<int>(js::ToNumber(Argument(call.arguments, 1)));
         if (width <= 0 || height <= 0) {
-          return call.Throw("Error", "IndexSizeError: the size is empty");
+          return ThrowDom(call, "IndexSizeError", "the size is empty");
         }
         const std::size_t needed =
             static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;

@@ -990,104 +990,11 @@ void Interpreter::InstallGlobals() {
   InstallArrayPrototype();
 
   // --- Errors ---------------------------------------------------------------
-  // `new Error('x')` is how a page raises one, and until now there was no
-  // constructor to call: errors existed only as the things the engine threw.
-  // Each kind gets its own so that `e instanceof TypeError` has something to
-  // be true of, and so a caught error prints as the kind it is.
-  Object* error_prototype = NewObject();
-  const auto error_kind = [this, error_prototype](const char* name) {
-    Object* prototype = name == std::string_view("Error") ? error_prototype : NewObject();
-    if (prototype == nullptr) {
-      return;
-    }
-    if (prototype != error_prototype) {
-      prototype->SetPrototype(error_prototype);
-    }
-    prototype->Set("name", Value::String(name));
-    Object* constructor = NewNative(name, [](NativeCall& call) {
-      // Callable with or without `new`: `Error('x')` and `new Error('x')` are
-      // the same thing, which is one of the few places the language says so.
-      //
-      // And callable as a *base*: `class HttpError extends Error` reaches here
-      // through `super(m)` with the instance already allocated, and has to
-      // have that one filled in rather than a second one allocated beside it.
-      Object* error = ConstructionTarget(call);
-      if (error == nullptr) {
-        error = call.interpreter.GetHeap().AllocateObject(Object::Kind::Error);
-        if (error == nullptr) {
-          return call.Throw("RangeError", "out of memory");
-        }
-        const Value* fresh =
-            call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
-        if (fresh != nullptr && fresh->IsObject()) {
-          error->SetPrototype(fresh->object);
-        }
-      }
-      const Value* prototype_value =
-          call.callee == nullptr ? nullptr : call.callee->GetOwn("prototype");
-      // AggregateError takes the errors first and the message second, which
-      // is the one place the error constructors disagree about their
-      // arguments. Told apart by the prototype's own `name` rather than by a
-      // captured flag, because a capture is invisible to the collector.
-      const Value* kind = prototype_value != nullptr && prototype_value->IsObject()
-                              ? prototype_value->object->GetOwn("name")
-                              : nullptr;
-      const bool aggregate = kind != nullptr && kind->IsString() &&
-                             kind->AsString() == "AggregateError";
-      if (aggregate) {
-        std::vector<Value> errors;
-        const Result collected =
-            call.interpreter.CollectIterable(Argument(call.arguments, 0), errors);
-        if (collected.IsAbrupt()) {
-          return call.ThrowValue(collected.value);
-        }
-        error->Set("errors", call.interpreter.NewArrayValue(std::move(errors)));
-      }
-      const Value message = Argument(call.arguments, aggregate ? 1 : 0);
-      if (!message.IsUndefined()) {
-        std::string text;
-        const Result converted = call.interpreter.ToStringOf(message, text);
-        if (converted.IsAbrupt()) {
-          return call.ThrowValue(converted.value);
-        }
-        error->Set("message", Value::String(std::move(text)));
-      }
-      const Value options = Argument(call.arguments, aggregate ? 2 : 1);
-      if (options.IsObject()) {
-        if (const Value* cause = options.object->GetOwn("cause")) {
-          error->Set("cause", *cause);
-        }
-      }
-      // Where it was made. Not part of the language, and every engine has one
-      // anyway -- a page's own error reporting reads it, and code that checks
-      // `e.stack` before using it is rarer than code that does not.
-      error->Set("stack", Value::String(call.interpreter.CaptureStack(
-                              kind == nullptr ? "Error" : ToString(*kind),
-                              ToString(Argument(call.arguments, aggregate ? 1 : 0)))));
-      return Value::Obj(error);
-    });
-    if (constructor == nullptr) {
-      return;
-    }
-    constructor->Set("prototype", Value::Obj(prototype));
-    prototype->SetHidden("constructor", Value::Obj(constructor));
-    MarksConstructedKind(constructor, Object::Kind::Error);
-    global_scope_->Declare(name, Value::Obj(constructor), false);
-  };
-  if (error_prototype != nullptr) {
-    error_prototype->Set("message", Value::String(""));
-    install(error_prototype, "toString", [](NativeCall& call) {
-      return Value::String(ToString(call.self));
-    });
-    error_kind("Error");
-    error_kind("TypeError");
-    error_kind("RangeError");
-    error_kind("SyntaxError");
-    error_kind("ReferenceError");
-    error_kind("EvalError");
-    error_kind("URIError");
-    error_kind("AggregateError");
-  }
+  // `Error` and the seven NativeError kinds, in their own translation unit:
+  // they are one feature with a prototype chain of their own -- the
+  // constructors inherit from `Error`, not from `Function.prototype` -- and
+  // this file is where everything without a home lands.
+  InstallErrors();
 
   // --- String and number conversions ---------------------------------------
   Object* string_constructor = native("String", [](NativeCall& call) {

@@ -171,8 +171,8 @@ void DomBindings::InstallClipboard(const js::Value& navigator) {
     if (owner == nullptr || !owner->HasUserActivation()) {
       call.interpreter.SettleAsyncResult(
           promise.object,
-          call.interpreter.MakeError("Error",
-                                     "NotAllowedError: writing the clipboard needs a user gesture"),
+          MakeDomException(call.interpreter, "NotAllowedError",
+                           "writing the clipboard needs a user gesture"),
           true);
       return promise;
     }
@@ -192,8 +192,8 @@ void DomBindings::InstallClipboard(const js::Value& navigator) {
     const Value promise = call.interpreter.NewPromiseValue();
     call.interpreter.SettleAsyncResult(
         promise.object,
-        call.interpreter.MakeError("Error",
-                                   "NotAllowedError: reading the clipboard is not permitted"),
+        MakeDomException(call.interpreter, "NotAllowedError",
+                         "reading the clipboard is not permitted"),
         true);
     return promise;
   });
@@ -333,7 +333,7 @@ void DomBindings::InstallCrypto() {
         // The specification's bound, and it is the specification's for a reason: 65536 bytes is far
         // more than any key or token, and an unbounded call is a page asking for the entropy pool.
         if (length > 65536) {
-          return call.Throw("Error", "QuotaExceededError: at most 65536 bytes at a time");
+          return ThrowDom(call, "QuotaExceededError", "at most 65536 bytes at a time");
         }
         if (view->offset > view->bytes->size() || length > view->bytes->size() - view->offset) {
           return call.Throw("TypeError", "the view is out of bounds for its buffer");
@@ -343,7 +343,7 @@ void DomBindings::InstallCrypto() {
           // **Throws rather than filling with anything.** There is no pseudo-random fallback in
           // `util::FillRandomBytes` and there must not be one here: a page whose key material came from
           // a weak generator has no way to find out, where one that caught an exception does.
-          return call.Throw("Error", "OperationError: no source of randomness is available");
+          return ThrowDom(call, "OperationError", "no source of randomness is available");
         }
         return array;  // the same array, which is what the specification returns
       });

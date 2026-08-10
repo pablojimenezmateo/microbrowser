@@ -68,18 +68,6 @@ Value Read(const Value& object, const std::string& key) {
   return found == nullptr ? Value::Undefined() : *found;
 }
 
-// A `DOMException` with the web-API name a page switches on (`QuotaExceededError`,
-// `InvalidStateError`, …). `MakeError("DOMException", …)` alone would leave `.name`
-// as `"DOMException"`, which is not what `e.name === "QuotaExceededError"` reads.
-// youtube's player catches with `instanceof DOMException` first; without a real
-// `DOMException` that expression is a ReferenceError and aborts the media path.
-Value ThrowDomException(NativeCall& call, const char* name, const char* message) {
-  Value error = call.interpreter.MakeError("DOMException", message);
-  if (error.IsObject()) {
-    error.object->Set("name", Value::String(name));
-  }
-  return call.ThrowValue(error);
-}
 
 std::uint64_t IdIn(const Value& object, const char* slot) {
   if (!object.IsObject()) {
@@ -167,7 +155,7 @@ void DomBindings::InstallMediaSource() {
       // Throwing is the specified answer and it is also the safe one: answering would mean answering
       // about whatever now holds that id.
       if (id == 0 || !owner->media_->IsLiveSourceBuffer(id)) {
-        return ThrowDomException(call, "InvalidStateError",
+        return ThrowDom(call, "InvalidStateError",
                                  "InvalidStateError: the SourceBuffer has been removed");
       }
       const std::string what = js::ToString(*which);
@@ -179,7 +167,7 @@ void DomBindings::InstallMediaSource() {
         util::AddPerformanceCounter(util::PerfCounterId::MediaSourceAppendAttempts);
         const int result = owner->media_->AppendToSourceBuffer(id, bytes);
         if (result == 4) {
-          return ThrowDomException(call, "InvalidStateError",
+          return ThrowDom(call, "InvalidStateError",
                                    "InvalidStateError: an append is already in progress");
         }
         call.self.object->SetHidden(kBufferUpdatingSlot, Value::Bool(true));
@@ -188,9 +176,8 @@ void DomBindings::InstallMediaSource() {
           case 0:
             return Value::Undefined();
           case 1:
-            return ThrowDomException(
-                call, "QuotaExceededError",
-                "QuotaExceededError: the SourceBuffer is full; remove some data");
+            return ThrowDom(call, "QuotaExceededError",
+                            "the SourceBuffer is full; remove some data");
           default:
             return Value::Undefined();
         }
@@ -213,11 +200,11 @@ void DomBindings::InstallMediaSource() {
         const MediaController::AddBufferError error =
             owner->media_->ChangeSourceBufferType(id, type);
         if (error == MediaController::AddBufferError::NotSupported) {
-          return ThrowDomException(call, "NotSupportedError",
+          return ThrowDom(call, "NotSupportedError",
                                    "NotSupportedError: unsupported MIME type or codec");
         }
         if (error == MediaController::AddBufferError::InvalidState) {
-          return ThrowDomException(call, "InvalidStateError",
+          return ThrowDom(call, "InvalidStateError",
                                    "InvalidStateError: SourceBuffer.changeType while updating");
         }
         return Value::Undefined();
@@ -351,10 +338,10 @@ void DomBindings::InstallMediaSource() {
           // means try another codec, and `InvalidStateError` means the source is not open. A single
           // error name would make a page retry the thing that cannot work.
           if (error == MediaController::AddBufferError::NotSupported) {
-            return ThrowDomException(call, "NotSupportedError",
+            return ThrowDom(call, "NotSupportedError",
                                      "NotSupportedError: unsupported MIME type or codec");
           }
-          return ThrowDomException(call, "InvalidStateError",
+          return ThrowDom(call, "InvalidStateError",
                                    "InvalidStateError: the MediaSource is not open");
         }
         const Value wrapper = call.interpreter.NewObjectValue();
@@ -389,7 +376,7 @@ void DomBindings::InstallMediaSource() {
           return Value::Undefined();
         }
         if (owner->media_->SourceReadyState(source) != 1) {
-          return ThrowDomException(call, "InvalidStateError",
+          return ThrowDom(call, "InvalidStateError",
                                    "InvalidStateError: the MediaSource is not open");
         }
         owner->media_->EndOfStream(source);
@@ -596,7 +583,7 @@ js::Value DomBindings::MakeTimeRanges(const std::vector<double>& flat) {
         // The specification throws `IndexSizeError` for an out-of-range index, and a player that
         // walks past the end depends on being stopped rather than being handed a zero it will treat
         // as a real range starting at the beginning of the stream.
-        return call.Throw("Error", "IndexSizeError: index out of range");
+        return ThrowDom(call, "IndexSizeError", "index out of range");
       }
       const std::size_t at = static_cast<std::size_t>(index) * 2 + which;
       return Read(*flat_value, std::to_string(at));

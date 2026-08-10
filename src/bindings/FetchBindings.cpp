@@ -149,10 +149,7 @@ void DomBindings::AbortSignalled(const js::Value& signal, const js::Value& reaso
   if (why.IsUndefined()) {
     // The name is what a page tests: `catch (e) { if (e.name !== 'AbortError') … }`
     // is how every cancellable request tells a cancellation from a failure.
-    why = interpreter_->MakeError("Error", "The operation was aborted");
-    if (why.IsObject()) {
-      why.object->Set("name", Value::String("AbortError"));
-    }
+    why = MakeDomException(*interpreter_, "AbortError", "The operation was aborted");
   }
   signal.object->SetHidden(kAbortedSlot, Value::Bool(true));
   signal.object->SetHidden(kAbortReasonSlot, why);

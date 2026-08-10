@@ -126,7 +126,8 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     }
     call.interpreter.SettleAsyncResult(
         promise.object,
-        call.interpreter.MakeError("NotSupportedError", "CSSStyleSheet.replace is not supported"),
+        MakeDomException(call.interpreter, "NotSupportedError",
+                         "CSSStyleSheet.replace is not supported"),
         true);
     return promise;
   });

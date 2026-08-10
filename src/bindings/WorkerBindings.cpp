@@ -65,7 +65,7 @@ void DomBindings::InstallStructuredClone() {
       // `DataCloneError`, and throwing is the whole point: a clone that silently dropped a function
       // would hand a page an object that is *nearly* the one it asked for, and the bug surfaces later
       // in code that has no idea a clone happened.
-      return call.Throw("Error", "DataCloneError: the value could not be cloned");
+      return ThrowDom(call, "DataCloneError", "the value could not be cloned");
     }
     return js::StructuredDeserialize(call.interpreter, *serialized);
   });
@@ -100,7 +100,7 @@ void DomBindings::InstallWorker() {
     const std::optional<js::SerializedValue> serialized =
         js::StructuredSerialize(call.interpreter, Argument(call.arguments, 0));
     if (!serialized.has_value()) {
-      return call.Throw("Error", "DataCloneError: the message could not be cloned");
+      return ThrowDom(call, "DataCloneError", "the message could not be cloned");
     }
     owner->workers_->PostToWorker(id, BytesOf(*serialized));
     return Value::Undefined();

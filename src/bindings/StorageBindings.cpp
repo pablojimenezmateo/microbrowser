@@ -148,7 +148,7 @@ void DomBindings::InstallStorage() {
                     // saved. `call.Throw` returns the abrupt result and it has to be
                     // *returned* -- a native function that calls Throw and then returns
                     // a value has thrown nothing, which is how this first landed.
-                    return inner.Throw("QuotaExceededError",
+                    return ThrowDom(inner, "QuotaExceededError",
                                        "storage quota exceeded for '" + key_name + "'");
                   }
                   return Value::Undefined();
@@ -201,7 +201,7 @@ void DomBindings::InstallStorage() {
       const StorageSource::WriteResult result =
           owner->storage_->SetItem(KindOf(call), name, value);
       if (result == StorageSource::WriteResult::QuotaExceeded) {
-        return call.Throw("QuotaExceededError", "storage quota exceeded for '" + name + "'");
+        return ThrowDom(call, "QuotaExceededError", "storage quota exceeded for '" + name + "'");
       }
       // True even for `length`, which is read-only in the specification and whose
       // assignment is silently ignored rather than an error. Returning false here

@@ -469,6 +469,7 @@ microbrowser_module(bindings
     src/bindings/BlobBindings.cpp
     src/bindings/EncodingBindings.cpp
     src/bindings/DomBindings.cpp
+    src/bindings/DomExceptions.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/FetchBindings.cpp
     src/bindings/FetchTypes.cpp
@@ -535,6 +536,7 @@ microbrowser_module(js
     src/js/TemplateParts.cpp
     src/js/Classes.cpp
     src/js/ArrayBuiltins.cpp
+    src/js/ErrorBuiltins.cpp
     src/js/Collections.cpp
   src/js/DateBuiltins.cpp
   src/js/BigInt.cpp
@@ -632,6 +634,8 @@ add_executable(microbrowser_tests
   tests/AffineTransformTests.cpp
   tests/AppDirectoriesTests.cpp
   tests/ArchitectureInvariantsTests.cpp
+  tests/WptExpectationsTests.cpp
+  tools/wpt/Expectations.cpp
   tests/architecture/ModuleManifest.cpp
   tests/architecture/SourceScan.cpp
   tests/BlitterTests.cpp
@@ -743,7 +747,8 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_t
                                                 microbrowser_ui
                                                 microbrowser_js
                                                 microbrowser_bindings)
-target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+                                                   "${CMAKE_CURRENT_SOURCE_DIR}/tools")
 target_compile_definitions(microbrowser_tests PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 

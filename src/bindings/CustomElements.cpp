@@ -423,7 +423,7 @@ void DomBindings::InstallCustomElements() {
     if (!IsValidCustomElementName(name)) {
       // The dash rule, enforced rather than assumed: without it a page could
       // redefine `div` and every element in the document would be upgraded.
-      return call.Throw("SyntaxError", "'" + name + "' is not a valid custom element name");
+      return ThrowDom(call, "SyntaxError", "'" + name + "' is not a valid custom element name");
     }
     if (!constructor.IsObject() || !constructor.object->IsCallable()) {
       return call.Throw("TypeError", "the second argument must be a constructor");
@@ -433,7 +433,7 @@ void DomBindings::InstallCustomElements() {
       return Value::Undefined();
     }
     if (registry_object.object->GetOwn(name) != nullptr) {
-      return call.Throw("NotSupportedError", "'" + name + "' is already defined");
+      return ThrowDom(call, "NotSupportedError", "'" + name + "' is already defined");
     }
     const Value definition = call.interpreter.NewObjectValue();
     if (!definition.IsObject()) {

@@ -387,14 +387,14 @@ harness=TIMEOUT
 harness=TIMEOUT
 [FileAPI/file/send-file-form-controls.html]
 FAIL=Upload file-for-upload-in-form-BS-[].txt (ASCII) in UTF-8 form
-FAIL=Upload file-for-upload-in-form-CR-LF-[
+FAIL:esc=Upload file-for-upload-in-form-CR-LF-[\n].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-CR-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-DEL-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-ESC-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-FF-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-HT-[	].txt (ASCII) in UTF-8 form
-FAIL=Upload file-for-upload-in-form-LF-CR-[
-FAIL=Upload file-for-upload-in-form-LF-[
+FAIL:esc=Upload file-for-upload-in-form-LF-CR-[\n].txt (ASCII) in UTF-8 form
+FAIL:esc=Upload file-for-upload-in-form-LF-[\n].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-NUL-[ ].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-SPACE-[ ].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-VT-[].txt (ASCII) in UTF-8 form
@@ -458,14 +458,14 @@ FAIL=Upload file-for-upload-in-form.txt (ASCII) in x-user-defined form
 FAIL=Upload file-for-upload-in-form.txt (ASCII) in UTF-8 form
 [FileAPI/file/send-file-formdata-controls.any.html]
 FAIL=Upload file-for-upload-in-form-BS-[].txt (ASCII) in fetch with FormData
-FAIL=Upload file-for-upload-in-form-CR-LF-[
+FAIL:esc=Upload file-for-upload-in-form-CR-LF-[\n].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-CR-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-DEL-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-ESC-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-FF-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-HT-[	].txt (ASCII) in fetch with FormData
-FAIL=Upload file-for-upload-in-form-LF-CR-[
-FAIL=Upload file-for-upload-in-form-LF-[
+FAIL:esc=Upload file-for-upload-in-form-LF-CR-[\n].txt (ASCII) in fetch with FormData
+FAIL:esc=Upload file-for-upload-in-form-LF-[\n].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-NUL-[ ].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-SPACE-[ ].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-VT-[].txt (ASCII) in fetch with FormData
@@ -657,19 +657,10 @@ harness=TIMEOUT
 [FileAPI/url/url-reload.window.html]
 harness=TIMEOUT
 [FileAPI/url/url-with-fetch.any.html]
-FAIL=Appending a path should cause fetch to fail
-FAIL=Appending a query string should cause fetch to fail
 FAIL=Revoke blob URL after creating Request, then clone Request, will fetch
 FAIL=Revoke blob URL after creating Request, will fetch
-FAIL=fetch of a revoked URL should fail
 FAIL=fetch should return Content-Type from Blob
 FAIL=fetch with a fragment should succeed
-FAIL=fetch with method "CUSTOM" should fail
-FAIL=fetch with method "DELETE" should fail
-FAIL=fetch with method "HEAD" should fail
-FAIL=fetch with method "OPTIONS" should fail
-FAIL=fetch with method "POST" should fail
-FAIL=fetch with method "PUT" should fail
 [FileAPI/url/url-with-fetch.any.worker.html]
 harness=TIMEOUT
 [FileAPI/url/url-with-xhr.any.html]

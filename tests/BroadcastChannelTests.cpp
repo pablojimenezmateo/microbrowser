@@ -149,7 +149,7 @@ void RegisterBroadcastChannelTests(std::vector<TestCase>& tests) {
                       "c.close();"
                       "try { c.postMessage(1); 'no throw' } catch (e) { e.message }")
                 .value),
-        "InvalidStateError: BroadcastChannel is closed", "a closed channel refuses to post");
+        "BroadcastChannel is closed", "a closed channel refuses to post");
   });
 
   AddTest(tests, "BroadcastChannel/MessageIsAStructuredCloneRatherThanAnAliasedObject", [] {
@@ -178,7 +178,7 @@ void RegisterBroadcastChannelTests(std::vector<TestCase>& tests) {
                          ->Run("const c = new BroadcastChannel('f');"
                                "try { c.postMessage(() => 1); 'no throw' } catch (e) { e.message }")
                          .value),
-        "DataCloneError: the message could not be cloned",
+        "the message could not be cloned",
         "the specified failure for an unclonable value");
   });
 }

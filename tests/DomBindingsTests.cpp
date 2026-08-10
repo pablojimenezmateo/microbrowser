@@ -1424,7 +1424,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                                "try { t.port1.postMessage(1, [t.port2]); 'no throw' }"
                                "catch (e) { e.message }")
                          .value),
-        "DataCloneError: transferring objects is not supported", "a transfer is refused");
+        "transferring objects is not supported", "a transfer is refused");
 
     // The interface is real, which is what a polyfill checks before it
     // decides whether to build its own.
@@ -1538,6 +1538,47 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "   return (e instanceof DOMException) + '|' + (e instanceof Error);"
                  " } })()",
                  "false|true");
+  });
+
+  AddTest(tests, "DomBindings/DOMExceptionCarriesItsLegacyCodeAndConstructor", [] {
+    // What `assert_throws_dom` checks, which is every negative test in WPT:
+    // the legacy numeric code out of WebIDL's error-names table, and that the
+    // exception came from *this* global. A name added after the numbering
+    // stopped has code 0, and that is the specification rather than a gap.
+    ExpectScript("<body></body>",
+                 "(() => { const e = new DOMException('m', 'NotFoundError');"
+                 " return e.code + '|' + (e.constructor === DOMException) + '|' + String(e);"
+                 " })()",
+                 "8|true|NotFoundError: m");
+    ExpectScript("<body></body>", "new DOMException('m', 'ConstraintError').code", "0");
+    // The default name, and the argument order -- message first, which is the
+    // opposite of every other error-shaped constructor.
+    ExpectScript("<body></body>",
+                 "(() => { const e = new DOMException('m'); return e.name + '|' + e.message; })()",
+                 "Error|m");
+    ExpectScript("<body></body>", "DOMException.NOT_FOUND_ERR + '|' + DOMException.URL_MISMATCH_ERR",
+                 "8|21");
+    // Non-enumerable, the way every other engine has them: a page that spreads
+    // or JSON-stringifies a caught exception must not find these in it.
+    ExpectScript("<body></body>", "Object.keys(new DOMException('m', 'AbortError')).length", "0");
+  });
+
+  AddTest(tests, "DomBindings/BindingsThrowRealDOMExceptions", [] {
+    // The point of the type is that the *bindings* raise it. Each of these is
+    // a different translation unit reaching the one `ThrowDom`.
+    ExpectScript("<body><div id=d></div></body>",
+                 "(() => { try { document.getElementById('d')"
+                 "   .insertAdjacentHTML('nowhere', '<p>'); } catch (e) {"
+                 "   return e.name + '|' + e.code + '|' + (e instanceof DOMException); } })()",
+                 "SyntaxError|12|true");
+    ExpectScript("<body></body>",
+                 "(() => { try { customElements.define('bad name', class extends HTMLElement {}); }"
+                 " catch (e) { return e.name + '|' + (e instanceof DOMException); } })()",
+                 "SyntaxError|true");
+    ExpectScript("<body></body>",
+                 "(() => { try { btoa('\u2603'); } catch (e) {"
+                 "   return e.name + '|' + e.code + '|' + (e instanceof DOMException); } })()",
+                 "InvalidCharacterError|5|true");
   });
 
   AddTest(tests, "DomBindings/SetTimeoutClearsASpentStepBudget", [] {
@@ -1728,7 +1769,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "other.selectNodeContents(document.createElement('div'));"
                  "try { a.compareBoundaryPoints(Range.START_TO_START, other); 'no throw' }"
                  "catch (err) { err.message }",
-                 "WrongDocumentError: the ranges are in different trees");
+                 "the ranges are in different trees");
     ExpectScript(kTree,
                  "const a = document.createRange();"
                  "(a instanceof Range) + ',' + (new Range() instanceof Range) + ',' +"
@@ -2694,11 +2735,13 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.getElementById('title') === null",
                  "true");
     // Removing something that is not a child is the caller's bug, and removing
-    // it from wherever it actually is would be worse.
+    // it from wherever it actually is would be worse. The DOM names that
+    // exception -- NotFoundError -- and a page telling "not a child" apart from
+    // "not a node" reads `e.name` to do it.
     ExpectScript(kPage,
                  "try { document.body.removeChild(document.createElement('x')) } "
-                 "catch (e) { e.name }",
-                 "TypeError");
+                 "catch (e) { e.name + '|' + e.code }",
+                 "NotFoundError|8");
   });
 
   AddTest(tests, "DomBindings/AWrapperForARemovedNodeSurvivesACollection", [] {

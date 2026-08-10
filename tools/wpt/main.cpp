@@ -914,7 +914,20 @@ int main(int argc, char** argv) {
     }
     // The previous shards, if this is one. Loaded after the run so that every
     // area this run measured wins over whatever the file said about it.
+    //
+    // The state file is the summary document's *memory*: everything the
+    // document says about an area this run did not touch comes from here and
+    // from nowhere else. A run started without it therefore rewrites the
+    // document down to the areas it ran, silently -- which is how a session
+    // turned a 21,265-test table into a 1,959-test one. Refusing is wrong (the
+    // first run of all has no state), so it says so, loudly, once.
     if (!options.summary_state_path.empty()) {
+      if (!std::filesystem::exists(options.summary_state_path)) {
+        std::fprintf(stderr,
+                     "warning: %s does not exist, so %s will describe only the areas this run "
+                     "measured. Every other area's numbers are lost.\n",
+                     options.summary_state_path.c_str(), options.summary_path.c_str());
+      }
       summary.LoadState(options.summary_state_path);
     }
     std::string summary_error;

@@ -308,7 +308,7 @@ void DomBindings::InstallRange() {
   method("selectNode", [set_point](NativeCall& call) -> Value {
     dom::Node* node = NodeOf(Argument(call.arguments, 0));
     if (node == nullptr || node->Parent() == nullptr) {
-      return call.Throw("Error", "InvalidNodeTypeError: the node has no parent");
+      return ThrowDom(call, "InvalidNodeTypeError", "the node has no parent");
     }
     const std::size_t index = IndexIn(*node);
     set_point(call, true, node->Parent(), index);
@@ -408,7 +408,7 @@ void DomBindings::InstallRange() {
         ComparePoints(*a, OffsetSlot(call.self, this_start ? kStartOffsetSlot : kEndOffsetSlot),
                       *b, OffsetSlot(other, other_start ? kStartOffsetSlot : kEndOffsetSlot));
     if (order == 2) {
-      return call.Throw("Error", "WrongDocumentError: the ranges are in different trees");
+      return ThrowDom(call, "WrongDocumentError", "the ranges are in different trees");
     }
     return Value::Number(order);
   });

@@ -3946,7 +3946,7 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
         // A cycle deserialises to *one* object, not to a tree -- which is the property a page that
         // stores a graph and reads back a tree cannot see it has lost.
         "console.log('cycle=' + (clone.cyc.self === clone.cyc));"
-        "try { structuredClone(function(){}); } catch (e) { console.log('threw=' + e.message.slice(0,14)); }"
+        "try { structuredClone(function(){}); } catch (e) { console.log('threw=' + e.name); }"
         "</" "script>",
         "https://example.org/");
     page.RunScripts(0);

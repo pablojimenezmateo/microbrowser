@@ -73,14 +73,14 @@
     {
       "id": "C1", "milestone": "M-C", "title": "DOMException is a real type", "area": "dom/",
       "scope": "DOMException with name/code/message, thrown by every binding the spec says throws one; audit every throw in src/bindings.",
-      "check": "assert_throws_dom passes in dom/nodes/Node-appendChild.html.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0012", "notes": "Load-bearing for most of the suite's negative tests. Do this first."
+      "check": "assert_throws_dom passes in dom/nodes/Node-appendChild.html. Run 2026-08-10: 0 unexpected, 7 of 11 subtests, from 5.",
+      "depends": [], "target": "", "status": "done", "agent": "wpt-c1-c2", "adr": "0012", "notes": "Done. The type is src/bindings/DomExceptions.cpp with WebIDL's error-names table; name/message/code are own non-enumerable data properties rather than prototype accessors, argued in the file -- js::ToString is a pure function and cannot call a getter, so accessors made every uncaught DOMException log as [object Object]. The audit found the real bug: fourteen sites threw a plain Error with the DOM name in the *message*, and two threw a TypeError with the right name only in a comment. All of them raise through one ThrowDom now. The DOM's ensure-pre-insertion-validity landed with it. The two subtests still failing in the check need frames[0].document (J1) and document.doctype as a node (C10). 'did not throw' -- 88 tests suite-wide -- is a missing check rather than a missing type and stays with C3/C4."
     },
     {
       "id": "C2", "milestone": "M-C", "title": "native errors from bindings are the page's own", "area": "dom/",
       "scope": "A TypeError thrown by a binding must be an instance of the page's TypeError and of Error.",
-      "check": "assert_throws_js passes in dom/nodes/Node-appendChild.html.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0008", "notes": "'function TypeError() { [native code] } is not an Error subtype' is the observed message."
+      "check": "assert_throws_js passes in dom/nodes/Node-appendChild.html. Run 2026-08-10: 'WebIDL tests' and the three 'Appending null to a ...' subtests, all failing before.",
+      "depends": [], "target": "", "status": "done", "agent": "wpt-c1-c2", "adr": "0008", "notes": "Done, and it was one line: assert_throws_js walks Object.getPrototypeOf up from the *constructor* looking for a function named Error, and the NativeError constructors inherited from Function.prototype rather than from Error (ECMA-262 20.5.6.1). 117 tests and 2,014 subtests suite-wide. Error instances' own properties are non-enumerable now and Error.prototype.toString reads this.name/this.message rather than the receiver's heap kind. src/js/ErrorBuiltins.cpp. The observed message was 'function TypeError() { [native code] } is not an Error subtype'."
     },
     {
       "id": "C3", "milestone": "M-C", "title": "WebIDL argument conversion", "area": "dom/",

@@ -218,7 +218,7 @@ void DomBindings::InstallFormApis() {
         return call.Throw("TypeError", "the submitter must be a submit button");
       }
       if (!html::BelongsToForm(element, form, *owner->document_)) {
-        return call.Throw("NotFoundError", "the submitter does not belong to this form");
+        return ThrowDom(call, "NotFoundError", "the submitter does not belong to this form");
       }
       submitter = &element;
     }

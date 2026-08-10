@@ -77,7 +77,7 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
         const char* message = result == MediaController::PlayResult::NotAllowed
                                   ? "play() requires a user gesture unless the element is muted"
                                   : "no supported source";
-        Value error = call.interpreter.MakeError(error_name, message);
+        Value error = MakeDomException(call.interpreter, error_name, message);
         call.interpreter.SettleAsyncResult(promise.object, error, true);
         return promise;
       }
