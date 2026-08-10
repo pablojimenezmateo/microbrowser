@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-9 of 1960 subtests pass (0.5%) over 25 tests.
+15 of 1989 subtests pass (0.8%) over 44 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `mimesniff/mime-types` alone is 99% of every subtest here, because a suite that tests one index table per code point
+**Do not quote that number.** Subtests are not comparable across areas: `mimesniff/mime-types` alone is 97% of every subtest here, because a suite that tests one index table per code point
 counts differently from one that tests an algorithm. The per-area column is the
 measurement; the aggregate is an artefact of how the suite is written.
 
@@ -23,6 +23,7 @@ it is a page that never reported, which almost always means something threw befo
 
 | area | tests | ok | error | timeout | crash | subtests | passed | % |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
+| `console` | 19 | 12 | 0 | 7 | 0 | 29 | 6 | 20.7 |
 | `hr-time` | 15 | 8 | 0 | 7 | 0 | 13 | 4 | 30.8 |
 | `mimesniff/media` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0.0 |
 | `mimesniff/mime-types` | 3 | 1 | 0 | 2 | 0 | 1939 | 2 | 0.1 |
@@ -37,7 +38,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 10 | TIMEOUT: the page never reported | `hr-time/basic.any.worker.html` |
+| 17 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
 | 2 | TIMEOUT:  | `mimesniff/mime-types/charset-parameter.window.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DocumentTimeline is not defined ReferenceError: DocumentTimel... | `hr-time/raf-coarsened-time.https.html` |
 
@@ -50,6 +51,9 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
+| 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
+| 2 | 2 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
+| 2 | 2 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 1 | 1 | NOTRUN (no message) | `png/exif-chunk.html` |
 | 1 | 40 | Test timed out | `mimesniff/mime-types/charset-parameter.window.html` |
 | 1 | 1 | assert_equals: Blob expected (string) "!#$%&'*+-.^_'\|~Nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz/!#$%&'*+-.^_'\|~Nabcdefghijklmnop... | `mimesniff/mime-types/parsing.any.html` |
@@ -147,8 +151,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 1 | 4 | assert_equals: Blob expected (string) "x/x;x=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
 | 1 | 1 | assert_equals: Document cross-origin isolated value matches expected (boolean) false but got (undefined) undefined | `hr-time/timing-attack.html` |
 | 1 | 1 | assert_equals: Document cross-origin isolated value matches expected (boolean) true but got (undefined) undefined | `hr-time/cross-origin-isolated-timing-attack.https.html` |
-| 1 | 1 | assert_equals: crossOriginIsolated is properly set expected (boolean) false but got (undefined) undefined | `hr-time/clamped-time-origin.html` |
-| 1 | 1 | assert_equals: crossOriginIsolated is properly set expected (boolean) true but got (undefined) undefined | `hr-time/clamped-time-origin-isolated.https.html` |
-| 1 | 1 | assert_equals: expected "function" but got "undefined" | `hr-time/performance-tojson.html` |
 
-109 distinct subtest messages and 3 distinct harness messages behind these numbers.
+125 distinct subtest messages and 3 distinct harness messages behind these numbers.
