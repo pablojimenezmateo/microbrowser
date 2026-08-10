@@ -138,6 +138,7 @@ the others, and it is one long machine run plus one session of reading.
 | B2 | Triage: group failures by cause, rank by tests-unblocked | B1 | `docs/wpt-baseline.md` |
 | B3 | Harness gaps: which areas are unrunnable and why (`.py` handlers, `testdriver.js`, https) | B1 | ADR 0040 amendment |
 | B4 | Per-area pass-rate table, committed, regenerable | B1 | `docs/wpt-baseline.md` |
+| B5 | `testdriver.js`: decide how a test synthesises input | B3 | ADR 0040 amendment |
 
 **Why B2 is a whole session.** The first run of `dom/` produced 132 unexpected
 results in the first 150 tests, and the interesting quantity is not that number
@@ -146,8 +147,16 @@ results in the first 150 tests, and the interesting quantity is not that number
 `did not throw`). Each is one fix worth dozens of tests. A ranked cause list is
 what turns 20,000 failures into 40 sessions.
 
-**Exit:** every area has a committed expectation file and a line in the table;
-`ctest` is green against them.
+**Reftests are out of the baseline**, and that was decided while running it.
+Recording them costs about six hours of the run — a reftest renders two pages,
+and the full suite projected at nine hours against ninety minutes for the
+testharness half — and buys an expectation file that F2 rewrites in full,
+because an exact-pixel comparison against a reference rendered by the same
+rasterizer calls antialiasing noise a difference. `ctest` already excludes them.
+F2 is what brings the other 20,923 tests into the number.
+
+**Exit:** every area has a committed expectation file for its testharness tests
+and a line in the table; `ctest` is green against them.
 
 ---
 

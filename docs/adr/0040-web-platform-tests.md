@@ -44,7 +44,8 @@ all of them shardable across processes and therefore across agents.
 other: WPT says which of the platform is implemented, and a real page says which
 of the platform pages actually need. Both stay.
 
-Five decisions make it work here.
+Six decisions make it work here — the sixth added by the first baseline run, and it
+is the one that says what the instrument cannot see.
 
 ### 1. The checkout is pinned, sparse, and not vendored
 
@@ -133,6 +134,63 @@ those records the consequence of one failure rather than a thousand independent
 ones. The first baseline run wrote **188,172** `NOTRUN` lines into
 `encoding.txt` before this rule existed — a 217,000-line file, which is exactly
 the unreadable artefact the format exists to avoid.
+
+### 6. What the harness cannot run, and what is decided about each
+
+*Amended 2026-08-10 by plan task B3, from the first baseline run. Counts are
+against the 42,185 tests in `tools/wpt/directories.txt`.*
+
+Six things stop a test from producing a meaningful answer. Only two of them are
+the browser's fault, which is the point of writing them down: a session that
+does not know the difference spends itself implementing something the harness
+was never going to ask for.
+
+| gap | tests | decision |
+|---|--:|---|
+| `.py` handlers | 466 handler files | **Refused, unchanged (§2).** Plan task H1 owns revisiting it. |
+| `testdriver.js` | 1,158 | **Undecided** — see below. |
+| No https origin | 1,219 `.https.` | **Deferred to plan task H9.** They run, over http. |
+| No XML parser | 97 testharness (7,257 reftests) | **Deferred**; it is a `src/html` feature, not a harness one. |
+| Workers without `importScripts` | 1,554 | **Browser gap** (ADR 0022, plan task G5). |
+| Reftests without a tolerance | 20,923 | **Excluded from the baseline** until plan task F2. |
+
+**`testdriver.js` is the one that needs a decision and does not have one.** It is
+how a test synthesises input — `test_driver.click`, `send_keys`,
+`action_sequence`, `bless` — and upstream implements it over WebDriver, which
+§3 refuses. The observed failure is `action_sequence() is not implemented by
+testdriver-vendor.js`, and it is *not* a browser bug: this browser has an input
+path and `microbrowser_snapshot -click` already drives it. The seam exists; what
+does not exist is a way for a page to reach it. That is the same
+remote-control-surface question §3 answered for results, and it wants the same
+answer — a harness-only global, reachable through `EvaluateScript`, that is not
+a binding and does not exist in a normal browser process. Nobody has written
+that down, so it is a task rather than a decision.
+
+**Reftests are excluded from the baseline rather than recorded as failing.**
+Recording them costs the run about six hours — the reftest half projected a full
+run at nine hours against ninety minutes for the testharness half, because a
+reftest renders two pages — and it buys an expectation file that plan task F2
+will rewrite in full. An exact-pixel comparison against a reference rendered by
+the same rasterizer calls antialiasing noise a difference; a suite whose
+failures are noise is one nobody reads. `ctest` already excludes them for the
+same reason.
+
+**The build the expectations came from is part of the expectations.** A page
+that has not reported inside testharness.js's own ten seconds is a `TIMEOUT`
+whatever the reason, and the Debug build is four to seven times slower than the
+perf build on every page. The baseline is recorded from the perf preset, so
+`tools/run-checks.sh wpt` runs the perf preset — and `ctest` in a Debug build
+tree passes `--timeout-multiplier 6`, which scales the page's own deadline and
+the runner's wall clock together and changes nothing else. Without it the
+expectation files would record which compiler produced them.
+
+The multiplier is a mitigation and not a proof. It reconciles the dominant
+failure mode — a slower engine losing a race against a fixed deadline — and it
+cannot reconcile a test that asserts on a wall-clock *duration*: giving
+`user-timing/measure-l3.any.html` six times as long changed its answer, in the
+direction of failing. Those tests are flaky on any build and belong in the
+expectations as such. If the two builds ever have to agree exactly, the answer
+is to record from both, not to tune a constant.
 
 ## Consequences
 

@@ -77,7 +77,15 @@ run_target() {
 }
 
 # web-platform-tests. Its own function rather than a preset, because it is not a
-# build configuration: it is the debug build plus a checkout that may not exist.
+# build configuration: it is a build plus a checkout that may not exist.
+#
+# **It is the perf build, and that is not a speed decision.** A WPT result is
+# timing-sensitive in one specific way: a test whose page does not report inside
+# the harness's own budget is a TIMEOUT, and the Debug build is four to seven
+# times slower on every page. Recording the expectations from one build and
+# gating on the other means a column of TIMEOUTs that describe the compiler
+# rather than the browser. tests/wpt/expectations/ was recorded from the perf
+# preset, so this runs the perf preset.
 run_wpt() {
   local log="/tmp/microbrowser-wpt.log"
   shift || true
@@ -90,9 +98,9 @@ run_wpt() {
       echo "=== exit status: 0 (skipped) ==="
       exit 0
     fi
-    cmake -S . -B build -G Ninja \
-      && cmake --build build --target microbrowser_wpt -j "$JOBS" \
-      && ./build/microbrowser/microbrowser_wpt --jobs "$JOBS" "$@"
+    cmake --preset microbrowser-perf \
+      && cmake --build --preset microbrowser-perf --target microbrowser_wpt -j "$JOBS" \
+      && ./build/microbrowser-perf/microbrowser/microbrowser_wpt --jobs "$JOBS" "$@"
     local status=$?
     echo
     echo "=== finished: $(date -Is) ==="

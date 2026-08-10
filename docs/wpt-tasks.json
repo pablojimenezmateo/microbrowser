@@ -63,6 +63,14 @@
     },
 
     {
+      "id": "B5", "milestone": "M-B", "title": "testdriver.js: how a test synthesises input", "area": "",
+      "scope": "1,158 in-scope tests load testdriver.js and get `not implemented by testdriver-vendor.js`. This browser has an input path -- microbrowser_snapshot -click already drives it -- and no way for a page to reach it. Decide the seam, as ADR 0040 s3 decided the one for results.",
+      "check": "ADR 0040 says what testdriver.js resolves to, and dom/events/ no longer reports action_sequence() as its top cause.",
+      "depends": ["B3"], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "notes": "Found by B3. Not a browser bug: the seam exists, nothing exposes it. The answer wants the same shape as the report seam -- a harness-only global reached through EvaluateScript, absent from a normal process."
+    },
+
+    {
       "id": "C1", "milestone": "M-C", "title": "DOMException is a real type", "area": "dom/",
       "scope": "DOMException with name/code/message, thrown by every binding the spec says throws one; audit every throw in src/bindings.",
       "check": "assert_throws_dom passes in dom/nodes/Node-appendChild.html.",

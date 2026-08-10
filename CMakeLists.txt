@@ -864,9 +864,22 @@ endif()
 # expectations, and nothing else. Every other area would otherwise default to
 # "expected to pass" and fail by the thousand. Growing that file is task B1 in
 # docs/wpt-plan.md.
+#
+# **The expectations were recorded from the perf preset**, and a WPT result is
+# timing-sensitive in exactly one way: a page that has not reported inside
+# testharness.js's own ten seconds is a TIMEOUT whatever the reason. The Debug
+# build is four to seven times slower on every page, so gating it against
+# perf-recorded expectations would fail on a column of TIMEOUTs that describe
+# the compiler. `--timeout-multiplier` is what reconciles the two: it scales the
+# page's own deadline and the runner's wall clock together, and nothing else.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt")
+  set(microbrowser_wpt_timeout_multiplier 1)
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    set(microbrowser_wpt_timeout_multiplier 6)
+  endif()
   add_test(NAME microbrowser_wpt
            COMMAND microbrowser_wpt
+                   --timeout-multiplier ${microbrowser_wpt_timeout_multiplier}
                    --wpt-root "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt"
                    --expectations "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/expectations"
                    --areas "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/areas.txt"

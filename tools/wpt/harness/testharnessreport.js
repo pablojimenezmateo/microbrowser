@@ -70,8 +70,18 @@
   // calls it. Keep this line even after that is fixed: the next missing method
   // in the output path would fail exactly the same way, and a harness that
   // reports nothing is worse than a browser that renders nothing.
+  // `timeout_multiplier` scales testharness.js's own deadlines and nothing
+  // else. The runner sets it from the build it is running: a Debug engine is
+  // four to seven times slower than the perf one on every page, and a page that
+  // has not reported inside ten seconds is a TIMEOUT no matter why. Without it
+  // an expectation file records which compiler produced it.
+  var options = { output: false };
+  if (typeof self.__wpt_timeout_multiplier === "number" &&
+      self.__wpt_timeout_multiplier > 1) {
+    options.timeout_multiplier = self.__wpt_timeout_multiplier;
+  }
   try {
-    setup({ output: false });
+    setup(options);
   } catch (error) {
     self.__wpt_errors.push("setup({output:false}) threw: " + error);
   }

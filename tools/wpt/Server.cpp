@@ -669,6 +669,10 @@ void Server::Respond(Connection& connection, std::string_view request) {
           std::filesystem::path(relative).filename();
       if (relative.rfind("resources/", 0) == 0) {
         body = ReadWholeFile(override_path, &found);
+        if (found && options_.timeout_multiplier > 1) {
+          body = "self.__wpt_timeout_multiplier = " +
+                 std::to_string(options_.timeout_multiplier) + ";\n" + body;
+        }
       }
     }
     // 2. The file itself.

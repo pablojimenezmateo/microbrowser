@@ -84,9 +84,12 @@ constexpr const char* kUsage =
     "  --jobs N              tests in flight at once (default: half the cores)\n"
     "  --timeout MS          per test, before it is killed (default 10000)\n"
     "  --retries N           re-runs of a result that disagrees (default 1)\n"
+    "  --timeout-multiplier N  scale every deadline; use it on a slow build\n"
     "  --shard-index N --shard-count N   deterministic slice of the run\n"
     "  --update-expectations rewrite the expectation files from this run\n"
     "  --summary FILE        write the per-area table and the ranked causes\n"
+    "  --summary-state FILE  carry a sharded run's counts between invocations\n"
+    "  --long-timeout MS     for a test marked `timeout=long` (default 60000)\n"
     "  --list                print the tests that would run and exit\n"
     "  --refresh-manifest    re-walk the checkout instead of using the cache\n"
     "  --serve               run only the server, in the foreground\n"
@@ -98,9 +101,18 @@ struct Options {
   std::string wpt_root = "third_party/wpt";
   std::string expectations_dir = "tests/wpt/expectations";
   std::string summary_path;
+  std::string summary_state_path;
   std::vector<std::string> prefixes;
   int jobs = 0;
   int timeout_ms = 10000;
+  // Upstream's own number for a test that says `timeout=long`. It is separate
+  // from `--timeout` rather than a multiple of it because the two answer
+  // different questions: `--timeout` is how long this browser is given to
+  // finish work it can do, and this is how long a test that asked for room is
+  // given. A baseline run is dominated by the second -- 2,946 of the suite's
+  // tests are `long`, and the ones that will never report cost a minute each.
+  int long_timeout_ms = 60000;
+  int timeout_multiplier = 1;
   int retries = 1;
   int shard_index = 0;
   int shard_count = 1;
@@ -481,6 +493,8 @@ int main(int argc, char** argv) {
       options.jobs = ParseInt(value(), 0);
     } else if (argument == "--timeout") {
       options.timeout_ms = ParseInt(value(), options.timeout_ms);
+    } else if (argument == "--timeout-multiplier") {
+      options.timeout_multiplier = std::max(1, ParseInt(value(), 1));
     } else if (argument == "--retries") {
       options.retries = ParseInt(value(), options.retries);
     } else if (argument == "--shard-index") {
@@ -491,6 +505,10 @@ int main(int argc, char** argv) {
       options.port = static_cast<std::uint16_t>(ParseInt(value(), 0));
     } else if (argument == "--summary") {
       options.summary_path = value();
+    } else if (argument == "--summary-state") {
+      options.summary_state_path = value();
+    } else if (argument == "--long-timeout") {
+      options.long_timeout_ms = ParseInt(value(), options.long_timeout_ms);
     } else if (argument == "--update-expectations") {
       options.update_expectations = true;
     } else if (argument == "--list") {
@@ -530,6 +548,7 @@ int main(int argc, char** argv) {
   server_options.harness_overrides_dir =
       (std::filesystem::path(MICROBROWSER_SOURCE_ROOT) / "tools" / "wpt" / "harness").string();
   server_options.verbose = options.verbose;
+  server_options.timeout_multiplier = options.timeout_multiplier;
   server_options.ports = {options.port,
                           static_cast<std::uint16_t>(options.port == 0 ? 0 : options.port + 1)};
   Server server{server_options};
@@ -751,7 +770,11 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "fcntl: %s\n", strerror(errno));
         return 2;
       }
-      const int budget_ms = test.long_timeout ? options.timeout_ms * 6 : options.timeout_ms;
+      // The page's own harness deadline is what should fire, so the wall-clock
+      // budget moves with the multiplier the page was given.
+      const int budget_ms =
+          (test.long_timeout ? options.long_timeout_ms : options.timeout_ms) *
+          options.timeout_multiplier;
       const pid_t pid = ::fork();
       if (pid == 0) {
         ::close(pipes[0]);
@@ -889,7 +912,17 @@ int main(int argc, char** argv) {
     if (revision_file) {
       std::getline(revision_file, revision);
     }
+    // The previous shards, if this is one. Loaded after the run so that every
+    // area this run measured wins over whatever the file said about it.
+    if (!options.summary_state_path.empty()) {
+      summary.LoadState(options.summary_state_path);
+    }
     std::string summary_error;
+    if (!options.summary_state_path.empty() &&
+        !summary.SaveState(options.summary_state_path, &summary_error)) {
+      std::fprintf(stderr, "%s\n", summary_error.c_str());
+      return 2;
+    }
     if (!summary.Write(options.summary_path, revision, &summary_error)) {
       std::fprintf(stderr, "%s\n", summary_error.c_str());
       return 2;

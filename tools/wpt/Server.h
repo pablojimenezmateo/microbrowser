@@ -58,6 +58,13 @@ struct ServerOptions {
   // this must be a name whose subdomains resolve -- `localhost` is the one that
   // does with no configuration.
   std::string host = "localhost";
+  // Multiplies every in-page harness deadline, and nothing else. A test whose
+  // page has not reported inside testharness.js's own ten seconds is a TIMEOUT,
+  // and the Debug build is four to seven times slower than the perf build on
+  // every page -- so without this the expectations record which compiler ran
+  // them. Delivered by prepending one assignment to the harness override, which
+  // is the only file this server is already rewriting.
+  int timeout_multiplier = 1;
   // Prints one line per request. A firehose on a real test; useful on one.
   bool verbose = false;
 };
