@@ -202,8 +202,8 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
       if (const std::optional<gfx::SurfaceId> surface = images_->SurfaceForElement(element)) {
         box->SetVideoSurface(*surface);
       }
-    } else if (element.TagName() == "input" || element.TagName() == "button" ||
-               element.TagName() == "textarea" || element.TagName() == "select") {
+    } else if (element.TagName() == "input" || element.TagName() == "textarea" ||
+               element.TagName() == "select") {
       box->SetText(FormControlText(element));
     }
     float width = ReplacedWidth(*box);
@@ -651,6 +651,11 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     content_height = child_cursor - content_top;
   }
 
+  // What the children actually took, before a stated height or a bound replaces it. The only
+  // reader is the button centring below, and it has to be taken here: every branch after this
+  // one overwrites `content_height` with a number the children had no part in.
+  const float content_height_from_children = content_height;
+
   if (style.IsFloating()) {
     // A float contains its own floats: it establishes a formatting context, and
     // a context that did not contain them would let them escape a box that has
@@ -687,6 +692,16 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   const float height_padding_border = padding_top + padding_bottom + border_top + border_bottom;
   content_height =
       style.ClampHeight(content_height, content_height, height_padding_border);
+
+  // A `<button>` centres its content in its content box (CentersContentVertically). Applied here,
+  // after every source of a height has had its say and before anything is placed against this
+  // box, so the label of a `<button style="height:40px">` sits in the middle rather than on the
+  // first line. A flex or table container has its own alignment and is left alone.
+  if (content_height > content_height_from_children && box.Origin() != nullptr &&
+      CentersContentVertically(*box.Origin()) && !style.IsFlexContainer() &&
+      style.display != css::Display::Table) {
+    OffsetBoxContents(box, 0.0f, (content_height - content_height_from_children) * 0.5f);
+  }
 
   geometry.content = gfx::FloatRect{content_left, content_top, content_width, content_height};
   cursor_y = content_top + content_height + padding_bottom +

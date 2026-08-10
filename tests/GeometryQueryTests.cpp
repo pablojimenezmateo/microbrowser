@@ -193,18 +193,20 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Geometry/ReplacedChildrenDoNotInvalidateBoxTreeOnRestyle", [] {
-    // `button` is replaced: its DOM children never get boxes. Restyle used to
-    // see every inner span as "box appeared" and InvalidateBoxTree (TD-0033).
+    // `select` is replaced: its DOM children never get boxes -- the control shows the selected
+    // option's text and nothing else. Restyle used to see every such child as "box appeared" and
+    // InvalidateBoxTree (TD-0033). `<button>` was the original fixture here and is no longer a
+    // replaced element: its children are real boxes, which is what makes its label measurable.
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load("<body style='margin:0'>"
-              "<button id='b'><span class='label'>Accept</span></button>"
+              "<select id='b'><option class='label'>Accept</option></select>"
               "<div id='a' style='width:100px;height:20px'>hi</div>"
               "</body>",
               "https://example.org/");
     page.Layout(400.0f);
     Expect(page.EvaluateScript(
-               "document.querySelector('span').getBoundingClientRect().width") == "0",
+               "document.querySelector('option').getBoundingClientRect().width") == "0",
            "replaced-host children have no geometry of their own");
     const util::PerfCounterSnapshot before = util::CapturePerformanceCounters();
     const std::string height = page.EvaluateScript(
@@ -216,7 +218,7 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
         after[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)] -
         before[static_cast<std::size_t>(util::PerfCounterId::BoxTreeInvalidatedByDisplayChange)];
     ExpectEqInt(static_cast<long long>(rebuilt), 0,
-                "markup inside a button must not force a display-change rebuild");
+                "markup inside a replaced control must not force a display-change rebuild");
   });
 
   AddTest(tests, "Geometry/AnInlineElementReportsItsFragments", [] {

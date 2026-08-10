@@ -1616,7 +1616,10 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load(
-        "<style>input,button{width:40px;height:20px;margin:0}</style>"
+        // `padding: 0` against the user-agent `button { padding: 1px 6px }`: this test is about
+        // which button type does what, and the coordinates below are only readable while each
+        // control is exactly 42px wide.
+        "<style>input,button{width:40px;height:20px;margin:0;padding:0}</style>"
         "<body style='margin:0'><form action='/search'>"
         "<input name='q' value='start'>"
         "<button type='button' name='noop' value='x'>Noop</button>"

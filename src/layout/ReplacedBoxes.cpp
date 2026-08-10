@@ -98,10 +98,9 @@ float ReplacedIntrinsic(const Box& box, bool horizontal) {
     // it loads is laying out around this number, so a wrong one moves the page when it appears.
     return horizontal ? 300.0f : 150.0f;
   }
-  if (box.Origin() != nullptr && (box.Origin()->TagName() == "input" ||
-                                  box.Origin()->TagName() == "button" ||
-                                  box.Origin()->TagName() == "textarea" ||
-                                  box.Origin()->TagName() == "select")) {
+  if (box.Origin() != nullptr &&
+      (box.Origin()->TagName() == "input" || box.Origin()->TagName() == "textarea" ||
+       box.Origin()->TagName() == "select")) {
     if (!horizontal) {
       if (box.Origin()->TagName() == "textarea") {
         const std::string* rows = box.Origin()->GetAttribute("rows");
@@ -182,11 +181,28 @@ bool IsReplacedElement(const dom::Element& element) {
   // Inline `<svg>` too: same replaced model as `<img>`, with intrinsic size from
   // width/height attributes or `viewBox`. Left as a normal box it ignores CSS
   // width/height (non-replaced inline) and paints nothing of its own.
+  //
+  // `<button>` is deliberately **not** here. It is a normal block container
+  // whose children are real boxes -- that is what makes `<button><span
+  // class=icon></span><span class=label>Accept all</span></button>` measure its
+  // label rather than a character count. Treating it as replaced gave every
+  // button on youtube a width from `chars * 0.6 * font-size` and no boxes at all
+  // under it, so a flex item button collapsed to its flex base and clipped its
+  // own label. `CentersContentVertically` is the one thing the replaced path was
+  // getting right, and it is kept.
   return element.TagName() == "img" || element.TagName() == "input" ||
-         element.TagName() == "button" || element.TagName() == "textarea" ||
-         element.TagName() == "select" || element.TagName() == "video" ||
-         element.TagName() == "audio" || element.TagName() == "canvas" ||
-         element.TagName() == "svg";
+         element.TagName() == "textarea" || element.TagName() == "select" ||
+         element.TagName() == "video" || element.TagName() == "audio" ||
+         element.TagName() == "canvas" || element.TagName() == "svg";
+}
+
+bool CentersContentVertically(const dom::Element& element) {
+  // A `<button>`'s content sits in the middle of its content box, not at the
+  // top: `<button style="height:40px">Go</button>` centres its label. Blink and
+  // WebKit both do it by wrapping the children in an anonymous box and centring
+  // that; nothing in CSS expresses the rule, so it lives beside the layout that
+  // needs it rather than in the user-agent stylesheet.
+  return element.TagName() == "button";
 }
 
 float ReplacedWidth(const Box& box) { return ReplacedIntrinsic(box, true); }
@@ -247,9 +263,6 @@ ReplacedUsedSize ResolveReplacedSize(const Box& box, float containing_block_widt
 std::string FormControlText(const dom::Element& element) {
   if (const std::optional<std::string> selected = html::SelectedOptionText(element)) {
     return *selected;
-  }
-  if (element.TagName() == "button") {
-    return CollapseWhitespace(element.TextContent());
   }
   if (html::IsTextareaElement(element)) {
     const std::string* value = element.GetAttribute("value");

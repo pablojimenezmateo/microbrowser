@@ -448,7 +448,19 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       // wrapped.
       float probe = y;
       FloatContext detached;
-      LayoutBlock(*item, content_left, content_width, probe, detached);
+      // A percentage height resolves against the containing block, exactly as it does for a block
+      // child (CSS 2.1 §10.5) and for a replaced atomic inline just above. Without this an
+      // inline-block was the only box on the page whose `height: 100%` was silently dropped --
+      // which is what `<button style="height:100%">` is, now that a button lays out its own
+      // children.
+      ForcedSize percent_height;
+      const ForcedSize* item_forced = nullptr;
+      if (definite_content_height.has_value() && item->Style().height.IsPercent()) {
+        percent_height.content_height =
+            item->Style().height.Used(*definite_content_height, item->Style().font_size);
+        item_forced = &percent_height;
+      }
+      LayoutBlock(*item, content_left, content_width, probe, detached, false, item_forced);
       const gfx::FloatRect margin_box = item->Geometry().MarginBox();
       const float width = margin_box.width;
 

@@ -33,6 +33,20 @@ float Inset(const css::Length& length, float font_size, float extent) {
 
 }  // namespace
 
+void OffsetBoxContents(Box& box, float dx, float dy) {
+  if (dx == 0.0f && dy == 0.0f) {
+    return;
+  }
+  for (TextFragment& fragment : box.MutableFragments()) {
+    fragment.rect.x += dx;
+    fragment.rect.y += dy;
+    fragment.baseline += dy;
+  }
+  for (std::unique_ptr<Box>& child : box.MutableChildren()) {
+    OffsetLaidOutSubtree(*child, dx, dy);
+  }
+}
+
 void OffsetLaidOutSubtree(Box& box, float dx, float dy) {
   if (dx == 0.0f && dy == 0.0f) {
     return;

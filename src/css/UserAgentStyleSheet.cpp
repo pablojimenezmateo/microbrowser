@@ -26,6 +26,10 @@ li { display: list-item }
 input, button, textarea, select {
   display: inline-block; background-color: white; border: 1px solid gray
 }
+/* HTML §15.3.1. A `<button>` is a block container whose children are real boxes -- it is not a
+   replaced element -- so the centring its label gets has to be said here. The vertical half has
+   no CSS spelling and lives in LayoutBlock (ReplacedBoxes::CentersContentVertically). */
+button { text-align: center; padding: 1px 6px }
 table { display: table }
 caption { display: table-caption }
 colgroup { display: table-column-group }

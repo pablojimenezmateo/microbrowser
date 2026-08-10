@@ -48,6 +48,11 @@ struct ForcedSize {
 // place-on-line all used to re-run the whole algorithm just to change origin.
 void OffsetLaidOutSubtree(Box& box, float dx, float dy);
 
+// The same move applied to what is *inside* a box, leaving the box itself where it is. A
+// `<button>` taller than its label centres that label, which is a shift of the content and not of
+// the control.
+void OffsetBoxContents(Box& box, float dx, float dy);
+
 // Builds a box tree from a styled document and lays it out.
 //
 // Two phases, deliberately separate. Building the tree is where anonymous

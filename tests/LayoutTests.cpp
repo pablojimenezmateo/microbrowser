@@ -555,6 +555,25 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
            "height:100% on inline replaced uses the CB height");
   });
 
+  AddTest(tests, "Layout/InlineBlockPercentHeightFillsDefiniteContainingBlock", [] {
+    // The non-replaced half of the test above, and the one nothing implemented: an atomic inline
+    // was laid out with no forced size at all, so a percentage height was the single place in the
+    // engine where a declared length was silently dropped. Found through youtube's consent
+    // buttons, whose `height: 100%` collapsed them to one line of text.
+    const LaidOut result = Run(
+        "<body style='margin:0'><div id='host'><span id='fill'>x</span></div></body>",
+        "body { margin: 0 } "
+        "#host { position: absolute; left: 0; top: 0; width: 200px; height: 100px } "
+        "#fill { display: inline-block; width: 50%; height: 100%; margin: 0 }",
+        400.0f);
+    const Box* fill = FindBox(*result.root, "span");
+    Expect(fill != nullptr, "the inline-block has a box");
+    Expect(std::abs(fill->Geometry().content.height - 100.0f) < 0.5f,
+           "height:100% on an inline-block uses the containing block's definite height");
+    Expect(std::abs(fill->Geometry().content.width - 100.0f) < 0.5f,
+           "and width:50% still resolves against its width");
+  });
+
   AddTest(tests, "Layout/InputControlsGenerateVisibleInlineBoxes", [] {
     const LaidOut result =
         Run("<body style='margin:0'><input size='10'><span>after</span></body>",
@@ -632,6 +651,41 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     }
     Expect(saw_label, "a button paints its text content");
     Expect(!leaked_value, "a button's value is form data, not the visible label");
+  });
+
+  AddTest(tests, "Layout/AButtonLaysOutItsChildren", [] {
+    // A `<button>` is a block container, not a replaced element. Its label lives in child boxes
+    // and is measured by the text measurer -- youtube wraps every button label in two spans, and
+    // while the button was replaced each one had no box at all and the control was sized from
+    // `characters * 0.6 * font-size`. That guess made every `yt-button-shape` 51px wide with its
+    // own label clipped.
+    const LaidOut result =
+        Run("<body style='margin:0'><button><span id=label>Accept all</span></button></body>",
+            "body { margin: 0 } button { margin: 0; padding: 0; border: 0; font-size: 20px }"
+            "span { display: inline-block; width: 90px; height: 30px }",
+            400.0f);
+    const Box* label = FindBox(*result.root, "span");
+    Expect(label != nullptr, "the span inside a button has a box of its own");
+    Expect(label->Geometry().content.width == 90.0f,
+           "and it is the width the cascade gave it, not a share of a guessed control width");
+    const Box* button = FindBox(*result.root, "button");
+    Expect(button != nullptr, "the button has a box");
+    Expect(button->Geometry().content.width >= 90.0f,
+           "and the button is at least as wide as the label it contains");
+  });
+
+  AddTest(tests, "Layout/AButtonCentresItsLabelVertically", [] {
+    // No CSS spells this: browsers wrap a button's content in an anonymous box and centre it, so
+    // a 60px-tall button puts a one-line label in the middle rather than on the first line.
+    const LaidOut result =
+        Run("<body style='margin:0'><button><span id=label>Go</span></button></body>",
+            "body { margin: 0 } button { margin: 0; padding: 0; border: 0; height: 60px }"
+            "span { display: inline-block; width: 10px; height: 20px }",
+            400.0f);
+    const Box* label = FindBox(*result.root, "span");
+    Expect(label != nullptr, "the label has a box");
+    Expect(label->Geometry().content.y == 20.0f,
+           "a 20px label in a 60px button starts 20px down, not at the top");
   });
 
   AddTest(tests, "Layout/PaintsTextareaDefaultText", [] {

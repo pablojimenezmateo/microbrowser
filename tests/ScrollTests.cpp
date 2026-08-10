@@ -485,7 +485,9 @@ void RegisterScrollTests(std::vector<TestCase>& tests) {
               "#dlg{position:fixed;left:50px;top:50px;width:300px;height:200px;"
               "overflow:auto}"
               "#pad{height:500px}"
-              "button{display:block;width:100px;height:40px}"
+              // `padding: 0` against the user-agent `button { padding: 1px 6px }`: the scroll
+              // offsets below are arithmetic on a 42px-tall button.
+              "button{display:block;width:100px;height:40px;padding:0}"
               "</style>"
               "<body><div id=tall></div>"
               "<div id=dlg><div id=pad></div><button id=btn>Accept</button></div>"
