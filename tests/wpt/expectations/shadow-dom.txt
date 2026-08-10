@@ -8225,7 +8225,7 @@ FAIL=Focus should jump to fallback elements when a slot does not have any assign
 [shadow-dom/focus-navigation/focus-navigation-slot-nested-2levels.html]
 FAIL=Focus controller should treat each slot as a focus scope.
 [shadow-dom/focus-navigation/focus-navigation-slot-nested-delegatesFocus.html]
-harness=TIMEOUT
+FAIL=Focus controller should treat each slot as a focus scope.
 [shadow-dom/focus-navigation/focus-navigation-slot-nested-fallback.html]
 FAIL=Focus should cover assigned elements of an assigned slot espacially there are fallback contents.
 [shadow-dom/focus-navigation/focus-navigation-slot-nested.html]
@@ -8302,15 +8302,20 @@ FAIL=Grid items are in nested display contents containers.
 FAIL=Items in display contents are sorted in same grid container and are placed in the position where their first child resides.
 FAIL=Items in display contents are sorted in same grid container and are placed in the position where their first child resides. The display contents have tabindex and should be focusable.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-iframe.html]
-harness=TIMEOUT
+FAIL=Grid items are iframes.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-nested-grids.html]
-harness=TIMEOUT
+FAIL=Grid items are grid containers.
+FAIL=Grid items are not grid containers.
+FAIL=Only has grid containers.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-popover.html]
-harness=TIMEOUT
+FAIL=Popover is reading-flow item and reading-flow container.
+FAIL=Popover is reading-flow item.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-position-absolute.html]
-harness=TIMEOUT
+FAIL=Items in position:absolute container are visited at the end of the focus sequence. reading-order can override DOM order.
+FAIL=Items that have position:absolute are visited at the end of the focus sequence, in DOM order.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-position-fixed.html]
-harness=TIMEOUT
+FAIL=Items in position:fixed container are visited at the end of the focus sequence. reading-order can override DOM order.
+FAIL=Items that have position:fixed are visited at the end of the focus sequence, in DOM order.
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-slots.html]
 FAIL=Slot assigned element is a grid with reading-flow.
 FAIL=Slot is a display block inside a grid container.
@@ -8335,7 +8340,7 @@ FAIL=Flex elements. Focus should be in DOM tabindexed-order, but reading-order t
 FAIL=Flow root elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
 FAIL=Grid elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
 [shadow-dom/focus-navigation/tentative/focus-navigation-scroller-interactive-child.html]
-harness=TIMEOUT
+FAIL=While focusing a keyboard-focusable scroller, adding interactive content should not cancel focusability
 [shadow-dom/focus-navigation/tentative/focus-scroller-layout-update.html]
 FAIL=When checking that element is a scroller, layout information should be up to date.
 [shadow-dom/focus-within-shadow.html]
