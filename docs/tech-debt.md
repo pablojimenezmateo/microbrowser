@@ -1884,8 +1884,13 @@ units miss).
 **Harness mitigation (2026-08-10).** `YoutubeResultsLooksReady` requires
 `elementFromPoint` on the first `a#thumbnail` centre to hit the thumb chain
 after Accept (not stop at `YTD-SEARCH`), in addition to ≥12 renderers. While
-`tp-yt-paper-dialog` is visible the hit-test is skipped so Accept is not
-starved for the full 45s. Engine hit-test root cause still open.
+`tp-yt-paper-dialog` is visible, ready only if an Accept control is still
+present (initial drain); after Accept, wait out teardown then hit-test. Engine
+hit-test root cause still open.
+
+**Cold watch (Release, 2026-08-10).** Direct `/watch?v=jNQXAC9IVRw` after Accept:
+player `readyState` **4**, buffered **~19s**, SABR **1/1** 200, **7**
+`source_appends`. Soft-nav remains the unstable path (TD-0042 / TD-0037).
 
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across

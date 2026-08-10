@@ -439,18 +439,27 @@ bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
   // Count alone was not enough after Accept: early stamps can show ≥12 thumbs
   // while `elementFromPoint` on the first thumb's centre still returns
   // `YTD-SEARCH` (TD-0037). Soft-nav `-click last` then misses SPA activation.
-  // While the consent dialog is open, do **not** require the hit-test — the
-  // dialog covers the list and would burn the whole 45s drain before Accept.
+  //
+  // Consent dialog: ready only while an Accept control is still present (so the
+  // initial drain can reach `-eval`/`-click`). After Accept the dialog may
+  // linger while the list tears down — treating that as ready returned
+  // `thumb:false` on the next `-eval`. Once the dialog is gone, require the
+  // thumb hit-test.
   const std::string answer = engine.EvaluateScript(
       "(function(){"
       "  var n=document.querySelectorAll('a#thumbnail').length +"
       "    document.querySelectorAll('ytd-video-renderer').length;"
       "  if(n < 12) return '0';"
       "  var dlg=document.querySelector('tp-yt-paper-dialog');"
+      "  var dlgUp=false;"
       "  if(dlg){"
       "    var st=window.getComputedStyle(dlg);"
-      "    if(st.display!=='none' && st.visibility!=='hidden' && dlg.getClientRects().length)"
-      "      return String(n);"
+      "    dlgUp=st.display!=='none' && st.visibility!=='hidden' && dlg.getClientRects().length>0;"
+      "  }"
+      "  if(dlgUp){"
+      "    var accept=[].slice.call(document.querySelectorAll('button,tp-yt-paper-button'))"
+      "      .some(function(b){return /Accept all|^Accept$/i.test((b.textContent||'').trim());});"
+      "    return accept ? String(n) : '0';"
       "  }"
       "  var a=document.querySelector('a#thumbnail');"
       "  if(!a) return '0';"
