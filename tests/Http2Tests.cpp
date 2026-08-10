@@ -478,6 +478,55 @@ void RegisterHttp2Tests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(data_bytes), 50, "and the rest goes once it is");
   });
 
+  AddTest(tests, "Http2/TwoPostBodiesShareTheSendWindow", [] {
+    // TD-0042: greedy PumpBodies drained stream[0] until the *connection*
+    // send window was empty, so later SABR POSTs never got DATA / END_STREAM
+    // until the first body finished.
+    Fixture fixture;
+    fixture.session->Advance();  // preface + SETTINGS
+
+    net::HttpHeaders headers;
+    const std::string body(100000, 'a');
+    auto start_post = [&](std::string_view path) {
+      Http2Session::Request request;
+      request.method = "POST";
+      request.scheme = "https";
+      request.authority = "example.com";
+      request.target = path;
+      request.headers = &headers;
+      request.body = Bytes(body);
+      const auto id = fixture.session->StartRequest(request);
+      Expect(id.has_value(), "post starts");
+      return *id;
+    };
+    const auto first = start_post("/one");
+    const auto second = start_post("/two");
+    for (int i = 0; i < 8; ++i) {
+      fixture.session->Advance();
+    }
+    const auto a = fixture.session->AccountingOf(first);
+    const auto b = fixture.session->AccountingOf(second);
+    Expect(a.body_sent > 0 && b.body_sent > 0,
+           "both streams receive DATA while the connection window is shared");
+    Expect(a.body_sent + b.body_sent <= 65535,
+           "together they respect the default connection send window");
+    Expect(a.body_sent < a.body_total && b.body_sent < b.body_total,
+           "neither body finishes without a further WINDOW_UPDATE");
+
+    std::string update;
+    WriteUint32(200000, update);
+    fixture.Deliver(Frame(FrameType::WindowUpdate, 0, 0, update));
+    fixture.Deliver(Frame(FrameType::WindowUpdate, 0, first, update));
+    fixture.Deliver(Frame(FrameType::WindowUpdate, 0, second, update));
+    for (int i = 0; i < 64; ++i) {
+      fixture.session->Advance();
+    }
+    ExpectEqInt(static_cast<long long>(fixture.session->AccountingOf(first).body_sent), 100000,
+                "first body finishes");
+    ExpectEqInt(static_cast<long long>(fixture.session->AccountingOf(second).body_sent), 100000,
+                "second body finishes");
+  });
+
   AddTest(tests, "Http2/ARaisedInitialWindowMovesOpenStreamsToo", [] {
     // §6.9.2, and the bug it exists to prevent: a SETTINGS that changes
     // INITIAL_WINDOW_SIZE moves *every open stream's* send window by the delta,

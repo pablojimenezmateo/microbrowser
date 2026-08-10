@@ -218,6 +218,19 @@ Http2Session::StreamState Http2Session::StateOf(StreamId id) const {
   return stream->complete ? StreamState::Complete : StreamState::Open;
 }
 
+Http2Session::StreamAccounting Http2Session::AccountingOf(StreamId id) const {
+  StreamAccounting out;
+  out.state = StateOf(id);
+  const Stream* stream = Find(id);
+  if (stream == nullptr) {
+    return out;
+  }
+  out.body_sent = stream->body_sent;
+  out.body_total = stream->body.size();
+  out.response_bytes = stream->response.body.size();
+  return out;
+}
+
 const char* Http2Session::ErrorOf(StreamId id) const {
   const Stream* stream = Find(id);
   return stream != nullptr ? stream->error : error_;
@@ -489,26 +502,37 @@ bool Http2Session::HandleRstStream(const FrameHeader& header,
 
 bool Http2Session::PumpBodies() {
   bool moved = false;
-  for (Stream& stream : streams_) {
-    while (stream.error == nullptr && stream.body_sent < stream.body.size()) {
-      const std::int64_t remaining =
-          static_cast<std::int64_t>(stream.body.size() - stream.body_sent);
-      const std::int64_t allowed = std::min(
-          {remaining, stream.send_window, send_window_,
-           static_cast<std::int64_t>(peer_.max_frame_size)});
-      if (allowed <= 0) {
-        break;  // the peer has not opened the window yet
-      }
-      const auto take = static_cast<std::size_t>(allowed);
-      const bool last = stream.body_sent + take == stream.body.size();
-      WriteFrameHeader(FrameType::Data, last ? flag::kEndStream : 0, stream.id, take, outgoing_);
-      outgoing_.append(reinterpret_cast<const char*>(stream.body.data() + stream.body_sent), take);
-      stream.body_sent += take;
-      stream.send_window -= allowed;
-      send_window_ -= allowed;
-      moved = true;
-    }
+  const std::size_t n = streams_.size();
+  if (n == 0) {
+    return false;
   }
+  // One DATA frame per stream per call, starting at `pump_cursor_`. A greedy
+  // drain of stream[0] until the connection window is empty left later SABR
+  // POSTs with `body_sent < body.size()` and no END_STREAM forever (TD-0042).
+  for (std::size_t i = 0; i < n; ++i) {
+    Stream& stream = streams_[(pump_cursor_ + i) % n];
+    if (stream.error != nullptr || stream.body_sent >= stream.body.size()) {
+      continue;
+    }
+    const std::int64_t remaining =
+        static_cast<std::int64_t>(stream.body.size() - stream.body_sent);
+    const std::int64_t allowed = std::min(
+        {remaining, stream.send_window, send_window_,
+         static_cast<std::int64_t>(peer_.max_frame_size)});
+    if (allowed <= 0) {
+      util::AddPerformanceCounter(util::PerfCounterId::NetHttp2StreamStalls);
+      continue;
+    }
+    const auto take = static_cast<std::size_t>(allowed);
+    const bool last = stream.body_sent + take == stream.body.size();
+    WriteFrameHeader(FrameType::Data, last ? flag::kEndStream : 0, stream.id, take, outgoing_);
+    outgoing_.append(reinterpret_cast<const char*>(stream.body.data() + stream.body_sent), take);
+    stream.body_sent += take;
+    stream.send_window -= allowed;
+    send_window_ -= allowed;
+    moved = true;
+  }
+  pump_cursor_ = (pump_cursor_ + 1) % n;
   return moved;
 }
 

@@ -413,11 +413,16 @@ class Interpreter {
   }
 
   // Fresh step budget for a host *task* (HTML event-loop task), when the
-  // machine is idle. Used for fetch/XHR delivery: after kevlar spends the
-  // budget, promise reactions must not start already past `kMaxSteps`
-  // (TD-0018 / youtube guide+search stamp). Do **not** call from timers or
-  // rAF — resetting those let a post-script storm run forever.
+  // machine is idle. Used for timers/rAF-adjacent work that must not reset
+  // under live frames. Fetch/XHR use `BeginNetworkTask` instead.
   void BeginTask() { BeginHostTurn(); }
+
+  // A network completion is always a distinct host task — even when the engine
+  // delivers it re-entrantly from `RunDueWork` under live frames (SABR `then`
+  // after a soft-nav stamp). `BeginHostTurn` no-ops while frames are live, which
+  // left youtube's googlevideo handler sharing a spent budget and never reaching
+  // `appendBuffer` (TD-0042). Always zeros `steps_`; counts when frames were live.
+  void BeginNetworkTask();
 
   // Fresh hang-guard allotment for host work that must run while script frames
   // are still live. `BeginHostTurn` refuses to reset in that case (nested

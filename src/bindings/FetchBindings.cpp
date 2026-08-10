@@ -436,10 +436,11 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
   }
   pending->object->SetElements(kept, std::vector<bool>(kept.size(), true));
 
-  // A network answer is a new host task. Without this, kevlar can leave
-  // `steps_` past the hang-guard limit and every `then` / XHR handler throws
-  // `RangeError: script ran too long` before doing any stamp work (TD-0018).
-  interpreter_->BeginTask();
+  // A network answer is a new host task. BeginNetworkTask (not BeginTask):
+  // delivery often runs under live frames from RunDueWork, where BeginHostTurn
+  // is a no-op — soft-nav SABR then inherited a spent budget and never reached
+  // appendBuffer (TD-0042).
+  interpreter_->BeginNetworkTask();
   TrustedScriptInvocation trust(*interpreter_, trust_scripts);
 
   if (xhr.IsObject()) {

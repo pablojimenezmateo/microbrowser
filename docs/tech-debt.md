@@ -1982,7 +1982,37 @@ processed (`MayRetry`). Test `Http2Fetch/APostSurvivesADeadSharedSessionOnce`.
 `media.source_appends` absent / `readyState` 0. Retry helps some POSTs;
 remaining hang/incomplete SABR responses and `js.steps_exhausted` still block
 playback. Counter `media.source_append_attempts` added to separate "never
-called" from "called and failed".
+called" from "called and failed". Follow-on: TD-0042 (per-stream stall +
+fair body pump + BeginNetworkTask).
+
+**Close when.** Soft-nav shows `request.done` for googlevideo and
+`media.source_appends > 0` / `readyState >= 2` on Release.
+
+---
+
+## TD-0042 — Soft-nav SABR hung on shared H2 progress and spent fetch budgets
+
+**Opened** 2026-08-10 after TD-0041: 11 `videoplayback` starts, 1 done (200),
+0 `appendBuffer` attempts, `js.steps_exhausted=1`.
+
+**Causes.**
+1. `FetchRequest` treated any `Http2Session::Advance()` progress as *this*
+   request's progress, so one live multiplexed stream reset every sibling's
+   30s stall timer while POST bodies sat behind the connection send window
+   without END_STREAM.
+2. `PumpBodies` drained streams in vector order until the window was empty,
+   starving later SABR POSTs.
+3. `DeliverFetchResponse` called `BeginTask()` / `BeginHostTurn`, which is a
+   no-op under live frames — soft-nav delivery from `RunDueWork` left SABR's
+   `then` on a spent hang-guard allotment.
+
+**Fix.** Per-stream `AccountingOf` for stall; round-robin one-frame
+`PumpBodies`; `Interpreter::BeginNetworkTask` always zeros steps (counter
+`js.fetch_delivery_budget_resets`). Tests:
+`Http2/TwoPostBodiesShareTheSendWindow`, BeginNetworkTask under live frames.
+
+**Close when.** Soft-nav `videoplayback` dones ≈ starts, `source_append_attempts`
+and `source_appends` > 0, `readyState >= 2` on Release.
 
 ---
 

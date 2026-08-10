@@ -122,6 +122,16 @@ class Http2Session {
   bool IsBlocked() const { return blocked_; }
 
   StreamState StateOf(StreamId id) const;
+  // Per-stream accounting for stall detection. Multiplexed `Advance()` can move
+  // other streams while this one is stuck behind a send window — RequestQueue
+  // must not treat that as progress for *this* request (TD-0042).
+  struct StreamAccounting {
+    std::size_t body_sent = 0;
+    std::size_t body_total = 0;
+    std::size_t response_bytes = 0;
+    StreamState state = StreamState::Unknown;
+  };
+  StreamAccounting AccountingOf(StreamId id) const;
   // Null unless that stream failed. A literal, so it can be copied into a
   // FetchResult without an allocation on the failure path.
   const char* ErrorOf(StreamId id) const;
@@ -224,6 +234,9 @@ class Http2Session {
   std::int64_t send_window_ = 65535;
   std::int64_t recv_window_ = 65535;
   StreamId next_stream_ = 1;
+  // Round-robin cursor for `PumpBodies`: without it, earlier streams keep the
+  // connection send window and later SABR POSTs never get END_STREAM (TD-0042).
+  std::size_t pump_cursor_ = 0;
   // The last stream the server promised to process, from a GOAWAY. Once this is
   // set no new stream may be opened, but the ones already running finish — that
   // is what makes a graceful shutdown graceful.

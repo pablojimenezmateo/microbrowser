@@ -697,10 +697,17 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
       }
 
       case Stage::Streaming: {
-        // Advancing the *session* moves every request sharing this connection,
-        // not just this one. That is the whole of multiplexing and it is why a
-        // request no longer owns the socket it is reading from.
-        progress |= session_->Advance();
+        // Advancing the *session* moves every request sharing this connection.
+        // Stall detection must measure *this* stream only — otherwise one live
+        // googlevideo sibling resets every other SABR POST's inactivity timer
+        // and bodies stuck behind the send window hang forever (TD-0042).
+        const Http2Session::StreamAccounting before = session_->AccountingOf(stream_);
+        (void)session_->Advance();
+        const Http2Session::StreamAccounting after = session_->AccountingOf(stream_);
+        const bool this_stream = after.body_sent > before.body_sent ||
+                                 after.response_bytes > before.response_bytes ||
+                                 after.state != before.state;
+        progress |= this_stream;
         switch (session_->StateOf(stream_)) {
           case Http2Session::StreamState::Open:
             blocked_ = session_->IsBlocked();

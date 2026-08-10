@@ -37,6 +37,15 @@ void Interpreter::BeginHostTurn() {
   step_budget_absorbed_ = false;
 }
 
+void Interpreter::BeginNetworkTask() {
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  if (!vm_.frames.empty()) {
+    util::AddPerformanceCounter(util::PerfCounterId::JsFetchDeliveryBudgetResets);
+  }
+  steps_ = 0;
+  step_budget_absorbed_ = false;
+}
+
 void Interpreter::EnterNestedHostBudget(util::PerfCounterId reset_counter) {
   util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
   if (nested_host_budget_depth_ == 0) {

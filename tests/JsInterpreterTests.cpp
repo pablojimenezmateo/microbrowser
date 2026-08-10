@@ -385,8 +385,8 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       ExpectEqString(js::ToString(second.value), "4", "Run after abort result");
     }
     // A spent budget must not poison the next host *task*. Fetch delivery uses
-    // BeginTask(); a bare CallFunction after an abort starts a fresh host turn
-    // because CallCompiled calls BeginHostTurn when the machine is empty.
+    // BeginNetworkTask(); a bare CallFunction after an abort starts a fresh host
+    // turn because CallCompiled calls BeginHostTurn when the machine is empty.
     {
       Interpreter interpreter;
       const Result ready = interpreter.Run("globalThis.f = () => 42; 'ok'");
@@ -444,6 +444,42 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
              "media budget lets nested work finish under live frames");
       ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
                      "handler completed after MediaEventBudget");
+    }
+    // Fetch delivery under RunDueWork often has live frames (soft-nav stamp).
+    // BeginTask is a no-op there; BeginNetworkTask must still zero the budget
+    // so SABR's then reaches appendBuffer (TD-0042).
+    {
+      Interpreter interpreter;
+      const Value deliver = interpreter.NewNativeValue(
+          "deliverFetch", [](NativeCall& call) -> Value {
+            const Value* burn = call.interpreter.Global()->GetOwn("burn");
+            const Value* handler = call.interpreter.Global()->GetOwn("handler");
+            if (burn == nullptr || handler == nullptr || !burn->IsObject() ||
+                !handler->IsObject()) {
+              return Value::Undefined();
+            }
+            (void)call.interpreter.CallFunction(*burn, Value::Undefined(), {});
+            call.interpreter.BeginNetworkTask();
+            const Result out =
+                call.interpreter.CallFunction(*handler, Value::Undefined(), {});
+            if (out.completion == Completion::Throw) {
+              return call.ThrowValue(out.value);
+            }
+            return out.value;
+          });
+      Expect(deliver.IsObject(), "install deliverFetch native");
+      interpreter.Global()->Set("deliverFetch", deliver);
+      interpreter.GlobalScope()->Declare("deliverFetch", deliver, false);
+      Expect(interpreter
+                 .Run("globalThis.got = 0;"
+                      "globalThis.burn = () => { while (true) {} };"
+                      "globalThis.handler = () => { got = 1; return got; };"
+                      "function entry() { return deliverFetch(); }"
+                      "entry()")
+                 .completion == Completion::Normal,
+             "BeginNetworkTask refreshes under live frames");
+      ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
+                     "fetch then runs after BeginNetworkTask");
     }
     // Custom-element upgrades during an rAF stamp share live frames with the
     // outer CallFunction. BeginTask is a no-op there; ElementUpgradeBudget must

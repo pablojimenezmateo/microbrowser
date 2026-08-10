@@ -148,6 +148,7 @@ namespace microbrowser::util {
   /* open stream; without this, youtube SPA loses player base.js with the     */ \
   /* font SVGs that shared its socket (TD-0025).                              */ \
   X(NetHttp2Retried, "net.h2_retried")                                           \
+  X(NetHttp2StreamStalls, "net.h2_stream_stalls")                                \
   /* HPACK, as the two halves of one ratio. On the wire against decoded, so    */ \
   /* the compression the protocol claims is a division rather than a belief;   */ \
   /* the failure count is beside them because a decoder that has failed has    */ \
@@ -314,6 +315,7 @@ namespace microbrowser::util {
   /* (TD-0018 youtube search thumbs).                                            */ \
   X(JsMediaEventBudgetResets, "js.media_event_budget_resets")                     \
   X(JsElementUpgradeBudgetResets, "js.element_upgrade_budget_resets")             \
+  X(JsFetchDeliveryBudgetResets, "js.fetch_delivery_budget_resets")               \
   /* Engine-built throws (`MakeError`), including ones a page's own try/catch  */ \
   /* swallows. youtube's setmediasrc path catches Gal's throw and turns it into */ \
   /* `fmt.unplayable` without ever reaching ReportUncaught -- so the only way  */ \
