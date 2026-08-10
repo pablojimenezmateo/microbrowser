@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-2303 of 23230 subtests pass (9.9%) over 1321 tests.
+2310 of 23372 subtests pass (9.9%) over 1386 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `shadow-dom/declarative` alone is 33% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -62,6 +62,16 @@ it is a page that never reported, which almost always means something threw befo
 | `subresource-integrity/integrity-policy` | 5 | 0 | 0 | 5 | 0 | 37 | 0 | 0.0 |
 | `subresource-integrity/signatures` | 15 | 14 | 0 | 1 | 0 | 177 | 43 | 24.3 |
 | `subresource-integrity/unencoded-digest` | 9 | 6 | 0 | 3 | 0 | 84 | 28 | 33.3 |
+| `uievents` | 3 | 3 | 0 | 0 | 0 | 5 | 2 | 40.0 |
+| `uievents/click` | 7 | 0 | 0 | 7 | 0 | 3 | 0 | 0.0 |
+| `uievents/constructors` | 2 | 2 | 0 | 0 | 0 | 20 | 0 | 0.0 |
+| `uievents/interface` | 3 | 1 | 0 | 2 | 0 | 5 | 0 | 0.0 |
+| `uievents/keyboard` | 5 | 1 | 0 | 4 | 0 | 1 | 1 | 100.0 |
+| `uievents/legacy` | 1 | 1 | 0 | 0 | 0 | 4 | 0 | 0.0 |
+| `uievents/legacy-domevents-tests` | 4 | 3 | 0 | 1 | 0 | 3 | 3 | 100.0 |
+| `uievents/mouse` | 17 | 11 | 0 | 6 | 0 | 71 | 1 | 1.4 |
+| `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
+| `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
 
 ## Why the harness never reported
 
@@ -71,8 +81,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 202 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
-| 69 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
+| 218 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 78 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
 | 7 | TIMEOUT: the page never reported; first script error: ./support/helpers.js: SyntaxError: expected ')' to close a dynamic import (line N) SyntaxError:... | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect-iframe.html` |
@@ -81,6 +91,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
 | 5 | TIMEOUT: the page never reported; first script error: support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected a pro... | `cors/credentials-flag.htm` |
 | 4 | TIMEOUT: killed after the wall-clock budget | `dom/nodes/Node-insertBefore.html` |
+| 4 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: target is not defined ReferenceError: target is not defined a... | `uievents/keyboard/modifier-keys-combinations.html` |
 | 3 | ERROR: TypeError: undefined (createDocument) is not a function | `dom/nodes/Document-createAttribute.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'insertRule' of undefined TypeError: cannot r... | `dom/events/webkit-animation-end-event.html` |
 | 2 | ERROR: ReferenceError: DOMParser is not defined | `domparsing/DOMParser-parseFromString-html.html` |
@@ -131,6 +142,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: XPathEvaluator is not defined ReferenceError: XPathEvaluator ... | `domxpath/xpathevaluatorbase-creatensresolver.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: container is not defined ReferenceError: container is not def... | `shadow-dom/focus/click-focus-slot-ancestor.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: host is not defined ReferenceError: host is not defined at <a... | `dom/events/shadow-relatedTarget.html` |
+| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: red is not defined ReferenceError: red is not defined at <ano... | `uievents/mouse/layout_change_should_fire_mouseover.html` |
+| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: released is not defined ReferenceError: released is not defin... | `uievents/order-of-events/mouse-events/mouseover-out.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetDiv is not defined ReferenceError: targetDiv is not def... | `dom/events/scrolling/scrollend-event-fired-for-scroll-attr-change.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetXDiv is not defined ReferenceError: targetXDiv is not d... | `dom/events/scrolling/scrollend-event-fired-to-element-with-overscroll-behavior.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: expected ')' after a for head (line N) SyntaxError: expected ')'... | `dom/nodes/Document-getElementsByTagName-xhtml.xhtml` |
@@ -147,13 +160,14 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 49 | 72 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
+| 50 | 73 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
+| 35 | 74 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
-| 31 | 70 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 30 | 850 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 29 | 56 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 25 | 73 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
-| 24 | 840 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
-| 23 | 62 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
+| 25 | 79 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
+| 24 | 64 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 34 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
@@ -168,7 +182,6 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 12 | 30 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
-| 12 | 13 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
 | 12 | 33 | undefined (createAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
 | 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
 | 12 | 26 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
@@ -184,21 +197,22 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
 | 7 | 9 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 7 | 28 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
+| 7 | 16 | document.elementsFromPoint unsupported | `uievents/order-of-events/mouse-events/click-cancel.html` |
 | 7 | 25 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
 | 6 | 22 | Illegal constructor: Text | `dom/nodes/adoption.window.html` |
 | 6 | 53 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got ["constructed"] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
 | 6 | 10 | assert_false: expected false got true | `cors/preflight-failure.htm` |
+| 6 | 12 | cannot read property 'length' of undefined | `custom-elements/form-associated/form-associated-callback.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
+| 6 | 6 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
 | 5 | 12 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 5 | 14 | assert_array_equals: lengths differ, expected array ["constructed", "connected"] length N, got [] length N | `custom-elements/reactions/customized-builtins/HTMLButtonElement.html` |
 | 5 | 36 | assert_equals: expected Document node with N child but got Document node with N children | `dom/nodes/Document-importNode.html` |
 | 5 | 20 | cannot read property 'getElementById' of null | `domxpath/xpath-shadow-dom.html` |
-| 5 | 11 | cannot read property 'length' of undefined | `custom-elements/form-associated/form-associated-callback.html` |
 | 5 | 16 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
 | 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
 | 5 | 25 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'getElementById' of null" | `shadow-dom/reference-target/tentative/dom-mutation.html` |
-| 5 | 5 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 5 | 7 | promise_test: Unhandled rejection with value: object "TypeError: undefined (getElementById) is not a function" | `shadow-dom/accesskey.tentative.html` |
 | 5 | 28 | promise_test: Unhandled rejection with value: object "TypeError: undefined (setHTMLUnsafe) is not a function" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-shared.html` |
 | 5 | 5 | target is not defined | `dom/events/mouse-event-retarget.html` |
@@ -246,6 +260,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 3 | 20 | undefined (deleteData) is not a function | `dom/nodes/CharacterData-deleteData.html` |
 | 3 | 3 | undefined (extractContents) is not a function | `custom-elements/range-and-constructors.html` |
 | 3 | 3 | undefined (getElementsByName) is not a function | `dom/nodes/moveBefore/moveBefore-name-map.html` |
-| 3 | 383 | undefined (getHTML) is not a function | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-serialization.html` |
 
-1603 distinct subtest messages and 66 distinct harness messages behind these numbers.
+1614 distinct subtest messages and 69 distinct harness messages behind these numbers.
