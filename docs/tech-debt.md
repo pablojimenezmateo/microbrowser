@@ -2220,7 +2220,7 @@ remeasure: SABR mostly aborted, `source_appends` absent, `rs:0`).
 
 ---
 
-## TD-0049 — Soft-nav SABR aborts before `appendBuffer` (cold watch OK)
+## TD-0049 — Soft-nav SABR aborts before `appendBuffer` (cold watch OK) — **fixed 2026-08-10**
 
 **Opened** 2026-08-10 after TD-0048 restored Accept + SPA stamp. Soft-nav
 cats→thumb: `#movie_player`, blob `src`, `source_buffers_created=6`, but
@@ -2235,7 +2235,7 @@ cause.
 and googlevideo work; the soft-nav player session is aborting media before the
 page calls `appendBuffer`.
 
-**Cause (updated).** Two stacked hang-guard issues after TD-0045/0048:
+**Cause.** Stacked hang-guard issues after TD-0045/0048, plus TD-0050:
 
 1. `EndInputTask` / `EndNetworkTask` restored `kMaxSteps` but left `steps_`
    above it when the click/SABR delivery had burned past 20M under the raised
@@ -2243,22 +2243,25 @@ page calls `appendBuffer`.
    stamped `#movie_player` (or before SABR `then` reached `appendBuffer`).
 2. Soft-nav watch stamp can still need more than one ordinary macrotask; cold
    `/watch` spreads the same work across document scripts.
+3. Sync `LayoutAndPaint` from `pushState` re-entered observers mid-click
+   (TD-0050) and aborted the stamp on some runs.
 
-**Fix.** End*Task zeros `steps_` when clamping back to the ordinary ceiling
-(`js.post_task_step_clamps`). NetworkTaskBudget still raises delivery.
+**Fix.** End*Task zeros `steps_` when clamping (`js.post_task_step_clamps`);
+NetworkTaskBudget for fetch delivery; defer paint from `pushState` (TD-0050).
 
-**Remeasure** (Release, after clamp). Soft-nav no longer hits `steps_exhausted`
-(`js.steps_peak≈14M`), but stamp became flaky: some runs
-`path=/watch` + `push_states=1` with **no** `#movie_player` (soft5). Soft3-style
-runs still stamp then starve SABR. Stamp half tracked under **TD-0050**
-(sync paint from `pushState`).
+**Remeasure** (Release, 2026-08-10, after TD-0050). Soft-nav cats→Accept→thumb:
+`path=/watch`, `#movie_player`, `readyState` **4**, buffered **~50s**,
+`media.source_appends=127`, `focus: #movie_player`,
+`history.push_state_paint_deferred=1`. One ordinary `js.steps_exhausted` still
+appears mid-turn (peak 20M) without blocking MSE — hang-guard residual, not a
+playback failure.
 
 **Close when.** Soft-nav Release matches cold on `source_appends > 0` and
-player `readyState >= 2` without a hard-nav shell.
+player `readyState >= 2` without a hard-nav shell. **Met.**
 
 ---
 
-## TD-0050 — `pushState` LayoutAndPaint re-enters observers mid-script
+## TD-0050 — `pushState` LayoutAndPaint re-enters observers mid-script — **fixed 2026-08-10**
 
 **Opened** 2026-08-10 after soft-nav remasures: SPA commit
 (`history.push_states=1`, `input.click_prevented=1`, `path=/watch`) but
@@ -2278,7 +2281,8 @@ every ordinary host turn) paints after script returns.
 paint at the host boundary after `popstate`/`hashchange`.
 
 **Close when.** Soft-nav Release reliably stamps `#movie_player` + `<video>`
-after search→thumb (MSE appends remain TD-0049).
+after search→thumb (MSE appends remain TD-0049). **Met** with TD-0049 remasure
+above (`movie:true`, `rs:4`, 127 appends).
 
 ---
 
@@ -2298,12 +2302,18 @@ today). Tests extend `Geometry/AnElementWithNoBoxIsAllZeros`,
 `Geometry/ClientRectsMatchesTheBorderBox`.
 
 **Close when.** Soft-nav / consent overlays stop throwing on `getClientRects`
-and dialog visibility probes agree with `getBoundingClientRect`.
+and dialog visibility probes agree with `getBoundingClientRect`. Landed; leave
+open until a remasure shows the throw count drop.
 
 ---
 
 ## Closed
 
+- **TD-0050 — `pushState` LayoutAndPaint re-entered observers mid-script** (2026-08-10).
+  Defer paint from URL-changing `pushState`; soft-nav stamps `#movie_player` and
+  reaches `readyState` 4 / 127 appends (see open entry).
+- **TD-0049 — Soft-nav SABR aborted before `appendBuffer`** (2026-08-10).
+  End*Task step clamp + NetworkTaskBudget + TD-0050; soft-nav matches cold MSE.
 - **TD-0039 — Trusted click/key inherited a spent JS step budget** (2026-08-10).
   `BeginTask` on `DispatchPointerMouse` / `DispatchKey` so preventDefault can
   run after a spent stamp turn.
