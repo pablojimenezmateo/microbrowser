@@ -213,6 +213,8 @@ namespace microbrowser::util {
   /* against style.hover_hit_tests means click routing is walking more than    */ \
   /* hover invalidation (youtube consent: backdrop vs dialog z-order).         */ \
   X(EngineHitTests, "engine.hit_tests")                                          \
+  /* Snapshot soft-nav /results→/watch mid-drain switched settle mode (TD-0038). */ \
+  X(SnapshotSoftNavWatchDrain, "snapshot.soft_nav_watch_drain")                  \
   /* A cascade re-resolved over the *existing* box tree, because every rule    */ \
   /* keyed on what changed only affects paint. The pair to watch is this       */ \
   /* against layout.runs: a `:hover { color }` rule that starts moving         */ \

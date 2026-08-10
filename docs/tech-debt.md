@@ -1853,11 +1853,10 @@ document scroll to them (`AncestorScrollOffsets`, `PointForBox`). See
 **Measured** (Release, 2026-08-10). After Accept on
 `/results?search_query=cats`, `scrollHeight≈9k`, `scrollIntoView` on
 `a#thumbnail` brings it to the viewport, `-click last` soft-navigates to
-`/watch?v=…` with `#movie_player` + `<video>` stamped (SPA path).
-`elementFromPoint` on the same thumb still returns `YTD-SEARCH` while
-client rects of `a#thumbnail` / `ytd-video-renderer` contain the point —
-opened as TD-0037. Navigation still succeeds because youtube's own listeners
-are not the hit-test default action.
+`/watch?v=…`. Hit-testing is flaky (TD-0037): sometimes `IMG`/`a#thumbnail`
+(and focus is the link), sometimes `YTD-SEARCH`. Soft-nav `#movie_player`
+stamp was aborted by a results drain that treated the new `/watch` URL as
+"results ready" (TD-0038).
 
 ---
 
@@ -1867,24 +1866,47 @@ are not the hit-test default action.
 
 **Symptom.** Release `/results` after Accept + `scrollIntoView(a#thumbnail)`:
 thumbnail / `ytd-video-renderer` client rects contain `(x,y)`, but
-`document.elementFromPoint(x,y)` is `YTD-SEARCH` (chain stops there). Paint
-still shows the thumb; SPA click can still reach `/watch` via page script.
-`pointer-events` on the thumb chain is `auto`.
+`document.elementFromPoint(x,y)` is sometimes `YTD-SEARCH` (chain stops there).
+Other runs on the same flow hit `IMG` and focus `a#thumbnail`. Paint shows the
+thumb either way; SPA navigation can still succeed.
 
 **Live computed style (2026-08-10).** `ytd-app` `position:absolute;z-index:auto`;
 `ytd-search` `position:relative;z-index:0;display:flex;
-overflow-x:visible;overflow-y:hidden`; `a#thumbnail` `position:absolute;
-overflow:hidden`. Fixtures that copy that shape (plus shadow `img`) still hit
-the thumbnail after document scroll — the live miss is not yet reduced.
+overflow-x:visible;overflow-y:hidden`; light children `#container` / `#survey`;
+`a#thumbnail` `position:absolute; overflow:hidden`. Fixtures that copy that
+shape still hit the thumbnail after document scroll — the live miss is not yet
+reduced and may correlate with early post-Accept drain / incomplete stamp.
 
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
-thumb (img or `a#thumbnail`) on `/results` after scrollIntoView; regression
-from a minimal fixture once one exists.
+thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across
+runs; regression from a minimal fixture once one exists.
+
+---
+
+## TD-0038 — Snapshot results drain aborts watch settle after soft-nav — **fixed 2026-08-10**
+
+**Opened** 2026-08-10 while measuring search→watch `#movie_player`.
+
+**Symptom.** Click on a search thumb updates `location` to `/watch` and can
+focus `a#thumbnail`, but the following `-eval` still sees no `#movie_player`.
+`RunLoadToCompletion`'s post-load drain captured `youtube_results_drain` from
+the URL at entry. After `pushState` to `/watch`,
+`YoutubeResultsLooksReady` returns true whenever the URL is not `/results`,
+so the loop broke immediately and never applied the 90s watch settle.
+
+**Fix.** Re-read watch/results mode every drain iteration. On a transition
+into `/watch`, reset the post-load deadline to the watch budget and count
+`snapshot.soft_nav_watch_drain`.
+
+**Close when.** Done for the snapshot tool. Engine soft-nav itself is unchanged.
 
 ---
 
 ## Closed
 
+- **TD-0038 — Snapshot results drain aborted watch settle after soft-nav**
+  (2026-08-10). Drain mode follows the current URL; `/results`→`/watch`
+  resets the 90s watch deadline (`snapshot.soft_nav_watch_drain`).
 - **TD-0036 — Document content height ignored abspos** (2026-08-10).
   Layout return value includes MeasureScrollableOverflow after ICB abspos;
   youtube results become document-scrollable.

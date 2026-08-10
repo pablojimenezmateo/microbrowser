@@ -409,7 +409,9 @@ bool YoutubeWatchLooksReady(microbrowser::engine::Engine& engine) {
 
 // Consent Accept on /results can tear down and restamp the result list. The
 // generic 2s drain then leaves zero `a#thumbnail`, and `-click last` reuses the
-// Accept button's coordinates (TD-0024 diagnostics).
+// Accept button's coordinates (TD-0024 diagnostics). Require several stamped
+// results rather than the first one: a single early thumb was enough for
+// elementFromPoint to return `YTD-SEARCH` over the row (TD-0037 flake).
 bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
   if (!IsYoutubeResults(engine.Url())) {
     return true;
@@ -418,7 +420,7 @@ bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
       "document.querySelectorAll('a#thumbnail').length + "
       "document.querySelectorAll('ytd-video-renderer').length");
   if (const auto n = ParseLeadingInt(answer)) {
-    return *n > 0;
+    return *n >= 12;
   }
   return false;
 }
@@ -673,16 +675,17 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
   const auto drain_deadline = settle_deadline;
   const bool reddit_feed_drain =
       IsRedditHomepage(engine.Url()) && RedditChallengeSolved(engine.Url());
-  const bool youtube_watch_drain = IsYoutubeWatch(engine.Url());
-  const bool youtube_results_drain = IsYoutubeResults(engine.Url());
-  // Watch: Polymer + player modules often stamp well after `load` on soft nav
-  // (TD-0024). Results: consent Accept reloads and restamps the list; too short
-  // a drain leaves zero thumbs and `-click last` has nothing valid to hit.
-  const auto post_load_deadline =
+  // Soft-nav can change the URL *during* this drain (search→watch). Mode and
+  // deadline must follow the current URL — a results drain that started on
+  // `/results` used to call YoutubeResultsLooksReady after pushState to
+  // `/watch`, which returns true immediately when not on results and aborted
+  // the watch settle (TD-0038).
+  auto youtube_mode_url = engine.Url();
+  auto post_load_deadline =
       reddit_feed_drain ? drain_deadline
-      : youtube_watch_drain
+      : IsYoutubeWatch(youtube_mode_url)
             ? std::chrono::steady_clock::now() + std::chrono::seconds(90)
-      : youtube_results_drain
+      : IsYoutubeResults(youtube_mode_url)
             ? std::chrono::steady_clock::now() + std::chrono::seconds(45)
             : std::chrono::steady_clock::now() + std::chrono::seconds(2);
   const auto yield_after_due = [&]() {
@@ -713,13 +716,21 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     microbrowser::platform::WaitOnDescriptors(descriptors, wait_ms);
   };
   for (int pass = 0; pass < 4096; ++pass) {
+    const bool on_watch = IsYoutubeWatch(engine.Url());
+    const bool on_results = IsYoutubeResults(engine.Url());
+    if (on_watch && !IsYoutubeWatch(youtube_mode_url)) {
+      youtube_mode_url = engine.Url();
+      post_load_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(90);
+      microbrowser::util::AddPerformanceCounter(
+          microbrowser::util::PerfCounterId::SnapshotSoftNavWatchDrain);
+    }
     if (std::chrono::steady_clock::now() >= post_load_deadline) {
       break;
     }
-    if (youtube_watch_drain && YoutubeWatchLooksReady(engine)) {
+    if (on_watch && YoutubeWatchLooksReady(engine)) {
       break;
     }
-    if (youtube_results_drain && YoutubeResultsLooksReady(engine)) {
+    if (on_results && YoutubeResultsLooksReady(engine)) {
       break;
     }
     if (engine.RunDueWork()) {
@@ -734,7 +745,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     // Soft-nav watch / post-Accept results often have no NextDeadlineMs while
     // fetches are still in flight — keep waiting on sockets rather than
     // treating "no timer" as settled chrome.
-    if (youtube_watch_drain || youtube_results_drain) {
+    if (on_watch || on_results) {
       microbrowser::util::WaitDescriptorList descriptors;
       engine.AppendWaitDescriptors(descriptors);
       if (!descriptors.empty() || engine.HasRunnableWork() || engine.IsDocumentLoading()) {
