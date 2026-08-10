@@ -427,6 +427,7 @@ namespace microbrowser::util {
   X(MediaAutoplayRefusals, "media.autoplay_refusals")                             \
   X(MediaErrorEvents, "media.error_events")                                       \
   X(MediaSourceAppends, "media.source_appends")                                   \
+  X(MediaSourceAppendAttempts, "media.source_append_attempts")                    \
   X(MediaSourceAppendFailures, "media.source_append_failures")                    \
   X(MediaSourceQuotaRefusals, "media.source_quota_refusals")                      \
   X(MediaSourceInitSegments, "media.source_init_segments")                        \

@@ -37,6 +37,7 @@
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 #include "js/Value.h"
+#include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
@@ -175,6 +176,7 @@ void DomBindings::InstallMediaSource() {
         if (!BytesOf(Argument(call.arguments, 0), bytes)) {
           return call.Throw("TypeError", "appendBuffer expects an ArrayBuffer or a view of one");
         }
+        util::AddPerformanceCounter(util::PerfCounterId::MediaSourceAppendAttempts);
         const int result = owner->media_->AppendToSourceBuffer(id, bytes);
         if (result == 4) {
           return ThrowDomException(call, "InvalidStateError",

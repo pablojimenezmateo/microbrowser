@@ -1977,8 +1977,12 @@ ran with nothing to append.
 **Fix.** Same one-shot session-death retry for POST when no response was
 processed (`MayRetry`). Test `Http2Fetch/APostSurvivesADeadSharedSessionOnce`.
 
-**Close when.** Soft-nav shows `request.done` for googlevideo and
-`media.source_appends > 0` / `readyState >= 2` on Release.
+**Update** (2026-08-10, after fix). Soft-nav Release remeasure: googlevideo
+`request.done` **1**/11 (was 0/8), `net.h2_retried=9`, still
+`media.source_appends` absent / `readyState` 0. Retry helps some POSTs;
+remaining hang/incomplete SABR responses and `js.steps_exhausted` still block
+playback. Counter `media.source_append_attempts` added to separate "never
+called" from "called and failed".
 
 ---
 
