@@ -2246,6 +2246,12 @@ delivery (RAII `NetworkTaskBudget`), matching trusted input — zeroing alone
 left the ordinary 20M ceiling too tight for soft-nav UMP→`appendBuffer`
 (cold peaks ~10M; soft-nav exhausted at 20M with zero appends).
 
+**Remeasure after NetworkTaskBudget (Release).** One soft-nav run still missed
+`#movie_player` (`push_states=1`, `focus: a#thumbnail`, `steps_exhausted=2`,
+peak still the *ordinary* 20M — stamp work after input budget ends). Cold
+`/watch` remains `rs:4` / 14 appends. Raised fetch ceiling is necessary but
+not sufficient while the Polymer stamp itself flakes under `kMaxSteps`.
+
 **Close when.** Soft-nav Release matches cold on `source_appends > 0` and
 player `readyState >= 2` without a hard-nav shell.
 
