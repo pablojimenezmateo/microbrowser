@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-4442 of 33311 subtests pass (13.3%) over 1757 tests.
+4636 of 265810 subtests pass (1.7%) over 1950 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `url` alone is 28% of every subtest here.
+**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 43% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
 one that tests an algorithm. The per-area column is the measurement; the aggregate
 is an artefact of how the suite is written.
@@ -46,6 +46,12 @@ it is a page that never reported, which almost always means something threw befo
 | `domparsing` | 34 | 21 | 3 | 10 | 0 | 290 | 72 | 24.8 |
 | `domparsing/tentative` | 26 | 17 | 0 | 9 | 0 | 905 | 6 | 0.7 |
 | `domxpath` | 32 | 24 | 0 | 8 | 0 | 87 | 1 | 1.1 |
+| `encoding` | 74 | 40 | 0 | 34 | 0 | 11801 | 68 | 0.6 |
+| `encoding/legacy-mb-japanese` | 51 | 5 | 9 | 37 | 0 | 113882 | 1 | 0.0 |
+| `encoding/legacy-mb-korean` | 26 | 1 | 0 | 25 | 0 | 66015 | 0 | 0.0 |
+| `encoding/legacy-mb-schinese` | 6 | 4 | 0 | 2 | 0 | 660 | 2 | 0.3 |
+| `encoding/legacy-mb-tchinese` | 23 | 2 | 0 | 21 | 0 | 40030 | 123 | 0.3 |
+| `encoding/streams` | 13 | 12 | 0 | 1 | 0 | 111 | 0 | 0.0 |
 | `hr-time` | 15 | 8 | 0 | 7 | 0 | 13 | 4 | 30.8 |
 | `intersection-observer` | 106 | 87 | 0 | 19 | 0 | 180 | 56 | 31.1 |
 | `intersection-observer/v2` | 38 | 23 | 0 | 15 | 0 | 54 | 18 | 33.3 |
@@ -92,19 +98,20 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 275 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
-| 98 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
+| 323 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 158 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
+| 16 | TIMEOUT: killed after the wall-clock budget | `dom/nodes/Node-insertBefore.html` |
 | 13 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: getSelection is not defined ReferenceError: getSelection is n... | `selection/getRangeAt.html` |
+| 9 | ERROR: RangeError: script ran too long | `encoding/legacy-mb-japanese/iso-2022-jp/iso2022jp-encode-form-csiso2022jp.html` |
 | 7 | TIMEOUT: the page never reported; first script error: ./support/helpers.js: SyntaxError: expected ')' to close a dynamic import (line N) SyntaxError:... | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect-iframe.html` |
 | 6 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createDocument) is not a function TypeError: undefined ... | `dom/nodes/append-on-Document.html` |
 | 5 | TIMEOUT: the page never reported; first script error: /trusted-types/support/helper.sub.js: SyntaxError: expected ';' (line N) SyntaxError: expected ... | `domparsing/tentative/stream-html-with-trusted-types-error-in-policy.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: target is not defined ReferenceError: target is not defined a... | `intersection-observer/grow-height-and-scrolled.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
 | 5 | TIMEOUT: the page never reported; first script error: support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected a pro... | `cors/credentials-flag.htm` |
-| 4 | TIMEOUT: killed after the wall-clock budget | `dom/nodes/Node-insertBefore.html` |
 | 4 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot set property 'onerror' of undefined TypeError: cannot set p... | `custom-elements/cross-realm-callback-report-exception.html` |
 | 3 | ERROR: TypeError: undefined (createDocument) is not a function | `dom/nodes/Document-createAttribute.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'insertRule' of undefined TypeError: cannot r... | `dom/events/webkit-animation-end-event.html` |
@@ -188,10 +195,10 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
+| 63 | 189027 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 41 | 80 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
-| 34 | 1655 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
-| 33 | 855 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
+| 44 | 1857 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
+| 42 | 248 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 30 | 59 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
@@ -224,16 +231,20 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 10 | 10 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
+| 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
-| 9 | 9 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 9 | 435 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
 | 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
+| 8 | 3025 | The encoding label provided ('iso-N-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 8 | 65 | assert_array_equals: lengths differ, expected array ["attributeChanged"] length N, got [] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
 | 8 | 10 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
 | 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
+| 7 | 20 | The encoding label provided ('utf-Nbe') is invalid. | `encoding/api-basics.any.html` |
+| 7 | 2588 | The encoding label provided ('windows-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 7 | 12 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 7 | 9 | assert_true: Initially visible expected true got undefined | `intersection-observer/v2/svg-foreign-object-filter-occlusion.html` |
 | 7 | 28 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
@@ -242,18 +253,28 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 7 | 46 | promise_test: Unhandled rejection with value: object "ReferenceError: getSelection is not defined" | `dom/nodes/moveBefore/selection-preserve.html` |
 | 7 | 7 | target is not defined | `dom/events/mouse-event-retarget.html` |
 | 6 | 22 | Illegal constructor: Text | `dom/nodes/adoption.window.html` |
+| 6 | 260 | The encoding label provided ('koiN-u') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
+| 6 | 260 | The encoding label provided ('x-mac-cyrillic') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 6 | 53 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got ["constructed"] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
 | 6 | 900 | assert_equals: username expected (string) "" but got (undefined) undefined | `url/url-constructor.any.html?include=javascript` |
 | 6 | 8 | assert_false: expected false got null | `intersection-observer/transformed-iframe-001-same-origin.html` |
+| 6 | 3428 | assert_throws_js: function "function RangeError() { [native code] }" is not an Error subtype | `encoding/api-replacement-encodings.any.html` |
 | 6 | 12 | cannot read property 'length' of undefined | `custom-elements/form-associated/form-associated-callback.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
+| 6 | 54 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 5 | 720 | Failed to construct URL: invalid URL | `url/url-constructor.any.html?include=file` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
+| 5 | 262 | The encoding label provided ('ibmN') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
+| 5 | 226 | The encoding label provided ('iso-N-N-i') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
+| 5 | 260 | The encoding label provided ('macintosh') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 5 | 12 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 5 | 14 | assert_array_equals: lengths differ, expected array ["constructed", "connected"] length N, got [] length N | `custom-elements/reactions/customized-builtins/HTMLButtonElement.html` |
 | 5 | 7 | assert_equals: expected "" but got "me" | `url/url-setters-a-area.window.html?include=file` |
 | 5 | 7 | assert_equals: expected "" but got "secret" | `url/url-setters-a-area.window.html?include=file` |
+| 5 | 487 | assert_equals: expected "%N%N%NB" but got "U+Nc" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
+| 5 | 54 | assert_equals: expected "%N%N%NB" but got "U+Nef" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
+| 5 | 28 | assert_equals: expected "%N%N%NB" but got "U+aN" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 | 5 | 36 | assert_equals: expected Document node with N child but got Document node with N children | `dom/nodes/Document-importNode.html` |
 | 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
 | 5 | 25 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'getElementById' of null" | `shadow-dom/reference-target/tentative/dom-mutation.html` |
@@ -264,29 +285,15 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 283 | undefined is not a function | `dom/nodes/Document-createCDATASection-xhtml.xhtml` |
 | 4 | 4 | DocumentType is not defined | `dom/nodes/Document-doctype.html` |
 | 4 | 4 | NodeList is not defined | `dom/nodes/Document-getElementsByTagName.html` |
+| 4 | 8 | The encoding label provided ('bigN') is invalid. | `encoding/textdecoder-eof.any.html` |
+| 4 | 283 | The encoding label provided ('gbN') is invalid. | `encoding/textdecoder-labels.any.html` |
+| 4 | 90 | The encoding label provided ('gbk') is invalid. | `encoding/textdecoder-labels.any.html` |
+| 4 | 42 | The encoding label provided ('iso-N-jp') is invalid. | `encoding/iso-2022-jp-decoder.any.html` |
+| 4 | 259 | The encoding label provided ('koiN-r') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 4 | 6 | assert_equals: expected "" but got "null" | `dom/nodes/CharacterData-data.html` |
-| 4 | 22 | assert_equals: expected (string) "" but got (undefined) undefined | `custom-elements/registries/template.window.html` |
-| 4 | 4 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
-| 4 | 4 | cannot read property 'N' of undefined | `custom-elements/state/state-pseudo-class.html` |
-| 4 | 5 | cannot read property 'adoptedStyleSheets' of null | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-basic.html` |
-| 4 | 22 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `cors/access-control-expose-headers-parsing.window.html` |
-| 4 | 12 | undefined (getAttributeNodeNS) is not a function | `dom/nodes/Attr-prefix-xhtml.xhtml` |
-| 4 | 52 | undefined (getElementsByTagNameNS) is not a function | `dom/collections/HTMLCollection-empty-name.html` |
-| 4 | 7 | undefined (item) is not a function | `dom/collections/HTMLCollection-supported-property-indices.html` |
-| 4 | 10 | undefined (namedItem) is not a function | `dom/collections/HTMLCollection-empty-name.html` |
-| 4 | 15 | undefined (toggleAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
-| 3 | 4 | Illegal constructor: DocumentFragment | `dom/nodes/DocumentFragment-constructor.html` |
-| 3 | 3 | assert_approx_equals: entries[N].rootBounds.right expected N +/- N but got N | `intersection-observer/clip-path.html` |
-| 3 | 27 | assert_array_equals: lengths differ, expected array ["constructed", "connected", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/customized-builtins/HTMLButtonElement.html` |
-| 3 | 6 | assert_array_equals: lengths differ, expected array ["disconnected", "adopted", "connected"] length N, got ["disconnected"] length N | `custom-elements/reactions/ChildNode.html` |
-| 3 | 5 | assert_equals: A custom element HTML must use HTML namespace expected (string) "http://www.wN.org/N/xhtml" but got (undefined) undefined | `custom-elements/Document-createElement-customized-builtins.html` |
-| 3 | 4 | assert_equals: expected "" but got "N" | `url/url-setters-a-area.window.html?include=file` |
-| 3 | 3 | assert_equals: expected "function" but got "undefined" | `custom-elements/registries/CustomElementRegistry-initialize.html` |
-| 3 | 1635 | assert_equals: expected (boolean) false but got (undefined) undefined | `shadow-dom/event-composed.html` |
-| 3 | 1634 | assert_equals: expected (boolean) true but got (undefined) undefined | `shadow-dom/event-composed.html` |
-| 3 | 12 | assert_equals: expected (object) Element node <div></div> but got (undefined) undefined | `dom/events/Event-dispatch-other-document.html` |
-| 3 | 3 | assert_equals: href expected "http://example.com/%EF%BF%BD%FN%N%NF%BE%EF%BF%BD%EF%BN%N%EF%BN%NF%EF%BN%AF%EF%BN%BN%EF%BF%BE%EF%BF%BF?%EF%BF%B... | `url/url-constructor.any.html?exclude=(file|javascript|mailto)` |
-| 3 | 6 | assert_equals: href expected "non-special:opaque %N#hi" but got "non-special:opaque #hi" | `url/url-constructor.any.html?exclude=(file|javascript|mailto)` |
-| 3 | 3 | assert_equals: href expected "non-special:opaque %N?hi" but got "non-special:opaque ?hi" | `url/url-constructor.any.html?exclude=(file|javascript|mailto)` |
+| 4 | 4740 | assert_equals: expected "%N%N%NB" but got "U+N" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
+| 4 | 499 | assert_equals: expected "%N%N%NB" but got "U+Na" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
+| 4 | 471 | assert_equals: expected "%N%N%NB" but got "U+NaN" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
+| 4 | 54 | assert_equals: expected "%N%N%NB" but got "U+Naa" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 
-2748 distinct subtest messages and 86 distinct harness messages behind these numbers.
+8751 distinct subtest messages and 87 distinct harness messages behind these numbers.

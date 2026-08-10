@@ -1701,8 +1701,7 @@ FAIL=ToASCII("xn--a-U+e4.pt") P4
 FAIL=ToASCII("xn--a-aU+308.pt") P4
 [url/a-element-origin-xhtml.xhtml]
 FAIL=Parsing origin: <  http://example.com/  > against <about:blank>
-FAIL=Parsing origin: <	   :foo.com   
-> against <http://example.org/foo/bar>
+FAIL=Parsing origin: <	   :foo.com
 FAIL=Parsing origin: <  	> against <http://example.org/foo/bar>
 FAIL=Parsing origin: < foo.com  > against <http://example.org/foo/bar>
 FAIL=Parsing origin: <#/> against <http://example.org/foo/bar>
@@ -1785,12 +1784,6 @@ FAIL=Parsing origin: <git://github.com/foo/bar.git> against <about:blank>
 FAIL=Parsing origin: <gopher://foo:443/> against <about:blank>
 FAIL=Parsing origin: <gopher://foo:70/> against <about:blank>
 FAIL=Parsing origin: <h	t
-tp://h	o
-st:9	0
-00/p	a
-th?q	u
-ery#f	r
-ag> against <about:blank>
 FAIL=Parsing origin: <h://.> against <about:blank>
 FAIL=Parsing origin: <http://%30%78%63%30%2e%30%32%35%30.01%2e> against <http://other.com/>
 FAIL=Parsing origin: <http://%30%78%63%30%2e%30%32%35%30.01> against <http://other.com/>
@@ -1819,10 +1812,8 @@ FAIL=Parsing origin: <http://a.b.c.XN--pokxncvks> against <about:blank>
 FAIL=Parsing origin: <http://a.b.c.Xn--pokxncvks> against <about:blank>
 FAIL=Parsing origin: <http://a:b@c\> against <about:blank>
 FAIL=Parsing origin: <http://example	.
-org> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://example.com\\foo\\bar> against <about:blank>
 FAIL=Parsing origin: <http://f:
-/c> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://f:/c> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://f:00000000000000/c> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://f:00000000000000000000080/c> against <http://example.org/foo/bar>
@@ -1916,8 +1907,7 @@ FAIL=Parsing origin: <wss:example.com/> against <about:blank>
 FAIL=Parsing origin: <wss:example.com/> against <http://example.org/foo/bar>
 [url/a-element-origin.html]
 FAIL=Parsing origin: <  http://example.com/  > against <about:blank>
-FAIL=Parsing origin: <	   :foo.com   
-> against <http://example.org/foo/bar>
+FAIL=Parsing origin: <	   :foo.com
 FAIL=Parsing origin: <  	> against <http://example.org/foo/bar>
 FAIL=Parsing origin: < foo.com  > against <http://example.org/foo/bar>
 FAIL=Parsing origin: <#/> against <http://example.org/foo/bar>
@@ -2000,12 +1990,6 @@ FAIL=Parsing origin: <git://github.com/foo/bar.git> against <about:blank>
 FAIL=Parsing origin: <gopher://foo:443/> against <about:blank>
 FAIL=Parsing origin: <gopher://foo:70/> against <about:blank>
 FAIL=Parsing origin: <h	t
-tp://h	o
-st:9	0
-00/p	a
-th?q	u
-ery#f	r
-ag> against <about:blank>
 FAIL=Parsing origin: <h://.> against <about:blank>
 FAIL=Parsing origin: <http://%30%78%63%30%2e%30%32%35%30.01%2e> against <http://other.com/>
 FAIL=Parsing origin: <http://%30%78%63%30%2e%30%32%35%30.01> against <http://other.com/>
@@ -2034,10 +2018,8 @@ FAIL=Parsing origin: <http://a.b.c.XN--pokxncvks> against <about:blank>
 FAIL=Parsing origin: <http://a.b.c.Xn--pokxncvks> against <about:blank>
 FAIL=Parsing origin: <http://a:b@c\> against <about:blank>
 FAIL=Parsing origin: <http://example	.
-org> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://example.com\\foo\\bar> against <about:blank>
 FAIL=Parsing origin: <http://f:
-/c> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://f:/c> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://f:00000000000000/c> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <http://f:00000000000000000000080/c> against <http://example.org/foo/bar>
@@ -2130,9 +2112,9 @@ FAIL=Parsing origin: <wss:/example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing origin: <wss:example.com/> against <about:blank>
 FAIL=Parsing origin: <wss:example.com/> against <http://example.org/foo/bar>
 [url/a-element-xhtml.xhtml]
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> against <about:blank>
 FAIL=Parsing: <  http://example.com/  > against <about:blank>
-FAIL=Parsing: <	   :foo.com   
-> against <http://example.org/foo/bar>
+FAIL=Parsing: <	   :foo.com
 FAIL=Parsing: <  	> against <http://example.org/foo/bar>
 FAIL=Parsing: <  File:c|////foo\bar.html> against <file:///tmp/mock/path>
 FAIL=Parsing: < foo.com  > against <http://example.org/foo/bar>
@@ -2261,7 +2243,6 @@ FAIL=Parsing: <?x> against <file:///test?test#test>
 FAIL=Parsing: <?x> against <sc://U+f1>
 FAIL=Parsing: <C> against <file://host/dir/file>
 FAIL=Parsing: <C|
-/> against <file://host/dir/file>
 FAIL=Parsing: <C|#> against <file://host/dir/file>
 FAIL=Parsing: <C|/> against <file://host/>
 FAIL=Parsing: <C|/> against <file://host/dir/file>
@@ -2295,8 +2276,7 @@ FAIL=Parsing: <abc:rootless> against <abc://host/path>
 FAIL=Parsing: <abc:rootless> against <abc:/path>
 FAIL=Parsing: <abc:rootless> against <abc:path>
 FAIL=Parsing: <about:/../> against <about:blank>
-FAIL=Parsing: <about:blank# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> against <about:blank>
+FAIL=Parsing: <about:blank# 
 FAIL=Parsing: <about:blank#<foo> <bar>> against <about:blank>
 FAIL=Parsing: <android-app://x:0> against <about:blank>
 FAIL=Parsing: <android://x:0/a> against <about:blank>
@@ -2334,8 +2314,7 @@ FAIL=Parsing: <data:example.com/> against <about:blank>
 FAIL=Parsing: <data:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <data:test# U+bb> against <about:blank>
 FAIL=Parsing: <data:text/html,test#test> against <http://example.org/foo/bar>
-FAIL=Parsing: <data:text/plain,test# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> against <about:blank>
+FAIL=Parsing: <data:text/plain,test# 
 FAIL=Parsing: <data:text/plain,test#<foo> <bar>> against <about:blank>
 FAIL=Parsing: <dns://fw.example.org:9999/foo.bar.org?type=TXT> against <about:blank>
 FAIL=Parsing: <drivefs://x:0/a> against <about:blank>
@@ -2424,9 +2403,8 @@ FAIL=Parsing: <foo://///////> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo://///////bar.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo:////://///> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo://> against <http://example.org/foo/bar>
-FAIL=Parsing: <foo://ho	st/> against <about:blank>
 FAIL=Parsing: <foo://ho
-st/> against <about:blank>
+FAIL=Parsing: <foo://ho	st/> against <about:blank>
 FAIL=Parsing: <foo://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> against <about:blank>
 FAIL=Parsing: <foo://host/> against <about:blank>
 FAIL=Parsing: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> against <about:blank>
@@ -2457,12 +2435,6 @@ FAIL=Parsing: <gopher:/example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <gopher:example.com/> against <about:blank>
 FAIL=Parsing: <gopher:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <h	t
-tp://h	o
-st:9	0
-00/p	a
-th?q	u
-ery#f	r
-ag> against <about:blank>
 FAIL=Parsing: <h://.> against <about:blank>
 FAIL=Parsing: <http://!"$&'()*+,-.;=_`{}~/> against <about:blank>
 FAIL=Parsing: <http://#> against <about:blank>
@@ -2622,7 +2594,6 @@ FAIL=Parsing: <http://a^b> against <about:blank>
 FAIL=Parsing: <http://a|b/> against <about:blank>
 FAIL=Parsing: <http://ab/> against <about:blank>
 FAIL=Parsing: <http://example	.
-org> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://example example.com> against <http://other.com/>
 FAIL=Parsing: <http://example.com/%20foo> against <about:blank>
 FAIL=Parsing: <http://example.com/%3A%3a%3C%3c> against <about:blank>
@@ -2672,7 +2643,6 @@ FAIL=Parsing: <http://example.org/test?a#%EF> against <about:blank>
 FAIL=Parsing: <http://example.org/test?a#%GH> against <about:blank>
 FAIL=Parsing: <http://example.org/test?a#b c> against <about:blank>
 FAIL=Parsing: <http://f:
-/c> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f: /c> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f: 21 / b ? d # e > against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f:/c> against <http://example.org/foo/bar>
@@ -2713,9 +2683,8 @@ FAIL=Parsing: <http://foo:80/> against <about:blank>
 FAIL=Parsing: <http://foo:81/> against <about:blank>
 FAIL=Parsing: <http://foo:U+d83dU+dca9@example.com/bar> against <http://other.com/>
 FAIL=Parsing: <http://hello%00> against <http://other.com/>
-FAIL=Parsing: <http://ho	st/> against <about:blank>
 FAIL=Parsing: <http://ho
-st/> against <about:blank>
+FAIL=Parsing: <http://ho	st/> against <about:blank>
 FAIL=Parsing: <http://ho%00st/> against <about:blank>
 FAIL=Parsing: <http://ho%01st/> against <about:blank>
 FAIL=Parsing: <http://ho%02st/> against <about:blank>
@@ -3035,9 +3004,9 @@ FAIL=Parsing: <wss:example.com/> against <about:blank>
 FAIL=Parsing: <wss:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <x> against <sc://U+f1>
 [url/a-element.html]
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> against <about:blank>
 FAIL=Parsing: <  http://example.com/  > against <about:blank>
-FAIL=Parsing: <	   :foo.com   
-> against <http://example.org/foo/bar>
+FAIL=Parsing: <	   :foo.com
 FAIL=Parsing: <  	> against <http://example.org/foo/bar>
 FAIL=Parsing: <  File:c|////foo\bar.html> against <file:///tmp/mock/path>
 FAIL=Parsing: < foo.com  > against <http://example.org/foo/bar>
@@ -3166,7 +3135,6 @@ FAIL=Parsing: <?x> against <file:///test?test#test>
 FAIL=Parsing: <?x> against <sc://U+f1>
 FAIL=Parsing: <C> against <file://host/dir/file>
 FAIL=Parsing: <C|
-/> against <file://host/dir/file>
 FAIL=Parsing: <C|#> against <file://host/dir/file>
 FAIL=Parsing: <C|/> against <file://host/>
 FAIL=Parsing: <C|/> against <file://host/dir/file>
@@ -3200,8 +3168,7 @@ FAIL=Parsing: <abc:rootless> against <abc://host/path>
 FAIL=Parsing: <abc:rootless> against <abc:/path>
 FAIL=Parsing: <abc:rootless> against <abc:path>
 FAIL=Parsing: <about:/../> against <about:blank>
-FAIL=Parsing: <about:blank# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> against <about:blank>
+FAIL=Parsing: <about:blank# 
 FAIL=Parsing: <about:blank#<foo> <bar>> against <about:blank>
 FAIL=Parsing: <android-app://x:0> against <about:blank>
 FAIL=Parsing: <android://x:0/a> against <about:blank>
@@ -3239,8 +3206,7 @@ FAIL=Parsing: <data:example.com/> against <about:blank>
 FAIL=Parsing: <data:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <data:test# U+bb> against <about:blank>
 FAIL=Parsing: <data:text/html,test#test> against <http://example.org/foo/bar>
-FAIL=Parsing: <data:text/plain,test# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> against <about:blank>
+FAIL=Parsing: <data:text/plain,test# 
 FAIL=Parsing: <data:text/plain,test#<foo> <bar>> against <about:blank>
 FAIL=Parsing: <dns://fw.example.org:9999/foo.bar.org?type=TXT> against <about:blank>
 FAIL=Parsing: <drivefs://x:0/a> against <about:blank>
@@ -3329,9 +3295,8 @@ FAIL=Parsing: <foo://///////> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo://///////bar.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo:////://///> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo://> against <http://example.org/foo/bar>
-FAIL=Parsing: <foo://ho	st/> against <about:blank>
 FAIL=Parsing: <foo://ho
-st/> against <about:blank>
+FAIL=Parsing: <foo://ho	st/> against <about:blank>
 FAIL=Parsing: <foo://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> against <about:blank>
 FAIL=Parsing: <foo://host/> against <about:blank>
 FAIL=Parsing: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> against <about:blank>
@@ -3362,12 +3327,6 @@ FAIL=Parsing: <gopher:/example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <gopher:example.com/> against <about:blank>
 FAIL=Parsing: <gopher:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <h	t
-tp://h	o
-st:9	0
-00/p	a
-th?q	u
-ery#f	r
-ag> against <about:blank>
 FAIL=Parsing: <h://.> against <about:blank>
 FAIL=Parsing: <http://!"$&'()*+,-.;=_`{}~/> against <about:blank>
 FAIL=Parsing: <http://#> against <about:blank>
@@ -3527,7 +3486,6 @@ FAIL=Parsing: <http://a^b> against <about:blank>
 FAIL=Parsing: <http://a|b/> against <about:blank>
 FAIL=Parsing: <http://ab/> against <about:blank>
 FAIL=Parsing: <http://example	.
-org> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://example example.com> against <http://other.com/>
 FAIL=Parsing: <http://example.com/%20foo> against <about:blank>
 FAIL=Parsing: <http://example.com/%3A%3a%3C%3c> against <about:blank>
@@ -3577,7 +3535,6 @@ FAIL=Parsing: <http://example.org/test?a#%EF> against <about:blank>
 FAIL=Parsing: <http://example.org/test?a#%GH> against <about:blank>
 FAIL=Parsing: <http://example.org/test?a#b c> against <about:blank>
 FAIL=Parsing: <http://f:
-/c> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f: /c> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f: 21 / b ? d # e > against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f:/c> against <http://example.org/foo/bar>
@@ -3618,9 +3575,8 @@ FAIL=Parsing: <http://foo:80/> against <about:blank>
 FAIL=Parsing: <http://foo:81/> against <about:blank>
 FAIL=Parsing: <http://foo:U+d83dU+dca9@example.com/bar> against <http://other.com/>
 FAIL=Parsing: <http://hello%00> against <http://other.com/>
-FAIL=Parsing: <http://ho	st/> against <about:blank>
 FAIL=Parsing: <http://ho
-st/> against <about:blank>
+FAIL=Parsing: <http://ho	st/> against <about:blank>
 FAIL=Parsing: <http://ho%00st/> against <about:blank>
 FAIL=Parsing: <http://ho%01st/> against <about:blank>
 FAIL=Parsing: <http://ho%02st/> against <about:blank>
@@ -5709,9 +5665,9 @@ FAIL=xn--zca.xn--zca (using <a>.hostname)
 FAIL=xn--zn7c.com (using <a>.host)
 FAIL=xn--zn7c.com (using <a>.hostname)
 [url/url-constructor.any.html?exclude=(file|javascript|mailto)]
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> without base
 FAIL=Parsing: <  http://example.com/  > without base
-FAIL=Parsing: <	   :foo.com   
-> against <http://example.org/foo/bar>
+FAIL=Parsing: <	   :foo.com
 FAIL=Parsing: <  	> against <http://example.org/foo/bar>
 FAIL=Parsing: < foo.com  > against <http://example.org/foo/bar>
 FAIL=Parsing: <#/> against <http://example.org/foo/bar>
@@ -5820,8 +5776,7 @@ FAIL=Parsing: <abc:rootless> against <abc://host/path>
 FAIL=Parsing: <abc:rootless> against <abc:/path>
 FAIL=Parsing: <abc:rootless> against <abc:path>
 FAIL=Parsing: <about:/../> without base
-FAIL=Parsing: <about:blank# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> without base
+FAIL=Parsing: <about:blank# 
 FAIL=Parsing: <about:blank#<foo> <bar>> without base
 FAIL=Parsing: <android-app://x:0> without base
 FAIL=Parsing: <android://x:0/a> without base
@@ -5859,8 +5814,7 @@ FAIL=Parsing: <data:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <data:example.com/> without base
 FAIL=Parsing: <data:test# U+bb> without base
 FAIL=Parsing: <data:text/html,test#test> against <http://example.org/foo/bar>
-FAIL=Parsing: <data:text/plain,test# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9> without base
+FAIL=Parsing: <data:text/plain,test# 
 FAIL=Parsing: <data:text/plain,test#<foo> <bar>> without base
 FAIL=Parsing: <dns://fw.example.org:9999/foo.bar.org?type=TXT> without base
 FAIL=Parsing: <drivefs://x:0/a> without base
@@ -5870,9 +5824,8 @@ FAIL=Parsing: <foo://///////> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo://///////bar.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo:////://///> against <http://example.org/foo/bar>
 FAIL=Parsing: <foo://> against <http://example.org/foo/bar>
-FAIL=Parsing: <foo://ho	st/> without base
 FAIL=Parsing: <foo://ho
-st/> without base
+FAIL=Parsing: <foo://ho	st/> without base
 FAIL=Parsing: <foo://host/ !"$%&'()*+,-./:;<=>@[\]^_`{|}~> without base
 FAIL=Parsing: <foo://host/> without base
 FAIL=Parsing: <foo://host/dir/# !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~> without base
@@ -5903,12 +5856,6 @@ FAIL=Parsing: <gopher:/example.com/> without base
 FAIL=Parsing: <gopher:example.com/> against <http://example.org/foo/bar>
 FAIL=Parsing: <gopher:example.com/> without base
 FAIL=Parsing: <h	t
-tp://h	o
-st:9	0
-00/p	a
-th?q	u
-ery#f	r
-ag> without base
 FAIL=Parsing: <h://.> without base
 FAIL=Parsing: <http://!"$&'()*+,-.;=_`{}~/> without base
 FAIL=Parsing: <http://#> without base
@@ -6068,7 +6015,6 @@ FAIL=Parsing: <http://a^b> without base
 FAIL=Parsing: <http://a|b/> without base
 FAIL=Parsing: <http://ab/> without base
 FAIL=Parsing: <http://example	.
-org> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://example example.com> against <http://other.com/>
 FAIL=Parsing: <http://example.com/%20foo> without base
 FAIL=Parsing: <http://example.com/%3A%3a%3C%3c> without base
@@ -6118,7 +6064,6 @@ FAIL=Parsing: <http://example.org/test?a#%EF> without base
 FAIL=Parsing: <http://example.org/test?a#%GH> without base
 FAIL=Parsing: <http://example.org/test?a#b c> without base
 FAIL=Parsing: <http://f:
-/c> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f: /c> against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f: 21 / b ? d # e > against <http://example.org/foo/bar>
 FAIL=Parsing: <http://f:/c> against <http://example.org/foo/bar>
@@ -6159,9 +6104,8 @@ FAIL=Parsing: <http://foo:80/> without base
 FAIL=Parsing: <http://foo:81/> without base
 FAIL=Parsing: <http://foo:U+d83dU+dca9@example.com/bar> against <http://other.com/>
 FAIL=Parsing: <http://hello%00> against <http://other.com/>
-FAIL=Parsing: <http://ho	st/> without base
 FAIL=Parsing: <http://ho
-st/> without base
+FAIL=Parsing: <http://ho	st/> without base
 FAIL=Parsing: <http://ho%00st/> without base
 FAIL=Parsing: <http://ho%01st/> without base
 FAIL=Parsing: <http://ho%02st/> without base
@@ -6499,7 +6443,6 @@ FAIL=Parsing: <> without base
 FAIL=Parsing: <?x> against <file:///test?test#test>
 FAIL=Parsing: <C> against <file://host/dir/file>
 FAIL=Parsing: <C|
-/> against <file://host/dir/file>
 FAIL=Parsing: <C|#> against <file://host/dir/file>
 FAIL=Parsing: <C|/> against <file://host/>
 FAIL=Parsing: <C|/> against <file://host/dir/file>
@@ -7056,6 +6999,12 @@ FAIL=Setting username with trailing U+001F (wpt++:)
 [url/url-setters-stripping.any.worker.html]
 harness=TIMEOUT
 [url/url-setters.any.html?exclude=(file|javascript|mailto)]
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' Fragment percent-encode set on about:blank; tabs and newlines are removed
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' Fragment percent-encode set on data: URI; tabs and newlines are removed
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' Simple percent-encoding; tabs and newlines are removed
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the default encode set. Tabs and newlines are removed.
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the query encode set. Tabs and newlines are removed.
+ !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the userinfo encode set.
 FAIL=URL: Setting <a://example.net>.protocol = '' The empty string is not a valid scheme. Setter leaves the URL unchanged.
 FAIL=URL: Setting <a://example.net>.protocol = '+b' No leading punctuation
 FAIL=URL: Setting <a://example.net>.protocol = '0b' No leading digit
@@ -7065,16 +7014,12 @@ FAIL=URL: Setting <a://example.net>.protocol = 'b'
 FAIL=URL: Setting <a://example.net>.protocol = 'b,c' Only some punctuation is acceptable
 FAIL=URL: Setting <a://example.net>.protocol = 'bC0+-.'
 FAIL=URL: Setting <a://example.net>.protocol = 'bU+e9' Non-ASCII is rejected
-FAIL=URL: Setting <a:/>.hash = ' 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' Simple percent-encoding; tabs and newlines are removed
-FAIL=URL: Setting <a:/>.pathname = ' 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the default encode set. Tabs and newlines are removed.
-FAIL=URL: Setting <a:/>.search = ' 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the query encode set. Tabs and newlines are removed.
+FAIL=URL: Setting <a:/>.hash = ' 
+FAIL=URL: Setting <a:/>.pathname = ' 
+FAIL=URL: Setting <a:/>.search = ' 
 FAIL=URL: Setting <a:/foo>.host = 'example.net' Path-only URLs can gain a host
 FAIL=URL: Setting <a:/foo>.hostname = 'example.net' Path-only URLs can gain a host
-FAIL=URL: Setting <about:blank>.hash = '# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' Fragment percent-encode set on about:blank; tabs and newlines are removed
+FAIL=URL: Setting <about:blank>.hash = '# 
 FAIL=URL: Setting <about:blank>.hash = '#<foo> <bar>' Fragment with <> on about:blank
 FAIL=URL: Setting <data:/nospace>.pathname = 'space ' Non-special URLs with non-opaque paths percent-encode U+0020
 FAIL=URL: Setting <data:original>.pathname = 'new value'
@@ -7084,8 +7029,7 @@ FAIL=URL: Setting <data:space  ?query#fragment>.search = '' Trailing spaces and 
 FAIL=URL: Setting <data:space ?query>.search = '' Trailing spaces and opaque paths
 FAIL=URL: Setting <data:text/html,<p>Test>.protocol = 'view-source+data:foo : bar' Stuff after the first ':' is ignored
 FAIL=URL: Setting <data:text/plain,Stuff>.host = 'example.net' Cannot-be-a-base means no host
-FAIL=URL: Setting <data:text/plain,test>.hash = '# 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' Fragment percent-encode set on data: URI; tabs and newlines are removed
+FAIL=URL: Setting <data:text/plain,test>.hash = '# 
 FAIL=URL: Setting <data:text/plain,test>.hash = '#<foo> <bar>' Fragment with <> on data: URI
 FAIL=URL: Setting <foo:///some/path>.pathname = '' Non-special URLs with an empty host can have their paths erased
 FAIL=URL: Setting <foo://path/to>.host = ':80'
@@ -7163,8 +7107,7 @@ FAIL=URL: Setting <http://example.net>.host = '[::0:01]:2' IPv6 address syntax i
 FAIL=URL: Setting <http://example.net>.host = 'example.com:80' Default port number is removed
 FAIL=URL: Setting <http://example.net>.host = 'example.com:8080'
 FAIL=URL: Setting <http://example.net>.hostname = '[::0:01]' IPv6 address syntax is normalized
-FAIL=URL: Setting <http://example.net>.password = ' 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the userinfo encode set.
+FAIL=URL: Setting <http://example.net>.password = ' 
 FAIL=URL: Setting <http://example.net>.password = '%c3%89tU+e9' Bytes already percent-encoded are left as-is.
 FAIL=URL: Setting <http://example.net>.password = 'secret'
 FAIL=URL: Setting <http://example.net>.pathname = ' ' Trailing C0 control should be encoded
@@ -7180,8 +7123,7 @@ FAIL=URL: Setting <http://example.net>.protocol = 'https:foo : bar' Stuff after 
 FAIL=URL: Setting <http://example.net>.search = ' ' Trailing C0 control should be encoded
 FAIL=URL: Setting <http://example.net>.search = ' ' Trailing space should be encoded
 FAIL=URL: Setting <http://example.net>.search = '%c3%89tU+e9' Bytes already percent-encoded are left as-is
-FAIL=URL: Setting <http://example.net>.username = ' 	
- !"#$%&'()*+,-./09:;<=>?@AZ[\]^_`az{|}~U+80U+81U+c9U+e9' UTF-8 percent encoding with the userinfo encode set.
+FAIL=URL: Setting <http://example.net>.username = ' 
 FAIL=URL: Setting <http://example.net>.username = '%c3%89tU+e9' Bytes already percent-encoded are left as-is.
 FAIL=URL: Setting <http://example.net>.username = 'me'
 FAIL=URL: Setting <http://foo.com:443/>.protocol = 'https' Port is set to null if it is the default for new scheme.
@@ -7190,7 +7132,6 @@ FAIL=URL: Setting <http://me:secret@example.net>.username = ''
 FAIL=URL: Setting <http://me@example.net>.password = 'secret'
 FAIL=URL: Setting <http://me@example.net>.username = ''
 FAIL=URL: Setting <http://test/>.protocol = 'h
-tt	ps' Tab and newline are stripped
 FAIL=URL: Setting <http://test/>.protocol = 'https ' Non-tab/newline C0 controls result in no-op
 FAIL=URL: Setting <http://test/>.protocol = 'https'
 FAIL=URL: Setting <http://test/>.protocol = 'https'
@@ -7198,12 +7139,6 @@ FAIL=URL: Setting <http://test/>.protocol = 'https '
 FAIL=URL: Setting <http://test/>.protocol = 'https'
 FAIL=URL: Setting <http://test@example.net>.protocol = 'file' CanU+2019t switch from URL containing username/password/port to file
 FAIL=URL: Setting <https://domain.com:3000>.port = '
-	80
-	80
-	'
-FAIL=URL: Setting <https://domain.com:3000>.port = '
-
-		'
 FAIL=URL: Setting <https://domain.com:443>.port = '	8080' Leading u0009 on special scheme
 FAIL=URL: Setting <https://example.com/>.host = '%C2%AD'
 FAIL=URL: Setting <https://example.com/>.host = 'U+ad'
@@ -7236,15 +7171,13 @@ FAIL=URL: Setting <https://example.net?lang=en-US>.hash = '##nav'
 FAIL=URL: Setting <https://example.net?lang=en-US>.search = ''
 FAIL=URL: Setting <https://test.invalid/>.host = '*'
 FAIL=URL: Setting <https://test.invalid/>.host = '><'
-FAIL=URL: Setting <https://test.invalid/>.host = 'foo	
-bar'
+FAIL=URL: Setting <https://test.invalid/>.host = 'foo
 FAIL=URL: Setting <https://test.invalid/>.host = 'test/:aaa'
 FAIL=URL: Setting <https://test.invalid/>.host = 'test/@aaa'
 FAIL=URL: Setting <https://test.invalid/>.host = 'x@x'
 FAIL=URL: Setting <https://test.invalid/>.hostname = '*'
 FAIL=URL: Setting <https://test.invalid/>.hostname = '><'
-FAIL=URL: Setting <https://test.invalid/>.hostname = 'foo	
-bar'
+FAIL=URL: Setting <https://test.invalid/>.hostname = 'foo
 FAIL=URL: Setting <https://test.invalid/>.hostname = 'test/:aaa'
 FAIL=URL: Setting <https://test.invalid/>.hostname = 'test/@aaa'
 FAIL=URL: Setting <https://test.invalid/>.hostname = 'x@x'
@@ -7271,10 +7204,9 @@ FAIL=URL: Setting <sc://test:12/>.host = ''
 FAIL=URL: Setting <sc://test:12/>.hostname = ''
 FAIL=URL: Setting <sc://test@test/>.host = ''
 FAIL=URL: Setting <sc://test@test/>.hostname = ''
+FAIL=URL: Setting <sc://x/>.host = '
 FAIL=URL: Setting <sc://x/>.host = ' ' Non-special scheme
 FAIL=URL: Setting <sc://x/>.host = '	'
-FAIL=URL: Setting <sc://x/>.host = '
-'
 FAIL=URL: Setting <sc://x/>.host = ' '
 FAIL=URL: Setting <sc://x/>.host = '#'
 FAIL=URL: Setting <sc://x/>.host = ''
@@ -7282,10 +7214,9 @@ FAIL=URL: Setting <sc://x/>.host = '/'
 FAIL=URL: Setting <sc://x/>.host = '?'
 FAIL=URL: Setting <sc://x/>.host = '@'
 FAIL=URL: Setting <sc://x/>.host = 'U+df'
+FAIL=URL: Setting <sc://x/>.hostname = '
 FAIL=URL: Setting <sc://x/>.hostname = ' ' Non-special scheme
 FAIL=URL: Setting <sc://x/>.hostname = '	'
-FAIL=URL: Setting <sc://x/>.hostname = '
-'
 FAIL=URL: Setting <sc://x/>.hostname = ' '
 FAIL=URL: Setting <sc://x/>.hostname = '#'
 FAIL=URL: Setting <sc://x/>.hostname = ''
@@ -7388,7 +7319,7 @@ FAIL=URLSearchParams constructed with: %C2x
 FAIL=URLSearchParams constructed with: %FE%FF
 FAIL=URLSearchParams constructed with: %FF%FE
 FAIL=URLSearchParams constructed with: _charset_=windows-1252&test=%C2x
-FAIL=request.formData() with input: 
+FAIL=request.formData() with input:
 FAIL=request.formData() with input: %61+%4d%4D=
 FAIL=request.formData() with input: %61=a
 FAIL=request.formData() with input: %=a
@@ -7423,7 +7354,7 @@ FAIL=request.formData() with input: b=%2%2af%2a
 FAIL=request.formData() with input: b=%2sf%2a
 FAIL=request.formData() with input: id=0&value=%
 FAIL=request.formData() with input: test
-FAIL=response.formData() with input: 
+FAIL=response.formData() with input:
 FAIL=response.formData() with input: %61+%4d%4D=
 FAIL=response.formData() with input: %61=a
 FAIL=response.formData() with input: %=a
