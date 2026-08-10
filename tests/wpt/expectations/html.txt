@@ -284,11 +284,11 @@ harness=TIMEOUT
 [html/browsers/browsing-the-web/navigating-across-documents/012.html]
 harness=TIMEOUT
 [html/browsers/browsing-the-web/navigating-across-documents/013.html]
-FAIL=Link with onclick navigation to javascript url with delayed document.write and href navigation 
+FAIL=Link with onclick navigation to javascript url with delayed document.write and href navigation
 [html/browsers/browsing-the-web/navigating-across-documents/014.html]
-FAIL= Link with javascript onclick form submission script order 
+FAIL= Link with javascript onclick form submission script order
 [html/browsers/browsing-the-web/navigating-across-documents/015.html]
-FAIL= Link with javascript onclick and href script order 
+FAIL= Link with javascript onclick and href script order
 [html/browsers/browsing-the-web/navigating-across-documents/abort-document-load.html]
 FAIL=Aborting a Document load
 [html/browsers/browsing-the-web/navigating-across-documents/abort-document-window-stop.sub.window.html]
@@ -336,7 +336,6 @@ FAIL=CSP check precedes COEP check - CSP header first
 FAIL=CSP check precedes X-Frame-Options check
 [html/browsers/browsing-the-web/navigating-across-documents/form-submit-and-window-stop.html]
 FAIL=The planned navigation of a form should be cancelled by a window stop
-  in the same task as the form submission
 [html/browsers/browsing-the-web/navigating-across-documents/grandparent_location_aboutsrcdoc.sub.window.html]
 harness=TIMEOUT
 [html/browsers/browsing-the-web/navigating-across-documents/grandparent_session_aboutsrcdoc.sub.window.html]
@@ -435,7 +434,6 @@ FAIL=DE0D 0041 set in href="" targeting a frame and clicked
 FAIL=DE0D 0041 set in src=""
 [html/browsers/browsing-the-web/navigating-across-documents/javascript-url-return-value-handling.html]
 FAIL=Test that javascript: evaluation only performs a navigation to the
-  result when the result is a string value.
 [html/browsers/browsing-the-web/navigating-across-documents/javascript-url-security-check-failure.sub.html]
 harness=TIMEOUT
 [html/browsers/browsing-the-web/navigating-across-documents/javascript-url-security-check-multi-globals.sub.html]
@@ -1842,8 +1840,8 @@ FAIL="screenx==141" should set left position of opened window
 FAIL="screeny=142" should set top position of opened window
 FAIL="screeny==142" should set top position of opened window
 [html/browsers/the-window-object/open-close/open-features-tokenization-top-left.html]
-FAIL="
 left= 141" should set left position of opened window
+FAIL="
 FAIL=" left = 141" should set left position of opened window
 FAIL=" top = 142" should set top position of opened window
 FAIL=",,top= 152, left=152" should set top and left position of opened window
@@ -2312,7 +2310,7 @@ harness=TIMEOUT
 FAIL=Auxiliary browsing context created via `window.open` and setting `window.opener` to `null` should report `window.opener` `null`
 FAIL=Auxiliary browsing context created via `window.open` and setting `window.opener` to `test` should report `test`
 [html/browsers/windows/auxiliary-browsing-contexts/opener-setter.window.html]
-FAIL=Setting window.opener to 
+FAIL=Setting window.opener to
 FAIL=Setting window.opener to 42
 FAIL=Setting window.opener to Symbol()
 FAIL=Setting window.opener to [object Object]
@@ -9530,58 +9528,17 @@ FAIL=Popup navigating to other origin with COOP: same-origin and back in history
 FAIL=Open a popup to a document without COOP, then navigate it to a document with
 [html/cross-origin-opener-policy/coop-noopener-allow-popups.https.html]
 FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
-
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 1
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 2
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 3
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 4
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 5
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 6
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee.
- 7
 FAIL=noopener-allow-popups ensures that the opener cannot script the openee, even after a navigation: unsafe-none
 [html/cross-origin-opener-policy/coop-popup-opener-navigates.https.html]
 FAIL=Verify that having the opener navigate instead of the openee also triggers COOP swaps.
 [html/cross-origin-opener-policy/coop-same-origin-allow-popups-document-write.html]
 FAIL=coop-same-origin-allow-popups-document-write
 [html/cross-origin-opener-policy/coop-sandbox-cuts-opener.https.html]
-FAIL=<iframe sandbox="allow-popups allow-scripts allow-same-origin"> 
-  Sandboxed Cross-Origin-Opener-Policy popup should cut the opener if necessary
-
-FAIL=<iframe sandbox="allow-popups allow-scripts"> 
-  Sandboxed Cross-Origin-Opener-Policy popup should cut the opener if necessary
-
+FAIL=<iframe sandbox="allow-popups allow-scripts allow-same-origin">
+FAIL=<iframe sandbox="allow-popups allow-scripts">
 [html/cross-origin-opener-policy/coop-sandbox-redirects-cuts-opener.https.html]
-FAIL=<iframe sandbox="allow-popups allow-scripts allow-same-origin"> 
-  Sandboxed Cross-Origin-Opener-Policy popup should cut the opener if necessary
-  including during redirects.
-
-FAIL=<iframe sandbox="allow-popups allow-scripts"> 
-  Sandboxed Cross-Origin-Opener-Policy popup should cut the opener if necessary
-  including during redirects.
-
+FAIL=<iframe sandbox="allow-popups allow-scripts allow-same-origin">
+FAIL=<iframe sandbox="allow-popups allow-scripts">
 [html/cross-origin-opener-policy/coop-sandbox.https.html]
 harness=TIMEOUT
 [html/cross-origin-opener-policy/header-parsing-failures.https.html]
@@ -10029,15 +9986,6 @@ FAIL=/media/2x2-green.mp4 - parent COOP: "same-origin"; child COOP: ""
 FAIL=/media/2x2-green.mp4 - parent COOP: "same-origin"; child COOP: "same-origin"
 [html/cross-origin-opener-policy/tentative/noopener/coop-noopener-allow-popups-restrict-properties.https.html]
 FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee. This test verfies it for restrict-properties
-    COOP values.
-
-FAIL=
-    Cross-Origin-Opener-Policy: noopener-allow-popups means that the opener
-    has no access to the openee. This test verfies it for restrict-properties
-    COOP values.
- 1
 [html/document-isolation-policy/credentialless-cache-storage-from-credentialless.https.tentative.window.html?dedicated_worker]
 FAIL=[dedicated_worker] isolate-and-credentialless => isolate-and-credentialless
 FAIL=[dedicated_worker] isolate-and-credentialless => isolate-and-require-corp
@@ -11979,7 +11927,7 @@ FAIL=document.title after setting to "two\r\rcarriage returns"
 FAIL=document.title after setting to "two\t\ttabs"
 FAIL=document.title initial value
 [html/dom/documents/dom-tree-accessors/document.title-04.xhtml]
-FAIL= document.title  and space normalization  
+FAIL= document.title  and space normalization
 [html/dom/documents/dom-tree-accessors/document.title-05.html]
 FAIL=Removing whitespace in document.title: U+1680
 FAIL=Removing whitespace in document.title: U+180e
@@ -12906,8 +12854,6 @@ FAIL=Streaming target end marker can be removed mid-stream safely, falling back 
 FAIL=HTML partial updates - :has invalidation with streaming
 [html/dom/partial-updates/tentative/stream-append-positional-pseudo-class-invalidation.html]
 FAIL=
-  HTML partial updates - positional pseudo class invalidation with streaming
-
 [html/dom/partial-updates/tentative/stream-append-with-template-for.html]
 FAIL=streamHTML methods can apply template with for
 [html/dom/partial-updates/tentative/template-for-append-element.html]
@@ -12968,238 +12914,238 @@ FAIL=HTML partial updates - move <?start> while appending has no effect
 [html/dom/partial-updates/tentative/template-for-move-while-appending.html]
 FAIL=Multiple <template for>
 [html/dom/partial-updates/tentative/template-for-multiple-cases.html]
-FAIL=Hash in marker name - contextualFragment 
+FAIL=Hash in marker name - contextualFragment
 FAIL=Hash in marker name - contextualFragment with 2 chunks
 FAIL=Hash in marker name - contextualFragment with 4 chunks
-FAIL=Hash in marker name - iframe 
+FAIL=Hash in marker name - iframe
 FAIL=Hash in marker name - iframe with 2 chunks
 FAIL=Hash in marker name - iframe with 4 chunks
-FAIL=Hash in marker name - innerHTML 
+FAIL=Hash in marker name - innerHTML
 FAIL=Hash in marker name - innerHTML with 2 chunks
 FAIL=Hash in marker name - innerHTML with 4 chunks
-FAIL=Hash in marker name - parse 
+FAIL=Hash in marker name - parse
 FAIL=Hash in marker name - parse with 2 chunks
 FAIL=Hash in marker name - parse with 4 chunks
-FAIL=Hash in marker name - stream 
+FAIL=Hash in marker name - stream
 FAIL=Hash in marker name - stream with 2 chunks
 FAIL=Hash in marker name - stream with 4 chunks
-FAIL=Hash in marker name - template 
+FAIL=Hash in marker name - template
 FAIL=Hash in marker name - template with 2 chunks
 FAIL=Hash in marker name - template with 4 chunks
-FAIL=Interleaved markers (a) - contextualFragment 
+FAIL=Interleaved markers (a) - contextualFragment
 FAIL=Interleaved markers (a) - contextualFragment with 2 chunks
 FAIL=Interleaved markers (a) - contextualFragment with 4 chunks
-FAIL=Interleaved markers (a) - iframe 
+FAIL=Interleaved markers (a) - iframe
 FAIL=Interleaved markers (a) - iframe with 2 chunks
 FAIL=Interleaved markers (a) - iframe with 4 chunks
-FAIL=Interleaved markers (a) - innerHTML 
+FAIL=Interleaved markers (a) - innerHTML
 FAIL=Interleaved markers (a) - innerHTML with 2 chunks
 FAIL=Interleaved markers (a) - innerHTML with 4 chunks
-FAIL=Interleaved markers (a) - parse 
+FAIL=Interleaved markers (a) - parse
 FAIL=Interleaved markers (a) - parse with 2 chunks
 FAIL=Interleaved markers (a) - parse with 4 chunks
-FAIL=Interleaved markers (a) - stream 
+FAIL=Interleaved markers (a) - stream
 FAIL=Interleaved markers (a) - stream with 2 chunks
 FAIL=Interleaved markers (a) - stream with 4 chunks
-FAIL=Interleaved markers (a) - template 
+FAIL=Interleaved markers (a) - template
 FAIL=Interleaved markers (a) - template with 2 chunks
 FAIL=Interleaved markers (a) - template with 4 chunks
-FAIL=Interleaved markers (b) - contextualFragment 
+FAIL=Interleaved markers (b) - contextualFragment
 FAIL=Interleaved markers (b) - contextualFragment with 2 chunks
 FAIL=Interleaved markers (b) - contextualFragment with 4 chunks
-FAIL=Interleaved markers (b) - iframe 
+FAIL=Interleaved markers (b) - iframe
 FAIL=Interleaved markers (b) - iframe with 2 chunks
 FAIL=Interleaved markers (b) - iframe with 4 chunks
-FAIL=Interleaved markers (b) - innerHTML 
+FAIL=Interleaved markers (b) - innerHTML
 FAIL=Interleaved markers (b) - innerHTML with 2 chunks
 FAIL=Interleaved markers (b) - innerHTML with 4 chunks
-FAIL=Interleaved markers (b) - parse 
+FAIL=Interleaved markers (b) - parse
 FAIL=Interleaved markers (b) - parse with 2 chunks
 FAIL=Interleaved markers (b) - parse with 4 chunks
-FAIL=Interleaved markers (b) - stream 
+FAIL=Interleaved markers (b) - stream
 FAIL=Interleaved markers (b) - stream with 2 chunks
 FAIL=Interleaved markers (b) - stream with 4 chunks
-FAIL=Interleaved markers (b) - template 
+FAIL=Interleaved markers (b) - template
 FAIL=Interleaved markers (b) - template with 2 chunks
 FAIL=Interleaved markers (b) - template with 4 chunks
-FAIL=Multiple named markers - contextualFragment 
+FAIL=Multiple named markers - contextualFragment
 FAIL=Multiple named markers - contextualFragment with 2 chunks
 FAIL=Multiple named markers - contextualFragment with 4 chunks
-FAIL=Multiple named markers - iframe 
+FAIL=Multiple named markers - iframe
 FAIL=Multiple named markers - iframe with 2 chunks
 FAIL=Multiple named markers - iframe with 4 chunks
-FAIL=Multiple named markers - innerHTML 
+FAIL=Multiple named markers - innerHTML
 FAIL=Multiple named markers - innerHTML with 2 chunks
 FAIL=Multiple named markers - innerHTML with 4 chunks
-FAIL=Multiple named markers - parse 
+FAIL=Multiple named markers - parse
 FAIL=Multiple named markers - parse with 2 chunks
 FAIL=Multiple named markers - parse with 4 chunks
-FAIL=Multiple named markers - stream 
+FAIL=Multiple named markers - stream
 FAIL=Multiple named markers - stream with 2 chunks
 FAIL=Multiple named markers - stream with 4 chunks
-FAIL=Multiple named markers - template 
+FAIL=Multiple named markers - template
 FAIL=Multiple named markers - template with 2 chunks
 FAIL=Multiple named markers - template with 4 chunks
-FAIL=Multiple named markers with same name only replaces first one - contextualFragment 
+FAIL=Multiple named markers with same name only replaces first one - contextualFragment
 FAIL=Multiple named markers with same name only replaces first one - contextualFragment with 2 chunks
 FAIL=Multiple named markers with same name only replaces first one - contextualFragment with 4 chunks
-FAIL=Multiple named markers with same name only replaces first one - iframe 
+FAIL=Multiple named markers with same name only replaces first one - iframe
 FAIL=Multiple named markers with same name only replaces first one - iframe with 2 chunks
 FAIL=Multiple named markers with same name only replaces first one - iframe with 4 chunks
-FAIL=Multiple named markers with same name only replaces first one - innerHTML 
+FAIL=Multiple named markers with same name only replaces first one - innerHTML
 FAIL=Multiple named markers with same name only replaces first one - innerHTML with 2 chunks
 FAIL=Multiple named markers with same name only replaces first one - innerHTML with 4 chunks
-FAIL=Multiple named markers with same name only replaces first one - parse 
+FAIL=Multiple named markers with same name only replaces first one - parse
 FAIL=Multiple named markers with same name only replaces first one - parse with 2 chunks
 FAIL=Multiple named markers with same name only replaces first one - parse with 4 chunks
-FAIL=Multiple named markers with same name only replaces first one - stream 
+FAIL=Multiple named markers with same name only replaces first one - stream
 FAIL=Multiple named markers with same name only replaces first one - stream with 2 chunks
 FAIL=Multiple named markers with same name only replaces first one - stream with 4 chunks
-FAIL=Multiple named markers with same name only replaces first one - template 
+FAIL=Multiple named markers with same name only replaces first one - template
 FAIL=Multiple named markers with same name only replaces first one - template with 2 chunks
 FAIL=Multiple named markers with same name only replaces first one - template with 4 chunks
-FAIL=Multiple templates for same marker - contextualFragment 
+FAIL=Multiple templates for same marker - contextualFragment
 FAIL=Multiple templates for same marker - contextualFragment with 2 chunks
 FAIL=Multiple templates for same marker - contextualFragment with 4 chunks
-FAIL=Multiple templates for same marker - iframe 
+FAIL=Multiple templates for same marker - iframe
 FAIL=Multiple templates for same marker - iframe with 2 chunks
 FAIL=Multiple templates for same marker - iframe with 4 chunks
-FAIL=Multiple templates for same marker - innerHTML 
+FAIL=Multiple templates for same marker - innerHTML
 FAIL=Multiple templates for same marker - innerHTML with 2 chunks
 FAIL=Multiple templates for same marker - innerHTML with 4 chunks
-FAIL=Multiple templates for same marker - parse 
+FAIL=Multiple templates for same marker - parse
 FAIL=Multiple templates for same marker - parse with 2 chunks
 FAIL=Multiple templates for same marker - parse with 4 chunks
-FAIL=Multiple templates for same marker - stream 
+FAIL=Multiple templates for same marker - stream
 FAIL=Multiple templates for same marker - stream with 2 chunks
 FAIL=Multiple templates for same marker - stream with 4 chunks
-FAIL=Multiple templates for same marker - template 
+FAIL=Multiple templates for same marker - template
 FAIL=Multiple templates for same marker - template with 2 chunks
 FAIL=Multiple templates for same marker - template with 4 chunks
-FAIL=Nested named markers - replace inner - contextualFragment 
+FAIL=Nested named markers - replace inner - contextualFragment
 FAIL=Nested named markers - replace inner - contextualFragment with 2 chunks
 FAIL=Nested named markers - replace inner - contextualFragment with 4 chunks
-FAIL=Nested named markers - replace inner - iframe 
+FAIL=Nested named markers - replace inner - iframe
 FAIL=Nested named markers - replace inner - iframe with 2 chunks
 FAIL=Nested named markers - replace inner - iframe with 4 chunks
-FAIL=Nested named markers - replace inner - innerHTML 
+FAIL=Nested named markers - replace inner - innerHTML
 FAIL=Nested named markers - replace inner - innerHTML with 2 chunks
 FAIL=Nested named markers - replace inner - innerHTML with 4 chunks
-FAIL=Nested named markers - replace inner - parse 
+FAIL=Nested named markers - replace inner - parse
 FAIL=Nested named markers - replace inner - parse with 2 chunks
 FAIL=Nested named markers - replace inner - parse with 4 chunks
-FAIL=Nested named markers - replace inner - stream 
+FAIL=Nested named markers - replace inner - stream
 FAIL=Nested named markers - replace inner - stream with 2 chunks
 FAIL=Nested named markers - replace inner - stream with 4 chunks
-FAIL=Nested named markers - replace inner - template 
+FAIL=Nested named markers - replace inner - template
 FAIL=Nested named markers - replace inner - template with 2 chunks
 FAIL=Nested named markers - replace inner - template with 4 chunks
-FAIL=Nested named markers - replace outer - contextualFragment 
+FAIL=Nested named markers - replace outer - contextualFragment
 FAIL=Nested named markers - replace outer - contextualFragment with 2 chunks
 FAIL=Nested named markers - replace outer - contextualFragment with 4 chunks
-FAIL=Nested named markers - replace outer - iframe 
+FAIL=Nested named markers - replace outer - iframe
 FAIL=Nested named markers - replace outer - iframe with 2 chunks
 FAIL=Nested named markers - replace outer - iframe with 4 chunks
-FAIL=Nested named markers - replace outer - innerHTML 
+FAIL=Nested named markers - replace outer - innerHTML
 FAIL=Nested named markers - replace outer - innerHTML with 2 chunks
 FAIL=Nested named markers - replace outer - innerHTML with 4 chunks
-FAIL=Nested named markers - replace outer - parse 
+FAIL=Nested named markers - replace outer - parse
 FAIL=Nested named markers - replace outer - parse with 2 chunks
 FAIL=Nested named markers - replace outer - parse with 4 chunks
-FAIL=Nested named markers - replace outer - stream 
+FAIL=Nested named markers - replace outer - stream
 FAIL=Nested named markers - replace outer - stream with 2 chunks
 FAIL=Nested named markers - replace outer - stream with 4 chunks
-FAIL=Nested named markers - replace outer - template 
+FAIL=Nested named markers - replace outer - template
 FAIL=Nested named markers - replace outer - template with 2 chunks
 FAIL=Nested named markers - replace outer - template with 4 chunks
-FAIL=Simple replacement with only start - contextualFragment 
+FAIL=Simple replacement with only start - contextualFragment
 FAIL=Simple replacement with only start - contextualFragment with 2 chunks
 FAIL=Simple replacement with only start - contextualFragment with 4 chunks
-FAIL=Simple replacement with only start - iframe 
+FAIL=Simple replacement with only start - iframe
 FAIL=Simple replacement with only start - iframe with 2 chunks
 FAIL=Simple replacement with only start - iframe with 4 chunks
-FAIL=Simple replacement with only start - innerHTML 
+FAIL=Simple replacement with only start - innerHTML
 FAIL=Simple replacement with only start - innerHTML with 2 chunks
 FAIL=Simple replacement with only start - innerHTML with 4 chunks
-FAIL=Simple replacement with only start - parse 
+FAIL=Simple replacement with only start - parse
 FAIL=Simple replacement with only start - parse with 2 chunks
 FAIL=Simple replacement with only start - parse with 4 chunks
-FAIL=Simple replacement with only start - stream 
+FAIL=Simple replacement with only start - stream
 FAIL=Simple replacement with only start - stream with 2 chunks
 FAIL=Simple replacement with only start - stream with 4 chunks
-FAIL=Simple replacement with only start - template 
+FAIL=Simple replacement with only start - template
 FAIL=Simple replacement with only start - template with 2 chunks
 FAIL=Simple replacement with only start - template with 4 chunks
-FAIL=Simple replacement with start and end - contextualFragment 
+FAIL=Simple replacement with start and end - contextualFragment
 FAIL=Simple replacement with start and end - contextualFragment with 2 chunks
 FAIL=Simple replacement with start and end - contextualFragment with 4 chunks
-FAIL=Simple replacement with start and end - iframe 
+FAIL=Simple replacement with start and end - iframe
 FAIL=Simple replacement with start and end - iframe with 2 chunks
 FAIL=Simple replacement with start and end - iframe with 4 chunks
-FAIL=Simple replacement with start and end - innerHTML 
+FAIL=Simple replacement with start and end - innerHTML
 FAIL=Simple replacement with start and end - innerHTML with 2 chunks
 FAIL=Simple replacement with start and end - innerHTML with 4 chunks
-FAIL=Simple replacement with start and end - parse 
+FAIL=Simple replacement with start and end - parse
 FAIL=Simple replacement with start and end - parse with 2 chunks
 FAIL=Simple replacement with start and end - parse with 4 chunks
-FAIL=Simple replacement with start and end - stream 
+FAIL=Simple replacement with start and end - stream
 FAIL=Simple replacement with start and end - stream with 2 chunks
 FAIL=Simple replacement with start and end - stream with 4 chunks
-FAIL=Simple replacement with start and end - template 
+FAIL=Simple replacement with start and end - template
 FAIL=Simple replacement with start and end - template with 2 chunks
 FAIL=Simple replacement with start and end - template with 4 chunks
-FAIL=Void marker at end - contextualFragment 
+FAIL=Void marker at end - contextualFragment
 FAIL=Void marker at end - contextualFragment with 2 chunks
 FAIL=Void marker at end - contextualFragment with 4 chunks
-FAIL=Void marker at end - iframe 
+FAIL=Void marker at end - iframe
 FAIL=Void marker at end - iframe with 2 chunks
 FAIL=Void marker at end - iframe with 4 chunks
-FAIL=Void marker at end - innerHTML 
+FAIL=Void marker at end - innerHTML
 FAIL=Void marker at end - innerHTML with 2 chunks
 FAIL=Void marker at end - innerHTML with 4 chunks
-FAIL=Void marker at end - parse 
+FAIL=Void marker at end - parse
 FAIL=Void marker at end - parse with 2 chunks
 FAIL=Void marker at end - parse with 4 chunks
-FAIL=Void marker at end - stream 
+FAIL=Void marker at end - stream
 FAIL=Void marker at end - stream with 2 chunks
 FAIL=Void marker at end - stream with 4 chunks
-FAIL=Void marker at end - template 
+FAIL=Void marker at end - template
 FAIL=Void marker at end - template with 2 chunks
 FAIL=Void marker at end - template with 4 chunks
-FAIL=Void marker at start - contextualFragment 
+FAIL=Void marker at start - contextualFragment
 FAIL=Void marker at start - contextualFragment with 2 chunks
 FAIL=Void marker at start - contextualFragment with 4 chunks
-FAIL=Void marker at start - iframe 
+FAIL=Void marker at start - iframe
 FAIL=Void marker at start - iframe with 2 chunks
 FAIL=Void marker at start - iframe with 4 chunks
-FAIL=Void marker at start - innerHTML 
+FAIL=Void marker at start - innerHTML
 FAIL=Void marker at start - innerHTML with 2 chunks
 FAIL=Void marker at start - innerHTML with 4 chunks
-FAIL=Void marker at start - parse 
+FAIL=Void marker at start - parse
 FAIL=Void marker at start - parse with 2 chunks
 FAIL=Void marker at start - parse with 4 chunks
-FAIL=Void marker at start - stream 
+FAIL=Void marker at start - stream
 FAIL=Void marker at start - stream with 2 chunks
 FAIL=Void marker at start - stream with 4 chunks
-FAIL=Void marker at start - template 
+FAIL=Void marker at start - template
 FAIL=Void marker at start - template with 2 chunks
 FAIL=Void marker at start - template with 4 chunks
-FAIL=Void marker in the middle - contextualFragment 
+FAIL=Void marker in the middle - contextualFragment
 FAIL=Void marker in the middle - contextualFragment with 2 chunks
 FAIL=Void marker in the middle - contextualFragment with 4 chunks
-FAIL=Void marker in the middle - iframe 
+FAIL=Void marker in the middle - iframe
 FAIL=Void marker in the middle - iframe with 2 chunks
 FAIL=Void marker in the middle - iframe with 4 chunks
-FAIL=Void marker in the middle - innerHTML 
+FAIL=Void marker in the middle - innerHTML
 FAIL=Void marker in the middle - innerHTML with 2 chunks
 FAIL=Void marker in the middle - innerHTML with 4 chunks
-FAIL=Void marker in the middle - parse 
+FAIL=Void marker in the middle - parse
 FAIL=Void marker in the middle - parse with 2 chunks
 FAIL=Void marker in the middle - parse with 4 chunks
-FAIL=Void marker in the middle - stream 
+FAIL=Void marker in the middle - stream
 FAIL=Void marker in the middle - stream with 2 chunks
 FAIL=Void marker in the middle - stream with 4 chunks
-FAIL=Void marker in the middle - template 
+FAIL=Void marker in the middle - template
 FAIL=Void marker in the middle - template with 2 chunks
 FAIL=Void marker in the middle - template with 4 chunks
 [html/dom/partial-updates/tentative/template-for-multiple.html]
@@ -49062,11 +49008,6 @@ FAIL=dropEffect is correctly set when it matches effectAllowed 1
 FAIL=dropEffect is correctly set when it matches effectAllowed 2
 [html/editing/dnd/drop/002.xhtml]
 FAIL=Text input selection drag and drop: allowed effects
-    'copy','move','link'
-FAIL=Text input selection drag and drop: allowed effects
-    'copy','move','link' 1
-FAIL=Text input selection drag and drop: allowed effects
-    'copy','move','link' 2
 [html/editing/dnd/drop/003.xhtml]
 FAIL=dropEffect matches effectAllowed for link drag and drop
 FAIL=dropEffect matches effectAllowed for link drag and drop 1
@@ -49193,7 +49134,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/editing/dnd/layoutshift/001.html]
 FAIL=Causing a layout shift on the canvas element during drag and drop
-    should not prevent the drag
 [html/editing/dnd/platform/mousedown-drag-select-input-display-change.html]
 FAIL=text click after selecting some characters should collapse selection to middle of the value
 FAIL=text click after selecting some characters should collapse selection to start
@@ -51508,11 +51448,11 @@ FAIL=in-fieldset-second-child: width
 FAIL=rendered-legend: paddingLeft
 FAIL=rendered-legend: paddingRight
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/min-inline-size.html]
-FAIL=horizontal-tb 
+FAIL=horizontal-tb
 FAIL=horizontal-tb override
-FAIL=vertical-lr 
+FAIL=vertical-lr
 FAIL=vertical-lr override
-FAIL=vertical-rl 
+FAIL=vertical-rl
 FAIL=vertical-rl override
 [html/rendering/non-replaced-elements/the-frameset-and-frame-elements/exceed-then-not-exceed.html]
 FAIL=No crash when a dirty FRAMESET exceeds from the grid then fits in it again
@@ -51658,268 +51598,268 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/rendering/replaced-elements/svg-inline-sizing/svg-inline.html]
 FAIL=(initial values)
-FAIL=containerHeightStyle: '400px', 
-FAIL=containerHeightStyle: '400px', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgHeightAttr: '200', 
-FAIL=svgHeightAttr: '25%', 
-FAIL=svgHeightStyle: '100px', 
-FAIL=svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=svgHeightStyle: '100px', svgWidthAttr: '25%', 
-FAIL=svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgHeightStyle: '50%', 
-FAIL=svgHeightStyle: '50%', svgHeightAttr: '200', 
-FAIL=svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgWidthAttr: '200', 
-FAIL=svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgWidthAttr: '25%', 
-FAIL=svgWidthAttr: '25%', svgHeightAttr: '200', 
-FAIL=svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '100px', 
-FAIL=svgWidthStyle: '100px', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgWidthAttr: '200', 
-FAIL=svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgWidthAttr: '25%', 
-FAIL=svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '50%', 
-FAIL=svgWidthStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgWidthAttr: '200', 
-FAIL=svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgWidthAttr: '25%', 
-FAIL=svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%', 
+FAIL=containerHeightStyle: '400px',
+FAIL=containerHeightStyle: '400px', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthAttr: '200',
+FAIL=containerHeightStyle: '400px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', containerHeightStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=containerWidthStyle: '400px', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgHeightAttr: '200',
+FAIL=svgHeightAttr: '25%',
+FAIL=svgHeightStyle: '100px',
+FAIL=svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=svgHeightStyle: '100px', svgWidthAttr: '25%',
+FAIL=svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgHeightStyle: '50%',
+FAIL=svgHeightStyle: '50%', svgHeightAttr: '200',
+FAIL=svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgViewBoxAttr: '0 0 100 200', svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgWidthAttr: '200',
+FAIL=svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgWidthAttr: '25%',
+FAIL=svgWidthAttr: '25%', svgHeightAttr: '200',
+FAIL=svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '100px',
+FAIL=svgWidthStyle: '100px', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgWidthAttr: '200',
+FAIL=svgWidthStyle: '100px', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgWidthAttr: '25%',
+FAIL=svgWidthStyle: '100px', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '50%',
+FAIL=svgWidthStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '200',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgHeightStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgWidthAttr: '200',
+FAIL=svgWidthStyle: '50%', svgWidthAttr: '200', svgHeightAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgWidthAttr: '25%',
+FAIL=svgWidthStyle: '50%', svgWidthAttr: '25%', svgHeightAttr: '25%',
 [html/rendering/replaced-elements/the-textarea-element/textarea-defaults-to-zero-margin.tentative.html]
 FAIL=HTML textarea should default to having 0px as computed value for all margin properties
 [html/rendering/the-css-user-agent-style-sheet-and-presentational-hints/mouse-cursor-imagemap.html]
@@ -52272,13 +52212,6 @@ FAIL=Trusted click on <input>, observed from <input>
 FAIL=Trusted click on <my-control disabled="">Text</my-control>, observed from <body>
 FAIL=Trusted click on <my-control disabled="">Text</my-control>, observed from <my-control>
 FAIL=Trusted click on <select disabled="">
-    <!-- <option> can't be clicked as it doesn't have its own painting area -->
-    <option>foo</option>
-  </select>, observed from <body>
-FAIL=Trusted click on <select disabled="">
-    <!-- <option> can't be clicked as it doesn't have its own painting area -->
-    <option>foo</option>
-  </select>, observed from <select>
 FAIL=Trusted click on <select disabled=""></select>, observed from <body>
 FAIL=Trusted click on <select disabled=""></select>, observed from <select>
 FAIL=Trusted click on <textarea disabled=""></textarea>, observed from <body>
@@ -52297,9 +52230,6 @@ FAIL=Script-created render-blocking link stylesheet is not script-blocking
 FAIL=Script-created render-blocking style element is not script-blocking
 [html/semantics/document-metadata/interactions-of-styling-and-scripting/link-stylesheet-with-non-match-media-does-not-block-render.tentative.html]
 FAIL=
-  Delayed Stylesheet imported using link tag should not block rendering
-  or JS execution when media doesn't match.
-
 [html/semantics/document-metadata/interactions-of-styling-and-scripting/script-created-link-stylesheet-does-not-block-script.html]
 FAIL=Script-created link stylesheet is not script-blocking
 [html/semantics/document-metadata/interactions-of-styling-and-scripting/script-created-style-element-does-not-block-script.html]
@@ -53621,7 +53551,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-in-script-disabled-iframe.html]
 FAIL=Iframes with loading='lazy' in script disabled iframe are not handled
-       as 'lazy'
 [html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-in-scroller-horizontal.html]
 FAIL=Test that lazy-loaded iframes load when near viewport.
 [html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-in-scroller-nested-2.html]
@@ -53779,9 +53708,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/embedded-content/the-iframe-element/same-origin-contextual-fragment.html]
 FAIL=
-      HTML5 Sandbox: an iframe with same-origin and no allow-scripts does not
-      run scripts from a contextual fragment.
-    
 [html/semantics/embedded-content/the-iframe-element/same_origin_parentage.html]
 FAIL=Check the frame heriarchy
 FAIL=Check the frame heriarchy 1
@@ -54017,13 +53943,10 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-in-cross-origin-iframe-001.sub.html]
 FAIL=A below-viewport loading=lazy image in a cross origin iframe loads only
-       when scrolled into viewport
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-in-cross-origin-iframe-002.sub.html]
 FAIL=A loading=lazy image in a below-viewport cross-origin iframe loads only
-       when the cross-origin iframe is scrolled into view
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-in-script-disabled-iframe.html]
 FAIL=Images with loading='lazy' in script disabled iframe are not handled
-       as 'lazy'
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-in-scroller-horizontal.html]
 FAIL=Test that lazy-loaded images load when near viewport.
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-in-scroller-nested-2.html]
@@ -54044,7 +53967,6 @@ harness=TIMEOUT
 FAIL=Moving loading='lazy' image into another top level document
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-move-into-script-disabled-iframe.html]
 FAIL=A loading='lazy' image starts loading when the element is moved into
-       an iframe where script is disabled
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-multicol.html]
 FAIL=Test that images with loading='lazy' under multicol load once they enter the viewport.
 [html/semantics/embedded-content/the-img-element/image-loading-lazy-negative-margin.html]
@@ -55802,41 +55724,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/forms/form-submission-0/newline-normalization.html]
 FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \n in the filename
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \n in the name
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \n in the value
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \n\r in the filename
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \n\r in the name
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \n\r in the value
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \r in the filename
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \r in the name
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \r in the value
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \r\n in the filename
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \r\n in the name
-FAIL=
-      Constructing the entry list shouldn't perform newline normalization
-    : \r\n in the value
 [html/semantics/forms/form-submission-0/reparent-form-during-planned-navigation-task.html]
 FAIL=reparent-form-during-planned-navigation-task
 [html/semantics/forms/form-submission-0/request-submit-activation.html]
@@ -57312,7 +57199,7 @@ FAIL=Performing stepDown() beyond the value of the min attribute
 FAIL=Performing stepUp()
 FAIL=Performing stepUp() beyond the value of the max attribute
 FAIL=Solving the step mismatch
-FAIL=Step scale factor behavior when min attribute has integer value but max attribute is non-integer 
+FAIL=Step scale factor behavior when min attribute has integer value but max attribute is non-integer
 FAIL=The default step scale factor is 1, unless min attribute has non-integer value
 FAIL=default value of max attribute in input type=range
 FAIL=default value of min attribute in input type=range
@@ -57431,23 +57318,23 @@ FAIL=step attribute on default value check
 FAIL=step attribute support on input element
 FAIL=stepDown argument 2 times
 FAIL=stepDown function support on input Element
-FAIL=stepDown on step value 24 hour 
-FAIL=stepDown on step value hour 
+FAIL=stepDown on step value 24 hour
+FAIL=stepDown on step value hour
 FAIL=stepDown on step value minus
-FAIL=stepDown on step value second 
+FAIL=stepDown on step value second
 FAIL=stepDown on step value with fractional seconds
-FAIL=stepDown on step value zero 
+FAIL=stepDown on step value zero
 FAIL=stepDown step value empty default step value
 FAIL=stepDown stop so lower than the minimum value
 FAIL=stepUp argument 2 times
 FAIL=stepUp function support on input Element
 FAIL=stepUp on step value 24 hour
-FAIL=stepUp on step value hour  
+FAIL=stepUp on step value hour
 FAIL=stepUp on step value minus
-FAIL=stepUp on step value second 
+FAIL=stepUp on step value second
 FAIL=stepUp on step value with fractional seconds
-FAIL=stepUp on step value zero 
-FAIL=stepUp step value empty on default step value 
+FAIL=stepUp on step value zero
+FAIL=stepUp step value empty on default step value
 FAIL=stepUp stop because it exceeds the maximum value
 FAIL=stop at border on stepDown
 FAIL=stop at border on stepUp
@@ -58721,21 +58608,9 @@ FAIL=Textarea hard-wrapping should honor the col count unconditionally,
 FAIL=Textarea wrapping transformation: Newlines should be normalized to LF.
 FAIL=Textarea wrapping transformation: Wrapping happens with LF newlines.
 FAIL=Textarea wrapping transformation: wrapping round-trips: One
-two
-three
-intermingled
-
-lines
-and so
 FAIL=Textarea wrapping transformation: wrapping round-trips: Some text that is too long for the
-
-
-specified character width.
 FAIL=Textarea wrapping transformation: wrapping round-trips: Some text that is too long for the specified character width.
 FAIL=Textarea wrapping transformation: wrapping round-trips: exact  len
-FAIL=Textarea wrapping transformation: wrapping round-trips: exact  len
-and then
-some
 [html/semantics/grouping-content/the-dl-element/grouping-dl.html]
 FAIL=The prototype for dl is HTMLDListElement.prototype
 [html/semantics/grouping-content/the-hr-element/grouping-hr.html]
@@ -64188,7 +64063,7 @@ FAIL=A script with an empty element inserted bails early, before setting already
 FAIL=A script with an empty text node inserted bails early, before setting already-started, so can be executed when adding text
 FAIL=A script with no children bails early, before setting already-started, so can be executed when adding text
 [html/semantics/scripting-1/the-script-element/execution-timing/005.html]
-FAIL= scheduler: document.write inline in markup 
+FAIL= scheduler: document.write inline in markup
 [html/semantics/scripting-1/the-script-element/execution-timing/006.html]
 FAIL= scheduler: document.write inline - multiple
 [html/semantics/scripting-1/the-script-element/execution-timing/007.html]
@@ -64202,7 +64077,7 @@ FAIL= scheduler: document.write external + inline - multiple with doc.write
 [html/semantics/scripting-1/the-script-element/execution-timing/011.html]
 FAIL= scheduler: document.write external + inline - multiple with doc.write + subsequent markup
 [html/semantics/scripting-1/the-script-element/execution-timing/012.html]
-FAIL= scheduler: document.write external and onload events 
+FAIL= scheduler: document.write external and onload events
 [html/semantics/scripting-1/the-script-element/execution-timing/013.html]
 FAIL= scheduler: DOM added inline script earlier in document
 [html/semantics/scripting-1/the-script-element/execution-timing/015.html]
@@ -64248,21 +64123,21 @@ FAIL= scheduler: IFRAMEs added with DOM (innerHTML), javascript: URL
 [html/semantics/scripting-1/the-script-element/execution-timing/041.html]
 FAIL= scheduler: document.write scripts that write scripts
 [html/semantics/scripting-1/the-script-element/execution-timing/047.html]
-FAIL= scheduler: adding and removing external script 
+FAIL= scheduler: adding and removing external script
 [html/semantics/scripting-1/the-script-element/execution-timing/048.html]
-FAIL= scheduler: adding inline script which sets its own .src 
+FAIL= scheduler: adding inline script which sets its own .src
 [html/semantics/scripting-1/the-script-element/execution-timing/049.html]
 FAIL= scheduler: adding external script but removeAttribute( src ) before it runs
 [html/semantics/scripting-1/the-script-element/execution-timing/052.html]
-FAIL= scheduler: interaction of parsing and script execution - external script 
+FAIL= scheduler: interaction of parsing and script execution - external script
 [html/semantics/scripting-1/the-script-element/execution-timing/056.html]
-FAIL= scheduler: appending code to initially empty SCRIPT tag in DOM 
+FAIL= scheduler: appending code to initially empty SCRIPT tag in DOM
 [html/semantics/scripting-1/the-script-element/execution-timing/061.html]
 FAIL= scheduler: cloneNode and script execution
 [html/semantics/scripting-1/the-script-element/execution-timing/062.html]
 FAIL= scheduler: cloneNode (shallow) and script execution
 [html/semantics/scripting-1/the-script-element/execution-timing/063.html]
-FAIL= scheduler: cloneNode (deep) of the currently executing script 
+FAIL= scheduler: cloneNode (deep) of the currently executing script
 [html/semantics/scripting-1/the-script-element/execution-timing/064.html]
 FAIL= scheduler: cloneNode with external script
 [html/semantics/scripting-1/the-script-element/execution-timing/065.html]
@@ -64270,7 +64145,7 @@ FAIL= scheduler: cloneNode with external script, changed .src
 [html/semantics/scripting-1/the-script-element/execution-timing/066.html]
 FAIL= scheduler: cloneNode with external script, removing .src and adding content
 [html/semantics/scripting-1/the-script-element/execution-timing/067.html]
-FAIL= scheduler: is a script with syntax error marked as "has run"? 
+FAIL= scheduler: is a script with syntax error marked as "has run"?
 [html/semantics/scripting-1/the-script-element/execution-timing/068.html]
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/execution-timing/070.html]
@@ -64284,15 +64159,15 @@ harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/execution-timing/074.html]
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/execution-timing/075.html]
-FAIL=dispatchEvent from child frame during document.write :-o 
+FAIL=dispatchEvent from child frame during document.write :-o
 [html/semantics/scripting-1/the-script-element/execution-timing/076.html]
-FAIL= scheduler: adding and removing external and inline scripts 
+FAIL= scheduler: adding and removing external and inline scripts
 [html/semantics/scripting-1/the-script-element/execution-timing/077.html]
-FAIL= adding several types of scripts through the DOM and removing some of them confuses scheduler 
+FAIL= adding several types of scripts through the DOM and removing some of them confuses scheduler
 [html/semantics/scripting-1/the-script-element/execution-timing/078.html]
-FAIL= adding several types of scripts through the DOM and removing some of them confuses scheduler (slow-loading scripts) 
+FAIL= adding several types of scripts through the DOM and removing some of them confuses scheduler (slow-loading scripts)
 [html/semantics/scripting-1/the-script-element/execution-timing/079.html]
-FAIL= setting location to javascript URL from event handler 
+FAIL= setting location to javascript URL from event handler
 [html/semantics/scripting-1/the-script-element/execution-timing/082.html]
 FAIL= scheduler: multiple slow loading external scripts added with DOM (appendChild)
 [html/semantics/scripting-1/the-script-element/execution-timing/083.html]
@@ -64348,7 +64223,7 @@ FAIL= scheduler: javascript URL in iframe, src set via DOM
 [html/semantics/scripting-1/the-script-element/execution-timing/111.html]
 FAIL= scheduler: removing async attribute at runtime
 [html/semantics/scripting-1/the-script-element/execution-timing/114.html]
-FAIL= scheduler: Changing src of defer script before it runs 
+FAIL= scheduler: Changing src of defer script before it runs
 [html/semantics/scripting-1/the-script-element/execution-timing/116.html]
 FAIL=scheduler: adding script to head of frameset document
 [html/semantics/scripting-1/the-script-element/execution-timing/117.html]
@@ -64361,27 +64236,27 @@ FAIL=scheduler: external defer script created with createContextualFragment
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/execution-timing/122.html]
 FAIL=Reinserted script async IDL attribute
-FAIL=scheduler: altering the type attribute and adding/removing external script 
+FAIL=scheduler: altering the type attribute and adding/removing external script
 [html/semantics/scripting-1/the-script-element/execution-timing/124.html]
-FAIL=scheduler: altering the type attribute and changing script data inline script 
+FAIL=scheduler: altering the type attribute and changing script data inline script
 [html/semantics/scripting-1/the-script-element/execution-timing/126.html]
-FAIL=scheduler: altering the type attribute and changing script data external script async=false 
+FAIL=scheduler: altering the type attribute and changing script data external script async=false
 [html/semantics/scripting-1/the-script-element/execution-timing/127.html]
-FAIL=scheduler: appending non-text children to script 
+FAIL=scheduler: appending non-text children to script
 [html/semantics/scripting-1/the-script-element/execution-timing/128.html]
-FAIL=scheduler: appending script element to script 
+FAIL=scheduler: appending script element to script
 [html/semantics/scripting-1/the-script-element/execution-timing/129.html]
 FAIL=scheduler: appending multiple script elements
 [html/semantics/scripting-1/the-script-element/execution-timing/130.html]
-FAIL=scheduler: appending external script element to script 
+FAIL=scheduler: appending external script element to script
 [html/semantics/scripting-1/the-script-element/execution-timing/132.html]
-FAIL=scheduler: external svg script 
+FAIL=scheduler: external svg script
 [html/semantics/scripting-1/the-script-element/execution-timing/133.html]
-FAIL=scheduler: inline HTML script added by SVG script 
+FAIL=scheduler: inline HTML script added by SVG script
 [html/semantics/scripting-1/the-script-element/execution-timing/135.html]
-FAIL=scheduler: external SVG script added by SVG script 
+FAIL=scheduler: external SVG script added by SVG script
 [html/semantics/scripting-1/the-script-element/execution-timing/136.html]
-FAIL=scheduler: DOM added external SVG script, force-async? 
+FAIL=scheduler: DOM added external SVG script, force-async?
 [html/semantics/scripting-1/the-script-element/execution-timing/137.html]
 FAIL=scheduler: SVG script empty xlink:href
 [html/semantics/scripting-1/the-script-element/execution-timing/138.html]
@@ -64391,24 +64266,20 @@ FAIL=scheduler: SVG script nested external in inline
 [html/semantics/scripting-1/the-script-element/execution-timing/140.html]
 FAIL=scheduler: SVG script nested inline in external
 [html/semantics/scripting-1/the-script-element/execution-timing/141.html]
-FAIL=scheduler: SVG inline script that document.writes inline script 
+FAIL=scheduler: SVG inline script that document.writes inline script
 [html/semantics/scripting-1/the-script-element/execution-timing/142.html]
-FAIL=scheduler: SVG inline script that document.writes external script 
+FAIL=scheduler: SVG inline script that document.writes external script
 [html/semantics/scripting-1/the-script-element/execution-timing/143.html]
-FAIL=scheduler: SVG nested inline script that document.writes inline script 
+FAIL=scheduler: SVG nested inline script that document.writes inline script
 [html/semantics/scripting-1/the-script-element/execution-timing/146-href.html]
-FAIL=scheduler: SVG script adding src attribute 
+FAIL=scheduler: SVG script adding src attribute
 [html/semantics/scripting-1/the-script-element/execution-timing/146.html]
-FAIL=scheduler: SVG script adding src attribute 
+FAIL=scheduler: SVG script adding src attribute
 [html/semantics/scripting-1/the-script-element/execution-timing/148.html]
-FAIL=scheduler: insert multiple inline scripts; first script deletes subsequent script 
+FAIL=scheduler: insert multiple inline scripts; first script deletes subsequent script
 [html/semantics/scripting-1/the-script-element/execution-timing/149.html]
-FAIL=for='  WINdow	
-' event='ONload	
-' dom inserted executes immediately
-FAIL=for='  WINdow	
-' event='ONload	
-' parser inserted executes immediately
+' event='ONload
+FAIL=for='  WINdow
 FAIL=for='window' event='onload' dom inserted executes immediately
 FAIL=for='window' event='onload' parser inserted executes immediately
 FAIL=for='window' event='onload()' dom inserted executes immediately
@@ -64552,7 +64423,6 @@ FAIL=Root module, Error in CORS-same-origin script
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/module/custom-element-exception.html]
 FAIL=Test that exceptions from the constructor of a custom element inside a module are propagated as expected.
-
 [html/semantics/scripting-1/the-script-element/module/duplicated-imports-1.html]
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/module/duplicated-imports-2.html]
@@ -64698,16 +64568,12 @@ FAIL=instantiation error has higher priority than evaluation error
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/module/evaluation-error-1.html]
 FAIL=Test that exceptions during evaluation lead to error events on window, and that exceptions are remembered.
-
 [html/semantics/scripting-1/the-script-element/module/evaluation-error-2.html]
 FAIL=Test that ill-founded cyclic dependencies cause ReferenceError during evaluation, which leads to error events on window, and that exceptions are remembered.
-
 [html/semantics/scripting-1/the-script-element/module/evaluation-error-3.html]
 FAIL=Test that exceptions during evaluation lead to error events on window, and that exceptions are remembered.
-
 [html/semantics/scripting-1/the-script-element/module/evaluation-error-4.html]
 FAIL=Test that exceptions during evaluation lead to error events on window, and that exceptions are remembered.
-
 [html/semantics/scripting-1/the-script-element/module/evaluation-error-5.html]
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/module/execorder.html]
@@ -65738,6 +65604,7 @@ FAIL=Template element as a descendant of the frameset element. Test template ele
 [html/semantics/scripting-1/the-template-element/template-element/template-descendant-head.html]
 FAIL=Template element as a descendant of the head element. Test loading from a file
 [html/semantics/sections/headingoffset-and-headingreset.html]
+<!-- Level 9, h6 + 2 + 2 = (10 clamped to 9) -->
 FAIL=case 10: heading level for <h2 data-expected-offset="9"><!-- Level 9, h2 + 8 (clamped) --></h2> should match based on expected document structure
 FAIL=case 11: heading level for <h3 data-expected-offset="9"><!-- Level 9, h3 + 8 (clamped) --></h3> should match based on expected document structure
 FAIL=case 12: heading level for <h4 data-expected-offset="9"><!-- Level 9, h4 + 8 (clamped) --></h4> should match based on expected document structure
@@ -65761,19 +65628,11 @@ FAIL=case 28: heading level for <h4 data-expected-offset="8"><!-- Level 8, h4 + 
 FAIL=case 29: heading level for <h5 data-expected-offset="9"><!-- Level 9, h5 + 2 + 2 = 9 --></h5> should match based on expected document structure
 FAIL=case 2: heading level for <h2 data-expected-offset="3"><!-- Level 3, h2 + 1 = 3 --></h2> should match based on expected document structure
 FAIL=case 30: heading level for <h6 data-expected-offset="9">
-        <!-- Level 9, h6 + 2 + 2 = (10 clamped to 9) -->
-      </h6> should match based on expected document structure
 FAIL=case 31: heading level for <h1 data-expected-offset="3" headingoffset="2" headingreset="">
-        <!-- Level 3, h1 + 2 + (headingreset) -->
-      </h1> should match based on expected document structure
 FAIL=case 32: heading level for <h2 data-expected-offset="4" headingoffset="2" headingreset="">
-        <!-- Level 4, h2 + 2 + (headingreset) -->
-      </h2> should match based on expected document structure
 FAIL=case 33: heading level for <h2 data-expected-offset="3"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
 FAIL=case 34: heading level for <h4 data-expected-offset="5"><!-- Level 5, h4 + 1 --></h4> should match based on expected document structure
 FAIL=case 35: heading level for <h4 data-expected-offset="4" headingreset="">
-    <!-- Level 4, h4 (headingreset) -->
-  </h4> should match based on expected document structure
 FAIL=case 36: heading level for <h2 data-expected-offset="3"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
 FAIL=case 37: heading level for <h1 data-expected-offset="2" headingoffset="1"><!-- Level 2, h1 + 1 --></h1> should match based on expected document structure
 FAIL=case 38: heading level for <h2 data-expected-offset="3" headingoffset="1"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
@@ -65781,56 +65640,26 @@ FAIL=case 39: heading level for <h1 data-expected-offset="3" headingoffset="2"><
 FAIL=case 3: heading level for <h3 data-expected-offset="4"><!-- Level 4, h3 + 1 = 4 --></h3> should match based on expected document structure
 FAIL=case 40: heading level for <h2 data-expected-offset="4" headingoffset="2"><!-- Level 4, h2 + 2 --></h2> should match based on expected document structure
 FAIL=case 41: heading level for <h1 data-expected-offset="2" headingoffset="1" headingreset="">
-  <!-- Level 2, h1 + 1 (headingreset) -->
-</h1> should match based on expected document structure
 FAIL=case 42: heading level for <h2 data-expected-offset="3" headingoffset="1" headingreset="">
-  <!-- Level 3, h2 + 1 (headingreset) -->
-</h2> should match based on expected document structure
 FAIL=case 43: heading level for <h1 data-expected-offset="3" headingoffset="2" headingreset="">
-  <!-- Level 3, h1 + 2 (headingreset) -->
-</h1> should match based on expected document structure
 FAIL=case 44: heading level for <h2 data-expected-offset="4" headingoffset="2" headingreset="">
-  <!-- Level 4, h2 + 2 (headingreset) -->
-</h2> should match based on expected document structure
 FAIL=case 45: heading level for <h1 data-expected-offset="9" headingoffset="20" headingreset="">
-  <!-- Level 9, h1 + 20 (clamped)  -->
-</h1> should match based on expected document structure
 FAIL=case 46: heading level for <h2 data-expected-offset="9" headingoffset="20" headingreset="">
-  <!-- Level 9, h2 + 20 (clamped) -->
-</h2> should match based on expected document structure
 FAIL=case 47: heading level for <h1 data-expected-offset="1" headingoffset="0" headingreset="">
-  <!-- Level 1, h1 + 0 -->
-</h1> should match based on expected document structure
 FAIL=case 48: heading level for <h2 data-expected-offset="2" headingoffset="0" headingreset="">
-  <!-- Level 2, h2 + 0 -->
-</h2> should match based on expected document structure
 FAIL=case 49: heading level for <h1 data-expected-offset="2" headingoffset="1"><!-- Level 2, h1 + 1 --></h1> should match based on expected document structure
 FAIL=case 4: heading level for <h1 data-expected-offset="4"><!-- Level 4, h1 + 2 + 1 = 4 --></h1> should match based on expected document structure
 FAIL=case 50: heading level for <h2 data-expected-offset="3" headingoffset="1"><!-- Level 3, h2 + 1 --></h2> should match based on expected document structure
 FAIL=case 51: heading level for <h1 data-expected-offset="2" headingoffset="1" headingreset="">
-    <!-- Level 2, h1 + 1 -->
-  </h1> should match based on expected document structure
 FAIL=case 52: heading level for <h2 data-expected-offset="3" headingoffset="1" headingreset="">
-    <!-- Level 3, h2 + 1 -->
-  </h2> should match based on expected document structure
 FAIL=case 53: heading level for <h1 data-expected-offset="1" headingoffset="-1" headingreset="">
-    <!-- Level 1, h1 + (-1 clamped to 0) -->
-  </h1> should match based on expected document structure
 FAIL=case 54: heading level for <h2 data-expected-offset="2" headingoffset="-1" headingreset="">
-    <!-- Level 2, h2 + (-1 clamped to 0) -->
-  </h2> should match based on expected document structure
 FAIL=case 55: heading level for <h1 data-expected-offset="5">
-            <!-- Level 5, h1 + 1 + (-6 clamped to 0) + 3 + (-1 clamped to 0) -->
-          </h1> should match based on expected document structure
 FAIL=case 56: heading level for <h1 data-expected-offset="9" headingoffset="9" aria-level="3">
-  <!-- Level 3 -->
-</h1> should match based on expected document structure
 FAIL=case 5: heading level for <h2 data-expected-offset="5"><!-- Level 5, h2 + 2 + 1 = 5 --></h2> should match based on expected document structure
 FAIL=case 6: heading level for <h1 data-expected-offset="1"><!-- Level 1, h1 (headingreset)--></h1> should match based on expected document structure
 FAIL=case 7: heading level for <h1 data-expected-offset="4"><!-- Level 4, h1 + 2 + 1 = 4 --></h1> should match based on expected document structure
 FAIL=case 8: heading level for <h1 data-expected-offset="1" headingreset="">
-        <!-- Level 1, h1 (headingreset) -->
-      </h1> should match based on expected document structure
 FAIL=case 9: heading level for <h1 data-expected-offset="9"><!-- Level 9, h1 + 8 --></h1> should match based on expected document structure
 FAIL=headingoffset (set via attribute) should change the level a heading matches against
 FAIL=headingoffset (set via attribute) should change the level when a parent changes offset
@@ -70081,9 +69910,8 @@ FAIL=registerProtocolHandler: Attempting to override the "javascript" protocol s
 FAIL=registerProtocolHandler: Attempting to override the "livescript" protocol should throw SECURITY_ERR.
 FAIL=registerProtocolHandler: Attempting to override the "mU+430ilto" protocol should throw SECURITY_ERR.
 FAIL=registerProtocolHandler: Attempting to override the "magnet:+" protocol should throw SECURITY_ERR.
-FAIL=registerProtocolHandler: Attempting to override the "mailto " protocol should throw SECURITY_ERR.
 FAIL=registerProtocolHandler: Attempting to override the "mailto
-" protocol should throw SECURITY_ERR.
+FAIL=registerProtocolHandler: Attempting to override the "mailto " protocol should throw SECURITY_ERR.
 FAIL=registerProtocolHandler: Attempting to override the "mailto:" protocol should throw SECURITY_ERR.
 FAIL=registerProtocolHandler: Attempting to override the "mailto://" protocol should throw SECURITY_ERR.
 FAIL=registerProtocolHandler: Attempting to override the "mailtoo" protocol should throw SECURITY_ERR.
@@ -70205,9 +70033,8 @@ FAIL=unregisterProtocolHandler: Attempting to override the "javascript" protocol
 FAIL=unregisterProtocolHandler: Attempting to override the "livescript" protocol should throw SECURITY_ERR.
 FAIL=unregisterProtocolHandler: Attempting to override the "mU+430ilto" protocol should throw SECURITY_ERR.
 FAIL=unregisterProtocolHandler: Attempting to override the "magnet:+" protocol should throw SECURITY_ERR.
-FAIL=unregisterProtocolHandler: Attempting to override the "mailto " protocol should throw SECURITY_ERR.
 FAIL=unregisterProtocolHandler: Attempting to override the "mailto
-" protocol should throw SECURITY_ERR.
+FAIL=unregisterProtocolHandler: Attempting to override the "mailto " protocol should throw SECURITY_ERR.
 FAIL=unregisterProtocolHandler: Attempting to override the "mailto:" protocol should throw SECURITY_ERR.
 FAIL=unregisterProtocolHandler: Attempting to override the "mailto://" protocol should throw SECURITY_ERR.
 FAIL=unregisterProtocolHandler: Attempting to override the "mailtoo" protocol should throw SECURITY_ERR.

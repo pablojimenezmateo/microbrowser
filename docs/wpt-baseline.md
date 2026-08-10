@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-52803 of 466724 subtests pass (11.3%) over 18279 tests.
+52998 of 467458 subtests pass (11.3%) over 18811 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 24% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -249,6 +249,18 @@ it is a page that never reported, which almost always means something threw befo
 | `webmessaging/with-options` | 9 | 2 | 0 | 7 | 0 | 2 | 0 | 0.0 |
 | `webmessaging/with-ports` | 24 | 11 | 0 | 13 | 0 | 17 | 1 | 5.9 |
 | `webmessaging/without-ports` | 27 | 13 | 0 | 14 | 0 | 15 | 2 | 13.3 |
+| `websockets` | 380 | 50 | 0 | 330 | 0 | 263 | 167 | 63.5 |
+| `websockets/binary` | 4 | 0 | 0 | 4 | 0 | 3 | 0 | 0.0 |
+| `websockets/closing-handshake` | 3 | 0 | 0 | 3 | 0 | 0 | 0 | 0.0 |
+| `websockets/constructor` | 19 | 8 | 0 | 11 | 0 | 175 | 6 | 3.4 |
+| `websockets/cookies` | 9 | 2 | 0 | 7 | 0 | 3 | 0 | 0.0 |
+| `websockets/interfaces` | 79 | 54 | 0 | 25 | 0 | 118 | 22 | 18.6 |
+| `websockets/keeping-connection-open` | 1 | 0 | 0 | 1 | 0 | 1 | 0 | 0.0 |
+| `websockets/multi-globals` | 2 | 2 | 0 | 0 | 0 | 3 | 0 | 0.0 |
+| `websockets/opening-handshake` | 7 | 0 | 0 | 7 | 0 | 4 | 0 | 0.0 |
+| `websockets/security` | 2 | 1 | 0 | 1 | 0 | 1 | 0 | 0.0 |
+| `websockets/stream` | 21 | 21 | 0 | 0 | 0 | 159 | 0 | 0.0 |
+| `websockets/unload-a-document` | 5 | 3 | 0 | 2 | 0 | 4 | 0 | 0.0 |
 | `webstorage` | 54 | 34 | 1 | 19 | 0 | 1259 | 1164 | 92.5 |
 | `workers` | 112 | 29 | 0 | 83 | 0 | 124 | 4 | 3.2 |
 | `workers/baseurl` | 7 | 0 | 0 | 7 | 0 | 0 | 0 | 0.0 |
@@ -270,8 +282,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 3693 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 1128 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 3898 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 1191 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 222 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
 | 184 | ERROR: [object Object] | `css/css-conditional/container-queries/animation-container-size.html` |
 | 168 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `css/CSS2/linebox/vertical-align-top-bottom-001.html` |
@@ -289,9 +301,11 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 15 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `css/css-values/urls/resolve-relative-to-base.sub.html` |
 | 14 | ERROR: TypeError: undefined (addTextTrack) is not a function | `html/semantics/embedded-content/media-elements/interfaces/TextTrack/activeCues.html` |
 | 13 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: getSelection is not defined ReferenceError: getSelection is n... | `selection/getRangeAt.html` |
+| 11 | TIMEOUT: the page never reported; first script error: /websockets/Close-N-reason.any.js: TypeError: undefined (addEventListener) is not a function Ty... | `websockets/Close-1000-reason.any.html?wss` |
 | 10 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: SharedWorker is not defined ReferenceError: SharedWorker is n... | `fetch/metadata/sharedworker.https.sub.html` |
 | 10 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: async_test is not defined ReferenceError: async_test is not d... | `html/semantics/scripting-1/the-script-element/script-text-modifications-csp.html` |
 | 9 | ERROR: RangeError: script ran too long | `encoding/legacy-mb-japanese/iso-2022-jp/iso2022jp-encode-form-csiso2022jp.html` |
+| 9 | TIMEOUT: the page never reported; first script error: /websockets/Close-N-verify-code.any.js: TypeError: undefined (addEventListener) is not a functi... | `websockets/Close-1000-verify-code.any.html?wss` |
 | 9 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: host is not defined ReferenceError: host is not defined at <a... | `css/cssom/selectorText-modification-restyle-002.html` |
 | 9 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: target is not defined ReferenceError: target is not defined a... | `css/css-cascade/layer-vs-inline-style.html` |
 | 9 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot set property 'onerror' of undefined TypeError: cannot set p... | `custom-elements/cross-realm-callback-report-exception.html` |
@@ -304,6 +318,10 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot resolve module './support/getComputedStyle-insets.js' TypeE... | `css/cssom/getComputedStyle-insets-relative.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createDocument) is not a function TypeError: undefined ... | `dom/nodes/append-on-Document.html` |
 | 6 | CRASH: killed by signal Segmentation fault | `dom/nodes/moveBefore/relevant-mutations.html` |
+| 6 | TIMEOUT: the page never reported; first script error: /websockets/Close-N.any.js: TypeError: undefined (addEventListener) is not a function TypeError... | `websockets/Close-1000.any.html?default` |
+| 6 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybufferview-floatN.any.js: TypeError: undefined (addEventListener) ... | `websockets/Send-binary-arraybufferview-float64.any.html?default` |
+| 6 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybufferview-uintN-offset-length.any.js: TypeError: undefined (addEv... | `websockets/Send-binary-arraybufferview-uint16-offset-length.any.html?default` |
+| 6 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybufferview-uintN-offset.any.js: TypeError: undefined (addEventList... | `websockets/Send-binary-arraybufferview-uint32-offset.any.html?default` |
 | 6 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: iframe is not defined ReferenceError: iframe is not defined a... | `css/css-values/viewport-units-compute.html` |
 | 6 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: measure is not defined ReferenceError: measure is not defined... | `css/css-values/viewport-units-gutter-001.html` |
 | 6 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'N' of undefined TypeError: cannot read prope... | `css/css-fonts/test_font_feature_values_parsing.html` |
@@ -312,6 +330,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 6 | TIMEOUT: the page never reported; first script error: inline script #N: [object Object] Error: undefined at get_stack (@N) at AssertionError (@N) at ... | `css/css-values/if-invalidation.html` |
 | 5 | ERROR: Error: unimplemented | `html/webappapis/system-state-and-capabilities/the-navigator-object/protocol-handler-fragment-nosw.https.html` |
 | 5 | TIMEOUT: the page never reported; first script error: /trusted-types/support/helper.sub.js: SyntaxError: expected ';' (line N) SyntaxError: expected ... | `domparsing/tentative/stream-html-with-trusted-types-error-in-policy.html` |
+| 5 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybufferview-intN.any.js: TypeError: undefined (addEventListener) is... | `websockets/Send-binary-arraybufferview-int32.any.html?default` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: aN is not defined ReferenceError: aN is not defined at test_s... | `html/editing/the-hidden-attribute/beforematch-attribute-removal-001.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: testStyle is not defined ReferenceError: testStyle is not def... | `css/css-fonts/parsing/font-face-metric-overrides.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
@@ -331,6 +350,28 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 3 | ERROR: TypeError: undefined (createDocument) is not a function | `dom/nodes/Document-createAttribute.html` |
 | 3 | TIMEOUT: the page never reported; first script error: /html/cross-origin-embedder-policy/credentialless/iframe-coep-credentialless.https.window.js: T... | `html/cross-origin-embedder-policy/credentialless/iframe-coep-credentialless.https.window.html?1-4` |
 | 3 | TIMEOUT: the page never reported; first script error: /html/cross-origin-embedder-policy/credentialless/iframe-coep-require-corp.https.window.js: Typ... | `html/cross-origin-embedder-policy/credentialless/iframe-coep-require-corp.https.window.html?1-4` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-Reason-NBytes.any.js: TypeError: undefined (addEventListener) is not a functi... | `websockets/Close-Reason-124Bytes.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-delayed.any.js: TypeError: undefined (addEventListener) is not a function Typ... | `websockets/Close-delayed.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-onlyReason.any.js: TypeError: undefined (addEventListener) is not a function ... | `websockets/Close-onlyReason.any.html?wss` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-readyState-Closing.any.js: TypeError: undefined (addEventListener) is not a f... | `websockets/Close-readyState-Closing.any.html?wss` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-reason-unpaired-surrogates.any.js: TypeError: undefined (addEventListener) is... | `websockets/Close-reason-unpaired-surrogates.any.html?wpt_flags=h2` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-server-initiated-close.any.js: TypeError: undefined (addEventListener) is not... | `websockets/Close-server-initiated-close.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Close-undefined.any.js: TypeError: undefined (addEventListener) is not a function T... | `websockets/Close-undefined.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Create-valid-url-array-protocols.any.js: TypeError: undefined (addEventListener) is... | `websockets/Create-valid-url-array-protocols.any.html?wpt_flags=h2` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Create-valid-url-binaryType-blob.any.js: TypeError: undefined (addEventListener) is... | `websockets/Create-valid-url-binaryType-blob.any.html?wpt_flags=h2` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Create-valid-url-protocol-setCorrectly.any.js: TypeError: undefined (addEventListen... | `websockets/Create-valid-url-protocol-setCorrectly.any.html?wss` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Create-valid-url-protocol-string.any.js: TypeError: undefined (addEventListener) is... | `websockets/Create-valid-url-protocol-string.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Create-valid-url-protocol.any.js: TypeError: undefined (addEventListener) is not a ... | `websockets/Create-valid-url-protocol.any.html?wpt_flags=h2` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Create-valid-url.any.js: TypeError: undefined (addEventListener) is not a function ... | `websockets/Create-valid-url.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-Nbyte-data.any.js: TypeError: undefined (addEventListener) is not a function T... | `websockets/Send-0byte-data.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-NK-arraybuffer.any.js: TypeError: undefined (addEventListener) is not a... | `websockets/Send-binary-65K-arraybuffer.any.html?wss` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybuffer.any.js: TypeError: undefined (addEventListener) is not a fu... | `websockets/Send-binary-arraybuffer.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybufferview-intN-offset.any.js: TypeError: undefined (addEventListe... | `websockets/Send-binary-arraybufferview-int16-offset.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-data.any.js: TypeError: undefined (addEventListener) is not a function TypeErr... | `websockets/Send-data.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-null.any.js: TypeError: undefined (addEventListener) is not a function TypeErr... | `websockets/Send-null.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-paired-surrogates.any.js: TypeError: undefined (addEventListener) is not a fun... | `websockets/Send-paired-surrogates.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-unicode-data.any.js: TypeError: undefined (addEventListener) is not a function... | `websockets/Send-unicode-data.any.html?default` |
+| 3 | TIMEOUT: the page never reported; first script error: /websockets/Send-unpaired-surrogates.any.js: TypeError: undefined (addEventListener) is not a f... | `websockets/Send-unpaired-surrogates.any.html?default` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: FontFace is not defined ReferenceError: FontFace is not defin... | `css/css-fonts/mvs-shaping.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: crossOrigin is not defined ReferenceError: crossOrigin is not... | `html/canvas/element/manual/draw-element-image/privacy/subframe-cross-origin-frame.tentative.https.sub.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: trigger is not defined ReferenceError: trigger is not defined... | `css/selectors/focus-visible-script-focus-016.tentative.html` |
@@ -341,35 +382,6 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'insertRule' of undefined TypeError: cannot r... | `dom/events/webkit-animation-end-event.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'open' of undefined TypeError: cannot read pr... | `html/semantics/scripting-1/the-script-element/execution-timing/070.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getSelection) is not a function TypeError: undefined (g... | `css/css-overflow/scroll-markers/scroll-buttons-selection.html` |
-| 2 | ERROR: Error: '?feature=bidi' is missing when importing testdriver.js but the test is using WebDriver BiDi APIs | `html/semantics/permission-element/geolocation-element/get-current-position-error.html` |
-| 2 | ERROR: Error: document.elementsFromPoint unsupported | `html/semantics/interactive-elements/the-dialog-element/inert-node-is-unfocusable.html` |
-| 2 | ERROR: ReferenceError: DOMParser is not defined | `domparsing/DOMParser-parseFromString-html.html` |
-| 2 | ERROR: ReferenceError: SharedWorker is not defined | `workers/constructors/SharedWorker/setting-port-members.html` |
-| 2 | ERROR: ReferenceError: VTTCue is not defined | `html/semantics/embedded-content/media-elements/interfaces/TextTrackCue/onenter.html` |
-| 2 | ERROR: Test named 'Repeated declarative shadow roots keep only the first' specified N 'cleanup' function, and N failed. | `shadow-dom/declarative/declarative-shadow-dom-repeats.html` |
-| 2 | ERROR: Test named 'writing-mode: horizontal-tb' specified N 'cleanup' function, and N failed. | `css/css-writing-modes/forms/input-range-block-size.html` |
-| 2 | ERROR: TypeError: cannot read property 'length' of undefined | `css/css-transitions/starting-style-cascade.html` |
-| 2 | ERROR: TypeError: cannot read property 'supports' of undefined | `fetch/metadata/generated/element-link-prefetch.https.optional.sub.html` |
-| 2 | ERROR: TypeError: undefined (createProcessingInstruction) is not a function | `dom/nodes/CharacterData-remove.html` |
-| 2 | ERROR: TypeError: undefined (parseHTMLUnsafe) is not a function | `html/webappapis/dynamic-markup-insertion/html-unsafe-methods/Document-parseHTMLUnsafe-style-attribute.html` |
-| 2 | TIMEOUT: the page never reported; first script error: ../editing/include/editor-test-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expect... | `selection/move-by-word-korean.html` |
-| 2 | TIMEOUT: the page never reported; first script error: ../resources/common.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (line N) | `html/semantics/embedded-content/the-iframe-element/iframe-loading-lazy-base-url-3.html` |
-| 2 | TIMEOUT: the page never reported; first script error: ./resources/testharness.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (line ... | `html/browsers/browsing-the-web/navigating-across-documents/grandparent_location_aboutsrcdoc.sub.window.html` |
-| 2 | TIMEOUT: the page never reported; first script error: /close-watcher/resources/helpers.js: SyntaxError: expected ';' (line N) SyntaxError: expected '... | `html/semantics/interactive-elements/the-dialog-element/dialog-cancel-events.html` |
-| 2 | TIMEOUT: the page never reported; first script error: /cors/support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected... | `html/webappapis/scripting/processing-model-2/unhandled-promise-rejections/allow-crossorigin.html` |
-| 2 | TIMEOUT: the page never reported; first script error: /css/css-scroll-snap/support/common.js: SyntaxError: expected ';' (line N) SyntaxError: expecte... | `css/cssom-view/scrollIntoView-multiple-nested.html` |
-| 2 | TIMEOUT: the page never reported; first script error: /css/mediaqueries/resources/matchmedia-utils.js: SyntaxError: expected ';' (line N) SyntaxError... | `css/css-values/random-in-media.tentative.html` |
-| 2 | TIMEOUT: the page never reported; first script error: /html/cross-origin-embedder-policy/credentialless/iframe-coep-none.https.window.js: TypeError: ... | `html/cross-origin-embedder-policy/credentialless/iframe-coep-none.https.window.html?1-4` |
-| 2 | TIMEOUT: the page never reported; first script error: /wai-aria/scripts/aria-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (... | `css/css-display/accessibility/display-contents-role-and-label.html` |
-| 2 | TIMEOUT: the page never reported; first script error: http://wwwN.localhost:N/html/webappapis/scripting/processing-model-N/support/syntax-error-in-se... | `html/webappapis/scripting/processing-model-2/compile-error-cross-origin-setInterval.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: InvalidAccessError: synchronous XMLHttpRequest is not supported Error: synchr... | `html/dom/documents/dom-tree-accessors/Document.currentScript.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: RangeError: invalid code point RangeError: invalid code point at <anonymous> ... | `css/css-text/text-transform/math/text-transform-math-auto-003.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DOMParser is not defined ReferenceError: DOMParser is not def... | `domxpath/fn-lang.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: FormData is not defined ReferenceError: FormData is not defin... | `html/semantics/forms/attributes-common-to-form-controls/dirname-only-if-applies.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLDetailsElement is not defined ReferenceError: HTMLDetails... | `custom-elements/reactions/customized-builtins/HTMLDetailsElement.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: OffscreenCanvas is not defined ReferenceError: OffscreenCanva... | `html/canvas/offscreen/manual/context-attributes/getContextAttributes.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: b is not defined ReferenceError: b is not defined at <anonymo... | `css/selectors/not-complex.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: button is not defined ReferenceError: button is not defined a... | `css/selectors/focus-visible-005.html` |
 
 ## Why subtests fail
 
@@ -381,32 +393,32 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | tests | subtests | message | example |
 |--:|--:|---|---|
 | 889 | 1048 | OffscreenCanvas is not defined | `html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.detachedcanvas.html` |
-| 388 | 1660 | Test timed out | `FileAPI/FileReader/workers.html` |
-| 362 | 193078 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
-| 296 | 1056 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
-| 216 | 585 | assert_equals: expected N but got N | `css/CSS2/abspos/abspos-in-block-in-inline-in-relpos-inline.html` |
+| 416 | 1691 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 375 | 193097 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
+| 297 | 1057 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
+| 218 | 587 | assert_equals: expected N but got N | `css/CSS2/abspos/abspos-in-block-in-inline-in-relpos-inline.html` |
 | 202 | 202 | undefined (pauseAnimations) is not a function | `svg/animations/additive-type-by-animation.html` |
 | 200 | 29292 | assert_true: 'from' value should be supported expected true got false | `css/CSS2/floats-clear/clear-no-interpolation.html` |
 | 198 | 751 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
-| 151 | 741 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
+| 154 | 744 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 148 | 166 | promise_test: Unhandled rejection with value: object "ReferenceError: OffscreenCanvas is not defined" | `html/canvas/element/global-hdr-headroom/clli-mdcv-png.html` |
 | 147 | 391 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `css/css-overflow/resizer-no-size-change.tentative.html` |
 | 131 | 388 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `IndexedDB/file_support.sub.html` |
+| 116 | 2013 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `IndexedDB/idbfactory_cmp.any.html` |
 | 114 | 117 | assert_equals: expected "" but got "auto" | `css/css-align/parsing/align-content-invalid.html` |
-| 113 | 2004 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `IndexedDB/idbfactory_cmp.any.html` |
 | 110 | 110 | assert_equals: Red channel of the pixel at (N, N) expected N but got N | `html/canvas/element/canvas-host/2d.canvas.host.initial.reset.same.html` |
 | 107 | 172 | target is not defined | `css/CSS2/normal-flow/block-in-inline-hittest-float-001.html` |
-| 90 | 303 | synchronous XMLHttpRequest is not supported | `xhr/XMLHttpRequest-withCredentials.any.html` |
+| 91 | 304 | synchronous XMLHttpRequest is not supported | `websockets/cookies/007.html` |
+| 88 | 1280 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `css/cssom/CSSStyleSheet-constructable-baseURL.html` |
 | 80 | 3006 | assert_true: 'to' value should be supported expected true got false | `css/CSS2/linebox/animations/line-height-interpolation.html` |
-| 73 | 604 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
+| 74 | 605 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 73 | 175 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 71 | 774 | cannot read property 'cssRules' of undefined | `css/css-animations/parsing/keyframes-name-invalid.html` |
+| 70 | 73 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'append' of undefined" | `IndexedDB/back-forward-cache-open-transaction.window.html` |
 | 70 | 73 | undefined (write) is not a function | `html/dom/partial-updates/tentative/template-for-replace.html` |
-| 65 | 1245 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `css/cssom/CSSStyleSheet-constructable-baseURL.html` |
-| 64 | 67 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'append' of undefined" | `IndexedDB/back-forward-cache-open-transaction.window.html` |
 | 64 | 79 | promise_test: Unhandled rejection with value: object "TypeError: undefined (blob) is not a function" | `fetch/api/body/mime-type.any.html` |
+| 62 | 365 | assert_equals: expected (number) N but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
 | 62 | 64 | undefined (createPattern) is not a function | `html/canvas/element/canvas-host/2d.canvas.host.initial.reset.pattern.html` |
-| 61 | 361 | assert_equals: expected (number) N but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
 | 61 | 78 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'ready' of undefined" | `css/css-align/baseline-of-single-axis-scroll-container.html` |
 | 60 | 96 | assert_true: Failed to create new rendered document expected true got false | `html/semantics/scripting-1/the-template-element/additions-to-parsing-xhtml-documents/node-document.html` |
 | 60 | 67 | promise_test: Unhandled rejection with value: object "ReferenceError: canvas is not defined" | `html/canvas/element/manual/draw-element-image/backdrop-filter-bounds-expansion.tentative.html` |
@@ -423,9 +435,9 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 47 | 78 | assert_true: expected true got undefined | `css/cssom/HTMLLinkElement-disabled-001.html` |
 | 46 | 562 | Illegal constructor: ReadableStream | `fetch/api/basic/request-upload.any.html` |
 | 46 | 308 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
+| 45 | 653 | assert_equals: expected (string) "" but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
 | 44 | 44 | assert_true: track not supported expected true got false | `html/semantics/embedded-content/media-elements/track/track-element/cors/003.html` |
 | 43 | 239 | assert_equals: Expected success event, but got upgradeneeded event instead expected "success" but got "upgradeneeded" | `IndexedDB/bindings-inject-keys-bypass.any.html` |
-| 43 | 651 | assert_equals: expected (string) "" but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
 | 42 | 146 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 42 | 42 | undefined (roundRect) is not a function | `html/canvas/element/path-objects/2d.path.roundrect.1.radius.dompointinit.html` |
 | 41 | 1356 | assert_equals: expected "Npx " but got "Npx " | `css/CSS2/linebox/animations/line-height-interpolation.html` |
@@ -467,6 +479,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 21 | 21 | undefined (createRadialGradient) is not a function | `html/canvas/element/fill-and-stroke-styles/2d.gradient.radial.cone.bottom.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
 | 20 | 61 | assert_equals: expected "none" but got "" | `css/css-animations/parsing/animation-computed.html` |
+| 20 | 136 | promise_test: Unhandled rejection with value: object "ReferenceError: WebSocketStream is not defined" | `websockets/stream/tentative/abort.any.html?wpt_flags=h2` |
 | 19 | 594 | assert_equals: expected true but got false | `css/css-conditional/js/CSS-supports-L3.html` |
 | 19 | 7233 | assert_true: color doesn't seem to be supported in the computed style expected true got false | `css/css-color/color-mix-missing-components.html` |
 | 19 | 23 | promise_test: Unhandled rejection with value: object "ReferenceError: target is not defined" | `css/css-animations/display-none-to-display-block-dont-cancel.tentative.html` |
@@ -479,6 +492,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 18 | 18 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `css/css-sizing/contain-intrinsic-size/forget-on-disconnect-in-iframe.html` |
 | 18 | 18 | undefined (isPointInPath) is not a function | `html/canvas/element/manual/drawing-paths-to-the-canvas/canvas_complexshapes_ispointInpath_001.htm` |
 | 17 | 34 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
-| 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 
-29735 distinct subtest messages and 400 distinct harness messages behind these numbers.
+29784 distinct subtest messages and 433 distinct harness messages behind these numbers.
