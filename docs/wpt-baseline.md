@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-51 of 2216 subtests pass (2.3%) over 71 tests.
+122 of 2514 subtests pass (4.9%) over 101 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `mimesniff/mime-types` alone is 88% of every subtest here, because a suite that tests one index table per code point
+**Do not quote that number.** Subtests are not comparable across areas: `mimesniff/mime-types` alone is 77% of every subtest here, because a suite that tests one index table per code point
 counts differently from one that tests an algorithm. The per-area column is the
 measurement; the aggregate is an artefact of how the suite is written.
 
@@ -30,6 +30,10 @@ it is a page that never reported, which almost always means something threw befo
 | `mimesniff/mime-types` | 3 | 1 | 0 | 2 | 0 | 1939 | 2 | 0.1 |
 | `mimesniff/sniffing` | 3 | 3 | 0 | 0 | 0 | 7 | 3 | 42.9 |
 | `png` | 3 | 0 | 0 | 3 | 0 | 1 | 0 | 0.0 |
+| `subresource-integrity` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0.0 |
+| `subresource-integrity/integrity-policy` | 5 | 0 | 0 | 5 | 0 | 37 | 0 | 0.0 |
+| `subresource-integrity/signatures` | 15 | 14 | 0 | 1 | 0 | 177 | 43 | 24.3 |
+| `subresource-integrity/unencoded-digest` | 9 | 6 | 0 | 3 | 0 | 84 | 28 | 33.3 |
 
 ## Why the harness never reported
 
@@ -39,9 +43,9 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 19 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 23 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 8 | TIMEOUT:  | `mimesniff/mime-types/charset-parameter.window.html` |
 | 5 | TIMEOUT: the page never reported; first script error: support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected a pro... | `cors/credentials-flag.htm` |
-| 2 | TIMEOUT:  | `mimesniff/mime-types/charset-parameter.window.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DocumentTimeline is not defined ReferenceError: DocumentTimel... | `hr-time/raf-coarsened-time.https.html` |
 
 ## Why subtests fail
@@ -54,12 +58,17 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | tests | subtests | message | example |
 |--:|--:|---|---|
 | 14 | 124 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
+| 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
+| 6 | 45 | Test timed out | `mimesniff/mime-types/charset-parameter.window.html` |
 | 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
+| 4 | 33 | NOTRUN (no message) | `png/exif-chunk.html` |
+| 4 | 22 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `cors/access-control-expose-headers-parsing.window.html` |
+| 3 | 17 | promise_rejects_js: function "function TypeError() { [native code] }" is not an Error subtype | `subresource-integrity/signatures/tentative/client-initiated.cross-origin.window.html` |
 | 2 | 2 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 2 | 2 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 2 | 2 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cors/preflight-cache-partitioning.sub.window.html` |
-| 1 | 1 | NOTRUN (no message) | `png/exif-chunk.html` |
-| 1 | 40 | Test timed out | `mimesniff/mime-types/charset-parameter.window.html` |
 | 1 | 1 | assert_equals: Blob expected (string) "!#$%&'*+-.^_'\|~Nabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz/!#$%&'*+-.^_'\|~Nabcdefghijklmnop... | `mimesniff/mime-types/parsing.any.html` |
 | 1 | 376 | assert_equals: Blob expected (string) "" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
 | 1 | 1 | assert_equals: Blob expected (string) "N/N" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
@@ -148,10 +157,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 1 | 2 | assert_equals: Blob expected (string) "x/x;x=\"U+fe\";bonus=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
 | 1 | 2 | assert_equals: Blob expected (string) "x/x;x=\"U+ff\";bonus=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
 | 1 | 2 | assert_equals: Blob expected (string) "x/x;x=\"[\";bonus=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
-| 1 | 1 | assert_equals: Blob expected (string) "x/x;x=\"\t !\\\"#$%&'()*+,-./N:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_'abcdefghijklmnopqrstuvwxyz{\|}... | `mimesniff/mime-types/parsing.any.html` |
-| 1 | 2 | assert_equals: Blob expected (string) "x/x;x=\"]\";bonus=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
-| 1 | 2 | assert_equals: Blob expected (string) "x/x;x=\"{\";bonus=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
-| 1 | 2 | assert_equals: Blob expected (string) "x/x;x=\"}\";bonus=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
-| 1 | 4 | assert_equals: Blob expected (string) "x/x;x=x" but got (undefined) undefined | `mimesniff/mime-types/parsing.any.html` |
 
-132 distinct subtest messages and 4 distinct harness messages behind these numbers.
+139 distinct subtest messages and 4 distinct harness messages behind these numbers.
