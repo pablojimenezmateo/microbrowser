@@ -216,6 +216,10 @@ namespace microbrowser::util {
   X(EngineHitTests, "engine.hit_tests")                                          \
   /* Snapshot soft-nav /results→/watch mid-drain switched settle mode (TD-0038). */ \
   X(SnapshotSoftNavWatchDrain, "snapshot.soft_nav_watch_drain")                  \
+  /* Post-load drain turns where Advance progressed the network (TD-0046). A    */ \
+  /* soft-nav watch settle that only ran RunDueWork left this at zero while    */ \
+  /* SABR POSTs sat until AbortController — cold watch Advances every load turn.*/ \
+  X(SnapshotDrainAdvances, "snapshot.drain_advances")                            \
   /* A cascade re-resolved over the *existing* box tree, because every rule    */ \
   /* keyed on what changed only affects paint. The pair to watch is this       */ \
   /* against layout.runs: a `:hover { color }` rule that starts moving         */ \

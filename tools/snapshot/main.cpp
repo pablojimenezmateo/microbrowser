@@ -787,7 +787,18 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (on_results && YoutubeResultsLooksReady(engine)) {
       break;
     }
-    if (engine.RunDueWork()) {
+    // Match Application: Advance every turn, then due work. Preferring due
+    // work alone left SABR H2 POSTs unpumped while youtube's soft-nav stamp
+    // kept RunDueWork true — starts without request.done, then AbortController
+    // (TD-0046). Cold watch escaped because SABR finished in the Advance-first
+    // load loop.
+    const bool advanced = engine.Advance();
+    if (advanced) {
+      microbrowser::util::AddPerformanceCounter(
+          microbrowser::util::PerfCounterId::SnapshotDrainAdvances);
+    }
+    const bool due = engine.RunDueWork();
+    if (advanced || due || engine.HasRunnableWork()) {
       DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       yield_after_due();
       continue;
@@ -843,7 +854,14 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     if (std::chrono::steady_clock::now() >= post_load_deadline) {
       break;
     }
-    if (engine.RunDueWork()) {
+    // Same Advance-then-due shape as the watch/results drain above (TD-0046).
+    const bool advanced = engine.Advance();
+    if (advanced) {
+      microbrowser::util::AddPerformanceCounter(
+          microbrowser::util::PerfCounterId::SnapshotDrainAdvances);
+    }
+    const bool due = engine.RunDueWork();
+    if (advanced || due || engine.HasRunnableWork()) {
       DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
       yield_after_due();
       continue;
@@ -868,6 +886,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
       }
       microbrowser::platform::WaitOnDescriptors(
           descriptors, static_cast<std::int32_t>(std::min<std::int64_t>(remaining, 50)));
+      (void)engine.Advance();
       continue;
     }
     microbrowser::util::WaitDescriptorList descriptors;
@@ -882,6 +901,7 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
         descriptors,
         static_cast<std::int32_t>(std::min<std::int64_t>(
             remaining, static_cast<std::int64_t>(*deadline))));
+    (void)engine.Advance();
   }
 }
 

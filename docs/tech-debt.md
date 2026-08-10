@@ -2018,18 +2018,16 @@ fair body pump + BeginNetworkTask).
 `js.fetch_delivery_budget_resets`). Tests:
 `Http2/TwoPostBodiesShareTheSendWindow`, BeginNetworkTask under live frames.
 
-**Remeasure (Release, 2026-08-10, after fix).** Soft-nav search→watch:
-SABR `videoplayback` **12 start / 1 done (200)** (was 8/0); progressive
-itag=18 still **403**; `media.source_append_attempts` absent; `js.steps_exhausted=2`;
-`net.h2_stream_stalls` 0. A second run with a fetch/`appendBuffer` probe saw
-**2 SABR 200s**, **4 appends**, init segments, decoder frames — so TD-0042
-unblocks the path when a POST completes, but most SABR streams still end as
-`fetch.aborted` without `request.done` (player retry). Watch readiness was also
-reading the wrong `<video>` (TD-0043).
+**Remeasure (Release, 2026-08-10, after TD-0046).** Soft-nav with SPA stamp:
+SABR **29/18** done plus **11** explicit `request.aborted`, **35**
+`source_appends`, player `readyState` **4** / ~50s buffer. TD-0042's
+completion half is largely met when the drain Advances; residual aborts are
+player-driven retries.
 
 **Close when.** Soft-nav `videoplayback` dones ≈ starts (or aborts accounted),
 `source_append_attempts` and `source_appends` > 0 stably, player
-`readyState >= 2` on Release.
+`readyState >= 2` on Release — **close on next clean remeasure** once TD-0045
+hard-nav flake is rare.
 
 ---
 
@@ -2116,7 +2114,41 @@ SPA stamp half of the close condition is met; MSE half remains TD-0042.
 **Close when.** Soft-nav Release cats search→thumb stays on the SPA
 (`#movie_player` present, no hard-nav shell), `preventDefault` wins over href
 follow, and watch settle can reach `readyState >= 2` when SABR completes
-(TD-0042).
+(TD-0042 / TD-0046).
+
+---
+
+## TD-0046 — Snapshot soft-nav drain skipped `Advance` while due work ran
+
+**Opened** 2026-08-10 after TD-0045: soft-nav stamped `#movie_player` +
+`blob:` video but SABR `videoplayback` showed **5 starts / 0 dones**,
+`fetch.aborted=8`, no `media.source_appends`. Cold `/watch` still reached
+`readyState` 4 with SABR 200s. `cookies=0` on googlevideo is normal for
+cross-site credentialless fetches (cold has the same).
+
+**Cause.** `RunLoadToCompletion`'s post-load drain preferred
+`RunDueWork()` and `continue`d without `Engine::Advance()`. Youtube's soft-nav
+stamp keeps due work runnable for long stretches; the drain waited on sockets
+(`yield_after_due`) but never pumped H2, so SABR POSTs sat until the player's
+`AbortController` cancelled them. The real app and the *load* half of the
+snapshot both Advance every turn (`Application::RunOneIteration`, load
+`should_turn` loop).
+
+**Fix.** Post-load drains (watch/results + lazy-img tail) Advance then
+`RunDueWork`, matching the app. Counter `snapshot.drain_advances`. Timeline
+`request.aborted` on `RequestQueue::Cancel` so aborts are not silent next to
+`request.done`.
+
+**Remeasure (Release, 2026-08-10).** Soft-nav cats search→Accept→thumb:
+`history.push_states=1`, `focus: div#movie_player`, player `readyState` **4**,
+buffered **~50s**, SABR `videoplayback` **29 start / 18 done / 11 aborted**,
+`media.source_appends=35`, `snapshot.drain_advances=10`. Occasional runs still
+hard-nav (`focus: a#thumbnail`, no player) — TD-0045 flake, not this drain bug.
+
+**Close when.** Soft-nav Release shows `videoplayback` `request.done` (or
+explicit `request.aborted`), `snapshot.drain_advances > 0` during settle,
+`media.source_appends > 0` / player `readyState >= 2` — **met** on the
+successful SPA path above; keep open only until hard-nav flake rate is low.
 
 ---
 

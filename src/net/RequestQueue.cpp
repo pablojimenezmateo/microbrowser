@@ -326,6 +326,12 @@ bool RequestQueue::Cancel(Id id) {
     }
     // Dropping the FetchRequest closes its connection in the destructor, which
     // is what makes an abort stop the transfer rather than stop reporting it.
+    if (util::LoadTimeline::Enabled() && !active_[i].url.empty()) {
+      // Without this, AbortController cancels are invisible next to request.done
+      // — soft-nav SABR looked like "never completed" when the player aborted
+      // stalled POSTs (TD-0046).
+      util::LoadTimeline::MarkWith("request.aborted", active_[i].url);
+    }
     active_.erase(active_.begin() + static_cast<std::ptrdiff_t>(i));
     found = true;
   }
