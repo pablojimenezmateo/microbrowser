@@ -1,0 +1,369 @@
+[resource-timing/304-response-recorded.html]
+FAIL=304 responses should still show up in the PerformanceTimeline
+[resource-timing/SO-XO-SO-redirect-chain-tao.https.html]
+harness=TIMEOUT
+[resource-timing/TAO-match.html]
+harness=TIMEOUT
+[resource-timing/TAO-port-mismatch-means-crossorigin.html]
+FAIL=A port mismatch must fail the TAO check
+FAIL=An identical port must pass the TAO check
+[resource-timing/body-size-cross-origin.https.html]
+FAIL=Retrieving a cors resource with Timing-Allow-Origin should expose body size
+FAIL=Retrieving a cors resource without Timing-Allow-Origin should expose body size
+FAIL=Retrieving a no-cors resource with Timing-Allow-Origin should not expose body size
+FAIL=Retrieving a no-cors resource without Timing-Allow-Origin should not expose body size
+FAIL=Retrieving a same-origin resource with Timing-Allow-Origin should expose body size
+FAIL=Retrieving a same-origin resource without Timing-Allow-Origin should expose body size
+[resource-timing/buffer-full-add-after-full-event.html]
+FAIL=Test that entry was added to the buffer after a buffer full event
+[resource-timing/buffer-full-add-entries-during-callback-that-drop.html]
+FAIL=Test that entries synchronously added to the buffer during the callback are dropped
+[resource-timing/buffer-full-add-entries-during-callback.html]
+FAIL=Test that entries synchronously added to the buffer during the callback don't get dropped if the buffer is increased
+[resource-timing/buffer-full-add-then-clear.html]
+FAIL=Test that if the buffer is cleared after entries were added to the secondary buffer, those entries make it into the primary one
+[resource-timing/buffer-full-decrease-buffer-during-callback.html]
+FAIL=Test that decreasing the buffer limit during the callback does not drop entries
+[resource-timing/buffer-full-eventually.html]
+harness=TIMEOUT
+[resource-timing/buffer-full-increase-buffer-during-callback.html]
+FAIL=Test that increasing the buffer during the callback is enough for entries not to be dropped
+[resource-timing/buffer-full-inspect-buffer-during-callback.html]
+FAIL=Test that entries in the secondary buffer are not exposed during the callback and before they are copied to the primary buffer
+[resource-timing/buffer-full-set-to-current-buffer.html]
+FAIL=Test that adding entries and firing the buffer full event happen in the right order.
+[resource-timing/buffer-full-store-and-clear-during-callback.html]
+FAIL=Test that entries overflowing the buffer trigger the buffer full event, can be stored, and make their way to the primary buffer after it's cleared in the buffer full event.
+[resource-timing/buffer-full-then-decreased.html]
+FAIL=Test that if the buffer is reduced after entries were added to it, those entries don't get cleared, nor is the resourcetimingbufferfull event being called.
+[resource-timing/buffer-full-then-increased.html]
+FAIL=Test that overflowing the buffer and immediately increasing its limit does not trigger the resourcetimingbufferfull event
+[resource-timing/buffer-full-when-populate-entries.html]
+FAIL=Test that a buffer full event does not bubble and that resourcetimingbufferfull is called only once per overflow
+[resource-timing/buffered-flag.any.html]
+FAIL=PerformanceObserver with buffered flag sees previous resource entries.
+[resource-timing/buffered-flag.any.worker.html]
+harness=TIMEOUT
+[resource-timing/cached-image-gets-single-entry.html]
+harness=CRASH
+[resource-timing/clear-resource-timings.html]
+FAIL=Test that clearResourceTimings() clears the performance timeline buffer
+[resource-timing/connection-reuse.html]
+harness=TIMEOUT
+[resource-timing/connection-reuse.https.html]
+harness=TIMEOUT
+[resource-timing/content-encoding.https.html]
+harness=TIMEOUT
+[resource-timing/content-type-minimization.html]
+harness=TIMEOUT
+[resource-timing/content-type.html]
+harness=TIMEOUT
+[resource-timing/cors-preflight.any.html]
+FAIL=PerformanceResourceTiming sizes fetch with preflight test
+[resource-timing/cors-preflight.any.worker.html]
+harness=TIMEOUT
+[resource-timing/cross-origin-iframe.html]
+FAIL=A cross-origin iframe should report an opaque RT entry
+FAIL=A cross-origin iframe with TAO enabled should report a full RT entry
+[resource-timing/cross-origin-redirects.html]
+harness=TIMEOUT
+[resource-timing/cross-origin-start-end-time-with-redirects.html]
+harness=TIMEOUT
+[resource-timing/cross-origin-status-codes.html]
+harness=TIMEOUT
+[resource-timing/decoded-body-size-compressed.https.html]
+harness=TIMEOUT
+[resource-timing/delivery-type.tentative.any.html]
+FAIL=PerformanceResourceTiming deliveryType test, cross origin, TAO fails.
+FAIL=PerformanceResourceTiming deliveryType test, cross origin, TAO passes.
+FAIL=PerformanceResourceTiming deliveryType test, same origin.
+[resource-timing/document-domain-no-impact-opener.html]
+harness=TIMEOUT
+[resource-timing/encoded-body-size-cached.https.html]
+FAIL=encodedBodySize and transferSize for dictionary-compressed (dcb) resource served from cache
+FAIL=encodedBodySize and transferSize for dictionary-compressed (dcz) resource served from cache
+[resource-timing/entries-for-network-errors.sub.https.html]
+harness=TIMEOUT
+[resource-timing/entry-attributes.html]
+harness=TIMEOUT
+[resource-timing/event-source-timing.html]
+FAIL=ResourceTiming for EventSource should reflect number of re-connections to source
+[resource-timing/fetch-cross-origin-redirect.https.html]
+FAIL=Test fetching through a cross-origin redirect URL
+FAIL=Test fetching through a same-origin redirect URL
+[resource-timing/font-timestamps.html]
+FAIL=Test a font's timestamps
+FAIL=Test a font's timestamps with delays
+[resource-timing/idlharness.any.html]
+FAIL=idl_test setup
+[resource-timing/idlharness.any.worker.html]
+harness=TIMEOUT
+[resource-timing/iframe-failed-commit.html]
+harness=TIMEOUT
+[resource-timing/iframe-non-html.html]
+harness=TIMEOUT
+[resource-timing/iframe-redirect-without-location.html]
+harness=TIMEOUT
+[resource-timing/iframe-sequence-of-events.html]
+harness=TIMEOUT
+[resource-timing/image-sequence-of-events.html]
+harness=TIMEOUT
+[resource-timing/initiator-type/audio.html]
+FAIL=The initiator type for <audio src> without 'type' attribute must be 'audio'
+FAIL=The initiator type for <source src> with type 'audio/mpeg' must be 'audio'
+FAIL=The initiator type for <source src> with type 'audio/ogg' must be 'audio'
+FAIL=The initiator type for <source src> with type 'audio/wav' must be 'audio'
+[resource-timing/initiator-type/dynamic-insertion.html]
+harness=TIMEOUT
+[resource-timing/initiator-type/embed.html]
+FAIL=The initiator type for <embed> must be 'embed'
+[resource-timing/initiator-type/frameset.html]
+FAIL=The initiator type for <frame> in a <frameset> must be 'frame'
+[resource-timing/initiator-type/iframe.html]
+FAIL=The initiator type for <iframe> must be 'iframe'
+[resource-timing/initiator-type/input.html]
+FAIL=The initiator type for <input type=image> must be 'input'
+[resource-timing/initiator-type/link.html]
+harness=TIMEOUT
+[resource-timing/initiator-type/misc.html]
+harness=TIMEOUT
+[resource-timing/initiator-type/script.html]
+FAIL=The initiator type for an asynchronous XmlHTTPRequest must be 'xmlhttprequest'
+FAIL=The initiator type for script imported from another script must be 'script'
+[resource-timing/initiator-type/style.html]
+FAIL=The initiator type for '@font-face' resources must be 'css'
+FAIL=The initiator type for 'background' attributes in <style> elements must be 'css'
+FAIL=The initiator type for 'cursor' attributes in <style> elements must be 'css'
+FAIL=The initiator type for 'list-style-image' attributes in <style> elements must be 'css'
+[resource-timing/initiator-type/svg.html]
+FAIL=The initiator type for <image> in an <svg> must be 'image'
+FAIL=The initiator type for <use> in an <svg> must be 'other'
+[resource-timing/initiator-type/video.html]
+harness=TIMEOUT
+[resource-timing/initiator-type/workers.html]
+harness=TIMEOUT
+[resource-timing/input-sequence-of-events.html]
+harness=TIMEOUT
+[resource-timing/interim-response-times.h2.html]
+FAIL=Fetch from cross-origin with early hints, with 100 response
+FAIL=Fetch from cross-origin with early hints, without 100 response
+FAIL=Fetch from cross-origin without early hints, with 100 response
+FAIL=Fetch from cross-origin without early hints, without 100 response
+FAIL=Fetch from cross-origin-with-TAO with early hints, with 100 response
+FAIL=Fetch from cross-origin-with-TAO with early hints, without 100 response
+FAIL=Fetch from cross-origin-with-TAO without early hints, with 100 response
+FAIL=Fetch from cross-origin-with-TAO without early hints, without 100 response
+FAIL=Fetch from same-origin with early hints, with 100 response
+FAIL=Fetch from same-origin with early hints, without 100 response
+FAIL=Fetch from same-origin without early hints, with 100 response
+FAIL=Fetch from same-origin without early hints, without 100 response
+[resource-timing/interim-response-times.html]
+FAIL=Fetch from cross-origin with early hints, with 100 response
+FAIL=Fetch from cross-origin with early hints, without 100 response
+FAIL=Fetch from cross-origin without early hints, with 100 response
+FAIL=Fetch from cross-origin without early hints, without 100 response
+FAIL=Fetch from cross-origin-with-TAO with early hints, with 100 response
+FAIL=Fetch from cross-origin-with-TAO with early hints, without 100 response
+FAIL=Fetch from cross-origin-with-TAO without early hints, with 100 response
+FAIL=Fetch from cross-origin-with-TAO without early hints, without 100 response
+FAIL=Fetch from same-origin with early hints, with 100 response
+FAIL=Fetch from same-origin with early hints, without 100 response
+FAIL=Fetch from same-origin without early hints, with 100 response
+FAIL=Fetch from same-origin without early hints, without 100 response
+[resource-timing/load-from-mem-cache-transfer-size.html]
+harness=TIMEOUT
+[resource-timing/nested-context-navigations-embed.html]
+FAIL=Test that cross-site embed navigations are not observable by the parent
+FAIL=Test that cross-site embed navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that cross-site embed refreshes are not observable by the parent
+FAIL=Test that crossorigin embed navigations are not observable by the parent
+FAIL=Test that crossorigin embed navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that crossorigin embed refreshes are not observable by the parent
+FAIL=Test that embed navigations are not observable by the parent
+FAIL=Test that embed navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that embed refreshes are not observable by the parent
+[resource-timing/nested-context-navigations-iframe.html]
+FAIL=Test that cross-site iframe navigations are not observable by the parent
+FAIL=Test that cross-site iframe navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that cross-site iframe refreshes are not observable by the parent
+FAIL=Test that crossorigin iframe navigations are not observable by the parent
+FAIL=Test that crossorigin iframe navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that crossorigin iframe refreshes are not observable by the parent
+FAIL=Test that iframe navigations are not observable by the parent
+FAIL=Test that iframe navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that iframe refreshes are not observable by the parent
+[resource-timing/nested-context-navigations-object.html]
+FAIL=Test that cross-site object navigations are not observable by the parent
+FAIL=Test that cross-site object navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that cross-site object refreshes are not observable by the parent
+FAIL=Test that crossorigin object navigations are not observable by the parent
+FAIL=Test that crossorigin object navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that crossorigin object refreshes are not observable by the parent
+FAIL=Test that object navigations are not observable by the parent
+FAIL=Test that object navigations are not observable by the parent, even after history navigations by the parent
+FAIL=Test that object refreshes are not observable by the parent
+[resource-timing/nested-nav-fallback-timing.html]
+FAIL=Cross-origin TAO-fail IFrame entries should report window load time
+FAIL=Cross-origin TAO-fail object entries should report window load time
+[resource-timing/nextHopProtocol-is-tao-protected.https.html]
+harness=TIMEOUT
+[resource-timing/no-entries-for-cross-origin-css-fetched-memory-cache.sub.html]
+harness=TIMEOUT
+[resource-timing/no-entries-for-cross-origin-css-fetched.sub.html]
+FAIL=Make sure that resources fetched by cross origin CSS are not in the timeline.
+[resource-timing/object-not-found-adds-entry.html]
+harness=TIMEOUT
+[resource-timing/object-not-found-after-TAO-cross-origin-redirect.html]
+harness=TIMEOUT
+[resource-timing/object-not-found-after-cross-origin-redirect.html]
+FAIL=Verify that cross-origin object resources don't implicitly expose their redirect timings
+[resource-timing/opaque-origin.html]
+harness=TIMEOUT
+[resource-timing/ping-rt-entries.html]
+FAIL=Hyperlink auditing (<a ping>) should have a resource timing entry
+[resource-timing/queue-entry-regardless-buffer-size.html]
+FAIL=Test that buffer size has no impact to whether an entry is queued or not
+[resource-timing/redirects.html]
+harness=TIMEOUT
+[resource-timing/render-blocking-status-link.html]
+FAIL=Validate render blocking status of link resources in PerformanceResourceTiming
+[resource-timing/render-blocking-status-script.html]
+FAIL=Validate render blocking status of script resources in PerformanceResourceTiming
+[resource-timing/resource-ignore-data-url.html]
+harness=TIMEOUT
+[resource-timing/resource-reload-TAO.html]
+harness=TIMEOUT
+[resource-timing/resource-timing-failed-fetch-web-bundle.tentative.html]
+harness=ERROR
+[resource-timing/resource-timing-level1.sub.html]
+harness=TIMEOUT
+[resource-timing/resource_connection_reuse_mixed_content.html]
+harness=TIMEOUT
+[resource-timing/resource_connection_reuse_mixed_content_redirect.html]
+harness=TIMEOUT
+[resource-timing/resource_dedicated_worker.html]
+harness=TIMEOUT
+[resource-timing/resource_nested_dedicated_worker.worker.html]
+harness=TIMEOUT
+[resource-timing/resource_reparenting.html]
+harness=TIMEOUT
+[resource-timing/resource_subframe_self_navigation.html]
+FAIL=Subsequent <embed> navigations don't appear in the resource-timing buffer.
+FAIL=Subsequent <frame> navigations don't appear in the resource-timing buffer.
+FAIL=Subsequent <iframe> navigations don't appear in the resource-timing buffer.
+FAIL=Subsequent <object> navigations don't appear in the resource-timing buffer.
+[resource-timing/resource_timing.worker.html]
+harness=TIMEOUT
+[resource-timing/resource_timing_content_length.html]
+harness=TIMEOUT
+[resource-timing/response-status-code.html]
+harness=TIMEOUT
+[resource-timing/same-origin-from-cross-origin-redirect.html]
+harness=TIMEOUT
+[resource-timing/secure-iframe-in-insecure-context.html]
+FAIL=secureConnectionStart is reported for iframes loaded over https in http context
+FAIL=secureConnectionStart is reported for object documents loaded over https in http context
+[resource-timing/shared-worker-rt-entry.html]
+FAIL=Shared workers should not generate Resource Timing Entries
+[resource-timing/sizes-cache.any.html]
+FAIL=PerformanceResourceTiming sizes caching test
+[resource-timing/sizes-redirect-img.html]
+harness=TIMEOUT
+[resource-timing/sizes-redirect.any.html]
+harness=TIMEOUT
+[resource-timing/status-codes-create-entry.html]
+FAIL=Make sure all status codes are reported
+[resource-timing/supported_resource_type.any.html]
+harness=TIMEOUT
+[resource-timing/supported_resource_type.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/direct.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/event-handler-overwritten.html]
+FAIL=The initiator Url for /images/red.png?initiator_url_eventhandler initiatorUrl from event handlers must be 'http://localhost:45385/resource-timing/tentative/initiator-url/event-handler-overwritten.html'
+[resource-timing/tentative/initiator-url/event-handler.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_eventhandler initiatorUrl from event handlers must be 'http://localhost:45385/resource-timing/tentative/initiator-url/event-handler.html'
+FAIL=The initiator Url for /images/red.png?initiator_url_eventhandler initiatorUrl from event handlers must be 'http://localhost:45385/resource-timing/tentative/initiator-url/event-handler.html'
+[resource-timing/tentative/initiator-url/external-script-in-posted-task.html]
+FAIL=The initiator Url for blue.png?no_cache initiatorUrl by scheduler.postTask() from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources-in-posted-task.js'
+FAIL=The initiator Url for empty.js?no_cache initiatorUrl by scheduler.postTask() from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources-in-posted-task.js'
+FAIL=The initiator Url for empty_style.css?no_cache initiatorUrl by scheduler.postTask() from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources-in-posted-task.js'
+FAIL=The initiator Url for green.html?no_cache initiatorUrl by scheduler.postTask() from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources-in-posted-task.js'
+[resource-timing/tentative/initiator-url/external-script.html]
+FAIL=The initiator Url for blue.png?no_cache initiatorUrl from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources.js'
+FAIL=The initiator Url for empty.js?no_cache initiatorUrl from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources.js'
+FAIL=The initiator Url for empty_style.css?no_cache initiatorUrl from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources.js'
+FAIL=The initiator Url for green.html?no_cache initiatorUrl from external scripts must be 'http://localhost:45385/resource-timing/resources/loading-resources.js'
+[resource-timing/tentative/initiator-url/iframe-post-message.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_iframe_postmessage initiatorUrl from iframe postMessage() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/iframe-post-message.html'
+[resource-timing/tentative/initiator-url/inline-document-write.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/inline-script.html]
+FAIL=The initiator Url for blank_page_green.html?no_cache_inline_script initiatorUrl from inline-script must be 'http://localhost:45385/resource-timing/tentative/initiator-url/inline-script.html'
+FAIL=The initiator Url for blue.png?no_cache_inline_script initiatorUrl from inline-script must be 'http://localhost:45385/resource-timing/tentative/initiator-url/inline-script.html'
+FAIL=The initiator Url for empty_style.css?no_cache_inline_script initiatorUrl from inline-script must be 'http://localhost:45385/resource-timing/tentative/initiator-url/inline-script.html'
+[resource-timing/tentative/initiator-url/post-message-shared-worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/post-message-worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/post-task.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/post-task.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/promise.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/promise.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_promise initiatorUrl from fullfilled promise must be 'http://localhost:45385/resource-timing/tentative/initiator-url/promise.html'
+[resource-timing/tentative/initiator-url/queue-microtask.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/queue-microtask.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_queuemicrotask initiatorUrl from queueMicrotask() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/queue-microtask.html'
+[resource-timing/tentative/initiator-url/request-animation-frame.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_requestanimationframe initiatorUrl from requestAnimationFrame() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/request-animation-frame.html'
+[resource-timing/tentative/initiator-url/request-idle-callback.html]
+FAIL=The initiator Url for function test() { [source unavailable] } initiatorUrl from requestIdleCallback() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/request-idle-callback.html'
+[resource-timing/tentative/initiator-url/set-interval.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/set-interval.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_setinterval initiatorUrl from setInterval() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/set-interval.html'
+[resource-timing/tentative/initiator-url/set-timeout.any.worker.html]
+harness=TIMEOUT
+[resource-timing/tentative/initiator-url/set-timeout.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_settimeout initiatorUrl from setTimeout() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/set-timeout.html'
+[resource-timing/tentative/initiator-url/static-resource.html]
+FAIL=The initiator Url for Ahem.ttf?initiator-html initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for blue.png?inline-style initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for blue.png?using-Img-tag initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for display_paragraph.js initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for empty.js?async initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for empty.js?blocking initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for empty.js?deferred initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for empty.js?module initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for empty_style.css?link initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+FAIL=The initiator Url for green.html initiatorUrl from static-resource must be 'http://localhost:45385/resource-timing/tentative/initiator-url/static-resource.html'
+[resource-timing/tentative/initiator-url/stylesheet-dynamic.html]
+FAIL=The initiator Url for Ahem.ttf?label=dynamic-initiator initiatorUrl from style sheet must be 'http://localhost:45385/resource-timing/resources/nested-dynamic-initiator.css'
+FAIL=The initiator Url for blue.png?label=dynamic-initiator initiatorUrl from style sheet must be 'http://localhost:45385/resource-timing/resources/nested-dynamic-initiator.css'
+FAIL=The initiator Url for nested-dynamic-initiator.css initiatorUrl from document must be 'http://localhost:45385/resource-timing/tentative/initiator-url/stylesheet-dynamic.html'
+FAIL=The initiator Url for resource_timing_test0.css?label=dynamic-initiator initiatorUrl from style sheet must be 'http://localhost:45385/resource-timing/resources/nested-dynamic-initiator.css'
+[resource-timing/tentative/initiator-url/stylesheet-static.html]
+FAIL=The initiator Url for Ahem.ttf?label=initiator initiatorUrl from style sheet must be 'http://localhost:45385/resource-timing/resources/nested-initiator.css'
+FAIL=The initiator Url for blue.png?label=initiator initiatorUrl from style sheet must be 'http://localhost:45385/resource-timing/resources/nested-initiator.css'
+FAIL=The initiator Url for resource_timing_test0.css?label=initiator initiatorUrl from style sheet must be 'http://localhost:45385/resource-timing/resources/nested-initiator.css'
+[resource-timing/tentative/initiator-url/xml-http-request.html]
+FAIL=The initiator Url for /images/blue.png?initiator_url_xmlhttprequest initiatorUrl from XMLHttpRequest() must be 'http://localhost:45385/resource-timing/tentative/initiator-url/xml-http-request.html'
+[resource-timing/test_resource_timing.html]
+harness=TIMEOUT
+[resource-timing/test_resource_timing.https.html]
+harness=TIMEOUT
+[resource-timing/tojson.html]
+harness=TIMEOUT
+[resource-timing/workerStart-tao-protected.https.html]
+FAIL=A resource from a cross-origin service worker must expose workerStart when there is a TAO match
+FAIL=A resource from a cross-origin service worker must not expose workerStart when there is a TAO failure
+FAIL=Not a test - needed to unregister the SW and close its embedder
+[resource-timing/worklet-rt-entries.https.html]
+FAIL=Worklets should generate Resource Timing Entries
+[resource-timing/xhr-resource-timing.html]
+FAIL=Verify resource timing entry creation for XHR failing with CORS
+FAIL=Verify resource timing entry creation for successful XHR
