@@ -1478,20 +1478,21 @@ a shared-session death then permanently fails every in-flight GET, including
 late scripts that have no application-level retry.
 
 **Landed** (2026-08-09). One GET/HEAD retry on session-level failure, forcing
-`ConnectionPool::Acquire(... allow_reuse=false)`. POST still refuses that path.
-Counter `net.h2_retried`. Test
-`Http2Fetch/AGetSurvivesADeadSharedSessionOnce` (and the POST negative).
+`ConnectionPool::Acquire(... allow_reuse=false)`. Counter `net.h2_retried`.
+Test `Http2Fetch/AGetSurvivesADeadSharedSessionOnce`.
 
-**Also.** `PageVideo::DetachBuffer` before `removeSourceBuffer` frees the
-buffer — decoders held raw `SourceBufferState*` / `MediaTrack*` and a soft-nav
-teardown could UAF in `NextDelayMs` / `FeedSamples` (exit 139 on one SPA run).
+**Update** (2026-08-10, TD-0041). Soft-nav SPA watch started 8
+`googlevideo.com/videoplayback` SABR POSTs and completed **zero** of them while
+`media.source_buffers_created` was 6 and `media.source_appends` stayed 0.
+Session-death retry is extended to POST when no response was processed — the
+body is still buffered on the client. Test
+`Http2Fetch/APostSurvivesADeadSharedSessionOnce`.
 
 **Close when.** SPA search→watch stamps `#movie_player` reliably across network
 jitter (retry recovers `base.js`), and cold/SPA watch reach playable
-`readyState` without transport-mass-failure orphans. **Measured closed for
-stamp+MSE** (2026-08-09, Release cats search→watch): `rs:4`, `buf≈23s`,
-`isError:false`, `net.h2_retried=4`, `base.js` 200. Keep open only as the
-ledger for residual `fetch.failed` / non-idempotent retry policy questions.
+`readyState` without transport-mass-failure orphans. Stamp half measured
+closed 2026-08-09; MSE half re-opened under TD-0041 until soft-nav shows
+`source_appends > 0`.
 
 ---
 
@@ -1950,12 +1951,34 @@ family of bug (TD-0020); `sourceopen` was not.
 `Page/MediaSourceOpenRunsAsAHostTask`.
 
 **Still open until measured.** Soft-nav may still show zero appends from H2
-POST session death without retry (TD-0025) or residual step storms after a
+session death on SABR POSTs (TD-0041) or residual step storms after a
 fresh `sourceopen` task — confirm with `MICROBROWSER_LOAD_TIMELINE=1` for
-`googlevideo` and `js.steps_exhausted`.
+`googlevideo` dones and `js.steps_exhausted`.
 
 **Close when.** Soft-nav search→watch reaches `readyState >= 2` with
 `media.source_appends > 0` on Release, stably across runs.
+
+---
+
+## TD-0041 — Soft-nav SABR `videoplayback` POSTs never complete after H2 session death
+
+**Opened** 2026-08-10 after Release soft-nav
+`/results?search_query=cats` → Accept → thumb: `#movie_player` stamped,
+`media.source_buffers_created=6`, `media.source_appends=0`, `readyState=0`.
+Timeline: **8** `request.start` for `googlevideo.com/videoplayback?…&sabr=1`,
+**0** `request.done` for those URLs; other streams later `FAILED the connection
+failed`. `js.steps_exhausted=3`.
+
+**Cause.** TD-0025 retried GET/HEAD on shared-session death but not POST.
+YouTube SABR uses POST (buffered body, Content-Type unset). Those streams died
+with the session and were never re-asked, so `sourceopen`/`addSourceBuffer`
+ran with nothing to append.
+
+**Fix.** Same one-shot session-death retry for POST when no response was
+processed (`MayRetry`). Test `Http2Fetch/APostSurvivesADeadSharedSessionOnce`.
+
+**Close when.** Soft-nav shows `request.done` for googlevideo and
+`media.source_appends > 0` / `readyState >= 2` on Release.
 
 ---
 

@@ -269,10 +269,13 @@ void RegisterHttp2FetchTests(std::vector<TestCase>& tests) {
                 "the path was asked twice — once on the dead session, once on the retry");
   });
 
-  AddTest(tests, "Http2Fetch/APostDoesNotRetryADeadSession", [] {
+  AddTest(tests, "Http2Fetch/APostSurvivesADeadSharedSessionOnce", [] {
+    // TD-0041: SABR `videoplayback` is POST. Session death used to fail those
+    // streams without retry while GET recovered — soft-nav then stamped MSE
+    // buffers and never appended.
     Http2ScriptedFactory factory;
-    factory.die_once_on_path = "/youtubei/v1/player";
-    factory.routes.push_back({"/youtubei/v1/player", 200, "application/json", "{}", ""});
+    factory.die_once_on_path = "/videoplayback";
+    factory.routes.push_back({"/videoplayback", 200, "application/octet-stream", "media", ""});
     PrivacyPolicy policy;
     CookieJar cookies;
     HttpCache cache;
@@ -280,15 +283,19 @@ void RegisterHttp2FetchTests(std::vector<TestCase>& tests) {
 
     FetchOptions options;
     options.method = "POST";
-    const char payload[] = "{}";
+    const char payload[] = "sabr";
     options.body.assign(reinterpret_cast<const std::byte*>(payload),
                         reinterpret_cast<const std::byte*>(payload) + sizeof(payload) - 1);
     const FetchResult result = RunToCompletion(
-        net::Fetch(policy.Decide(RequestFor("https://example.com/youtubei/v1/player")), policy,
-                   pool, cookies, cache, options, 1000));
-    Expect(!result.ok, "POST must not be resent after a silent session death");
-    ExpectEqInt(static_cast<long long>(factory.connects), 1,
-                "a second connection would be a second side effect");
+        net::Fetch(policy.Decide(RequestFor("https://example.com/videoplayback")), policy, pool,
+                   cookies, cache, options, 1000));
+    Expect(result.ok, result.error.empty() ? "POST retry after session death failed"
+                                           : result.error.c_str());
+    ExpectEqString(BodyOf(result.response), "media", "body from the second connection");
+    ExpectEqInt(static_cast<long long>(factory.connects), 2,
+                "first socket died; second answered");
+    ExpectEqInt(static_cast<long long>(factory.paths.size()), 2,
+                "asked twice — dead session then retry");
   });
 }
 

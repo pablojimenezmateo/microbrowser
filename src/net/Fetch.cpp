@@ -719,15 +719,16 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
             const char* reason = session_->ErrorOf(stream_);
             const bool refused =
                 session_->StateOf(stream_) == Http2Session::StreamState::Refused;
-            // A shared session's fatal I/O fails every open stream at once. For
-            // GET/HEAD that is recoverable: drop the dead session and ask once
-            // on a fresh connection (allow_reuse=false via retried_). POST stays
-            // on REFUSED_STREAM / GOAWAY only — a second side effect is worse
-            // than a failed write.
-            const bool idempotent =
-                remaining_.method == "GET" || remaining_.method == "HEAD";
+            // A shared session's fatal I/O fails every open stream at once. Retry
+            // once on a fresh connection (allow_reuse=false via retried_), for
+            // GET/HEAD and for POST: SABR videoplayback is POST with a buffered
+            // body, and leaving those streams dead left soft-nav with
+            // `source_buffers_created` and zero `source_appends` (TD-0041). A
+            // second side effect is worse only when the first write was
+            // acknowledged — here the session died with no response, so nothing
+            // was processed (MayRetry's `nothing_was_processed` gate).
             const bool session_died = session_->Failed();
-            const bool retryable = refused || (session_died && idempotent);
+            const bool retryable = refused || session_died;
             if (retryable && !retried_) {
               AddPerformanceCounter(PerfCounterId::NetHttp2Retried);
             }
