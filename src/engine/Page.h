@@ -35,42 +35,10 @@
 #include "gfx/TextRenderer.h"
 #include "layout/FontTextMeasurer.h"
 #include "engine/PageScript.h"
+#include "engine/PageGestures.h"
 #include "layout/LayoutEngine.h"
 
 namespace microbrowser::engine {
-
-// What dispatching an event did, which is two separate facts.
-//
-// A handler that changed the document needs a relayout whether or not it
-// prevented anything, and a handler that prevented the default may have
-// changed nothing at all. Reporting one bit conflated the two, and the visible
-// symptom was a page whose handler ran and whose screen did not change.
-struct FormSubmission {
-  std::string url;
-  std::string method = "GET";
-  std::string body;
-  std::string content_type;
-};
-
-struct DispatchOutcome {
-  bool ran = false;
-  bool prevented = false;
-  // Element the `click` event targeted (UI Events common ancestor of press and
-  // release). Default actions must walk *this* rather than re-hit-testing the
-  // point: a dialog that removes itself on mousedown would otherwise leave the
-  // release on whatever was underneath (youtube Accept → search result).
-  dom::Element* click_target = nullptr;
-};
-
-// What a completed primary click's default action should do, resolved from the
-// click target rather than from a fresh hit-test at the pointer.
-struct ClickActivation {
-  std::optional<FormSubmission> form;
-  std::optional<std::string> href;
-  bool reset_form = false;
-  bool toggled_checkable = false;
-  bool toggled_media = false;
-};
 
 // One loaded document: its DOM, its styles, its box tree, and the display list
 // they produce.
@@ -974,11 +942,5 @@ class Page : private layout::ImageProvider,
   // the press itself just dismissed.
   dom::Element* pointer_down_target_ = nullptr;
 };
-
-// Form-control hit test shared by Page's click default actions. Lives in
-// PageHitTest.cpp with LinkAt / ElementAt so visibility:hidden is one walk.
-dom::Element* HitTestFormControlAt(const layout::Box& root, gfx::FloatPoint document_point,
-                                   bool (*predicate)(const dom::Element&),
-                                   float document_scroll_y = 0.0f);
 
 }  // namespace microbrowser::engine

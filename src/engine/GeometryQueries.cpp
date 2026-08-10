@@ -835,7 +835,15 @@ dom::Element* Page::ElementAtViewport(float x, float y) {
   // empty list, so elementFromPoint returns null. Hitting below-fold youtube
   // thumbs through a negative or >innerHeight Y made YoutubeResultsLooksReady
   // (and page scripts) treat off-screen geometry as topmost (TD-0037).
-  if (x < 0.0f || y < 0.0f || x >= viewport_.viewport_width || y >= viewport_.viewport_height) {
+  //
+  // Per axis, and only where the viewport has a size: `viewport_` is zero until something calls
+  // SetViewport, and a page laid out without one has a width and an unknown height rather than a
+  // viewport nothing is inside. Culling against zero made every `elementFromPoint` on such a page
+  // answer null, which is not "outside the viewport" -- it is "nobody said how big the window is".
+  const bool wide = viewport_.viewport_width > 0.0f;
+  const bool tall = viewport_.viewport_height > 0.0f;
+  if (x < 0.0f || y < 0.0f || (wide && x >= viewport_.viewport_width) ||
+      (tall && y >= viewport_.viewport_height)) {
     util::AddPerformanceCounter(util::PerfCounterId::GeometryElementFromPointOutsideViewport);
     return nullptr;
   }

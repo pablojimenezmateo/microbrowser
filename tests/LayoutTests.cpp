@@ -458,7 +458,12 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(image != nullptr, "the image has a box");
     Expect(image->Geometry().content.x == 10.0f && image->Geometry().content.y == 5.0f,
            "placed against its containing block");
-    Expect(result.height < 90.0f,
+    // The body, not the document: an out-of-flow box takes no space from the flow it left, but it
+    // *is* part of the document's scrollable overflow (TD-0036), so the height `Layout` returns --
+    // the one a scrollbar is sized from -- legitimately covers it.
+    const Box* body = FindBox(*result.root, "body");
+    Expect(body != nullptr, "the body has a box");
+    Expect(body->Geometry().content.height < 90.0f,
            "and taking no space from the line it left, which a box laid out twice would have");
   });
 
