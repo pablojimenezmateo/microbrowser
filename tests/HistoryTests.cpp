@@ -19,6 +19,7 @@
 #include "support/DriveLoop.h"
 #include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::tests {
 
@@ -372,6 +373,47 @@ void RegisterHistoryTests(std::vector<TestCase>& tests) {
     // A second request for the same URL: the initial load plus the reload.
     Expect(session.factory.log.requests.size() >= 2,
            "reload must fetch again, not be a no-op same-document walk");
+  });
+
+  AddTest(tests, "History/ReloadAbandonsOutgoingTimersBeforeDocumentFetch", [] {
+    // TD-0048: youtube Accept armed beacons/timers, then location.reload().
+    // CancelAll dropped in-flight fetches but left the interpreter; a due
+    // timer started generate_204 on the new document's H2 session and the
+    // reload GET failed with "the connection failed".
+    Session session;
+    session.factory.script.clear();
+    session.factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   PageRunning("setTimeout(function () { fetch('/beacon'); }, 0);"
+                               "location.reload();"))});
+    for (int i = 0; i < 4; ++i) {
+      session.factory.script.push_back(ScriptedTransport::Exchange{
+          "page.example", 443, true,
+          OkResponse("text/html", PageRunning("console.log('reloaded')"))});
+    }
+    session.engine.PageLoader().SetTransport(session.factory);
+    session.channel.Ui().Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.engine.HandlePendingMessages();
+    session.channel.Ui().Send(ipc::NavigateMessage{"https://page.example/start"});
+    session.engine.HandlePendingMessages();
+    RunEngineToIdle(session.engine);
+    for (int turn = 0; turn < 8; ++turn) {
+      session.engine.Advance();
+      (void)session.engine.RunDueWork();
+      RunEngineToIdle(session.engine);
+    }
+    bool saw_beacon = false;
+    for (const std::string& req : session.factory.log.requests) {
+      if (req.find("/beacon") != std::string::npos) {
+        saw_beacon = true;
+      }
+    }
+    Expect(!saw_beacon, "outgoing setTimeout must not fetch after reload starts");
+    Expect(util::ReadPerformanceCounter(util::PerfCounterId::EngineScriptAbandonedForNavigation) >= 1,
+           "Navigate must abandon the outgoing document's script");
+    ExpectEqString(session.DisplayedUrl(), "https://page.example/start",
+                   "reload still commits. Errors: " + session.Errors());
   });
 
   AddTest(tests, "History/LocationReplaceRewritesTheCurrentEntry", [] {

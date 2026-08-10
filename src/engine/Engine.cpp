@@ -789,6 +789,10 @@ void Engine::Navigate(const std::string& url, const net::FetchOptions& options,
   // transport. One line rather than a shutdown sequence, because that is a property of
   // the type rather than a sequence someone has to remember.
   CloseAllSockets();
+  // Outgoing document script next: CancelAll drops in-flight fetches, but timers
+  // on the still-mounted page used to fire `generate_204` / consent beacons into
+  // the new document's H2 session and kill the reload GET (TD-0048).
+  page_.AbandonForNavigation();
   load_ = PendingLoad{};
   // The images the previous document was still fetching go with it, for the
   // reason `load_` does: a response for a page that is gone must be

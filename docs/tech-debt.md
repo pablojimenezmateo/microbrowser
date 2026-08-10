@@ -2189,10 +2189,19 @@ ends as `request.done … FAILED the connection failed` / title
 (140+) on the failed reload path — distinct from TD-0044's ALPN wipe (memo is
 kept; test still passes).
 
-**Hypothesis.** Rapid CancelAll + new document GET to the same origin after
-consent's save/fetch burst races H2/TLS; or youtube resets the new stream.
-Needs a timeline that stamps every navigation's document attempt and the
-IoStatus behind `"the connection failed"`.
+**Cause.** `CancelAll` dropped in-flight fetches and pooled sockets, but the
+outgoing document's interpreter and timers stayed mounted until `OnDocument`.
+A due timer/`fetch` (youtube `generate_204` and consent beacons) opened streams
+on the reload's fresh H2 session; the document GET then died (`the connection
+failed` after one retry, ~13s+13s). Timeline only showed the reload because
+`LoadTimeline::Begin` clears — and `navigation.location_reload` was marked
+*before* Begin, so it never appeared.
+
+**Fix.** `Page::AbandonForNavigation` (`script_.Detach` + clear animations)
+runs in `Engine::Navigate` after `CancelAll`. `StartFetch` refuses while
+`load_.active && !document_arrived`. Location cause is marked *after* Begin.
+Test `History/ReloadAbandonsOutgoingTimersBeforeDocumentFetch`. Counters
+`engine.script_abandoned_for_navigation`, `engine.fetch_rejected_during_navigation`.
 
 **Close when.** Release Accept on `/results` recommits results (thumbs ≥12)
 across repeated runs without the error interstitial.

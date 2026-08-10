@@ -338,6 +338,11 @@ class Page : private layout::ImageProvider,
   // when it has asked for neither. The loop asks this to decide how long it may
   // sleep.
   std::optional<std::uint32_t> NextWakeDelay(std::int64_t now_ms) const;
+  // Drop the outgoing document's interpreter, timers, rAF and host tasks.
+  // `Engine::Navigate` calls this after `CancelAll` so a consent page cannot
+  // `fetch` / beacon against the in-flight document GET (TD-0048). `Page::Load`
+  // Detach()s again when the replacement commits — twice is fine.
+  void AbandonForNavigation();
   // Runs every timer that is due and the animation frame if its boundary has
   // arrived. `None` when idle; `Paint` when boxes were restyled in place (WAAPI
   // / paint-only CSS animation / video) and geometry is unchanged; `Layout`

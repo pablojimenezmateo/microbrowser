@@ -156,15 +156,16 @@ bool Engine::FollowPendingLocationNavigation() {
     replacing_document_ = true;
   }
   // Same URL + replace is `location.reload()`: still a network load, but not a
-  // new history entry. Distinguish it in the timeline so a consent Accept that
-  // reloads the watch page is not read as a replace to somewhere else.
-  const char* milestone = "navigation.location_assign";
+  // new history entry. Mark *after* Navigate's LoadTimeline::Begin — a Mark
+  // before Begin was wiped and made Accept-reload failures undiagnosable
+  // (TD-0048).
+  const char* cause = "navigation.location_assign";
   if (pending.replace) {
-    milestone = (resolved == page_.Url()) ? "navigation.location_reload"
-                                         : "navigation.location_replace";
+    cause = (resolved == page_.Url()) ? "navigation.location_reload"
+                                      : "navigation.location_replace";
   }
-  util::LoadTimeline::MarkWith(milestone, resolved);
   NavigateFromCurrentDocument(resolved, {});
+  util::LoadTimeline::MarkWith(cause, resolved);
   return true;
 }
 

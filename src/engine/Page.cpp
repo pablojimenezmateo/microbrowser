@@ -520,6 +520,14 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
 }
 
 
+void Page::AbandonForNavigation() {
+  // Interpreter, timers, rAF, idle, host tasks. The DOM stays until Load; it
+  // must not schedule against the in-flight document GET (TD-0048).
+  script_.Detach();
+  animations_.Clear();
+  util::AddPerformanceCounter(util::PerfCounterId::EngineScriptAbandonedForNavigation);
+}
+
 std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
   std::optional<std::uint32_t> from_script = script_.NextWakeDelay(now_ms);
   // A running transition or animation asks for a frame. **Nothing when nothing is running**, which is

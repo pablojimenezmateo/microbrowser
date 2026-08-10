@@ -649,6 +649,10 @@ namespace microbrowser::util {
   X(IpcBytesDeserialized, "ipc.bytes_deserialized")                              \
   /* --- engine ------------------------------------------------------------- */ \
   X(EngineNavigations, "engine.navigations")                                     \
+  /* Outgoing document silenced at Navigate (TD-0048 Accept reload).            */ \
+  X(EngineScriptAbandonedForNavigation, "engine.script_abandoned_for_navigation") \
+  /* Script fetch refused while the document GET is still outstanding.           */ \
+  X(EngineFetchRejectedDuringNavigation, "engine.fetch_rejected_during_navigation") \
   /* A navigation a page asked for rather than the user: a form a script       */ \
   /* submitted. Counted apart because it is the one kind that starts with the  */ \
   /* interpreter still on the stack, and the count going up while the          */ \

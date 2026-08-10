@@ -92,6 +92,13 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
   if (!base.has_value()) {
     return 0;
   }
+  // Between Navigate and the replacement document there is no page that may
+  // open sockets. AbandonForNavigation removes the interpreter; this gate
+  // covers any other entry (img/beacon path that still had a binding) (TD-0048).
+  if (load_.active && !load_.document_arrived) {
+    util::AddPerformanceCounter(util::PerfCounterId::EngineFetchRejectedDuringNavigation);
+    return 0;
+  }
   // A URL that still says `[object Object]` is a DOMString coercion miss: some
   // binding took a Location/URL/host object through pure `js::ToString`. Count
   // it so a youtube load that still does this is visible without a timeline.
