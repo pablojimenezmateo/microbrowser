@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-5823 of 267701 subtests pass (2.2%) over 2146 tests.
+5845 of 268904 subtests pass (2.2%) over 2235 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 43% of every subtest here.
+**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
 one that tests an algorithm. The per-area column is the measurement; the aggregate
 is an artefact of how the suite is written.
@@ -84,6 +84,13 @@ it is a page that never reported, which almost always means something threw befo
 | `shadow-dom/untriaged` | 54 | 52 | 0 | 2 | 0 | 248 | 157 | 63.3 |
 | `storage` | 28 | 11 | 0 | 17 | 0 | 23 | 0 | 0.0 |
 | `storage/buckets` | 10 | 8 | 0 | 2 | 0 | 48 | 0 | 0.0 |
+| `streams` | 3 | 2 | 0 | 1 | 0 | 3 | 0 | 0.0 |
+| `streams/piping` | 13 | 13 | 0 | 0 | 0 | 204 | 0 | 0.0 |
+| `streams/readable-byte-streams` | 11 | 10 | 0 | 1 | 0 | 233 | 5 | 2.1 |
+| `streams/readable-streams` | 22 | 21 | 0 | 1 | 0 | 362 | 17 | 4.7 |
+| `streams/transferable` | 12 | 7 | 0 | 5 | 0 | 71 | 0 | 0.0 |
+| `streams/transform-streams` | 12 | 12 | 0 | 0 | 0 | 134 | 0 | 0.0 |
+| `streams/writable-streams` | 16 | 16 | 0 | 0 | 0 | 196 | 0 | 0.0 |
 | `subresource-integrity` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0.0 |
 | `subresource-integrity/integrity-policy` | 5 | 0 | 0 | 5 | 0 | 37 | 0 | 0.0 |
 | `subresource-integrity/signatures` | 15 | 14 | 0 | 1 | 0 | 177 | 43 | 24.3 |
@@ -109,8 +116,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 384 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 184 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 386 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 186 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -161,6 +168,9 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | ERROR: [object Object] | `domparsing/DOMParser-parseFromString-encoding.html` |
 | 1 | TIMEOUT: the page never reported; first script error: ../../editing/include/tests.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (l... | `selection/contenteditable/initial-selection-on-focus.tentative.html` |
 | 1 | TIMEOUT: the page never reported; first script error: /editing/include/editor-test-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected... | `selection/deleteFromDocument-HTMLDetails.html` |
+| 1 | TIMEOUT: the page never reported; first script error: /service-workers/service-worker/resources/test-helpers.sub.js: SyntaxError: expected ';' (line ... | `streams/transferable/service-worker.https.html` |
+| 1 | TIMEOUT: the page never reported; first script error: /streams/queuing-strategies.any.js: ReferenceError: CountQueuingStrategy is not defined Referen... | `streams/queuing-strategies.any.html` |
+| 1 | TIMEOUT: the page never reported; first script error: /streams/transferable/transform-stream-members.any.js: ReferenceError: TransformStream is not d... | `streams/transferable/transform-stream-members.any.html` |
 | 1 | TIMEOUT: the page never reported; first script error: /wai-aria/scripts/aria-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (... | `shadow-dom/reference-target/tentative/aria-labelledby.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DocumentTimeline is not defined ReferenceError: DocumentTimel... | `hr-time/raf-coarsened-time.https.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: HTMLAreaElement is not defined ReferenceError: HTMLAreaElemen... | `custom-elements/reactions/customized-builtins/HTMLAreaElement.html` |
@@ -190,6 +200,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetXDiv is not defined ReferenceError: targetXDiv is not d... | `dom/events/scrolling/scrollend-event-fired-to-element-with-overscroll-behavior.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `resize-observer/svg-with-css-box-002.svg` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: expected ')' after a for head (line N) SyntaxError: expected ')'... | `dom/nodes/Document-getElementsByTagName-xhtml.xhtml` |
+| 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ReadableStream' of undefined TypeError: cann... | `streams/readable-streams/global.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'defaultView' of undefined TypeError: cannot ... | `custom-elements/registries/define.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'querySelector' of null TypeError: cannot rea... | `selection/shadow-dom/cross-shadow-boundary-extend.html` |
 | 1 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `resize-observer/svg.html` |
@@ -210,13 +221,16 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 64 | 189032 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
 | 54 | 264 | Test timed out | `FileAPI/FileReader/workers.html` |
-| 45 | 1858 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
+| 48 | 1861 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
+| 35 | 514 | Illegal constructor: ReadableStream | `streams/piping/close-propagation-backward.any.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 31 | 63 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
+| 30 | 274 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
 | 23 | 482 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
+| 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
 | 19 | 957 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 34 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
@@ -230,11 +244,12 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 14 | 68 | Illegal constructor: HTMLElement | `custom-elements/HTMLElement-attachInternals.html` |
 | 14 | 95 | promise_test: Unhandled rejection with value: object "ReferenceError: Observable is not defined" | `dom/observable/tentative/crashtests/observable-gc.any.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "ReferenceError: createStylesheetHost is not defined" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html` |
+| 14 | 14 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 13 | 29 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
-| 13 | 13 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
+| 12 | 114 | TransformStream is not defined | `streams/transferable/transform-stream.html` |
 | 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
 | 12 | 41 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
 | 12 | 12 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `intersection-observer/cross-origin-tall-iframe.sub.html` |
@@ -278,8 +293,8 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 6 | 19 | assert_throws_exactly: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor-dom.window.html` |
 | 6 | 3428 | assert_throws_js: function "function RangeError() { [native code] }" is not an Error subtype | `encoding/api-replacement-encodings.any.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
+| 6 | 22 | promise_test: Unhandled rejection with value: object "ReferenceError: WritableStream is not defined" | `streams/transferable/transfer-with-messageport.window.html` |
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
-| 6 | 54 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 6 | 287 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
 | 5 | 720 | Failed to construct URL: invalid URL | `url/url-constructor.any.html?include=file` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
@@ -303,9 +318,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 28 | promise_test: Unhandled rejection with value: object "TypeError: undefined (setHTMLUnsafe) is not a function" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-shared.html` |
 | 5 | 53 | testN is not defined | `shadow-dom/event-composed-path-with-related-target.html` |
 | 5 | 12 | undefined (evaluate) is not a function | `domxpath/fn-normalize-space.html` |
-| 4 | 4 | 'in' requires an object | `custom-elements/ElementInternals-accessibility.html` |
-| 4 | 4 | DocumentType is not defined | `dom/nodes/Document-doctype.html` |
-| 4 | 67 | File is not defined | `FileAPI/historical.https.html` |
-| 4 | 4 | NodeList is not defined | `dom/nodes/Document-getElementsByTagName.html` |
 
-8828 distinct subtest messages and 88 distinct harness messages behind these numbers.
+8872 distinct subtest messages and 92 distinct harness messages behind these numbers.

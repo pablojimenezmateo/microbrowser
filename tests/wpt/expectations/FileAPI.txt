@@ -388,16 +388,13 @@ harness=TIMEOUT
 [FileAPI/file/send-file-form-controls.html]
 FAIL=Upload file-for-upload-in-form-BS-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-CR-LF-[
-].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-CR-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-DEL-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-ESC-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-FF-[].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-HT-[	].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-LF-CR-[
-].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-LF-[
-].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-NUL-[ ].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-SPACE-[ ].txt (ASCII) in UTF-8 form
 FAIL=Upload file-for-upload-in-form-VT-[].txt (ASCII) in UTF-8 form
@@ -462,16 +459,13 @@ FAIL=Upload file-for-upload-in-form.txt (ASCII) in UTF-8 form
 [FileAPI/file/send-file-formdata-controls.any.html]
 FAIL=Upload file-for-upload-in-form-BS-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-CR-LF-[
-].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-CR-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-DEL-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-ESC-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-FF-[].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-HT-[	].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-LF-CR-[
-].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-LF-[
-].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-NUL-[ ].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-SPACE-[ ].txt (ASCII) in fetch with FormData
 FAIL=Upload file-for-upload-in-form-VT-[].txt (ASCII) in fetch with FormData
