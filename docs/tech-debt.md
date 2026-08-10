@@ -2072,8 +2072,12 @@ MSE worked; the results reload shared the same site and partition.
 HTTP/1.1 sockets pooled. The reload acquired the half-dead session; the peer
 had already torn the TCP connection down after the mass RST.
 
-**Fix.** `CancelAll` also `pool_.Clear()`. Test
-`Http2Fetch/CancelAllDropsPooledSessions`.
+**Fix.** `CancelAll` calls `ConnectionPool::DropLiveConnections` (idle sockets,
+H2 sessions, connect claims) and **keeps** the ALPN `protocols_` memo. A first
+cut used `Clear()`, which also forgot `h2` per origin and on youtube Accept
+reload opened hundreds of sockets (`net.connections` 235, `h2_retried` 98)
+before the document stall-timed-out. Test
+`Http2Fetch/CancelAllDropsPooledSessions` (includes post-CancelAll ALPN reuse).
 
 **Close when.** Release `/results` Accept reload recommits the results
 document (not the error page); soft-nav search→watch can reach the player

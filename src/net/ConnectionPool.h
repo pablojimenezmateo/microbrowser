@@ -162,8 +162,15 @@ class ConnectionPool {
   std::optional<std::uint32_t> NextDeadlineMs(std::int64_t now_ms) const;
 
   // Drops every idle connection. The factory swap needs it — a connection made
-  // by a factory that is gone is a descriptor nobody owns.
+  // by a factory that is gone is a descriptor nobody owns. Also clears the
+  // remembered ALPN map (`protocols_`), which is correct for a factory change
+  // and wrong for a navigation — use `DropLiveConnections` there (TD-0044).
   void Clear();
+  // Idle HTTP/1.1 sockets, H2 sessions, and outstanding connect claims — not
+  // the per-partition ALPN memo. `RequestQueue::CancelAll` uses this so a
+  // navigation cannot reuse a mass-RST session without forcing every origin to
+  // re-learn HTTP/2 (which opened hundreds of sockets on youtube Accept reload).
+  void DropLiveConnections();
   void SetFactory(TransportFactory& factory);
 
   std::size_t IdleCount() const { return idle_.size(); }

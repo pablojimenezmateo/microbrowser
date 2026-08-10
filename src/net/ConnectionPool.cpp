@@ -233,16 +233,20 @@ std::optional<std::uint32_t> ConnectionPool::NextDeadlineMs(std::int64_t now_ms)
 }
 
 void ConnectionPool::Clear() {
+  DropLiveConnections();
+  protocols_.clear();
+}
+
+void ConnectionPool::DropLiveConnections() {
   for (Idle& entry : idle_) {
     entry.connection->Close();
   }
   idle_.clear();
-  // The sessions go with them, and so do the claims: a claim outstanding under
-  // a factory that is gone would park every later request for that origin
-  // against a connect that will never finish.
+  // Sessions' destructors close their transports. Claims go too: a claim for a
+  // connect the previous document started must not park the next document's
+  // first request behind a handshake that CancelAll already abandoned.
   sessions_.clear();
   claims_.clear();
-  protocols_.clear();
 }
 
 void ConnectionPool::SetFactory(TransportFactory& factory) {

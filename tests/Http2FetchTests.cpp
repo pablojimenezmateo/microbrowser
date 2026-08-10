@@ -324,6 +324,14 @@ void RegisterHttp2FetchTests(std::vector<TestCase>& tests) {
     ExpectEqString(BodyOf(second[0].result.response), "b", "fresh connection answered");
     Expect(factory.connects > connects_before,
            "post-CancelAll fetch opened a new socket rather than reviving the old session");
+    // A third fetch to the same origin should reuse the ALPN memo (one connect
+    // for /b, then reuse) — Clear() used to wipe protocols_ and force a storm.
+    queue.Start(policy.Decide(RequestFor("https://example.com/a")), FetchOptions{}, 3000);
+    const std::vector<RequestQueue::Completion> third = Drain(queue);
+    ExpectEqInt(static_cast<long long>(third.size()), 1, "third fetch finished");
+    Expect(third[0].result.ok, third[0].result.error.c_str());
+    ExpectEqInt(static_cast<long long>(factory.connects), static_cast<long long>(connects_before + 1),
+                "ALPN memo survived CancelAll so the third fetch reused the post-reload session");
   });
 }
 

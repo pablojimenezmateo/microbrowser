@@ -354,9 +354,9 @@ void RequestQueue::CancelAll() {
   // H2 sessions and idle HTTP/1.1 sockets too. CancelAll used to leave pooled
   // sessions alive after mass RST; youtube consent's `location.reload()` then
   // reused a half-dead socket and the document load failed with "the connection
-  // failed" (TD-0044). Engine::Navigate's comment already promised "connections
-  // and all" — this is that half.
-  pool_.Clear();
+  // failed" (TD-0044). Drop connections only — keep the ALPN memo so a reload
+  // does not open one fresh socket per origin to rediscover `h2`.
+  pool_.DropLiveConnections();
 }
 
 }  // namespace microbrowser::net
