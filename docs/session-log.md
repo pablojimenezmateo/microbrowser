@@ -4449,8 +4449,29 @@ fixes, and four runner options that exist because the first three attempts at th
    a reference rendered by the same rasterizer calls antialiasing noise a difference. ADR 0040
    §6 is the amendment, with the other five gaps and a decision for each.
 
-**Left:** the ranked cause list in `docs/wpt-baseline.md` is what the next sessions are. C1 and
-C2 — `DOMException` as a real type, and native errors that are the page's own — are visible at
-the top of it in every area, exactly as the plan predicted. `testdriver.js` came out of the
-triage with no decision attached to it at all and is now plan task B5: 1,158 tests need
+7. **The expectations are ~3% flaky against themselves, and that is the first thing to fix.**
+   A verification run over the committed baseline — same binary, nothing changed between
+   recording and gating — reported **25 unexpected in the first 800 tests**. That is not a
+   regression; it is the recorded TIMEOUTs being a property of the machine's load as much as of
+   the browser, which session 0 of this ledger already warned about and which the baseline made
+   worse by recording under a load average of 20–40. `ctest` would currently be red.
+   **This is a measurement, not a diagnosis**: the run was killed at 800 of 21,265 to hand the
+   machine back, so 3.1% is an early estimate and the failures were never printed. The three
+   candidate fixes, in the order worth trying: raise `--retries` above 1 for a recording run;
+   raise the default `--timeout` (the in-page harness deadline is what actually fires); or
+   re-record the worst areas on an idle machine. Whoever does this should run the gate to
+   completion first and read *which* tests flip — a rate is not a cause.
+
+**Left:** the ranked cause list in `docs/wpt-baseline.md` is what the next sessions are, and the
+plan's new §0.5 is what it changed about the plan — seven targets revised, three of the plan's own
+assumptions falsified. C1 and C2 — `DOMException` as a real type, and native errors that are the
+page's own — stay first because exception identity gates every negative test in the suite, but
+they are *not* the largest causes, which is not what the plan assumed. The five that are bigger
+are `importScripts` (1,380 tests), `NOTRUN` behind one earlier failure (1,603), `OffscreenCanvas`
+(889), the `.py` handlers (512, task H1) and `action_sequence` (147). `testdriver.js` came out of
+the triage with no decision attached to it at all and is now plan task B5: 1,158 tests need
 synthesised input, this browser has an input path, and nothing exposes it to a page.
+
+**Before anything else, though, finish item 7.** An expectation file that disagrees with itself
+makes every later session's first run red for a reason that has nothing to do with their change,
+which is exactly the failure mode ADR 0040 §5 exists to prevent.
