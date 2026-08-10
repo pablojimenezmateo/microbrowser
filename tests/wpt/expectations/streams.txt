@@ -863,8 +863,7 @@ FAIL=a TypeError message should not be preserved if it is inherited
 FAIL=objects that can be completely expressed in JSON should be preserved
 FAIL=objects that cannot be expressed in JSON should also be preserved
 FAIL=other attributes of a TypeError should not be preserved
-FAIL=reason with a simple value of '	
-' should be preserved
+FAIL=reason with a simple value of '
 FAIL=reason with a simple value of '3' should be preserved
 FAIL=reason with a simple value of '7' should be preserved
 FAIL=reason with a simple value of 'Infinity' should be preserved

@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-5845 of 268904 subtests pass (2.2%) over 2235 tests.
+5881 of 269026 subtests pass (2.2%) over 2396 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -106,6 +106,13 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
 | `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
+| `webmessaging` | 60 | 15 | 1 | 44 | 0 | 34 | 12 | 35.3 |
+| `webmessaging/broadcastchannel` | 14 | 6 | 0 | 8 | 0 | 34 | 13 | 38.2 |
+| `webmessaging/message-channels` | 23 | 9 | 0 | 14 | 0 | 16 | 8 | 50.0 |
+| `webmessaging/multi-globals` | 4 | 4 | 0 | 0 | 0 | 4 | 0 | 0.0 |
+| `webmessaging/with-options` | 9 | 2 | 0 | 7 | 0 | 2 | 0 | 0.0 |
+| `webmessaging/with-ports` | 24 | 11 | 0 | 13 | 0 | 17 | 1 | 5.9 |
+| `webmessaging/without-ports` | 27 | 13 | 0 | 14 | 0 | 15 | 2 | 13.3 |
 | `webstorage` | 54 | 34 | 1 | 19 | 0 | 1259 | 1164 | 92.5 |
 
 ## Why the harness never reported
@@ -116,8 +123,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 386 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 186 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 460 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 212 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -149,6 +156,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: [object Object] Error: undefined at get_stack (@N) at AssertionError (@N) at ... | `dom/nodes/Document-createCDATASection.html` |
 | 1 | CRASH: killed by signal Segmentation fault | `dom/nodes/moveBefore/relevant-mutations.html` |
 | 1 | ERROR: N duplicate test name: "Should throw TypeError for function "function () { [source unavailable] }"." | `webstorage/missing_arguments.window.html` |
+| 1 | ERROR: N duplicate test name: "sending ND canvas ImageBitmap to http://N.N.N.N:N" | `webmessaging/postMessage_cross_domain_image_transfer_2d.sub.htm` |
 | 1 | ERROR: N duplicate test names: "a.classList in undefined namespace should be DOMTokenList.", "area.classList in undefined namespace should be DOMTo... | `dom/lists/DOMTokenList-coverage-for-attributes.html` |
 | 1 | ERROR: N duplicate test names: "touchstart listener is passive by default for HTMLElement", "touchstart listener is passive with {passive:undefined... | `dom/events/passive-by-default.html` |
 | 1 | ERROR: Test named 'Adoption with global registry' specified N 'cleanup' function, and N failed. | `custom-elements/registries/adoption.window.html` |
@@ -218,17 +226,17 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 64 | 189032 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
+| 69 | 189040 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
+| 66 | 276 | Test timed out | `FileAPI/FileReader/workers.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 54 | 264 | Test timed out | `FileAPI/FileReader/workers.html` |
 | 48 | 1861 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 35 | 514 | Illegal constructor: ReadableStream | `streams/piping/close-propagation-backward.any.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
-| 31 | 63 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
+| 32 | 64 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 30 | 274 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
+| 29 | 489 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
-| 23 | 482 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
 | 19 | 957 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
@@ -264,6 +272,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 9 | 9 | cannot read property 'postMessage' of undefined | `dom/events/EventListener-incumbent-global-1.sub.html` |
 | 9 | 435 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
 | 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
@@ -271,6 +280,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 8 | 65 | assert_array_equals: lengths differ, expected array ["attributeChanged"] length N, got [] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
 | 8 | 10 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
+| 8 | 14 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
 | 7 | 20 | The encoding label provided ('utf-Nbe') is invalid. | `encoding/api-basics.any.html` |
 | 7 | 2588 | The encoding label provided ('windows-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
@@ -278,7 +288,6 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 7 | 9 | assert_true: Initially visible expected true got undefined | `intersection-observer/v2/svg-foreign-object-filter-occlusion.html` |
 | 7 | 28 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
 | 7 | 22 | cannot read property 'getElementById' of null | `domxpath/xpath-shadow-dom.html` |
-| 7 | 13 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 7 | 16 | document.elementsFromPoint unsupported | `uievents/order-of-events/mouse-events/click-cancel.html` |
 | 7 | 64 | promise_test: Unhandled rejection with value: object "ReferenceError: DataTransfer is not defined" | `FileAPI/file/send-file-form-controls.html` |
 | 7 | 46 | promise_test: Unhandled rejection with value: object "ReferenceError: getSelection is not defined" | `dom/nodes/moveBefore/selection-preserve.html` |
@@ -296,6 +305,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 6 | 22 | promise_test: Unhandled rejection with value: object "ReferenceError: WritableStream is not defined" | `streams/transferable/transfer-with-messageport.window.html` |
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
 | 6 | 287 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
+| 5 | 5 | DataCloneError: transferring objects is not supported | `FileAPI/blob/Blob-constructor.any.html` |
 | 5 | 720 | Failed to construct URL: invalid URL | `url/url-constructor.any.html?include=file` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
 | 5 | 262 | The encoding label provided ('ibmN') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
@@ -316,7 +326,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 25 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'getElementById' of null" | `shadow-dom/reference-target/tentative/dom-mutation.html` |
 | 5 | 7 | promise_test: Unhandled rejection with value: object "TypeError: undefined (getElementById) is not a function" | `shadow-dom/accesskey.tentative.html` |
 | 5 | 28 | promise_test: Unhandled rejection with value: object "TypeError: undefined (setHTMLUnsafe) is not a function" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-shared.html` |
-| 5 | 53 | testN is not defined | `shadow-dom/event-composed-path-with-related-target.html` |
-| 5 | 12 | undefined (evaluate) is not a function | `domxpath/fn-normalize-space.html` |
 
-8872 distinct subtest messages and 92 distinct harness messages behind these numbers.
+8894 distinct subtest messages and 93 distinct harness messages behind these numbers.
