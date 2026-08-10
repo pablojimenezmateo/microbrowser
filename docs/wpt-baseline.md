@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-5800 of 267140 subtests pass (2.2%) over 2042 tests.
+5823 of 267701 subtests pass (2.2%) over 2146 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 43% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -24,6 +24,14 @@ it is a page that never reported, which almost always means something threw befo
 
 | area | tests | ok | error | timeout | crash | subtests | passed | % |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
+| `FileAPI` | 11 | 6 | 0 | 5 | 0 | 26 | 10 | 38.5 |
+| `FileAPI/BlobURL` | 5 | 4 | 0 | 1 | 0 | 16 | 0 | 0.0 |
+| `FileAPI/FileReader` | 2 | 1 | 0 | 1 | 0 | 2 | 0 | 0.0 |
+| `FileAPI/blob` | 23 | 13 | 0 | 10 | 0 | 259 | 1 | 0.4 |
+| `FileAPI/file` | 21 | 14 | 0 | 7 | 0 | 163 | 0 | 0.0 |
+| `FileAPI/filelist-section` | 1 | 1 | 0 | 0 | 0 | 7 | 0 | 0.0 |
+| `FileAPI/reading-data-section` | 26 | 13 | 0 | 13 | 0 | 48 | 0 | 0.0 |
+| `FileAPI/url` | 15 | 3 | 0 | 12 | 0 | 40 | 12 | 30.0 |
 | `console` | 19 | 12 | 0 | 7 | 0 | 29 | 6 | 20.7 |
 | `cors` | 27 | 20 | 0 | 7 | 0 | 227 | 36 | 15.9 |
 | `custom-elements` | 44 | 25 | 0 | 19 | 0 | 598 | 104 | 17.4 |
@@ -101,8 +109,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 349 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
-| 170 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
+| 384 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 184 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -201,13 +209,13 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 |--:|--:|---|---|
 | 64 | 189032 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 51 | 257 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 54 | 264 | Test timed out | `FileAPI/FileReader/workers.html` |
 | 45 | 1858 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 31 | 63 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
-| 22 | 471 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
+| 23 | 482 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 19 | 957 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
@@ -218,11 +226,13 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 15 | 15 | assert_equals: IntersectionObserverEntryCount expected N but got N | `intersection-observer/scroll-and-root-margin.html` |
 | 14 | 124 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
 | 14 | 136 | DOMParser is not defined | `dom/nodes/Node-normalize.html` |
+| 14 | 42 | FileReader is not defined | `FileAPI/fileReader.any.html` |
 | 14 | 68 | Illegal constructor: HTMLElement | `custom-elements/HTMLElement-attachInternals.html` |
 | 14 | 95 | promise_test: Unhandled rejection with value: object "ReferenceError: Observable is not defined" | `dom/observable/tentative/crashtests/observable-gc.any.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "ReferenceError: createStylesheetHost is not defined" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html` |
 | 13 | 29 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
+| 13 | 13 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
 | 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
 | 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
@@ -231,11 +241,11 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 12 | 33 | undefined (createAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
 | 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
 | 11 | 132 | Observable is not defined | `dom/observable/tentative/observable-catch.any.html` |
-| 11 | 11 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 11 | 23 | promise_test: Unhandled rejection with value: object "TypeError: undefined (moveBefore) is not a function" | `dom/nodes/moveBefore/Node-moveBefore.html` |
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
+| 10 | 13 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
@@ -247,14 +257,15 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 8 | 10 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
 | 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
-| 8 | 9 | undefined (open) is not a function | `intersection-observer/target-in-different-window.html` |
 | 7 | 20 | The encoding label provided ('utf-Nbe') is invalid. | `encoding/api-basics.any.html` |
 | 7 | 2588 | The encoding label provided ('windows-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 7 | 12 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 7 | 9 | assert_true: Initially visible expected true got undefined | `intersection-observer/v2/svg-foreign-object-filter-occlusion.html` |
 | 7 | 28 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
 | 7 | 22 | cannot read property 'getElementById' of null | `domxpath/xpath-shadow-dom.html` |
+| 7 | 13 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 7 | 16 | document.elementsFromPoint unsupported | `uievents/order-of-events/mouse-events/click-cancel.html` |
+| 7 | 64 | promise_test: Unhandled rejection with value: object "ReferenceError: DataTransfer is not defined" | `FileAPI/file/send-file-form-controls.html` |
 | 7 | 46 | promise_test: Unhandled rejection with value: object "ReferenceError: getSelection is not defined" | `dom/nodes/moveBefore/selection-preserve.html` |
 | 7 | 7 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'estimate' of undefined" | `storage/estimate-parallel.https.any.html` |
 | 7 | 7 | target is not defined | `dom/events/mouse-event-retarget.html` |
@@ -264,11 +275,12 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 6 | 53 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got ["constructed"] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
 | 6 | 900 | assert_equals: username expected (string) "" but got (undefined) undefined | `url/url-constructor.any.html?include=javascript` |
 | 6 | 8 | assert_false: expected false got null | `intersection-observer/transformed-iframe-001-same-origin.html` |
+| 6 | 19 | assert_throws_exactly: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor-dom.window.html` |
 | 6 | 3428 | assert_throws_js: function "function RangeError() { [native code] }" is not an Error subtype | `encoding/api-replacement-encodings.any.html` |
-| 6 | 12 | cannot read property 'length' of undefined | `custom-elements/form-associated/form-associated-callback.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
 | 6 | 54 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
+| 6 | 287 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
 | 5 | 720 | Failed to construct URL: invalid URL | `url/url-constructor.any.html?include=file` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
 | 5 | 262 | The encoding label provided ('ibmN') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
@@ -281,23 +293,19 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 487 | assert_equals: expected "%N%N%NB" but got "U+Nc" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 | 5 | 54 | assert_equals: expected "%N%N%NB" but got "U+Nef" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 | 5 | 28 | assert_equals: expected "%N%N%NB" but got "U+aN" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
+| 5 | 30 | assert_equals: expected (string) "" but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
 | 5 | 36 | assert_equals: expected Document node with N child but got Document node with N children | `dom/nodes/Document-importNode.html` |
 | 5 | 5 | promise_test: Unhandled rejection with value: object "Error: '?feature=bidi' is missing when importing testdriver.js but the test is using W... | `console/console-count-logging.html` |
+| 5 | 65 | promise_test: Unhandled rejection with value: object "ReferenceError: File is not defined" | `FileAPI/unicode.any.html` |
+| 5 | 24 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
 | 5 | 25 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'getElementById' of null" | `shadow-dom/reference-target/tentative/dom-mutation.html` |
 | 5 | 7 | promise_test: Unhandled rejection with value: object "TypeError: undefined (getElementById) is not a function" | `shadow-dom/accesskey.tentative.html` |
 | 5 | 28 | promise_test: Unhandled rejection with value: object "TypeError: undefined (setHTMLUnsafe) is not a function" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-shared.html` |
 | 5 | 53 | testN is not defined | `shadow-dom/event-composed-path-with-related-target.html` |
 | 5 | 12 | undefined (evaluate) is not a function | `domxpath/fn-normalize-space.html` |
-| 5 | 283 | undefined is not a function | `dom/nodes/Document-createCDATASection-xhtml.xhtml` |
 | 4 | 4 | 'in' requires an object | `custom-elements/ElementInternals-accessibility.html` |
 | 4 | 4 | DocumentType is not defined | `dom/nodes/Document-doctype.html` |
+| 4 | 67 | File is not defined | `FileAPI/historical.https.html` |
 | 4 | 4 | NodeList is not defined | `dom/nodes/Document-getElementsByTagName.html` |
-| 4 | 18 | Storage is not defined | `webstorage/set.window.html` |
-| 4 | 8 | The encoding label provided ('bigN') is invalid. | `encoding/textdecoder-eof.any.html` |
-| 4 | 283 | The encoding label provided ('gbN') is invalid. | `encoding/textdecoder-labels.any.html` |
-| 4 | 90 | The encoding label provided ('gbk') is invalid. | `encoding/textdecoder-labels.any.html` |
-| 4 | 42 | The encoding label provided ('iso-N-jp') is invalid. | `encoding/iso-2022-jp-decoder.any.html` |
-| 4 | 259 | The encoding label provided ('koiN-r') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
-| 4 | 6 | assert_equals: expected "" but got "null" | `dom/nodes/CharacterData-data.html` |
 
-8774 distinct subtest messages and 88 distinct harness messages behind these numbers.
+8828 distinct subtest messages and 88 distinct harness messages behind these numbers.
