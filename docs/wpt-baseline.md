@@ -7,9 +7,9 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-6815 of 282130 subtests pass (2.4%) over 5320 tests.
+21345 of 373227 subtests pass (5.7%) over 10329 tests.
 
-**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 40% of every subtest here.
+**Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 31% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
 one that tests an algorithm. The per-area column is the measurement; the aggregate
 is an artefact of how the suite is written.
@@ -53,6 +53,37 @@ it is a page that never reported, which almost always means something threw befo
 | `cookies/third-party-cookies` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
 | `cookies/value` | 2 | 0 | 0 | 2 | 0 | 94 | 0 | 0.0 |
 | `cors` | 27 | 20 | 0 | 7 | 0 | 227 | 36 | 15.9 |
+| `css/CSS2` | 66 | 58 | 0 | 8 | 0 | 2464 | 601 | 24.4 |
+| `css/css-align` | 234 | 141 | 0 | 93 | 0 | 3689 | 807 | 21.9 |
+| `css/css-animations` | 123 | 108 | 5 | 10 | 0 | 1201 | 357 | 29.7 |
+| `css/css-backgrounds` | 121 | 120 | 0 | 1 | 0 | 6117 | 493 | 8.1 |
+| `css/css-box` | 83 | 42 | 0 | 41 | 0 | 957 | 303 | 31.7 |
+| `css/css-cascade` | 82 | 64 | 9 | 9 | 0 | 716 | 11 | 1.5 |
+| `css/css-color` | 62 | 61 | 0 | 1 | 0 | 11336 | 1272 | 11.2 |
+| `css/css-conditional` | 223 | 35 | 184 | 4 | 0 | 1753 | 1547 | 88.2 |
+| `css/css-display` | 33 | 29 | 0 | 4 | 0 | 428 | 72 | 16.8 |
+| `css/css-flexbox` | 369 | 186 | 0 | 183 | 0 | 1391 | 210 | 15.1 |
+| `css/css-fonts` | 163 | 138 | 1 | 24 | 0 | 7530 | 1195 | 15.9 |
+| `css/css-grid` | 652 | 184 | 0 | 468 | 0 | 6460 | 402 | 6.2 |
+| `css/css-images` | 41 | 39 | 0 | 2 | 0 | 3580 | 679 | 19.0 |
+| `css/css-multicol` | 94 | 82 | 0 | 12 | 0 | 1521 | 41 | 2.7 |
+| `css/css-overflow` | 202 | 156 | 2 | 44 | 0 | 957 | 183 | 19.1 |
+| `css/css-position` | 111 | 104 | 1 | 6 | 0 | 1375 | 284 | 20.7 |
+| `css/css-shapes` | 144 | 126 | 0 | 18 | 0 | 4855 | 741 | 15.3 |
+| `css/css-sizing` | 176 | 108 | 1 | 67 | 0 | 4194 | 574 | 13.7 |
+| `css/css-syntax` | 40 | 40 | 0 | 0 | 0 | 429 | 59 | 13.8 |
+| `css/css-tables` | 135 | 126 | 1 | 8 | 0 | 839 | 208 | 24.8 |
+| `css/css-text` | 359 | 250 | 1 | 108 | 0 | 2908 | 345 | 11.9 |
+| `css/css-text-decor` | 48 | 47 | 0 | 1 | 0 | 1276 | 99 | 7.8 |
+| `css/css-transforms` | 107 | 106 | 0 | 1 | 0 | 5498 | 1317 | 24.0 |
+| `css/css-transitions` | 120 | 92 | 3 | 25 | 0 | 3101 | 90 | 2.9 |
+| `css/css-ui` | 120 | 109 | 2 | 9 | 0 | 1900 | 174 | 9.2 |
+| `css/css-values` | 268 | 231 | 0 | 37 | 0 | 9671 | 802 | 8.3 |
+| `css/css-variables` | 59 | 46 | 0 | 13 | 0 | 502 | 194 | 38.6 |
+| `css/css-writing-modes` | 82 | 72 | 2 | 8 | 0 | 298 | 63 | 21.1 |
+| `css/cssom` | 190 | 149 | 5 | 36 | 0 | 1435 | 708 | 49.3 |
+| `css/cssom-view` | 225 | 187 | 0 | 38 | 0 | 1349 | 365 | 27.1 |
+| `css/selectors` | 277 | 210 | 10 | 57 | 0 | 1367 | 334 | 24.4 |
 | `custom-elements` | 44 | 25 | 0 | 19 | 0 | 598 | 104 | 17.4 |
 | `custom-elements/form-associated` | 18 | 14 | 3 | 1 | 0 | 103 | 1 | 1.0 |
 | `custom-elements/htmlconstructor` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
@@ -216,106 +247,106 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 1106 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 471 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 1869 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 703 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 215 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
+| 179 | ERROR: [object Object] | `css/css-conditional/container-queries/animation-container-size.html` |
+| 168 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `css/CSS2/linebox/vertical-align-top-bottom-001.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
+| 27 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot resolve module './support/positioned-grid-descendants.js' T... | `css/css-grid/abspos/orthogonal-positioned-grid-descendants-001.html` |
+| 21 | ERROR: TypeError: cannot read property 'N' of undefined | `css/css-conditional/container-queries/at-container-style-parsing.html` |
 | 17 | TIMEOUT: killed after the wall-clock budget | `dom/nodes/Node-insertBefore.html` |
-| 14 | ERROR: [object Object] | `domparsing/DOMParser-parseFromString-encoding.html` |
 | 13 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: getSelection is not defined ReferenceError: getSelection is n... | `selection/getRangeAt.html` |
-| 12 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `resize-observer/svg-with-css-box-002.svg` |
+| 13 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: test is not defined ReferenceError: test is not defined at <a... | `css/css-values/urls/resolve-relative-to-base.sub.html` |
 | 9 | ERROR: RangeError: script ran too long | `encoding/legacy-mb-japanese/iso-2022-jp/iso2022jp-encode-form-csiso2022jp.html` |
 | 9 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: async_test is not defined ReferenceError: async_test is not d... | `svg/animations/scripted/end-element-on-inactive-element.svg` |
+| 9 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: host is not defined ReferenceError: host is not defined at <a... | `css/cssom/selectorText-modification-restyle-002.html` |
+| 9 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: target is not defined ReferenceError: target is not defined a... | `css/css-cascade/layer-vs-inline-style.html` |
 | 8 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: SharedWorker is not defined ReferenceError: SharedWorker is n... | `fetch/metadata/sharedworker.https.sub.html` |
-| 8 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `resize-observer/svg.html` |
+| 8 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'cssRules' of undefined TypeError: cannot rea... | `css/css-cascade/all-prop-revert-layer.html` |
 | 7 | TIMEOUT: the page never reported; first script error: ./support/helpers.js: SyntaxError: expected ')' to close a dynamic import (line N) SyntaxError:... | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect-iframe.html` |
+| 7 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: container is not defined ReferenceError: container is not def... | `css/CSS2/positioning/relpos-percentage-left-in-scrollable.html` |
+| 7 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: initial is not defined ReferenceError: initial is not defined... | `css/selectors/focus-visible-script-focus-006.tentative.html` |
+| 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'load' of undefined TypeError: cannot read pr... | `css/css-shapes/shape-outside/values/shape-outside-ellipse-005.html` |
+| 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot resolve module './support/getComputedStyle-insets.js' TypeE... | `css/cssom/getComputedStyle-insets-relative.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createDocument) is not a function TypeError: undefined ... | `dom/nodes/append-on-Document.html` |
 | 6 | TIMEOUT: the page never reported; first script error: /service-workers/service-worker/resources/test-helpers.sub.js: SyntaxError: expected ';' (line ... | `fetch/api/policies/referrer-no-referrer-service-worker.https.html` |
+| 6 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: iframe is not defined ReferenceError: iframe is not defined a... | `css/css-values/viewport-units-compute.html` |
+| 6 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: measure is not defined ReferenceError: measure is not defined... | `css/css-values/viewport-units-gutter-001.html` |
+| 6 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'N' of undefined TypeError: cannot read prope... | `css/css-fonts/test_font_feature_values_parsing.html` |
+| 6 | TIMEOUT: the page never reported; first script error: inline script #N: [object Object] Error: undefined at get_stack (@N) at AssertionError (@N) at ... | `css/css-values/if-invalidation.html` |
 | 5 | TIMEOUT: the page never reported; first script error: /trusted-types/support/helper.sub.js: SyntaxError: expected ';' (line N) SyntaxError: expected ... | `domparsing/tentative/stream-html-with-trusted-types-error-in-policy.html` |
-| 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: target is not defined ReferenceError: target is not defined a... | `intersection-observer/grow-height-and-scrolled.html` |
+| 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: testStyle is not defined ReferenceError: testStyle is not def... | `css/css-fonts/parsing/font-face-metric-overrides.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
 | 5 | TIMEOUT: the page never reported; first script error: support.js?pipe=sub: SyntaxError: expected a property name (line N) SyntaxError: expected a pro... | `cors/credentials-flag.htm` |
 | 4 | ERROR: TypeError: cannot read property 'baseVal' of undefined | `svg/types/scripted/SVGLength-convertToSpecifiedUnits-font-change.html` |
+| 4 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: elm is not defined ReferenceError: elm is not defined at <ano... | `css/css-multicol/getclientrects-003.html` |
+| 4 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: scroller is not defined ReferenceError: scroller is not defin... | `css/css-overflow/scroll-markers/scroll-button-disposed-event-target.html` |
+| 4 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: subjectN is not defined ReferenceError: subjectN is not defin... | `css/selectors/invalidation/has-sibling-insertion-removal.html` |
 | 4 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot set property 'onerror' of undefined TypeError: cannot set p... | `custom-elements/cross-realm-callback-report-exception.html` |
 | 4 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (open) is not a function TypeError: undefined (open) is ... | `cookies/domain/domain-attribute-idn-host.sub.https.html` |
 | 4 | TIMEOUT: the page never reported; first script error: resources/webperftestharness.js: ReferenceError: ﻿ is not defined ReferenceError: ﻿ is not ... | `resource-timing/resource_connection_reuse_mixed_content.html` |
+| 3 | ERROR: TypeError: cannot read property 'cssRules' of undefined | `css/cssom/CSSStyleRule.html` |
 | 3 | ERROR: TypeError: undefined (createDocument) is not a function | `dom/nodes/Document-createAttribute.html` |
+| 3 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: FontFace is not defined ReferenceError: FontFace is not defin... | `css/css-fonts/mvs-shaping.html` |
+| 3 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: trigger is not defined ReferenceError: trigger is not defined... | `css/selectors/focus-visible-script-focus-016.tentative.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'baseVal' of undefined TypeError: cannot read... | `svg/types/scripted/SVGLength-ch.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'insertRule' of undefined TypeError: cannot r... | `dom/events/webkit-animation-end-event.html` |
+| 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (getSelection) is not a function TypeError: undefined (g... | `css/css-overflow/scroll-markers/scroll-buttons-selection.html` |
 | 3 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (write) is not a function TypeError: undefined (write) i... | `custom-elements/parser/parser-constructs-custom-element-in-document-write.html` |
 | 2 | CRASH: killed by signal Segmentation fault | `dom/nodes/moveBefore/relevant-mutations.html` |
 | 2 | ERROR: ReferenceError: DOMParser is not defined | `domparsing/DOMParser-parseFromString-html.html` |
 | 2 | ERROR: ReferenceError: SharedWorker is not defined | `workers/constructors/SharedWorker/setting-port-members.html` |
 | 2 | ERROR: Test named 'Repeated declarative shadow roots keep only the first' specified N 'cleanup' function, and N failed. | `shadow-dom/declarative/declarative-shadow-dom-repeats.html` |
+| 2 | ERROR: Test named 'writing-mode: horizontal-tb' specified N 'cleanup' function, and N failed. | `css/css-writing-modes/forms/input-range-block-size.html` |
+| 2 | ERROR: TypeError: cannot read property 'length' of undefined | `css/css-transitions/starting-style-cascade.html` |
 | 2 | ERROR: TypeError: cannot read property 'supports' of undefined | `fetch/metadata/generated/element-link-prefetch.https.optional.sub.html` |
 | 2 | TIMEOUT: the page never reported; first script error: ../editing/include/editor-test-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expect... | `selection/move-by-word-korean.html` |
+| 2 | TIMEOUT: the page never reported; first script error: /css/css-scroll-snap/support/common.js: SyntaxError: expected ';' (line N) SyntaxError: expecte... | `css/cssom-view/scrollIntoView-multiple-nested.html` |
+| 2 | TIMEOUT: the page never reported; first script error: /css/mediaqueries/resources/matchmedia-utils.js: SyntaxError: expected ';' (line N) SyntaxError... | `css/css-values/random-in-media.tentative.html` |
+| 2 | TIMEOUT: the page never reported; first script error: /wai-aria/scripts/aria-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (... | `css/css-display/accessibility/display-contents-role-and-label.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: RangeError: invalid code point RangeError: invalid code point at <anonymous> ... | `css/css-text/text-transform/math/text-transform-math-auto-003.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DOMParser is not defined ReferenceError: DOMParser is not def... | `domxpath/fn-lang.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: b is not defined ReferenceError: b is not defined at <anonymo... | `css/selectors/not-complex.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: button is not defined ReferenceError: button is not defined a... | `css/selectors/focus-visible-005.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: divNonConstructed is not defined ReferenceError: divNonConstr... | `css/cssom/CSSStyleSheet-constructable.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: feConvlveMatrix is not defined ReferenceError: feConvlveMatri... | `svg/animations/svginteger-animation-1.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: host is not defined ReferenceError: host is not defined at <a... | `dom/events/shadow-relatedTarget.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: has_scope is not defined ReferenceError: has_scope is not def... | `css/selectors/invalidation/is-pseudo-containing-complex-in-has.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: hostN is not defined ReferenceError: hostN is not defined at ... | `css/selectors/is-where-shadow.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: inert is not defined ReferenceError: inert is not defined at ... | `css/css-ui/interactivity-inert-click.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: input is not defined ReferenceError: input is not defined at ... | `selection/textcontrols/selectionchange-bubble.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: outside is not defined ReferenceError: outside is not defined... | `shadow-dom/focus/click-focus-delegatesFocus-click.html` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: scroller is not defined ReferenceError: scroller is not defin... | `dom/events/scrolling/scrollIntoView-in-onscroll-to-sticky.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: reference is not defined ReferenceError: reference is not def... | `css/css-multicol/inheritance.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: subject is not defined ReferenceError: subject is not defined... | `css/selectors/invalidation/has-invalidation-for-wiping-an-element.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: targetN is not defined ReferenceError: targetN is not defined... | `css/css-animations/animation-base-response-001.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: testInput is not defined ReferenceError: testInput is not def... | `css/css-writing-modes/forms/text-input-baseline.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: testN is not defined ReferenceError: testN is not defined at ... | `shadow-dom/event-post-dispatch.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: trustedTypes is not defined ReferenceError: trustedTypes is n... | `domparsing/tentative/positional-methods-with-parser-options.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'append' of undefined TypeError: cannot read ... | `resource-timing/TAO-match.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'customElements' of undefined TypeError: cann... | `dom/nodes/create-element-realm-after-adoption.html` |
+| 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'getComputedStyle' of undefined TypeError: ca... | `css/css-transitions/transition-background-position-with-edge-offset.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (bound) is not a function TypeError: undefined (bound) i... | `IndexedDB/idbindex-cross-realm-methods.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createProcessingInstruction) is not a function TypeErro... | `dom/nodes/Node-isEqualNode-xhtml.xhtml` |
-| 2 | TIMEOUT: the page never reported; first script error: inline script #N: [object Object] Error: undefined at get_stack (@N) at AssertionError (@N) at ... | `dom/nodes/Document-createCDATASection.html` |
 | 1 | ERROR: N duplicate test name: "Calling function () { [source unavailable] } doesn't affect index iteration" | `IndexedDB/idbcursor-iterating-update.any.html` |
 | 1 | ERROR: N duplicate test name: "Should throw TypeError for function "function () { [source unavailable] }"." | `webstorage/missing_arguments.window.html` |
 | 1 | ERROR: N duplicate test name: "The source of the request from function () { [source unavailable] } is the index itself" | `IndexedDB/idbindex-request-source.any.html` |
 | 1 | ERROR: N duplicate test name: "The source of the request from function () { [source unavailable] } is the object store itself" | `IndexedDB/idbobjectstore-request-source.any.html` |
+| 1 | ERROR: N duplicate test name: "Unresolvable percentage heights are resolved as Npx in first pass (scrollable overflow)" | `css/css-tables/height-distribution/percentage-sizing-of-table-cell-children.html` |
 | 1 | ERROR: N duplicate test name: "sending ND canvas ImageBitmap to http://N.N.N.N:N" | `webmessaging/postMessage_cross_domain_image_transfer_2d.sub.htm` |
+| 1 | ERROR: N duplicate test names: " block-start", " block-end" | `css/css-overflow/scroll-overflow-padding-block-001.html` |
 | 1 | ERROR: N duplicate test names: "a.classList in undefined namespace should be DOMTokenList.", "area.classList in undefined namespace should be DOMTo... | `dom/lists/DOMTokenList-coverage-for-attributes.html` |
 | 1 | ERROR: N duplicate test names: "touchstart listener is passive by default for HTMLElement", "touchstart listener is passive with {passive:undefined... | `dom/events/passive-by-default.html` |
-| 1 | ERROR: Test named 'Adoption with global registry' specified N 'cleanup' function, and N failed. | `custom-elements/registries/adoption.window.html` |
-| 1 | ERROR: Test named 'Cloning with global registry' specified N 'cleanup' function, and N failed. | `custom-elements/registries/Document-importNode-cross-document.window.html` |
-| 1 | ERROR: Test named 'Custom element with HTMLSubmitButtonBehavior is implicitly focusable' specified N 'cleanup' function, and N failed. | `custom-elements/form-associated/ElementInternals-behavior-accessibility.tentative.html` |
-| 1 | ERROR: Test named 'Custom submit button with form method=dialog closes dialog with behavior value' specified N 'cleanup' function, and N failed. | `custom-elements/form-associated/ElementInternals-submit-behavior-dialog.tentative.html` |
-| 1 | ERROR: Test named 'Declarative Shadow DOM: missing shadowrootslotassignment defaults to named' specified N 'cleanup' function, and N failed. | `shadow-dom/declarative/declarative-shadow-dom-slot-assignment.html` |
-| 1 | ERROR: Test named 'Drag from contenteditable into out-of-flow user-select:none extends selection to editable boundary.' specified N 'cleanup' funct... | `selection/drag-selection-contenteditable-to-out-of-flow-user-select-none.html` |
-| 1 | ERROR: Test named 'Drag rightward out of a floated block extends the selection forward, not backward to the start of the float's content.' specifie... | `selection/drag-out-of-floated-content.html` |
-| 1 | ERROR: Test named 'Focused element is removed' specified N 'cleanup' function, and N failed. | `selection/selection-focused-element-becomes-nonfocusable.html` |
-| 1 | ERROR: Test named 'HTMLSubmitButtonBehavior properties have correct default values' specified N 'cleanup' function, and N failed. | `custom-elements/form-associated/ElementInternals-submit-behavior.tentative.html` |
-| 1 | ERROR: Test named 'In top-level contexts, partitioned cookies default to the same SameSite attribute as unpartitioned cookies.' specified N 'cleanu... | `cookies/partitioned-cookies/partitioned-cookies-samesite-attribute.https.html` |
-| 1 | ERROR: Test named 'Text with user-select:text is selectable even if it is inside a user-select:none element.' specified N 'cleanup' function, and N... | `selection/drag-selection-extend-to-user-select-none.html` |
-| 1 | ERROR: Test named '__Host-Http: Does not set via HTTP with 'Secure; Path=/'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__Host-Http.https.html` |
-| 1 | ERROR: Test named '__Host: Non-secure origin: Does not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__host.header.html` |
-| 1 | ERROR: Test named '__Host: Secure origin: Does not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__host.header.https.html` |
-| 1 | ERROR: Test named '__Http: Does not set via HTTP with 'Path=/;' (without Secure)' specified N 'cleanup' function, and N failed. | `cookies/prefix/__Http.https.html` |
-| 1 | ERROR: Test named '__Secure: Non-secure origin: Should not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__secure.header.html` |
-| 1 | ERROR: Test named '__Secure: secure origin: Should not set 'Path=/;'' specified N 'cleanup' function, and N failed. | `cookies/prefix/__secure.header.https.html` |
-| 1 | ERROR: Test named 'delegatesFocus shouldn't cause extra focus steps' specified N 'cleanup' function, and N failed. | `shadow-dom/focus/focus-scroll-under-delegatesFocus.html` |
-| 1 | ERROR: Test named 'shadowrootslotassignment=manual is serialized and appears before shadowrootclonable and shadowrootserializable' specified N 'cle... | `shadow-dom/declarative/declarative-shadow-dom-slot-assignment-serialization.html` |
-| 1 | ERROR: Test named 'state selector has influence on nth-of when state is applied' specified N 'cleanup' functions, and N failed. | `custom-elements/state/state-css-selector-nth-of.html` |
-| 1 | ERROR: TypeError: undefined (createProcessingInstruction) is not a function | `dom/nodes/CharacterData-remove.html` |
-| 1 | ERROR: TypeError: undefined (pauseAnimations) is not a function | `svg/animations/smil-clock-value-parsing.html` |
-| 1 | PRECONDITION_FAILED: [object Object] | `fetch/orb/tentative/hls.html` |
-| 1 | TIMEOUT: the page never reported; first script error: ../../editing/include/tests.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (l... | `selection/contenteditable/initial-selection-on-focus.tentative.html` |
-| 1 | TIMEOUT: the page never reported; first script error: ./resources/stale-script.py?token=fNceNbNa-NbN-NeNb-N-dcNeNcNbfN: SyntaxError: expected ';' (li... | `fetch/stale-while-revalidate/stale-script.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /IndexedDB/keypath-special-identifiers.any.js: ReferenceError: File is not defined ReferenceErr... | `IndexedDB/keypath-special-identifiers.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /editing/include/editor-test-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected... | `selection/deleteFromDocument-HTMLDetails.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /fetch/api/redirect/redirect-back-to-original-origin.any.js: TypeError: cannot read property 'a... | `fetch/api/redirect/redirect-back-to-original-origin.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /performance-timeline/webtiming-resolution.any.js: RangeError: script ran too long RangeError: ... | `performance-timeline/webtiming-resolution.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /permissions-policy/resources/permissions-policy.js: SyntaxError: expected ';' (line N) SyntaxE... | `xhr/xmlhttprequest-sync-default-permissions-policy.tentative.sub.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /resource-timing/sizes-redirect.any.js: TypeError: undefined (clearResourceTimings) is not a fu... | `resource-timing/sizes-redirect.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /resource-timing/supported_resource_type.any.js: ReferenceError: ﻿test is not defined Referen... | `resource-timing/supported_resource_type.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /streams/queuing-strategies.any.js: ReferenceError: CountQueuingStrategy is not defined Referen... | `streams/queuing-strategies.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /streams/transferable/transform-stream-members.any.js: ReferenceError: TransformStream is not d... | `streams/transferable/transform-stream-members.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /wai-aria/scripts/aria-utils.js: SyntaxError: expected ';' (line N) SyntaxError: expected ';' (... | `shadow-dom/reference-target/tentative/aria-labelledby.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /xhr/abort-upload-event-abort.any.js: SyntaxError: expected ';' (line N) SyntaxError: expected ... | `xhr/abort-upload-event-abort.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /xhr/abort-upload-event-loadend.any.js: SyntaxError: expected ';' (line N) SyntaxError: expecte... | `xhr/abort-upload-event-loadend.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /xhr/cors-upload.any.js: ReferenceError: FormData is not defined ReferenceError: FormData is no... | `xhr/cors-upload.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: /xhr/formdata/foreach.any.js: ReferenceError: FormData is not defined ReferenceError: FormData ... | `xhr/formdata/foreach.any.html` |
-| 1 | TIMEOUT: the page never reported; first script error: http://localhost:N/fetch/metadata/resources/record-headers.py?key={{uuid()}}&mime=application%N... | `fetch/metadata/generated/element-script.sub.html` |
-| 1 | TIMEOUT: the page never reported; first script error: http://wwwN.localhost:N/fetch/orb/resources/js-unlabeled-utfN-without-bom.json: SyntaxError: in... | `fetch/orb/tentative/script-utf16-without-bom-hint-charset.sub.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: Error: Tried to create a test with file_is_test Error: Tried to create a test... | `fetch/corb/script-resource-with-nonsniffable-types.tentative.sub.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: InvalidAccessError: synchronous XMLHttpRequest is not supported Error: synchr... | `xhr/responsexml-document-properties.htm` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: AnimationEffect is not defined ReferenceError: AnimationEffec... | `web-animations/interfaces/KeyframeEffect/style-change-events.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: DocumentTimeline is not defined ReferenceError: DocumentTimel... | `hr-time/raf-coarsened-time.https.html` |
-| 1 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: FormData is not defined ReferenceError: FormData is not defin... | `xhr/formdata.html` |
+| 1 | ERROR: ReferenceError: container is not defined | `css/selectors/nth-of-type-namespace.html` |
+| 1 | ERROR: Test named '::part():dir() invalidation' specified N 'cleanup' function, and N failed. | `css/selectors/invalidation/part-dir.html` |
+| 1 | ERROR: Test named '::part():lang() invalidation' specified N 'cleanup' function, and N failed. | `css/selectors/invalidation/part-lang.html` |
+| 1 | ERROR: Test named ':checked & :indeterminate invalidation on <input>' specified N 'cleanup' function, and N failed. | `css/selectors/invalidation/input-pseudo-classes-in-has.html` |
+| 1 | ERROR: Test named ':focus via :scope in subject' specified N 'cleanup' function, and N failed. | `css/css-cascade/scope-focus.html` |
+| 1 | ERROR: Test named ':focus-within should be adjusted on ancestors when popover enters/exits top layer.' specified N 'cleanup' function, and N failed... | `css/selectors/toplayer-transition-001.html` |
+| 1 | ERROR: Test named ':hover via :scope in subject' specified N 'cleanup' function, and N failed. | `css/css-cascade/scope-hover.html` |
+| 1 | ERROR: Test named ':in-range in :has() invalidation when setting readonly' specified N 'cleanup' function, and N failed. | `css/selectors/invalidation/input-in-range-in-has-with-readonly.html` |
+| 1 | ERROR: Test named ':open pseudo-class invalidation with dialog.show() + dialog.open = false' specified N 'cleanup' function, and N failed. | `css/selectors/invalidation/open-pseudo-class-in-has.html` |
+| 1 | ERROR: Test named '> .foo in @scope,.nest created by string valid' specified N 'cleanup' function, and N failed. | `css/css-cascade/at-scope-relative-syntax.html` |
 
 ## Why subtests fail
 
@@ -326,105 +357,105 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 236 | 805 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 257 | 1055 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 218 | 823 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 202 | 202 | undefined (pauseAnimations) is not a function | `svg/animations/additive-type-by-animation.html` |
-| 145 | 190322 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
+| 199 | 29244 | assert_true: 'from' value should be supported expected true got false | `css/CSS2/floats-clear/clear-no-interpolation.html` |
+| 195 | 192127 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
+| 151 | 446 | assert_equals: expected N but got N | `css/CSS2/abspos/abspos-in-block-in-inline-in-relpos-inline.html` |
+| 113 | 115 | assert_equals: expected "" but got "auto" | `css/css-align/parsing/align-content-invalid.html` |
+| 105 | 170 | target is not defined | `css/CSS2/normal-flow/block-in-inline-hittest-float-001.html` |
 | 90 | 303 | synchronous XMLHttpRequest is not supported | `xhr/XMLHttpRequest-withCredentials.any.html` |
+| 84 | 201 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `css/css-overflow/resizer-no-size-change.tentative.html` |
+| 80 | 3006 | assert_true: 'to' value should be supported expected true got false | `css/CSS2/linebox/animations/line-height-interpolation.html` |
+| 72 | 172 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `IndexedDB/file_support.sub.html` |
+| 69 | 754 | cannot read property 'cssRules' of undefined | `css/css-animations/parsing/keyframes-name-invalid.html` |
 | 68 | 1945 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `IndexedDB/idbfactory_cmp.any.html` |
-| 58 | 200 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
-| 57 | 89 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `IndexedDB/file_support.sub.html` |
+| 55 | 70 | assert_equals: expected "" but got "none" | `css/css-animations/parsing/animation-range-end-invalid.html` |
 | 55 | 276 | undefined (__defineSetter__) is not a function | `IndexedDB/abort-in-initial-upgradeneeded.any.html` |
+| 51 | 57 | assert_equals: expected "" but got "N" | `css/css-align/parsing/column-gap-invalid.html` |
 | 48 | 230 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
+| 47 | 138 | assert_equals: expected "Npx" but got "" | `css/css-align/gaps/column-gap-animation-001.html` |
 | 46 | 562 | Illegal constructor: ReadableStream | `fetch/api/basic/request-upload.any.html` |
 | 44 | 70 | SharedWorker is not defined | `eventsource/shared-worker/eventsource-close.htm` |
 | 44 | 553 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 44 | 306 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 43 | 239 | assert_equals: Expected success event, but got upgradeneeded event instead expected "success" but got "upgradeneeded" | `IndexedDB/bindings-inject-keys-bypass.any.html` |
-| 43 | 80 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
+| 42 | 1124 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `css/cssom/CSSStyleSheet-constructable-baseURL.html` |
+| 42 | 1436 | cannot read property 'N' of undefined | `css/css-animations/CSSAnimation-effect.tentative.html` |
+| 41 | 1356 | assert_equals: expected "Npx " but got "Npx " | `css/CSS2/linebox/animations/line-height-interpolation.html` |
+| 40 | 167 | promise_test: Unhandled rejection with value: object "TypeError: undefined (getAnimations) is not a function" | `css/css-animations/AnimationEffect-getComputedTiming.tentative.html` |
+| 40 | 206 | undefined (getAnimations) is not a function | `css/css-animations/AnimationEffect-getComputedTiming.tentative.html` |
 | 38 | 414 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
-| 36 | 1118 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
-| 35 | 210 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
+| 36 | 211 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
+| 33 | 111 | assert_equals: expected "Npx" but got "Npx" | `css/css-animations/CSSAnimation-compositeOrder.tentative.html` |
 | 33 | 295 | assert_unreached: Should have rejected: undefined Reached unreachable code | `fetch/api/basic/header-value-null-byte.any.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
+| 31 | 127 | container is not defined | `css/CSS2/positioning/detach-abspos-before-layout.html` |
+| 31 | 31 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
+| 30 | 34 | assert_equals: expected "" but got "-Npx" | `css/css-align/parsing/column-gap-invalid.html` |
+| 30 | 156 | assert_equals: expected (object) null but got (undefined) undefined | `css/cssom-view/offsetParent-body-and-html.html` |
 | 30 | 320 | cannot read property 'baseVal' of undefined | `svg/animations/attribute-value-unaffected-by-animation-002.html` |
-| 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
+| 29 | 58 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'currentTime' of undefined" | `css/css-animations/empty-pseudo-class-with-animation.html` |
 | 29 | 29 | undefined (setCurrentTime) is not a function | `svg/animations/conditional-processing-02.html` |
-| 27 | 149 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
+| 27 | 29 | assert_equals: expected "" but got "Npx" | `css/css-backgrounds/parsing/box-shadow-invalid.html` |
+| 27 | 58 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
 | 27 | 297 | promise_rejects_js: function "function TypeError() { [native code] }" is not an Error subtype | `FileAPI/url/url-with-fetch.any.html` |
-| 22 | 22 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
+| 25 | 31 | assert_equals: serialization should be canonical expected "Npx" but got "N" | `css/css-align/parsing/column-gap-valid.html` |
+| 25 | 112 | main is not defined | `css/css-cascade/at-scope-parsing.html` |
+| 23 | 24 | assert_equals: expected "" but got "-N%" | `css/css-align/parsing/column-gap-invalid.html` |
+| 22 | 395 | KeyframeEffect is not defined | `css/css-animations/AnimationEffect-getComputedTiming.tentative.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
-| 21 | 393 | KeyframeEffect is not defined | `web-animations/animation-model/animation-types/clamping-001.html` |
+| 21 | 25 | assert_equals: expected "" but got "N%" | `css/css-backgrounds/parsing/border-image-outset-invalid.html` |
+| 21 | 54 | assert_equals: expected (number) N but got (undefined) undefined | `FileAPI/blob/Blob-constructor.any.html` |
 | 20 | 75 | FormData is not defined | `custom-elements/form-associated/form-disabled-callback.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
+| 20 | 28 | assert_equals: expected "rgb(N, N, N)" but got "rgb(N, N, N)" | `css/css-cascade/layer-replaceSync-clears-stale.html` |
+| 19 | 7233 | assert_true: color doesn't seem to be supported in the computed style expected true got false | `css/css-color/color-mix-missing-components.html` |
+| 19 | 24 | subject is not defined | `css/selectors/invalidation/defined-in-has.html` |
+| 18 | 18 | assert_equals: expected "" but got "normal" | `css/css-fonts/parsing/font-optical-sizing-invalid.html` |
+| 18 | 58 | undefined (createDocument) is not a function | `css/cssom/historical.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
+| 17 | 54 | assert_equals: expected "none" but got "" | `css/css-animations/parsing/animation-computed.html` |
 | 17 | 85 | getSelection is not defined | `selection/modify-extend-word-trailing-inline-block.tentative.html` |
 | 17 | 116 | promise_test: Unhandled rejection with value: object "ReferenceError: SharedWorker is not defined" | `fetch/api/cors/data-url-shared-worker.html` |
 | 17 | 67 | undefined (add) is not a function | `IndexedDB/error-attributes.any.html` |
+| 16 | 145 | DOMParser is not defined | `css/selectors/quirks-mode-import.html` |
 | 16 | 19 | SVGAnimatedEnumeration is not defined | `svg/types/scripted/SVGAnimatedEnumeration-SVGClipPathElement.html` |
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
-| 16 | 50 | undefined (createDocument) is not a function | `custom-elements/registries/scoped-registry-initialize-upgrades.html` |
+| 16 | 18 | assert_equals: expected "" but got "N N" | `css/css-animations/parsing/animation-invalid.html` |
+| 16 | 16 | assert_equals: expected "Npx Npx Npx Npx Npx Npx Npx Npx Npx Npx" but got "" | `css/css-grid/grid-lanes/track-sizing/auto-repeat/column-auto-repeat-019.html` |
 | 15 | 126 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
-| 15 | 144 | DOMParser is not defined | `dom/nodes/Node-normalize.html` |
 | 15 | 15 | assert_equals: IntersectionObserverEntryCount expected N but got N | `intersection-observer/scroll-and-root-margin.html` |
-| 15 | 46 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
+| 15 | 15 | assert_equals: expected "" but got "Npx N%" | `css/css-align/parsing/grid-row-gap-invalid.html` |
+| 15 | 86 | assert_equals: expected "normal" but got "" | `css/css-align/gaps/column-gap-parsing-001.html` |
+| 15 | 107 | assert_false: expected false got true | `cors/preflight-failure.htm` |
+| 15 | 19 | assert_true: expected true got undefined | `css/cssom/HTMLLinkElement-disabled-001.html` |
+| 15 | 15 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `css/css-sizing/contain-intrinsic-size/forget-on-disconnect-in-iframe.html` |
+| 15 | 60 | tN is not defined | `css/CSS2/normal-flow/block-in-inline-client-rects-001.html` |
+| 15 | 29 | undefined (getElementById) is not a function | `css/css-transforms/transform-origin-in-shadow.html` |
 | 14 | 42 | FileReader is not defined | `FileAPI/fileReader.any.html` |
 | 14 | 68 | Illegal constructor: HTMLElement | `custom-elements/HTMLElement-attachInternals.html` |
+| 14 | 20 | assert_equals: expected "Npx Npx Npx Npx" but got "" | `css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/track-sizing/column-subgrid-auto-fit-003.html` |
+| 14 | 14 | assert_equals: expected "hidden" but got "visible" | `css/css-overflow/logical-overflow-001.html` |
+| 14 | 36 | assert_equals: expected "rgb(N, N, N)" but got "" | `css/css-animations/responsive/column-rule-color-001.html` |
+| 14 | 241 | assert_true: grid-template-columns doesn't seem to be supported in the computed style expected true got false | `css/css-grid/grid-lanes/grid-lanes-grid-template-columns-computed-withcontent.html` |
+| 14 | 77 | cannot read property 'insertRule' of undefined | `css/css-animations/KeyframeEffect-target.tentative.html` |
 | 14 | 34 | fetchLater is not defined | `fetch/fetch-later/basic.https.window.html` |
 | 14 | 95 | promise_test: Unhandled rejection with value: object "ReferenceError: Observable is not defined" | `dom/observable/tentative/crashtests/observable-gc.any.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "ReferenceError: createStylesheetHost is not defined" | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html` |
+| 14 | 17 | promise_test: Unhandled rejection with value: object "ReferenceError: scroller is not defined" | `css/css-overflow/overflow-auto-scrolling-with-margin-and-transform.html` |
 | 14 | 14 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'append' of undefined" | `IndexedDB/back-forward-cache-open-transaction.window.html` |
+| 14 | 457 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `css/cssom-view/element-scroll-arguments.html` |
 | 14 | 183 | undefined (getBBox) is not a function | `svg/coordinate-systems/svgtransformlist-replaceitem.html` |
 | 13 | 29 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 | 13 | 39 | Illegal constructor: EventTarget | `dom/events/AddEventListenerOptions-once.any.html` |
 | 13 | 139 | assert_equals: Response N status is N, not N expected N but got N | `fetch/http-cache/304-update.any.html` |
-| 13 | 522 | assert_true: 'from' value should be supported expected true got false | `svg/geometry/animations/cx-composition.html` |
-| 13 | 42 | container is not defined | `custom-elements/form-associated/ElementInternals-validation.html` |
+| 13 | 13 | assert_equals: expected "" but got "-N" | `css/css-animations/parsing/animation-iteration-count-invalid.html` |
+| 13 | 17 | assert_equals: expected "N%" but got "" | `css/css-align/gaps/column-gap-parsing-001.html` |
 | 13 | 24 | promise_test: Unhandled rejection with value: object "Error: observe_entry: timeout" | `resource-timing/cross-origin-iframe.html` |
+| 13 | 31 | targetN is not defined | `css/css-animations/animation-base-response-002.html` |
 | 13 | 177 | undefined (createProcessingInstruction) is not a function | `dom/events/EventTarget-this-of-listener.html` |
-| 13 | 27 | undefined (getElementById) is not a function | `dom/nodes/DocumentFragment-getElementById.html` |
 | 12 | 114 | TransformStream is not defined | `streams/transferable/transform-stream.html` |
-| 12 | 133 | assert_equals: HTTP status is N expected N but got N | `fetch/api/basic/accept-header.any.html` |
-| 12 | 102 | assert_false: expected false got true | `cors/preflight-failure.htm` |
-| 12 | 16 | assert_true: expected true got undefined | `intersection-observer/v2/delay-test.html` |
-| 12 | 12 | cannot set property 'scrollTop' of undefined | `intersection-observer/disconnect.html` |
-| 12 | 12 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `intersection-observer/cross-origin-tall-iframe.sub.html` |
-| 12 | 33 | undefined (createAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
-| 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
-| 12 | 88 | undefined (getTotalLength) is not a function | `svg/path/parsing/arc-commands.html` |
-| 12 | 307 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
-| 11 | 132 | Observable is not defined | `dom/observable/tentative/observable-catch.any.html` |
-| 11 | 13 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
-| 11 | 58 | promise_test: Unhandled rejection with value: object "Error: Python handlers are not implemented" | `cookies/prefix/__Host-Http.https.html` |
-| 11 | 30 | promise_test: Unhandled rejection with value: object "ReferenceError: KeyframeEffect is not defined" | `web-animations/animation-trigger/event-trigger-before-handlers.tentative.html` |
-| 11 | 37 | promise_test: Unhandled rejection with value: object "SyntaxError: invalid JSON: expected a number" | `fetch/api/abort/general.any.html` |
-| 11 | 39 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'set' of undefined" | `fetch/range/general.any.html` |
-| 11 | 23 | promise_test: Unhandled rejection with value: object "TypeError: undefined (moveBefore) is not a function" | `dom/nodes/moveBefore/Node-moveBefore.html` |
-| 11 | 443 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
-| 11 | 54 | service_worker_unregister_and_register is not defined | `fetch/api/request/destination/fetch-destination-frame.https.html` |
-| 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
-| 10 | 147 | Failed to execute 'animate': keyframes are required | `web-animations/interfaces/Animation/oncancel.html` |
-| 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
-| 10 | 96 | cannot read property 'getComputedTiming' of undefined | `web-animations/animation-model/animation-types/discrete.html` |
-| 10 | 16 | cannot read property 'then' of undefined | `fetch/api/response/response-cancel-stream.any.html` |
-| 10 | 47 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
-| 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
-| 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
-| 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
-| 9 | 9 | cannot read property 'postMessage' of undefined | `dom/events/EventListener-incumbent-global-1.sub.html` |
-| 9 | 38 | document.elementsFromPoint unsupported | `fetch/metadata/generated/audioworklet.https.sub.html` |
-| 9 | 10 | promise_test: Unhandled rejection with value: object "TypeError: undefined (addEventListener) is not a function" | `resource-timing/buffer-full-add-then-clear.html` |
-| 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
-| 8 | 9 | DataCloneError: transferring objects is not supported | `FileAPI/blob/Blob-constructor.any.html` |
-| 8 | 3025 | The encoding label provided ('iso-N-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
-| 8 | 65 | assert_array_equals: lengths differ, expected array ["attributeChanged"] length N, got [] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
-| 8 | 133 | assert_equals: Clean stash response's status is N expected N but got N | `fetch/api/cors/cors-no-preflight.any.html` |
-| 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
-| 8 | 31 | cannot read property 'append' of undefined | `dom/nodes/remove-unscopable.html` |
-| 8 | 29 | cannot read property 'document' of undefined | `dom/events/event-global-extra.window.html` |
-| 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
-| 8 | 52 | promise_test: Unhandled rejection with value: object "ReferenceError: FormData is not defined" | `FileAPI/file/send-file-formdata-controls.any.html` |
-| 8 | 8 | promise_test: Unhandled rejection with value: object "ReferenceError: fetchLater is not defined" | `fetch/fetch-later/policies/csp-allowed.https.window.html` |
-| 8 | 15 | promise_test: Unhandled rejection with value: object "ReferenceError: with_iframe is not defined" | `fetch/content-encoding/br/br-navigation.https.window.html` |
-| 8 | 17 | promise_test: Unhandled rejection with value: object "TypeError: undefined (updatePlaybackRate) is not a function" | `web-animations/timing-model/animations/pausing-an-animation.html` |
 
-9889 distinct subtest messages and 147 distinct harness messages behind these numbers.
+23147 distinct subtest messages and 245 distinct harness messages behind these numbers.
