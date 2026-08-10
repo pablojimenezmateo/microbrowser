@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-4636 of 265810 subtests pass (1.7%) over 1950 tests.
+5800 of 267069 subtests pass (2.2%) over 2004 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 43% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -89,6 +89,7 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
 | `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
+| `webstorage` | 54 | 34 | 1 | 19 | 0 | 1259 | 1164 | 92.5 |
 
 ## Why the harness never reported
 
@@ -98,8 +99,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 323 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
-| 158 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
+| 337 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 163 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -130,6 +131,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (write) is not a function TypeError: undefined (write) i... | `custom-elements/parser/parser-constructs-custom-element-in-document-write.html` |
 | 2 | TIMEOUT: the page never reported; first script error: inline script #N: [object Object] Error: undefined at get_stack (@N) at AssertionError (@N) at ... | `dom/nodes/Document-createCDATASection.html` |
 | 1 | CRASH: killed by signal Segmentation fault | `dom/nodes/moveBefore/relevant-mutations.html` |
+| 1 | ERROR: N duplicate test name: "Should throw TypeError for function "function () { [source unavailable] }"." | `webstorage/missing_arguments.window.html` |
 | 1 | ERROR: N duplicate test names: "a.classList in undefined namespace should be DOMTokenList.", "area.classList in undefined namespace should be DOMTo... | `dom/lists/DOMTokenList-coverage-for-attributes.html` |
 | 1 | ERROR: N duplicate test names: "touchstart listener is passive by default for HTMLElement", "touchstart listener is passive with {passive:undefined... | `dom/events/passive-by-default.html` |
 | 1 | ERROR: Test named 'Adoption with global registry' specified N 'cleanup' function, and N failed. | `custom-elements/registries/adoption.window.html` |
@@ -197,14 +199,14 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 |--:|--:|---|---|
 | 63 | 189027 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 44 | 1857 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
-| 42 | 248 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 47 | 253 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 45 | 1858 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
+| 31 | 63 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 30 | 82 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
-| 30 | 59 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
+| 22 | 471 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
-| 21 | 470 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `custom-elements/CustomElementRegistry.html` |
 | 19 | 957 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 34 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
@@ -243,6 +245,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 8 | 10 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
 | 8 | 26 | host is not defined | `custom-elements/registries/CustomElementRegistry-initialize.html` |
+| 8 | 9 | undefined (open) is not a function | `intersection-observer/target-in-different-window.html` |
 | 7 | 20 | The encoding label provided ('utf-Nbe') is invalid. | `encoding/api-basics.any.html` |
 | 7 | 2588 | The encoding label provided ('windows-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 7 | 12 | assert_false: expected false got true | `cors/preflight-failure.htm` |
@@ -285,6 +288,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 283 | undefined is not a function | `dom/nodes/Document-createCDATASection-xhtml.xhtml` |
 | 4 | 4 | DocumentType is not defined | `dom/nodes/Document-doctype.html` |
 | 4 | 4 | NodeList is not defined | `dom/nodes/Document-getElementsByTagName.html` |
+| 4 | 18 | Storage is not defined | `webstorage/set.window.html` |
 | 4 | 8 | The encoding label provided ('bigN') is invalid. | `encoding/textdecoder-eof.any.html` |
 | 4 | 283 | The encoding label provided ('gbN') is invalid. | `encoding/textdecoder-labels.any.html` |
 | 4 | 90 | The encoding label provided ('gbk') is invalid. | `encoding/textdecoder-labels.any.html` |
@@ -293,7 +297,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 4 | 6 | assert_equals: expected "" but got "null" | `dom/nodes/CharacterData-data.html` |
 | 4 | 4740 | assert_equals: expected "%N%N%NB" but got "U+N" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 | 4 | 499 | assert_equals: expected "%N%N%NB" but got "U+Na" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
-| 4 | 471 | assert_equals: expected "%N%N%NB" but got "U+NaN" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
-| 4 | 54 | assert_equals: expected "%N%N%NB" but got "U+Naa" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 
-8751 distinct subtest messages and 87 distinct harness messages behind these numbers.
+8766 distinct subtest messages and 88 distinct harness messages behind these numbers.
