@@ -59,6 +59,32 @@ ComputedStyle StyleOf(std::string_view html, std::string_view author_css,
 }  // namespace
 
 void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Css/RemResolvesAgainstTheRootFontSize", [] {
+    // `rem` is a multiple of the *root* element's computed font size, not of a constant. Kevlar
+    // sets `html { font-size: 10px }` and then writes every length on youtube.com in `rem`, so
+    // folding those at 16 made the whole application 1.6x its size -- a mini-guide label that
+    // reads "Subscriptions" in Chrome was clipped to "Subscrip" here.
+    const char* html = "<html><body><p>x</p></body></html>";
+    const ComputedStyle small =
+        StyleOf(html, "html { font-size: 10px } p { font-size: 2rem; width: 10rem }", "p");
+    Expect(small.font_size == 20.0f, "2rem is 20px when the root is 10px");
+    Expect(small.width == Length::Pixels(100.0f), "and 10rem is 100px");
+    Expect(small.root_font_size == 10.0f, "the root font size is carried down the tree");
+
+    const ComputedStyle initial = StyleOf(html, "p { font-size: 2rem }", "p");
+    Expect(initial.font_size == 32.0f, "and 32px against the initial 16px root");
+
+    // On the root itself, `rem` refers to the initial value rather than to what the declaration is
+    // in the middle of computing (CSS Values §font-relative lengths).
+    const ComputedStyle root = StyleOf(html, "html { font-size: 2rem }", "html");
+    Expect(root.font_size == 32.0f, "a rem on the root resolves against the initial 16px");
+    Expect(root.root_font_size == 32.0f, "and the result is what its descendants inherit");
+
+    // `em` is unchanged: it is relative to the element's own inherited size, not to the root.
+    const ComputedStyle em = StyleOf(html, "html { font-size: 10px } p { font-size: 2em }", "p");
+    Expect(em.font_size == 20.0f, "2em against an inherited 10px is still 20px");
+  });
+
   AddTest(tests, "Css/ParsesColours", [] {
     Expect(ParseColor("red") == gfx::Color::Rgb(0xFF, 0, 0), "a named colour");
     Expect(ParseColor("#fff") == gfx::Color::Rgb(0xFF, 0xFF, 0xFF),
@@ -105,7 +131,9 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
     Expect(ParseLength("calc(10px + 12pt)") == Length::Pixels(26.0f),
            "a point is folded into pixels before the sum, not after");
     Expect(ParseLength("calc(1rem + 4px)") == Length::Pixels(20.0f),
-           "and so is a rem, at the same root size Length::Resolve uses");
+           "and so is a rem, at the initial root size when no cascade supplies one");
+    Expect(ParseLength("calc(1rem + 4px)", {}, 10.0f) == Length::Pixels(14.0f),
+           "and at the root's own font size when one does");
 
     const std::optional<Length> mixed = ParseLength("calc(100% - 20px)");
     Expect(mixed.has_value() && mixed->IsPercent() && mixed->value == 100.0f &&

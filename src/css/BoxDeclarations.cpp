@@ -179,7 +179,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     // rule undoing an earlier one is ordinary cascade.
     Length parsed = Length::Auto();
     if (value != "auto") {
-      const std::optional<Length> length = ParseLength(value, context);
+      const std::optional<Length> length = ParseLength(value, context, style.root_font_size);
       if (!length.has_value()) {
         return false;
       }
@@ -222,7 +222,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
     // as "no bound".
     css::Length parsed = Length::Auto();
     if (value != "none" && value != "auto") {
-      const std::optional<Length> length = ParseLength(value, context);
+      const std::optional<Length> length = ParseLength(value, context, style.root_font_size);
       if (!length.has_value()) {
         return false;
       }
@@ -381,7 +381,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
   if (property == "flex-basis") {
     if (value == "auto" || value == "content") {
       style.flex.basis = Length::Auto();
-    } else if (const std::optional<Length> length = ParseLength(value, context)) {
+    } else if (const std::optional<Length> length = ParseLength(value, context, style.root_font_size)) {
       style.flex.basis = *length;
     } else {
       return false;
@@ -450,7 +450,7 @@ bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
   if (property == "gap" || property == "row-gap" || property == "column-gap") {
     const std::vector<std::string_view> parts = SplitWords(value);
     const auto pixels = [&style, &context](std::string_view text) -> std::optional<float> {
-      const std::optional<Length> length = ParseLength(text, context);
+      const std::optional<Length> length = ParseLength(text, context, style.root_font_size);
       if (!length.has_value() || length->IsAuto() || length->IsPercent()) {
         return std::nullopt;  // a percentage gap resolves against a size we do not have yet
       }

@@ -327,6 +327,18 @@ struct ComputedStyle {
   // resolved during the cascade, because `em` on every other property is
   // relative to it.
   float font_size = 16.0f;
+  // Inherited, and the same number for every element: the root's computed `font-size`, which is
+  // what `rem` is a multiple of. Carried on the style rather than on the resolver because it is an
+  // input to computing a value -- `rem` absolutizes during the cascade, exactly as `font-size`
+  // does above -- and the cascade already has the parent's style in hand at every element.
+  //
+  // Deliberately not on `MediaContext`: a `rem` inside `@media` resolves against the *initial*
+  // font size and not the root's (Media Queries §units), so the two would have to disagree.
+  //
+  // Kevlar sets `html { font-size: 10px }` and then writes every length on youtube.com in `rem`.
+  // Folding those at a constant 16 made the whole application 1.6x its size -- which is how a
+  // mini-guide label that reads "Subscriptions" in Chrome was clipped to "Subscrip" here.
+  float root_font_size = 16.0f;
   float font_weight = 400.0f;
   FontStyle font_style = FontStyle::Normal;
   // The families the stylesheet named, best first. A list rather than a name
@@ -629,7 +641,12 @@ bool SubstituteVars(std::string_view value, const ComputedStyle& style, std::str
 std::optional<gfx::Color> ParseColor(std::string_view text);
 
 // Parses a length. Nullopt when the text is not one.
-std::optional<Length> ParseLength(std::string_view text, const MediaContext& context = {});
+// `root_font_size` is what `rem` is a multiple of: the root element's computed `font-size`, which
+// the cascade carries on every ComputedStyle. It defaults to the initial 16px, which is the right
+// answer for the two callers that have no element -- a media query and the `@supports` scratch
+// style.
+std::optional<Length> ParseLength(std::string_view text, const MediaContext& context = {},
+                                  float root_font_size = kRootFontSize);
 
 // The flex properties and the sizing bounds. True when the declaration was
 // *applied* -- which means both that `property` is one of these and that its

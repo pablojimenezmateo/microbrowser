@@ -24,6 +24,7 @@ namespace microbrowser::css {
 // one; `min(50px, 70%)` needs a used value to compare); or it is invalid
 // outright — a unit mismatch, a division by zero, a multiplication of two
 // lengths, or a result that is not a finite number.
-std::optional<Length> ParseCalc(std::string_view text, const MediaContext& context = {});
+std::optional<Length> ParseCalc(std::string_view text, const MediaContext& context = {},
+                               float root_font_size = kRootFontSize);
 
 }  // namespace microbrowser::css

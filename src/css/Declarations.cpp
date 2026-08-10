@@ -31,6 +31,7 @@ namespace microbrowser::css {
 void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_custom_properties) {
   child.color = parent.color;
   child.font_size = parent.font_size;
+  child.root_font_size = parent.root_font_size;
   child.font_weight = parent.font_weight;
   child.font_style = parent.font_style;
   child.font_family = parent.font_family;
@@ -123,7 +124,7 @@ std::optional<BackgroundRepeat> ParseBackgroundRepeat(std::string_view word) {
 // the image does not fill, which is what makes `center` centre rather than
 // offset by half the box.
 std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizontal,
-                                              const MediaContext& context) {
+                                              const MediaContext& context, float root_font_size) {
   const std::string lowered = Lowered(Trim(word));
   if (lowered == "center") {
     return Length{50.0f, Length::Unit::Percent};
@@ -134,7 +135,7 @@ std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizo
   if (lowered == (horizontal ? "right" : "bottom")) {
     return Length{100.0f, Length::Unit::Percent};
   }
-  return ParseLength(word, context);
+  return ParseLength(word, context, root_font_size);
 }
 
 // Splits a `font-family` value into its candidates, in order.
@@ -200,7 +201,8 @@ std::optional<gfx::Color> ParseColor(std::string_view text) {
   return gfx::ParseColorText(text);
 }
 
-std::optional<Length> ParseLength(std::string_view text, const MediaContext& context) {
+std::optional<Length> ParseLength(std::string_view text, const MediaContext& context,
+                                  float root_font_size) {
   const std::string lowered = Lowered(Trim(text));
   if (lowered.empty()) {
     return std::nullopt;
@@ -215,7 +217,7 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
   // alongside `calc(max(...))`.
   if (lowered.compare(0, 5, "calc(") == 0 || lowered.compare(0, 4, "min(") == 0 ||
       lowered.compare(0, 4, "max(") == 0 || lowered.compare(0, 6, "clamp(") == 0) {
-    return ParseCalc(lowered, context);
+    return ParseCalc(lowered, context, root_font_size);
   }
 
   std::size_t at = 0;
@@ -261,7 +263,10 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
     return Length{static_cast<float>(value), Length::Unit::Em};
   }
   if (unit == "rem") {
-    return Length{static_cast<float>(value), Length::Unit::Rem};
+    // Absolutized here, at computed-value time, which is where CSS Values says a font-relative
+    // length becomes an absolute one. Carrying `Unit::Rem` into layout would mean layout had to
+    // know the root's font size, and layout does not see the cascade.
+    return Length::Pixels(static_cast<float>(value) * root_font_size);
   }
   if (unit == "pt") {
     // 1pt is 4/3 px, which is the one absolute unit conversion a browser
@@ -288,14 +293,14 @@ bool EdgeLengthAllowed(const Length& length, bool allow_negative, bool allow_aut
 }
 
 bool ApplyEdges(std::string_view value, Edges& edges, bool allow_negative, bool allow_auto,
-                bool allow_percent, const MediaContext& context) {
+                bool allow_percent, const MediaContext& context, float root_font_size) {
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty() || parts.size() > 4) {
     return false;
   }
   std::array<Length, 4> lengths;
   for (std::size_t i = 0; i < parts.size(); ++i) {
-    const auto length = ParseLength(parts[i], context);
+    const auto length = ParseLength(parts[i], context, root_font_size);
     if (!length.has_value() ||
         !EdgeLengthAllowed(*length, allow_negative, allow_auto, allow_percent)) {
       return false;  // one bad component invalidates the whole shorthand
@@ -327,6 +332,7 @@ bool IsBorderStyleKeyword(std::string_view value) {
 }
 
 bool ApplyBorder(std::string_view value, ComputedStyle& style, const MediaContext& context) {
+  const float root_font_size = style.root_font_size;
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty()) {
     return false;
@@ -337,7 +343,7 @@ bool ApplyBorder(std::string_view value, ComputedStyle& style, const MediaContex
   bool saw_style = false;
   bool style_disables_border = false;
   for (const std::string_view part : parts) {
-    if (const auto length = ParseLength(part, context)) {
+    if (const auto length = ParseLength(part, context, root_font_size)) {
       if (width.has_value() || !EdgeLengthAllowed(*length, false, false, false)) {
         return false;
       }
@@ -527,12 +533,12 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     if (words.empty() || words.size() > 2) {
       return false;
     }
-    const std::optional<Length> first = ParseLength(words.front(), context);
+    const std::optional<Length> first = ParseLength(words.front(), context, style.root_font_size);
     if (!first.has_value()) {
       return false;  // `contain` and `cover` land here, and are honestly a no
     }
     const std::optional<Length> second =
-        words.size() == 2 ? ParseLength(words[1], context) : std::optional<Length>(Length::Auto());
+        words.size() == 2 ? ParseLength(words[1], context, style.root_font_size) : std::optional<Length>(Length::Auto());
     if (!second.has_value()) {
       return false;
     }
@@ -548,9 +554,9 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     // A single value sets the horizontal position and centres the vertical,
     // which is what CSS says and is the difference between an icon on the left
     // edge and one halfway down it.
-    const std::optional<Length> x = ParseBackgroundPosition(words.front(), true, context);
+    const std::optional<Length> x = ParseBackgroundPosition(words.front(), true, context, style.root_font_size);
     const std::optional<Length> y =
-        words.size() == 2 ? ParseBackgroundPosition(words[1], false, context)
+        words.size() == 2 ? ParseBackgroundPosition(words[1], false, context, style.root_font_size)
                           : std::optional<Length>(Length{50.0f, Length::Unit::Percent});
     if (!x.has_value() || !y.has_value()) {
       return false;
@@ -571,7 +577,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       style.font_size = parent.font_size * 1.25f;
       return true;
     }
-    const auto length = ParseLength(raw_value, context);
+    const auto length = ParseLength(raw_value, context, parent.root_font_size);
     if (!length.has_value()) {
       return false;
     }
@@ -675,7 +681,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       style.line_height = 0.0f;
       return true;
     }
-    if (const auto length = ParseLength(raw_value)) {
+    if (const auto length = ParseLength(raw_value, context, style.root_font_size)) {
       const float resolved = length->unit == Length::Unit::Percent
                                  ? style.font_size * length->value / 100.0f + length->offset
                                  : length->Resolve(style.font_size, -1.0f);
@@ -765,13 +771,13 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (property == "margin") {
-    return ApplyEdges(raw_value, style.margin, true, true, true, context);
+    return ApplyEdges(raw_value, style.margin, true, true, true, context, style.root_font_size);
   }
   if (property == "padding") {
-    return ApplyEdges(raw_value, style.padding, false, false, true, context);
+    return ApplyEdges(raw_value, style.padding, false, false, true, context, style.root_font_size);
   }
   if (property == "width" || property == "height") {
-    const auto length = ParseLength(raw_value, context);
+    const auto length = ParseLength(raw_value, context, style.root_font_size);
     if (!length.has_value() || !EdgeLengthAllowed(*length, false, true, true)) {
       return false;
     }
@@ -788,7 +794,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (property == "border-width") {
-    if (!ApplyEdges(raw_value, style.border_width, false, false, false, context)) {
+    if (!ApplyEdges(raw_value, style.border_width, false, false, false, context, style.root_font_size)) {
       return false;
     }
     style.has_border = true;
@@ -804,7 +810,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     const std::string margin_name = "margin-" + std::string(kSides[i]);
     const std::string padding_name = "padding-" + std::string(kSides[i]);
     if (property == margin_name || property == padding_name) {
-      const auto length = ParseLength(raw_value, context);
+      const auto length = ParseLength(raw_value, context, style.root_font_size);
       const bool is_margin = property == margin_name;
       if (!length.has_value() ||
           !EdgeLengthAllowed(*length, is_margin, is_margin, true)) {

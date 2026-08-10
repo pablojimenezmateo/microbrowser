@@ -45,7 +45,7 @@ constexpr int kMaxCalcDepth = 16;
 // than the final cast to float loses anyway.
 struct Sum {
   double number = 0.0;   // unitless
-  double px = 0.0;       // absolute: px, pt, and rem, which folds at kRootFontSize
+  double px = 0.0;       // absolute: px, pt, and rem, which folds at the root font size
   double em = 0.0;       // coefficient of the element's font size
   double percent = 0.0;  // coefficient of the containing block
 
@@ -89,8 +89,8 @@ std::optional<int> CompareSums(Sum left, Sum right) {
 
 class CalcParser {
  public:
-  CalcParser(std::string_view text, const MediaContext& context)
-      : text_(text), context_(context) {}
+  CalcParser(std::string_view text, const MediaContext& context, float root_font_size)
+      : text_(text), context_(context), root_font_size_(root_font_size) {}
 
   // One top-level math function — `calc(...)`, `min(...)`, `max(...)` or
   // `clamp(...)` — consuming the whole text.
@@ -408,7 +408,7 @@ class CalcParser {
     } else if (unit == "pt") {
       sum.px = magnitude * 4.0 / 3.0;
     } else if (unit == "rem") {
-      sum.px = magnitude * static_cast<double>(kRootFontSize);
+      sum.px = magnitude * static_cast<double>(root_font_size_);
     } else if (unit == "em") {
       sum.em = magnitude;
     } else if (const std::optional<float> absolute =
@@ -423,6 +423,7 @@ class CalcParser {
 
   std::string_view text_;
   const MediaContext& context_;
+  float root_font_size_ = kRootFontSize;
   std::size_t at_ = 0;
 };
 
@@ -463,12 +464,13 @@ std::optional<Length> ToLength(const Sum& sum) {
 
 }  // namespace
 
-std::optional<Length> ParseCalc(std::string_view text, const MediaContext& context) {
+std::optional<Length> ParseCalc(std::string_view text, const MediaContext& context,
+                               float root_font_size) {
   const std::string_view trimmed = Trim(text);
   if (trimmed.size() < 4) {
     return std::nullopt;
   }
-  CalcParser parser(trimmed, context);
+  CalcParser parser(trimmed, context, root_font_size);
   const std::optional<Sum> sum = parser.ParseMathFunction();
   if (!sum.has_value()) {
     return std::nullopt;

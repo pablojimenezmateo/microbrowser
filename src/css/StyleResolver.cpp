@@ -782,6 +782,13 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
     }
     ApplyDeclaration(declaration.property, substituted[i], parent, style, media_context_);
   }
+  // What `rem` is a multiple of, fixed here and inherited from here down. The root element is the
+  // one whose own `font-size` decides it, and a `rem` written *on* the root resolves against the
+  // initial 16px instead -- which is what the inherited value already was when this element's
+  // declarations ran, so the order is the specification's without a special case for it.
+  if (element.Parent() == nullptr || !element.Parent()->IsElement()) {
+    style.root_font_size = style.font_size;
+  }
   // The animation pass, last, because a running transition's value is what everything downstream must
   // see -- layout, paint and `getComputedStyle` alike. Null for a resolver with no engine behind it,
   // which is every test about selectors.
