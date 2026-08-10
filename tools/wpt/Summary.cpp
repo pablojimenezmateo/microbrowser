@@ -274,10 +274,10 @@ bool SummaryAccumulator::Write(const std::string& path, const std::string& revis
     std::snprintf(buffer, sizeof(buffer), "%.0f%%",
                   Percent(largest->subtests_total, subtests_total));
     stream << "**Do not quote that number.** Subtests are not comparable across areas: `"
-           << largest_name << "` alone is " << buffer
-           << " of every subtest here, because a suite that tests one index table per code point\n"
-              "counts differently from one that tests an algorithm. The per-area column is the\n"
-              "measurement; the aggregate is an artefact of how the suite is written.\n\n";
+           << largest_name << "` alone is " << buffer << " of every subtest here.\n"
+           << "A suite that tests one index table entry per code point counts differently from\n"
+              "one that tests an algorithm. The per-area column is the measurement; the aggregate\n"
+              "is an artefact of how the suite is written.\n\n";
   }
 
   stream << "A test with no subtests at all -- a reftest, or a testharness page whose harness\n"
