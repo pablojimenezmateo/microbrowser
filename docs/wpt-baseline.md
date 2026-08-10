@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-53101 of 471795 subtests pass (11.3%) over 19874 tests.
+53104 of 479617 subtests pass (11.1%) over 21265 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 24% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -212,6 +212,12 @@ it is a page that never reported, which almost always means something threw befo
 | `performance-timeline` | 58 | 27 | 0 | 31 | 0 | 46 | 24 | 52.2 |
 | `performance-timeline/not-restored-reasons` | 13 | 13 | 0 | 0 | 0 | 13 | 0 | 0.0 |
 | `png` | 3 | 0 | 0 | 3 | 0 | 1 | 0 | 0.0 |
+| `referrer-policy/4K` | 108 | 44 | 0 | 64 | 0 | 386 | 0 | 0.0 |
+| `referrer-policy/4K+1` | 108 | 43 | 0 | 65 | 0 | 376 | 0 | 0.0 |
+| `referrer-policy/4K-1` | 108 | 43 | 0 | 65 | 0 | 382 | 0 | 0.0 |
+| `referrer-policy/css-integration` | 24 | 15 | 0 | 9 | 0 | 56 | 0 | 0.0 |
+| `referrer-policy/gen` | 1001 | 86 | 0 | 915 | 0 | 6544 | 0 | 0.0 |
+| `referrer-policy/generic` | 42 | 17 | 0 | 25 | 0 | 78 | 3 | 3.8 |
 | `resize-observer` | 35 | 25 | 0 | 10 | 0 | 29 | 13 | 44.8 |
 | `resource-timing` | 103 | 51 | 1 | 50 | 1 | 538 | 7 | 1.3 |
 | `resource-timing/initiator-type` | 16 | 11 | 0 | 5 | 0 | 29 | 7 | 24.1 |
@@ -324,14 +330,14 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 4081 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 1506 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 4253 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 2473 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 222 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
 | 184 | ERROR: [object Object] | `css/css-conditional/container-queries/animation-container-size.html` |
 | 168 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'ready' of undefined TypeError: cannot read p... | `css/CSS2/linebox/vertical-align-top-bottom-001.html` |
 | 63 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (write) is not a function TypeError: undefined (write) i... | `custom-elements/parser/parser-constructs-custom-element-in-document-write.html` |
 | 45 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot resolve module '../resources/helpers.mjs' TypeError: cannot... | `html/browsers/origin/origin-keyed-agent-clusters/1-iframe/parent-yes-child-no-subdomain.sub.https.html` |
-| 31 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (open) is not a function TypeError: undefined (open) is ... | `content-security-policy/sandbox/window-reuse-unsandboxed.html` |
+| 32 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (open) is not a function TypeError: undefined (open) is ... | `content-security-policy/sandbox/window-reuse-unsandboxed.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 27 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot resolve module './support/positioned-grid-descendants.js' T... | `css/css-grid/abspos/orthogonal-positioned-grid-descendants-001.html` |
@@ -359,6 +365,7 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 7 | ERROR: TypeError: cannot read property 'supports' of undefined | `content-security-policy/resource-hints/prefetch-allowed-by-any-directive.sub.html` |
 | 7 | TIMEOUT: the page never reported; first script error: ./support/helpers.js: SyntaxError: expected ')' to close a dynamic import (line N) SyntaxError:... | `shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect-iframe.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: initial is not defined ReferenceError: initial is not defined... | `css/selectors/focus-visible-script-focus-006.tentative.html` |
+| 7 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: promise_test is not defined ReferenceError: promise_test is n... | `content-security-policy/navigation/to-javascript-url-script-src.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot read property 'load' of undefined TypeError: cannot read pr... | `css/css-shapes/shape-outside/values/shape-outside-ellipse-005.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: cannot resolve module './support/getComputedStyle-insets.js' TypeE... | `css/cssom/getComputedStyle-insets-relative.html` |
 | 7 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: undefined (createDocument) is not a function TypeError: undefined ... | `dom/nodes/append-on-Document.html` |
@@ -380,7 +387,6 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 | 5 | TIMEOUT: the page never reported; first script error: /trusted-types/support/helper.sub.js: SyntaxError: expected ';' (line N) SyntaxError: expected ... | `domparsing/tentative/stream-html-with-trusted-types-error-in-policy.html` |
 | 5 | TIMEOUT: the page never reported; first script error: /websockets/Send-binary-arraybufferview-intN.any.js: TypeError: undefined (addEventListener) is... | `websockets/Send-binary-arraybufferview-int32.any.html?default` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: aN is not defined ReferenceError: aN is not defined at test_s... | `html/editing/the-hidden-attribute/beforematch-attribute-removal-001.html` |
-| 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: promise_test is not defined ReferenceError: promise_test is n... | `content-security-policy/navigation/to-javascript-url-script-src.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: testStyle is not defined ReferenceError: testStyle is not def... | `css/css-fonts/parsing/font-face-metric-overrides.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: ReferenceError: trustedTypes is not defined ReferenceError: trustedTypes is n... | `content-security-policy/script-src/script-src-trusted_types_eval_with_report_only_require_trusted_types_eval.html` |
 | 5 | TIMEOUT: the page never reported; first script error: inline script #N: TypeError: Illegal constructor: CustomElementRegistry TypeError: Illegal cons... | `custom-elements/registries/Document-createElement.html` |
@@ -434,10 +440,10 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
+| 1662 | 3054 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 1603 | 200592 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
 | 889 | 1048 | OffscreenCanvas is not defined | `html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.detachedcanvas.html` |
-| 696 | 2088 | Test timed out | `FileAPI/FileReader/workers.html` |
-| 662 | 195097 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
-| 456 | 1299 | promise_test: Unhandled rejection with value: object "Error: Python handlers are not implemented" | `content-security-policy/gen/top.http-rp/script-src-self/sharedworker-module.http.html` |
+| 512 | 1444 | promise_test: Unhandled rejection with value: object "Error: Python handlers are not implemented" | `content-security-policy/gen/top.http-rp/script-src-self/sharedworker-module.http.html` |
 | 300 | 1060 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 218 | 587 | assert_equals: expected N but got N | `css/CSS2/abspos/abspos-in-block-in-inline-in-relpos-inline.html` |
 | 202 | 202 | undefined (pauseAnimations) is not a function | `svg/animations/additive-type-by-animation.html` |
@@ -451,8 +457,12 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 114 | 117 | assert_equals: expected "" but got "auto" | `css/css-align/parsing/align-content-invalid.html` |
 | 110 | 110 | assert_equals: Red channel of the pixel at (N, N) expected N but got N | `html/canvas/element/canvas-host/2d.canvas.host.initial.reset.same.html` |
 | 107 | 172 | target is not defined | `css/CSS2/normal-flow/block-in-inline-hittest-float-001.html` |
+| 105 | 304 | promise_test: Unhandled rejection with value: object "ReferenceError: SharedWorker is not defined" | `content-security-policy/inside-worker/sharedworker-connect-src.sub.html` |
+| 103 | 218 | promise_test: Unhandled rejection with value: object "[object Object]" | `fetch/cross-origin-resource-policy/iframe-loads.html` |
 | 91 | 304 | synchronous XMLHttpRequest is not supported | `websockets/cookies/007.html` |
 | 88 | 1280 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `css/cssom/CSSStyleSheet-constructable-baseURL.html` |
+| 88 | 537 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
+| 82 | 240 | promise_test: Unhandled rejection with value: object "SyntaxError: invalid JSON: expected a number" | `fetch/api/abort/general.any.html` |
 | 80 | 3006 | assert_true: 'to' value should be supported expected true got false | `css/CSS2/linebox/animations/line-height-interpolation.html` |
 | 75 | 612 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
 | 75 | 177 | cannot read property 'length' of undefined | `FileAPI/filelist-section/filelist.html` |
@@ -469,7 +479,6 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 56 | 63 | assert_equals: expected "" but got "N" | `css/css-align/parsing/column-gap-invalid.html` |
 | 56 | 72 | assert_equals: expected "" but got "none" | `css/css-animations/parsing/animation-range-end-invalid.html` |
 | 56 | 224 | assert_equals: expected (object) null but got (undefined) undefined | `css/cssom-view/offsetParent-body-and-html.html` |
-| 56 | 253 | promise_test: Unhandled rejection with value: object "TypeError: Failed to fetch" | `FileAPI/url/url-with-fetch.any.html` |
 | 56 | 278 | undefined (__defineSetter__) is not a function | `IndexedDB/abort-in-initial-upgradeneeded.any.html` |
 | 51 | 1461 | cannot read property 'N' of undefined | `css/css-animations/CSSAnimation-effect.tentative.html` |
 | 51 | 88 | promise_test: Unhandled rejection with value: object "ReferenceError: itemN is not defined" | `css/css-overflow/scroll-markers/scroll-marker-selection-picks-closest.html` |
@@ -484,6 +493,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 42 | 146 | assert_false: expected false got true | `cors/preflight-failure.htm` |
 | 42 | 42 | undefined (roundRect) is not a function | `html/canvas/element/path-objects/2d.path.roundrect.1.radius.dompointinit.html` |
 | 41 | 1356 | assert_equals: expected "Npx " but got "Npx " | `css/CSS2/linebox/animations/line-height-interpolation.html` |
+| 41 | 301 | promise_test: Unhandled rejection with value: object "Error: Network Error" | `referrer-policy/4K/gen/top.http-rp/no-referrer-when-downgrade/xhr.http.html` |
 | 40 | 136 | assert_equals: expected "Npx" but got "Npx" | `content-security-policy/style-src/style-src-injected-inline-style-allowed-with-content-hash.html` |
 | 40 | 167 | promise_test: Unhandled rejection with value: object "TypeError: undefined (getAnimations) is not a function" | `css/css-animations/AnimationEffect-getComputedTiming.tentative.html` |
 | 40 | 206 | undefined (getAnimations) is not a function | `css/css-animations/AnimationEffect-getComputedTiming.tentative.html` |
@@ -510,7 +520,6 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 26 | 26 | undefined (toDataURL) is not a function | `html/canvas/element/layers/2d.layer.malformed-operations.html` |
 | 25 | 31 | assert_equals: serialization should be canonical expected "Npx" but got "N" | `css/css-align/parsing/column-gap-valid.html` |
 | 25 | 112 | main is not defined | `css/css-cascade/at-scope-parsing.html` |
-| 25 | 144 | promise_test: Unhandled rejection with value: object "ReferenceError: SharedWorker is not defined" | `content-security-policy/inside-worker/sharedworker-connect-src.sub.html` |
 | 24 | 97 | FormData is not defined | `custom-elements/form-associated/form-disabled-callback.html` |
 | 23 | 24 | assert_equals: expected "" but got "-N%" | `css/css-align/parsing/column-gap-invalid.html` |
 | 23 | 212 | cannot read property 'append' of undefined | `content-security-policy/embedded-enforcement/allow_csp_from-header.html` |
@@ -531,8 +540,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 19 | 73 | promise_test: Unhandled rejection with value: object "ReferenceError: with_iframe is not defined" | `fetch/content-encoding/br/br-navigation.https.window.html` |
 | 19 | 24 | subject is not defined | `css/selectors/invalidation/defined-in-has.html` |
 | 19 | 44 | undefined (addTextTrack) is not a function | `html/semantics/embedded-content/media-elements/interfaces/HTMLElement/HTMLMediaElement/addTextTrack.html` |
-| 18 | 18 | assert_equals: expected "" but got "normal" | `css/css-fonts/parsing/font-optical-sizing-invalid.html` |
-| 18 | 42 | assert_equals: expected "rgb(N, N, N)" but got "" | `css/css-animations/responsive/column-rule-color-001.html` |
-| 18 | 1799 | assert_equals: expected (boolean) false but got (undefined) undefined | `html/dom/aria-attribute-reflection-enumerated.tentative.html` |
 
-29878 distinct subtest messages and 462 distinct harness messages behind these numbers.
+29886 distinct subtest messages and 463 distinct harness messages behind these numbers.
