@@ -2081,6 +2081,11 @@ before the document stall-timed-out. Test
 document (not the error page); soft-nav search→watch can reach the player
 again without a connection-failed interstitial.
 
+**Remeasure (Release, 2026-08-10).** With TD-0048 (abandon outgoing script),
+Accept reload is stable: `navigation.location_reload` + `document.arrived`
+in 3/3 runs, soft-nav reaches `#movie_player` / blob `src`. TD-0044's pool
+drop remains necessary; the residual Accept flake was the outgoing timers.
+
 ---
 
 ## TD-0045 — Trusted click burned `kMaxSteps` before `preventDefault`
@@ -2205,6 +2210,13 @@ Test `History/ReloadAbandonsOutgoingTimersBeforeDocumentFetch`. Counters
 
 **Close when.** Release Accept on `/results` recommits results (thumbs ≥12)
 across repeated runs without the error interstitial.
+
+**Remeasure (Release, 2026-08-10).** Three Accept-only runs: each shows
+`navigation.location_reload` then `document.arrived` (~1–2s), title never
+**Cannot load page**, `engine.script_abandoned_for_navigation=2`. Soft-nav
+after Accept: `history.push_states=1`, `focus: #movie_player`, blob `src`,
+`source_buffers_created=6`. MSE appends / `readyState` still TD-0042 (this
+remeasure: SABR mostly aborted, `source_appends` absent, `rs:0`).
 
 ---
 
