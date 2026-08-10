@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-6017 of 271094 subtests pass (2.2%) over 2809 tests.
+6081 of 271274 subtests pass (2.2%) over 2867 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -112,6 +112,7 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
 | `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
+| `user-timing` | 58 | 29 | 0 | 29 | 0 | 180 | 64 | 35.6 |
 | `web-animations` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
 | `web-animations/animation-model` | 25 | 25 | 0 | 0 | 0 | 146 | 20 | 13.7 |
 | `web-animations/animation-trigger` | 3 | 3 | 0 | 0 | 0 | 3 | 0 | 0.0 |
@@ -135,8 +136,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 544 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 254 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 569 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 258 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -250,18 +251,18 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
 | 55 | 1912 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 35 | 514 | Illegal constructor: ReadableStream | `streams/piping/close-propagation-backward.any.html` |
-| 32 | 91 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
-| 32 | 497 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
+| 34 | 500 | assert_throws_js: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor.any.html` |
+| 33 | 92 | assert_equals: expected N but got N | `custom-elements/attribute-changed-callback.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 32 | 64 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 30 | 274 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
+| 25 | 1011 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 21 | 393 | KeyframeEffect is not defined | `web-animations/animation-model/animation-types/clamping-001.html` |
-| 21 | 961 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
-| 18 | 35 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
-| 18 | 18 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
+| 19 | 37 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
+| 19 | 19 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 85 | getSelection is not defined | `selection/modify-extend-word-trailing-inline-block.tentative.html` |
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
@@ -346,4 +347,4 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 720 | Failed to construct URL: invalid URL | `url/url-constructor.any.html?include=file` |
 | 5 | 9 | HTMLCollection is not defined | `dom/nodes/Document-getElementsByClassName.html` |
 
-9093 distinct subtest messages and 104 distinct harness messages behind these numbers.
+9124 distinct subtest messages and 104 distinct harness messages behind these numbers.
