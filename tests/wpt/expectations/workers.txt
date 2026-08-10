@@ -1,0 +1,747 @@
+[workers/SharedWorker-constructor.html]
+FAIL=Test SharedWorker constructor suceeds.
+FAIL=Test SharedWorker constructor with null name does not result in an exception.
+FAIL=Test SharedWorker constructor with undefined name does not result in an exception.
+FAIL=Test SharedWorker constructor without a name does not result in an exception.
+FAIL=Test SharedWorker creation without arguments results in exception.
+FAIL=Test recursive worker creation results in exception.
+FAIL=Test toString exception propagated correctly.
+[workers/SharedWorker-detach-frame-in-error-event.html]
+FAIL=Test frame detach in shared worker's error handler
+[workers/SharedWorker-exception-propagation.html]
+FAIL=Uncaught error in shared worker should not propagate to window
+[workers/SharedWorker-exception.html]
+FAIL=This test checks whether exceptions in SharedWorkers are logged to the parent document. An exception should be logged to the error console.
+[workers/SharedWorker-extendedLifetime-blob.html]
+FAIL=Blob URL SharedWorker should survive across navigations with extendedLifetime
+[workers/SharedWorker-extendedLifetime-data.html]
+FAIL=Data URL SharedWorker should survive across navigations with extendedLifetime
+[workers/SharedWorker-extendedLifetime-named-module.html]
+FAIL=Module SharedWorker should survive across navigations with extendedLifetime
+FAIL=Named SharedWorker should survive across navigations with extendedLifetime
+[workers/SharedWorker-extendedLifetime.html]
+FAIL=SharedWorker lifetime should be extended with extendedLifetime
+[workers/SharedWorker-script-error.html]
+FAIL=Test script error handled.
+FAIL=Test script error unhandled.
+[workers/SharedWorker-simple.html]
+FAIL=Test simple shared worker construction case.
+[workers/SharedWorkerPerformanceNow.html]
+FAIL=performance.now() exists in shared workers and reports reasonable times
+[workers/SharedWorker_blobUrl.html]
+FAIL=Blob URL shared by document on SharedWorker
+[workers/SharedWorker_dataUrl.html]
+harness=TIMEOUT
+[workers/Worker-call.worker.html]
+harness=TIMEOUT
+[workers/Worker-constructor-proto.any.html]
+FAIL=Tests that setting the proto of a built in constructor is not reset.
+[workers/Worker-constructor-proto.any.worker.html]
+harness=TIMEOUT
+[workers/Worker-creation-happens-in-parallel.https.html]
+FAIL=Tests that creation of a "new Worker()" will occur in parallel
+[workers/Worker-formdata.any.worker.html]
+harness=TIMEOUT
+[workers/Worker-location.sub.any.worker.html]
+harness=TIMEOUT
+[workers/Worker-messageport.html]
+harness=TIMEOUT
+[workers/Worker-multi-port.html]
+harness=TIMEOUT
+[workers/Worker-nested-importScripts-error.html]
+harness=TIMEOUT
+[workers/Worker-postMessage-happens-in-parallel.https.html]
+harness=TIMEOUT
+[workers/Worker-simultaneous-errors.html]
+harness=TIMEOUT
+[workers/Worker-structure-message.html]
+harness=TIMEOUT
+[workers/Worker-terminate-forever-during-evaluation.html]
+harness=TIMEOUT
+[workers/Worker-termination-with-port-messages.html]
+harness=TIMEOUT
+[workers/Worker-timeout-cancel-order.html]
+harness=TIMEOUT
+[workers/Worker-timeout-decreasing-order.html]
+harness=TIMEOUT
+[workers/Worker-timeout-increasing-order.html]
+harness=TIMEOUT
+[workers/WorkerGlobalScope-close.html]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_ErrorEvent_colno.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_ErrorEvent_filename.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_ErrorEvent_lineno.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_ErrorEvent_message.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_importScripts.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_importScripts_NetworkErr.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_importScripts_NosniffErr.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_requestAnimationFrame.worker.html]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_setInterval.htm]
+harness=TIMEOUT
+[workers/WorkerGlobalScope_setTimeout.htm]
+harness=TIMEOUT
+[workers/WorkerLocation-origin.sub.window.html]
+harness=TIMEOUT
+[workers/WorkerLocation.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_hash.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_hash_encoding.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_hash_nonexist.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_host.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_hostname.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_href.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_pathname.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_port.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_protocol.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_search.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_search_empty.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_search_fragment.htm]
+harness=TIMEOUT
+[workers/WorkerLocation_search_nonexist.htm]
+harness=TIMEOUT
+[workers/WorkerNavigator_appName.htm]
+harness=TIMEOUT
+[workers/WorkerNavigator_appVersion.htm]
+harness=TIMEOUT
+[workers/WorkerNavigator_onLine.htm]
+harness=TIMEOUT
+[workers/WorkerNavigator_platform.htm]
+harness=TIMEOUT
+[workers/WorkerNavigator_userAgent.htm]
+harness=TIMEOUT
+[workers/WorkerNavigator_userAgentData.http.html]
+harness=TIMEOUT
+[workers/WorkerNavigator_userAgentData.https.html]
+harness=TIMEOUT
+[workers/WorkerPerformanceNow.html]
+harness=TIMEOUT
+[workers/Worker_ErrorEvent_bubbles_cancelable.htm]
+harness=TIMEOUT
+[workers/Worker_ErrorEvent_error.htm]
+harness=TIMEOUT
+[workers/Worker_ErrorEvent_filename.htm]
+harness=TIMEOUT
+[workers/Worker_ErrorEvent_lineno.htm]
+harness=TIMEOUT
+[workers/Worker_ErrorEvent_message.htm]
+harness=TIMEOUT
+[workers/Worker_ErrorEvent_type.htm]
+harness=TIMEOUT
+[workers/Worker_NosniffErr.htm]
+harness=TIMEOUT
+[workers/Worker_basic.htm]
+harness=TIMEOUT
+[workers/Worker_cross_origin_security_err.htm]
+harness=TIMEOUT
+[workers/Worker_dispatchEvent_ErrorEvent.htm]
+FAIL= ErrorEvent and Worker.dispatchEvent() 
+FAIL=ErrorEvent constructor called as normal function
+[workers/Worker_script_mimetype.htm]
+harness=TIMEOUT
+[workers/Worker_terminate_event_queue.htm]
+harness=TIMEOUT
+[workers/abrupt-completion.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/import-in-moduleworker.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/importScripts-in-sharedworker.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/importScripts-in-worker.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/worker-in-worker.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/xhr-in-moduleworker.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/xhr-in-sharedworker.html]
+harness=TIMEOUT
+[workers/baseurl/alpha/xhr-in-worker.html]
+harness=TIMEOUT
+[workers/constructors/SharedWorker/Infinity-arguments.html]
+FAIL=Test constructing a shared worker with Infinity
+[workers/constructors/SharedWorker/NaN-arguments.html]
+FAIL=Test constructing a shared worker with NaN
+[workers/constructors/SharedWorker/SharedWorker-constructor.html]
+FAIL=Test Sharedworker creation with no arguments
+FAIL=Test invalid script URL.
+FAIL=Test toString propagation exception.
+[workers/constructors/SharedWorker/URLMismatchError.htm]
+harness=TIMEOUT
+[workers/constructors/SharedWorker/connect-event.html]
+FAIL=Test connect event for a shared worker
+[workers/constructors/SharedWorker/dummy-name.html]
+FAIL=creating a dummy shared worker with name "foo"
+[workers/constructors/SharedWorker/dummy-shared-worker.html]
+FAIL=creating a dummy shared worker
+[workers/constructors/SharedWorker/empty-name.html]
+FAIL=creating a dummy shared worker with explicit name ""
+[workers/constructors/SharedWorker/global-members.html]
+FAIL=Test if global members exist in a shared worker
+[workers/constructors/SharedWorker/interface-objects.html]
+FAIL=Test if interface objects exist in a shared worker
+[workers/constructors/SharedWorker/name.html]
+FAIL=Test self.name in a shared worker
+[workers/constructors/SharedWorker/no-arguments-ctor.html]
+FAIL=no arguments
+[workers/constructors/SharedWorker/null-arguments.html]
+FAIL=Test constructing a shared worker with null
+[workers/constructors/SharedWorker/number-arguments.html]
+FAIL=Test constructing a shared worker with 1
+[workers/constructors/SharedWorker/port-onmessage.html]
+FAIL=Test SharedWorker.port.onmessage
+[workers/constructors/SharedWorker/port-properties.html]
+FAIL=worker.port
+[workers/constructors/SharedWorker/port-readonly.html]
+FAIL=setting worker.port
+[workers/constructors/SharedWorker/same-origin.html]
+FAIL=about_blank
+FAIL=data_url
+FAIL=http_port_8012
+FAIL=https_port_80
+FAIL=https_port_8000
+FAIL=javascript_url
+FAIL=non-parsable URL
+FAIL=opera_com
+FAIL=port_81
+FAIL=unsupported_scheme
+[workers/constructors/SharedWorker/setting-port-members.html]
+harness=ERROR
+[workers/constructors/SharedWorker/undefined-arguments.html]
+FAIL=Test constructing a shared worker with undefined
+[workers/constructors/SharedWorker/unexpected-global-properties.html]
+FAIL=Test unexpected properties are not in global scope
+[workers/constructors/SharedWorker/unresolvable-url.html]
+FAIL=resolving broken url
+[workers/constructors/Worker/AbstractWorker.onerror.html]
+harness=TIMEOUT
+[workers/constructors/Worker/Blob-url.html]
+harness=TIMEOUT
+[workers/constructors/Worker/DedicatedWorkerGlobalScope-members.worker.html]
+harness=TIMEOUT
+[workers/constructors/Worker/Worker-constructor.html]
+harness=TIMEOUT
+[workers/constructors/Worker/constructor-utf16-bom.html]
+harness=TIMEOUT
+[workers/constructors/Worker/ctor-1.html]
+harness=TIMEOUT
+[workers/constructors/Worker/ctor-null.html]
+harness=TIMEOUT
+[workers/constructors/Worker/ctor-undefined.html]
+harness=TIMEOUT
+[workers/constructors/Worker/expected-self-properties.worker.html]
+harness=TIMEOUT
+[workers/constructors/Worker/same-origin.html]
+harness=TIMEOUT
+[workers/constructors/Worker/terminate.html]
+harness=TIMEOUT
+[workers/constructors/Worker/unexpected-self-properties.worker.html]
+harness=TIMEOUT
+[workers/constructors/Worker/use-base-url.html]
+harness=TIMEOUT
+[workers/data-url-shared.html]
+FAIL=A data: URL shared worker should not be shared among origins.
+FAIL=application/javascript MIME allowed
+FAIL=communication goes both ways
+FAIL=cross-origin worker
+FAIL=empty MIME allowed
+FAIL=indexedDB is inaccessible
+FAIL=indexedDB is present
+FAIL=text/plain MIME allowed
+FAIL=worker has opaque origin
+[workers/data-url.html]
+harness=TIMEOUT
+[workers/dedicated-worker-from-blob-url.window.html]
+harness=TIMEOUT
+[workers/dedicated-worker-in-data-url-context.window.html]
+harness=TIMEOUT
+[workers/dedicated-worker-parse-error-failure.html]
+harness=TIMEOUT
+[workers/dedicated-worker-runtime-error-is-not-parse-error.html]
+harness=TIMEOUT
+[workers/examples/fetch_tests_from_worker.html]
+harness=TIMEOUT
+[workers/examples/general.worker.html]
+harness=TIMEOUT
+[workers/importscripts_mime_local.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/EventTarget.worker.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/onmessage.worker.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/event-ports-dedicated.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/imagedata-cloned-canvas-in-array.html]
+FAIL=posting an imagedata (from a cloned canvas) in an array
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/message-event.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/return-value.worker.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/second-argument-dictionary.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/second-argument-null-in-array.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/second-argument-null.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/second-argument-undefined.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/setting-postMessage.html]
+harness=TIMEOUT
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/structured-clone-imagedata.html]
+FAIL=structured clone of ImageData
+[workers/interfaces/DedicatedWorkerGlobalScope/postMessage/structured-clone-message.html]
+harness=TIMEOUT
+[workers/interfaces/SharedWorkerGlobalScope/name/getting.html]
+FAIL=getting name
+FAIL=getting name 1
+FAIL=getting name 2
+[workers/interfaces/SharedWorkerGlobalScope/name/setting.html]
+FAIL=setting name
+[workers/interfaces/SharedWorkerGlobalScope/onconnect.html]
+FAIL=onconnect
+[workers/interfaces/WorkerGlobalScope/close/incoming-message.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/close/sending-messages.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/close/setInterval.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/close/setTimeout.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/location/members.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/location/redirect-module.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/location/redirect-sharedworker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/location/redirect.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/location/setting-members.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/location/worker-separate-file.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/exception-in-onerror.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/handled.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/message-classic-DOMException.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/message-classic-Error.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/message-module-DOMException.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/message-module-Error.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/not-handled.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerGlobalScope/onerror/propagate-to-window-onerror.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/WindowTimers/001.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/WindowTimers/002.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/WindowTimers/003.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/WindowTimers/004.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/WindowTimers/005.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/001.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/002.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/003.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/004.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/005.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/006.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/007.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/008.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/009.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/010.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/011.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/012.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/blob-url.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/report-error-cross-origin.sub.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/report-error-redirect-to-cross-origin.sub.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/report-error-same-origin.sub.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/report-error-setTimeout-cross-origin.sub.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/report-error-setTimeout-redirect-to-cross-origin.sub.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/importScripts/report-error-setTimeout-same-origin.sub.any.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/002.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/003.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/004.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/005.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/006.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/007.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/008.worker.html]
+harness=TIMEOUT
+[workers/interfaces/WorkerUtils/navigator/language.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-blob-url.any.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-blob-url.any.worker.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-csp.html]
+FAIL=script-src 'self' directive should disallow cross origin dynamic import.
+FAIL=script-src 'self' directive should disallow cross origin static import.
+FAIL=script-src * directive should allow cross origin dynamic import.
+FAIL=script-src * directive should allow cross origin static import.
+FAIL=script-src-elem 'self' directive should disallow cross origin dynamic import.
+FAIL=script-src-elem 'self' directive should not take effect on static import.
+FAIL=worker-src 'self' directive should disallow cross origin static import.
+FAIL=worker-src 'self' directive should not take effect on dynamic import.
+FAIL=worker-src 'self' directive should override script-src * directive and disallow cross origin static import.
+FAIL=worker-src * directive should allow cross origin static import.
+FAIL=worker-src * directive should override script-src 'self' directive and allow cross origin static import.
+[workers/modules/dedicated-worker-import-data-url-cross-origin.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-data-url.any.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-data-url.any.worker.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-failure.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-meta.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import-referrer.html]
+FAIL=Cross-origin dynamic import with "no-referrer" referrer policy.
+FAIL=Cross-origin dynamic import with "origin" referrer policy.
+FAIL=Cross-origin dynamic import with "same-origin" referrer policy.
+FAIL=Cross-origin static import with "no-referrer" referrer policy.
+FAIL=Cross-origin static import with "origin" referrer policy.
+FAIL=Cross-origin static import with "same-origin" referrer policy.
+FAIL=Same-origin dynamic import with "no-referrer" referrer policy.
+FAIL=Same-origin dynamic import with "origin" referrer policy.
+FAIL=Same-origin dynamic import with "same-origin" referrer policy.
+FAIL=Same-origin static import with "no-referrer" referrer policy.
+FAIL=Same-origin static import with "origin" referrer policy.
+FAIL=Same-origin static import with "same-origin" referrer policy.
+FAIL=Same-origin top-level module script loading with "no-referrer" referrer policy
+FAIL=Same-origin top-level module script loading with "origin" referrer policy
+FAIL=Same-origin top-level module script loading with "same-origin" referrer policy
+[workers/modules/dedicated-worker-import.any.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-import.any.worker.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-options-credentials.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-options-type.html]
+harness=TIMEOUT
+[workers/modules/dedicated-worker-parse-error-failure.html]
+harness=TIMEOUT
+[workers/modules/shared-worker-import-blob-url.window.html]
+FAIL=Dynamic import and then static import.
+FAIL=Dynamic import.
+FAIL=Nested dynamic import.
+FAIL=Nested static import.
+FAIL=Static import (cross-origin).
+FAIL=Static import (redirect).
+FAIL=Static import and then dynamic import.
+FAIL=Static import.
+FAIL=eval(import()).
+[workers/modules/shared-worker-import-csp.html]
+FAIL=script-src 'self' directive should disallow cross origin dynamic import.
+FAIL=script-src 'self' directive should disallow cross origin static import.
+FAIL=script-src * directive should allow cross origin dynamic import.
+FAIL=script-src * directive should allow cross origin static import.
+FAIL=worker-src 'self' directive should disallow cross origin static import.
+FAIL=worker-src 'self' directive should not take effect on dynamic import.
+FAIL=worker-src 'self' directive should override script-src * directive and disallow cross origin static import.
+FAIL=worker-src * directive should allow cross origin static import.
+FAIL=worker-src * directive should override script-src 'self' directive and allow cross origin static import.
+[workers/modules/shared-worker-import-data-url-cross-origin.html]
+FAIL=dynamic import data url from data: URL should be allowed.
+FAIL=dynamic import script from data: URL should be blocked.
+FAIL=static import data url from data: URL should be allowed.
+FAIL=static import script from data: URL should be allowed.
+[workers/modules/shared-worker-import-data-url.window.html]
+FAIL=Dynamic import and then static import.
+FAIL=Dynamic import.
+FAIL=Nested dynamic import.
+FAIL=Nested static import.
+FAIL=Static import (cross-origin).
+FAIL=Static import (redirect).
+FAIL=Static import and then dynamic import.
+FAIL=Static import.
+FAIL=eval(import()).
+[workers/modules/shared-worker-import-failure.html]
+FAIL=Dynamic import for non-existent script should throw an exception.
+FAIL=SharedWorker construction for a file URL should throw an exception.
+FAIL=SharedWorker construction for an invalid URL should throw an exception.
+FAIL=Static import for non-existent script should dispatch an ErrorEvent.
+FAIL=Worker construction for non-existent script should dispatch an ErrorEvent.
+FAIL=importScripts() on module worker should throw an exception.
+[workers/modules/shared-worker-import-meta.html]
+FAIL=Test import.meta.url on the imported module script with a fragment.
+FAIL=Test import.meta.url on the imported module script.
+FAIL=Test import.meta.url on the top-level module script.
+[workers/modules/shared-worker-import-referrer.html]
+FAIL=Cross-origin dynamic import with "no-referrer" referrer policy.
+FAIL=Cross-origin dynamic import with "origin" referrer policy.
+FAIL=Cross-origin dynamic import with "same-origin" referrer policy.
+FAIL=Cross-origin static import with "no-referrer" referrer policy.
+FAIL=Cross-origin static import with "origin" referrer policy.
+FAIL=Cross-origin static import with "same-origin" referrer policy.
+FAIL=Same-origin dynamic import with "no-referrer" referrer policy.
+FAIL=Same-origin dynamic import with "origin" referrer policy.
+FAIL=Same-origin dynamic import with "same-origin" referrer policy.
+FAIL=Same-origin static import with "no-referrer" referrer policy.
+FAIL=Same-origin static import with "origin" referrer policy.
+FAIL=Same-origin static import with "same-origin" referrer policy.
+FAIL=Same-origin top-level module script loading with "no-referrer" referrer policy
+FAIL=Same-origin top-level module script loading with "origin" referrer policy
+FAIL=Same-origin top-level module script loading with "same-origin" referrer policy
+[workers/modules/shared-worker-import.window.html]
+FAIL=Dynamic import and then static import.
+FAIL=Dynamic import.
+FAIL=Nested dynamic import.
+FAIL=Nested static import.
+FAIL=Static import (cross-origin).
+FAIL=Static import (redirect).
+FAIL=Static import and then dynamic import.
+FAIL=Static import.
+FAIL=eval(import()).
+[workers/modules/shared-worker-options-credentials.html]
+FAIL=new SharedWorker() with type=classic should always send the credentials for same-origin dynamic imports regardless of the credentials option (default).
+FAIL=new SharedWorker() with type=classic should always send the credentials for same-origin dynamic imports regardless of the credentials option (include).
+FAIL=new SharedWorker() with type=classic should always send the credentials for same-origin dynamic imports regardless of the credentials option (omit).
+FAIL=new SharedWorker() with type=classic should always send the credentials for same-origin dynamic imports regardless of the credentials option (same-origin).
+FAIL=new SharedWorker() with type=classic should always send the credentials regardless of the credentials option (default).
+FAIL=new SharedWorker() with type=classic should always send the credentials regardless of the credentials option (include).
+FAIL=new SharedWorker() with type=classic should always send the credentials regardless of the credentials option (omit).
+FAIL=new SharedWorker() with type=classic should always send the credentials regardless of the credentials option (same-origin).
+FAIL=new SharedWorker() with type=classic should never send the credentials for cross-origin dynamic imports regardless of the credentials option (default).
+FAIL=new SharedWorker() with type=classic should never send the credentials for cross-origin dynamic imports regardless of the credentials option (include).
+FAIL=new SharedWorker() with type=classic should never send the credentials for cross-origin dynamic imports regardless of the credentials option (omit).
+FAIL=new SharedWorker() with type=classic should never send the credentials for cross-origin dynamic imports regardless of the credentials option (same-origin).
+FAIL=new SharedWorker() with type=module and credentials=include should send the credentials
+FAIL=new SharedWorker() with type=module and credentials=include should send the credentials for cross-origin dynamic imports
+FAIL=new SharedWorker() with type=module and credentials=include should send the credentials for cross-origin static imports
+FAIL=new SharedWorker() with type=module and credentials=include should send the credentials for same-origin dynamic imports
+FAIL=new SharedWorker() with type=module and credentials=include should send the credentials for same-origin static imports
+FAIL=new SharedWorker() with type=module and credentials=omit should not send the credentials
+FAIL=new SharedWorker() with type=module and credentials=omit should not send the credentials for cross-origin dynamic imports
+FAIL=new SharedWorker() with type=module and credentials=omit should not send the credentials for cross-origin static imports
+FAIL=new SharedWorker() with type=module and credentials=omit should not send the credentials for same-origin dynamic imports
+FAIL=new SharedWorker() with type=module and credentials=omit should not send the credentials for same-origin static imports
+FAIL=new SharedWorker() with type=module and credentials=same-origin should not send the credentials for cross-origin dynamic imports
+FAIL=new SharedWorker() with type=module and credentials=same-origin should not send the credentials for cross-origin static imports
+FAIL=new SharedWorker() with type=module and credentials=same-origin should send the credentials
+FAIL=new SharedWorker() with type=module and credentials=same-origin should send the credentials for same-origin dynamic imports
+FAIL=new SharedWorker() with type=module and credentials=same-origin should send the credentials for same-origin static imports
+FAIL=new SharedWorker() with type=module and default credentials option should behave as credentials=same-origin and not send the credentials for cross-origin dynamic imports
+FAIL=new SharedWorker() with type=module and default credentials option should behave as credentials=same-origin and not send the credentials for cross-origin static imports
+FAIL=new SharedWorker() with type=module and default credentials option should behave as credentials=same-origin and send the credentials
+FAIL=new SharedWorker() with type=module and default credentials option should behave as credentials=same-origin and send the credentials for same-origin dynamic imports
+FAIL=new SharedWorker() with type=module and default credentials option should behave as credentials=same-origin and send the credentials for same-origin static imports
+[workers/modules/shared-worker-options-type.html]
+FAIL=Test worker construction with an empty worker type.
+FAIL=Test worker construction with an unknown worker type.
+FAIL=Test worker construction with the "classic" worker type.
+FAIL=Test worker construction with the "module" worker type.
+FAIL=Test worker construction with the default worker type.
+[workers/modules/shared-worker-parse-error-failure.html]
+harness=ERROR
+[workers/multi-globals/url-parsing.html]
+FAIL=Multiple globals for Worker constructor: parsing scriptURL
+[workers/name-property.html]
+harness=TIMEOUT
+[workers/nested_worker.worker.html]
+harness=TIMEOUT
+[workers/nested_worker_close_from_parent_worker.html]
+harness=TIMEOUT
+[workers/nested_worker_close_self.worker.html]
+harness=TIMEOUT
+[workers/nested_worker_importScripts.worker.html]
+harness=TIMEOUT
+[workers/nested_worker_sync_xhr.worker.html]
+harness=TIMEOUT
+[workers/nested_worker_terminate_from_document.html]
+harness=TIMEOUT
+[workers/opaque-origin.html]
+harness=TIMEOUT
+[workers/postMessage_DataCloneErr.htm]
+harness=TIMEOUT
+[workers/postMessage_block.https.html]
+harness=TIMEOUT
+[workers/postMessage_clone_port.htm]
+FAIL= postMessage(): clone a port 
+[workers/postMessage_clone_port_error.htm]
+FAIL= postMessage(): cloning source port 
+[workers/postMessage_event_properties.htm]
+FAIL= postMessage(): MessageEvent properties 
+[workers/postMessage_ports_readonly_array.htm]
+FAIL= postMessage(): read-only ports array 
+[workers/same-origin-check.sub.html]
+harness=TIMEOUT
+[workers/same-site-cookies/first-party.all.tentative.https.window.html]
+FAIL=Check SharedWorker sameSiteCookies option all for first-party
+[workers/same-site-cookies/first-party.default.tentative.https.window.html]
+FAIL=Check SharedWorker sameSiteCookies option default for first-party
+[workers/same-site-cookies/first-party.none.tentative.https.window.html]
+FAIL=Check SharedWorker sameSiteCookies option none for first-party
+[workers/same-site-cookies/third-party.all.tentative.sub.https.window.html]
+FAIL=Check SharedWorker sameSiteCookies option all for third-party
+[workers/same-site-cookies/third-party.default.tentative.sub.https.window.html]
+FAIL=Check SharedWorker sameSiteCookies option default for third-party
+[workers/same-site-cookies/third-party.none.tentative.sub.https.window.html]
+FAIL=Check SharedWorker sameSiteCookies option none for third-party
+[workers/semantics/encodings/001.html]
+harness=TIMEOUT
+[workers/semantics/encodings/002.html]
+FAIL=encoding, shared worker
+[workers/semantics/encodings/003.html]
+harness=TIMEOUT
+[workers/semantics/encodings/004.html]
+FAIL=URL encoding, shared worker
+[workers/semantics/encodings/004.worker.html]
+harness=TIMEOUT
+[workers/semantics/interface-objects/001.worker.html]
+harness=TIMEOUT
+[workers/semantics/interface-objects/002.worker.html]
+harness=TIMEOUT
+[workers/semantics/multiple-workers/001.html]
+harness=TIMEOUT
+[workers/semantics/multiple-workers/002.html]
+harness=TIMEOUT
+[workers/semantics/multiple-workers/003.html]
+harness=TIMEOUT
+[workers/semantics/multiple-workers/004.html]
+harness=TIMEOUT
+[workers/semantics/multiple-workers/008.html]
+FAIL=messagechannel in shared worker
+[workers/semantics/multiple-workers/exposure.any.html]
+FAIL=SharedWorker exposure
+[workers/semantics/navigation/001.html]
+harness=TIMEOUT
+[workers/semantics/navigation/002.html]
+harness=TIMEOUT
+[workers/semantics/reporting-errors/001.html]
+FAIL=shared worker, not handled
+[workers/semantics/reporting-errors/002.html]
+FAIL=shared worker, addEventListener
+[workers/semantics/reporting-errors/003.html]
+FAIL=shared worker, no error event on worker or port
+[workers/semantics/reporting-errors/004.html]
+FAIL=shared worker in two documents and window.onerror
+[workers/semantics/run-a-worker/001.html]
+harness=TIMEOUT
+[workers/semantics/run-a-worker/002.html]
+FAIL=worker global scope, shared worker
+[workers/semantics/run-a-worker/003.html]
+harness=TIMEOUT
+[workers/semantics/structured-clone/dedicated.html]
+harness=TIMEOUT
+[workers/semantics/structured-clone/shared.html]
+harness=TIMEOUT
+[workers/semantics/xhr/001.html]
+harness=TIMEOUT
+[workers/semantics/xhr/002.html]
+harness=TIMEOUT
+[workers/semantics/xhr/003.html]
+harness=TIMEOUT
+[workers/semantics/xhr/004.html]
+harness=TIMEOUT
+[workers/semantics/xhr/005.html]
+harness=TIMEOUT
+[workers/semantics/xhr/006.html]
+harness=TIMEOUT
+[workers/shared-worker-from-blob-url.window.html]
+FAIL=Blob URLs should not resolve relative to document base URL.
+FAIL=Connecting to a shared worker on a revoked blob URL works.
+FAIL=Creating a shared worker from a blob URL works immediately before revoking.
+FAIL=Creating a shared worker from a blob URL works.
+[workers/shared-worker-in-data-url-context.window.html]
+FAIL=Create a data url shared worker in a data url frame
+FAIL=Create a shared worker in a data url frame
+[workers/shared-worker-name-via-options.html]
+harness=TIMEOUT
+[workers/shared-worker-options-mismatch.html]
+FAIL=Connecting to shared worker with different options should be blocked: classic to module
+FAIL=Connecting to shared worker with different options should be blocked: default to extended in classic
+FAIL=Connecting to shared worker with different options should be blocked: default to extended in module
+FAIL=Connecting to shared worker with different options should be blocked: default to include in classic
+FAIL=Connecting to shared worker with different options should be blocked: default to include in module
+FAIL=Connecting to shared worker with different options should be blocked: default to module
+FAIL=Connecting to shared worker with different options should be blocked: default to omit in classic
+FAIL=Connecting to shared worker with different options should be blocked: default to omit in module
+FAIL=Connecting to shared worker with different options should be blocked: extended to default in classic
+FAIL=Connecting to shared worker with different options should be blocked: extended to default in module
+FAIL=Connecting to shared worker with different options should be blocked: false to true in classic
+FAIL=Connecting to shared worker with different options should be blocked: false to true in module
+FAIL=Connecting to shared worker with different options should be blocked: include to default in classic
+FAIL=Connecting to shared worker with different options should be blocked: include to default in module
+FAIL=Connecting to shared worker with different options should be blocked: include to omit in classic
+FAIL=Connecting to shared worker with different options should be blocked: include to omit in module
+FAIL=Connecting to shared worker with different options should be blocked: include to same-origin in classic
+FAIL=Connecting to shared worker with different options should be blocked: include to same-origin in module
+FAIL=Connecting to shared worker with different options should be blocked: module to classic
+FAIL=Connecting to shared worker with different options should be blocked: module to default
+FAIL=Connecting to shared worker with different options should be blocked: omit to default in classic
+FAIL=Connecting to shared worker with different options should be blocked: omit to default in module
+FAIL=Connecting to shared worker with different options should be blocked: omit to include in classic
+FAIL=Connecting to shared worker with different options should be blocked: omit to include in module
+FAIL=Connecting to shared worker with different options should be blocked: omit to same-origin in classic
+FAIL=Connecting to shared worker with different options should be blocked: omit to same-origin in module
+FAIL=Connecting to shared worker with different options should be blocked: same-origin to include in classic
+FAIL=Connecting to shared worker with different options should be blocked: same-origin to include in module
+FAIL=Connecting to shared worker with different options should be blocked: same-origin to omit in classic
+FAIL=Connecting to shared worker with different options should be blocked: same-origin to omit in module
+FAIL=Connecting to shared worker with different options should be blocked: true to false in classic
+FAIL=Connecting to shared worker with different options should be blocked: true to false in module
+[workers/shared-worker-parse-error-failure.html]
+FAIL=Classic shared worker construction for script with syntax error should dispatch an event named error.
+FAIL=Static import on classic shared worker should dispatch an event named error.
+[workers/shared-worker-partitioned-cookies.tentative.https.html]
+FAIL=SharedWorker: Partitioned Cookies
+[workers/shared-worker-partitioned.tentative.html]
+FAIL=Test partitioning of shared workers
+[workers/shared-worker-runtime-error-is-not-parse-error.html]
+FAIL=JSON.parse() error fires at global scope but not at SharedWorker
+FAIL=Script parse error dispatches plain Event at SharedWorker
+FAIL=eval() with syntax error fires at global scope but not at SharedWorker
+[workers/worker-performance.worker.html]
+harness=TIMEOUT
+[workers/worker-request-animation-frame.html]
+harness=TIMEOUT
+[workers/worker-url-encoding.html]
+harness=TIMEOUT
