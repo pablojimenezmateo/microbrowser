@@ -1,0 +1,1197 @@
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/iframe-blank-inherit.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic-data.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-classic.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module-data.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/sharedworker-module.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/srcdoc-inherit.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/iframe-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for iframe-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/img-tag.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for img-tag to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/sharedworker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/sharedworker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/sharedworker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/sharedworker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for sharedworker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worker-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worker-import.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-import to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-animation-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-animation.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-animation to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-audio-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-audio.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-audio to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-layout-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-layout.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-layout to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-paint-import-data.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint-import-data to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/worklet-paint.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worklet-paint to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/top.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic-data.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic-data.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic-data.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic-data.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic-data.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic-data.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic.http-rp/upgrade/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic.http-rp/upgrade/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-classic.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.meta/unset/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.meta/unset/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.meta/unset/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects blocked for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.meta/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.meta/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-module-data.meta/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module.http-rp/upgrade/fetch.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for fetch to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module.http-rp/upgrade/websocket.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to cross-ws-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for websocket to same-ws-downgrade origin and no-redirect redirection from https context.
+[upgrade-insecure-requests/gen/worker-module.http-rp/upgrade/worker-classic.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-classic to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module.http-rp/upgrade/worker-module.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for worker-module to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/gen/worker-module.http-rp/upgrade/xhr.https.html]
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to cross-https origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and downgrade redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
+FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
+[upgrade-insecure-requests/link-upgrade.sub.https.html]
+FAIL=./link-upgrade/basic-link-no-upgrade.sub.html
+FAIL=./link-upgrade/basic-link-upgrade.sub.html
+FAIL=./link-upgrade/iframe-link-upgrade.sub.html
+FAIL=./link-upgrade/iframe-top-navigation-no-upgrade-1.sub.html
+FAIL=./link-upgrade/iframe-top-navigation-no-upgrade-2.sub.html
+FAIL=./link-upgrade/iframe-top-navigation-upgrade-1.sub.html
+FAIL=./link-upgrade/iframe-top-navigation-upgrade-2.sub.html
+FAIL=./link-upgrade/iframe-top-navigation-upgrade-meta.sub.html

@@ -252,7 +252,7 @@ FAIL=new WebSocket("wss://foo bar.com/") should throw a "SyntaxError" DOMExcepti
 [websockets/Create-invalid-urls.any.worker.html]
 harness=TIMEOUT
 [websockets/Create-non-absolute-url.any.html]
-FAIL=Create WebSocket - Pass a non absolute URL: 
+FAIL=Create WebSocket - Pass a non absolute URL:
 FAIL=Create WebSocket - Pass a non absolute URL: 123
 FAIL=Create WebSocket - Pass a non absolute URL: ?
 FAIL=Create WebSocket - Pass a non absolute URL: null

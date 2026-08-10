@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-52998 of 467458 subtests pass (11.3%) over 18811 tests.
+52998 of 468458 subtests pass (11.3%) over 19008 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 24% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -234,6 +234,8 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/mouse` | 17 | 11 | 0 | 6 | 0 | 71 | 1 | 1.4 |
 | `uievents/order-of-events` | 16 | 5 | 0 | 11 | 0 | 6 | 0 | 0.0 |
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
+| `upgrade-insecure-requests` | 1 | 1 | 0 | 0 | 0 | 8 | 0 | 0.0 |
+| `upgrade-insecure-requests/gen` | 196 | 196 | 0 | 0 | 0 | 992 | 0 | 0.0 |
 | `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
 | `user-timing` | 58 | 29 | 0 | 29 | 0 | 180 | 64 | 35.6 |
 | `web-animations` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
@@ -397,10 +399,11 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 375 | 193097 | NOTRUN (no message) | `IndexedDB/database-names-by-origin.html` |
 | 297 | 1057 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
 | 218 | 587 | assert_equals: expected N but got N | `css/CSS2/abspos/abspos-in-block-in-inline-in-relpos-inline.html` |
+| 207 | 1050 | promise_test: Unhandled rejection with value: object "Error: Python handlers are not implemented" | `cookies/prefix/__Host-Http.https.html` |
 | 202 | 202 | undefined (pauseAnimations) is not a function | `svg/animations/additive-type-by-animation.html` |
 | 200 | 29292 | assert_true: 'from' value should be supported expected true got false | `css/CSS2/floats-clear/clear-no-interpolation.html` |
 | 198 | 751 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
-| 154 | 744 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
+| 155 | 752 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 148 | 166 | promise_test: Unhandled rejection with value: object "ReferenceError: OffscreenCanvas is not defined" | `html/canvas/element/global-hdr-headroom/clli-mdcv-png.html` |
 | 147 | 391 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `css/css-overflow/resizer-no-size-change.tentative.html` |
 | 131 | 388 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `IndexedDB/file_support.sub.html` |
@@ -491,6 +494,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 18 | 1799 | assert_equals: expected (boolean) false but got (undefined) undefined | `html/dom/aria-attribute-reflection-enumerated.tentative.html` |
 | 18 | 18 | promise_test: Unhandled rejection with value: object "ReferenceError: iframe is not defined" | `css/css-sizing/contain-intrinsic-size/forget-on-disconnect-in-iframe.html` |
 | 18 | 18 | undefined (isPointInPath) is not a function | `html/canvas/element/manual/drawing-paths-to-the-canvas/canvas_complexshapes_ispointInpath_001.htm` |
-| 17 | 34 | Illegal constructor: Document | `custom-elements/Document-createElementNS.html` |
 
 29784 distinct subtest messages and 433 distinct harness messages behind these numbers.
