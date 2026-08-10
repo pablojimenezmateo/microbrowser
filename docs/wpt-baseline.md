@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-5800 of 267069 subtests pass (2.2%) over 2004 tests.
+5800 of 267140 subtests pass (2.2%) over 2042 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 43% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -74,6 +74,8 @@ it is a page that never reported, which almost always means something threw befo
 | `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 16 | 6 | 37.5 |
 | `shadow-dom/reference-target` | 15 | 14 | 0 | 1 | 0 | 768 | 0 | 0.0 |
 | `shadow-dom/untriaged` | 54 | 52 | 0 | 2 | 0 | 248 | 157 | 63.3 |
+| `storage` | 28 | 11 | 0 | 17 | 0 | 23 | 0 | 0.0 |
+| `storage/buckets` | 10 | 8 | 0 | 2 | 0 | 48 | 0 | 0.0 |
 | `subresource-integrity` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0.0 |
 | `subresource-integrity/integrity-policy` | 5 | 0 | 0 | 5 | 0 | 37 | 0 | 0.0 |
 | `subresource-integrity/signatures` | 15 | 14 | 0 | 1 | 0 | 177 | 43 | 24.3 |
@@ -99,8 +101,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 337 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
-| 163 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
+| 349 | TIMEOUT: the page never reported | `console/console-label-conversion.any.worker.html` |
+| 170 | TIMEOUT:  | `custom-elements/CustomElementRegistry.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -197,9 +199,9 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 63 | 189027 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
+| 64 | 189032 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
-| 47 | 253 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
+| 51 | 257 | Test timed out | `custom-elements/perform-microtask-checkpoint-before-construction.html` |
 | 45 | 1858 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 32 | 48 | assert_true: Failed to create new rendered document expected true got false | `shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html` |
 | 31 | 63 | assert_true: expected true got false | `console/console-is-a-namespace.any.html` |
@@ -229,11 +231,11 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 12 | 33 | undefined (createAttribute) is not a function | `custom-elements/attribute-changed-callback.html` |
 | 12 | 100 | undefined (createValueRange) is not a function | `dom/ranges/tentative/OpaqueRange-auto-disconnect.html` |
 | 11 | 132 | Observable is not defined | `dom/observable/tentative/observable-catch.any.html` |
+| 11 | 11 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 11 | 23 | promise_test: Unhandled rejection with value: object "TypeError: undefined (moveBefore) is not a function" | `dom/nodes/moveBefore/Node-moveBefore.html` |
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
-| 10 | 10 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `console/idlharness.any.html` |
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 | 9 | 48 | assert_equals: Response status is N. expected N but got N | `subresource-integrity/signatures/tentative/header-component.window.html` |
@@ -254,6 +256,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 7 | 22 | cannot read property 'getElementById' of null | `domxpath/xpath-shadow-dom.html` |
 | 7 | 16 | document.elementsFromPoint unsupported | `uievents/order-of-events/mouse-events/click-cancel.html` |
 | 7 | 46 | promise_test: Unhandled rejection with value: object "ReferenceError: getSelection is not defined" | `dom/nodes/moveBefore/selection-preserve.html` |
+| 7 | 7 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'estimate' of undefined" | `storage/estimate-parallel.https.any.html` |
 | 7 | 7 | target is not defined | `dom/events/mouse-event-retarget.html` |
 | 6 | 22 | Illegal constructor: Text | `dom/nodes/adoption.window.html` |
 | 6 | 260 | The encoding label provided ('koiN-u') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
@@ -286,6 +289,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 53 | testN is not defined | `shadow-dom/event-composed-path-with-related-target.html` |
 | 5 | 12 | undefined (evaluate) is not a function | `domxpath/fn-normalize-space.html` |
 | 5 | 283 | undefined is not a function | `dom/nodes/Document-createCDATASection-xhtml.xhtml` |
+| 4 | 4 | 'in' requires an object | `custom-elements/ElementInternals-accessibility.html` |
 | 4 | 4 | DocumentType is not defined | `dom/nodes/Document-doctype.html` |
 | 4 | 4 | NodeList is not defined | `dom/nodes/Document-getElementsByTagName.html` |
 | 4 | 18 | Storage is not defined | `webstorage/set.window.html` |
@@ -295,7 +299,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 4 | 42 | The encoding label provided ('iso-N-jp') is invalid. | `encoding/iso-2022-jp-decoder.any.html` |
 | 4 | 259 | The encoding label provided ('koiN-r') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 4 | 6 | assert_equals: expected "" but got "null" | `dom/nodes/CharacterData-data.html` |
-| 4 | 4740 | assert_equals: expected "%N%N%NB" but got "U+N" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
-| 4 | 499 | assert_equals: expected "%N%N%NB" but got "U+Na" | `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-misc.html` |
 
-8766 distinct subtest messages and 88 distinct harness messages behind these numbers.
+8774 distinct subtest messages and 88 distinct harness messages behind these numbers.

@@ -1,0 +1,118 @@
+[storage/buckets/bucket-quota-indexeddb.tentative.https.any.html]
+FAIL=IDB respects bucket quota
+[storage/buckets/bucket-quota-indexeddb.tentative.https.any.worker.html]
+harness=TIMEOUT
+[storage/buckets/bucket-storage-policy.tentative.https.any.html]
+FAIL=The open promise should reject with a TypeError when quota is requested outside the range of 1 to Number.MAX_SAFE_INTEGER.
+[storage/buckets/bucket_names.tentative.https.any.html]
+FAIL=delete() allows bucket names ending with `-`
+FAIL=delete() allows bucket names ending with `_`
+FAIL=delete() allows bucket names with `-` in the middle
+FAIL=delete() allows bucket names with `_` in the middle
+FAIL=delete() allows bucket names with allowed characters
+FAIL=delete() throws an error if bucket names are an empty string
+FAIL=delete() throws an error if bucket names are not all lower case
+FAIL=delete() throws an error if bucket names are not in ASCII
+FAIL=delete() throws an error if bucket names exceed 64 chars
+FAIL=delete() throws an error if bucket names have a space
+FAIL=delete() throws an error if bucket names have no characters
+FAIL=delete() throws an error if bucket names include an invalid special character
+FAIL=delete() throws an error if bucket names start with `-`
+FAIL=delete() throws an error if bucket names start with `_`
+FAIL=open() allows bucket names ending with `-`
+FAIL=open() allows bucket names ending with `_`
+FAIL=open() allows bucket names with `-` in the middle
+FAIL=open() allows bucket names with `_` in the middle
+FAIL=open() allows bucket names with allowed characters
+FAIL=open() does not store duplicate bucket names
+FAIL=open() throws an error if bucket names are an empty string
+FAIL=open() throws an error if bucket names are not all lower case
+FAIL=open() throws an error if bucket names are not in ASCII
+FAIL=open() throws an error if bucket names exceed 64 chars
+FAIL=open() throws an error if bucket names have a space
+FAIL=open() throws an error if bucket names have no characters
+FAIL=open() throws an error if bucket names include an invalid special character
+FAIL=open() throws an error if bucket names start with `-`
+FAIL=open() throws an error if bucket names start with `_`
+[storage/buckets/buckets_basic.tentative.https.any.html]
+FAIL=delete() does nothing if bucket name does not exist
+FAIL=delete() removes stored bucket name
+FAIL=keys() lists all stored bucket names alphabetically
+[storage/buckets/buckets_storage_policy.tentative.https.any.html]
+FAIL=Bucket quota is properly set as long as it is within the storage quota
+[storage/buckets/detached-iframe.https.html]
+FAIL=Verify delete() on detached iframe returns an error
+FAIL=Verify keys() on detached iframe returns an error
+FAIL=Verify open() on detached iframe returns an error
+[storage/buckets/idlharness-worker.https.any.html]
+FAIL=idl_test setup
+[storage/buckets/opaque-origin.https.window.html]
+harness=TIMEOUT
+[storage/buckets/storage_bucket_object.tentative.https.any.html]
+FAIL=Bucket durability defaults to relaxed
+FAIL=durability() should retrieve bucket durability specified during creation
+FAIL=estimate() should retrieve quota usage
+FAIL=expires() should be defaulted to null
+FAIL=expires() should retrieve expires date
+FAIL=persisted() should default to false
+FAIL=setExpires() should set bucket expires date
+FAIL=setExpires() should update expires date
+FAIL=two handles can refer to the same bucket, and a bucket name can be reused after deletion
+[storage/estimate-indexeddb.https.any.html]
+FAIL=estimate() shows usage increase after large value is stored
+[storage/estimate-indexeddb.https.any.worker.html]
+harness=TIMEOUT
+[storage/estimate-parallel.https.any.html]
+FAIL=Multiple estimate() calls in parallel should complete
+[storage/estimate-parallel.https.any.worker.html]
+harness=TIMEOUT
+[storage/estimate-usage-details-caches.https.tentative.any.html]
+FAIL=estimate() shows usage increase after large value is stored
+[storage/estimate-usage-details-caches.https.tentative.any.worker.html]
+harness=TIMEOUT
+[storage/estimate-usage-details-indexeddb.https.tentative.any.html]
+harness=TIMEOUT
+[storage/estimate-usage-details-indexeddb.https.tentative.any.worker.html]
+harness=TIMEOUT
+[storage/estimate-usage-details-service-workers.https.tentative.window.html]
+FAIL=estimate() shows usage increase after large value is stored
+[storage/estimate-usage-details.https.tentative.any.html]
+FAIL=estimate() resolves to dictionary with members, including usageDetails
+[storage/estimate-usage-details.https.tentative.any.worker.html]
+harness=TIMEOUT
+[storage/idlharness.https.any.html]
+harness=TIMEOUT
+[storage/idlharness.https.any.worker.html]
+harness=TIMEOUT
+[storage/opaque-origin.https.window.html]
+harness=TIMEOUT
+[storage/partitioned-estimate-usage-details-caches.tentative.https.sub.html]
+harness=TIMEOUT
+[storage/partitioned-estimate-usage-details-indexeddb.tentative.https.sub.html]
+harness=TIMEOUT
+[storage/partitioned-estimate-usage-details-service-workers.tentative.https.sub.html]
+harness=TIMEOUT
+[storage/permission-query.https.any.html]
+FAIL=The "persistent-storage" permission is recognized
+[storage/permission-query.https.any.worker.html]
+harness=TIMEOUT
+[storage/persisted.https.any.html]
+FAIL=persisted() method exists and returns a Promise
+FAIL=persisted() returns a promise and resolves as boolean with false
+[storage/persisted.https.any.worker.html]
+harness=TIMEOUT
+[storage/storagemanager-estimate.https.any.html]
+FAIL=estimate() method exists and returns a Promise
+FAIL=estimate() resolves to dictionary with members
+[storage/storagemanager-estimate.https.any.worker.html]
+harness=TIMEOUT
+[storage/storagemanager-persist-persisted-match.https.window.html]
+FAIL=navigator.storage.persist() resolves to a value that matches navigator.storage.persisted()
+[storage/storagemanager-persist.https.window.html]
+FAIL=navigator.storage.persist() returns a promise that resolves.
+[storage/storagemanager-persist.https.worker.html]
+harness=TIMEOUT
+[storage/storagemanager-persisted.https.any.html]
+FAIL=navigator.storage.persisted() returns a promise that resolves.
+[storage/storagemanager-persisted.https.any.worker.html]
+harness=TIMEOUT
