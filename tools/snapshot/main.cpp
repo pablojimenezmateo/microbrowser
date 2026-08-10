@@ -397,14 +397,28 @@ bool IsYoutubeResults(std::string_view url) {
 // SPA search→watch marks `load` finished long before `#movie_player` / `<video>`
 // stamp (player modules + Polymer). The generic 2s post-load drain then exits
 // with ytd-player chrome only. Cold `/watch` stays in IsLoading long enough;
-// soft nav does not.
+// soft nav does not. Presence alone is not enough: exiting as soon as the
+// player node exists left `readyState` 0 / empty buffer while googlevideo was
+// still on the wire (TD-0038 follow-up).
 bool YoutubeWatchLooksReady(microbrowser::engine::Engine& engine) {
   if (!IsYoutubeWatch(engine.Url())) {
     return true;
   }
   const std::string answer = engine.EvaluateScript(
-      "!!(document.querySelector('video') || document.querySelector('#movie_player'))");
-  return answer == "true";
+      "(function(){"
+      "  var v=document.querySelector('video');"
+      "  var p=document.querySelector('#movie_player');"
+      "  if(!v && !p) return 'absent';"
+      "  try {"
+      "    if(p && p.getPlayerStateObject && p.getPlayerStateObject().isError) return 'error';"
+      "  } catch (e) {}"
+      "  if(v && v.readyState >= 2) return 'ready';"
+      "  try {"
+      "    if(v && v.buffered && v.buffered.length > 0 && v.buffered.end(0) > 0) return 'ready';"
+      "  } catch (e) {}"
+      "  return 'wait';"
+      "})()");
+  return answer == "ready" || answer == "error";
 }
 
 // Consent Accept on /results can tear down and restamp the result list. The
