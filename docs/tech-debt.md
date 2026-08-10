@@ -2220,6 +2220,37 @@ remeasure: SABR mostly aborted, `source_appends` absent, `rs:0`).
 
 ---
 
+## TD-0049 — Soft-nav SABR aborts before `appendBuffer` (cold watch OK)
+
+**Opened** 2026-08-10 after TD-0048 restored Accept + SPA stamp. Soft-nav
+cats→thumb: `#movie_player`, blob `src`, `source_buffers_created=6`, but
+`media.source_append_attempts` absent, player `readyState` 0, QoE `bh=0`.
+SABR timeline: many `request.start` / `request.aborted`, one `200`, then more
+aborts (`fetch.aborted=11`). `js.steps_exhausted=1` / peak `20_000_001`.
+`media.video_configure_failures=5` is a consequence (no init segment), not the
+cause.
+
+**Contrast.** Cold `/watch?v=jNQXAC9IVRw` in the same build: SABR **1/1** 200,
+**14** `source_appends`, `readyState` **4**, buffered **~19s**. So demux/MSE
+and googlevideo work; the soft-nav player session is aborting media before the
+page calls `appendBuffer`.
+
+**Hypothesis.** Soft-nav stamp leaves the hang guard spent (`steps_exhausted`)
+so SABR `then` never reaches append; and/or the search→watch player arms ads /
+parallel SABR that AbortController-cancels siblings before bodies land
+(`h2_stream_stalls` elevated). Needs a per-delivery step peak and whether
+`DeliverFetchResponse` for the one SABR 200 ran past `appendBuffer`.
+
+**Fix (in flight).** `BeginNetworkTask` now raises to `kMaxInputSteps` for the
+delivery (RAII `NetworkTaskBudget`), matching trusted input — zeroing alone
+left the ordinary 20M ceiling too tight for soft-nav UMP→`appendBuffer`
+(cold peaks ~10M; soft-nav exhausted at 20M with zero appends).
+
+**Close when.** Soft-nav Release matches cold on `source_appends > 0` and
+player `readyState >= 2` without a hard-nav shell.
+
+---
+
 ## Closed
 
 - **TD-0039 — Trusted click/key inherited a spent JS step budget** (2026-08-10).

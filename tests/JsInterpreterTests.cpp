@@ -459,7 +459,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
               return Value::Undefined();
             }
             (void)call.interpreter.CallFunction(*burn, Value::Undefined(), {});
-            call.interpreter.BeginNetworkTask();
+            (void)call.interpreter.BeginNetworkTask();
             const Result out =
                 call.interpreter.CallFunction(*handler, Value::Undefined(), {});
             if (out.completion == Completion::Throw) {

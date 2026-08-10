@@ -423,7 +423,13 @@ class Interpreter {
   // after a soft-nav stamp). `BeginHostTurn` no-ops while frames are live, which
   // left youtube's googlevideo handler sharing a spent budget and never reaching
   // `appendBuffer` (TD-0042). Always zeros `steps_`; counts when frames were live.
-  void BeginNetworkTask();
+  //
+  // Soft-nav (TD-0049) still exhausted the *ordinary* ceiling inside the SABR
+  // `then` (UMP → `appendBuffer`): cold `/watch` peaks ~10M, soft-nav hits
+  // `steps_exhausted` at 20M with zero appends. Raise to `kMaxInputSteps` for
+  // the delivery only — same ceiling as trusted input, restored afterward.
+  std::size_t BeginNetworkTask();
+  void EndNetworkTask(std::size_t previous_limit);
 
   // Trusted user input (click/key). Like `BeginNetworkTask` it always zeros
   // `steps_` under live frames, and it raises the hang-guard ceiling for that
@@ -454,6 +460,21 @@ class Interpreter {
     ~InputTaskBudget() { interpreter_.EndInputTask(previous_limit_); }
     InputTaskBudget(const InputTaskBudget&) = delete;
     InputTaskBudget& operator=(const InputTaskBudget&) = delete;
+
+   private:
+    Interpreter& interpreter_;
+    std::size_t previous_limit_;
+  };
+
+  // RAII for fetch/XHR delivery (TD-0049). Same raised ceiling as input; timers
+  // and stamps stay on `kMaxSteps`.
+  class NetworkTaskBudget {
+   public:
+    explicit NetworkTaskBudget(Interpreter& interpreter)
+        : interpreter_(interpreter), previous_limit_(interpreter_.BeginNetworkTask()) {}
+    ~NetworkTaskBudget() { interpreter_.EndNetworkTask(previous_limit_); }
+    NetworkTaskBudget(const NetworkTaskBudget&) = delete;
+    NetworkTaskBudget& operator=(const NetworkTaskBudget&) = delete;
 
    private:
     Interpreter& interpreter_;
@@ -1244,7 +1265,8 @@ class Interpreter {
   // chances to forget.
   Value pending_new_target_;
   std::size_t steps_ = 0;
-  // Hang-guard ceiling for the current host turn. Raised only by InputTaskBudget.
+  // Hang-guard ceiling for the current host turn. Raised by InputTaskBudget
+  // and NetworkTaskBudget (TD-0045 / TD-0049).
   std::size_t steps_limit_ = kMaxSteps;
   // After a step-budget RangeError is caught inside RunFrames, further
   // exhaustion in the same turn aborts rather than looping (TD-0018).

@@ -37,13 +37,20 @@ void Interpreter::BeginHostTurn() {
   step_budget_absorbed_ = false;
 }
 
-void Interpreter::BeginNetworkTask() {
+std::size_t Interpreter::BeginNetworkTask() {
   util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
   if (!vm_.frames.empty()) {
     util::AddPerformanceCounter(util::PerfCounterId::JsFetchDeliveryBudgetResets);
   }
   steps_ = 0;
   step_budget_absorbed_ = false;
+  const std::size_t previous = steps_limit_;
+  steps_limit_ = kMaxInputSteps;
+  return previous;
+}
+
+void Interpreter::EndNetworkTask(std::size_t previous_limit) {
+  steps_limit_ = previous_limit;
 }
 
 std::size_t Interpreter::BeginInputTask() {

@@ -436,11 +436,10 @@ bool DomBindings::DeliverFetchResponse(std::uint64_t id, const ScriptResponse& r
   }
   pending->object->SetElements(kept, std::vector<bool>(kept.size(), true));
 
-  // A network answer is a new host task. BeginNetworkTask (not BeginTask):
-  // delivery often runs under live frames from RunDueWork, where BeginHostTurn
-  // is a no-op — soft-nav SABR then inherited a spent budget and never reached
-  // appendBuffer (TD-0042).
-  interpreter_->BeginNetworkTask();
+  // A network answer is a new host task. NetworkTaskBudget zeros under live
+  // frames and raises the hang-guard for SABR UMP→appendBuffer (TD-0042 /
+  // TD-0049); BeginHostTurn alone left soft-nav with buffers and zero appends.
+  js::Interpreter::NetworkTaskBudget network_budget(*interpreter_);
   TrustedScriptInvocation trust(*interpreter_, trust_scripts);
 
   if (xhr.IsObject()) {
