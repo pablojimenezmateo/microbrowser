@@ -618,7 +618,8 @@ add_executable(microbrowser_wpt
   tools/wpt/main.cpp
   tools/wpt/Server.cpp
   tools/wpt/TestList.cpp
-  tools/wpt/Expectations.cpp)
+  tools/wpt/Expectations.cpp
+  tools/wpt/Summary.cpp)
 target_include_directories(microbrowser_wpt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
 target_compile_definitions(microbrowser_wpt PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

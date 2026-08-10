@@ -412,7 +412,12 @@ std::string GenerateGeneratedTest(std::string_view url_path, std::string_view so
   if (ends_with(".any.worker.html") || ends_with(".worker.html")) {
     const std::string worker_url =
         ends_with(".any.worker.html")
-            ? std::string(url_path.substr(0, url_path.size() - 5))  // .html -> .js
+            // `foo.any.worker.html` is served by `foo.any.worker.js`, which is
+            // itself generated. Dropping `.html` without putting `.js` back
+            // asked for a name nothing serves, so every one of the suite's
+            // 1,763 worker tests 404ed its worker and then timed out waiting
+            // for results that could never arrive.
+            ? std::string(url_path.substr(0, url_path.size() - 5)) + ".js"
             : "/" + std::string(source_relative);
     return "<!doctype html>\n<meta charset=utf-8>\n" + meta +
            "<script src=\"/resources/testharness.js\"></script>\n"
@@ -627,7 +632,7 @@ void Server::Respond(Connection& connection, std::string_view request) {
   const std::string query =
       question == std::string_view::npos ? "" : std::string(target.substr(question + 1));
   const std::string decoded = PercentDecode(raw_path);
-  const std::string relative = NormalizeUrlPath(decoded);
+  std::string relative = NormalizeUrlPath(decoded);
 
   const auto fail = [&](int code, std::string_view text) {
     status = code;
@@ -646,6 +651,15 @@ void Server::Respond(Connection& connection, std::string_view request) {
     fail(501, "Python handlers are not implemented");
   } else {
     bool found = false;
+
+    // 0. The one rewrite `wpt serve` performs. Every `idlharness` test asks for
+    // `/resources/WebIDLParser.js`, which has not been a file in the checkout
+    // for years: upstream's server maps it onto the vendored parser
+    // (tools/serve/serve.py, `rewrites`). Without it the whole IDL half of the
+    // suite 404s its parser and reports one failed `idl_test setup`.
+    if (relative == "resources/WebIDLParser.js") {
+      relative = "resources/webidl2/lib/webidl2.js";
+    }
     std::string served_name = relative;
 
     // 1. A harness override, which is how our testharnessreport.js wins.

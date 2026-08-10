@@ -63,6 +63,7 @@
 #include "util/WaitDescriptor.h"
 #include "wpt/Expectations.h"
 #include "wpt/Server.h"
+#include "wpt/Summary.h"
 #include "wpt/TestList.h"
 
 namespace {
@@ -85,6 +86,7 @@ constexpr const char* kUsage =
     "  --retries N           re-runs of a result that disagrees (default 1)\n"
     "  --shard-index N --shard-count N   deterministic slice of the run\n"
     "  --update-expectations rewrite the expectation files from this run\n"
+    "  --summary FILE        write the per-area table and the ranked causes\n"
     "  --list                print the tests that would run and exit\n"
     "  --refresh-manifest    re-walk the checkout instead of using the cache\n"
     "  --serve               run only the server, in the foreground\n"
@@ -95,6 +97,7 @@ constexpr const char* kUsage =
 struct Options {
   std::string wpt_root = "third_party/wpt";
   std::string expectations_dir = "tests/wpt/expectations";
+  std::string summary_path;
   std::vector<std::string> prefixes;
   int jobs = 0;
   int timeout_ms = 10000;
@@ -486,6 +489,8 @@ int main(int argc, char** argv) {
       options.shard_count = std::max(1, ParseInt(value(), 1));
     } else if (argument == "--port") {
       options.port = static_cast<std::uint16_t>(ParseInt(value(), 0));
+    } else if (argument == "--summary") {
+      options.summary_path = value();
     } else if (argument == "--update-expectations") {
       options.update_expectations = true;
     } else if (argument == "--list") {
@@ -617,6 +622,7 @@ int main(int argc, char** argv) {
   std::size_t subtests_total = 0;
   std::vector<RunningTest> running;
   std::vector<std::string> failure_report;
+  microbrowser::wpt::SummaryAccumulator summary;
   const auto started_at = std::chrono::steady_clock::now();
 
   // A result that disagrees with the expectation is re-run before it is
@@ -652,11 +658,28 @@ int main(int argc, char** argv) {
         return;
       }
     }
+    microbrowser::wpt::SummaryResult summary_result;
+    summary_result.url_path = test.url_path;
+    summary_result.harness = report.harness;
+    summary_result.harness_message = report.harness_message;
     for (const auto& [name, status] : report.subtests) {
       ++subtests_total;
+      ++summary_result.subtests_total;
       if (status == "PASS") {
         ++subtests_passed;
+        ++summary_result.subtests_passed;
+        continue;
       }
+      // A subtest with no message is one the harness marked NOTRUN or TIMEOUT;
+      // its status is the only thing it said, so that is what gets counted.
+      const auto message = report.messages.find(name);
+      summary_result.failure_messages.push_back(
+          message == report.messages.end() || message->second.empty()
+              ? status + " (no message)"
+              : message->second);
+    }
+    if (!options.summary_path.empty()) {
+      summary.Add(summary_result);
     }
     if (report.harness == "CRASH") {
       ++crashes;
@@ -854,6 +877,24 @@ int main(int argc, char** argv) {
       return 2;
     }
     std::fprintf(stderr, "expectations updated in %s\n", options.expectations_dir.c_str());
+  }
+
+  if (!options.summary_path.empty()) {
+    // The revision the numbers came from, so a table in the repository can be
+    // traced to the tests that produced it. A checkout somebody moved by hand
+    // is why this is read from the pin rather than from the checkout.
+    std::string revision = "unknown";
+    std::ifstream revision_file(
+        (std::filesystem::path(MICROBROWSER_SOURCE_ROOT) / "tools" / "wpt" / "REVISION").string());
+    if (revision_file) {
+      std::getline(revision_file, revision);
+    }
+    std::string summary_error;
+    if (!summary.Write(options.summary_path, revision, &summary_error)) {
+      std::fprintf(stderr, "%s\n", summary_error.c_str());
+      return 2;
+    }
+    std::fprintf(stderr, "summary written to %s\n", options.summary_path.c_str());
   }
 
   const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(

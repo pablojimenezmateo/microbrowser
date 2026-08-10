@@ -8,6 +8,11 @@
 
 # --- Required by every test. -------------------------------------------------
 /resources/
+# The `.idl` files every `idlharness` test fetches. Without them the IDL half of
+# the suite -- one test per specification, each covering that specification's
+# whole interface surface -- reports a single failed `idl_test setup` and says
+# nothing about what is missing.
+/interfaces/
 /common/
 /fonts/
 /images/
