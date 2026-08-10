@@ -1,0 +1,1976 @@
+[content-security-policy/README.html]
+harness=TIMEOUT
+[content-security-policy/base-uri/base-uri-allow-leading-zero-port.sub.html]
+FAIL=Check that base URIs can be set if they do not violate the page's policy because leading 0s are stripped from the port.
+[content-security-policy/base-uri/base-uri-allow.sub.html]
+FAIL=Check that base URIs can be set if they do not violate the page's policy.
+[content-security-policy/base-uri/base-uri-deny-url-encoded-host.sub.html]
+harness=TIMEOUT
+[content-security-policy/base-uri/base-uri-deny.sub.html]
+harness=TIMEOUT
+[content-security-policy/base-uri/base-uri_iframe_sandbox.sub.html]
+harness=TIMEOUT
+[content-security-policy/base-uri/report-uri-does-not-respect-base-uri.sub.html]
+harness=TIMEOUT
+[content-security-policy/blob/blob-urls-do-not-match-self.sub.html]
+FAIL=Expecting logs: ["violated-directive=script-src-elem"]
+[content-security-policy/blob/blob-urls-match-blob.sub.html]
+FAIL=Expecting logs: ["PASS (1/1)"]
+[content-security-policy/blob/frame-src-blob-matches-blob.sub.html]
+FAIL=Expecting logs: ["PASS (1/1)"]
+[content-security-policy/blob/frame-src-self-does-not-match-blob.sub.html]
+FAIL=Expecting logs: ["violated-directive=frame-src"]
+[content-security-policy/blob/self-doesnt-match-blob.sub.html]
+FAIL=Expecting logs: ["violated-directive=worker-src","TEST COMPLETE"]
+[content-security-policy/blob/star-doesnt-match-blob.sub.html]
+FAIL=Expecting logs: ["violated-directive=worker-src","TEST COMPLETE"]
+[content-security-policy/child-src/child-src-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/child-src/child-src-blocked.sub.html]
+FAIL=Expecting logs: ["PASS IFrame #1 generated a load event.", "violated-directive=frame-src"]
+[content-security-policy/child-src/child-src-conflicting-frame-src.sub.html]
+FAIL=Expecting logs: ["PASS IFrame #1 generated a load event.", "violated-directive=frame-src"]
+[content-security-policy/child-src/child-src-cross-origin-load.sub.html]
+harness=TIMEOUT
+[content-security-policy/child-src/child-src-redirect-blocked.sub.html]
+FAIL=Expecting logs: ["PASS IFrame #1 generated a load event.", "violated-directive=frame-src"]
+[content-security-policy/child-src/child-src-worker-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/child-src/child-src-worker-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/connect-src-beacon-allowed.sub.html]
+NOTRUN=Expecting logs: ["Pass"]
+[content-security-policy/connect-src/connect-src-beacon-blocked.sub.html]
+NOTRUN=Expecting logs: ["Pass", "violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-beacon-redirect-to-blocked.sub.html]
+NOTRUN=Expecting logs: ["violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-eventsource-allowed.sub.html]
+FAIL=Expecting logs: ["allowed"]
+[content-security-policy/connect-src/connect-src-eventsource-blocked.sub.html]
+FAIL=Expecting logs: ["blocked","violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-eventsource-redirect-to-blocked.sub.html]
+FAIL=Expecting logs: ["PASS EventSource() did not follow the disallowed redirect.","TEST COMPLETE", "violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-fetch-keepalive-allowed.sub.html]
+FAIL=Expecting logs: ["Pass"]
+FAIL=fetch with keepalive should be allowed by CSP
+[content-security-policy/connect-src/connect-src-fetch-keepalive-blocked.sub.html]
+FAIL=Expecting logs: ["Pass", "violated-directive=connect-src"]
+FAIL=fetch with keepalive should be blocked by CSP
+[content-security-policy/connect-src/connect-src-fetch-keepalive-redirect-to-blocked.sub.html]
+FAIL=Expecting logs: ["Pass", "violated-directive=connect-src"]
+FAIL=fetch with keepalive should be blocked when redirected to disallowed origin
+[content-security-policy/connect-src/connect-src-json-import-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/connect-src-json-import-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/connect-src-syncxmlhttprequest-allowed.sub.html]
+FAIL=Expecting logs: ["Pass"]
+[content-security-policy/connect-src/connect-src-syncxmlhttprequest-blocked.sub.html]
+FAIL=Expecting logs: ["Pass","violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-syncxmlhttprequest-redirect-to-blocked.sub.html]
+FAIL=Expecting logs: ["PASS Sync XMLHttpRequest.send() did not follow the disallowed redirect.","TEST COMPLETE","violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-text-import-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/connect-src-text-import-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/connect-src-websocket-allowed.sub.html]
+FAIL=Expecting logs: ["allowed"]
+[content-security-policy/connect-src/connect-src-websocket-blocked.sub.html]
+FAIL=Expecting logs: ["blocked","violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-websocket-self.sub.html]
+FAIL=Expecting logs: ["allowed", "allowed"]
+[content-security-policy/connect-src/connect-src-webtransport-allowed.sub.https.html]
+FAIL=CSP connect-src url vs WebTransport. Expecting connect-src
+FAIL=CSP connect-src url vs WebTransport. Expecting undefined
+FAIL=CSP connect-src url vs serverCertificateHashes. Expecting connect-src
+[content-security-policy/connect-src/connect-src-webtransport-blocked.sub.https.html]
+FAIL=CSP connect-src self vs WebTransport. Expecting connect-src
+FAIL=CSP connect-src self vs serverCertificateHashes. Expecting connect-src
+[content-security-policy/connect-src/connect-src-webtransport-hashes.sub.https.html]
+FAIL=CSP connect-src url webtransport-hashes vs WebTransport. Expecting connect-src
+FAIL=CSP connect-src url webtransport-hashes vs WebTransport. Expecting undefined
+FAIL=CSP connect-src url webtransport-hashes vs serverCertificateHashes. Expecting undefined
+[content-security-policy/connect-src/connect-src-xmlhttprequest-allowed.sub.html]
+FAIL=Expecting logs: ["Pass"]
+[content-security-policy/connect-src/connect-src-xmlhttprequest-blocked.sub.html]
+FAIL=Expecting logs: ["Pass","violated-directive=connect-src"]
+[content-security-policy/connect-src/connect-src-xmlhttprequest-redirect-to-blocked.sub.html]
+FAIL=Expecting logs: ["PASS XMLHttpRequest.send() did not follow the disallowed redirect.","TEST COMPLETE","violated-directive=connect-src"]
+[content-security-policy/connect-src/shared-worker-connect-src-allowed.sub.html]
+FAIL=Expecting logs: ["xhr allowed","TEST COMPLETE"]
+[content-security-policy/connect-src/shared-worker-connect-src-blocked.sub.html]
+NOTRUN=Expecting logs: ["xhr blocked","TEST COMPLETE"]
+[content-security-policy/connect-src/worker-connect-src-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/worker-connect-src-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/connect-src/worker-from-guid.sub.html]
+FAIL=Expecting logs: ["violated-directive=connect-src","xhr blocked","TEST COMPLETE"]
+[content-security-policy/default-src/default-src-inline-allowed.sub.html]
+FAIL=Expecting alerts: ["PASS 1 of 2","PASS 2 of 2"]
+[content-security-policy/default-src/default-src-inline-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=script-src-elem","violated-directive=script-src-elem"]
+[content-security-policy/default-src/default-src-sri_hash.sub.html]
+FAIL=crossorigin mismatched integrity but allowed host
+FAIL=crossorigin no integrity but allowed host
+FAIL=matching integrity
+FAIL=matching integrity (case-insensitive algorithm)
+FAIL=matching plus unsupported integrity
+FAIL=multiple matching integrity
+[content-security-policy/default-src/default-src-strict_dynamic_and_unsafe_inline.html]
+harness=TIMEOUT
+[content-security-policy/embedded-enforcement/allow_csp_from-header.html]
+FAIL='self' in blanket enforced EmbeddingCSP matches the target response origin.
+FAIL=Allow-CSP-From header enforces EmbeddingCSP.
+FAIL=Allow-CSP-From header with a star value allows cross origin frame.
+FAIL=Cross origin iframe with an empty Allow-CSP-From header gets blocked.
+FAIL=Cross origin iframe with correct Allow-CSP-From header is allowed.
+FAIL=Cross origin iframe without Allow-CSP-From header gets blocked.
+FAIL=Iframe with improper Allow-CSP-From header gets blocked.
+FAIL=Same origin iframes are blocked if Allow-CSP-From does not match origin.
+FAIL=Same origin iframes with an empty Allow-CSP-From header get blocked.
+FAIL=Same origin iframes with correct Allow-CSP-From header are allowed.
+FAIL=Same origin iframes without Allow-CSP-From header gets blocked.
+FAIL=Star Allow-CSP-From header enforces EmbeddingCSP.
+[content-security-policy/embedded-enforcement/blocked-iframe-are-cross-origin.html]
+FAIL=Document blocked by embedded enforcement and its parent are cross-origin
+FAIL=Two same-origin iframes must appear as cross-origin when one is blocked
+[content-security-policy/embedded-enforcement/change-csp-attribute-and-history-navigation.html]
+harness=TIMEOUT
+[content-security-policy/embedded-enforcement/idlharness.window.html]
+FAIL=idl_test setup
+[content-security-policy/embedded-enforcement/iframe-csp-attribute.html]
+FAIL=<iframe> has a 'csp' attibute which is an empty string if undefined.
+FAIL=<iframe>'s 'csp content attribute reflects the IDL attribute.
+FAIL=<iframe>'s IDL attribute reflects the DOM attribute.
+FAIL=<iframe>'s csp attribute is always a string.
+[content-security-policy/embedded-enforcement/required-csp-header-cascade.html]
+FAIL=Test same origin: Test invalid policy on first iframe (bad directive name)
+FAIL=Test same origin: Test invalid policy on first iframe (report directive)
+FAIL=Test same origin: Test invalid policy on second iframe (bad directive name)
+FAIL=Test same origin: Test invalid policy on second iframe (report directive)
+FAIL=Test same origin: Test less restrictive policy on second iframe
+FAIL=Test same origin: Test more restrictive policy on second iframe
+FAIL=Test same origin: Test no policy on first iframe
+FAIL=Test same origin: Test no policy on second iframe
+FAIL=Test same origin: Test same policy for both iframes
+[content-security-policy/embedded-enforcement/required_csp-header-crlf.html]
+harness=TIMEOUT
+[content-security-policy/embedded-enforcement/required_csp-header.html]
+harness=TIMEOUT
+[content-security-policy/embedded-enforcement/subsumption_algorithm-general.html]
+FAIL=Host intersection with wildcards is computed correctly.
+FAIL=Host wildcard *.a.com does not match a.com
+FAIL=If there is no required csp, iframe should load.
+FAIL=Iframe should block if intersection allows sources which are not in required_csp (other ordering).
+FAIL=Iframe should block if intersection allows sources which are not in required_csp.
+FAIL=Iframe should load even if the ports are different but are default for the protocols.
+FAIL=Iframe should load if intersection allows only sources which are in required_csp.
+FAIL=Iframe with a different CSP should be blocked.
+FAIL=Iframe with a matching and more restrictive ports should load.
+FAIL=Iframe with empty returned CSP should be blocked.
+FAIL=Iframe with less restricting CSP should be blocked.
+FAIL=Iframe with matching CSP should load.
+FAIL=Iframe with more restricting CSP should load.
+FAIL=Removed plugin-types directive should be ignored 2.
+FAIL=Removed plugin-types directive should be ignored 3.
+FAIL=Removed plugin-types directive should be ignored.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-hashes.html]
+FAIL='sha256-abc123' is not subsumed by 'sha256-abc456'.
+FAIL='sha256-abc123' is properly subsumed with other sources.
+FAIL='sha256-abc123' is properly subsumed.
+FAIL=Effective policy is properly found where 'sha256-abc123' is not part of it.
+FAIL=Effective policy is properly found where 'sha256-abc123' is not subsumed.
+FAIL=Effective policy is properly found.
+FAIL=Effective policy now does not allow 'sha256-abc123'.
+FAIL=Hashes do not have to be present in returned csp but must not allow all inline behavior.
+FAIL=Hashes do not have to be present in returned csp.
+FAIL=Other expressions have to be subsumed but 'unsafe-inline' gets ignored.
+FAIL=Other expressions have to be subsumed.
+FAIL=Required csp must allow 'sha256-abc123'.
+FAIL=Returned should not include hashes not present in required csp.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-host_sources-hosts.html]
+FAIL=A wildcard host should match a more specific host.
+FAIL=Host must match.
+FAIL=Hosts without wildcards must match.
+FAIL=More specific subdomain should not match.
+FAIL=Specified host should not match a wildcard host.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-host_sources-paths.html]
+FAIL=All specific paths match except the order.
+FAIL=Empty path is not subsumed by specified paths.
+FAIL=Matching paths.
+FAIL=Returned CSP allows only one path.
+FAIL=Returned CSP has a more specific path.
+FAIL=Returned CSP must specify a path.
+FAIL=That should not be true when required csp specifies a specific page.
+FAIL=Unspecified path should be subsumed by `/`.
+FAIL=`/` path should be subsumed by an empty path.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-host_sources-ports.html]
+FAIL=Returned CSP should be subsumed even if the port is not specified but is a default port for a more secure scheme.
+FAIL=Returned CSP should be subsumed even if the port is not specified but is a default port for a scheme.
+FAIL=Returned CSP should be subsumed if the port is specified but is not default for a more secure scheme.
+FAIL=Returned CSP should be subsumed if the port is specified but the scheme is more secure.
+FAIL=Returned CSP should be subsumed if the port is specified.
+FAIL=Returned CSP should be subsumed if the ports match but schemes are not identical for `ws`.
+FAIL=Returned CSP should be subsumed if the ports match but schemes are not identical.
+FAIL=Specified ports must match.
+FAIL=The same should hold for `ws` case.
+FAIL=Unspecified ports must match if schemes match.
+FAIL=Wildcard port should match a wildcard.
+FAIL=Wildcard port should match any specific port.
+FAIL=Wildcard port should match unspecified port.
+FAIL=Wildcard port should not be subsumed by a default port.
+FAIL=Wildcard port should not be subsumed by a spcified port.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-host_sources-protocols.html]
+FAIL=All scheme sources are subsumed by their stronger variants.
+FAIL=All scheme sources must be subsumed.
+FAIL=If scheme source is present in returned csp, it must be specified in required csp too.
+FAIL=Matching `https` protocols.
+FAIL=The reverse allows iframe be to be loaded.
+FAIL=`http:` does not subsume other protocols.
+FAIL=`http:` should subsume all host source expressions with `https:`.
+FAIL=`http:` should subsume all host source expressions with this protocol.
+FAIL=`http:` subsumes other `http:` source expression.
+FAIL=`http:` subsumes other `https:` source expression and expressions with `http:`.
+FAIL=`https` is more restrictive than `http`.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-nonces.html]
+FAIL=A nonce has to be returned if required by the embedder.
+FAIL=Any nonce subsumes.
+FAIL=Exact nonce subsumes.
+FAIL=Multiples nonces returned subsume.
+FAIL=Nonce intersection is still done on exact match - matching nonces.
+FAIL=Nonce intersection is still done on exact match - non-matching nonces.
+FAIL=Other expressions still have to be subsumed - negative test
+FAIL=Other expressions still have to be subsumed - positive test.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-none.html]
+FAIL=Both required and returned csp are `none` for only one directive.
+FAIL=Both required and returned csp are `none`.
+FAIL=Both required and returned csp are effectively 'none'.
+FAIL=Both required and returned csp are empty.
+FAIL=Empty required csp subsumes a policy with `none`.
+FAIL=Empty required csp subsumes any list of policies.
+FAIL=Empty required csp subsumes empty list of returned policies.
+FAIL=Required csp with `none` does not subsume `none` of another directive.
+FAIL=Required csp with `none` does not subsume `none` of different directives.
+FAIL=Required csp with `none` does not subsume a host source expression.
+FAIL=Required csp with `none` subsumes effective list of `none` despite other keywords.
+FAIL=Required csp with `none` subsumes effective list of `none`.
+FAIL=Required csp with effective `none` does not subsume `none` of another directive.
+FAIL=Required csp with effective `none` does not subsume a host source expression.
+FAIL=Required policy that allows `none` does not subsume empty list of policies.
+FAIL=Returned csp with `none` is subsumed by any required csp.
+FAIL=Returned csp with effective `none` is subsumed by any required csp.
+FAIL=Source list with exprssions other than `none` make `none` ineffective.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-self.html]
+harness=TIMEOUT
+[content-security-policy/embedded-enforcement/subsumption_algorithm-source_list-wildcards.html]
+FAIL='none' does not subsume a wildcard source list.
+FAIL=Effective wildcard list should be properly found.
+FAIL=Empty source list does not subsume a wildcard source list.
+FAIL=Source expressions do not subsume effective nonce expressions.
+FAIL=The same as above but for 'unsafe-inline'.
+FAIL=Wildcard does not subsume empty list.
+FAIL=Wildcard list is equivalent to a specific list of scheme expressions and their secure variants.
+FAIL=Wildcard list is equivalent to a specific list of scheme expressions.
+FAIL=Wildcard list might include other scheme source expressions.
+FAIL=Wildcard list subsumes a list of policies with wildcards in source lists.
+FAIL=Wildcard list subsumes a source list with `none`.
+FAIL=Wildcard list subsumes an empty source list.
+FAIL=Wildcard list subsumes another wildcard list.
+FAIL=Wildcard list subsumption logic should not affect other keyword expressions.
+FAIL=Wildcard list with 'unsafe-eval' is not subsumed by a wildcard list.
+FAIL=Wildcard list with 'unsafe-eval' is not subsumed by list with a single expression.
+FAIL=Wildcard list with 'unsafe-hashes' is not subsumed by a wildcard list.
+FAIL=Wildcard list with 'unsafe-inline' is not subsumed by a wildcard list.
+FAIL=Wildcard list with keywords is not subsumed by a wildcard list.
+FAIL=Wildcard source list does not subsume `blob:` scheme source expression.
+FAIL=Wildcard source list does not subsume `data:` scheme source expression.
+FAIL=Wildcard source list is not subsumed by a host expression.
+FAIL=`blob:` is not subsumed by a wildcard list.
+FAIL=`data:` is not subsumed by a wildcard list.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-strict_dynamic.html]
+FAIL='strict-dynamic' has to be allowed by required csp if it is present in returned csp.
+FAIL='strict-dynamic' is effective only for `script-src`.
+FAIL='strict-dynamic' is ineffective for `child-src`.
+FAIL='strict-dynamic' is ineffective for `frame-src`.
+FAIL='strict-dynamic' is ineffective for `img-src`.
+FAIL='strict-dynamic' is ineffective for `style-src`.
+FAIL='strict-dynamic' is properly handled for finding effective policy.
+FAIL='strict-dynamic' makes 'self' ineffective.
+FAIL='strict-dynamic' makes 'unsafe-inline' ineffective.
+FAIL='strict-dynamic' makes host source expressions ineffective.
+FAIL='strict-dynamic' makes scheme source expressions ineffective.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-unsafe_eval.html]
+FAIL='unsafe-eval' is properly subsumed.
+FAIL=Effective policy is properly found where 'unsafe-eval' is not part of it.
+FAIL=Effective policy is properly found where 'unsafe-eval' is not subsumed.
+FAIL=Effective policy is properly found.
+FAIL=No other keyword has the same effect as 'unsafe-eval'.
+FAIL=Other expressions have to be subsumed.
+FAIL=Required csp must allow 'unsafe-eval'.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-unsafe_hashes.html]
+FAIL='unsafe-hashes' is properly subsumed.
+FAIL=Effective policy is properly found where 'unsafe-hashes' is not part of it.
+FAIL=Effective policy is properly found where 'unsafe-hashes' is not subsumed.
+FAIL=Effective policy is properly found.
+FAIL=No other keyword has the same effect as 'unsafe-hashes'.
+FAIL=Other expressions have to be subsumed.
+FAIL=Required csp must allow 'unsafe-hashes'.
+[content-security-policy/embedded-enforcement/subsumption_algorithm-unsafe_inline.html]
+FAIL='strict-dynamic' is ineffective for `style-src`.
+FAIL='unsafe-inline' does not matter if returned csp is effectively `none`.
+FAIL='unsafe-inline' is ineffective when nonces are present.
+FAIL='unsafe-inline' is only ineffective if the effective returned csp has hashes in `script-src`.
+FAIL='unsafe-inline' is only ineffective if the effective returned csp has hashes in `style-src`.
+FAIL='unsafe-inline' is only ineffective if the effective returned csp has nonces in `style-src`.
+FAIL='unsafe-inline' is properly subsumed in `script-src`.
+FAIL='unsafe-inline' is properly subsumed in `style-src`.
+FAIL=Effective returned csp allows 'unsafe-inline'
+FAIL=Effective returned csp does not allow 'sha512-321cba' hash.
+FAIL=Required csp allows `strict-dynamic`, but retuned csp does.
+FAIL=Required csp does not allow `unsafe-inline`, but retuned csp does.
+FAIL=Returned csp allows a hash.
+FAIL=Returned csp allows a nonce.
+FAIL=Returned csp does not have to allow 'unsafe-inline' in `style-src` to be subsumed.
+FAIL=Returned csp only loads 'unsafe-inline' scripts with 'nonce-abc'.
+[content-security-policy/font-src/font-match-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/font-src/font-mismatch-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/font-src/font-none-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/font-src/font-self-allowed.html]
+harness=TIMEOUT
+[content-security-policy/font-src/font-stylesheet-font-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-self-allowed-target-blank.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-src-allowed-target-blank.sub.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-src-allowed-target-frame.sub.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-src-allowed.sub.html]
+FAIL=Expecting logs: ["PASS","TEST COMPLETE"]
+[content-security-policy/form-action/form-action-src-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=form-action","TEST COMPLETE"]
+[content-security-policy/form-action/form-action-src-default-ignored.sub.html]
+FAIL=Expecting logs: ["PASS","TEST COMPLETE"]
+[content-security-policy/form-action/form-action-src-get-allowed.sub.html]
+FAIL=Expecting logs: ["PASS","TEST COMPLETE"]
+[content-security-policy/form-action/form-action-src-get-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=form-action","TEST COMPLETE"]
+[content-security-policy/form-action/form-action-src-javascript-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=form-action","TEST COMPLETE"]
+[content-security-policy/form-action/form-action-src-javascript-prevented.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-src-redirect-allowed-target-blank.sub.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-src-redirect-allowed-target-frame.sub.html]
+harness=TIMEOUT
+[content-security-policy/form-action/form-action-src-redirect-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=form-action","blocked-uri=http://localhost:33475/common/redirect.py?location=http://www1.localhost:33475/content-security-policy/support/postmessage-fail.html","TEST COMPLETE"]
+[content-security-policy/frame-ancestors/frame-ancestors-from-serviceworker.https.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-cross-none-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-cross-self-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-cross-star-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-cross-url-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-cross-url-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-same-none-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-same-self-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-same-star-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-same-url-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-same-url-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-cross-in-sandboxed-cross-url-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-cross-none-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-cross-self-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-cross-star-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-cross-url-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-cross-url-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-same-none-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-same-self-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-same-star-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-same-url-allow.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-nested-same-in-same-url-block.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-overrides-xfo.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-sandbox-same-origin-self.html]
+harness=TIMEOUT
+[content-security-policy/frame-ancestors/frame-ancestors-self-allow.html]
+FAIL=A 'frame-ancestors' CSP directive with a value 'self' should allow rendering.
+[content-security-policy/frame-ancestors/frame-ancestors-star-allow-sameorigin.html]
+FAIL=A 'frame-ancestors' CSP directive with '*' should allow rendering.
+[content-security-policy/frame-ancestors/frame-ancestors-url-allow.sub.html]
+FAIL=A 'frame-ancestors' CSP directive with a URL matching this origin should allow rendering.
+[content-security-policy/frame-ancestors/report-blocked-frame.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/frame-ancestors/report-only-frame.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/frame-src/frame-src-about-blank-allowed-by-default.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/frame-src/frame-src-about-blank-allowed-by-scheme.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/frame-src/frame-src-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/frame-src/frame-src-blocked-path-matching.sub.html]
+harness=TIMEOUT
+[content-security-policy/frame-src/frame-src-blocked.sub.html]
+FAIL=Expecting logs: ["PASS IFrame #1 generated a load event.","violated-directive=frame-src"]
+[content-security-policy/frame-src/frame-src-cross-origin-load.sub.html]
+harness=TIMEOUT
+[content-security-policy/frame-src/frame-src-cross-origin-same-document-navigation.window.html]
+FAIL=frame-src-cross-origin-same-document-navigation
+[content-security-policy/frame-src/frame-src-redirect.html]
+FAIL=Redirected iframe src should evaluate both enforced and report-only policies on both original request and when following redirect
+[content-security-policy/frame-src/frame-src-same-document-meta.sub.html]
+harness=TIMEOUT
+[content-security-policy/frame-src/frame-src-same-document.sub.html]
+harness=TIMEOUT
+[content-security-policy/frame-src/frame-src-sandboxed-allowed.html]
+harness=TIMEOUT
+[content-security-policy/frame-src/frame-src-self-unique-origin.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-self/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/script-src-wildcard/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-none/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-self/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.http-rp/worker-src-wildcard/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-self/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/script-src-wildcard/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-none/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-self/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/script-tag.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/script-tag.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/sharedworker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-classic.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-classic.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-import-data.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-import.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-import.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-module.http.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worker-module.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-animation-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-animation.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-audio-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-audio.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-layout-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-layout.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-paint-import-data.https.html]
+harness=TIMEOUT
+[content-security-policy/gen/top.meta/worker-src-wildcard/worklet-paint.https.html]
+harness=TIMEOUT
+[content-security-policy/generic/304-response-should-update-csp.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/case-insensitive-scheme.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/cspro-not-enforced-in-worker.html]
+harness=TIMEOUT
+[content-security-policy/generic/directive-name-case-insensitive.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/eval-typecheck-callout-order.html]
+FAIL=eval of a string should be checked by CSP
+[content-security-policy/generic/filesystem-urls-do-not-match-self.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/filesystem-urls-match-filesystem.sub.html]
+NOTRUN=Expecting logs: ["PASS (1/1)"]
+[content-security-policy/generic/generic-0_1-img-src.html]
+harness=TIMEOUT
+[content-security-policy/generic/generic-0_1-script-src.html]
+harness=TIMEOUT
+[content-security-policy/generic/generic-0_10_1.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/generic-0_2_2.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/generic-0_2_3.html]
+harness=TIMEOUT
+[content-security-policy/generic/image-document-applies-csp.html]
+FAIL=Image document correctly applies CSP to other subresources.
+[content-security-policy/generic/invalid-characters-in-policy.html]
+harness=TIMEOUT
+[content-security-policy/generic/no-default-src.sub.html]
+harness=TIMEOUT
+[content-security-policy/generic/only-valid-whitespaces-are-allowed.html]
+harness=TIMEOUT
+[content-security-policy/generic/policy-does-not-affect-child.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/generic/policy-inherited-correctly-by-plznavigate.html]
+harness=TIMEOUT
+[content-security-policy/generic/source-list-wildcard-host-and-port.https.sub.html]
+FAIL="*:*" with a path allows the path on a different host
+FAIL="*:*" with a path allows the path on a different port
+FAIL="*:*" with a path allows the path on the document's own origin
+FAIL="*:*" with a path does not allow other paths
+[content-security-policy/generic/src-trailing-dot.sub.any.html]
+FAIL=Fetch from host with trailing dot should be allowed by CSP.
+[content-security-policy/generic/wildcard-host-part-002.sub.window.html]
+harness=TIMEOUT
+[content-security-policy/generic/wildcard-host-part.sub.window.html]
+harness=TIMEOUT
+[content-security-policy/img-src/css-filter-blocked.tentative.html]
+harness=TIMEOUT
+[content-security-policy/img-src/icon-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-4_1.sub.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-full-host-wildcard-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-host-partial-wildcard-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-none-blocks-css-background-image.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-none-blocks-data-uri.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-none-blocks.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-port-wildcard-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-self-unique-origin.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-targeting.html]
+harness=TIMEOUT
+[content-security-policy/img-src/img-src-wildcard-allowed.html]
+harness=TIMEOUT
+[content-security-policy/img-src/report-blocked-data-uri.sub.html]
+FAIL=Expecting logs: ["violated-directive=img-src"]
+[content-security-policy/img-src/svg-use-blocked.tentative.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/auxiliary-blank-document.html]
+FAIL=For transient doc, violation event occurs in auxiliary, not opener window.
+FAIL=window.open() inherits CSPs on initial about:blank.
+FAIL=window.open() inherits CSPs on transient about:blank.
+[content-security-policy/inheritance/blob-url-in-child-frame-self-navigate-inherits.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/inheritance/blob-url-in-main-window-self-navigate-inherits.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/inheritance/blob-url-inherits-from-initiator.sub.html]
+FAIL=Initiator is cross-origin with target frame.
+FAIL=Initiator is same-origin with target frame.
+[content-security-policy/inheritance/document-write-iframe.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/frame-src-javascript-url.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/history-iframe.sub.html]
+FAIL=History navigation in iframe: "about:blank" document is navigated back from history cross-origin.
+FAIL=History navigation in iframe: "about:blank" document is navigated back from history same-origin.
+FAIL=History navigation in iframe: blob URL document is navigated back from history cross-origin.
+FAIL=History navigation in iframe: blob URL document is navigated back from history same-origin.
+FAIL=History navigation in iframe: data URL document is navigated back from history cross-origin.
+FAIL=History navigation in iframe: data URL document is navigated back from history same-origin.
+FAIL=History navigation in iframe: srcdoc iframe is navigated back from history cross-origin.
+FAIL=History navigation in iframe: srcdoc iframe is navigated back from history same-origin.
+[content-security-policy/inheritance/history.sub.html]
+FAIL=History navigation: "about:blank" document is navigated back from history cross-origin.
+FAIL=History navigation: "about:blank" document is navigated back from history same-origin.
+FAIL=History navigation: blob URL document is navigated back from history (without bfcache on Firefox) cross-origin.
+FAIL=History navigation: blob URL document is navigated back from history (without bfcache on Firefox) same-origin.
+FAIL=History navigation: blob URL document is navigated back from history cross-origin.
+FAIL=History navigation: blob URL document is navigated back from history same-origin.
+[content-security-policy/inheritance/iframe-all-local-schemes-inherit-self.sub.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/iframe-all-local-schemes.sub.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/iframe-srcdoc-history-inheritance.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/iframe-srcdoc-inheritance.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/inheritance-from-initiator.sub.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/inherited-csp-list-modifications-are-local.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/javascript-url-open-in-main-window.html]
+FAIL=Executing Javascript URL keeps enforcing previous CSPs of the document.
+[content-security-policy/inheritance/javascript-url-srcdoc-cross-origin-iframe-inheritance.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/location-reload.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/sandboxed-blob-scheme.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/sandboxed-data-scheme.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/unsandboxed-blob-scheme.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/unsandboxed-data-scheme.html]
+harness=TIMEOUT
+[content-security-policy/inheritance/window-open-local-after-network-scheme.sub.html]
+FAIL=Popup being navigated to about:blank was cross-origin.
+FAIL=Popup being navigated to about:blank was same-origin.
+[content-security-policy/inheritance/window.html]
+FAIL=`document.write` into `window.open()` inherits policy.
+FAIL=window.open('blob:...') inherits policy.
+FAIL=window.open('javascript:...') inherits policy.
+FAIL=window.open() inherits policy.
+[content-security-policy/inside-worker/dedicatedworker-connect-src.html]
+harness=TIMEOUT
+[content-security-policy/inside-worker/dedicatedworker-report-only.html]
+harness=TIMEOUT
+[content-security-policy/inside-worker/dedicatedworker-script-src.html]
+harness=TIMEOUT
+[content-security-policy/inside-worker/dedicatedworker-worker-src.html]
+harness=TIMEOUT
+[content-security-policy/inside-worker/serviceworker-connect-src.https.sub.html]
+FAIL=serviceworker-connect-src
+FAIL=serviceworker-connect-src 1
+FAIL=serviceworker-connect-src 2
+[content-security-policy/inside-worker/serviceworker-report-only.https.sub.html]
+FAIL=serviceworker-report-only
+[content-security-policy/inside-worker/serviceworker-script-src.https.sub.html]
+FAIL=serviceworker-script-src
+FAIL=serviceworker-script-src 1
+FAIL=serviceworker-script-src 2
+[content-security-policy/inside-worker/sharedworker-connect-src.sub.html]
+FAIL=sharedworker-connect-src
+[content-security-policy/inside-worker/sharedworker-report-only.sub.html]
+harness=TIMEOUT
+[content-security-policy/inside-worker/sharedworker-script-src.sub.html]
+FAIL=sharedworker-script-src
+[content-security-policy/media-src/media-src-7_1.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-7_1_2.sub.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-7_2.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-7_2_2.sub.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-7_3.sub.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-7_3_2.sub.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-blocked-blob-url.html]
+FAIL=Audio with blob: URL blocked when blob: not in media-src
+FAIL=Video with blob: URL blocked when blob: not in media-src
+[content-security-policy/media-src/media-src-blocked-data-url.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/media-src/media-src-redir-bug.sub.html]
+harness=TIMEOUT
+[content-security-policy/meta/combine-header-and-meta-policies.sub.html]
+FAIL=Expecting logs: ["TEST COMPLETE", "violated-directive=img-src", "violated-directive=style-src-elem"]
+[content-security-policy/meta/meta-img-src.html]
+FAIL=Expecting logs: ["PASS","TEST COMPLETE"]
+[content-security-policy/meta/meta-modified.html]
+FAIL=Expecting logs: ["PASS", "PASS","TEST COMPLETE"]
+[content-security-policy/meta/meta-outside-head.sub.html]
+FAIL=Expecting alerts: ["PASS (1/1)"]
+[content-security-policy/meta/sandbox-iframe.html]
+harness=TIMEOUT
+[content-security-policy/navigation/javascript-url-navigation-evaluated-to-string-inherits-csp.html]
+harness=TIMEOUT
+[content-security-policy/navigation/to-javascript-parent-initiated-check-csp-order.html]
+harness=TIMEOUT
+[content-security-policy/navigation/to-javascript-parent-initiated-child-csp.html]
+harness=TIMEOUT
+[content-security-policy/navigation/to-javascript-parent-initiated-parent-csp.html]
+harness=TIMEOUT
+[content-security-policy/navigation/to-javascript-url-frame-src.html]
+harness=TIMEOUT
+[content-security-policy/navigation/to-javascript-url-script-src.html]
+harness=TIMEOUT
+[content-security-policy/nonce-hiding/nonce-hiding-move-document.html]
+FAIL=Nonce isn't lost on document move
+[content-security-policy/nonce-hiding/nonces-css-selector.html]
+harness=ERROR
+[content-security-policy/nonce-hiding/nonces.html]
+FAIL=Basic nonce tests for div in HTML namespace
+FAIL=Basic nonce tests for link in HTML namespace
+FAIL=Basic nonce tests for math in MathML namespace
+FAIL=Basic nonce tests for meh in HTML namespace
+FAIL=Basic nonce tests for meh in SVG namespace
+FAIL=Basic nonce tests for mrow in MathML namespace
+FAIL=Basic nonce tests for mtext in MathML namespace
+FAIL=Basic nonce tests for script in HTML namespace
+FAIL=Basic nonce tests for script in SVG namespace
+FAIL=Basic nonce tests for style in HTML namespace
+FAIL=Basic nonce tests for svg in SVG namespace
+FAIL=Ensure that cloned node retains nonce for div in HTML namespace
+FAIL=Ensure that cloned node retains nonce for link in HTML namespace
+FAIL=Ensure that cloned node retains nonce for math in MathML namespace
+FAIL=Ensure that cloned node retains nonce for meh in HTML namespace
+FAIL=Ensure that cloned node retains nonce for meh in SVG namespace
+FAIL=Ensure that cloned node retains nonce for mrow in MathML namespace
+FAIL=Ensure that cloned node retains nonce for mtext in MathML namespace
+FAIL=Ensure that cloned node retains nonce for style in HTML namespace
+FAIL=Ensure that cloned node retains nonce for svg in SVG namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for div in HTML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for link in HTML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for math in MathML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for meh in HTML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for meh in SVG namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for mrow in MathML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for mtext in MathML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for style in HTML namespace
+FAIL=Ensure that removal of content attribute does not affect IDL attribute for svg in SVG namespace
+FAIL=Test empty nonces for div in HTML namespace
+FAIL=Test empty nonces for link in HTML namespace
+FAIL=Test empty nonces for math in MathML namespace
+FAIL=Test empty nonces for meh in HTML namespace
+FAIL=Test empty nonces for meh in SVG namespace
+FAIL=Test empty nonces for mrow in MathML namespace
+FAIL=Test empty nonces for mtext in MathML namespace
+FAIL=Test empty nonces for style in HTML namespace
+FAIL=Test empty nonces for svg in SVG namespace
+[content-security-policy/nonce-hiding/script-nonces-hidden-meta.sub.html]
+harness=TIMEOUT
+[content-security-policy/nonce-hiding/script-nonces-hidden.html]
+harness=TIMEOUT
+[content-security-policy/nonce-hiding/svgscript-nonces-hidden-meta.sub.html]
+harness=TIMEOUT
+[content-security-policy/nonce-hiding/svgscript-nonces-hidden.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-no-url-allowed.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-no-url-blocked.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-no-url-embed-blocked.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-no-url-empty-source-list-blocked.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-no-url-empty-source-list-embed-blocked.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-allowed-img-src-none.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-allowed.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-blocked.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-embed-allowed-img-src-none.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-embed-allowed.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-embed-blocked.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-redirect-allowed.html]
+harness=TIMEOUT
+[content-security-policy/object-src/object-src-url-redirect-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/parsing/invalid-bytes.html]
+harness=TIMEOUT
+[content-security-policy/parsing/invalid-directive.html]
+harness=TIMEOUT
+[content-security-policy/plugin-types/plugin-types-does-not-block-pdf-embed.html]
+harness=TIMEOUT
+[content-security-policy/plugin-types/plugin-types-ignored.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/default-src.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/multiple-policies.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/reportonly-default-src.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/reportonly-script-src-elem.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/reportonly-script-src-none.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/reportonly-script-src.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/script-src-elem.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/script-src-sha512.https.window.html]
+harness=TIMEOUT
+[content-security-policy/report-hash/script-src.https.window.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/dedicated-worker-correct-url-in-report.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/report-to-directive-allowed-in-meta.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-doesnt-send-reports-without-violation.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-report-only-sends-reports-on-violation.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-report-to-only-sends-reports-to-first-endpoint.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-report-to-overrides-report-uri-1.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-report-to-overrides-report-uri-2.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-sends-reports-on-violation-2.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-sends-reports-on-violation.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting-api/reporting-api-works-on-frame-ancestors.https.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/reporting-api/reporting-api-works-on-frame-src.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/link-preload-from-header-report-only-nonce.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/link-preload-report-only-nonce.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/multiple-report-policies.html]
+harness=TIMEOUT
+[content-security-policy/reporting/post-redirect-stacktrace.https.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-and-enforce.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-blocked-data-uri.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-blocked-uri-cross-origin.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-blocked-uri.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-clips-sample.https.html]
+FAIL=Async Function constructor is also clipped.
+FAIL=AsyncGenerator Function constructor is also clipped.
+FAIL=Function constructor - the other kind of eval - is clipped.
+FAIL=Generator Function constructor is also clipped.
+FAIL=Trusted Types violation sample is clipped to 40 characters excluded the sink name.
+FAIL=Unsafe eval violation sample is clipped to 40 characters.
+FAIL=Unsafe indirect eval violation sample is clipped to 40 characters.
+[content-security-policy/reporting/report-frame-ancestors-no-parent-cookies.sub.html]
+FAIL=Test report cookies.
+FAIL=Violation report status OK.
+[content-security-policy/reporting/report-frame-ancestors-with-x-frame-options.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/reporting/report-frame-ancestors.sub.html]
+FAIL=Violation report status OK.
+[content-security-policy/reporting/report-multiple-violations-01.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-multiple-violations-02.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-only-cross-origin-frame.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-only-in-meta.sub.html]
+FAIL=checkReport tests loaded
+[content-security-policy/reporting/report-only-unsafe-eval.html]
+FAIL=SPV event is still raised
+[content-security-policy/reporting/report-original-url-on-mixed-content-frame.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-original-url.sub.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-preload-and-consume.https.html]
+FAIL=Reporting endpoints received credentials.
+[content-security-policy/reporting/report-same-origin-with-cookies.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-strips-fragment.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-strips-username-password.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-effective-directive.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-from-child-frame.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-from-inline-javascript.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-from-javascript.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-multiple-reversed.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-multiple.html]
+harness=TIMEOUT
+[content-security-policy/reporting/report-uri-scheme-relative.html]
+harness=TIMEOUT
+[content-security-policy/resource-hints/prefetch-allowed-by-any-directive.sub.html]
+harness=ERROR
+[content-security-policy/resource-hints/prefetch-allowed-by-default.html]
+harness=ERROR
+[content-security-policy/resource-hints/prefetch-allowed-no-default.html]
+harness=ERROR
+[content-security-policy/resource-hints/prefetch-allowed-with-conflicting-permissive-policies.html]
+harness=TIMEOUT
+[content-security-policy/resource-hints/prefetch-blocked-by-default-multiple-policies.html]
+harness=TIMEOUT
+[content-security-policy/resource-hints/prefetch-blocked-by-default.html]
+harness=TIMEOUT
+[content-security-policy/resource-hints/prefetch-generate-directives.html]
+FAIL=Test that base-uri enabled with default-src disabled allows prefetching
+FAIL=Test that base-uri enabled with everything else disabled allows prefetching
+FAIL=Test that child-src enabled with default-src disabled allows prefetching
+FAIL=Test that child-src enabled with everything else disabled allows prefetching
+FAIL=Test that connect-src enabled with default-src disabled allows prefetching
+FAIL=Test that connect-src enabled with everything else disabled allows prefetching
+FAIL=Test that font-src enabled with default-src disabled allows prefetching
+FAIL=Test that font-src enabled with everything else disabled allows prefetching
+FAIL=Test that frame-src enabled with default-src disabled allows prefetching
+FAIL=Test that frame-src enabled with everything else disabled allows prefetching
+FAIL=Test that img-src enabled with default-src disabled allows prefetching
+FAIL=Test that img-src enabled with everything else disabled allows prefetching
+FAIL=Test that manifest-src enabled with default-src disabled allows prefetching
+FAIL=Test that manifest-src enabled with everything else disabled allows prefetching
+FAIL=Test that media-src enabled with default-src disabled allows prefetching
+FAIL=Test that media-src enabled with everything else disabled allows prefetching
+FAIL=Test that object-src enabled with default-src disabled allows prefetching
+FAIL=Test that object-src enabled with everything else disabled allows prefetching
+FAIL=Test that permissive script-src supersedes script-src-elem
+FAIL=Test that permissive script-src-elem supersedes script-src
+FAIL=Test that script-src enabled with default-src disabled allows prefetching
+FAIL=Test that script-src enabled with everything else disabled allows prefetching
+FAIL=Test that style-src enabled with default-src disabled allows prefetching
+FAIL=Test that style-src enabled with everything else disabled allows prefetching
+FAIL=Test that worker-src enabled with default-src disabled allows prefetching
+FAIL=Test that worker-src enabled with everything else disabled allows prefetching
+[content-security-policy/resource-hints/prefetch-ignores-prefetch-src.sub.html]
+harness=ERROR
+[content-security-policy/resource-hints/prefetch-no-csp.html]
+harness=ERROR
+[content-security-policy/sandbox/autoplay-disabled-by-csp.html]
+FAIL=Expecting logs: ["Loaded iframe"]
+FAIL=csp-derived sandboxing flags prevent autoplay.
+[content-security-policy/sandbox/iframe-inside-csp.sub.html]
+FAIL=Expecting logs: ["PASS (1/2): Script can execute","PASS (2/2): Eval works"]
+[content-security-policy/sandbox/iframe-self-after-redirect.sub.html]
+FAIL=Expecting logs: ["PASS script-src self after redirect"]
+[content-security-policy/sandbox/iframe-self-all-directives.sub.html]
+FAIL=Expecting logs: ["PASS script-src self", "PASS img-src self", "PASS style-src self", "PASS frame-src self"]
+[content-security-policy/sandbox/iframe-self-allows-same-origin.html]
+FAIL=Expecting logs: ["PASS script-src self sandboxed iframe"]
+[content-security-policy/sandbox/iframe-self-blocks-cross-origin.sub.html]
+FAIL=Expecting logs: ["PASS same-origin script allowed in sandboxed iframe", "PASS cross-origin script blocked in sandboxed iframe"]
+[content-security-policy/sandbox/iframe-self-via-header.html]
+FAIL=Expecting logs: ["PASS script-src self sandboxed iframe (header-delivered)"]
+[content-security-policy/sandbox/meta-element.sub.html]
+harness=TIMEOUT
+[content-security-policy/sandbox/sandbox-allow-scripts-subframe.sub.html]
+FAIL=Expecting logs: ["Message"]
+[content-security-policy/sandbox/sandbox-allow-scripts.sub.html]
+FAIL=Expecting logs: ["Message"]
+[content-security-policy/sandbox/sandbox-empty-subframe.sub.html]
+FAIL=Expecting logs: ["PASS2"]
+[content-security-policy/sandbox/sandbox-empty.sub.html]
+FAIL=Expecting logs: ["PASS2"]
+[content-security-policy/sandbox/sandbox-last-directive-csp.html]
+FAIL=Expecting logs: ["PASS (1/2): Script can execute","PASS (2/2): Eval works"]
+[content-security-policy/sandbox/service-worker-sandbox.https.html]
+FAIL=Origin of service worker
+FAIL=Origin used in fetch on service worker (mode: cors)
+FAIL=Origin used in fetch on service worker (mode: cors, with ACAOrigin)
+FAIL=Origin used in fetch on service worker (mode: same-origin)
+FAIL=Origin used in fetch on service worker (mode: same-origin, with ACAOrigin)
+FAIL=Response generated by service worker can be fetched as same-origin
+FAIL=global setup
+[content-security-policy/sandbox/shared-worker-sandbox.html]
+FAIL=sandbox directive for SharedWorker
+[content-security-policy/sandbox/window-reuse-sandboxed.html]
+harness=TIMEOUT
+[content-security-policy/sandbox/window-reuse-unsandboxed.html]
+harness=TIMEOUT
+[content-security-policy/script-src-attr-elem/script-src-attr-allowed-src-blocked.html]
+harness=TIMEOUT
+[content-security-policy/script-src-attr-elem/script-src-attr-blocked-src-allowed.html]
+harness=TIMEOUT
+[content-security-policy/script-src-attr-elem/script-src-elem-allowed-attr-blocked.html]
+harness=TIMEOUT
+[content-security-policy/script-src-attr-elem/script-src-elem-blocked-attr-allowed.html]
+harness=TIMEOUT
+[content-security-policy/script-src-attr-elem/script-src-elem-blocked-src-allowed.html]
+harness=TIMEOUT
+[content-security-policy/script-src-attr-elem/strict-dynamic-elem-blocked-src-allowed.sub.html]
+FAIL=Should fire a security policy violation event
+[content-security-policy/script-src/audioworklet-eval-blocked.https.html]
+FAIL=eval() in an AudioWorklet should be blocked by CSP
+[content-security-policy/script-src/audioworklet-trusted-types-eval-blocked.https.html]
+FAIL=eval() in an AudioWorklet should be blocked by CSP
+[content-security-policy/script-src/hash-always-converted-to-utf-8/iso-8859-1.html]
+harness=TIMEOUT
+[content-security-policy/script-src/hash-always-converted-to-utf-8/iso-8859-3.html]
+harness=TIMEOUT
+[content-security-policy/script-src/hash-always-converted-to-utf-8/iso-8859-7.html]
+harness=TIMEOUT
+[content-security-policy/script-src/hash-always-converted-to-utf-8/iso-8859-9.html]
+harness=TIMEOUT
+[content-security-policy/script-src/hash-always-converted-to-utf-8/utf-8-lone-surrogate.html]
+harness=TIMEOUT
+[content-security-policy/script-src/injected-inline-script-allowed.sub.html]
+FAIL=Expecting logs: ["Pass 1 of 2","Pass 2 of 2"]
+[content-security-policy/script-src/injected-inline-script-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=script-src-elem","blocked-uri=inline"]
+[content-security-policy/script-src/javascript-window-open-blocked.html]
+harness=TIMEOUT
+[content-security-policy/script-src/non-nonceable-elements.html]
+FAIL=Non-nonceable script element 1
+FAIL=Non-nonceable script element 2
+FAIL=Non-nonceable script element 3
+FAIL=Non-nonceable script element 4
+FAIL=Non-nonceable script element 5
+FAIL=Non-nonceable script element 6
+FAIL=Non-nonceable script element 7
+FAIL=Non-nonceable script element 8
+FAIL=Non-nonceable script element 9
+[content-security-policy/script-src/nonce-enforce-blocked.html]
+FAIL=Unnonced scripts generate reports.
+[content-security-policy/script-src/nonce-with-trailing-characters-blocked.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_1.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_10.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_2.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_2_1.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_4.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_4_1.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-1_4_2.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-event-handler-on-inline-script.html]
+FAIL=Use the hash of a non-empty event handler content attribute (<div> element).
+FAIL=Use the hash of a non-empty event handler content attribute (<script> element).
+[content-security-policy/script-src/script-src-overrides-default-src.sub.html]
+FAIL=Expecting logs: ["PASS 1 of 2","PASS 2 of 2"]
+[content-security-policy/script-src/script-src-report-only-policy-works-with-external-hash-policy.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-report-only-policy-works-with-hash-policy.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-sri_hash.sub.html]
+FAIL=crossorigin mismatched integrity but allowed host
+FAIL=crossorigin no integrity but allowed host
+FAIL=matching integrity
+FAIL=matching integrity (case-insensitive algorithm)
+FAIL=matching plus unsupported integrity
+FAIL=multiple matching integrity
+[content-security-policy/script-src/script-src-strict_dynamic_discard_source_expressions.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_double_policy_different_nonce.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_double_policy_honor_source_expressions.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_double_policy_report_only.html]
+FAIL=Script injected via `appendChild` is allowed with `strict-dynamic` + Report-Only `script-src 'none'` policy.
+[content-security-policy/script-src/script-src-strict_dynamic_eval.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_hashes.html]
+FAIL=External script in a script tag with matching SRI hash is allowed with `strict-dynamic`.
+FAIL=Script injected via `appendChild` from a script matching SHA256 hash is allowed with `strict-dynamic`.
+[content-security-policy/script-src/script-src-strict_dynamic_javascript_uri.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_meta_tag.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_modulepreload_parser_inserted_module.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_new_function.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_non_parser_inserted.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_non_parser_inserted_incorrect_nonce.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_parser_inserted.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_parser_inserted_correct_nonce.html]
+FAIL=Parser-inserted async script via `document.write` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted async script via `document.writeln` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted deferred async script via `document.write` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted deferred async script via `document.writeln` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted deferred script via `document.write` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted deferred script via `document.writeln` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted script via `document.write` with a correct nonce is allowed with `strict-dynamic`.
+FAIL=Parser-inserted script via `document.writeln` with a correct nonce is allowed with `strict-dynamic`.
+[content-security-policy/script-src/script-src-strict_dynamic_parser_inserted_module.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_parser_inserted_module_empty_hash.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_worker-importScripts.https.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-strict_dynamic_worker.https.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-trusted_types_eval_DedicatedWorker.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-trusted_types_eval_with_report_only_require_trusted_types_eval.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-trusted_types_eval_with_require_trusted_types_eval.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-trusted_types_eval_without_require_trusted_types_eval.html]
+harness=TIMEOUT
+[content-security-policy/script-src/script-src-wildcards-disallowed.html]
+FAIL=blob: URIs should not match *
+FAIL=data: URIs should not match *
+[content-security-policy/script-src/scripthash-unicode-normalization.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/scriptnonce-and-scripthash.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/scriptnonce-basic-blocked.sub.html]
+FAIL=Expecting alerts: ["PASS (closely-quoted nonce)","PASS (nonce w/whitespace)", "violated-directive=script-src-elem", "violated-directive=script-src-elem", "violated-directive=script-src-elem"]
+[content-security-policy/script-src/scriptnonce-ignore-unsafeinline.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/scriptnonce-redirect.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/srcdoc-doesnt-bypass-script-src.sub.html]
+FAIL=Expecting logs: ["violated-directive=script-src-elem"]
+[content-security-policy/script-src/tentative/script-url-allowed-by-hash.https.html]
+harness=TIMEOUT
+[content-security-policy/script-src/tentative/script-url-blocked-report-contains-hash-dedicated-worker.https.html]
+FAIL=script-specific violation report contains correct urlHash in dedicated worker
+[content-security-policy/script-src/tentative/script-url-blocked-report-contains-hash-service-worker.https.html]
+FAIL=script-specific violation report contains correct urlHash in service worker
+[content-security-policy/script-src/tentative/script-url-blocked-report-contains-hash-shared-worker.https.html]
+FAIL=script-specific violation report contains correct urlHash in shared worker
+[content-security-policy/script-src/tentative/script-url-blocked-report-contains-hash.https.html]
+FAIL=script-specific violation report contains correct urlHash
+[content-security-policy/script-src/tentative/url-hash-in-header-and-meta.https.html]
+FAIL=meta tag can restrict policy set by header
+FAIL=more lax meta tag should still allow script
+FAIL=multiple meta tags should apply most strict policy - both lax
+FAIL=multiple meta tags should apply most strict policy - lax first
+FAIL=multiple meta tags should apply most strict policy - strict first
+FAIL=url-hash in meta tag should not relax policy set by header
+[content-security-policy/script-src/worker-data-set-timeout.sub.html]
+FAIL=Shared worker with data: url inherits CSP
+[content-security-policy/script-src/worker-eval-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/worker-function-function-blocked.sub.html]
+FAIL=Expecting logs: ["Function() function blocked"]
+[content-security-policy/script-src/worker-importscripts.sub.html]
+harness=TIMEOUT
+[content-security-policy/script-src/worker-script-src.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/script-src/worker-set-timeout.sub.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/blockeduri-eval.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/blockeduri-inline.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/blockeduri-ws-wss-scheme.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/constructor-required-fields.html]
+FAIL=SecurityPolicyViolationEvent constructor does not require blockedURI
+FAIL=SecurityPolicyViolationEvent constructor does not require columnNumber
+FAIL=SecurityPolicyViolationEvent constructor does not require disposition
+FAIL=SecurityPolicyViolationEvent constructor does not require documentURI
+FAIL=SecurityPolicyViolationEvent constructor does not require effectiveDirective
+FAIL=SecurityPolicyViolationEvent constructor does not require lineNumber
+FAIL=SecurityPolicyViolationEvent constructor does not require originalPolicy
+FAIL=SecurityPolicyViolationEvent constructor does not require referrer
+FAIL=SecurityPolicyViolationEvent constructor does not require sample
+FAIL=SecurityPolicyViolationEvent constructor does not require sourceFile
+FAIL=SecurityPolicyViolationEvent constructor does not require statusCode
+FAIL=SecurityPolicyViolationEvent constructor does not require violatedDirective
+FAIL=SecurityPolicyViolationEvent constructor should throw with no parameters
+FAIL=SecurityPolicyViolationEvent constructor works with an init dict
+[content-security-policy/securitypolicyviolation/idlharness.window.html]
+FAIL=idl_test setup
+[content-security-policy/securitypolicyviolation/img-src-redirect-upgrade-reporting.https.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/img-src-redirect.sub.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/inside-dedicated-worker.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/inside-service-worker.https.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/inside-shared-worker.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/linenumber.tentative.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/script-sample-no-opt-in.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/script-sample.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/securitypolicyviolation-block-cross-origin-image-from-script.sub.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/securitypolicyviolation-block-cross-origin-image.sub.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/securitypolicyviolation-block-image-from-script.sub.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/securitypolicyviolation-block-image.sub.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/source-file-blob-scheme.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/source-file-data-scheme.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/source-file.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/style-sample-no-opt-in.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/style-sample.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/targeting.html]
+harness=TIMEOUT
+[content-security-policy/securitypolicyviolation/upgrade-insecure-requests-reporting.https.html]
+harness=TIMEOUT
+[content-security-policy/style-src-attr-elem/style-src-attr-allowed-src-blocked.html]
+FAIL=Should apply the style attribute
+[content-security-policy/style-src-attr-elem/style-src-attr-blocked-src-allowed.html]
+harness=TIMEOUT
+[content-security-policy/style-src-attr-elem/style-src-elem-allowed-attr-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src-attr-elem/style-src-elem-allowed-src-blocked-link.html]
+FAIL=Inline style should be applied
+[content-security-policy/style-src-attr-elem/style-src-elem-allowed-src-blocked.html]
+FAIL=Inline style should be applied
+[content-security-policy/style-src-attr-elem/style-src-elem-blocked-attr-allowed.html]
+harness=TIMEOUT
+[content-security-policy/style-src-attr-elem/style-src-elem-blocked-src-allowed.html]
+harness=TIMEOUT
+[content-security-policy/style-src/import-style-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/import-style-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/injected-inline-style-allowed.sub.html]
+FAIL=Expecting logs: ["PASS: 2 stylesheets on the page."]
+[content-security-policy/style-src/injected-inline-style-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=style-src-elem","violated-directive=style-src-elem","PASS"]
+[content-security-policy/style-src/inline-style-allowed-while-cloning-objects.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/inline-style-allowed.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/style-src/inline-style-attribute-allowed.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/style-src/inline-style-attribute-blocked.sub.html]
+FAIL=Expecting logs: ["violated-directive=style-src-attr","PASS"]
+[content-security-policy/style-src/inline-style-attribute-on-html.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/style-src/inline-style-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-allowed.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/style-src/style-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-error-event-fires.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-hash-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-imported-style-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-injected-inline-style-allowed-with-content-hash.html]
+FAIL=Inline style sheet should be created with null child node
+FAIL=Inline style should be applied
+FAIL=Inline style should be created with empty-string child node
+[content-security-policy/style-src/style-src-injected-inline-style-allowed.html]
+FAIL=Injected inline style should load with 'unsafe-inline'
+[content-security-policy/style-src/style-src-injected-inline-style-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-injected-stylesheet-allowed.sub.html]
+FAIL=Programatically injected stylesheet should load
+[content-security-policy/style-src/style-src-injected-stylesheet-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-inline-style-attribute-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-inline-style-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-inline-style-nonce-blocked-error-event.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-inline-style-nonce-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-multiple-policies-multiple-hashing-algorithms.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-none-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/style-src-stylesheet-nonce-blocked.html]
+harness=TIMEOUT
+[content-security-policy/style-src/stylehash-basic-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/stylenonce-allowed.sub.html]
+harness=TIMEOUT
+[content-security-policy/style-src/stylenonce-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/svg/object-in-svg-foreignobject.sub.html]
+harness=TIMEOUT
+[content-security-policy/svg/svg-from-guid.html]
+FAIL=Expecting logs: ["TEST COMPLETE"]
+[content-security-policy/svg/svg-inline.sub.html]
+harness=TIMEOUT
+[content-security-policy/svg/svg-policy-resource-doc-includes.html]
+FAIL=Expecting logs: ["TEST COMPLETE"]
+[content-security-policy/svg/svg-policy-with-resource.html]
+FAIL=Expecting logs: ["TEST COMPLETE"]
+[content-security-policy/unsafe-eval/eval-blocked-and-sends-report.sub.html]
+FAIL=Expecting logs: ["PASS: eval() blocked.","violated-directive=script-src"]
+[content-security-policy/unsafe-eval/eval-blocked-in-about-blank-iframe.html]
+FAIL=eval-blocked-in-about-blank-iframe
+[content-security-policy/unsafe-eval/eval-blocked.sub.html]
+FAIL=Expecting logs: ["PASS EvalError","PASS EvalError", "violated-directive=script-src"]
+[content-security-policy/unsafe-eval/eval-in-iframe.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-eval/eval-scripts-setInterval-allowed.sub.html]
+FAIL=Expecting logs: ["PASS 1 of 2","PASS 2 of 2"]
+[content-security-policy/unsafe-eval/eval-scripts-setInterval-blocked.sub.html]
+FAIL=Expecting logs: ["PASS","violated-directive=script-src"]
+[content-security-policy/unsafe-eval/eval-scripts-setTimeout-allowed.sub.html]
+FAIL=Expecting logs: ["PASS 1 of 2","PASS 2 of 2"]
+[content-security-policy/unsafe-eval/eval-scripts-setTimeout-blocked.sub.html]
+FAIL=Expecting logs: ["PASS","violated-directive=script-src"]
+[content-security-policy/unsafe-eval/function-constructor-allowed.sub.html]
+FAIL=Expecting logs: ["PASS"]
+[content-security-policy/unsafe-eval/function-constructor-blocked.sub.html]
+FAIL=Expecting logs: ["PASS EvalError","violated-directive=script-src"]
+[content-security-policy/unsafe-eval/tentative/eval-allowed-by-hash-long-script.sub.html]
+FAIL=Expecting alerts: ["PASS, long text that exceeds the 40 character limit used for report snippets"]
+[content-security-policy/unsafe-eval/tentative/eval-allowed-by-hash.sub.html]
+FAIL=Expecting alerts: ["PASS (1 of 2)","PASS (2 of 2)"]
+[content-security-policy/unsafe-eval/tentative/eval-blocked-report-contains-hash.html]
+FAIL=Expecting logs: ["PASS: eval() blocked"]
+[content-security-policy/unsafe-eval/tentative/eval-hashes-override-unsafe-eval.sub.html]
+FAIL=Expecting logs: ["PASS EvalError","PASS EvalError", "violated-directive=script-src"]
+[content-security-policy/unsafe-hashes/javascript_src_allowed-href.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_allowed-href_blank-script-src-attr.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_allowed-href_blank-script-src-elem.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_allowed-href_blank.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_allowed-window_location.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_allowed-window_open.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_missing_unsafe_hashes-href.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_missing_unsafe_hashes-href_blank-script-src-attr.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_missing_unsafe_hashes-href_blank-script-src-elem.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_missing_unsafe_hashes-href_blank.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_missing_unsafe_hashes-window_location.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_missing_unsafe_hashes-window_open.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_wrong_hash-href.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_wrong_hash-href_blank-script-src-attr.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_wrong_hash-href_blank-script-src-elem.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_wrong_hash-href_blank.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_wrong_hash-window_location.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/javascript_src_denied_wrong_hash-window_open.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/script_event_handlers_allowed.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/script_event_handlers_denied_missing_unsafe_hashes.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/script_event_handlers_denied_wrong_hash.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/style_attribute_allowed.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/style_attribute_denied_missing_unsafe_hashes.html]
+harness=TIMEOUT
+[content-security-policy/unsafe-hashes/style_attribute_denied_wrong_hash.html]
+harness=TIMEOUT
+[content-security-policy/wasm-unsafe-eval/default-src-blocks-wasm-streaming.any.html]
+FAIL=WebAssembly.compileStreaming() is blocked
+FAIL=WebAssembly.instantiateStreaming() is blocked
+[content-security-policy/wasm-unsafe-eval/default-src-blocks-wasm.any.html]
+FAIL=WebAssembly.compile() is blocked
+FAIL=WebAssembly.instantiate() is blocked
+FAIL=new WebAssembly.Module() is blocked
+[content-security-policy/wasm-unsafe-eval/default-src-unsafe-eval-allows-wasm.any.html]
+FAIL=WebAssembly.compile() is allowed
+FAIL=WebAssembly.compileStreaming() is allowed
+FAIL=WebAssembly.instantiate() is allowed
+FAIL=WebAssembly.instantiateStreaming() is allowed
+FAIL=new WebAssembly.Module() is allowed
+[content-security-policy/wasm-unsafe-eval/default-src-wasm-unsafe-eval-allows-wasm.any.html]
+FAIL=WebAssembly.compile() is allowed
+FAIL=WebAssembly.compileStreaming() is allowed
+FAIL=WebAssembly.instantiate() is allowed
+FAIL=WebAssembly.instantiateStreaming() is allowed
+FAIL=new WebAssembly.Module() is allowed
+[content-security-policy/wasm-unsafe-eval/postMessage-wasm-module.html]
+harness=TIMEOUT
+[content-security-policy/wasm-unsafe-eval/script-src-blocks-wasm-streaming.any.html]
+FAIL=WebAssembly.compileStreaming() is blocked
+FAIL=WebAssembly.instantiateStreaming() is blocked
+[content-security-policy/wasm-unsafe-eval/script-src-blocks-wasm.any.html]
+FAIL=WebAssembly.compile() is blocked
+FAIL=WebAssembly.instantiate() is blocked
+FAIL=new WebAssembly.Module() is blocked
+[content-security-policy/wasm-unsafe-eval/script-src-spv-asynch.any.html]
+harness=TIMEOUT
+[content-security-policy/wasm-unsafe-eval/script-src-unsafe-eval-allows-wasm.any.html]
+FAIL=WebAssembly.compile() is allowed
+FAIL=WebAssembly.compileStreaming() is allowed
+FAIL=WebAssembly.instantiate() is allowed
+FAIL=WebAssembly.instantiateStreaming() is allowed
+FAIL=new WebAssembly.Module() is allowed
+[content-security-policy/wasm-unsafe-eval/script-src-wasm-unsafe-eval-allows-wasm.any.html]
+FAIL=WebAssembly.compile() is allowed
+FAIL=WebAssembly.compileStreaming() is allowed
+FAIL=WebAssembly.instantiate() is allowed
+FAIL=WebAssembly.instantiateStreaming() is allowed
+FAIL=new WebAssembly.Module() is allowed
+[content-security-policy/webrtc/webrtc-allowed-default-src-none.html]
+FAIL=webrtc allowed with default-src 'none'
+[content-security-policy/webrtc/webrtc-allowed-explicit.html]
+FAIL=webrtc allowed with an explicit webrtc allowed policy
+[content-security-policy/webrtc/webrtc-allowed-nopolicy.html]
+FAIL=webrtc allowed with no policy
+[content-security-policy/webrtc/webrtc-blocked-explicit.html]
+FAIL=webrtc blocked with an explicit webrtc blocked policy
+[content-security-policy/webrtc/webrtc-blocked-unknown.html]
+FAIL=webrtc blocked with an unrecognized explicit webrtc policy
+[content-security-policy/worker-src/dedicated-child.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-list.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-none.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-self.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-worker-src-child-fallback-blocked.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-worker-src-child-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-worker-src-default-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-worker-src-script-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/dedicated-worker-src-self-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/service-child.https.sub.html]
+FAIL=Same-origin service worker allowed by host-source expression.
+[content-security-policy/worker-src/service-fallback.https.sub.html]
+FAIL=Same-origin service worker allowed by host-source expression.
+[content-security-policy/worker-src/service-list.https.sub.html]
+FAIL=Same-origin service worker allowed by host-source expression.
+[content-security-policy/worker-src/service-none.https.sub.html]
+FAIL=Same-origin service worker blocked by 'none'.
+[content-security-policy/worker-src/service-self.https.sub.html]
+FAIL=Same-origin service worker allowed by 'self'.
+[content-security-policy/worker-src/service-worker-src-child-fallback-blocked.https.sub.html]
+FAIL=Same-origin service worker allowed by child-src 'self'.
+[content-security-policy/worker-src/service-worker-src-child-fallback.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/service-worker-src-default-fallback.https.sub.html]
+FAIL=Same-origin service worker allowed by default-src 'self'.
+[content-security-policy/worker-src/service-worker-src-script-fallback.https.sub.html]
+FAIL=Same-origin service worker allowed by script-src 'self'.
+[content-security-policy/worker-src/service-worker-src-self-fallback.https.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/service-worker-static-import-blocked.https.sub.html]
+FAIL=Cross-origin service worker static import blocked by worker-src 'self' triggers CSP violation.
+FAIL=Cross-origin service worker static import blocked by worker-src 'self'.
+[content-security-policy/worker-src/shared-child.sub.html]
+FAIL=Same-origin dedicated worker allowed by 'self'.
+FAIL=blob: dedicated worker allowed by 'blob:'.
+[content-security-policy/worker-src/shared-fallback.sub.html]
+FAIL=Same-origin dedicated worker allowed by 'self'.
+FAIL=blob: dedicated worker allowed by 'blob:'.
+[content-security-policy/worker-src/shared-list.sub.html]
+FAIL=Same-origin dedicated worker allowed by 'self'.
+FAIL=blob: dedicated worker allowed by 'blob:'.
+[content-security-policy/worker-src/shared-none.sub.html]
+FAIL=Same-origin shared worker blocked by 'none'.
+FAIL=blob: shared worker blocked by 'none'.
+[content-security-policy/worker-src/shared-self.sub.html]
+FAIL=Same-origin dedicated worker allowed by 'self'.
+[content-security-policy/worker-src/shared-worker-src-child-fallback-blocked.sub.html]
+FAIL=Same-origin shared worker allowed by child-src 'self'.
+[content-security-policy/worker-src/shared-worker-src-child-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/worker-src/shared-worker-src-default-fallback.sub.html]
+FAIL=Same-origin shared worker allowed by default-src 'self'.
+[content-security-policy/worker-src/shared-worker-src-script-fallback.sub.html]
+FAIL=Same-origin shared worker allowed by script-src 'self'.
+[content-security-policy/worker-src/shared-worker-src-self-fallback.sub.html]
+harness=TIMEOUT
+[content-security-policy/xslt/document-function-blocked.html]
+FAIL=XSL document() function is blocked by CSP
+[content-security-policy/xslt/xslt-strict-dynamic-blocked.html]
+FAIL=XSLT stylesheet is blocked by 'strict-dynamic'
+[content-security-policy/xslt/xsltprocessor-include-blocked.html]
+FAIL=xsltprocessor-include-blocked
