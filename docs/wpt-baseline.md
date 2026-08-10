@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-6143 of 272700 subtests pass (2.3%) over 3032 tests.
+6144 of 272732 subtests pass (2.3%) over 3125 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -77,6 +77,9 @@ it is a page that never reported, which almost always means something threw befo
 | `encoding/legacy-mb-schinese` | 6 | 4 | 0 | 2 | 0 | 660 | 2 | 0.3 |
 | `encoding/legacy-mb-tchinese` | 23 | 2 | 0 | 21 | 0 | 40030 | 123 | 0.3 |
 | `encoding/streams` | 13 | 12 | 0 | 1 | 0 | 111 | 0 | 0.0 |
+| `eventsource` | 76 | 10 | 0 | 66 | 0 | 21 | 1 | 4.8 |
+| `eventsource/dedicated-worker` | 10 | 1 | 0 | 9 | 0 | 1 | 0 | 0.0 |
+| `eventsource/shared-worker` | 7 | 7 | 0 | 0 | 0 | 10 | 0 | 0.0 |
 | `hr-time` | 15 | 8 | 0 | 7 | 0 | 13 | 4 | 30.8 |
 | `intersection-observer` | 106 | 87 | 0 | 19 | 0 | 180 | 56 | 31.1 |
 | `intersection-observer/v2` | 38 | 23 | 0 | 15 | 0 | 54 | 18 | 33.3 |
@@ -156,8 +159,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 596 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 296 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 654 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 313 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -266,7 +269,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 123 | 373 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 132 | 384 | Test timed out | `FileAPI/FileReader/workers.html` |
 | 103 | 189839 | NOTRUN (no message) | `cookies/attributes/invalid.html` |
 | 57 | 1915 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
@@ -278,7 +281,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 30 | 274 | promise_test: Unhandled rejection with value: object "TypeError: Illegal constructor: ReadableStream" | `encoding/streams/decode-ignore-bom.any.html` |
 | 29 | 84 | promise_test: Unhandled rejection with value: object "Error: action_sequence() is not implemented by testdriver-vendor.js" | `dom/events/click-on-absolute-pseudo.html` |
 | 28 | 145 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cookies/samesite/fetch.https.html` |
-| 26 | 1012 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
+| 27 | 1013 | assert_throws_dom: function "function () { [source unavailable] }" did not throw | `custom-elements/registries/global.window.html` |
 | 21 | 93 | Illegal constructor: CustomElementRegistry | `custom-elements/registries/Construct.html` |
 | 21 | 393 | KeyframeEffect is not defined | `web-animations/animation-model/animation-types/clamping-001.html` |
 | 20 | 171 | WritableStream is not defined | `streams/piping/general.any.html` |
@@ -330,6 +333,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 9 | 435 | promise_test: Unhandled rejection with value: object "TypeError: undefined is not a function" | `domparsing/tentative/stream-html-custom-element.html` |
 | 9 | 43 | undefined (getSelection) is not a function | `custom-elements/reactions/Selection.html` |
 | 9 | 15 | undefined (moveBefore) is not a function | `dom/nodes/moveBefore/Node-moveBefore.html` |
+| 8 | 11 | SharedWorker is not defined | `eventsource/shared-worker/eventsource-close.htm` |
 | 8 | 3025 | The encoding label provided ('iso-N-N') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 8 | 65 | assert_array_equals: lengths differ, expected array ["attributeChanged"] length N, got [] length N | `custom-elements/reactions/AriaMixin-string-attributes.tentative.html` |
 | 8 | 45 | assert_unreached: Script should not fail. Reached unreachable code | `subresource-integrity/signatures/tentative/csp.window.html` |
@@ -350,6 +354,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 7 | 7 | promise_test: Unhandled rejection with value: object "TypeError: cannot read property 'estimate' of undefined" | `storage/estimate-parallel.https.any.html` |
 | 7 | 7 | promise_test: Unhandled rejection with value: object "TypeError: undefined (clearResourceTimings) is not a function" | `resource-timing/304-response-recorded.html` |
 | 7 | 7 | target is not defined | `dom/events/mouse-event-retarget.html` |
+| 7 | 8 | undefined (addEventListener) is not a function | `eventsource/eventsource-eventtarget.any.html` |
 | 6 | 22 | Illegal constructor: Text | `dom/nodes/adoption.window.html` |
 | 6 | 260 | The encoding label provided ('koiN-u') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 6 | 260 | The encoding label provided ('x-mac-cyrillic') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
@@ -364,7 +369,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
 | 6 | 22 | promise_test: Unhandled rejection with value: object "ReferenceError: WritableStream is not defined" | `streams/transferable/transfer-with-messageport.window.html` |
 | 6 | 9 | promise_test: Unhandled rejection with value: object "ReferenceError: container is not defined" | `selection/onselectionchange-on-document.html` |
-| 6 | 6 | undefined (removeSourceBuffer) is not a function | `media-source/SourceBuffer-abort-removed.html` |
-| 6 | 287 | undefined is not a function | `FileAPI/blob/Blob-newobject.any.html` |
 
-9205 distinct subtest messages and 111 distinct harness messages behind these numbers.
+9209 distinct subtest messages and 111 distinct harness messages behind these numbers.

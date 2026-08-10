@@ -1,0 +1,187 @@
+[eventsource/dedicated-worker/eventsource-close.htm]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-close2.htm]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-constructor-no-new.any.html]
+FAIL=eventsource-constructor-no-new
+[eventsource/dedicated-worker/eventsource-constructor-no-new.any.worker.html]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-constructor-non-same-origin.htm]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-eventtarget.worker.html]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-onmessage.htm]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-onopen.htm]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-prototype.htm]
+harness=TIMEOUT
+[eventsource/dedicated-worker/eventsource-url.htm]
+harness=TIMEOUT
+[eventsource/event-data.any.html]
+harness=TIMEOUT
+[eventsource/event-data.any.worker.html]
+harness=TIMEOUT
+[eventsource/eventsource-close.window.html]
+harness=TIMEOUT
+[eventsource/eventsource-constructor-document-domain.window.html]
+harness=TIMEOUT
+[eventsource/eventsource-constructor-empty-url.any.html]
+FAIL=EventSource constructor with an empty url.
+[eventsource/eventsource-constructor-non-same-origin.window.html]
+harness=TIMEOUT
+[eventsource/eventsource-constructor-stringify.window.html]
+harness=TIMEOUT
+[eventsource/eventsource-constructor-url-bogus.any.html]
+FAIL=EventSource: constructor (invalid URL)
+[eventsource/eventsource-constructor-url-multi-window.htm]
+harness=TIMEOUT
+[eventsource/eventsource-cross-origin.window.html]
+harness=TIMEOUT
+[eventsource/eventsource-eventtarget.any.html]
+FAIL=EventSource: addEventListener()
+[eventsource/eventsource-eventtarget.any.worker.html]
+harness=TIMEOUT
+[eventsource/eventsource-onmessage-realm.htm]
+FAIL=the MessageEvent must be created in the Realm of the EventSource
+[eventsource/eventsource-onmessage-trusted.any.html]
+harness=TIMEOUT
+[eventsource/eventsource-onmessage-trusted.any.worker.html]
+harness=TIMEOUT
+[eventsource/eventsource-onmessage.any.html]
+harness=TIMEOUT
+[eventsource/eventsource-onmessage.any.worker.html]
+harness=TIMEOUT
+[eventsource/eventsource-onopen.any.html]
+harness=TIMEOUT
+[eventsource/eventsource-onopen.any.worker.html]
+harness=TIMEOUT
+[eventsource/eventsource-prototype.any.html]
+FAIL=EventSource: prototype et al
+[eventsource/eventsource-prototype.any.worker.html]
+harness=TIMEOUT
+[eventsource/eventsource-reconnect.window.html]
+harness=TIMEOUT
+[eventsource/eventsource-request-cancellation.window.html]
+FAIL=EventSource: request cancellation
+[eventsource/eventsource-url.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-bom-2.any.html]
+FAIL=EventSource: Double BOM
+[eventsource/format-bom-2.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-bom.any.html]
+FAIL=EventSource: BOM
+[eventsource/format-bom.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-comments.any.html]
+harness=TIMEOUT
+[eventsource/format-comments.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-data-before-final-empty-line.any.html]
+harness=TIMEOUT
+[eventsource/format-data-before-final-empty-line.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-data.any.html]
+harness=TIMEOUT
+[eventsource/format-field-data.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-event-empty.any.html]
+harness=TIMEOUT
+[eventsource/format-field-event-empty.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-event.any.html]
+FAIL=EventSource: custom event name
+[eventsource/format-field-event.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-id-2.any.html]
+harness=TIMEOUT
+[eventsource/format-field-id-2.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-id-3.window.html]
+harness=TIMEOUT
+[eventsource/format-field-id-null.window.html]
+harness=TIMEOUT
+[eventsource/format-field-id.any.html]
+harness=TIMEOUT
+[eventsource/format-field-id.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-parsing.any.html]
+harness=TIMEOUT
+[eventsource/format-field-parsing.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-retry-bogus.any.html]
+harness=TIMEOUT
+[eventsource/format-field-retry-bogus.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-retry-empty.any.html]
+harness=TIMEOUT
+[eventsource/format-field-retry-empty.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-retry.any.html]
+harness=TIMEOUT
+[eventsource/format-field-retry.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-field-unknown.any.html]
+harness=TIMEOUT
+[eventsource/format-field-unknown.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-leading-space.any.html]
+harness=TIMEOUT
+[eventsource/format-leading-space.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-mime-bogus.any.html]
+harness=TIMEOUT
+[eventsource/format-mime-bogus.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-mime-trailing-semicolon.any.html]
+harness=TIMEOUT
+[eventsource/format-mime-trailing-semicolon.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-mime-valid-bogus.any.html]
+harness=TIMEOUT
+[eventsource/format-mime-valid-bogus.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-newlines.any.html]
+harness=TIMEOUT
+[eventsource/format-newlines.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-null-character.any.html]
+harness=TIMEOUT
+[eventsource/format-null-character.any.worker.html]
+harness=TIMEOUT
+[eventsource/format-utf-8.any.html]
+harness=TIMEOUT
+[eventsource/format-utf-8.any.worker.html]
+harness=TIMEOUT
+[eventsource/request-accept.any.html]
+harness=TIMEOUT
+[eventsource/request-accept.any.worker.html]
+harness=TIMEOUT
+[eventsource/request-cache-control.any.html]
+harness=TIMEOUT
+[eventsource/request-cache-control.any.worker.html]
+harness=TIMEOUT
+[eventsource/request-credentials.window.html]
+harness=TIMEOUT
+[eventsource/request-redirect.window.html]
+harness=TIMEOUT
+[eventsource/request-status-error.window.html]
+harness=TIMEOUT
+[eventsource/shared-worker/eventsource-close.htm]
+FAIL=shared worker - EventSource: close()
+[eventsource/shared-worker/eventsource-constructor-non-same-origin.htm]
+FAIL=shared worker - EventSource: constructor (act as if there is a network error) (about:blank)
+FAIL=shared worker - EventSource: constructor (act as if there is a network error) (ftp://example.not)
+FAIL=shared worker - EventSource: constructor (act as if there is a network error) (javascript:alert('FAIL'))
+FAIL=shared worker - EventSource: constructor (act as if there is a network error) (mailto:whatwg@awesome.example)
+[eventsource/shared-worker/eventsource-eventtarget.htm]
+FAIL=shared worker - EventSource: addEventListener()
+[eventsource/shared-worker/eventsource-onmessage.htm]
+FAIL=shared worker - EventSource: onmessage
+[eventsource/shared-worker/eventsource-onopen.htm]
+FAIL=shared worker - EventSource: onopen (announcing the connection)
+[eventsource/shared-worker/eventsource-prototype.htm]
+FAIL=shared worker - EventSource: prototype et al
+[eventsource/shared-worker/eventsource-url.htm]
+FAIL=shared worker - EventSource: url
