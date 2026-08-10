@@ -2080,31 +2080,18 @@ FAIL=The revert-rule works in an attr() fallback
 [css/css-values/attr-security-animation.html]
 FAIL=CSS Values and Units Test: attr() security limitations
 [css/css-values/attr-security-if.html]
+if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+else: url(https://does-not-exist.test/404.png);))' with data-foo="1"
+if(style(--str < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
+else: url(https://does-not-exist.test/404.png);))' with data-foo="attr(data-foo type(*))"
+else: attr(data-foo);))' with data-foo="https://does-not-exist-2.test/404.png"
+if(style(--some-string): url(https://does-not-exist.test/404.png);))' with data-foo="https://does-not-exist.test/404.png"
+if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="text"
 FAIL='--x: image-set(if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
 FAIL='--x: image-set(if(style(--condition-val: if(style(--true): attr(data-foo type(*));)): url(https://does-not-exist.test/404.png);))' with data-foo="3"
 FAIL='--x: image-set(if(style(--true): attr(data-foo);))' with data-foo="https://does-not-exist.test/404.png"
 FAIL='background-image: image-set(
-                if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--condition-val < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="text"
-FAIL='background-image: image-set(
-                if(style(--condition-val >= attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--condition-val: attr(data-foo type(*))): url(https://does-not-exist.test/404.png);
-                   style(--true): url(https://does-not-exist.test/404.png);
-                   else: url(https://does-not-exist.test/404.png);))' with data-foo="1"
-FAIL='background-image: image-set(
-                if(style(--condition-val: attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--some-string): url(https://does-not-exist.test/404.png);))' with data-foo="https://does-not-exist.test/404.png"
-FAIL='background-image: image-set(
-                if(style(--str < attr(data-foo type(*))): url(https://does-not-exist.test/404.png);))' with data-foo="3"
-FAIL='background-image: image-set(
-                if(style(--true): url(https://does-not-exist-2.test/404.png);
-                   else: attr(data-foo);))' with data-foo="https://does-not-exist-2.test/404.png"
 FAIL='background-image: image-set(if(style(--true): url(https://does-not-exist.test/404.png);
-                            style(--condition-val): url(https://does-not-exist.test/404.png);
-                            else: url(https://does-not-exist.test/404.png);))' with data-foo="attr(data-foo type(*))"
 [css/css-values/attr-security-transition-interpolated.html]
 FAIL=Transitioning <length> from attr() should remain attr-tainted in if(style())
 FAIL=Transitioning <number> from attr() should remain attr-tainted in if(style())
@@ -8839,7 +8826,6 @@ FAIL=Shared by property 'animation-timeline' with values 'view(random(1px, 30000
 FAIL=Shared by property 'aspect-ratio' with values 'random(1, 3000000, 1) / random(3000000, 9000000, 1)', 'random(property-index-scoped, 1, 3000000, 1) / random(property-index-scoped, 3000000, 9000000, 1)'
 FAIL=Shared by property 'color' with values 'color-mix(in srgb, rgb(from blue random(10, 30) random(g, g + 30) random(b, b)), rgb(random(10, 90) 0 0))', 'color-mix(in srgb, rgb(from blue random(property-index-scoped, 10, 30) random(property-index-scoped, g, g + 30) random(property-index-scoped, b, b)), rgb(random(property-index-scoped, 10, 90) 0 0))'
 FAIL=Shared by property 'color' with values 'light-dark(rgb(random(10, 30) random(10, 60) random(10, 90)),  rgb(random(30, 10) random(60, 10) random(90, 10)))', 'light-dark(rgb(random(property-index-scoped, 10, 30) random(property-index-scoped, 10, 60) random(property-index-scoped, 10, 90)),
-                                           rgb(random(property-index-scoped, 30, 10) random(property-index-scoped, 60, 10) random(property-index-scoped, 90, 10)))'
 FAIL=Shared by property 'filter' with values 'drop-shadow(random(1px, 300000px) random(1px, 600000px) random(1px, 900000px) black)', 'drop-shadow(random(property-index-scoped, 1px, 300000px) random(property-index-scoped, 1px, 600000px) random(property-index-scoped, 1px, 900000px) black)'
 FAIL=Shared by property 'font-palette' with values 'palette-mix(in lch, --blue calc(90% * random(0, 1)), --yellow)', 'palette-mix(in lch, --blue calc(90% * random(property-index-scoped, 0, 1)), --yellow)'
 FAIL=Shared by property 'font-palette' with values 'palette-mix(in lch, --blue random(10%, 90%), --yellow)', 'palette-mix(in lch, --blue random(property-index-scoped, 10%, 90%), --yellow)'
@@ -11249,10 +11235,9 @@ FAIL=This pseudo-element should not parse: :view-transition-image-pair(name)
 FAIL=This pseudo-element should not parse: :view-transition-new(name)
 FAIL=This pseudo-element should not parse: :view-transition-old(name)
 FAIL=This pseudo-element should parse: ::highlight(
-name
 FAIL=This pseudo-element should parse: ::highlight( n\61me )
-FAIL=This pseudo-element should parse: ::highlight( name 
-FAIL=This pseudo-element should parse: ::highlight(name	
+FAIL=This pseudo-element should parse: ::highlight( name
+FAIL=This pseudo-element should parse: ::highlight(name
 FAIL=This pseudo-element should parse: ::highlight(name)
 [css/cssom/getComputedStyle-pseudo.html]
 FAIL=::file-selector-button resolves to the file input button element

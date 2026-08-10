@@ -1,0 +1,6 @@
+[png/cicp-chunk.html]
+harness=TIMEOUT
+[png/exif-chunk.html]
+harness=TIMEOUT
+[png/trns-chunk.html]
+harness=TIMEOUT
