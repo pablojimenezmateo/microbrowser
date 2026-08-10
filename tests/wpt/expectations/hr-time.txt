@@ -1,5 +1,4 @@
 [hr-time/basic.any.html]
-FAIL=High resolution time has approximately the right relative magnitude
 FAIL=Performance interface extends EventTarget.
 FAIL=self.performance.now() returns a positive number
 [hr-time/basic.any.worker.html]
