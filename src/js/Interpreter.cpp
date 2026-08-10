@@ -50,7 +50,16 @@ std::size_t Interpreter::BeginNetworkTask() {
 }
 
 void Interpreter::EndNetworkTask(std::size_t previous_limit) {
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  // Restoring the ordinary ceiling while leaving steps_ above it makes every
+  // later turn instantly exhaust (soft-nav stamp after a long click, TD-0049).
+  const bool clamped = steps_ > previous_limit;
   steps_limit_ = previous_limit;
+  steps_ = 0;
+  step_budget_absorbed_ = false;
+  if (clamped) {
+    util::AddPerformanceCounter(util::PerfCounterId::JsPostTaskStepClamps);
+  }
 }
 
 std::size_t Interpreter::BeginInputTask() {
@@ -66,7 +75,18 @@ std::size_t Interpreter::BeginInputTask() {
 }
 
 void Interpreter::EndInputTask(std::size_t previous_limit) {
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  // Same contract as EndNetworkTask: the raised ceiling was only for this
+  // dispatch. A search-thumb click often burns past kMaxSteps; leaving that
+  // count under the restored 20M ceiling aborted the Polymer stamp that runs
+  // on the next rAF/timer (TD-0049).
+  const bool clamped = steps_ > previous_limit;
   steps_limit_ = previous_limit;
+  steps_ = 0;
+  step_budget_absorbed_ = false;
+  if (clamped) {
+    util::AddPerformanceCounter(util::PerfCounterId::JsPostTaskStepClamps);
+  }
 }
 
 void Interpreter::EnterNestedHostBudget(util::PerfCounterId reset_counter) {

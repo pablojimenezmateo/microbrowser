@@ -325,6 +325,10 @@ namespace microbrowser::util {
   /* Trusted click/key under live frames (TD-0045). Always zeros steps_; raises */ \
   /* the hang ceiling to kMaxInputSteps for that dispatch only.                 */ \
   X(JsInputTaskBudgetResets, "js.input_task_budget_resets")                       \
+  /* EndInputTask / EndNetworkTask zeroed steps that were above the restored   */ \
+  /* ordinary ceiling (TD-0049). Without this, a long click left steps_ > 20M  */ \
+  /* and the soft-nav stamp on the next turn died immediately.                 */ \
+  X(JsPostTaskStepClamps, "js.post_task_step_clamps")                             \
   /* Engine-built throws (`MakeError`), including ones a page's own try/catch  */ \
   /* swallows. youtube's setmediasrc path catches Gal's throw and turns it into */ \
   /* `fmt.unplayable` without ever reaching ReportUncaught -- so the only way  */ \

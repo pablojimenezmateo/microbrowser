@@ -438,6 +438,9 @@ class Interpreter {
   // engine followed `a#thumbnail` as a document navigation (TD-0045).
   // Returns the previous `steps_limit_` for `InputTaskBudget` to restore.
   std::size_t BeginInputTask();
+  // Restores the previous hang-guard ceiling after `BeginInputTask`. Zeros
+  // `steps_` when they sit above that ceiling — otherwise a long click leaves
+  // the soft-nav stamp born exhausted (TD-0049).
   void EndInputTask(std::size_t previous_limit);
 
   // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036).
@@ -451,6 +454,10 @@ class Interpreter {
   // Five full budgets is enough for SABR; unbounded resets would re-open TD-0018.
   static constexpr std::size_t kMaxNestedHostChainSteps = kMaxSteps * 5;
   std::size_t StepsLimit() const { return steps_limit_; }
+  // Test seam for TD-0049: EndInputTask must clear a count left above the
+  // restored ceiling. Not for production call sites.
+  std::size_t StepsForTesting() const { return steps_; }
+  void SetStepsForTesting(std::size_t steps) { steps_ = steps; }
 
   // RAII for `BeginInputTask` / `EndInputTask` around one trusted dispatch.
   class InputTaskBudget {

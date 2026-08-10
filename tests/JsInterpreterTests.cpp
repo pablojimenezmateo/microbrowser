@@ -4,6 +4,7 @@
 
 #include "TestSupport.h"
 #include "js/Interpreter.h"
+#include "util/PerformanceCounters.h"
 
 namespace microbrowser::tests {
 
@@ -517,6 +518,16 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       }
       Expect(interpreter.StepsLimit() == Interpreter::kMaxSteps,
              "InputTaskBudget restores the ordinary hang ceiling");
+      {
+        // Simulate a click that burned past kMaxSteps under the raised ceiling.
+        const std::size_t previous = interpreter.BeginInputTask();
+        interpreter.SetStepsForTesting(Interpreter::kMaxSteps + 1);
+        interpreter.EndInputTask(previous);
+        Expect(interpreter.StepsForTesting() == 0,
+               "EndInputTask zeros steps left above the restored ceiling");
+        Expect(util::ReadPerformanceCounter(util::PerfCounterId::JsPostTaskStepClamps) >= 1,
+               "clamp is visible as js.post_task_step_clamps");
+      }
       Expect(interpreter
                  .Run("globalThis.got = 0;"
                       "globalThis.burn = () => { while (true) {} };"
@@ -527,6 +538,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
              "InputTaskBudget refreshes under live frames");
       ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
                      "click handler runs after InputTaskBudget");
+      Expect(interpreter.Run("got = 2").completion == Completion::Normal,
+             "post-input script runs after EndInputTask clamps steps");
+      ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "2",
+                     "post-input turn is not born exhausted");
     }
     // Custom-element upgrades during an rAF stamp share live frames with the
     // outer CallFunction. BeginTask is a no-op there; ElementUpgradeBudget must

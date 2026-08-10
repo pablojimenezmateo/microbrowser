@@ -2235,22 +2235,18 @@ cause.
 and googlevideo work; the soft-nav player session is aborting media before the
 page calls `appendBuffer`.
 
-**Hypothesis.** Soft-nav stamp leaves the hang guard spent (`steps_exhausted`)
-so SABR `then` never reaches append; and/or the search→watch player arms ads /
-parallel SABR that AbortController-cancels siblings before bodies land
-(`h2_stream_stalls` elevated). Needs a per-delivery step peak and whether
-`DeliverFetchResponse` for the one SABR 200 ran past `appendBuffer`.
+**Cause (updated).** Two stacked hang-guard issues after TD-0045/0048:
 
-**Fix (in flight).** `BeginNetworkTask` now raises to `kMaxInputSteps` for the
-delivery (RAII `NetworkTaskBudget`), matching trusted input — zeroing alone
-left the ordinary 20M ceiling too tight for soft-nav UMP→`appendBuffer`
-(cold peaks ~10M; soft-nav exhausted at 20M with zero appends).
+1. `EndInputTask` / `EndNetworkTask` restored `kMaxSteps` but left `steps_`
+   above it when the click/SABR delivery had burned past 20M under the raised
+   ceiling. The next rAF/timer then hit `steps_exhausted` before Polymer
+   stamped `#movie_player` (or before SABR `then` reached `appendBuffer`).
+2. Soft-nav watch stamp can still need more than one ordinary macrotask; cold
+   `/watch` spreads the same work across document scripts.
 
-**Remeasure after NetworkTaskBudget (Release).** One soft-nav run still missed
-`#movie_player` (`push_states=1`, `focus: a#thumbnail`, `steps_exhausted=2`,
-peak still the *ordinary* 20M — stamp work after input budget ends). Cold
-`/watch` remains `rs:4` / 14 appends. Raised fetch ceiling is necessary but
-not sufficient while the Polymer stamp itself flakes under `kMaxSteps`.
+**Fix.** End*Task zeros `steps_` when clamping back to the ordinary ceiling
+(`js.post_task_step_clamps`). NetworkTaskBudget still raises delivery. Remasure
+soft-nav for `#movie_player` + appends.
 
 **Close when.** Soft-nav Release matches cold on `source_appends > 0` and
 player `readyState >= 2` without a hard-nav shell.
