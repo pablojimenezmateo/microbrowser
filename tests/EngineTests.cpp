@@ -462,6 +462,34 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(!elsewhere.prevented, "a click on nothing prevents nothing");
   });
 
+  AddTest(tests, "Page/TrustedClickGetsAFreshStepBudget", [] {
+    // TD-0039: after a spent host turn, click handlers used to inherit
+    // steps_ > kMaxSteps and never reach preventDefault — youtube then followed
+    // a#thumbnail as a full document navigation. A single catch absorbs once
+    // and zeros steps_; a second hang in the same turn leaves the budget spent
+    // (same shape as JsInterpreter/ABlockThatDeclaresNothingAllocatesNoScope).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><a id=link href='/next'>click the words</a>"
+        "<script>"
+        "globalThis.hits = 0;"
+        "document.getElementById('link').addEventListener('click', e => {"
+        "  hits++; e.preventDefault();"
+        "});"
+        "</script></body></html>",
+        "https://example.org/");
+    page.RunScripts(0);
+    page.Layout(800.0f);
+    (void)page.EvaluateScript(
+        "try { while (true) {} } catch (e) { while (true) {} }");
+    const engine::DispatchOutcome outcome =
+        page.DispatchClickAt(gfx::FloatPoint{20.0f, 8.0f}, {});
+    ExpectEqString(page.EvaluateScript("String(globalThis.hits)"), "1",
+                   "click handler runs after a spent turn");
+    Expect(outcome.prevented, "preventDefault is reached on a fresh task budget");
+  });
+
   AddTest(tests, "Page/AClickReachesAFloatOverAnOverlappingBlock", [] {
     // CSS keeps a later in-flow block's border box full-width under a float;
     // only its line boxes shrink. Hit testing that walked last-sibling-first

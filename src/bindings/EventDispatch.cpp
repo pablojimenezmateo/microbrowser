@@ -303,6 +303,13 @@ bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view ty
   if (interpreter_ == nullptr) {
     return false;
   }
+  // Each trusted pointer/mouse event is a task. Without a fresh budget, a click
+  // after a spent stamp/rAF turn inherits `steps_ > kMaxSteps` and youtube's
+  // search handler never reaches `preventDefault` — the engine then follows
+  // `a#thumbnail` as a full navigation and the SPA player never stamps
+  // (TD-0039). BeginHostTurn no-ops under live frames, so nested sync dispatch
+  // still shares one allotment.
+  interpreter_->BeginTask();
   const Value event = MakeEvent(std::string(type), true, true, true);
   if (!event.IsObject()) {
     return false;
@@ -366,6 +373,9 @@ bool DomBindings::DispatchKey(dom::Node* target, const KeyInput& key) {
   if (node == nullptr) {
     return false;
   }
+  // Trusted key events are tasks for the same reason trusted clicks are
+  // (TD-0039): a spent turn must not starve `preventDefault` on keydown.
+  interpreter_->BeginTask();
   // Trusted, bubbling and cancelable. Cancelable is the load-bearing one: a
   // `preventDefault` on a keydown is how a page stops the character being
   // inserted, and it can only do that because insertion happens after dispatch

@@ -1902,8 +1902,34 @@ into `/watch`, reset the post-load deadline to the watch budget and count
 
 ---
 
+## TD-0039 — Trusted click/key inherited a spent JS step budget — **fixed 2026-08-10**
+
+**Opened** 2026-08-10 after soft-nav search→watch showed `js.steps_exhausted`
+and either zero `media.source_appends` or a full href navigation that left a
+50-command watch shell.
+
+**Symptom.** A click after a long stamp/rAF turn ran handlers with
+`steps_ > kMaxSteps`. Youtube's search handler never reached `preventDefault`,
+so `ResolveClickActivation` followed `a#thumbnail` as a document navigation.
+Timers/fetch already called `BeginTask`; trusted pointer/key dispatch did not.
+
+**Fix.** `DispatchPointerMouse` and `DispatchKey` call `Interpreter::BeginTask`
+before building the event. Regression:
+`Page/TrustedClickGetsAFreshStepBudget`.
+
+**Still open.** Soft-nav can still show `js.steps_exhausted` during player
+module load (separate from the click task). Zero MSE appends on some soft-nav
+runs after the player stamps remain under TD-0020 / step storms.
+
+**Close when.** Done for trusted input tasks.
+
+---
+
 ## Closed
 
+- **TD-0039 — Trusted click/key inherited a spent JS step budget** (2026-08-10).
+  `BeginTask` on `DispatchPointerMouse` / `DispatchKey` so preventDefault can
+  run after a spent stamp turn.
 - **TD-0038 — Snapshot results drain aborted watch settle after soft-nav**
   (2026-08-10). Drain mode follows the current URL; `/results`→`/watch`
   resets the 90s watch deadline (`snapshot.soft_nav_watch_drain`).
