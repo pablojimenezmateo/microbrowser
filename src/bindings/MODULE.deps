@@ -44,7 +44,9 @@ extern:
 # machinery declared on `DomBindings` itself (see the class budget's comment) --
 # the two new .cpp files it is implemented across, IndexedDbBindings.cpp and
 # IndexedDbRequests.cpp, both stay well under this cap on their own.
-max_tu_lines: 920
+# Raised to 930 for TD-0040's `ScheduleMediaSourceOpened` declaration (MSE
+# `sourceopen` as a host task, beside `ScheduleSourceBufferEvents`).
+max_tu_lines: 930
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
 # safe while nothing frees a node before its document. `Node::Remove` would;

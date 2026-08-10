@@ -1928,6 +1928,37 @@ runs after the player stamps remain under TD-0020 / step storms.
 
 ---
 
+## TD-0040 — Soft-nav `sourceopen` inherited a spent JS step budget
+
+**Opened** 2026-08-10 after SPA search→watch stamped `#movie_player`, created
+SourceBuffers (`media.source_buffers_created` 6), and never called
+`appendBuffer` (`media.source_appends` 0, `readyState` 0) across a 90s watch
+settle. Cold watch on the same machine had reached `rs:4` with dozens of
+appends on earlier sessions; soft-nav is the heavier path before
+`video.src = blob:…`.
+
+**Symptom.** `sourceopen` fired synchronously from the `src` attribute write
+(`ReflectedAttributes` → `DeliverMediaSourceOpenedFor` → `FireOn` with
+`MediaEventBudget`). Under live frames / a half-spent outer allotment,
+`EnterNestedHostBudget` often does not reset. The handler can
+`addSourceBuffer` (cheap) then abort before SABR starts a googlevideo fetch /
+first append. `updateend` was already a `TimerQueue::QueueTask` for the same
+family of bug (TD-0020); `sourceopen` was not.
+
+**Fix.** `ScheduleMediaSourceOpened` queues delivery like
+`ScheduleSourceBufferEvents`. Regression:
+`Page/MediaSourceOpenRunsAsAHostTask`.
+
+**Still open until measured.** Soft-nav may still show zero appends from H2
+POST session death without retry (TD-0025) or residual step storms after a
+fresh `sourceopen` task — confirm with `MICROBROWSER_LOAD_TIMELINE=1` for
+`googlevideo` and `js.steps_exhausted`.
+
+**Close when.** Soft-nav search→watch reaches `readyState >= 2` with
+`media.source_appends > 0` on Release, stably across runs.
+
+---
+
 ## Closed
 
 - **TD-0039 — Trusted click/key inherited a spent JS step budget** (2026-08-10).

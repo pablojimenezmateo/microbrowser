@@ -597,6 +597,11 @@ class DomBindings {
   void DeliverSourceBufferEvents(const js::Value& buffer, std::uint64_t id);
   void ScheduleSourceBufferEvents(const js::Value& buffer, std::uint64_t id);
   void DeliverMediaSourceEvents(const js::Value& source, std::uint64_t id);
+  // `sourceopen` is a task, like SourceBuffer `updateend` — not a sync call from
+  // `video.src = blob:…`. Soft-nav stamps under a spent hang-guard allotment;
+  // sync FireOn then created SourceBuffers and aborted before SABR's first
+  // append (TD-0040). QueueTask + BeginTask give the handler a fresh budget.
+  void ScheduleMediaSourceOpened(std::uint64_t id);
   void RegisterMediaSourceWrapper(std::uint64_t id, const js::Value& wrapper);
   // The wrappers, so that an event the engine produced can be delivered to the object a page is
   // holding. Kept as a JS object hung off the interfaces object rather than as a C++ map of

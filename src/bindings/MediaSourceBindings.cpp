@@ -17,7 +17,9 @@
 // holds the segment (TD-0020 → `fmt.unplayable`). A prior sync delivery with a re-entrancy gate
 // flattened same-buffer nesting for stack depth but could not protect a Ty1 that was *not* already
 // inside `Deliver`. Microtask deferral starved the pump; a host task is what MessageChannel uses
-// for the same "later turn" contract and what `RunDue` already batches.
+// for the same "later turn" contract and what `RunDue` already batches. **`sourceopen` is the
+// same shape** (TD-0040): sync FireOn from `video.src = blob:…` under a spent soft-nav budget
+// created SourceBuffers and never reached the first append.
 //
 // **A refused append is not a failure to hide.** `QuotaExceededError` is the signal a player is
 // waiting for -- it is how a player is told to evict -- so it is thrown with that name, and the
@@ -747,6 +749,42 @@ bool DomBindings::DeliverMediaSourceOpenedFor(const std::string& url) {
     return false;
   }
   return DeliverMediaSourceOpened(media_->SourceForObjectUrl(url));
+}
+
+void DomBindings::ScheduleMediaSourceOpened(std::uint64_t id) {
+  if (interpreter_ == nullptr || media_ == nullptr || id == 0) {
+    return;
+  }
+  const Value source = MediaSourceWrapper(id);
+  if (!source.IsObject()) {
+    return;
+  }
+  // Coalesce: one pending task per MediaSource. A second attach before the
+  // first sourceopen runs still leaves events in the media queue.
+  if (const Value* pending = source.object->GetOwn("#ms-open-queued");
+      pending != nullptr && pending->type == js::ValueType::Boolean && pending->boolean) {
+    return;
+  }
+  source.object->SetHidden("#ms-open-queued", Value::Bool(true));
+  DomBindings* self = this;
+  const Value deliver = interpreter_->NewNativeValue(
+      "mediaSourceOpen", [self, source, id](NativeCall&) -> Value {
+        if (source.IsObject()) {
+          source.object->SetHidden("#ms-open-queued", Value::Bool(false));
+        }
+        (void)self->DeliverMediaSourceOpened(id);
+        return Value::Undefined();
+      });
+  if (!deliver.IsObject()) {
+    source.object->SetHidden("#ms-open-queued", Value::Bool(false));
+    (void)DeliverMediaSourceOpened(id);
+    return;
+  }
+  deliver.object->Set("#source", source);
+  if (!TimerQueue::QueueTask(*interpreter_, deliver)) {
+    source.object->SetHidden("#ms-open-queued", Value::Bool(false));
+    (void)DeliverMediaSourceOpened(id);
+  }
 }
 
 bool DomBindings::DeliverMediaSourceOpened(std::uint64_t id) {

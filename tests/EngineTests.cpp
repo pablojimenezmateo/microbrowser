@@ -490,6 +490,37 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     Expect(outcome.prevented, "preventDefault is reached on a fresh task budget");
   });
 
+  AddTest(tests, "Page/MediaSourceOpenRunsAsAHostTask", [] {
+    // TD-0040: sourceopen used to FireOn synchronously from video.src = blob:…
+    // under the same hang-guard allotment as the stamp that set src. Soft-nav
+    // then created SourceBuffers and never reached appendBuffer. Needs a
+    // NetworkSource so `URL` / createObjectURL exist (Engine provides one).
+    Session session;
+    session.Send(ipc::NavigateMessage{
+        "data:text/html,<!doctype html><video id=v></video>"});
+    const std::string setup = session.engine.EvaluateScript(
+        "(() => {"
+        "  try {"
+        "    globalThis.opened = false;"
+        "    globalThis.buffers = 0;"
+        "    const ms = new MediaSource();"
+        "    ms.addEventListener('sourceopen', () => {"
+        "      globalThis.opened = true;"
+        "      ms.addSourceBuffer('video/mp4; codecs=\"avc1.42E01E\"');"
+        "      globalThis.buffers = ms.sourceBuffers.length;"
+        "    });"
+        "    document.getElementById('v').src = URL.createObjectURL(ms);"
+        "    return 'sync:' + globalThis.opened;"
+        "  } catch (e) { return 'err:' + e; }"
+        "})()");
+    Expect(setup.rfind("sync:false", 0) == 0, "src assign queues sourceopen: " + setup);
+    Expect(session.engine.RunDueWork(), "the queued sourceopen task is runnable");
+    ExpectEqString(session.engine.EvaluateScript("String(globalThis.opened)"), "true",
+                   "sourceopen runs on the host task");
+    ExpectEqString(session.engine.EvaluateScript("String(globalThis.buffers)"), "1",
+                   "and can addSourceBuffer under a fresh budget");
+  });
+
   AddTest(tests, "Page/AClickReachesAFloatOverAnOverlappingBlock", [] {
     // CSS keeps a later in-flow block's border box full-width under a float;
     // only its line boxes shrink. Hit testing that walked last-sibling-first

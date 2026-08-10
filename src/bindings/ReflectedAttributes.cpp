@@ -159,11 +159,11 @@ void DomBindings::SetElementAttribute(dom::Element& element, const std::string& 
   // by which a `MediaSource` reaches an element -- `video.src = URL.createObjectURL(source)` -- and it
   // has to be noticed here, at the write, because that is where every spelling of it converges:
   // `video.src =`, `setAttribute('src', …)` and a `srcObject`-style helper all end up on this line.
-  // Attaching is also what *opens* the source and fires `sourceopen`, which is how every player learns
-  // it may start appending.
+  // Attaching is also what *opens* the source and queues `sourceopen` (a task —
+  // TD-0040), which is how every player learns it may start appending.
   if (media_ != nullptr && name == "src" && value.rfind("blob:", 0) == 0 &&
       media_->IsMedia(element) && media_->AttachMediaSource(element, value)) {
-    DeliverMediaSourceOpenedFor(value);
+    ScheduleMediaSourceOpened(media_->SourceForObjectUrl(value));
   }
   // Keep binding tokens in the attribute map for getAttribute / Polymer
   // annotation parsing, but do not deliver attributeChangedCallback — that
