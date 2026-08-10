@@ -1,0 +1,115 @@
+[navigation-timing/buffered-flag.window.html]
+FAIL=PerformanceObserver with buffered flag sees previous navigation entry.
+[navigation-timing/content-encoding.https.html]
+FAIL=contentEncoding should be gzip.
+[navigation-timing/dom-interactive-image-document.html]
+harness=TIMEOUT
+[navigation-timing/dom-interactive-media-document.html]
+harness=TIMEOUT
+[navigation-timing/idlharness.window.html]
+FAIL=idl_test setup
+[navigation-timing/nav2-test-attributes-exist.html]
+FAIL=Performance navigation timing entries are observable.
+[navigation-timing/nav2-test-attributes-values.html]
+FAIL=Performance navigation timing instance's value is reasonable.
+[navigation-timing/nav2-test-document-open.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-document-replaced.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-frame-removed.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-instance-accessible-from-the-start.html]
+FAIL=PerformanceNavigationTiming instance exists with reasonable values.
+[navigation-timing/nav2-test-instance-accessors.html]
+FAIL=Performance navigation timing entries are accessible through three different accessors.
+[navigation-timing/nav2-test-navigate-iframe.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-navigate-within-document.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-navigation-type-backforward.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-navigation-type-reload.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-redirect-chain-xserver-final-original-origin.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-redirect-chain-xserver-partial-opt-in.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-redirect-none.html]
+FAIL=Naivation without redirects.
+[navigation-timing/nav2-test-redirect-server.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-redirect-xserver.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-response-end-and-duration-before-during-and-after-load-event.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-timing-persistent.html]
+harness=TIMEOUT
+[navigation-timing/nav2-test-unique-nav-instances.html]
+FAIL=Each window has a unique nav timing 2 instance.
+[navigation-timing/navigation-type-post-backforward.html]
+harness=TIMEOUT
+[navigation-timing/nested-unload-timing.html]
+FAIL=Navigation Timing: unload event with nested contexts
+[navigation-timing/po-navigation.html]
+FAIL=navigation entry is observable
+[navigation-timing/prefetch-transfer-size-executor.html]
+FAIL=Navigation timing transfer size for a prefetched navigation should be 0.
+[navigation-timing/prefetch-transfer-size-iframe.html]
+harness=TIMEOUT
+[navigation-timing/redirect-tao.html]
+harness=TIMEOUT
+[navigation-timing/response-start-after-coop-bcg-switch.https.html]
+FAIL=Navigation responseStart is not clamped to zero after a cross-origin COOP browsing context group switch
+[navigation-timing/secure-connection-start-non-zero.https.html]
+FAIL=Test that secureConnectionStart is not zero
+[navigation-timing/secure-connection-start-reuse.https.html]
+harness=TIMEOUT
+[navigation-timing/test-document-onload.html]
+FAIL=Test that the attributes have a proper value during DOMContentLoaded
+FAIL=Test that the attributes have a proper value during onload
+[navigation-timing/test-document-open.html]
+harness=TIMEOUT
+[navigation-timing/test-document-readiness-exist.html]
+harness=TIMEOUT
+[navigation-timing/test-navigation-attributes-exist.html]
+FAIL=window.performance.navigation is defined
+FAIL=window.performance.navigation.redirectCount is defined.
+FAIL=window.performance.navigation.type is defined.
+[navigation-timing/test-navigation-redirectCount-none.html]
+FAIL=window.performance.navigation is defined
+[navigation-timing/test-navigation-type-backforward.html]
+harness=TIMEOUT
+[navigation-timing/test-navigation-type-enums.html]
+FAIL=window.performance.navigation is defined
+FAIL=window.performance.navigation.TYPE_BACK_FORWARD = 2
+FAIL=window.performance.navigation.TYPE_BACK_FORWARD is defined.
+FAIL=window.performance.navigation.TYPE_NAVIGATE = 0
+FAIL=window.performance.navigation.TYPE_NAVIGATE is defined.
+FAIL=window.performance.navigation.TYPE_RELOAD = 1
+FAIL=window.performance.navigation.TYPE_RELOAD is defined.
+FAIL=window.performance.navigation.TYPE_RESERVED = 255
+FAIL=window.performance.navigation.TYPE_RESERVED is defined.
+[navigation-timing/test-navigation-type-reload.html]
+harness=TIMEOUT
+[navigation-timing/test-no-previous-document.html]
+harness=TIMEOUT
+[navigation-timing/test-performance-attributes-exist-in-object.html]
+harness=TIMEOUT
+[navigation-timing/test-performance-attributes-exist.html]
+FAIL=window.performance.navigation is defined
+[navigation-timing/test-performance-attributes.sub.html]
+harness=TIMEOUT
+[navigation-timing/test-timing-attributes-dependent-on-document-load.html]
+harness=TIMEOUT
+[navigation-timing/test-timing-attributes-order.html]
+harness=TIMEOUT
+[navigation-timing/test-timing-client-redirect.html]
+harness=TIMEOUT
+[navigation-timing/test-timing-reload.html]
+harness=TIMEOUT
+[navigation-timing/test-timing-server-redirect.html]
+harness=TIMEOUT
+[navigation-timing/test-timing-xserver-redirect.html]
+harness=TIMEOUT
+[navigation-timing/unload-event-same-origin-check.html]
+harness=TIMEOUT

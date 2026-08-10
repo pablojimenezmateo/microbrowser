@@ -7,7 +7,7 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
-5940 of 270391 subtests pass (2.2%) over 2606 tests.
+6003 of 270488 subtests pass (2.2%) over 2664 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 42% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -66,6 +66,7 @@ it is a page that never reported, which almost always means something threw befo
 | `mimesniff/media` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0.0 |
 | `mimesniff/mime-types` | 3 | 1 | 0 | 2 | 0 | 1939 | 2 | 0.1 |
 | `mimesniff/sniffing` | 3 | 3 | 0 | 0 | 0 | 7 | 3 | 42.9 |
+| `navigation-timing` | 58 | 25 | 0 | 33 | 0 | 97 | 63 | 64.9 |
 | `performance-timeline` | 58 | 27 | 0 | 31 | 0 | 46 | 24 | 52.2 |
 | `performance-timeline/not-restored-reasons` | 13 | 13 | 0 | 0 | 0 | 13 | 0 | 0.0 |
 | `png` | 3 | 0 | 0 | 3 | 0 | 1 | 0 | 0.0 |
@@ -131,8 +132,8 @@ the pass rate and are the largest block of unrealised coverage in the suite.
 
 | tests | cause | example |
 |--:|---|---|
-| 487 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
-| 227 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
+| 515 | TIMEOUT: the page never reported | `FileAPI/idlharness.worker.html` |
+| 232 | TIMEOUT:  | `FileAPI/FileReaderSync.worker.html` |
 | 30 | ERROR: ReferenceError: getSelection is not defined | `selection/addRange-08.html` |
 | 30 | ERROR: TypeError: Illegal constructor: Document | `dom/nodes/Node-compareDocumentPosition.html` |
 | 23 | TIMEOUT: the page never reported; first script error: inline script #N: SyntaxError: unexpected token '<' (line N) SyntaxError: unexpected token '<' ... | `custom-elements/Document-createElement-svg.svg` |
@@ -236,7 +237,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 
 | tests | subtests | message | example |
 |--:|--:|---|---|
-| 76 | 289 | Test timed out | `FileAPI/FileReader/workers.html` |
+| 78 | 291 | Test timed out | `FileAPI/FileReader/workers.html` |
 | 72 | 189087 | NOTRUN (no message) | `custom-elements/CustomElementRegistry.html` |
 | 56 | 86 | promise_test: Unhandled rejection with value: object "Error: document.elementsFromPoint unsupported" | `custom-elements/form-associated/label-delegatesFocus.html` |
 | 55 | 1912 | assert_throws_js: function "function TypeError() { [native code] }" is not an Error subtype | `custom-elements/HTMLElement-constructor.html` |
@@ -254,8 +255,8 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 18 | 35 | assert_equals: expected (object) null but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 17 | 58 | XPathResult is not defined | `dom/xpath-result-single-node-value-nullable.html` |
 | 17 | 85 | getSelection is not defined | `selection/modify-extend-word-trailing-inline-block.tentative.html` |
+| 17 | 17 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 16 | 27 | assert_equals: entries.length expected N but got N | `intersection-observer/bounding-box.html` |
-| 16 | 16 | promise_test: Unhandled rejection with value: object "TypeError: cannot set property 'name' of undefined" | `FileAPI/idlharness.any.html` |
 | 16 | 50 | undefined (createDocument) is not a function | `custom-elements/registries/scoped-registry-initialize-upgrades.html` |
 | 15 | 15 | assert_equals: IntersectionObserverEntryCount expected N but got N | `intersection-observer/scroll-and-root-margin.html` |
 | 14 | 124 | CROSSDOMAIN is not defined | `cors/client-hint-request-headers-2.tentative.htm` |
@@ -279,12 +280,12 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 11 | 13 | assert_equals: expected (object) object "[object Object]" but got (undefined) undefined | `custom-elements/registries/Document-customElementRegistry.html` |
 | 11 | 30 | promise_test: Unhandled rejection with value: object "ReferenceError: KeyframeEffect is not defined" | `web-animations/animation-trigger/event-trigger-before-handlers.tentative.html` |
 | 11 | 23 | promise_test: Unhandled rejection with value: object "TypeError: undefined (moveBefore) is not a function" | `dom/nodes/moveBefore/Node-moveBefore.html` |
+| 11 | 11 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cors/preflight-cache-partitioning.sub.window.html` |
 | 11 | 4613 | undefined (setHTMLUnsafe) is not a function | `custom-elements/registries/ShadowRoot-init-declarative.html` |
 | 10 | 147 | Failed to execute 'animate': keyframes are required | `web-animations/interfaces/Animation/oncancel.html` |
 | 10 | 10 | assert_approx_equals: entries[N].boundingClientRect.left expected N +/- N but got N | `intersection-observer/clip-path-animation.html` |
 | 10 | 56 | assert_unreached: Should have rejected: undefined Reached unreachable code | `subresource-integrity/signatures/tentative/header-component.window.html` |
 | 10 | 96 | cannot read property 'getComputedTiming' of undefined | `web-animations/animation-model/animation-types/discrete.html` |
-| 10 | 10 | promise_test: Unhandled rejection with value: object "TypeError: undefined (open) is not a function" | `cors/preflight-cache-partitioning.sub.window.html` |
 | 10 | 13 | undefined (open) is not a function | `FileAPI/url/url-charset.window.html` |
 | 9 | 26 | The encoding label provided ('utf-Nle') is invalid. | `encoding/api-basics.any.html` |
 | 9 | 53 | assert_array_equals: lengths differ, expected array ["constructed"] length N, got [] length N | `custom-elements/reactions/Node.html` |
@@ -322,6 +323,7 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 6 | 900 | assert_equals: username expected (string) "" but got (undefined) undefined | `url/url-constructor.any.html?include=javascript` |
 | 6 | 8 | assert_false: expected false got null | `intersection-observer/transformed-iframe-001-same-origin.html` |
 | 6 | 6 | assert_not_equals: window.KeyframeEffect got disallowed value undefined | `web-animations/animation-model/animation-types/accumulation-per-property-002.html` |
+| 6 | 6 | assert_not_equals: window.performance.navigation is defined got disallowed value undefined | `navigation-timing/test-navigation-attributes-exist.html` |
 | 6 | 19 | assert_throws_exactly: function "function () { [source unavailable] }" did not throw | `FileAPI/blob/Blob-constructor-dom.window.html` |
 | 6 | 3428 | assert_throws_js: function "function RangeError() { [native code] }" is not an Error subtype | `encoding/api-replacement-encodings.any.html` |
 | 6 | 8 | new_parent is not defined | `dom/nodes/moveBefore/fire-focusin-focusout.html` |
@@ -335,6 +337,5 @@ different bugs and a bucket labelled `assert_equals` is not actionable.
 | 5 | 226 | The encoding label provided ('iso-N-N-i') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 5 | 260 | The encoding label provided ('macintosh') is invalid. | `encoding/single-byte-decoder.any.html?TextDecoder` |
 | 5 | 9 | assert_approx_equals: expected a number but got a "object" | `web-animations/timing-model/animations/playing-an-animation.html` |
-| 5 | 12 | assert_array_equals: lengths differ, expected array ["constructed", "attributeChanged"] length N, got [] length N | `custom-elements/reactions/Node.html` |
 
-9033 distinct subtest messages and 95 distinct harness messages behind these numbers.
+9050 distinct subtest messages and 95 distinct harness messages behind these numbers.
