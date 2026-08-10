@@ -2245,11 +2245,40 @@ page calls `appendBuffer`.
    `/watch` spreads the same work across document scripts.
 
 **Fix.** End*Task zeros `steps_` when clamping back to the ordinary ceiling
-(`js.post_task_step_clamps`). NetworkTaskBudget still raises delivery. Remasure
-soft-nav for `#movie_player` + appends.
+(`js.post_task_step_clamps`). NetworkTaskBudget still raises delivery.
+
+**Remeasure** (Release, after clamp). Soft-nav no longer hits `steps_exhausted`
+(`js.steps_peak≈14M`), but stamp became flaky: some runs
+`path=/watch` + `push_states=1` with **no** `#movie_player` (soft5). Soft3-style
+runs still stamp then starve SABR. Stamp half tracked under **TD-0050**
+(sync paint from `pushState`).
 
 **Close when.** Soft-nav Release matches cold on `source_appends > 0` and
 player `readyState >= 2` without a hard-nav shell.
+
+---
+
+## TD-0050 — `pushState` LayoutAndPaint re-enters observers mid-script
+
+**Opened** 2026-08-10 after soft-nav remasures: SPA commit
+(`history.push_states=1`, `input.click_prevented=1`, `path=/watch`) but
+`#movie_player` absent and focus still `a#thumbnail` while peak stayed under
+`kMaxSteps` (not TD-0049 born-exhausted).
+
+**Cause.** `Engine::PushHistoryState` called `LayoutAndPaint()` on a URL
+change. `PaintAndSend` delivers `ResizeObserver` / `IntersectionObserver`
+callbacks. That re-enters youtube's router under the trusted click that just
+called `pushState`, racing Polymer's watch stamp / `Application.create`.
+`UpdateUrl` already `InvalidateLayout`; the click's `preventDefault` path (and
+every ordinary host turn) paints after script returns.
+
+**Fix.** Defer paint from `pushState`/`replaceState` URL updates. Counter
+`history.push_state_paint_deferred`. Test
+`History/PushStateDoesNotPaintUnderLiveScript`. Traversal / fragment still
+paint at the host boundary after `popstate`/`hashchange`.
+
+**Close when.** Soft-nav Release reliably stamps `#movie_player` + `<video>`
+after search→thumb (MSE appends remain TD-0049).
 
 ---
 

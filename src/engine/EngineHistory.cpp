@@ -100,7 +100,13 @@ bindings::HistorySource::UrlOutcome Engine::PushHistoryState(const js::Serialize
     // a `pushState` is this URL, and the browser process decides what the bar
     // shows rather than the renderer. ADR 0026 §2.
     endpoint_.Send(ipc::NavigationCommittedMessage{page_.Url()});
-    LayoutAndPaint();
+    // Do **not** LayoutAndPaint here. `pushState` runs under live script (often
+    // a trusted click's InputTaskBudget). PaintAndSend delivers ResizeObserver
+    // / IntersectionObserver, which re-enters the page mid-router and aborts
+    // youtube's soft-nav Polymer stamp before `#movie_player` lands (TD-0050).
+    // UpdateUrl already InvalidateLayout; the click's preventDefault path and
+    // every ordinary host turn paint after the script returns.
+    util::AddPerformanceCounter(util::PerfCounterId::HistoryPushStatePaintDeferred);
   }
   SendHistoryState();
   return Outcome::Ok;

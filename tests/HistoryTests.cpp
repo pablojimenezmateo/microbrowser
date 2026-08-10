@@ -212,6 +212,24 @@ void RegisterHistoryTests(std::vector<TestCase>& tests) {
                 "one request: the document. A pushState is not a load");
   });
 
+  AddTest(tests, "History/PushStateDoesNotPaintUnderLiveScript", [] {
+    // TD-0050: sync LayoutAndPaint from pushState delivered observers mid-click
+    // and aborted youtube's soft-nav stamp. URL + invalidate only; paint later.
+    Session session;
+    session.Run(
+        "let saw = 0;"
+        "new ResizeObserver(function () { saw++; }).observe(document.documentElement);"
+        "document.body.offsetHeight;"
+        "history.pushState({}, '', '/deferred');"
+        "console.log(location.pathname + ':' + saw);");
+    ExpectEqString(session.Console(), "/deferred:0",
+                   "observer must not run before pushState returns. Errors: " + session.Errors());
+    ExpectEqString(session.DisplayedUrl(), "https://page.example/deferred",
+                   "chrome still learns the URL");
+    Expect(util::ReadPerformanceCounter(util::PerfCounterId::HistoryPushStatePaintDeferred) >= 1,
+           "deferred-paint counter");
+  });
+
   AddTest(tests, "History/StateIsTheSameObjectEachTimeItIsRead", [] {
     // Deserializing on every read would make this false, and a page that stashes
     // `history.state` and compares later would see a change that did not happen.

@@ -283,6 +283,9 @@ namespace microbrowser::util {
   X(HistoryTraversals, "history.traversals")                                     \
   X(HistorySameDocumentTraversals, "history.same_document_traversals")            \
   X(HistoryOriginRefusals, "history.origin_refusals")                            \
+  /* pushState/replaceState with a URL change invalidated layout but deferred  */ \
+  /* LayoutAndPaint so observers cannot re-enter mid-script (TD-0050).         */ \
+  X(HistoryPushStatePaintDeferred, "history.push_state_paint_deferred")          \
   /* What a page measured about itself, and how often it was told. A page whose */ \
   /* observer never fires is one whose telemetry silently reports nothing --    */ \
   /* which is what four roadmap sessions were blocked by.                       */ \
