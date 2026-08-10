@@ -1888,9 +1888,19 @@ after Accept (not stop at `YTD-SEARCH`), in addition to ≥12 renderers. While
 present (initial drain); after Accept, wait out teardown then hit-test. Engine
 hit-test root cause still open.
 
+**Update** (2026-08-10, later). CSSOM View cull: `ElementAtViewport` returns
+null when `(x,y)` is outside the viewport (`geometry.element_from_point_outside_viewport`).
+Previously a below-fold thumb centre (`y≈1313` with `scrollY=0`) still hit the
+thumb, so readiness armed soft-nav while nothing was clickable in view; harness
+`scrollIntoView` then sometimes reported negative client Y (`y=-844`) and
+`-click last` rejected it. Ready now `scrollIntoView`s a sized thumb and
+requires the hit-test point inside `innerWidth`×`innerHeight`. Test
+`Geometry/ElementFromPointOutsideViewportIsNull`.
+
 **Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
 thumb (img or `a#thumbnail`) on `/results` after scrollIntoView, stably across
-runs; regression from a minimal fixture once one exists.
+runs; regression from a minimal fixture once one exists. Viewport-cull half
+closed; in-viewport miss (if any remain) still open.
 
 ---
 

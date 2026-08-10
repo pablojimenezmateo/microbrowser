@@ -613,6 +613,11 @@ namespace microbrowser::util {
   /* once the index is built; the O(boxes) walk is gone (Gate C stamp depth).  */ \
   X(LayoutBoxLookups, "layout.box_lookups")                                      \
   X(LayoutBoxLookupHits, "layout.box_lookup_hits")                               \
+  /* elementFromPoint / elementsFromPoint with a coordinate outside the        */ \
+  /* viewport (CSSOM View). Non-zero means a page or harness asked about a      */ \
+  /* point that cannot be the topmost painted pixel (TD-0037).                 */ \
+  X(GeometryElementFromPointOutsideViewport,                                     \
+    "geometry.element_from_point_outside_viewport")                              \
   X(LayoutDisplayListsBuilt, "layout.display_lists_built")                       \
   /* Every entry into LayoutBlock, against the boxes that exist. This is the    */ \
   /* ratio that matters and the one nothing was reporting: a layout algorithm   */ \

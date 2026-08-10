@@ -831,6 +831,14 @@ css::ComputedStyle Page::StyleWithoutBox(const dom::Element& element) const {
 }
 
 dom::Element* Page::ElementAtViewport(float x, float y) {
+  // CSSOM View §elementsFromPoint: coordinates outside the viewport yield an
+  // empty list, so elementFromPoint returns null. Hitting below-fold youtube
+  // thumbs through a negative or >innerHeight Y made YoutubeResultsLooksReady
+  // (and page scripts) treat off-screen geometry as topmost (TD-0037).
+  if (x < 0.0f || y < 0.0f || x >= viewport_.viewport_width || y >= viewport_.viewport_height) {
+    util::AddPerformanceCounter(util::PerfCounterId::GeometryElementFromPointOutsideViewport);
+    return nullptr;
+  }
   const gfx::FloatPoint document_point{x, y + layout_.scroll_y};
   const dom::Element* hit = ElementAt(document_point);
   return hit == nullptr ? nullptr : const_cast<dom::Element*>(hit);

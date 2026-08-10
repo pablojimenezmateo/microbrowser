@@ -461,11 +461,22 @@ bool YoutubeResultsLooksReady(microbrowser::engine::Engine& engine) {
       "      .some(function(b){return /Accept all|^Accept$/i.test((b.textContent||'').trim());});"
       "    return accept ? String(n) : '0';"
       "  }"
-      "  var a=document.querySelector('a#thumbnail');"
+      // Prefer a thumb with a non-zero box; scroll it into the viewport before
+      // hit-testing. elementFromPoint on a below-fold centre used to "succeed"
+      // when the engine did not cull out-of-viewport coordinates (TD-0037).
+      "  var thumbs=document.querySelectorAll('a#thumbnail');"
+      "  var a=null;"
+      "  for(var i=0;i<thumbs.length;i++){"
+      "    var tr=thumbs[i].getBoundingClientRect();"
+      "    if(tr.width>=2 && tr.height>=2){ a=thumbs[i]; break; }"
+      "  }"
       "  if(!a) return '0';"
+      "  a.scrollIntoView();"
       "  var r=a.getBoundingClientRect();"
       "  if(r.width < 2 || r.height < 2) return '0';"
-      "  var el=document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);"
+      "  var cx=r.left + r.width/2, cy=r.top + r.height/2;"
+      "  if(cx < 0 || cy < 0 || cx >= window.innerWidth || cy >= window.innerHeight) return '0';"
+      "  var el=document.elementFromPoint(cx, cy);"
       "  for(var n2=el; n2; n2=n2.parentElement){"
       "    if(n2.id==='thumbnail' || n2.tagName==='YTD-VIDEO-RENDERER' ||"
       "       n2.tagName==='YTD-RICH-ITEM-RENDERER' || n2.tagName==='IMG') return String(n);"
@@ -1059,7 +1070,15 @@ int main(int argc, char** argv) {
         break;
       case Options::StepKind::ClickLastEval:
         if (!last_eval_has_click || last_eval_x < 0 || last_eval_y < 0) {
-          std::fputs("-click last needs the immediately prior -eval to return x,y\n", stderr);
+          if (last_eval_x != 0 || last_eval_y != 0) {
+            std::fprintf(stderr,
+                         "-click last needs in-viewport x,y from the prior -eval "
+                         "(got %d,%d; negative means the target is off-screen)\n",
+                         last_eval_x, last_eval_y);
+          } else {
+            std::fputs("-click last needs the immediately prior -eval to return x,y\n",
+                       stderr);
+          }
           return 2;
         }
         deliver_click(last_eval_x, last_eval_y);

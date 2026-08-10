@@ -636,6 +636,34 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
         "</script></body>");
     ExpectEqString(Line(output, 0), "over", "topmost element at the point");
   });
+
+  AddTest(tests, "Geometry/ElementFromPointOutsideViewportIsNull", [] {
+    // CSSOM View: x/y outside the viewport → empty elementsFromPoint → null.
+    // Without the cull, youtube readiness hit below-fold thumbs and soft-nav
+    // -click last armed on negative client Y (TD-0037).
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<body style='margin:0'>"
+        "<div id='a' style='position:absolute;left:0;top:0;width:400px;height:400px'></div>"
+        "<script>"
+        "console.log(document.elementFromPoint(10,10) && document.elementFromPoint(10,10).id);"
+        "console.log(document.elementFromPoint(10,-5));"
+        "console.log(document.elementFromPoint(10,150));"
+        "console.log(document.elementFromPoint(-1,10));"
+        "console.log(document.elementFromPoint(250,10));"
+        "</script></body>",
+        "https://example.org/");
+    page.SetViewport(css::MediaContext{200.0f, 100.0f, 1.0f});
+    page.Layout(200.0f);
+    page.RunScripts(0);
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    ExpectEqString(Line(output, 0), "a", "in-viewport hit");
+    ExpectEqString(Line(output, 1), "null", "above the viewport");
+    ExpectEqString(Line(output, 2), "null", "below the viewport");
+    ExpectEqString(Line(output, 3), "null", "left of the viewport");
+    ExpectEqString(Line(output, 4), "null", "right of the viewport");
+  });
 }
 
 }  // namespace microbrowser::tests
