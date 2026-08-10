@@ -414,7 +414,8 @@ class Interpreter {
 
   // Fresh step budget for a host *task* (HTML event-loop task), when the
   // machine is idle. Used for timers/rAF-adjacent work that must not reset
-  // under live frames. Fetch/XHR use `BeginNetworkTask` instead.
+  // under live frames. Fetch/XHR use `BeginNetworkTask` instead; trusted
+  // pointer/key use `BeginInputTask`.
   void BeginTask() { BeginHostTurn(); }
 
   // A network completion is always a distinct host task — even when the engine
@@ -423,6 +424,41 @@ class Interpreter {
   // left youtube's googlevideo handler sharing a spent budget and never reaching
   // `appendBuffer` (TD-0042). Always zeros `steps_`; counts when frames were live.
   void BeginNetworkTask();
+
+  // Trusted user input (click/key). Like `BeginNetworkTask` it always zeros
+  // `steps_` under live frames, and it raises the hang-guard ceiling for that
+  // dispatch: youtube's search-thumb `click` does more than `kMaxSteps` of
+  // Polymer work before `preventDefault`, so the SPA never stamped and the
+  // engine followed `a#thumbnail` as a document navigation (TD-0045).
+  // Returns the previous `steps_limit_` for `InputTaskBudget` to restore.
+  std::size_t BeginInputTask();
+  void EndInputTask(std::size_t previous_limit);
+
+  // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036).
+  // Public so tests and counters can name the ordinary vs input ceilings.
+  static constexpr std::size_t kMaxSteps = 20'000'000;
+  // Trusted click/key may run a page's SPA router before `preventDefault`
+  // (TD-0045). Five ordinary budgets is enough for youtube search→watch; timers
+  // and stamps keep `kMaxSteps` so a runaway rAF cannot open through this.
+  static constexpr std::size_t kMaxInputSteps = kMaxSteps * 5;
+  // Ceiling for one sync NestedHostBudget chain (MSE re-entry or CE-in-CE).
+  // Five full budgets is enough for SABR; unbounded resets would re-open TD-0018.
+  static constexpr std::size_t kMaxNestedHostChainSteps = kMaxSteps * 5;
+  std::size_t StepsLimit() const { return steps_limit_; }
+
+  // RAII for `BeginInputTask` / `EndInputTask` around one trusted dispatch.
+  class InputTaskBudget {
+   public:
+    explicit InputTaskBudget(Interpreter& interpreter)
+        : interpreter_(interpreter), previous_limit_(interpreter_.BeginInputTask()) {}
+    ~InputTaskBudget() { interpreter_.EndInputTask(previous_limit_); }
+    InputTaskBudget(const InputTaskBudget&) = delete;
+    InputTaskBudget& operator=(const InputTaskBudget&) = delete;
+
+   private:
+    Interpreter& interpreter_;
+    std::size_t previous_limit_;
+  };
 
   // Fresh hang-guard allotment for host work that must run while script frames
   // are still live. `BeginHostTurn` refuses to reset in that case (nested
@@ -1208,6 +1244,8 @@ class Interpreter {
   // chances to forget.
   Value pending_new_target_;
   std::size_t steps_ = 0;
+  // Hang-guard ceiling for the current host turn. Raised only by InputTaskBudget.
+  std::size_t steps_limit_ = kMaxSteps;
   // After a step-budget RangeError is caught inside RunFrames, further
   // exhaustion in the same turn aborts rather than looping (TD-0018).
   bool step_budget_absorbed_ = false;
@@ -1229,15 +1267,6 @@ class Interpreter {
   // allowed — pages with no policy keep the platform default.
   void* eval_forbidden_context_ = nullptr;
   bool (*eval_forbidden_)(void* context) = nullptr;
-  // Hang guard for `while (true) {}`, not a fairness scheduler (ADR 0036). One
-  // budget per top-level script turn; nested custom-element reactions and
-  // microtasks share it. youtube.com's kevlar turn exhausts this and aborts
-  // late `connectedCallback`s (`js.steps_exhausted`) — that is a stamp/loop
-  // bug to fix, not a reason to reset per CallCompiled (that hung the load).
-  static constexpr std::size_t kMaxSteps = 20'000'000;
-  // Ceiling for one sync NestedHostBudget chain (MSE re-entry or CE-in-CE).
-  // Five full budgets is enough for SABR; unbounded resets would re-open TD-0018.
-  static constexpr std::size_t kMaxNestedHostChainSteps = kMaxSteps * 5;
 
   // Fresh step budget for a top-level script turn (RunCompiled / RunProgram).
   // Not for CallCompiled — microtasks and nested reactions share the caller.

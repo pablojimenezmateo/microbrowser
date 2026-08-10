@@ -316,6 +316,9 @@ namespace microbrowser::util {
   X(JsMediaEventBudgetResets, "js.media_event_budget_resets")                     \
   X(JsElementUpgradeBudgetResets, "js.element_upgrade_budget_resets")             \
   X(JsFetchDeliveryBudgetResets, "js.fetch_delivery_budget_resets")               \
+  /* Trusted click/key under live frames (TD-0045). Always zeros steps_; raises */ \
+  /* the hang ceiling to kMaxInputSteps for that dispatch only.                 */ \
+  X(JsInputTaskBudgetResets, "js.input_task_budget_resets")                       \
   /* Engine-built throws (`MakeError`), including ones a page's own try/catch  */ \
   /* swallows. youtube's setmediasrc path catches Gal's throw and turns it into */ \
   /* `fmt.unplayable` without ever reaching ReportUncaught -- so the only way  */ \

@@ -2085,6 +2085,41 @@ again without a connection-failed interstitial.
 
 ---
 
+## TD-0045 — Trusted click burned `kMaxSteps` before `preventDefault`
+
+**Opened** 2026-08-10 after soft-nav search→thumb still hard-navigated to a
+thin `/watch` shell (`focus: a#thumbnail`, no `#movie_player`) with
+`js.steps_exhausted` / `js.steps_peak ≈ 20_000_001` on the click turn.
+
+**Cause.** TD-0039's `BeginTask` on trusted pointer/key only helps when the
+machine is idle: `BeginHostTurn` no-ops under live frames, and even a fresh
+`kMaxSteps` allotment is not enough for youtube's Polymer search-thumb
+`click` chain before `preventDefault`. The hang guard threw mid-handler; the
+SPA never stamped; `ResolveClickActivation` followed `a#thumbnail` as a
+document navigation. Globally raising `kMaxSteps` would re-open TD-0018
+(multi-minute unmasked hangs on stamps/rAF).
+
+**Fix.** `Interpreter::BeginInputTask` / `InputTaskBudget`: always zero
+`steps_` (like `BeginNetworkTask`), raise the ceiling to `kMaxInputSteps`
+(`5 * kMaxSteps`) for that dispatch only, restore on exit. Counters:
+`js.input_task_budget_resets` (when frames were live). Used from
+`DispatchPointerMouse` / `DispatchKey`.
+
+**Remeasure (Release, 2026-08-10).** Soft-nav cats search→thumb:
+`focus: div#movie_player`, `path:/watch`, `#movie_player video` with
+`blob:` src — SPA path, not the thin href shell. `js.steps_peak` still
+hits `20_000_001` once on a later stamp turn (ordinary ceiling after the
+input budget ends); SABR still `videoplayback` starts with 0 dones /
+`media.source_appends` absent / `readyState` 0 (`media.video_configure_failures=1`).
+SPA stamp half of the close condition is met; MSE half remains TD-0042.
+
+**Close when.** Soft-nav Release cats search→thumb stays on the SPA
+(`#movie_player` present, no hard-nav shell), `preventDefault` wins over href
+follow, and watch settle can reach `readyState >= 2` when SABR completes
+(TD-0042).
+
+---
+
 ## Closed
 
 - **TD-0039 — Trusted click/key inherited a spent JS step budget** (2026-08-10).

@@ -463,11 +463,13 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "Page/TrustedClickGetsAFreshStepBudget", [] {
-    // TD-0039: after a spent host turn, click handlers used to inherit
+    // TD-0039 / TD-0045: after a spent host turn, click handlers used to inherit
     // steps_ > kMaxSteps and never reach preventDefault — youtube then followed
-    // a#thumbnail as a full document navigation. A single catch absorbs once
-    // and zeros steps_; a second hang in the same turn leaves the budget spent
-    // (same shape as JsInterpreter/ABlockThatDeclaresNothingAllocatesNoScope).
+    // a#thumbnail as a full document navigation. InputTaskBudget always zeros
+    // steps_ (even under live frames) and raises the hang ceiling for the
+    // dispatch. A single catch absorbs once and zeros steps_; a second hang in
+    // the same turn leaves the budget spent (same shape as
+    // JsInterpreter/ABlockThatDeclaresNothingAllocatesNoScope).
     TestFonts fonts;
     engine::Page page(fonts.catalog);
     page.Load(

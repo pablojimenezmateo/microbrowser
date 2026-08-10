@@ -481,6 +481,53 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
       ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
                      "fetch then runs after BeginNetworkTask");
     }
+    // Trusted input under live frames (TD-0045): BeginTask is a no-op there,
+    // and youtube's search-thumb click needs both a fresh count and the raised
+    // kMaxInputSteps ceiling. InputTaskBudget covers both.
+    {
+      Interpreter interpreter;
+      const Value deliver = interpreter.NewNativeValue(
+          "deliverInput", [](NativeCall& call) -> Value {
+            const Value* burn = call.interpreter.Global()->GetOwn("burn");
+            const Value* handler = call.interpreter.Global()->GetOwn("handler");
+            if (burn == nullptr || handler == nullptr || !burn->IsObject() ||
+                !handler->IsObject()) {
+              return Value::Undefined();
+            }
+            (void)call.interpreter.CallFunction(*burn, Value::Undefined(), {});
+            {
+              Interpreter::InputTaskBudget budget(call.interpreter);
+              const Result out =
+                  call.interpreter.CallFunction(*handler, Value::Undefined(), {});
+              if (out.completion == Completion::Throw) {
+                return call.ThrowValue(out.value);
+              }
+              return out.value;
+            }
+          });
+      Expect(deliver.IsObject(), "install deliverInput native");
+      interpreter.Global()->Set("deliverInput", deliver);
+      interpreter.GlobalScope()->Declare("deliverInput", deliver, false);
+      Expect(interpreter.StepsLimit() == Interpreter::kMaxSteps,
+             "ordinary hang ceiling before input task");
+      {
+        Interpreter::InputTaskBudget probe(interpreter);
+        Expect(interpreter.StepsLimit() == Interpreter::kMaxInputSteps,
+               "InputTaskBudget raises the hang ceiling");
+      }
+      Expect(interpreter.StepsLimit() == Interpreter::kMaxSteps,
+             "InputTaskBudget restores the ordinary hang ceiling");
+      Expect(interpreter
+                 .Run("globalThis.got = 0;"
+                      "globalThis.burn = () => { while (true) {} };"
+                      "globalThis.handler = () => { got = 1; return got; };"
+                      "function entry() { return deliverInput(); }"
+                      "entry()")
+                 .completion == Completion::Normal,
+             "InputTaskBudget refreshes under live frames");
+      ExpectEqString(js::ToString(interpreter.Run("'' + got").value), "1",
+                     "click handler runs after InputTaskBudget");
+    }
     // Custom-element upgrades during an rAF stamp share live frames with the
     // outer CallFunction. BeginTask is a no-op there; ElementUpgradeBudget must
     // still refresh once the shared allotment is half spent (TD-0018 thumbs).

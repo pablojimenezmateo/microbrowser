@@ -76,7 +76,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
     const Instruction instruction = frame->code->code[frame->ip++];
     // After fetch: UnwindToHandler uses `ip - 1`. A pre-fetch check made
     // `try { while (true) {} } catch` miss the RangeError (TD-0018).
-    if (++steps_ > kMaxSteps) {
+    if (++steps_ > StepsLimit()) {
       const Result out = ExhaustedSteps();
       // One catch/finally may absorb the hang-guard. A second exhaustion in
       // the same host turn aborts — and must leave the machine empty above

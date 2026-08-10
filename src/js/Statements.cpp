@@ -53,7 +53,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
   if (depth.Exceeded()) {
     return Throw("RangeError", "maximum call stack size exceeded");
   }
-  if (++steps_ > kMaxSteps) {
+  if (++steps_ > StepsLimit()) {
     // A page can write `while (true) {}`. A step budget makes that a thrown
     // error rather than a hung browser, which is the only difference a user
     // would notice between the two.
@@ -639,7 +639,7 @@ Result Interpreter::EvaluateStatement(const Node& node, Environment& scope) {
   if (depth.Exceeded()) {
     return Throw("RangeError", "maximum call stack size exceeded");
   }
-  if (++steps_ > kMaxSteps) {
+  if (++steps_ > StepsLimit()) {
     return ExhaustedSteps();
   }
 

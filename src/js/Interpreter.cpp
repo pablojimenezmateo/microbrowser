@@ -46,6 +46,22 @@ void Interpreter::BeginNetworkTask() {
   step_budget_absorbed_ = false;
 }
 
+std::size_t Interpreter::BeginInputTask() {
+  util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
+  if (!vm_.frames.empty()) {
+    util::AddPerformanceCounter(util::PerfCounterId::JsInputTaskBudgetResets);
+  }
+  const std::size_t previous = steps_limit_;
+  steps_ = 0;
+  step_budget_absorbed_ = false;
+  steps_limit_ = kMaxInputSteps;
+  return previous;
+}
+
+void Interpreter::EndInputTask(std::size_t previous_limit) {
+  steps_limit_ = previous_limit;
+}
+
 void Interpreter::EnterNestedHostBudget(util::PerfCounterId reset_counter) {
   util::MaxPerformanceCounter(util::PerfCounterId::JsStepsPeak, steps_);
   if (nested_host_budget_depth_ == 0) {
@@ -57,7 +73,7 @@ void Interpreter::EnterNestedHostBudget(util::PerfCounterId reset_counter) {
   if (nested_host_chain_steps_ >= kMaxNestedHostChainSteps) {
     // Leave steps past the hang guard so the nested CallFunction aborts rather
     // than opening an unbounded pump. Peak already recorded above.
-    steps_ = kMaxSteps + 1;
+    steps_ = StepsLimit() + 1;
     return;
   }
   // Refresh only when BeginHostTurn would (empty machine), when nesting past
@@ -67,7 +83,7 @@ void Interpreter::EnterNestedHostBudget(util::PerfCounterId reset_counter) {
   // each cheap upgrade would wipe the outer turn's progress toward kMaxSteps.
   const bool under_live_frames = !vm_.frames.empty();
   const bool refresh = !under_live_frames || nested_host_budget_depth_ > 1 ||
-                       steps_ >= kMaxSteps / 2;
+                       steps_ >= StepsLimit() / 2;
   if (!refresh) {
     return;
   }

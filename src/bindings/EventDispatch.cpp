@@ -303,13 +303,13 @@ bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view ty
   if (interpreter_ == nullptr) {
     return false;
   }
-  // Each trusted pointer/mouse event is a task. Without a fresh budget, a click
-  // after a spent stamp/rAF turn inherits `steps_ > kMaxSteps` and youtube's
-  // search handler never reaches `preventDefault` — the engine then follows
-  // `a#thumbnail` as a full navigation and the SPA player never stamps
-  // (TD-0039). BeginHostTurn no-ops under live frames, so nested sync dispatch
-  // still shares one allotment.
-  interpreter_->BeginTask();
+  // Each trusted pointer/mouse event is an input task: always a fresh step
+  // count (even under live frames) and a raised hang-guard ceiling. TD-0039
+  // covered the spent-turn case with BeginTask; TD-0045 covers youtube's
+  // search-thumb click that burns more than kMaxSteps of Polymer work before
+  // preventDefault — without the raised ceiling the SPA never stamps and the
+  // engine follows a#thumbnail as a full navigation.
+  const js::Interpreter::InputTaskBudget input_budget(*interpreter_);
   const Value event = MakeEvent(std::string(type), true, true, true);
   if (!event.IsObject()) {
     return false;
@@ -373,9 +373,9 @@ bool DomBindings::DispatchKey(dom::Node* target, const KeyInput& key) {
   if (node == nullptr) {
     return false;
   }
-  // Trusted key events are tasks for the same reason trusted clicks are
-  // (TD-0039): a spent turn must not starve `preventDefault` on keydown.
-  interpreter_->BeginTask();
+  // Trusted key events share the input-task budget with clicks (TD-0039 /
+  // TD-0045): a spent or near-ceiling turn must not starve preventDefault.
+  const js::Interpreter::InputTaskBudget input_budget(*interpreter_);
   // Trusted, bubbling and cancelable. Cancelable is the load-bearing one: a
   // `preventDefault` on a keydown is how a page stops the character being
   // inserted, and it can only do that because insertion happens after dispatch
