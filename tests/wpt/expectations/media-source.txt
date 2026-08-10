@@ -1,0 +1,320 @@
+[media-source/SourceBuffer-abort-readyState.html]
+FAIL=SourceBuffer#abort() (video/mp4) : If the readyState attribute of the parent media source is not in the "open" state then throw an INVALID_STATE_ERR exception and abort these steps.
+FAIL=SourceBuffer#abort() (video/webm; codecs="vorbis,vp8") : If the readyState attribute of the parent media source is not in the "open" state then throw an INVALID_STATE_ERR exception and abort these steps.
+[media-source/SourceBuffer-abort-removed.html]
+FAIL=SourceBuffer#abort (video/mp4) : if this object has been removed from the sourceBuffers attribute of the parent media source, then throw an INVALID_STATE_ERR exception and abort these steps.
+FAIL=SourceBuffer#abort (video/webm; codecs="vorbis,vp8") : if this object has been removed from the sourceBuffers attribute of the parent media source, then throw an INVALID_STATE_ERR exception and abort these steps.
+[media-source/SourceBuffer-abort-updating.html]
+FAIL=SourceBuffer#abort() (video/mp4) : Check the algorithm when the updating attribute is true.
+FAIL=SourceBuffer#abort() (video/webm; codecs="vorbis,vp8") : Check the algorithm when the updating attribute is true.
+[media-source/SourceBuffer-abort.html]
+FAIL=SourceBuffer#abort() (video/webm; codecs="vorbis,vp8"): Check the values of appendWindowStart and appendWindowEnd.
+[media-source/SourceBuffer-appendWindowEnd-rounding.html]
+FAIL=last frame at 10
+FAIL=last frame at 22
+[media-source/SourceBuffer-short-frame-endOfStream.html]
+FAIL=endOfStream() with short frame duration
+[media-source/URL-createObjectURL-null.html]
+FAIL=URL.createObjectURL(null)
+[media-source/URL-createObjectURL-revoke.html]
+harness=TIMEOUT
+[media-source/dedicated-worker/mediasource-worker-detach-element.html]
+FAIL=Test element detachment from worker MediaSource after at least 0 main thread setTimeouts, starting counting after receiving Finished Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 0 main thread setTimeouts, starting counting after receiving Started Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 0 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test element detachment from worker MediaSource after at least 1 main thread setTimeouts, starting counting after receiving Finished Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 1 main thread setTimeouts, starting counting after receiving Started Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 1 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test element detachment from worker MediaSource after at least 2 main thread setTimeouts, starting counting after receiving Finished Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 2 main thread setTimeouts, starting counting after receiving Started Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 2 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test element detachment from worker MediaSource after at least 3 main thread setTimeouts, starting counting after receiving Finished Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 3 main thread setTimeouts, starting counting after receiving Started Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 3 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test element detachment from worker MediaSource after at least 4 main thread setTimeouts, starting counting after receiving Finished Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 4 main thread setTimeouts, starting counting after receiving Started Buffering message from worker
+FAIL=Test element detachment from worker MediaSource after at least 4 main thread setTimeouts, starting counting after setting srcObject
+[media-source/dedicated-worker/mediasource-worker-duration.html]
+FAIL=Test worker MediaSource duration updates before and after HAVE_METADATA
+[media-source/dedicated-worker/mediasource-worker-handle-transfer.html]
+harness=TIMEOUT
+[media-source/dedicated-worker/mediasource-worker-handle.html]
+harness=TIMEOUT
+[media-source/dedicated-worker/mediasource-worker-objecturl.html]
+harness=TIMEOUT
+[media-source/dedicated-worker/mediasource-worker-play-terminate-worker.html]
+FAIL=Test worker MediaSource termination after at least 0 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 0 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 0 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 1 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 1 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 1 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 2 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 2 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 2 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 3 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 3 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 3 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 4 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 4 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 4 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 5 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 5 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 5 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 6 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 6 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 6 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 7 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 7 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 7 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 8 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 8 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 8 main thread setTimeouts, starting counting before setting srcObject
+FAIL=Test worker MediaSource termination after at least 9 main thread setTimeouts, starting counting after first ended event
+FAIL=Test worker MediaSource termination after at least 9 main thread setTimeouts, starting counting after setting srcObject
+FAIL=Test worker MediaSource termination after at least 9 main thread setTimeouts, starting counting before setting srcObject
+[media-source/dedicated-worker/mediasource-worker-play.html]
+FAIL=Test worker MediaSource construction, attachment, buffering and basic playback
+[media-source/idlharness.window.html]
+FAIL=idl_test setup
+[media-source/invalid-third-block.html]
+FAIL=invalid-third-block
+[media-source/last-frame-dimensions.html]
+FAIL=last frame dimensions
+[media-source/mediasource-activesourcebuffers.html]
+FAIL=Active SourceBuffers list ignores changes to selected audio/video tracks that do not affect the activation of the SourceBuffer.
+FAIL=Active SourceBuffers list reflects changes to selected audio/video tracks associated with separate SourceBuffers.
+FAIL=Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: audio is first sourceBuffer, audio media appended first
+FAIL=Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: audio is first sourceBuffer, video media appended first
+FAIL=Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: video is first sourceBuffer, audio media appended first
+FAIL=Active SourceBuffers must appear in the same order as they appear in the sourceBuffers attribute: video is first sourceBuffer, video media appended first
+FAIL=SourceBuffer added to activeSourceBuffers list when its only audio track gets loaded (and thus becomes enabled).
+FAIL=SourceBuffer added to activeSourceBuffers list when its only video track gets loaded (and thus becomes selected).
+[media-source/mediasource-addsourcebuffer-mode.html]
+FAIL=addSourceBuffer() sets SourceBuffer.mode to 'segments' when the generate timestamps flag is false
+FAIL=addSourceBuffer() sets SourceBuffer.mode to 'sequence' when the generate timestamps flag is true
+[media-source/mediasource-addsourcebuffer.html]
+FAIL=Test addSourceBuffer() audio only
+FAIL=Test addSourceBuffer() in 'ended' state.
+FAIL=Test addSourceBuffer() video only
+FAIL=Test addSourceBuffer() with AAC and H.264
+FAIL=Test addSourceBuffer() with AAC and H.264 in separate SourceBuffers
+FAIL=Test addSourceBuffer() with Vorbis and VP8
+FAIL=Test addSourceBuffer() with Vorbis and VP8 in separate SourceBuffers
+FAIL=Test addSourceBuffer() with empty type
+FAIL=Test addSourceBuffer() with null
+FAIL=Test addSourceBuffer() with unsupported type
+[media-source/mediasource-append-buffer.html]
+harness=TIMEOUT
+[media-source/mediasource-appendbuffer-quota-exceeded.html]
+harness=TIMEOUT
+[media-source/mediasource-appendwindow.html]
+FAIL=Test appendwindow throw error when mediasource object is not associated with a sourebuffer.
+FAIL=Test set appendWindowStart and appendWindowEnd when source buffer updating.
+FAIL=Test set wrong values to appendWindowStart and appendWindowEnd.
+[media-source/mediasource-attach-stops-delaying-load-event.html]
+FAIL=MediaSource attachment should immediately stop delaying the load event
+[media-source/mediasource-avtracks.html]
+FAIL=Check that media tracks and their properties are populated properly
+FAIL=Media tracks must be removed when HTMLMediaElement.load() is called
+FAIL=Media tracks must be removed when the HTMLMediaElement.src is changed
+FAIL=Media tracks must be removed when the SourceBuffer is removed from the MediaSource
+[media-source/mediasource-buffered-seek.html]
+harness=TIMEOUT
+[media-source/mediasource-buffered.html]
+harness=TIMEOUT
+[media-source/mediasource-changetype-play-implicit.html]
+FAIL=Check if browser supports enough test media types and pairs of audio-only or video-only media with same bytestream format
+FAIL=Test audio-only implicit changeType for audio/mp4; codecs="mp4a.40.2" <-> audio/mp4; codecs="mp4a.40.2"
+FAIL=Test audio-only implicit changeType for audio/mp4; codecs="mp4a.40.2" <-> audio/mp4; codecs="mp4a.40.2" (using types without codecs parameters for addSourceBuffer)
+FAIL=Test video-only implicit changeType for video/mp4; codecs="avc1.4D4001" <-> video/mp4; codecs="avc1.4D4001"
+FAIL=Test video-only implicit changeType for video/mp4; codecs="avc1.4D4001" <-> video/mp4; codecs="avc1.4D4001" (using types without codecs parameters for addSourceBuffer)
+FAIL=Test video-only implicit changeType for video/webm; codecs="vp9" <-> video/webm; codecs="vp9"
+FAIL=Test video-only implicit changeType for video/webm; codecs="vp9" <-> video/webm; codecs="vp9" (using types without codecs parameters for addSourceBuffer)
+[media-source/mediasource-changetype-play-negative.html]
+harness=TIMEOUT
+[media-source/mediasource-changetype-play-without-codecs-parameter.html]
+FAIL=Check if browser supports enough test media types
+FAIL=Test audio-only changeType for audio/mp4; codecs="mp4a.40.2" <-> audio/mp4; codecs="mp4a.40.2" (using types without codecs parameters)
+FAIL=Test video-only changeType for video/mp4; codecs="avc1.4D4001" <-> video/mp4; codecs="avc1.4D4001" (using types without codecs parameters)
+FAIL=Test video-only changeType for video/mp4; codecs="avc1.4D4001" <-> video/webm; codecs="vp9" (using types without codecs parameters)
+FAIL=Test video-only changeType for video/webm; codecs="vp9" <-> video/mp4; codecs="avc1.4D4001" (using types without codecs parameters)
+FAIL=Test video-only changeType for video/webm; codecs="vp9" <-> video/webm; codecs="vp9" (using types without codecs parameters)
+[media-source/mediasource-changetype-play.html]
+FAIL=Check if browser supports enough test media types
+FAIL=Test audio-only changeType for audio/mp4; codecs="mp4a.40.2" <-> audio/mp4; codecs="mp4a.40.2"
+FAIL=Test video-only changeType for video/mp4; codecs="avc1.4D4001" <-> video/mp4; codecs="avc1.4D4001"
+FAIL=Test video-only changeType for video/mp4; codecs="avc1.4D4001" <-> video/webm; codecs="vp9"
+FAIL=Test video-only changeType for video/webm; codecs="vp9" <-> video/mp4; codecs="avc1.4D4001"
+FAIL=Test video-only changeType for video/webm; codecs="vp9" <-> video/webm; codecs="vp9"
+[media-source/mediasource-changetype.html]
+FAIL=Test changeType after SourceBuffer removed from mediaSource.
+FAIL=Test changeType retains previous mode when changing to type that doesn't generate timestamps
+FAIL=Test changeType sets mode to sequence for change to type that generates timestamps
+FAIL=Test changeType transitioning readyState from 'ended' to 'open'.
+FAIL=Test changeType while update pending.
+FAIL=Test changeType with an empty type.
+FAIL=Test changeType with null type.
+FAIL=Test changeType with unsupported type.
+[media-source/mediasource-closed.html]
+harness=TIMEOUT
+[media-source/mediasource-config-change-mp4-a-bitrate.html]
+FAIL=Tests mp4 audio-only bitrate changes.
+[media-source/mediasource-config-change-mp4-av-audio-bitrate.html]
+FAIL=Tests mp4 audio bitrate changes in multiplexed content.
+[media-source/mediasource-config-change-mp4-av-framesize.html]
+FAIL=Tests mp4 frame size changes in multiplexed content.
+[media-source/mediasource-config-change-mp4-av-video-bitrate.html]
+FAIL=Tests mp4 video bitrate changes in multiplexed content.
+[media-source/mediasource-config-change-mp4-v-bitrate.html]
+FAIL=Tests mp4 video-only bitrate changes.
+[media-source/mediasource-config-change-mp4-v-framerate.html]
+FAIL=Tests mp4 video-only frame rate changes.
+[media-source/mediasource-config-change-mp4-v-framesize.html]
+FAIL=Tests mp4 video-only frame size changes.
+[media-source/mediasource-config-change-webm-a-bitrate.html]
+FAIL=Tests webm audio-only bitrate changes.
+[media-source/mediasource-config-change-webm-av-audio-bitrate.html]
+FAIL=Tests webm audio bitrate changes in multiplexed content.
+[media-source/mediasource-config-change-webm-av-framesize.html]
+FAIL=Tests webm frame size changes in multiplexed content.
+[media-source/mediasource-config-change-webm-av-video-bitrate.html]
+FAIL=Tests webm video bitrate changes in multiplexed content.
+[media-source/mediasource-config-change-webm-v-bitrate.html]
+FAIL=Tests webm video-only bitrate changes.
+[media-source/mediasource-config-change-webm-v-framerate.html]
+FAIL=Tests webm video-only frame rate changes.
+[media-source/mediasource-config-change-webm-v-framesize.html]
+FAIL=Tests webm video-only frame size changes.
+[media-source/mediasource-correct-frames-after-reappend.html]
+harness=TIMEOUT
+[media-source/mediasource-correct-frames.html]
+harness=TIMEOUT
+[media-source/mediasource-detach.html]
+FAIL=Test media.load() after appending data will trigger MediaSource detaching from a media element.
+FAIL=Test media.load() before appending data will trigger MediaSource detaching from a media element.
+[media-source/mediasource-duration-boundaryconditions.html]
+harness=TIMEOUT
+[media-source/mediasource-duration.html]
+harness=TIMEOUT
+[media-source/mediasource-endofstream-invaliderror.html]
+FAIL=Test MediaSource.endOfStream() with invalid empty error string.
+FAIL=Test MediaSource.endOfStream() with invalid non-empty error string.
+FAIL=Test MediaSource.endOfStream() with invalid null error parameter.
+[media-source/mediasource-endofstream.html]
+harness=TIMEOUT
+[media-source/mediasource-errors.html]
+FAIL=Appending media segment before the first initialization segment.
+FAIL=Signaling 'decode' error via endOfStream() after initialization segment has been appended and the HTMLMediaElement has reached HAVE_METADATA.
+FAIL=Signaling 'decode' error via endOfStream() before initialization segment has been appended.
+FAIL=Signaling 'decode' error via segment parser loop algorithm after initialization segment has been appended.
+FAIL=Signaling 'decode' error via segment parser loop algorithm of append containing init plus corrupted media segment.
+FAIL=Signaling 'network' error via endOfStream() after initialization segment has been appended and the HTMLMediaElement has reached HAVE_METADATA.
+FAIL=Signaling 'network' error via endOfStream() before initialization segment has been appended.
+[media-source/mediasource-getvideoplaybackquality.html]
+FAIL=Test HTMLVideoElement.getVideoPlaybackQuality() with MediaSource API
+[media-source/mediasource-h264-play-starved.html]
+harness=TIMEOUT
+[media-source/mediasource-iamf-playback.html]
+PRECONDITION_FAILED=IAMF MSE audio playback advances currentTime
+[media-source/mediasource-invalid-codec.html]
+harness=TIMEOUT
+[media-source/mediasource-is-type-supported.html]
+FAIL=Test invalid MIME format "audio/webm;aaacodecsbbb=opus"
+FAIL=Test invalid MIME format "video/webm"
+FAIL=Test invalid MIME format "video/webm;"
+FAIL=Test invalid mismatch between MIME type and codec ID "audio/mp4;codecs="avc1.4d001e""
+FAIL=Test invalid mismatch between MIME type and codec ID "audio/webm;codecs="mp4a.40.2""
+FAIL=Test invalid mismatch between MIME type and codec ID "video/webm;codecs="mp4a.40.2""
+FAIL=Test valid MP4 type "audio/mp4;codecs="fLaC""
+FAIL=Test valid MP4 type "audio/mp4;codecs="mp4a.67""
+FAIL=Test valid MP4 type "video/mp4;codecs="fLaC""
+FAIL=Test valid WebM type "AUDIO/WEBM;CODECS="vorbis""
+FAIL=Test valid WebM type "audio/webm;codecs="vorbis""
+FAIL=Test valid WebM type "audio/webm;codecs=vorbis;test="6""
+FAIL=Test valid WebM type "video/webm;codecs="vorbis""
+FAIL=Test valid WebM type "video/webm;codecs="vorbis, vp8""
+FAIL=Test valid WebM type "video/webm;codecs="vp8""
+FAIL=Test valid WebM type "video/webm;codecs="vp8,vorbis""
+[media-source/mediasource-liveseekable.html]
+FAIL=HTMLMediaElement.seekable returns the live seekable range or an empty range if that range was cleared when nothing is buffered
+FAIL=HTMLMediaElement.seekable returns the union of the buffered range and the live seekable range, when set
+FAIL=clearLiveSeekableRange does not restrict to not currently updating
+FAIL=clearLiveSeekableRange returns with no error when conditions are correct
+FAIL=clearLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'
+FAIL=setLiveSeekableRange does not restrict to not currently updating
+FAIL=setLiveSeekableRange returns with no error when conditions are correct
+FAIL=setLiveSeekableRange throws a TypeError if start is greater than end
+FAIL=setLiveSeekableRange throws a TypeError if start is negative
+FAIL=setLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'
+[media-source/mediasource-multiple-attach.html]
+harness=TIMEOUT
+[media-source/mediasource-play-then-seek-back.html]
+harness=TIMEOUT
+[media-source/mediasource-play.html]
+FAIL=Test normal playback case with MediaSource API
+[media-source/mediasource-preload.html]
+harness=TIMEOUT
+[media-source/mediasource-redundant-seek.html]
+harness=TIMEOUT
+[media-source/mediasource-remove.html]
+FAIL=Test aborting a remove operation.
+FAIL=Test remove after SourceBuffer removed from mediaSource.
+FAIL=Test remove transitioning readyState from 'ended' to 'open'.
+FAIL=Test remove while update pending.
+FAIL=Test remove with a NEGATIVE_INFINITY end.
+FAIL=Test remove with a NaN duration.
+FAIL=Test remove with a NaN end.
+FAIL=Test remove with a nanosecond range.
+FAIL=Test remove with a start at the duration.
+FAIL=Test remove with a start beyond the duration.
+FAIL=Test remove with a start larger than the end.
+FAIL=Test remove with an negative start.
+FAIL=Test remove with non-finite start.
+FAIL=Test removing all appended data.
+FAIL=Test removing beginning of appended data.
+FAIL=Test removing the end of appended data.
+FAIL=Test removing the middle of appended data.
+[media-source/mediasource-removesourcebuffer.html]
+harness=TIMEOUT
+[media-source/mediasource-replay.html]
+harness=TIMEOUT
+[media-source/mediasource-seek-beyond-duration.html]
+harness=TIMEOUT
+[media-source/mediasource-seek-during-pending-seek.html]
+harness=TIMEOUT
+[media-source/mediasource-seekable.html]
+harness=TIMEOUT
+[media-source/mediasource-sequencemode-append-buffer.html]
+FAIL=Test sequence AppendMode appendBuffer(first media segment)
+FAIL=Test sequence AppendMode appendBuffer(second media segment)
+FAIL=Test sequence AppendMode appendBuffer(second media segment, then first media segment)
+[media-source/mediasource-sourcebuffer-mode-timestamps.html]
+FAIL=audio/aac : If generate timestamps flag equals true and new mode equals "segments", then throw a TypeError exception and abort these steps.
+FAIL=audio/mpeg : If generate timestamps flag equals true and new mode equals "segments", then throw a TypeError exception and abort these steps.
+[media-source/mediasource-sourcebuffer-mode.html]
+FAIL=Test initial value of SourceBuffer.mode is "segments"
+FAIL=Test setting SourceBuffer.mode
+FAIL=Test setting SourceBuffer.mode and SourceBuffer.timestampOffset while parsing media segment.
+FAIL=Test setting SourceBuffer.mode triggers parent MediaSource 'ended' to 'open' transition.
+FAIL=Test setting SourceBuffer.mode while still updating
+FAIL=Test setting a removed SourceBuffer's mode
+[media-source/mediasource-sourcebufferlist.html]
+FAIL=Test SourceBufferList event dispatching.
+FAIL=Test SourceBufferList getter method
+FAIL=Test that only 1 removesourcebuffer event fires on each SourceBufferList when the MediaSource closes.
+[media-source/mediasource-timestamp-offset.html]
+FAIL=Test setting SourceBuffer.timestampOffset to NaN.
+FAIL=Test setting SourceBuffer.timestampOffset to negative infinity.
+FAIL=Test setting SourceBuffer.timestampOffset to positive infinity.
+FAIL=Test setting SourceBuffer.timestampOffset to undefined.
+FAIL=Test setting timestampOffset in 'ended' state causes a transition to 'open'.
+FAIL=Test setting timestampoffset after removing the sourcebuffer.
+[media-source/mse-for-webcodecs/tentative/mediasource-encrypted-webcodecs-appendencodedchunks-play.https.html]
+harness=ERROR
+[media-source/mse-for-webcodecs/tentative/mediasource-webcodecs-addsourcebuffer.html]
+harness=ERROR
+[media-source/mse-for-webcodecs/tentative/mediasource-webcodecs-appendencodedchunks-play.html]
+harness=ERROR
+[media-source/waiting-for-audio.html]
+FAIL=playback after waiting for audio
