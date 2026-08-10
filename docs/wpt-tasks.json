@@ -22,7 +22,7 @@
   "updated": "2026-08-10",
   "milestones": [
     { "id": "M-A", "title": "the instrument", "status": "done" },
-    { "id": "M-B", "title": "the baseline", "status": "not_started" },
+    { "id": "M-B", "title": "the baseline", "status": "in_progress" },
     { "id": "M-C", "title": "the DOM and its bindings", "status": "not_started" },
     { "id": "M-D", "title": "CSS: cascade, values, object model", "status": "not_started" },
     { "id": "M-E", "title": "layout", "status": "not_started" },
@@ -41,25 +41,25 @@
       "id": "B1", "milestone": "M-B", "title": "full baseline run", "area": "",
       "scope": "Run every checked-out area, commit the expectation files it produces.",
       "check": "tests/wpt/expectations/ has a file per top-level area and `microbrowser_wpt` exits 0 against it.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0040", "notes": ""
+      "depends": [], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": ""
     },
     {
       "id": "B2", "milestone": "M-B", "title": "triage the baseline by cause", "area": "",
       "scope": "Group failures by message and by cause, rank by tests-unblocked-per-fix, write docs/wpt-baseline.md.",
       "check": "docs/wpt-baseline.md ranks at least the top 25 causes with the subtest count behind each.",
-      "depends": ["B1"], "target": "", "status": "not_started", "agent": null, "adr": "0040", "notes": "The first 150 dom/ tests showed four messages behind most failures. This is what turns 20,000 failures into 40 sessions."
+      "depends": ["B1"], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": "The first 150 dom/ tests showed four messages behind most failures. This is what turns 20,000 failures into 40 sessions."
     },
     {
       "id": "B3", "milestone": "M-B", "title": "harness gaps", "area": "",
       "scope": "Which areas are unrunnable and why: .py handlers, testdriver.js, https origins.",
       "check": "ADR 0040 amended with the list and a decision for each.",
-      "depends": ["B1"], "target": "", "status": "not_started", "agent": null, "adr": "0040", "notes": ""
+      "depends": ["B1"], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": ""
     },
     {
       "id": "B4", "milestone": "M-B", "title": "per-area pass-rate table", "area": "",
       "scope": "A committed, regenerable table of pass rate per area.",
-      "check": "tools/wpt/report.sh regenerates docs/wpt-baseline.md's table from a run.",
-      "depends": ["B1"], "target": "", "status": "not_started", "agent": null, "adr": "0040", "notes": ""
+      "check": "microbrowser_wpt --summary docs/wpt-baseline.md regenerates the table from a run.",
+      "depends": ["B1"], "target": "", "status": "in_progress", "agent": "wpt-baseline", "adr": "0040", "notes": ""
     },
 
     {
