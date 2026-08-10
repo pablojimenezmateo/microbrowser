@@ -7,6 +7,7 @@
 
 #include "TestSupport.h"
 #include "bindings/AnimationFrames.h"
+#include "css/MediaQuery.h"
 #include "engine/Engine.h"
 #include "net/RequestQueue.h"
 #include "engine/Loader.h"
@@ -881,6 +882,67 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
                    "abspos link inside overflow:hidden stacking context is topmost");
     ExpectEqString(*page.LinkAt(gfx::FloatPoint{150.0f, 100.0f}), "/watch?v=1",
                    "LinkAt agrees");
+  });
+
+  AddTest(tests, "Page/HitTestsAbsposAfterDocumentScroll", [] {
+    // youtube /results after TD-0036: scrollIntoView moves the document so the
+    // thumbnail sits at the viewport top. Live pages then returned ytd-search
+    // for every point on the thumb — click still SPA-navigated via script, but
+    // hit-testing disagreed with paint.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{400.0f, 400.0f, 1.0f});
+    page.Load("<style>"
+              "html,body{margin:0;height:0}"
+              "#app{position:absolute;left:0;top:0;width:400px;height:3000px}"
+              "#search{position:relative;z-index:0;width:400px;height:2500px;"
+              "overflow:hidden}"
+              "#thumb{position:relative;width:200px;height:100px;margin-top:800px}"
+              "a{position:absolute;inset:0}"
+              "</style>"
+              "<body><div id=app><div id=search><div id=thumb>"
+              "<a id=thumbnail href='/watch?v=1'></a>"
+              "</div></div></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    (void)page.EvaluateScript("document.getElementById('thumbnail').scrollIntoView()");
+    const std::string hit = page.EvaluateScript(
+        "var r=document.getElementById('thumbnail').getBoundingClientRect();"
+        "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
+        "el && (el.id||el.tagName);");
+    ExpectEqString(hit, "thumbnail",
+                   "scrolled abspos thumbnail stays the top hit, not the search SC");
+  });
+
+  AddTest(tests, "Page/HitTestsAbsposUnderPositionedNonStackingAncestor", [] {
+    // `position:relative; z-index:auto` is a paint unit but not a stacking
+    // context (Appendix E). Positioned descendants belong to the ancestor
+    // context. Hit-testing that visits the unit with collects=false skipped
+    // those descendants and returned the ancestor — youtube `ytd-search` over
+    // every thumbnail after scrollIntoView.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.SetViewport(css::MediaContext{400.0f, 400.0f, 1.0f});
+    page.Load("<style>"
+              "html,body{margin:0;height:0}"
+              "#app{position:absolute;left:0;top:0;width:400px;height:2000px;"
+              "z-index:0}"
+              "#search{position:relative;width:400px;height:1500px}"
+              "#thumb{position:relative;width:200px;height:100px;margin-top:500px}"
+              "a{position:absolute;inset:0}"
+              "</style>"
+              "<body><div id=app><div id=search><div id=thumb>"
+              "<a id=thumbnail href='/watch?v=1'></a>"
+              "</div></div></div></body>",
+              "https://example.org/");
+    page.Layout(400.0f);
+    (void)page.EvaluateScript("document.getElementById('thumbnail').scrollIntoView()");
+    const std::string hit = page.EvaluateScript(
+        "var r=document.getElementById('thumbnail').getBoundingClientRect();"
+        "var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);"
+        "el && (el.id||el.tagName);");
+    ExpectEqString(hit, "thumbnail",
+                   "abspos under relative z-index:auto ancestor is still the top hit");
   });
 
   AddTest(tests, "Page/HtmlBodyOverflowDoesNotClipAsLocalScroller", [] {

@@ -1850,6 +1850,33 @@ viewport-laid-out; `getBoundingClientRect` / hit-testing must not apply
 document scroll to them (`AncestorScrollOffsets`, `PointForBox`). See
 `Scroll/ScrollIntoViewUnderFixedDoesNotMoveTheDocument`.
 
+**Measured** (Release, 2026-08-10). After Accept on
+`/results?search_query=cats`, `scrollHeight≈9k`, `scrollIntoView` on
+`a#thumbnail` brings it to the viewport, `-click last` soft-navigates to
+`/watch?v=…` with `#movie_player` + `<video>` stamped (SPA path).
+`elementFromPoint` on the same thumb still returns `YTD-SEARCH` while
+client rects of `a#thumbnail` / `ytd-video-renderer` contain the point —
+opened as TD-0037. Navigation still succeeds because youtube's own listeners
+are not the hit-test default action.
+
+---
+
+## TD-0037 — `elementFromPoint` returns `ytd-search` for in-view thumbnails
+
+**Opened** 2026-08-10 after TD-0036 made result thumbs reachable.
+
+**Symptom.** Release `/results` after Accept + `scrollIntoView(a#thumbnail)`:
+thumbnail / `ytd-video-renderer` client rects contain `(x,y)`, but
+`document.elementFromPoint(x,y)` is `YTD-SEARCH` (chain stops there). Paint
+still shows the thumb; SPA click can still reach `/watch` via page script.
+`pointer-events` on the thumb chain is `auto`. Simplified fixtures with
+`position:relative;z-index:0` and with `z-index:auto` under an abspos app SC
+still hit the thumbnail — live tree not yet reduced.
+
+**Close when.** `elementFromPoint` / `ElementAt` agree with the painted topmost
+thumb (img or `a#thumbnail`) on `/results` after scrollIntoView; regression
+from a minimal fixture once one exists.
+
 ---
 
 ## Closed
