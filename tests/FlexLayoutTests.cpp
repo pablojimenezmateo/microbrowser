@@ -107,6 +107,36 @@ constexpr const char* kReset =
 }  // namespace
 
 void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Flex/BareTextBecomesAnAnonymousFlexItem", [] {
+    // CSS Flexbox §4: each contiguous run of child text in a flex container is wrapped in an
+    // anonymous block-container flex item. Without it the text generated no box at all -- itch.io's
+    // whole sidebar is `<a class=... style="display:flex">Browser games</a>`, and every one of them
+    // was an empty 27px-tall link. An element child is already a flex item and must not be gathered
+    // into the same wrapper, which is what refusing to wrap anything was avoiding.
+    const Flexed only_text =
+        Run("<body style='margin:0'><div id='f'>Browser games</div></body>",
+            "body { margin: 0 } #f { display: flex; width: 200px }");
+    const std::vector<const Box*> containers = Items(*only_text.root, "div");
+    Expect(containers.size() == 1, "the flex container has a box");
+    const Box* container = containers.front();
+    Expect(TextBoxesIn(*container).size() == 1, "and the text still generates a box");
+    Expect(container->Children().size() == 1, "one anonymous item for the one text run");
+    Expect(container->Geometry().content.height > 0.0f,
+           "and the container is as tall as the text, not zero");
+
+    // Whitespace-only runs are not rendered at all: the gap between two chips in the markup must
+    // not become an item taking a share of the main size.
+    const Flexed mixed =
+        Run("<body style='margin:0'><div id='f'>text <b>bold</b> <i>x</i></div></body>",
+            "body { margin: 0 } #f { display: flex; width: 400px }");
+    const std::vector<const Box*> rows = Items(*mixed.root, "div");
+    Expect(rows.size() == 1, "the row has a box");
+    const Box* row = rows.front();
+    Expect(row->Children().size() == 3,
+           "one anonymous item for `text `, one for <b>, one for <i> -- and none for the space "
+           "between the two elements");
+  });
+
   AddTest(tests, "Flex/ItemsSitSideBySideRatherThanStacking", [] {
     // The whole point, and the thing a block container cannot do.
     const Flexed result = Run(

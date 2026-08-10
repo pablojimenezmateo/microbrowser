@@ -289,6 +289,7 @@ microbrowser_module(layout
     src/layout/FontTextMeasurer.cpp
     src/layout/InlineLayout.cpp
     src/layout/LayoutDisplayList.cpp
+    src/layout/BoxTree.cpp
     src/layout/LayoutEngine.cpp
     src/layout/ReplacedBoxes.cpp
     src/layout/ScrollLayout.cpp
