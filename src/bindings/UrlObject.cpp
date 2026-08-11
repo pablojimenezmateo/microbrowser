@@ -399,7 +399,56 @@ void DomBindings::RefreshUrlSearchParams(const js::Value& url_object) {
   ResetUrlSearchParams(*params, url.has_value() ? url->Search() : std::string());
 }
 
+// `HTMLBaseElement.href`, which is *not* an ordinary reflected attribute and cannot be one.
+//
+// It reads back absolute — the content attribute resolved against the document's fallback base URL,
+// which is the document's own address rather than the base element's own answer, because a base
+// that resolved against itself would be circular. Without this, `base.href = x` set a plain
+// property on the wrapper and every link on the page kept resolving against the document address:
+// the URL Standard's own test page sets `<base>` before each of nine hundred link resolutions and
+// got the same answer for all of them.
+void DomBindings::InstallBaseElementHref() {
+  if (!interfaces_.IsObject()) {
+    return;
+  }
+  const Value* prototype = interfaces_.object->GetOwn("HTMLBaseElement");
+  if (prototype == nullptr || !prototype->IsObject()) {
+    return;
+  }
+  const Value get = interpreter_->NewNativeValue("href", [this](NativeCall& call) {
+    dom::Element* element = ElementOf(call.self);
+    const std::string* href = element == nullptr ? nullptr : element->GetAttribute("href");
+    if (href == nullptr) {
+      return Value::String(url_);  // no attribute: the document's own address
+    }
+    const std::optional<url::Url> fallback = url::Url::Parse(url_);
+    const std::optional<url::Url> parsed =
+        fallback.has_value() ? url::Url::Parse(*href, *fallback) : url::Url::Parse(*href);
+    // A base that does not parse answers with what was written, and resolves nothing.
+    return Value::String(parsed.has_value() ? parsed->Serialize() : *href);
+  });
+  const Value set = interpreter_->NewNativeValue("href", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Element* element = ElementOf(call.self);
+    if (owner == nullptr || element == nullptr) {
+      return Value::Undefined();
+    }
+    std::string href;
+    if (!CoerceToString(call, Argument(call.arguments, 0), href)) {
+      return call.ThrownValue();
+    }
+    owner->SetElementAttribute(*element, "href", href);
+    return Value::Undefined();
+  });
+  if (get.IsObject() && set.IsObject()) {
+    get.object->Set(kOwnerSlot, PointerValue(this));
+    set.object->Set(kOwnerSlot, PointerValue(this));
+    prototype->object->DefineAccessor("href", get.object, set.object);
+  }
+}
+
 void DomBindings::InstallHyperlinkElementUtils() {
+  InstallBaseElementHref();
   // HTMLHyperlinkElementUtils, on both elements that have it. `<area>` is not an afterthought: the
   // standard defines the two together, and the URL Standard's own setter tests run every case
   // against both — a decomposition attribute that worked on `<a>` and not on `<area>` is a page

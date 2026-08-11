@@ -451,6 +451,7 @@ class DomBindings {
   // call: `<base href>` is an attribute a script can rewrite between two link resolutions.
   void InstallUrlConstructor();
   void InstallLocationParts(const js::Value& location_prototype);
+  void InstallBaseElementHref();
   std::string DocumentBaseUrl(const dom::Document* document) const;
   // --- Focus, in FocusBindings.cpp ------------------------------------------
   // `focus()` and `blur()` on HTMLElement, and `document.activeElement`.

@@ -1,5 +1,6 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "url/Url.h"
 
 #include <cstddef>
 #include <string>
@@ -185,6 +186,38 @@ void DomBindings::InstallWindow() {
     InstallPrivacyAnswers(navigator);
     global->Set("navigator", navigator);
     interpreter_->GlobalScope()->Declare("navigator", navigator, false);
+  }
+  // `window.open`, which **refuses** — and says so the way the platform already has a way of
+  // saying it. There are no tabs and no second window here (M7), so there is no browsing context
+  // to hand back, and `null` is the standard's own answer for "the browsing context was not
+  // created": every page that calls this already writes `const w = open(...); if (!w) …`, because
+  // popup blockers have made that the common case for twenty years. A fake window object with a
+  // `close` on it would be the stub ADR 0012 forbids — a page would navigate it and wait.
+  //
+  // The URL is still parsed, and a bad one is still a `SyntaxError`, because that half is not
+  // about windows: it is the same "is this a URL" question `XMLHttpRequest.open` answers, and a
+  // page that got `null` for a malformed URL could not tell it from a blocked popup.
+  const Value open_window = interpreter_->NewNativeValue("open", [this](NativeCall& call) -> Value {
+    std::string target;
+    if (!call.arguments.empty() && !call.arguments[0].IsUndefined()) {
+      if (!CoerceToString(call, call.arguments[0], target)) {
+        return call.ThrownValue();
+      }
+    }
+    if (!target.empty()) {
+      const std::optional<url::Url> base = url::Url::Parse(DocumentBaseUrl(DocumentOf(call.self)));
+      const std::optional<url::Url> parsed =
+          base.has_value() ? url::Url::Parse(target, *base) : url::Url::Parse(target);
+      if (!parsed.has_value()) {
+        return ThrowDom(call, "SyntaxError", "Failed to parse URL: " + target);
+      }
+    }
+    return Value::Null();
+  });
+  if (open_window.IsObject()) {
+    open_window.object->Set(kOwnerSlot, PointerValue(this));
+    global->Set("open", open_window);
+    interpreter_->GlobalScope()->Declare("open", open_window, false);
   }
   InstallNotification();
   InstallCrypto();

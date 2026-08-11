@@ -230,4 +230,65 @@ inline bool DecodeUtf8(std::string_view text, std::size_t& at, std::uint32_t& co
   return true;
 }
 
+// "UTF-8 decode without BOM", the Encoding Standard's own algorithm, expressed as UTF-8 in and
+// UTF-8 out: every byte that is not part of a well-formed scalar value becomes U+FFFD.
+//
+// It is stricter than `DecodeUtf8` above on purpose, and the difference is the point. That one
+// answers "is this a sequence" for a lexer, which never sees bytes off the network; this one is for
+// the places a *byte sequence* arrives and has to become text — a percent-decoded query, a form
+// body — where an overlong `%C0%AF` decoding to `/` is the classic path-traversal escape and a lone
+// surrogate is a string no other browser would produce.
+inline std::string Utf8DecodeLossy(std::string_view input) {
+  std::string out;
+  out.reserve(input.size());
+  std::size_t at = 0;
+  while (at < input.size()) {
+    const auto lead = static_cast<unsigned char>(input[at]);
+    if (lead < 0x80u) {
+      out.push_back(static_cast<char>(lead));
+      ++at;
+      continue;
+    }
+    std::size_t extra = 0;
+    std::uint32_t value = 0;
+    std::uint32_t lowest = 0;
+    if ((lead & 0xE0u) == 0xC0u) {
+      extra = 1;
+      value = lead & 0x1Fu;
+      lowest = 0x80;
+    } else if ((lead & 0xF0u) == 0xE0u) {
+      extra = 2;
+      value = lead & 0x0Fu;
+      lowest = 0x800;
+    } else if ((lead & 0xF8u) == 0xF0u) {
+      extra = 3;
+      value = lead & 0x07u;
+      lowest = 0x10000;
+    } else {
+      AppendUtf8(out, 0xFFFD);
+      ++at;
+      continue;
+    }
+    bool ok = at + extra < input.size();
+    for (std::size_t i = 1; ok && i <= extra; ++i) {
+      const auto byte = static_cast<unsigned char>(input[at + i]);
+      if ((byte & 0xC0u) != 0x80u) {
+        ok = false;
+        break;
+      }
+      value = (value << 6) | (byte & 0x3Fu);
+    }
+    // An overlong encoding, a surrogate, or a value past the last code point is not a scalar value
+    // however well-formed its bytes look.
+    if (!ok || value < lowest || value > 0x10FFFF || (value >= 0xD800 && value <= 0xDFFF)) {
+      AppendUtf8(out, 0xFFFD);
+      ++at;
+      continue;
+    }
+    AppendUtf8(out, value);
+    at += extra + 1;
+  }
+  return out;
+}
+
 }  // namespace microbrowser::util
