@@ -146,7 +146,11 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
         }
         const std::string text = js::ToString(Argument(call.arguments, 0));
         if (IsCharacterDataNode(*self)) {
+          // On CharacterData, `textContent` *is* `data`: "replace data" over the
+          // whole node, so every live range pointing into it moves too.
+          const std::size_t previous = DomStringLength(CharacterDataOf(self));
           owner->SetCharacterData(self, text);
+          RangesDidReplaceData(call.interpreter, *self, 0, previous, DomStringLength(text));
           return Value::Undefined();
         }
         // "String replace all", which is "replace all" with a Text node --
@@ -260,7 +264,13 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
           merged += static_cast<const dom::Text*>(node->Children()[j].get())->Data();
         }
         if (!absorbed.empty()) {
+          // An *append*, not a rewrite: the DOM's normalize replaces data at
+          // offset `length` with count 0, so a boundary already inside this
+          // node keeps its offset and only the siblings' boundaries move.
+          const std::size_t previous = DomStringLength(CharacterDataOf(child));
+          const std::size_t written = DomStringLength(merged);
           owner->SetCharacterData(child, std::move(merged));
+          RangesDidReplaceData(call.interpreter, *child, previous, 0, written - previous);
           for (dom::Node* gone : absorbed) {
             owner->DetachFromTree(*gone);
           }

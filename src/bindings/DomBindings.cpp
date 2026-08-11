@@ -1,4 +1,5 @@
 #include "bindings/DomBindings.h"
+#include "bindings/LiveRanges.h"
 
 #include "bindings/BindingSupport.h"
 #include "bindings/WebIdl.h"
@@ -289,7 +290,11 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
         }
         const std::string value = js::ToString(Argument(call.arguments, 0));
         if (IsCharacterDataNode(*self)) {
+          // "Replace data" over the whole node, live ranges and all -- the same
+          // act as setting `data`, and the DOM defines it by pointing at that.
+          const std::size_t previous = DomStringLength(CharacterDataOf(self));
           owner->SetCharacterData(self, value);
+          RangesDidReplaceData(call.interpreter, *self, 0, previous, DomStringLength(value));
         }
         return Value::Undefined();
       });
