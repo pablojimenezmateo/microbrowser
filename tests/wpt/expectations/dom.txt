@@ -1,42 +1,13 @@
-[dom/abort/AbortSignal.any.html]
-FAIL=signal returned by AbortSignal.abort() should not fire abort event
-FAIL=the AbortSignal.abort() static returns an already aborted signal
 [dom/abort/AbortSignal.any.worker.html]
 harness=TIMEOUT
-[dom/abort/abort-signal-any.any.html]
-FAIL=Abort events for AbortSignal.any() signals fire in the right order (using AbortController)
-FAIL=AbortSignal.any() can be passed the same signal more than once (using AbortController)
-FAIL=AbortSignal.any() follows a single signal (using AbortController)
-FAIL=AbortSignal.any() follows multiple signals (using AbortController)
-FAIL=AbortSignal.any() returns an aborted signal if passed an aborted signal (using AbortController)
-FAIL=AbortSignal.any() signals are composable (using AbortController)
-FAIL=AbortSignal.any() uses the first instance of a duplicate signal (using AbortController)
-FAIL=AbortSignal.any() works with an empty array of signals
-FAIL=AbortSignal.any() works with intermediate signals (using AbortController)
-FAIL=AbortSignal.any() works with signals returned by AbortSignal.timeout() (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() are aborted correctly for reentrant aborts (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() are marked aborted before abort events fire (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() should use the same DOMException instance from the already aborted source signal (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() should use the same DOMException instance from the source signal being aborted later (using AbortController)
 [dom/abort/abort-signal-any.any.worker.html]
 harness=TIMEOUT
 [dom/abort/abort-signal-timeout.html]
 FAIL=Signal returned by AbortSignal.timeout() is not aborted after frame detach
-[dom/abort/event.any.html]
-FAIL=AbortSignal.reason returns the same DOMException
-FAIL=static aborting signal should have right properties
-FAIL=static aborting signal with reason should set signal.reason
-FAIL=throwIfAborted() should not throw if signal not aborted
-FAIL=throwIfAborted() should throw abort.reason if signal aborted
-FAIL=throwIfAborted() should throw primitive abort.reason if signal aborted
 [dom/abort/event.any.worker.html]
 harness=TIMEOUT
 [dom/abort/reason-constructor.html]
 FAIL=AbortSignal.reason.constructor should be from iframe
-[dom/abort/timeout.any.html]
-FAIL=AbortSignal timeouts fire in order
-FAIL=AbortSignal.timeout() returns a non-aborted signal
-FAIL=Signal returned by AbortSignal.timeout() times out
 [dom/abort/timeout.any.worker.html]
 harness=TIMEOUT
 [dom/attributes-are-nodes.html]
@@ -1287,11 +1258,16 @@ FAIL=createElementNS test in XML document: undefined,"xmlns","NAMESPACE_ERR"
 FAIL=createElementNS test in XML document: undefined,"xmlns:foo","NAMESPACE_ERR"
 FAIL=createElementNS test in XML document: undefined,null,null
 FAIL=createElementNS test in XML document: undefined,undefined,null
+# ADR 0012, and the table's own rule (EventBindings.cpp `LegacyEventInterface`):
+# a legacy name is in the table only when this browser has the interface behind
+# it. `DeviceMotionEvent` and `DeviceOrientationEvent` are refused twice over --
+# there is no sensor and ADR 0029 says a table entry would be a fingerprinting
+# surface. `BeforeUnloadEvent`, `TextEvent` and `StorageEvent` name events this
+# browser never fires, and a name that answers is what sends a page down the
+# native path. Deliberate; do not "fix" by adding the aliases.
 [dom/nodes/Document-createEvent.https.html]
 FAIL=BEFOREUNLOADEVENT should be an alias for BeforeUnloadEvent.
 FAIL=BeforeUnloadEvent should be an alias for BeforeUnloadEvent.
-FAIL=COMPOSITIONEVENT should be an alias for CompositionEvent.
-FAIL=CompositionEvent should be an alias for CompositionEvent.
 FAIL=DEVICEMOTIONEVENT should be an alias for DeviceMotionEvent.
 FAIL=DEVICEORIENTATIONEVENT should be an alias for DeviceOrientationEvent.
 FAIL=DeviceMotionEvent should be an alias for DeviceMotionEvent.
@@ -1303,11 +1279,8 @@ PRECONDITION_FAILED=TOUCHEVENT should be an alias for TouchEvent.
 FAIL=TextEvent should be an alias for TextEvent.
 PRECONDITION_FAILED=TouchEvent should be an alias for TouchEvent.
 FAIL=beforeunloadevent should be an alias for BeforeUnloadEvent.
-FAIL=compositionevent should be an alias for CompositionEvent.
 FAIL=createEvent('BEFOREUNLOADEVENT') should be initialized correctly.
 FAIL=createEvent('BeforeUnloadEvent') should be initialized correctly.
-FAIL=createEvent('COMPOSITIONEVENT') should be initialized correctly.
-FAIL=createEvent('CompositionEvent') should be initialized correctly.
 FAIL=createEvent('DEVICEMOTIONEVENT') should be initialized correctly.
 FAIL=createEvent('DEVICEORIENTATIONEVENT') should be initialized correctly.
 FAIL=createEvent('DeviceMotionEvent') should be initialized correctly.
@@ -1319,7 +1292,6 @@ PRECONDITION_FAILED=createEvent('TOUCHEVENT') should be initialized correctly.
 FAIL=createEvent('TextEvent') should be initialized correctly.
 PRECONDITION_FAILED=createEvent('TouchEvent') should be initialized correctly.
 FAIL=createEvent('beforeunloadevent') should be initialized correctly.
-FAIL=createEvent('compositionevent') should be initialized correctly.
 FAIL=createEvent('devicemotionevent') should be initialized correctly.
 FAIL=createEvent('deviceorientationevent') should be initialized correctly.
 FAIL=createEvent('storageevent') should be initialized correctly.
@@ -1548,43 +1520,8 @@ FAIL=parentElement should work correctly with DocumentFragments (text)
 [dom/nodes/Node-parentNode.html]
 harness=TIMEOUT
 [dom/nodes/Node-properties.html]
-FAIL=comment.parentElement
-FAIL=comment.textContent
-FAIL=detachedComment.parentElement
-FAIL=detachedComment.textContent
-FAIL=detachedForeignComment.parentElement
-FAIL=detachedForeignComment.textContent
-FAIL=detachedForeignTextNode.parentElement
-FAIL=detachedForeignTextNode.wholeText
-FAIL=detachedProcessingInstruction.parentElement
-FAIL=detachedProcessingInstruction.textContent
-FAIL=detachedTextNode.parentElement
-FAIL=detachedTextNode.wholeText
-FAIL=detachedXmlComment.parentElement
-FAIL=detachedXmlComment.textContent
-FAIL=detachedXmlTextNode.parentElement
-FAIL=detachedXmlTextNode.wholeText
-FAIL=doctype.parentElement
-FAIL=doctype.textContent
-FAIL=document.textContent
-FAIL=foreignComment.parentElement
-FAIL=foreignComment.textContent
 FAIL=foreignDoc.URL
 FAIL=foreignDoc.documentURI
-FAIL=foreignDoc.textContent
-FAIL=foreignDoctype.parentElement
-FAIL=foreignDoctype.textContent
-FAIL=foreignTextNode.parentElement
-FAIL=foreignTextNode.wholeText
-FAIL=processingInstruction.parentElement
-FAIL=processingInstruction.textContent
-FAIL=xmlComment.parentElement
-FAIL=xmlComment.textContent
-FAIL=xmlDoc.textContent
-FAIL=xmlDoctype.parentElement
-FAIL=xmlDoctype.textContent
-FAIL=xmlTextNode.parentElement
-FAIL=xmlTextNode.wholeText
 [dom/nodes/Node-removeChild.html]
 FAIL=Calling removeChild on a comment from a frame document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a element from a frame document with no children should throw NOT_FOUND_ERR.
@@ -1612,20 +1549,9 @@ FAIL=Element with empty text node as child set to null
 FAIL=Element with empty text node as child set to undefined
 FAIL=Element without children set to null
 FAIL=Element without children set to undefined
-FAIL=For DocumentType created by parser, setting textContent should do nothing
-FAIL=For DocumentType created by parser, textContent should be null
-FAIL=For DocumentType created by script, setting textContent should do nothing
-FAIL=For DocumentType created by script, textContent should be null
 FAIL=For Documents created by createDocument, setting textContent should do nothing
-FAIL=For Documents created by createDocument, textContent should be null
 FAIL=For Documents created by createHTMLDocument, setting textContent should do nothing
-FAIL=For Documents created by createHTMLDocument, textContent should be null
 FAIL=For Documents created by parser, setting textContent should do nothing
-FAIL=For Documents created by parser, textContent should be null
-FAIL=For a Comment with data, textContent should be that data
-FAIL=For a Comment, textContent should set the data
-FAIL=For a ProcessingInstruction with data, textContent should be that data
-FAIL=For a ProcessingInstruction, textContent should set the data
 [dom/nodes/NodeList-Iterable.html]
 FAIL=live NodeLists are for-of iterable and update appropriately
 [dom/nodes/NodeList-live-mutations.window.html]
@@ -2020,6 +1946,12 @@ FAIL=Document.prepend() with only one element as an argument, on a Document havi
 FAIL=Document.prepend() with text as an argument, on a Document having no child.
 FAIL=Document.prepend() with two elements as the argument, on a Document having no child.
 FAIL=Document.prepend() without any argument, on a Document having no child.
+# Attributes on a *processing instruction* are WICG/declarative-partial-updates,
+# not the DOM: the file's own `link rel=help` points at the proposal. No engine
+# ships it and the DOM gives a ProcessingInstruction no `getAttribute` at all.
+# ADR 0012's rule, the same one OpaqueRange gets: an API a page could feature-
+# detect is worse present-and-approximate than absent. 126 subtests, and they
+# are the largest single block of "failures" in dom/nodes that is not a bug.
 [dom/nodes/processing-instruction-attributes.html]
 FAIL=Distinct attribute name (source: html-dom): ABC and abc
 FAIL=Distinct attribute name (source: html-dom): abC and abc
@@ -2577,23 +2509,7 @@ harness=TIMEOUT
 [dom/ranges/Range-surroundContents.html]
 harness=TIMEOUT
 [dom/ranges/StaticRange-constructor.html]
-FAIL=Construct collapsed static range
-FAIL=Construct inverted static range
-FAIL=Construct static range with CDATASection container
-FAIL=Construct static range with Comment container
-FAIL=Construct static range with Document container
-FAIL=Construct static range with DocumentFragment container
-FAIL=Construct static range with Element container
-FAIL=Construct static range with Element startContainer and Text endContainer
-FAIL=Construct static range with ProcessingInstruction container
-FAIL=Construct static range with Text container
-FAIL=Construct static range with Text startContainer and Element endContainer
-FAIL=Construct static range with endpoints in disconnected documents
-FAIL=Construct static range with endpoints in disconnected trees
-FAIL=Construct static range with offset greater than length
-FAIL=Construct static range with standalone Node container
 FAIL=Throw on DocumentType or Attr container
-FAIL=Throw on missing or invalid arguments
 # `OpaqueRange` is a *tentative* specification -- not standardised, no other
 # engine ships it, and WPT keeps it under tentative/ for exactly that reason.
 # Recorded rather than implemented; ADR 0012 forbids guessing at an API a page

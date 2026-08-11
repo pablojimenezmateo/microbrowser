@@ -695,16 +695,25 @@ void DomBindings::InstallStaticRange() {
         range.object->SetPrototype(prototype.object);
         for (const Member& member : kMembers) {
           const Value* given = init->Get(member.name);
+          // **Every member of StaticRangeInit is `required`**, so an absent one
+          // is a TypeError rather than a zero. WebIDL treats `undefined` as
+          // absent, which is why the test is on the value and not only on the
+          // key -- `{startOffset: undefined}` is a dictionary missing its
+          // `startOffset`, and a range silently starting at 0 instead is a
+          // wrong answer where the page asked a wrong question.
+          if (given == nullptr || given->IsUndefined()) {
+            return call.Throw("TypeError", std::string("StaticRangeInit is missing ") +
+                                               member.name);
+          }
           if (!member.node) {
             std::uint32_t offset = 0;
-            if (!ToUnsignedLong(call, given == nullptr ? Value::Undefined() : *given,
-                                IntegerRange::Modulo, offset)) {
+            if (!ToUnsignedLong(call, *given, IntegerRange::Modulo, offset)) {
               return call.ThrownValue();
             }
             range.object->SetHidden(member.slot, Value::Number(static_cast<double>(offset)));
             continue;
           }
-          dom::Node* node = given == nullptr ? nullptr : NodeOf(*given);
+          dom::Node* node = NodeOf(*given);
           if (node == nullptr) {
             return call.Throw("TypeError",
                               std::string(member.name) + " is not a Node");
