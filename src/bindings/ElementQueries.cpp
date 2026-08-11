@@ -42,13 +42,25 @@ void EachDescendantElement(dom::Node& root,
 
 // One attribute, as a page sees it.
 //
-// Not a `Node` -- an `Attr` in the DOM is one, with an `ownerElement` and a
-// writable `value` that reaches the element, and this is a record of what the
-// attribute said when it was read. That gap is written down rather than hidden:
-// `attributes[0].value = 'x'` sets a property on this object and does not touch
-// the tree. It is one function because it used to be two, and they disagreed --
+// Not a `Node` -- an `Attr` in the DOM is one, with a `value` that writes back
+// through to the element and an identity that survives being removed and
+// re-attached, and this is a record of what the attribute said when it was
+// read. That gap is written down rather than hidden: `attributes[0].value = 'x'`
+// sets a property on this object and does not touch the tree, and
+// `el.attributes[0] === el.getAttributeNode('x')` is false where every browser
+// says true. Closing it is the named remainder of task C4 in
+// docs/wpt-tasks.json; it wants a per-element table of materialised Attrs and
+// a detach at every attribute removal, which is a design rather than an
+// addition. It is one function because it used to be two, and they disagreed --
 // `getAttributeNode` answered a `localName` that was the whole qualified name.
-js::Value MakeAttr(js::Interpreter& interpreter, const dom::Attribute& attribute) {
+//
+// `ownerElement`, though, is an *accessor* rather than a stored value, and that
+// is the one piece of the real thing that costs nothing. It re-asks the element
+// whether it still carries this attribute, so a record taken before a
+// `removeAttribute` answers null afterwards -- which is what the DOM says and
+// what `attributes.js`'s `attributes_are` checks on every attribute it is given.
+js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Element& element,
+                   const dom::Attribute& attribute) {
   const js::Value entry = interpreter.NewObjectValue();
   if (!entry.IsObject()) {
     return entry;
@@ -58,6 +70,9 @@ js::Value MakeAttr(js::Interpreter& interpreter, const dom::Attribute& attribute
   // `nodeName` is an Attr's qualified name, which is the same string as `name`.
   entry.object->Set("nodeName", js::Value::String(attribute.name));
   entry.object->Set("nodeValue", js::Value::String(attribute.value));
+  // An Attr's `textContent` is its value: it is a node with no children, and
+  // CharacterData's rule -- the data itself -- is the one that applies.
+  entry.object->Set("textContent", js::Value::String(attribute.value));
   entry.object->Set("localName", js::Value::String(std::string(attribute.LocalName())));
   entry.object->Set("prefix", attribute.Prefix().empty()
                                   ? js::Value::Null()
@@ -70,6 +85,24 @@ js::Value MakeAttr(js::Interpreter& interpreter, const dom::Attribute& attribute
   // DTD to default one, so `specified` is true for all of them -- which is what
   // the DOM now says unconditionally anyway.
   entry.object->Set("specified", js::Value::Bool(true));
+  // The element is captured as a pointer and the name by value, and the getter
+  // looks the pair up again on every read. Holding the wrapper instead would
+  // make this object keep an element alive that the page has dropped, which is
+  // the shape of every DOM leak.
+  dom::Element* holder = &element;
+  DomBindings* bindings = &owner;
+  const dom::NamespaceRef name_space = attribute.name_space;
+  const std::string local(attribute.LocalName());
+  const js::Value getter = interpreter.NewNativeValue(
+      "ownerElement", [holder, bindings, name_space, local](js::NativeCall&) {
+        if (holder->GetAttributeNS(name_space, local) == nullptr) {
+          return js::Value::Null();
+        }
+        return bindings->WrapperFor(holder);
+      });
+  if (getter.IsObject()) {
+    entry.object->DefineAccessor("ownerElement", getter.object, nullptr);
+  }
   return entry;
 }
 
@@ -581,16 +614,19 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     }
 
     const Value item = call.interpreter.NewNativeValue("item", [](NativeCall& inner) {
+      DomBindings* holder = OwnerOf(inner);
       dom::Node* node = NodeOf(inner.self);
-      if (node == nullptr || !node->IsElement()) {
+      if (holder == nullptr || node == nullptr || !node->IsElement()) {
         return Value::Null();
       }
-      const auto& attributes = static_cast<dom::Element*>(node)->Attributes();
+      auto& owning = static_cast<dom::Element&>(*node);
+      const auto& attributes = owning.Attributes();
       const double index = js::ToNumber(Argument(inner.arguments, 0));
       if (!(index >= 0) || index >= static_cast<double>(attributes.size())) {
         return Value::Null();
       }
-      return MakeAttr(inner.interpreter, attributes[static_cast<std::size_t>(index)]);
+      return MakeAttr(*holder, inner.interpreter, owning,
+                      attributes[static_cast<std::size_t>(index)]);
     });
     if (item.IsObject()) {
       item.object->Set(kOwnerSlot, PointerValue(owner));
@@ -599,8 +635,9 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
 
     const Value get_named =
         call.interpreter.NewNativeValue("getNamedItem", [](NativeCall& inner) {
+          DomBindings* holder = OwnerOf(inner);
           dom::Node* node = NodeOf(inner.self);
-          if (node == nullptr || !node->IsElement()) {
+          if (holder == nullptr || node == nullptr || !node->IsElement()) {
             return Value::Null();
           }
           auto& named = static_cast<dom::Element&>(*node);
@@ -608,7 +645,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
               AttributeNameFor(named, js::ToString(Argument(inner.arguments, 0)));
           for (const dom::Attribute& attribute : named.Attributes()) {
             if (attribute.name == name) {
-              return MakeAttr(inner.interpreter, attribute);
+              return MakeAttr(*holder, inner.interpreter, named, attribute);
             }
           }
           return Value::Null();
@@ -620,8 +657,9 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
 
     const Value get_named_ns =
         call.interpreter.NewNativeValue("getNamedItemNS", [](NativeCall& inner) -> Value {
+          DomBindings* holder = OwnerOf(inner);
           dom::Node* node = NodeOf(inner.self);
-          if (node == nullptr || !node->IsElement()) {
+          if (holder == nullptr || node == nullptr || !node->IsElement()) {
             return Value::Null();
           }
           dom::NamespaceRef name_space;
@@ -630,9 +668,10 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
                                        Argument(inner.arguments, 1), name_space, local)) {
             return inner.ThrownValue();
           }
-          const dom::Attribute* found =
-              static_cast<dom::Element*>(node)->GetAttributeNS(name_space, local);
-          return found == nullptr ? Value::Null() : MakeAttr(inner.interpreter, *found);
+          auto& owning = static_cast<dom::Element&>(*node);
+          const dom::Attribute* found = owning.GetAttributeNS(name_space, local);
+          return found == nullptr ? Value::Null()
+                                  : MakeAttr(*holder, inner.interpreter, owning, *found);
         });
     if (get_named_ns.IsObject()) {
       get_named_ns.object->Set(kOwnerSlot, PointerValue(owner));
@@ -644,19 +683,20 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     // read; getNamedItem/item re-read.
     const auto& attributes = element.Attributes();
     for (std::size_t i = 0; i < attributes.size(); ++i) {
-      map.object->Set(std::to_string(i), MakeAttr(call.interpreter, attributes[i]));
+      map.object->Set(std::to_string(i), MakeAttr(*owner, call.interpreter, element, attributes[i]));
     }
 
     // `for (const attr of element.attributes)` and Closure's `_.A(map)`,
     // which prefers Symbol.iterator over the length fallback.
     const Value iterate =
         call.interpreter.NewNativeValue("[Symbol.iterator]", [](NativeCall& inner) {
+          DomBindings* holder = OwnerOf(inner);
           dom::Node* node = NodeOf(inner.self);
           std::vector<Value> out;
-          if (node != nullptr && node->IsElement()) {
-            for (const dom::Attribute& attribute :
-                 static_cast<dom::Element*>(node)->Attributes()) {
-              out.push_back(MakeAttr(inner.interpreter, attribute));
+          if (holder != nullptr && node != nullptr && node->IsElement()) {
+            auto& owning = static_cast<dom::Element&>(*node);
+            for (const dom::Attribute& attribute : owning.Attributes()) {
+              out.push_back(MakeAttr(*holder, inner.interpreter, owning, attribute));
             }
           }
           const Value entries = inner.interpreter.NewArrayValue(std::move(out));
@@ -682,8 +722,9 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
   // that needed getNamedItem does not call this, but pages that probe both
   // spellings deserve one answer.
   method("getAttributeNode", [](NativeCall& call) {
+    DomBindings* holder = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
-    if (self == nullptr || !self->IsElement()) {
+    if (holder == nullptr || self == nullptr || !self->IsElement()) {
       return Value::Null();
     }
     auto& element = static_cast<dom::Element&>(*self);
@@ -691,14 +732,15 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
         AttributeNameFor(element, js::ToString(Argument(call.arguments, 0)));
     for (const dom::Attribute& attribute : element.Attributes()) {
       if (attribute.name == name) {
-        return MakeAttr(call.interpreter, attribute);
+        return MakeAttr(*holder, call.interpreter, element, attribute);
       }
     }
     return Value::Null();
   });
   method("getAttributeNodeNS", [](NativeCall& call) {
+    DomBindings* holder = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
-    if (self == nullptr || !self->IsElement()) {
+    if (holder == nullptr || self == nullptr || !self->IsElement()) {
       return Value::Null();
     }
     dom::NamespaceRef name_space;
@@ -707,9 +749,10 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
                                  Argument(call.arguments, 1), name_space, local)) {
       return call.ThrownValue();
     }
-    const dom::Attribute* found =
-        static_cast<dom::Element*>(self)->GetAttributeNS(name_space, local);
-    return found == nullptr ? Value::Null() : MakeAttr(call.interpreter, *found);
+    auto& element = static_cast<dom::Element&>(*self);
+    const dom::Attribute* found = element.GetAttributeNS(name_space, local);
+    return found == nullptr ? Value::Null()
+                            : MakeAttr(*holder, call.interpreter, element, *found);
   });
 }
 

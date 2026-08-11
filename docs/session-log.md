@@ -4819,10 +4819,22 @@ raises old: **what is owed is a split of the class.**
 
 **Left, and it is now three named things rather than a guess.**
 
-- **`Attr` as a real node.** `attributes.html` (39), `attributes-namednodemap` (6), `Attr-prefix`
-  (6), `Document-createAttribute.html` (a harness ERROR), and the last two failures in
-  `MutationObserver-attributes` — `element.attributes[0].value = x` has to write through. It is
-  the largest reachable item in the area and it has not moved for two sessions.
+- **`Attr` as a real node.** Part of it landed after the commit above and is worth separating,
+  because it says what the rest costs. `attributes.js`'s `attributes_are` — the helper a third of
+  `attributes.html` runs through — checks `attr.textContent` and `attr.ownerElement` on every
+  attribute it is given, and the record this browser hands back had neither. Twenty lines put
+  `textContent` on it and made `ownerElement` an **accessor** that re-asks the element whether it
+  still carries the attribute, which is the one piece of the real thing that costs nothing: a
+  record taken before a `removeAttribute` now answers null afterwards. **+24 subtests in
+  `dom/nodes` for twenty lines**, and `Attr-prefix.html` went to green.
+
+  What is left is the part that is a design rather than an addition: identity
+  (`el.attributes[0] === el.getAttributeNode('x')` is false here and true everywhere else), a
+  `value` that writes through, and `setAttributeNode`/`removeAttributeNode`/`createAttribute` with
+  `InUseAttributeError`. All three want the same thing — a table of materialised `Attr`s on the
+  element's wrapper, and a detach at every attribute removal and replacement — and that table wants
+  two or three new members on `DomBindings`, which has **no header lines left**. It is the first
+  piece of work that the class split is actually blocking rather than merely embarrassing.
 - **The Range mutation methods** — `insertNode`, `deleteContents`, `extractContents`,
   `surroundContents`. Seven of the eleven remaining failures in `MutationObserver-childList` are
   these, and they are **C5**, not C4. ADR 0012 lists the content-mutation half of Range as

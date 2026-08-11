@@ -890,13 +890,8 @@ FAIL=DOMTokenList stringifier
 [dom/lists/DOMTokenList-value.html]
 FAIL=DOMTokenList value
 [dom/nodes/Attr-prefix-xhtml.xhtml]
-FAIL=Attr.prefix absent
 FAIL=Attr.prefix present
 [dom/nodes/Attr-prefix.html]
-FAIL=Attr.prefix absent (HTML)
-FAIL=Attr.prefix absent (MathML)
-FAIL=Attr.prefix absent (SVG)
-FAIL=Attr.prefix present (HTML)
 FAIL=Attr.prefix present (MathML)
 FAIL=Attr.prefix present (SVG)
 [dom/nodes/CharacterData-data.html]
@@ -1653,8 +1648,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Element-previousElementSibling-xhtml.xhtml]
 harness=TIMEOUT
-[dom/nodes/Element-removeAttributeNS.html]
-FAIL=removeAttributeNS should take a local name.
 [dom/nodes/Element-siblingElement-null-svg.svg]
 harness=TIMEOUT
 [dom/nodes/Element-siblingElement-null-xhtml.xhtml]
@@ -1900,15 +1893,12 @@ FAIL=setNamedItem and removeNamedItem on `attributes` should add and remove fiel
 FAIL=setNamedItem and removeNamedItem on `attributes` should not interfere with existing method names
 FAIL=setting an attribute should not overwrite the methods of an `NamedNodeMap` object
 [dom/nodes/attributes.html]
-FAIL=Attribute loses its owner when removed
 FAIL=Attribute values should not be parsed.
 FAIL=Attribute with prefix in local name
-FAIL=Attributes should work in document fragments.
 FAIL=Basic functionality of getAttributeNode/getAttributeNodeNS
 FAIL=Basic functionality of removeAttributeNode
 FAIL=Basic functionality of setAttributeNode
 FAIL=Basic functionality of setAttributeNodeNS
-FAIL=Entities in attributes should have been expanded while parsing.
 FAIL=If attrU+2019s element is neither null nor element, throw an InUseAttributeError.
 FAIL=Own property correctness with basic attributes
 FAIL=Own property correctness with namespaced attribute before same-name non-namespaced one
@@ -1919,13 +1909,7 @@ FAIL=Own property names should include all qualified names for an HTML element i
 FAIL=Own property names should only include all-lowercase qualified names for an HTML element in an HTML document
 FAIL=Replacing an attr by itself
 FAIL=Setting the same attribute with another prefix should not change the prefix
-FAIL=Specified attributes should be accessible.
 FAIL=Toggling element with inline style should make inline style disappear
-FAIL=XML-namespaced attributes don't need an xml prefix
-FAIL=null and the empty string should result in a null namespace.
-FAIL=setAttribute should not change the order of previously set attributes.
-FAIL=setAttribute should set the attribute with the given qualified name
-FAIL=setAttribute should set the first attribute with the given name
 FAIL=setAttributeNode called with an Attr that has the same name as an existing one should not change attribute order
 FAIL=setAttributeNode doesn't have case-insensitivity even with an HTMLElement 1
 FAIL=setAttributeNode doesn't have case-insensitivity even with an HTMLElement 2
@@ -1933,12 +1917,6 @@ FAIL=setAttributeNode doesn't have case-insensitivity even with an HTMLElement 3
 FAIL=setAttributeNode on bound attribute should throw InUseAttributeError
 FAIL=setAttributeNode should distinguish attributes with same local name and different namespaces
 FAIL=setAttributeNode, if it fires mutation events, should fire one with the new node when resetting an existing attribute (outer shell)
-FAIL=toggleAttribute should not change the order of previously set attributes.
-FAIL=toggleAttribute should set the attribute with the given qualified name
-FAIL=toggleAttribute should set the first attribute with the given name
-FAIL=xmlns should be allowed as local name
-FAIL=xmlns should be allowed as prefix in the XMLNS namespace
-FAIL=xmlns should be allowed as qualified name in the XMLNS namespace
 [dom/nodes/create-element-realm-after-adoption.html]
 harness=TIMEOUT
 [dom/nodes/getElementsByClassName-01.htm]
