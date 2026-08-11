@@ -13,21 +13,24 @@
 // one ordering function over those pairs, so there is one of them here and
 // nothing else re-derives it.
 //
-// What is deliberately **absent**: `extractContents`, `deleteContents`,
-// `cloneContents`, `insertNode` and `surroundContents`. Those are tree surgery
-// -- the specification's algorithms split text nodes at an offset and reparent
-// partially-contained subtrees -- and a version that got the common case right
-// and the partial-containment case wrong would corrupt a page's DOM silently.
-// ADR 0012's rule points the same way it always does: a page that finds no
-// `extractContents` fails where it wrote it, and one that finds a broken one
-// fails somewhere else entirely. They are the obvious next piece of this file.
+// The tree surgery -- `extractContents`, `deleteContents`, `cloneContents`,
+// `insertNode` and `surroundContents` -- is next door in RangeContents.cpp.
+// It was absent until 2026-08-11 and ADR 0012 was right about why: the
+// partial-containment case is the algorithm, not a corner of it.
 //
-// A Range here also does **not** track the tree. The specification keeps
-// boundary points live under mutation -- inserting before the start bumps the
-// offset -- which needs a registry of live ranges the mutation primitives
-// consult. That is real and it is not here; what is here answers correctly
-// about the tree as it stands when it is asked, which is how every use in the
-// bundle above reads it.
+// **A Range here is live.** Its boundary points move when the tree moves --
+// inserting before the start bumps the offset, removing the node a boundary is
+// inside collapses that boundary onto the gap. The registry and the four fixup
+// rules are in BindingSupport.h, next to the tree-order function they are
+// written against, because the mutation primitives that must call them are in
+// three other translation units.
+//
+// The **refusals** here are load-bearing and were the single biggest thing
+// missing: `setStart` and friends used to drop a bad argument on the floor, so
+// a page that set a boundary out of range got a range still pointing wherever
+// it pointed before and read a plausible wrong answer off it. Every method that
+// takes a boundary point now throws IndexSizeError or InvalidNodeTypeError, in
+// that order, through the one `BoundaryPointError` below.
 
 #include <cstdint>
 #include <string>
@@ -35,6 +38,8 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/LiveRanges.h"
+#include "bindings/WebIdl.h"
 
 namespace microbrowser::bindings {
 
@@ -43,117 +48,43 @@ using js::Value;
 
 namespace {
 
-constexpr const char* kStartNodeSlot = "#rangeStartNode";
-constexpr const char* kStartOffsetSlot = "#rangeStartOffset";
-constexpr const char* kEndNodeSlot = "#rangeEndNode";
-constexpr const char* kEndOffsetSlot = "#rangeEndOffset";
-
-dom::Node* NodeSlot(const Value& range, const char* slot) {
-  if (!range.IsObject()) {
-    return nullptr;
-  }
-  const Value* found = range.object->GetOwn(slot);
-  if (found == nullptr || !found->IsNumber()) {
-    return nullptr;
-  }
-  return reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(found->number));
-}
-
-std::uint32_t OffsetSlot(const Value& range, const char* slot) {
-  if (!range.IsObject()) {
-    return 0;
-  }
-  const Value* found = range.object->GetOwn(slot);
-  return found == nullptr || !found->IsNumber() ? 0
-                                                : static_cast<std::uint32_t>(found->number);
-}
-
-// How many positions there are inside `node`: its character count for a text
-// node or a comment, and its child count for anything else. The specification
-// calls this the node's length, and it is what bounds an offset.
-std::size_t LengthOf(const dom::Node& node) {
-  switch (node.GetKind()) {
-    case dom::Node::Kind::Text:
-      return static_cast<const dom::Text&>(node).Data().size();
-    case dom::Node::Kind::Comment:
-      return static_cast<const dom::Comment&>(node).Data().size();
-    default:
-      return node.Children().size();
-  }
-}
-
-// Where `node` sits among its parent's children.
-std::size_t IndexIn(const dom::Node& node) {
-  const dom::Node* parent = node.Parent();
-  if (parent == nullptr) {
-    return 0;
-  }
-  const std::vector<std::unique_ptr<dom::Node>>& children = parent->Children();
-  for (std::size_t i = 0; i < children.size(); ++i) {
-    if (children[i].get() == &node) {
-      return i;
-    }
-  }
-  return 0;
-}
-
-// The chain from `node` up to its root, root first. Bounded because a tree
-// built by script is a tree built by script.
-std::vector<const dom::Node*> AncestorsOf(const dom::Node& node) {
-  std::vector<const dom::Node*> chain;
-  constexpr int kMaxDepth = 100'000;
-  for (const dom::Node* at = &node; at != nullptr && chain.size() < kMaxDepth;
-       at = at->Parent()) {
-    chain.push_back(at);
-  }
-  // Root first, which is what makes the common-prefix walk below a loop with
-  // one index rather than two.
-  std::reverse(chain.begin(), chain.end());
-  return chain;
-}
-
-// **The one ordering function.** -1, 0 or 1 for (a, a_offset) against
-// (b, b_offset) in tree order, and 2 for two points in different trees, which
-// the specification makes a WrongDocumentError.
+// **The one argument check every boundary-taking method owes.**
 //
-// Everything else in this file is written in terms of this: `collapsed` is
-// "equal", `compareBoundaryPoints` is this directly, and the whole reason it is
-// one function is that a second implementation of tree order would eventually
-// disagree with this one about a case nobody tested.
-int ComparePoints(const dom::Node& a, std::size_t a_offset, const dom::Node& b,
-                  std::size_t b_offset) {
-  if (&a == &b) {
-    if (a_offset == b_offset) {
-      return 0;
-    }
-    return a_offset < b_offset ? -1 : 1;
+// `setStart`, `setEnd`, `comparePoint`, `isPointInRange` and
+// `selectNodeContents` all begin with the same two refusals, in the same
+// order: a doctype is not a valid container, and an offset past the node's
+// length is out of range. Writing it once is not tidiness -- the order is
+// observable, because a doctype has length zero and would otherwise report
+// IndexSizeError for a fault the specification calls InvalidNodeTypeError.
+//
+// Null when the point is usable, otherwise the DOMException name to throw.
+const char* BoundaryPointError(const dom::Node& node, std::size_t offset) {
+  if (node.GetKind() == dom::Node::Kind::DocumentType) {
+    return "InvalidNodeTypeError";
   }
-  const std::vector<const dom::Node*> a_chain = AncestorsOf(a);
-  const std::vector<const dom::Node*> b_chain = AncestorsOf(b);
-  if (a_chain.empty() || b_chain.empty() || a_chain.front() != b_chain.front()) {
-    return 2;  // different trees
+  if (offset > NodeLength(node)) {
+    return "IndexSizeError";
   }
-  // Walk down the common prefix. The first place they differ decides, and the
-  // comparison there is between two *children of the same parent*, which is an
-  // index comparison.
-  std::size_t depth = 0;
-  while (depth < a_chain.size() && depth < b_chain.size() &&
-         a_chain[depth] == b_chain[depth]) {
-    ++depth;
+  return nullptr;
+}
+
+// The (node, offset) pair a method was handed, converted and validated.
+//
+// `offset` is a WebIDL `unsigned long`, so it *wraps* rather than clamping --
+// `setStart(node, -1)` is offset 4294967295 and therefore an IndexSizeError,
+// which is exactly what the tests assert and is not what a `size_t` cast of a
+// double would have produced.
+bool ToBoundaryPoint(NativeCall& call, const char* operation, dom::Node*& node_out,
+                     std::uint32_t& offset_out) {
+  if (!RequireArguments(call, "Range", operation, 2)) {
+    return false;
   }
-  if (depth >= a_chain.size()) {
-    // `a` is an ancestor of `b`: the point in `a` is before the point in `b`
-    // exactly when a_offset is at or before the child that leads down to `b`.
-    const std::size_t child = IndexIn(*b_chain[depth]);
-    return a_offset <= child ? -1 : 1;
+  node_out = NodeOf(call.arguments[0]);
+  if (node_out == nullptr) {
+    call.Throw("TypeError", std::string(operation) + " needs a Node");
+    return false;
   }
-  if (depth >= b_chain.size()) {
-    const std::size_t child = IndexIn(*a_chain[depth]);
-    return b_offset <= child ? 1 : -1;
-  }
-  const std::size_t a_index = IndexIn(*a_chain[depth]);
-  const std::size_t b_index = IndexIn(*b_chain[depth]);
-  return a_index < b_index ? -1 : 1;
+  return ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, offset_out);
 }
 
 // The text a range covers, which is `range.toString()` and is how a page reads
@@ -264,50 +195,75 @@ void DomBindings::InstallRange() {
     }
   };
 
-  method("setStart", [set_point](NativeCall& call) {
-    set_point(call, true, NodeOf(Argument(call.arguments, 0)),
-              static_cast<std::size_t>(js::ToNumber(Argument(call.arguments, 1))));
-    return Value::Undefined();
-  });
-  method("setEnd", [set_point](NativeCall& call) {
-    set_point(call, false, NodeOf(Argument(call.arguments, 0)),
-              static_cast<std::size_t>(js::ToNumber(Argument(call.arguments, 1))));
-    return Value::Undefined();
-  });
-  method("setStartBefore", [set_point](NativeCall& call) {
-    dom::Node* node = NodeOf(Argument(call.arguments, 0));
-    if (node != nullptr && node->Parent() != nullptr) {
-      set_point(call, true, node->Parent(), IndexIn(*node));
+  // `setStart` and `setEnd` **refuse** rather than silently doing nothing.
+  // Until 2026-08-11 both dropped a bad argument on the floor, which is the
+  // worst of the three options: a page that set a boundary out of range got a
+  // range still pointing at wherever it pointed before, and read a plausible
+  // wrong answer off it instead of catching an exception.
+  const auto set_validated = [set_point](NativeCall& call, bool start,
+                                         const char* operation) -> Value {
+    dom::Node* node = nullptr;
+    std::uint32_t offset = 0;
+    if (!ToBoundaryPoint(call, operation, node, offset)) {
+      return call.ThrownValue();
     }
-    return Value::Undefined();
-  });
-  method("setStartAfter", [set_point](NativeCall& call) {
-    dom::Node* node = NodeOf(Argument(call.arguments, 0));
-    if (node != nullptr && node->Parent() != nullptr) {
-      set_point(call, true, node->Parent(), IndexIn(*node) + 1);
+    if (const char* error = BoundaryPointError(*node, offset); error != nullptr) {
+      return ThrowDom(call, error, std::string(operation) + " was given a boundary point that " +
+                                       "is not in range for that node");
     }
+    set_point(call, start, node, offset);
     return Value::Undefined();
+  };
+  method("setStart", [set_validated](NativeCall& call) {
+    return set_validated(call, true, "setStart");
   });
-  method("setEndBefore", [set_point](NativeCall& call) {
-    dom::Node* node = NodeOf(Argument(call.arguments, 0));
-    if (node != nullptr && node->Parent() != nullptr) {
-      set_point(call, false, node->Parent(), IndexIn(*node));
-    }
-    return Value::Undefined();
+  method("setEnd", [set_validated](NativeCall& call) {
+    return set_validated(call, false, "setEnd");
   });
-  method("setEndAfter", [set_point](NativeCall& call) {
-    dom::Node* node = NodeOf(Argument(call.arguments, 0));
-    if (node != nullptr && node->Parent() != nullptr) {
-      set_point(call, false, node->Parent(), IndexIn(*node) + 1);
+
+  // The four `set*Before` / `set*After`. A node with no parent has no position
+  // among siblings to name, so these are InvalidNodeTypeError rather than
+  // no-ops -- the same refusal `selectNode` owes for the same reason.
+  const auto set_beside = [set_point](NativeCall& call, bool start, bool after,
+                                      const char* operation) -> Value {
+    if (!RequireArguments(call, "Range", operation, 1)) {
+      return call.ThrownValue();
     }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", std::string(operation) + " needs a Node");
+    }
+    dom::Node* parent = node->Parent();
+    if (parent == nullptr) {
+      return ThrowDom(call, "InvalidNodeTypeError", "the node has no parent");
+    }
+    set_point(call, start, parent, IndexIn(*node) + (after ? 1 : 0));
     return Value::Undefined();
+  };
+  method("setStartBefore", [set_beside](NativeCall& call) {
+    return set_beside(call, true, false, "setStartBefore");
+  });
+  method("setStartAfter", [set_beside](NativeCall& call) {
+    return set_beside(call, true, true, "setStartAfter");
+  });
+  method("setEndBefore", [set_beside](NativeCall& call) {
+    return set_beside(call, false, false, "setEndBefore");
+  });
+  method("setEndAfter", [set_beside](NativeCall& call) {
+    return set_beside(call, false, true, "setEndAfter");
   });
   // `selectNode` puts the boundaries either side of the node; `selectNodeContents`
   // puts them inside it. One character of difference in the name and the whole
   // difference in what a selection covers.
   method("selectNode", [set_point](NativeCall& call) -> Value {
-    dom::Node* node = NodeOf(Argument(call.arguments, 0));
-    if (node == nullptr || node->Parent() == nullptr) {
+    if (!RequireArguments(call, "Range", "selectNode", 1)) {
+      return call.ThrownValue();
+    }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", "selectNode needs a Node");
+    }
+    if (node->Parent() == nullptr) {
       return ThrowDom(call, "InvalidNodeTypeError", "the node has no parent");
     }
     const std::size_t index = IndexIn(*node);
@@ -315,12 +271,21 @@ void DomBindings::InstallRange() {
     set_point(call, false, node->Parent(), index + 1);
     return Value::Undefined();
   });
-  method("selectNodeContents", [set_point](NativeCall& call) {
-    dom::Node* node = NodeOf(Argument(call.arguments, 0));
-    if (node != nullptr) {
-      set_point(call, true, node, 0);
-      set_point(call, false, node, LengthOf(*node));
+  method("selectNodeContents", [set_point](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Range", "selectNodeContents", 1)) {
+      return call.ThrownValue();
     }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", "selectNodeContents needs a Node");
+    }
+    // A doctype has no contents to select. Its *length* is zero, so without
+    // this the call would quietly make an empty range instead of throwing.
+    if (node->GetKind() == dom::Node::Kind::DocumentType) {
+      return ThrowDom(call, "InvalidNodeTypeError", "a doctype has no contents");
+    }
+    set_point(call, true, node, 0);
+    set_point(call, false, node, NodeLength(*node));
     return Value::Undefined();
   });
   // `collapse(true)` moves the end to the start; `collapse()` and
@@ -413,6 +378,115 @@ void DomBindings::InstallRange() {
     return Value::Number(order);
   });
 
+  // **Where is this point, relative to the range?** Three methods, one
+  // algorithm, and between them 12,050 of `dom/ranges/`'s failing subtests --
+  // more than every content-mutation method combined. They were absent
+  // together and they land together, because `comparePoint` *is*
+  // `isPointInRange` with the answer spelled differently, and answering the two
+  // from separate code is how they end up disagreeing about a boundary.
+  //
+  // The refusals differ, and that difference is the whole of what the tests
+  // check: a point in another tree is a WrongDocumentError to `comparePoint`
+  // and a plain `false` to `isPointInRange`, because asking "where" about a
+  // point that has no position is an error while asking "is it inside" is not.
+  const auto point_against_range = [](NativeCall& call, const char* operation,
+                                      bool throws_on_other_root, int& order_out,
+                                      bool& other_root_out) -> bool {
+    dom::Node* node = nullptr;
+    std::uint32_t offset = 0;
+    if (!ToBoundaryPoint(call, operation, node, offset)) {
+      return false;
+    }
+    dom::Node* start = NodeSlot(call.self, kStartNodeSlot);
+    dom::Node* end = NodeSlot(call.self, kEndNodeSlot);
+    if (start == nullptr || end == nullptr) {
+      call.Throw("TypeError", std::string(operation) + " needs a positioned Range");
+      return false;
+    }
+    // **Root first, and it terminates the algorithm.** The order is the
+    // specification's and it is observable both ways: `comparePoint` on a
+    // point in another tree is a WrongDocumentError even when the offset is
+    // also out of range, and `isPointInRange` answers a plain `false` there
+    // *without* going on to check the offset -- so `isPointInRange(nodeInOtherTree, -1)`
+    // is false rather than an IndexSizeError. Checking the offset first cost
+    // 871 subtests.
+    other_root_out = RootOf(*node) != RootOf(*start);
+    if (other_root_out) {
+      if (throws_on_other_root) {
+        ThrowDom(call, "WrongDocumentError", "the point is in a different tree from the range");
+        return false;
+      }
+      order_out = 0;
+      return true;
+    }
+    if (const char* error = BoundaryPointError(*node, offset); error != nullptr) {
+      ThrowDom(call, error, std::string(operation) + " was given a point that is not valid");
+      return false;
+    }
+    // Before the start is -1, after the end is 1, anywhere between is 0.
+    order_out = ComparePoints(*node, offset, *start, OffsetSlot(call.self, kStartOffsetSlot)) < 0
+                    ? -1
+                    : (ComparePoints(*node, offset, *end, OffsetSlot(call.self, kEndOffsetSlot)) > 0
+                           ? 1
+                           : 0);
+    return true;
+  };
+
+  method("comparePoint", [point_against_range](NativeCall& call) -> Value {
+    int order = 0;
+    bool other_root = false;
+    if (!point_against_range(call, "comparePoint", true, order, other_root)) {
+      return call.ThrownValue();
+    }
+    return Value::Number(order);
+  });
+
+  method("isPointInRange", [point_against_range](NativeCall& call) -> Value {
+    int order = 0;
+    bool other_root = false;
+    if (!point_against_range(call, "isPointInRange", false, order, other_root)) {
+      return call.ThrownValue();
+    }
+    // A point in another tree is simply not in this range -- and note it is
+    // `false` *after* the node-type and offset checks have had their say, so
+    // `isPointInRange(doctype, 0)` still throws.
+    return Value::Bool(!other_root && order == 0);
+  });
+
+  // `intersectsNode` asks about a whole node rather than a point, and is not
+  // expressible as two `comparePoint`s: a node that merely *contains* the range
+  // intersects it, which is why the test is against the node's own two sides
+  // rather than against its interior.
+  method("intersectsNode", [](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Range", "intersectsNode", 1)) {
+      return call.ThrownValue();
+    }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", "intersectsNode needs a Node");
+    }
+    dom::Node* start = NodeSlot(call.self, kStartNodeSlot);
+    dom::Node* end = NodeSlot(call.self, kEndNodeSlot);
+    if (start == nullptr || end == nullptr) {
+      return call.Throw("TypeError", "intersectsNode needs a positioned Range");
+    }
+    if (RootOf(*node) != RootOf(*start)) {
+      return Value::Bool(false);
+    }
+    dom::Node* parent = node->Parent();
+    if (parent == nullptr) {
+      // A root has no position among siblings, and the range is inside it by
+      // construction -- they share a root and this node *is* it.
+      return Value::Bool(true);
+    }
+    const std::size_t index = IndexIn(*node);
+    const bool before_end =
+        ComparePoints(*parent, index, *end, OffsetSlot(call.self, kEndOffsetSlot)) < 0;
+    const bool after_start =
+        ComparePoints(*parent, index + 1, *start, OffsetSlot(call.self, kStartOffsetSlot)) > 0;
+    return Value::Bool(before_end && after_start);
+  });
+
   method("cloneRange", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     if (owner == nullptr || !call.self.IsObject()) {
@@ -428,6 +502,7 @@ void DomBindings::InstallRange() {
         clone.object->SetHidden(slot, *found);
       }
     }
+    RegisterLiveRange(call.interpreter, clone);
     return clone;
   });
 
@@ -449,6 +524,9 @@ void DomBindings::InstallRange() {
   // A no-op in the current specification, kept because old code calls it.
   method("detach", [](NativeCall&) { return Value::Undefined(); });
 
+  // The five that change the tree, in RangeContents.cpp.
+  InstallRangeContents(range_interface);
+
   // `document.createRange()`, which is how every one of these is made in
   // practice. `new Range()` works too and is what MakeInterface would
   // otherwise have made a TypeError -- so the constructor is replaced rather
@@ -469,6 +547,9 @@ void DomBindings::InstallRange() {
         range.object->SetHidden(kStartOffsetSlot, Value::Number(0));
         range.object->SetHidden(kEndNodeSlot, PointerValue(document));
         range.object->SetHidden(kEndOffsetSlot, Value::Number(0));
+        // From here on the tree moves it. A Range that is not on this list is
+        // a snapshot, which is what every Range in this browser used to be.
+        RegisterLiveRange(call.interpreter, range);
         return range;
       });
   if (constructor.IsObject()) {
@@ -493,6 +574,17 @@ void DomBindings::InstallRange() {
     const js::Result made = call.interpreter.ConstructValue(*range_class, {});
     if (made.completion == js::Completion::Throw) {
       return call.ThrowValue(made.value);
+    }
+    // Collapsed at the start of **the document that was asked**, not of the
+    // page's own. `new Range()` uses the current global's document, which is
+    // what the constructor above does; `doc.createRange()` has to answer a
+    // range whose `startContainer` is `doc`, and a second document -- one from
+    // `createHTMLDocument` or `new Document()` -- is exactly where the two
+    // differ.
+    if (made.value.IsObject()) {
+      const Value document = PointerValue(owner->DocumentOf(call.self));
+      made.value.object->SetHidden(kStartNodeSlot, document);
+      made.value.object->SetHidden(kEndNodeSlot, document);
     }
     return made.value;
   });

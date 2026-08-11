@@ -15,6 +15,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/LiveRanges.h"
 #include "bindings/WebIdl.h"
 
 #include <memory>
@@ -195,9 +196,17 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
         if (!ToDomString(call, Argument(call.arguments, 0), data)) {
           return call.ThrownValue();
         }
+        // Setting `data` is "replace data" over the *whole* node, and the DOM
+        // means that literally: every live range with a boundary in here
+        // collapses to offset 0, because the characters it pointed at are gone.
+        // Writing the string without saying so left `Range-mutations-dataChange`
+        // reporting 1,170 wrong offsets against ranges nothing had told.
+        const std::size_t previous = DomStringLength(CharacterDataOf(self));
+        const std::size_t written = DomStringLength(data);
         if (!owner->SetCharacterData(self, std::move(data))) {
           return call.Throw("TypeError", "data can only be set on a text or comment node");
         }
+        RangesDidReplaceData(call.interpreter, *self, 0, previous, written);
         return Value::Undefined();
       });
 
@@ -249,6 +258,14 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
     if (!owner->SetCharacterData(self, std::move(rewritten))) {
       return call.Throw("TypeError", std::string(operation) + " called on a non-CharacterData");
     }
+    // Every live range with a boundary in this node moves with the splice: one
+    // inside the replaced span clamps to its start, one past it shifts by the
+    // difference in length. This is the whole of what `Range-mutations-*` is
+    // about, and it is here rather than in `SetCharacterData` because only this
+    // function knows *which* characters changed -- the setter is handed a
+    // finished string and cannot tell an append from a rewrite.
+    RangesDidReplaceData(call.interpreter, *self, offset, end - offset,
+                         DomStringLength(insertion));
     return Value::Undefined();
   };
 

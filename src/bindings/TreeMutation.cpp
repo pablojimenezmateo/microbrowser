@@ -1,5 +1,6 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/LiveRanges.h"
 #include "bindings/WebIdl.h"
 
 #include <algorithm>
@@ -415,6 +416,7 @@ void DomBindings::ClearChildren(dom::Node& parent, bool record) {
     RecordMutation(parent, "childList", {}, Value::Null(), {}, removed);
   }
   while (parent.FirstChild() != nullptr) {
+    RangesWillRemove(*interpreter_, *parent.FirstChild());
     std::unique_ptr<dom::Node> owned = parent.Detach(parent.FirstChild());
     if (owned == nullptr) {
       break;
@@ -444,6 +446,10 @@ bool DomBindings::DetachFromTree(dom::Node& child, bool record) {
   if (record) {
     RecordMutation(*parent, "childList", {}, Value::Null(), {}, {&child});
   }
+  // A live range whose boundary is inside this subtree collapses onto the gap
+  // it is about to leave. Before the detach, because the fixup needs the index
+  // the node still has.
+  RangesWillRemove(*interpreter_, child);
   std::unique_ptr<dom::Node> owned = parent->Detach(&child);
   if (owned == nullptr) {
     return false;
@@ -493,6 +499,8 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   std::unique_ptr<dom::Node> owned;
   if (dom::Node* old_parent = child->Parent(); old_parent != nullptr) {
     RecordMutation(*old_parent, "childList", {}, Value::Null(), {}, {child});
+    // A move is a removal followed by an insertion for live ranges too.
+    RangesWillRemove(*interpreter_, *child);
     owned = old_parent->Detach(child);
   } else {
     for (std::size_t i = 0; i < unattached_.size(); ++i) {
@@ -520,6 +528,9 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   } else {
     parent.Append(std::move(owned));
   }
+  // Boundary points in this parent past where the node landed shift along by
+  // one. After the insertion, because the index is read off the tree.
+  RangesDidInsert(*interpreter_, parent, IndexIn(*child), 1);
   // Connected now, if this put it in the document. The subtree as well as the
   // node: appending a detached tree connects everything in it, and a custom
   // element three levels down is as connected as the root is.

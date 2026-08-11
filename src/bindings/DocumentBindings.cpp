@@ -228,13 +228,36 @@ void DomBindings::Install() {
         *owner->DocumentOf(call.self));
   });
   // A CDATA section is XML-only, and the DOM says an HTML document throws
-  // rather than making one. Every document this browser has is an HTML
-  // document, so this is the whole implementation rather than a stub of one --
-  // and a page that feature-detects gets a real refusal, not a node no
-  // serializer here could write back out.
+  // rather than making one. A page's own document is always an HTML document,
+  // so that refusal is still what `document.createCDATASection` answers -- but
+  // `new Document()` and `implementation.createDocument(...)` make XML ones,
+  // and those hold a real CDATASection.
+  //
+  // `]]>` is the one thing the data may not contain: it would close the
+  // section early, so a document holding it could not be serialized back to
+  // the markup it came from.
   method("createCDATASection", [](NativeCall& call) -> Value {
-    return ThrowDom(call, "NotSupportedError",
-                    "createCDATASection is not available in an HTML document");
+    DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "Document", "createCDATASection", 1)) {
+      return call.ThrownValue();
+    }
+    std::string data;
+    if (!ToDomString(call, call.arguments[0], data)) {
+      return call.ThrownValue();
+    }
+    if (owner == nullptr || owner->DocumentOf(call.self)->IsHtmlDocument()) {
+      return ThrowDom(call, "NotSupportedError",
+                      "createCDATASection is not available in an HTML document");
+    }
+    if (data.find("]]>") != std::string::npos) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "a CDATA section's data may not contain ']]>'");
+    }
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    return owner->AdoptUnattached(std::make_unique<dom::Text>(std::move(data), true),
+                                  *owner->DocumentOf(call.self));
   });
   // `importNode` and `adoptNode` -- the two ways a node crosses documents.
   //
@@ -651,6 +674,107 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
                                   *node_document);
   });
 
+  // **An XML document, and the first document here that is not an HTML one.**
+  //
+  // `new Document()` and `implementation.createDocument(...)` both make one,
+  // so the two share this. What the distinction buys is not decoration: a
+  // CDATA section can only exist in an XML document, and `dom/common.js` --
+  // the fixture every single `dom/ranges/` test loads -- builds one on its
+  // sixth paragraph. Until this existed that file threw on its own top-level
+  // statements, so twenty-four Range test files reported a harness ERROR and
+  // not one subtest between them.
+  // `createDocument` answers an **XMLDocument**, and both that interface and
+  // `new Document()` itself belong to DomParsing.cpp (C9) -- this asks for the
+  // interface by name rather than making a second one, and marks the document
+  // XML through `dom::Document` rather than through a flag of its own, because
+  // `createElement`'s case folding reads that field and cannot see a wrapper.
+  const auto make_xml_document = [](DomBindings* owner) -> Value {
+    auto made = std::make_unique<dom::Document>();
+    dom::Document* raw = made.get();
+    raw->SetHtmlDocument(false);
+    // Owned here for the life of the page, like every other node script made
+    // and nothing appended: a node's owner is its parent, and a document has
+    // none. A wrapper holds a raw pointer, so the node may not outlive it.
+    owner->unattached_.push_back(std::move(made));
+    const Value wrapper = owner->WrapperFor(raw);
+    if (wrapper.IsObject()) {
+      wrapper.object->SetHidden(kContentTypeSlot, Value::String(std::string("application/xml")));
+      wrapper.object->SetHidden(kDocumentUrlSlot, Value::String(std::string("about:blank")));
+      // Finished the moment it exists, for the reason createHTMLDocument's is:
+      // there is no load behind it and no parser running in it.
+      wrapper.object->SetHidden(kReadyStateSlot, Value::String(std::string("complete")));
+    }
+    return wrapper;
+  };
+
+  // `createDocument(namespace, qualifiedName, doctype)`. The qualified name is
+  // validated *before* anything is built -- an invalid one throws and leaves no
+  // half-made document behind -- and an empty one means a document with no
+  // element at all, which is the specification's distinction and is what
+  // `common.js` asks for: it passes `(null, null, xmlDoctype)`.
+  method("createDocument", [make_xml_document](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "DOMImplementation", "createDocument", 2)) {
+      return call.ThrownValue();
+    }
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    // `null` and the absent third argument are the same thing here; anything
+    // else has to be a real doctype node, because appending it is the next
+    // step and a document may hold exactly one.
+    const Value doctype_argument = Argument(call.arguments, 2);
+    dom::Node* doctype = NodeOf(doctype_argument);
+    if (!doctype_argument.IsNullish() &&
+        (doctype == nullptr || doctype->GetKind() != dom::Node::Kind::DocumentType)) {
+      return call.Throw("TypeError", "createDocument's doctype must be a DocumentType");
+    }
+    // The qualified name is a DOMString whose *null* means the empty string --
+    // `createDocument(null, null)` is a document with no element, not a
+    // document whose element is called "null".
+    const Value name_argument =
+        Argument(call.arguments, 1).IsNullish() ? Value::String(std::string())
+                                                : Argument(call.arguments, 1);
+    QualifiedName name;
+    std::string qualified;
+    if (!ToDomString(call, name_argument, qualified)) {
+      return call.ThrownValue();
+    }
+    if (!qualified.empty() &&
+        !ToQualifiedName(call, Argument(call.arguments, 0), name_argument, NameKind::Element,
+                         name)) {
+      return call.ThrownValue();
+    }
+
+    const Value wrapper = make_xml_document(owner);
+    if (const Value xml = owner->InterfaceNamed("XMLDocument");
+        wrapper.IsObject() && xml.IsObject()) {
+      wrapper.object->SetPrototype(xml.object);
+    }
+    dom::Document* raw = static_cast<dom::Document*>(NodeOf(wrapper));
+    if (raw == nullptr) {
+      return Value::Null();
+    }
+    // Doctype first, then the element: that is document order, and it is the
+    // order the two appends happen in the specification. The doctype is
+    // *moved* rather than copied -- `createDocument` adopts the node it was
+    // given, so a page that passes the same doctype twice ends up with it in
+    // the second document only, which is what every other engine answers.
+    //
+    // `record: false` on both: nothing can be observing a document that did
+    // not exist when the call started.
+    if (doctype != nullptr) {
+      owner->InsertNodeBefore(*raw, doctype, nullptr, false);
+    }
+    if (!qualified.empty()) {
+      if (dom::Node* made = NodeOf(owner->CreateElementNS(std::move(name), *raw));
+          made != nullptr) {
+        owner->InsertNodeBefore(*raw, made, nullptr, false);
+      }
+    }
+    return wrapper;
+  });
+
   // True for everything, which is what the DOM standard says to answer and
   // is not a shortcut: `hasFeature` was deprecated precisely because engines
   // disagreed about it, and the specified behaviour is now to return true.
@@ -684,6 +808,34 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
     implementation_accessor.object->Set(kOwnerSlot, PointerValue(this));
     document_interface.object->DefineAccessor("implementation", implementation_accessor.object,
                                               nullptr);
+  }
+
+  // **`new Document()` is a real constructor**, and it is here rather than in
+  // NodeInterfaces.cpp because it makes the same XML document
+  // `createDocument` does -- two ways to build one is how they end up
+  // disagreeing about what a document with no doctype answers.
+  //
+  // MakeInterface gives every interface an illegal-constructor stub, which is
+  // right for `new HTMLDivElement()` and wrong for this one: `Document` is one
+  // of the handful the DOM says a page may construct. Replacing the binding
+  // rather than adding a second name, and *only* the scope binding -- see the
+  // note in MakeInterface about `window.X =` and the bare name drifting apart.
+  DomBindings* self = this;
+  const Value document_constructor = interpreter_->NewNativeValue(
+      "Document", [self, make_xml_document, document_interface](NativeCall&) -> Value {
+        const Value made = make_xml_document(self);
+        // Its prototype is `Document.prototype` like any other document
+        // wrapper's; WrapperFor already chose it by node kind, and this is the
+        // assertion that the two agree.
+        if (made.IsObject() && document_interface.IsObject()) {
+          made.object->SetPrototype(document_interface.object);
+        }
+        return made;
+      });
+  if (document_constructor.IsObject()) {
+    document_constructor.object->Set("prototype", document_interface);
+    document_interface.object->Set("constructor", document_constructor);
+    interpreter_->GlobalScope()->Declare("Document", document_constructor, false);
   }
 }
 

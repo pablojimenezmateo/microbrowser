@@ -18,6 +18,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 #include "css/StyleSheet.h"
 
 namespace microbrowser::bindings {
@@ -266,15 +267,6 @@ bool LocateNamespace(const dom::Element* element, std::string_view prefix,
   return false;
 }
 
-bool IsInclusiveDescendant(const dom::Node* candidate, const dom::Node* root) {
-  for (const dom::Node* at = candidate; at != nullptr; at = at->Parent()) {
-    if (at == root) {
-      return true;
-    }
-  }
-  return false;
-}
-
 }  // namespace
 
 // Node: what every node can answer, whatever kind it is.
@@ -325,6 +317,56 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
   method("isSameNode", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     return Value::Bool(self != nullptr && self == NodeOf(Argument(call.arguments, 0)));
+  });
+
+  // **`compareDocumentPosition` -- 2,805 failing subtests in `dom/ranges/`
+  // alone**, which is not where anyone would look for it. `dom/common.js`
+  // builds its expected answers with it, so every Range test that compares two
+  // positions was failing on a *Node* method rather than on anything about
+  // ranges.
+  //
+  // The bit set is a position rather than an ordering, and the awkward part is
+  // that the specification names the *argument* node1 and the receiver node2 --
+  // so `a.compareDocumentPosition(b)` returning CONTAINS means **b contains a**.
+  // Reading it the other way round is the classic bug here, so the names below
+  // are the specification's.
+  method("compareDocumentPosition", [](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Node", "compareDocumentPosition", 1)) {
+      return call.ThrownValue();
+    }
+    dom::Node* node2 = NodeOf(call.self);
+    dom::Node* node1 = NodeOf(call.arguments[0]);
+    if (node2 == nullptr || node1 == nullptr) {
+      return call.Throw("TypeError", "compareDocumentPosition needs a Node");
+    }
+    constexpr double kDisconnected = 0x01;
+    constexpr double kPreceding = 0x02;
+    constexpr double kFollowing = 0x04;
+    constexpr double kContains = 0x08;
+    constexpr double kContainedBy = 0x10;
+    constexpr double kImplementationSpecific = 0x20;
+    if (node1 == node2) {
+      return Value::Number(0);
+    }
+    if (RootOf(*node1) != RootOf(*node2)) {
+      // "with the constraint that this is to be consistent": the pair must get
+      // opposite answers from the two orders of the call, and the same answer
+      // every time. Pointer order is an arbitrary but *stable* total order over
+      // the two nodes, which is exactly what that constraint asks for -- and
+      // the specification says implementation-specific out loud, which is what
+      // the extra bit is admitting to.
+      return Value::Number(kDisconnected + kImplementationSpecific +
+                           (std::less<const dom::Node*>{}(node1, node2) ? kPreceding : kFollowing));
+    }
+    if (IsInclusiveDescendant(node2, node1)) {
+      return Value::Number(kContains + kPreceding);
+    }
+    if (IsInclusiveDescendant(node1, node2)) {
+      return Value::Number(kContainedBy + kFollowing);
+    }
+    // Neither contains the other, so the two are ordered by where they sit --
+    // the same tree-order function every boundary point is compared with.
+    return Value::Number(ComparePoints(*node1, 0, *node2, 0) < 0 ? kPreceding : kFollowing);
   });
   // The *node document*, which is stored on the node rather than derived from
   // where it happens to be: a node script created and never inserted has one,

@@ -401,7 +401,20 @@ class Element : public Node {
 
 class Text : public Node {
  public:
-  explicit Text(std::string data) : Node(Kind::Text), data_(std::move(data)) {}
+  explicit Text(std::string data, bool cdata = false)
+      : Node(Kind::Text), data_(std::move(data)), cdata_(cdata) {}
+
+  // A CDATASection *is* a Text in the DOM -- it derives from it, and every
+  // algorithm that reads character data, splits at an offset or measures a
+  // node's length treats the two identically. The only things that differ are
+  // `nodeType` (4) and `nodeName` (`#cdata-section`), so this is a flag rather
+  // than a `Kind`: a seventh Kind would have to be added to a dozen exhaustive
+  // switches that all wanted to answer "text" anyway, and the one that got
+  // missed would be a silently wrong tree-order or length answer.
+  //
+  // Only an XML document can hold one; `createCDATASection` is the sole way to
+  // make one here, and it refuses in an HTML document.
+  bool IsCData() const { return cdata_; }
 
   const std::string& Data() const { return data_; }
   void SetData(std::string data) {
@@ -417,6 +430,7 @@ class Text : public Node {
 
  private:
   std::string data_;
+  bool cdata_ = false;
 };
 
 class Comment : public Node {

@@ -258,7 +258,8 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
     // literals rather than names.
     switch (self->GetKind()) {
       case dom::Node::Kind::Element: return Value::Number(1);
-      case dom::Node::Kind::Text: return Value::Number(3);
+      case dom::Node::Kind::Text:
+        return Value::Number(static_cast<const dom::Text*>(self)->IsCData() ? 4 : 3);
       case dom::Node::Kind::Comment: return Value::Number(8);
       case dom::Node::Kind::DocumentFragment: return Value::Number(11);
       case dom::Node::Kind::Document: return Value::Number(9);

@@ -151,15 +151,6 @@ Verdict Filter(NativeCall& call, dom::Node& node) {
 // as every other bound here -- a wrong answer, not a hang.
 constexpr int kMaxSteps = 1'000'000;
 
-bool IsInclusiveDescendant(const dom::Node* candidate, const dom::Node* root) {
-  for (const dom::Node* at = candidate; at != nullptr; at = at->Parent()) {
-    if (at == root) {
-      return true;
-    }
-  }
-  return false;
-}
-
 dom::Node* Sibling(dom::Node* node, int step) {
   if (node == nullptr || node->Parent() == nullptr) {
     return nullptr;
@@ -327,25 +318,52 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
         // detached subtree went away.
         return Value::Null();
       }
-      // An iterator's first `nextNode` answers with the reference node itself
-      // when it is still positioned before it, which is what makes
-      // `createNodeIterator(root)` yield `root` first.
-      bool before = true;
-      if (const Value* slot = inner.self.IsObject() ? inner.self.object->GetOwn(kBeforeSlot)
-                                                    : nullptr) {
-        before = js::ToBoolean(*slot);
-      }
-      if (iterator && before && direction > 0) {
-        if (inner.self.IsObject()) {
-          inner.self.object->SetHidden(kBeforeSlot, Value::Bool(false));
+      // **A NodeIterator is a cursor *between* nodes, not on one.** That is
+      // what `pointerBeforeReferenceNode` records, and getting it wrong is not
+      // cosmetic: it decides whether the next `nextNode()` re-reports the
+      // reference node or steps past it, so an iterator driven forwards and
+      // then backwards used to skip one node at the turn. 597 subtests of
+      // `dom/traversal/NodeIterator.html` were this one flag.
+      //
+      // The rule is symmetric and the old code only had half of it: moving
+      // forward leaves the pointer *after* the node it reports, moving backward
+      // leaves it *before*. When the pointer is already on the far side of the
+      // reference node, the move consumes the flag instead of the node -- which
+      // is why a direction change reports the same node twice, once from each
+      // side, exactly as the specification says.
+      if (iterator) {
+        bool before = true;
+        if (const Value* slot = inner.self.IsObject() ? inner.self.object->GetOwn(kBeforeSlot)
+                                                      : nullptr) {
+          before = js::ToBoolean(*slot);
         }
-        const Verdict verdict = Filter(inner, *at);
-        if (verdict == Verdict::Threw) {
-          return Value::Undefined();
-        }
-        if (verdict == Verdict::Accept) {
+        for (int steps = 0; steps < kMaxSteps; ++steps) {
+          if (direction > 0 ? before : !before) {
+            // The flag is on the side we are heading, so flip it and stay.
+            before = direction < 0;
+          } else {
+            bool descend = true;
+            dom::Node* next = direction > 0 ? FollowingNode(at, limit, descend)
+                                            : PrecedingNode(at, limit);
+            if (next == nullptr) {
+              return Value::Null();
+            }
+            at = next;
+          }
+          const Verdict verdict = Filter(inner, *at);
+          if (verdict == Verdict::Threw) {
+            return Value::Undefined();
+          }
+          if (verdict != Verdict::Accept) {
+            continue;
+          }
+          SetCurrent(inner.self, at);
+          if (inner.self.IsObject()) {
+            inner.self.object->SetHidden(kBeforeSlot, Value::Bool(before));
+          }
           return bindings->WrapperFor(at);
         }
+        return Value::Null();
       }
       bool descend = true;
       for (int steps = 0; steps < kMaxSteps; ++steps) {
@@ -361,14 +379,10 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
         }
         if (verdict == Verdict::Accept) {
           SetCurrent(inner.self, at);
-          if (inner.self.IsObject()) {
-            inner.self.object->SetHidden(kBeforeSlot, Value::Bool(false));
-          }
           return bindings->WrapperFor(at);
         }
-        // Reject skips the subtree; skip does not. An iterator has neither,
-        // because it is not descending in the first place.
-        descend = iterator || verdict != Verdict::Reject;
+        // Reject skips the subtree; skip does not.
+        descend = verdict != Verdict::Reject;
       }
       return Value::Null();
     };

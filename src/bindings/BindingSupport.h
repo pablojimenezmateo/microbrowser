@@ -43,6 +43,11 @@ inline constexpr const char* kImplementationDocumentSlot = "#implDocument";
 // rather than about the tree, and `dom::Document` is shared with an engine that
 // has no notion of one. `DOMParser` writes it; `document.contentType` reads it.
 inline constexpr const char* kContentTypeSlot = "#contentType";
+// The URL a document reports when it is not the page's own -- `about:blank` for
+// every document script builds. Beside kContentTypeSlot because the two are set
+// together by everything that makes a document: `DOMParser`, and
+// `implementation.createDocument`.
+inline constexpr const char* kDocumentUrlSlot = "#documentUrl";
 // Where a document wrapper keeps the one DOMImplementation it hands out, so
 // that `document.implementation === document.implementation`.
 inline constexpr const char* kImplementationSlot = "#implementation";
@@ -136,6 +141,135 @@ inline dom::Node* NodeOf(const js::Value& value) {
     return nullptr;
   }
   return reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(slot->number));
+}
+
+// ---------------------------------------------------------------------------
+// Tree order, and the boundary points written against it.
+//
+// These four were the private top of Ranges.cpp until `compareDocumentPosition`
+// and the content-mutation half needed them too. They are here rather than
+// copied because **tree order is the thing three files must agree about**: a
+// second implementation of "which of these comes first" does not fail loudly,
+// it disagrees with the first one about some case nobody wrote a test for, and
+// then `range.toString()` and `a.compareDocumentPosition(b)` describe different
+// documents.
+// ---------------------------------------------------------------------------
+
+// How many positions there are inside `node`: its character count for a text
+// node or a comment, and its child count for anything else. The specification
+// calls this the node's length, and it is what bounds an offset.
+inline std::size_t NodeLength(const dom::Node& node) {
+  switch (node.GetKind()) {
+    case dom::Node::Kind::Text:
+      return static_cast<const dom::Text&>(node).Data().size();
+    case dom::Node::Kind::Comment:
+      return static_cast<const dom::Comment&>(node).Data().size();
+    case dom::Node::Kind::ProcessingInstruction:
+      return static_cast<const dom::ProcessingInstruction&>(node).Data().size();
+    default:
+      return node.Children().size();
+  }
+}
+
+// Where `node` sits among its parent's children.
+inline std::size_t IndexIn(const dom::Node& node) {
+  const dom::Node* parent = node.Parent();
+  if (parent == nullptr) {
+    return 0;
+  }
+  const std::vector<std::unique_ptr<dom::Node>>& children = parent->Children();
+  for (std::size_t i = 0; i < children.size(); ++i) {
+    if (children[i].get() == &node) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+// The chain from `node` up to its root, root first. Bounded because a tree
+// built by script is a tree built by script.
+inline std::vector<const dom::Node*> AncestorsOf(const dom::Node& node) {
+  std::vector<const dom::Node*> chain;
+  constexpr std::size_t kMaxDepth = 100'000;
+  for (const dom::Node* at = &node; at != nullptr && chain.size() < kMaxDepth;
+       at = at->Parent()) {
+    chain.push_back(at);
+  }
+  // Root first, which is what makes the common-prefix walk below a loop with
+  // one index rather than two.
+  std::reverse(chain.begin(), chain.end());
+  return chain;
+}
+
+// **The one ordering function.** -1, 0 or 1 for (a, a_offset) against
+// (b, b_offset) in tree order, and 2 for two points in different trees, which
+// the specification makes a WrongDocumentError.
+//
+// Everything written against boundary points is written against this:
+// `collapsed` is "equal", `compareBoundaryPoints` is this directly, and
+// `comparePoint` is this twice.
+inline int ComparePoints(const dom::Node& a, std::size_t a_offset, const dom::Node& b,
+                         std::size_t b_offset) {
+  if (&a == &b) {
+    if (a_offset == b_offset) {
+      return 0;
+    }
+    return a_offset < b_offset ? -1 : 1;
+  }
+  const std::vector<const dom::Node*> a_chain = AncestorsOf(a);
+  const std::vector<const dom::Node*> b_chain = AncestorsOf(b);
+  if (a_chain.empty() || b_chain.empty() || a_chain.front() != b_chain.front()) {
+    return 2;  // different trees
+  }
+  // Walk down the common prefix. The first place they differ decides, and the
+  // comparison there is between two *children of the same parent*, which is an
+  // index comparison.
+  std::size_t depth = 0;
+  while (depth < a_chain.size() && depth < b_chain.size() &&
+         a_chain[depth] == b_chain[depth]) {
+    ++depth;
+  }
+  if (depth >= a_chain.size()) {
+    // `a` is an ancestor of `b`: the point in `a` is before the point in `b`
+    // exactly when a_offset is at or before the child that leads down to `b`.
+    const std::size_t child = IndexIn(*b_chain[depth]);
+    return a_offset <= child ? -1 : 1;
+  }
+  if (depth >= b_chain.size()) {
+    const std::size_t child = IndexIn(*a_chain[depth]);
+    return b_offset <= child ? 1 : -1;
+  }
+  const std::size_t a_index = IndexIn(*a_chain[depth]);
+  const std::size_t b_index = IndexIn(*b_chain[depth]);
+  return a_index < b_index ? -1 : 1;
+}
+
+// Is `candidate` `root`, or somewhere under it? Inclusive, which is the
+// specification's and the surprising half: a node contains itself, and a
+// polyfill that walks up asking `root.contains(node)` depends on it
+// terminating.
+//
+// Here rather than in a translation unit because three files had their own copy
+// of it -- ElementQueries.cpp for `contains`, TreeWalkers.cpp for the walk
+// limit, and RangeContents.cpp for "is the start an inclusive ancestor of the
+// end", which is the question every content-mutation step opens with.
+inline bool IsInclusiveDescendant(const dom::Node* candidate, const dom::Node* root) {
+  for (const dom::Node* at = candidate; at != nullptr; at = at->Parent()) {
+    if (at == root) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// The node a boundary point is rooted at: the topmost thing you reach walking
+// up. Two points are comparable exactly when these are the same node.
+inline const dom::Node* RootOf(const dom::Node& node) {
+  const dom::Node* at = &node;
+  for (int depth = 0; at->Parent() != nullptr && depth < 100'000; ++depth) {
+    at = at->Parent();
+  }
+  return at;
 }
 
 // A property key as an array index, or `kNotAnIndex`.
@@ -329,6 +463,7 @@ inline dom::Node* NextSiblingOf(const dom::Node& node) {
   }
   return nullptr;
 }
+
 // The node before `node`, on the same terms. The pair is what a MutationRecord
 // reports as `previousSibling`/`nextSibling`, which is how an observer places
 // a change without walking the tree the change already moved.

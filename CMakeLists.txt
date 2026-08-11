@@ -510,6 +510,7 @@ microbrowser_module(bindings
     src/bindings/IndexedDbBindings.cpp
     src/bindings/IndexedDbRequests.cpp
     src/bindings/MediaQueries.cpp
+    src/bindings/RangeContents.cpp
     src/bindings/Ranges.cpp
     src/bindings/HtmlParsing.cpp
     src/bindings/DomParsing.cpp

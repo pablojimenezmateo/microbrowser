@@ -83,7 +83,14 @@ budget: NamespaceRef header_lines=55 public_methods=13 members=1
 # members because the last two are what make `localName`, `prefix` and
 # `namespaceURI` three different answers instead of one guess.
 budget: Attribute    header_lines=30 public_methods=2  members=4
-budget: Text         header_lines=25 public_methods=8  members=1
+# Two members and 40 header lines: the data, and whether this Text is a
+# CDATASection. The second is a flag rather than a seventh `Node::Kind` on
+# purpose -- a CDATASection derives from Text in the DOM and every algorithm
+# that measures a length, splits at an offset or walks tree order wants the
+# same answer for both, so a new Kind would mean editing a dozen exhaustive
+# switches to say "text" again and shipping whichever one was missed as a
+# silently wrong answer. `nodeType` and `nodeName` are the only two callers.
+budget: Text         header_lines=40 public_methods=9  members=2
 budget: Comment      header_lines=25 public_methods=6  members=1
 # Three members: the name plus the public and system ids. Kept rather than
 # dropped because they are what a doctype *is* to `createDocumentType`, and

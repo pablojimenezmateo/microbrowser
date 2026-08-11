@@ -28,6 +28,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/LiveRanges.h"
 
 namespace microbrowser::bindings {
 
@@ -181,7 +182,7 @@ std::string NodeNameOf(const dom::Node& node) {
                  : element.TagName();
     }
     case dom::Node::Kind::Text:
-      return "#text";
+      return static_cast<const dom::Text&>(node).IsCData() ? "#cdata-section" : "#text";
     case dom::Node::Kind::Comment:
       return "#comment";
     case dom::Node::Kind::Document:
@@ -312,6 +313,32 @@ void DomBindings::EnsureInterfaces() {
           node.object->Set(kNames[i], number);
         }
       }
+      // **The `compareDocumentPosition` bit names, and they are not
+      // decoration.** `dom/common.js` computes every expected tree-order answer
+      // with `nodeB.compareDocumentPosition(nodeA) & Node.DOCUMENT_POSITION_FOLLOWING`.
+      // An undefined constant makes that `x & undefined`, which is 0, which is
+      // falsy -- so the helper reported "before" for every pair of nodes in the
+      // document and 930 `comparePoint` subtests failed against a *correct*
+      // implementation. A missing constant does not read as missing; it reads
+      // as a wrong answer somewhere else entirely.
+      struct PositionBit {
+        const char* name;
+        double value;
+      };
+      static constexpr PositionBit kPositions[] = {
+          {"DOCUMENT_POSITION_DISCONNECTED", 0x01},
+          {"DOCUMENT_POSITION_PRECEDING", 0x02},
+          {"DOCUMENT_POSITION_FOLLOWING", 0x04},
+          {"DOCUMENT_POSITION_CONTAINS", 0x08},
+          {"DOCUMENT_POSITION_CONTAINED_BY", 0x10},
+          {"DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC", 0x20},
+      };
+      for (const PositionBit& bit : kPositions) {
+        node_ctor->object->Set(bit.name, Value::Number(bit.value));
+        if (node.IsObject()) {
+          node.object->Set(bit.name, Value::Number(bit.value));
+        }
+      }
     }
   }
   InstallNodeInterface(node);
@@ -409,11 +436,57 @@ void DomBindings::EnsureInterfaces() {
   const Value character_data = MakeInterface("CharacterData", node);
   InstallCharacterData(character_data);
   const Value text_interface = MakeInterface("Text", character_data);
+  // `splitText`, which is the one method a Text has that a Comment does not --
+  // and the one the DOM writes `Range.insertNode` in terms of, so both reach
+  // the same `SplitTextNode` rather than each cutting the string its own way.
+  // The live-range fixups live inside it, because a boundary past the split
+  // point belongs to the *tail* node afterwards and nothing else knows that.
+  if (const Value split = interpreter_->NewNativeValue(
+          "splitText",
+          [](js::NativeCall& call) -> Value {
+            DomBindings* owner = OwnerOf(call);
+            dom::Node* self = NodeOf(call.self);
+            std::uint32_t offset = 0;
+            if (!RequireArguments(call, "Text", "splitText", 1) ||
+                !ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset)) {
+              return call.ThrownValue();
+            }
+            if (owner == nullptr || self == nullptr || !self->IsText()) {
+              return call.Throw("TypeError", "splitText called on a non-Text node");
+            }
+            auto& text = static_cast<dom::Text&>(*self);
+            if (offset > DomStringLength(text.Data())) {
+              return ThrowDom(call, "IndexSizeError",
+                              "the offset is larger than the node's length");
+            }
+            // A parentless text node still splits; it just has nowhere to put
+            // the tail, so the tail is a node script owns and nothing holds.
+            if (text.Parent() == nullptr) {
+              const std::string data = text.Data();
+              const std::string tail = DomSubstring(data, offset, DomStringLength(data));
+              owner->SetCharacterData(self, DomSubstring(data, 0, offset));
+              return owner->AdoptUnattached(std::make_unique<dom::Text>(tail, text.IsCData()),
+                                            owner->NodeDocumentOf(text));
+            }
+            dom::Node* parent = text.Parent();
+            dom::Node* made = SplitTextNode(call.interpreter, text, offset);
+            if (made == nullptr) {
+              return Value::Null();
+            }
+            owner->RecordMutation(*parent, "childList", {}, Value::Null(), {made}, {});
+            return owner->WrapperFor(made);
+          });
+      split.IsObject() && text_interface.IsObject()) {
+    split.object->Set(kOwnerSlot, PointerValue(this));
+    text_interface.object->Set("splitText", split);
+  }
   MakeInterface("Comment", character_data);
-  // A CDATASection is XML-only and this browser has no instance of one --
-  // `createCDATASection` throws NotSupportedError in an HTML document, which is
-  // the specification's own answer rather than a limitation. The *name* is here
-  // because youtube's `webcomponents-all-noPatch.js` does
+  // A CDATASection is XML-only, and this browser can now hold one: an XML
+  // document -- `new Document()` or `implementation.createDocument(...)` --
+  // answers `createCDATASection`, and an HTML document still throws
+  // NotSupportedError, which is the specification's own answer rather than a
+  // limitation. The *name* was here first, because
+  // youtube's `webcomponents-all-noPatch.js` does
   // `["Text","Comment","CDATASection","ProcessingInstruction"].forEach(
   //    function (a) { var b = window[a]; Object.create(b.prototype) ... })`
   // and takes a TypeError on a missing one. ADR 0012 read from the other side:
@@ -680,7 +753,7 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
 
   switch (node.GetKind()) {
     case dom::Node::Kind::Text:
-      return named("Text");
+      return named(static_cast<const dom::Text&>(node).IsCData() ? "CDATASection" : "Text");
     case dom::Node::Kind::Comment:
       return named("Comment");
     case dom::Node::Kind::DocumentFragment:

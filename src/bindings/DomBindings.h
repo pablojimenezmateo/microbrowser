@@ -841,8 +841,8 @@ class DomBindings {
   void InstallMatchMedia();
   void TrackMediaQueryList(const js::Value& list);
   void InstallTreeWalkers(const js::Value& document);
-  // `Range`, in Ranges.cpp: two boundary points and the ordering between them.
-  void InstallRange();
+  void InstallRange();  // boundary points; RangeContents.cpp has the tree surgery
+  void InstallRangeContents(const js::Value& range_interface);
 
   // --- DOM Parsing and Serialization, in HtmlParsing.cpp / DomParsing.cpp ---
   // Markup becoming nodes and back, and in every one of them the *context* is

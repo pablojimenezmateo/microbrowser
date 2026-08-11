@@ -56,7 +56,6 @@ using js::Value;
 // no slot and answers with the *creating* document's URL, which is the
 // specification and is what makes relative URLs in parsed markup resolve
 // against the page that parsed them.
-constexpr const char* kDocumentUrlSlot = "#documentUrl";
 
 // The Range boundary slot Ranges.cpp writes. Named again here rather than
 // shared, because a `constexpr const char*` in a header would be the only thing
