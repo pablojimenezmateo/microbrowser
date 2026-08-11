@@ -421,6 +421,16 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
           !IsInclusiveDescendant(at, limit)) {
         return Value::Null();
       }
+      // "Traverse siblings" begins "if node is root, then return null", and it
+      // is the first step for a reason: the root's *actual* siblings are
+      // outside the walker's subtree entirely. Without it a walker rooted at
+      // `document.body` answered `nextSibling()` with whatever followed `body`
+      // in the document -- a node the walker was created not to see. The child
+      // forms have no such rule, because descending from the root is the one
+      // move that cannot leave it.
+      if (!children && at == limit) {
+        return Value::Null();
+      }
       dom::Node* candidate =
           children ? (direction > 0 ? at->FirstChild() : at->LastChild()) : Sibling(at, direction);
       for (int steps = 0; candidate != nullptr && steps < kMaxSteps; ++steps) {
