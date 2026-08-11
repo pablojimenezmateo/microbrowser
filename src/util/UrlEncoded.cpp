@@ -54,9 +54,6 @@ std::string SerializeUrlEncoded(const std::vector<QueryPair>& pairs) {
 }
 
 std::vector<QueryPair> ParseUrlEncoded(std::string_view input) {
-  if (!input.empty() && input.front() == '?') {
-    input.remove_prefix(1);
-  }
   // `+` means a space, and only after the split: a name containing an encoded
   // `%2B` must survive as a plus sign, which is why the substitution happens on
   // the component rather than on the whole string.

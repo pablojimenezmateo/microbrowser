@@ -291,4 +291,51 @@ inline std::string Utf8DecodeLossy(std::string_view input) {
   return out;
 }
 
+// Compares two UTF-8 strings as JavaScript compares them: by **UTF-16 code unit**.
+//
+// The two orders are not the same, and the difference is not exotic. A supplementary character
+// (U+10000 and up) is three-or-four bytes beginning 0xF0 in UTF-8, which sorts *after* U+FB03; in
+// UTF-16 it is a surrogate pair beginning 0xD83C, which sorts *before* it. Anything a page can
+// observe the order of -- `URLSearchParams.sort`, `Array.prototype.sort` on strings -- has to use
+// this one, or a list this browser sorted differs from the same list anywhere else.
+inline int CompareUtf16(std::string_view left, std::string_view right) {
+  std::size_t left_at = 0;
+  std::size_t right_at = 0;
+  // The pending low surrogate of a supplementary character, held between steps so a pair compares
+  // as its two units rather than as one code point.
+  std::uint32_t left_pending = 0;
+  std::uint32_t right_pending = 0;
+  const auto next = [](std::string_view text, std::size_t& at, std::uint32_t& pending) -> long {
+    if (pending != 0) {
+      const std::uint32_t unit = pending;
+      pending = 0;
+      return static_cast<long>(unit);
+    }
+    if (at >= text.size()) {
+      return -1;
+    }
+    std::uint32_t code = 0;
+    const std::size_t start = at;
+    if (!DecodeUtf8(text, at, code)) {
+      at = start + 1;
+      code = 0xFFFD;
+    }
+    if (code >= 0x10000) {
+      pending = 0xDC00 + ((code - 0x10000) & 0x3FF);
+      return static_cast<long>(0xD800 + ((code - 0x10000) >> 10));
+    }
+    return static_cast<long>(code);
+  };
+  while (true) {
+    const long a = next(left, left_at, left_pending);
+    const long b = next(right, right_at, right_pending);
+    if (a != b) {
+      return a < b ? -1 : 1;
+    }
+    if (a < 0) {
+      return 0;
+    }
+  }
+}
+
 }  // namespace microbrowser::util

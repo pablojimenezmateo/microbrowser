@@ -210,6 +210,25 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
           codepoint = codepoint * 16 + static_cast<char32_t>(HexValue(source[at + i]));
         }
         at += 4;
+        // A surrogate *pair* written as two escapes is one code point, not two halves of one.
+        // Strings here are UTF-8 indexed as UTF-16, so `"💩"` has to become U+1F4A9 at
+        // the point it is read -- otherwise it is a string that compares unequal to the identical
+        // `"\u{1F4A9}"`, encodes as six bytes where every other engine writes four, and reaches
+        // `encodeURIComponent` as a pair of lone surrogates. Only a real pair combines; a lone
+        // high surrogate stays lone, which is what a page that built one on purpose expects.
+        if (codepoint >= 0xD800 && codepoint <= 0xDBFF && at + 5 < source.size() &&
+            source[at] == '\\' && source[at + 1] == 'u' && IsHexDigit(source[at + 2]) &&
+            IsHexDigit(source[at + 3]) && IsHexDigit(source[at + 4]) &&
+            IsHexDigit(source[at + 5])) {
+          char32_t low = 0;
+          for (std::size_t i = 0; i < 4; ++i) {
+            low = low * 16 + static_cast<char32_t>(HexValue(source[at + 2 + i]));
+          }
+          if (low >= 0xDC00 && low <= 0xDFFF) {
+            codepoint = 0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00);
+            at += 6;
+          }
+        }
       }
       AppendUtf8(out, codepoint);
       return true;

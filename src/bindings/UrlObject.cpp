@@ -193,7 +193,7 @@ void DomBindings::InstallUrlConstructor() {
     // resolves as a path against the document base — `https://www.youtube.com/[object%20Object]` —
     // and that string is what youtube put in consent.youtube.com's `continue=` parameter.
     std::string relative;
-    if (!CoerceToString(call, Argument(call.arguments, 0), relative)) {
+    if (!CoerceToUsvString(call, Argument(call.arguments, 0), relative)) {
       threw = true;
       return std::nullopt;
     }
@@ -202,7 +202,7 @@ void DomBindings::InstallUrlConstructor() {
       return url::Url::Parse(relative);
     }
     std::string base;
-    if (!CoerceToString(call, base_argument, base)) {
+    if (!CoerceToUsvString(call, base_argument, base)) {
       threw = true;
       return std::nullopt;
     }
@@ -256,7 +256,7 @@ void DomBindings::InstallUrlConstructor() {
     const Value set =
         interpreter_->NewNativeValue(PartName(part), [this, part](NativeCall& call) -> Value {
           std::string value;
-          if (!CoerceToString(call, Argument(call.arguments, 0), value)) {
+          if (!CoerceToUsvString(call, Argument(call.arguments, 0), value)) {
             return call.ThrownValue();
           }
           std::optional<url::Url> url = url::Url::Parse(HrefOf(call.self));
@@ -293,7 +293,7 @@ void DomBindings::InstallUrlConstructor() {
           return *existing;
         }
         const std::optional<url::Url> url = url::Url::Parse(HrefOf(call.self));
-        const Value params = MakeUrlSearchParams(url.has_value() ? url->Search() : std::string());
+        const Value params = MakeUrlSearchParams(url.has_value() ? url->Query() : std::string());
         if (params.IsObject()) {
           params.object->SetHidden(kOwningUrlSlot, call.self);
           call.self.object->SetHidden(kSearchParamsSlot, params);
@@ -396,7 +396,7 @@ void DomBindings::RefreshUrlSearchParams(const js::Value& url_object) {
     return;
   }
   const std::optional<url::Url> url = url::Url::Parse(HrefOf(url_object));
-  ResetUrlSearchParams(*params, url.has_value() ? url->Search() : std::string());
+  ResetUrlSearchParams(*params, url.has_value() ? url->Query() : std::string());
 }
 
 // `HTMLBaseElement.href`, which is *not* an ordinary reflected attribute and cannot be one.
@@ -545,7 +545,7 @@ void DomBindings::InstallHyperlinkElementUtils() {
               return Value::Undefined();
             }
             std::string value;
-            if (!CoerceToString(call, Argument(call.arguments, 0), value)) {
+            if (!CoerceToUsvString(call, Argument(call.arguments, 0), value)) {
               return call.ThrownValue();
             }
             std::optional<url::Url> url = url_of(call.self);

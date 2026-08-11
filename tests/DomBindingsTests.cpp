@@ -2043,8 +2043,10 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage,
                  "let s = ''; for (const [n, v] of new URLSearchParams('a=1&b=2')) s += n + v; s",
                  "a1b2");
-    ExpectScript(kPage, "new URLSearchParams('a=1&b=2').keys().join(',')", "a,b");
-    ExpectScript(kPage, "new URLSearchParams('a=1&b=2').values().join(',')", "1,2");
+    // `keys()` is the specification's live iterator rather than an array -- a page that deletes
+    // while walking sees what moved into place -- so it is spread rather than joined.
+    ExpectScript(kPage, "[...new URLSearchParams('a=1&b=2').keys()].join(',')", "a,b");
+    ExpectScript(kPage, "[...new URLSearchParams('a=1&b=2').values()].join(',')", "1,2");
     // The three other things a page constructs one from.
     ExpectScript(kPage, "new URLSearchParams({x: '1', y: '2'}).toString()", "x=1&y=2");
     ExpectScript(kPage, "new URLSearchParams([['k','v'],['k','w']]).toString()", "k=v&k=w");

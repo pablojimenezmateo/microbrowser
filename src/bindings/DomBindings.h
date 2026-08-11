@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "bindings/Geometry.h"
+#include "util/UrlEncoded.h"
 #include "bindings/History.h"
 #include "bindings/Canvas.h"
 #include "bindings/Workers.h"
@@ -376,13 +377,19 @@ class DomBindings {
   void InstallUrlSearchParams();
   // Both directions of `url.searchParams` (UrlSearchParams.cpp, UrlObject.cpp): a URL and its
   // params are one query, so a mutation of either has to reach the other.
-  js::Value MakeUrlSearchParams(const std::string& search);
-  void ResetUrlSearchParams(const js::Value& params, const std::string& search);
+  js::Value MakeUrlSearchParams(const std::string& query);
+  void ResetUrlSearchParams(const js::Value& params, const std::string& query);
   void WriteBackUrlSearchParams(const js::Value& params, const std::string& serialized);
   void RefreshUrlSearchParams(const js::Value& url_object);
   // `document.forms`, `form.elements` with `namedItem`, `submit` and
   // `requestSubmit`, and `control.form`. In FormBindings.cpp.
   void InstallFormApis();
+  // `FormData`, and `formData()` on `Request`/`Response`. In FormDataBindings.cpp, separate from
+  // the `<form>` APIs above because a FormData is a list of pairs with no node in it.
+  void InstallFormData();
+  js::Value MakeFormData(const std::vector<util::QueryPair>& pairs);
+  void InstallBodyFormData(const js::Value& prototype, const char* body_slot,
+                           const char* used_slot);
   // The named-and-indexed collection both `document.forms` and `form.elements`
   // are: an array, plus `namedItem` and the names as properties.
   js::Value MakeNamedCollection(const std::vector<dom::Element*>& elements);

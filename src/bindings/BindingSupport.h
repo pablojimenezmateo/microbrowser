@@ -92,6 +92,21 @@ inline bool CoerceToString(js::NativeCall& call, const js::Value& value, std::st
   return true;
 }
 
+// The same conversion, to a Web IDL **USVString** rather than a DOMString: a JavaScript string is
+// a sequence of UTF-16 code units and may hold an unpaired surrogate, and a USVString may not, so
+// every lone one becomes U+FFFD.
+//
+// It is a separate function rather than a flag because the choice belongs to the *interface*: the
+// URL Standard takes USVStrings everywhere, because a URL becomes bytes on a wire and a lone
+// surrogate has no encoding. `setAttribute` takes a DOMString and must keep whatever it was given.
+inline bool CoerceToUsvString(js::NativeCall& call, const js::Value& value, std::string& out) {
+  if (!CoerceToString(call, value, out)) {
+    return false;
+  }
+  out = util::Utf8DecodeLossy(out);
+  return true;
+}
+
 // `DOMException`: the type a *web API* throws, as against the `Error` types the
 // language throws. Defined in DomExceptions.cpp, where the WebIDL error-names
 // table lives.
