@@ -80,6 +80,34 @@ bool TimerQueue::QueueTask(js::Interpreter& interpreter, const js::Value& callba
   return true;
 }
 
+bool TimerQueue::QueueDelayedTask(js::Interpreter& interpreter, const js::Value& callback,
+                                  std::int64_t delay_ms) {
+  if (!callback.IsObject() || !callback.object->IsCallable()) {
+    return false;
+  }
+  js::Object* global = interpreter.Global();
+  const Value* queue_slot = global->GetOwn(kQueueSlot);
+  const Value* now_slot = global->GetOwn(kNowSlot);
+  js::Object* callbacks = Callbacks(interpreter);
+  if (queue_slot == nullptr || now_slot == nullptr || callbacks == nullptr) {
+    return false;
+  }
+  auto* queue = reinterpret_cast<TimerQueue*>(static_cast<std::uintptr_t>(queue_slot->number));
+  Timer timer;
+  timer.id = queue->next_id_++;
+  // The same clamp a page's own delay gets, and for the same reason: a caller
+  // that computed a delay wrong must not park a wakeup a year out.
+  const std::int64_t bounded = delay_ms < 0 ? 0 : (delay_ms > kMaxDelayMs ? kMaxDelayMs : delay_ms);
+  timer.due_ms = static_cast<std::int64_t>(now_slot->number) + bounded;
+  // Deliberately *not* kHostTask: a host task may be drained inside the turn
+  // that queued it, and a timeout that fired before its delay had passed is
+  // not a timeout.
+  timer.flags = TrustedScriptContextActive(interpreter) ? Timer::kTrustScripts : 0;
+  queue->timers_.push_back(timer);
+  callbacks->Set(js::NumberToString(timer.id), callback);
+  return true;
+}
+
 void TimerQueue::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   js::Object* global = interpreter.Global();
   const Value callbacks = interpreter.NewObjectValue();

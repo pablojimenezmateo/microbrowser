@@ -317,6 +317,21 @@ inline DomBindings* OwnerOf(const js::NativeCall& call) {
   return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
 }
 
+// `addEventListener` and `removeEventListener` on an object, in
+// EventListeners.cpp. Free functions rather than members of DomBindings
+// because a listener list lives on the receiver and nothing in either asks a
+// question about the document -- which is what lets `new EventTarget()` be an
+// ordinary object with a prototype and no special case anywhere.
+void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& wrapper,
+                                 const void* owner);
+
+// Whether a listener entry is still in the list it was taken from. The
+// dispatch loop runs over a *copy* -- the set that existed when the event
+// reached this node -- but the DOM says a listener removed while that copy is
+// being walked does not run, which is the whole behaviour of an AbortSignal
+// aborted from inside a handler.
+bool ListenerStillRegistered(const js::Value& listeners, const js::Value& entry);
+
 // A rectangle as a page reads one: the eight members of a `DOMRect`, where
 // `x`/`y`/`width`/`height` and `top`/`right`/`bottom`/`left` are the same four
 // numbers under two names.

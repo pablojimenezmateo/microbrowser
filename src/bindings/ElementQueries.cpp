@@ -286,6 +286,23 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
     }
   };
 
+  // Null at the root, where `parentNode` is the document -- which is the whole
+  // difference between the two and why both exist.
+  //
+  // **On Node rather than on Element**, which is where the DOM puts it and is
+  // not a detail: a detached Comment answered `undefined` here, and a page
+  // testing `node.parentElement === null` to decide whether a node is in a
+  // tree took the wrong branch for every node that is not an element.
+  accessor("parentElement", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || self->Parent() == nullptr ||
+        !self->Parent()->IsElement()) {
+      return Value::Null();
+    }
+    return owner->WrapperFor(self->Parent());
+  });
+
   // Inclusive, which is the specification's and the surprising half: a node
   // contains itself. A polyfill that walks up asking `root.contains(node)`
   // depends on it terminating.
@@ -638,18 +655,6 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     return owner == nullptr ? Value::Null()
                             : owner->WrapperFor(ElementSibling(NodeOf(call.self), -1));
   });
-  // Null at the root, where `parentNode` is the document -- which is the whole
-  // difference between the two and why both exist.
-  accessor("parentElement", [](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr || self->Parent() == nullptr ||
-        !self->Parent()->IsElement()) {
-      return Value::Null();
-    }
-    return owner->WrapperFor(self->Parent());
-  });
-
 }
 
 // Element only: the things a document has no answer for. Kept apart rather

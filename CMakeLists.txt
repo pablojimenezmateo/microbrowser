@@ -519,6 +519,7 @@ microbrowser_module(bindings
     src/bindings/WaapiBindings.cpp
     src/bindings/EventBindings.cpp
     src/bindings/EventDispatch.cpp
+    src/bindings/EventListeners.cpp
     src/bindings/FocusBindings.cpp
     src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp

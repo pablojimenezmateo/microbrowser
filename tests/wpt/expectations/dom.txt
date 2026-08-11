@@ -100,33 +100,14 @@ FAIL=Object.getOwnPropertyNames on DOMStringMap, data attribute trailing hyphen
 FAIL=Object.getOwnPropertyNames on NamedNodeMap
 FAIL=Object.getOwnPropertyNames on NamedNodeMap after attribute removal
 FAIL=Object.getOwnPropertyNames on NamedNodeMap of input
-[dom/events/AddEventListenerOptions-once.any.html]
-FAIL=Multiple once listeners should be invoked even if the stopImmediatePropagation is set
-FAIL=Once listener should be added / removed like normal listeners
-FAIL=Once listener should be invoked only once
-FAIL=Once listener should be invoked only once even if the event is nested
 [dom/events/AddEventListenerOptions-once.any.worker.html]
 harness=TIMEOUT
 [dom/events/AddEventListenerOptions-passive.any.html]
-FAIL=Equivalence of option values
 FAIL=Supports passive option on addEventListener only
-FAIL=passive behavior of one listener should be unaffected by the presence of other listeners
-FAIL=preventDefault should be ignored if-and-only-if the passive option is true
-FAIL=returnValue should be ignored if-and-only-if the passive option is true
 [dom/events/AddEventListenerOptions-passive.any.worker.html]
 harness=TIMEOUT
 [dom/events/AddEventListenerOptions-signal.any.html]
-FAIL=Aborting from a listener does not call future listeners
-FAIL=Aborting from a nested listener should remove it
-FAIL=Adding then aborting a listener in another listener does not call it
-FAIL=Passing an AbortSignal to addEventListener does not prevent removeEventListener
 FAIL=Passing an AbortSignal to addEventListener options should allow removing a listener
-FAIL=Passing an AbortSignal to addEventListener works with the capture flag
-FAIL=Passing an AbortSignal to addEventListener works with the once flag
-FAIL=Passing an AbortSignal to multiple listeners
-FAIL=Passing null as the signal should throw
-FAIL=Passing null as the signal should throw (listener is also null)
-FAIL=Removing a once listener works with a passed signal
 [dom/events/AddEventListenerOptions-signal.any.worker.html]
 harness=TIMEOUT
 [dom/events/Body-FrameSet-Event-Handlers.html]
@@ -414,18 +395,10 @@ harness=TIMEOUT
 FAIL=Supports capture option
 [dom/events/EventTarget-add-listener-platform-object.html]
 harness=TIMEOUT
-[dom/events/EventTarget-add-remove-listener.any.html]
-FAIL=Removing an event listener without explicit capture arg should succeed
 [dom/events/EventTarget-add-remove-listener.any.worker.html]
 harness=TIMEOUT
-[dom/events/EventTarget-addEventListener.any.html]
-FAIL=Adding a null event listener should succeed
 [dom/events/EventTarget-addEventListener.any.worker.html]
 harness=TIMEOUT
-[dom/events/EventTarget-constructible.any.html]
-FAIL=A constructed EventTarget can be used as expected
-FAIL=A constructed EventTarget implements dispatch correctly
-FAIL=EventTarget can be subclassed
 [dom/events/EventTarget-constructible.any.worker.html]
 harness=TIMEOUT
 [dom/events/EventTarget-dispatchEvent.html]
@@ -473,8 +446,6 @@ FAIL=offsetX is correctly adjusted
 [dom/events/no-focus-events-at-clicking-editable-content-in-link.html]
 FAIL=Click editable element in link
 FAIL=Click editable link
-[dom/events/non-cancelable-when-passive/generic-events-stay-cancelable.html]
-FAIL=A generic event with only passive listeners remains cancelable
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-body.html]
 harness=TIMEOUT
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-div.html]
@@ -579,9 +550,6 @@ FAIL=Reset targets before activation behavior
 FAIL=Reset targets on early return
 FAIL=Retarget a shadow-tree relatedTarget
 FAIL=Retarget a shadow-tree relatedTarget, part 2
-[dom/events/remove-all-listeners.html]
-FAIL=Nested usage of once listeners should work.
-FAIL=Removing all listeners and then adding a new one should work.
 [dom/events/scrolling/iframe-chains.html]
 FAIL=Wheel scroll in iframe chains to containing element.
 [dom/events/scrolling/input-text-scroll-event-when-using-arrow-keys.html]
@@ -666,8 +634,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/events/webkit-transition-end-event.html]
 harness=TIMEOUT
-[dom/events/window-composed-path.html]
-FAIL=window target has an empty path after dispatch
 [dom/events/window-event-restored-after-throwing-onerror.html]
 FAIL=window.event is restored after a throwing window.onerror handler
 [dom/historical.html]
@@ -746,7 +712,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Document-constructor.html]
 FAIL=new Document(): URL parsing
-FAIL=new Document(): metadata
 [dom/nodes/Document-contentType/contentType/contenttype_bmp.html]
 harness=TIMEOUT
 [dom/nodes/Document-contentType/contentType/contenttype_css.html]
@@ -930,11 +895,7 @@ FAIL=createElement(undefined) in XHTML document
 FAIL=createElement(undefined) in XML document
 [dom/nodes/Document-createElementNS.html]
 FAIL=Lower-case HTML element with a prefix
-FAIL=Lower-case non-HTML element with a prefix
-FAIL=Lower-case non-HTML element without a prefix
 FAIL=Upper-case HTML element without a prefix
-FAIL=Upper-case non-HTML element with a prefix
-FAIL=Upper-case non-HTML element without a prefix
 FAIL=createElementNS test in HTML document: "http://example.com/","0:a",null
 FAIL=createElementNS test in XHTML document: "","","INVALID_CHARACTER_ERR"
 FAIL=createElementNS test in XHTML document: "",":foo","INVALID_CHARACTER_ERR"
@@ -1326,9 +1287,6 @@ FAIL=createElementNS test in XML document: undefined,"xmlns","NAMESPACE_ERR"
 FAIL=createElementNS test in XML document: undefined,"xmlns:foo","NAMESPACE_ERR"
 FAIL=createElementNS test in XML document: undefined,null,null
 FAIL=createElementNS test in XML document: undefined,undefined,null
-FAIL=empty string namespace
-FAIL=null namespace
-FAIL=undefined namespace
 [dom/nodes/Document-createEvent.https.html]
 FAIL=BEFOREUNLOADEVENT should be an alias for BeforeUnloadEvent.
 FAIL=BeforeUnloadEvent should be an alias for BeforeUnloadEvent.
@@ -1714,12 +1672,8 @@ harness=TIMEOUT
 [dom/nodes/Text-wholeText.html]
 FAIL=wholeText returns text of all Text nodes logically adjacent to the node, in document order.
 [dom/nodes/adoption.window.html]
-FAIL=adoptNode() and DocumentFragment
 FAIL=adoptNode() and DocumentFragment with host
-FAIL=adoptNode() and ShadowRoot
-FAIL=appendChild() and DocumentFragment
 FAIL=appendChild() and DocumentFragment with host
-FAIL=appendChild() and ShadowRoot
 [dom/nodes/append-on-Document.html]
 FAIL=Document.append() with only one element as an argument, on a Document having no child.
 FAIL=Document.append() with only one element as an argument, on a Document having one child.
@@ -1882,7 +1836,6 @@ FAIL=moveBefore with an Element or CharacterData succeeds
 FAIL=moveBefore with reference child whose parent is NOT the destination parent (context node) throws a NotFoundError.
 FAIL=moveBefore() CharacterData into a Document
 FAIL=moveBefore() into a Document throws a HierarchyRequestError
-FAIL=moveBefore() method does not exist on non-ParentNode Nodes
 FAIL=moveBefore() on a cross-document target node throws a HierarchyRequestError
 FAIL=moveBefore() on disconnected parent throws a HierarchyRequestError
 FAIL=moveBefore() returns undefined
@@ -1996,7 +1949,7 @@ FAIL=Pointer capture should not be released when moving
 [dom/nodes/moveBefore/popover-preserve.html]
 FAIL=when reparenting an open popover, it shouldn't be closed automatically
 [dom/nodes/moveBefore/preserve-render-blocking-style.html]
-FAIL=A moved script should keep its render-blocking state
+harness=TIMEOUT
 [dom/nodes/moveBefore/relevant-mutations.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/role-updates-after-move.html]

@@ -136,7 +136,19 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
       "textContent",
       [](NativeCall& call) {
         dom::Node* self = NodeOf(call.self);
-        return self == nullptr ? Value::Undefined() : Value::String(self->TextContent());
+        if (self == nullptr) {
+          return Value::Undefined();
+        }
+        // **Null**, not the empty string, on a Document and a DocumentType.
+        // The DOM defines `textContent` per interface and gives those two no
+        // definition at all, which is how the attribute answers null -- and a
+        // page tells "this node has no text" from "this node's text is empty"
+        // by exactly that difference.
+        if (self->GetKind() == dom::Node::Kind::Document ||
+            self->GetKind() == dom::Node::Kind::DocumentType) {
+          return Value::Null();
+        }
+        return Value::String(self->TextContent());
       },
       [](NativeCall& call) {
         DomBindings* owner = OwnerOf(call);

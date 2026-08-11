@@ -10,6 +10,7 @@
 
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
+#include "bindings/Input.h"
 #include "bindings/Canvas.h"
 #include "bindings/Workers.h"
 #include "bindings/IndexedDb.h"
@@ -29,61 +30,6 @@ struct Selector;
 }
 
 namespace microbrowser::bindings {
-
-// A form submission a script asked for and has not had yet.
-//
-// Recorded rather than performed, for two reasons and the second is the one
-// that matters. This module cannot navigate: it cannot see a URL, a loader or
-// a network, which is the module contract working. And a navigation started
-// from inside a running script would tear down the interpreter that is running
-// it -- ADR 0026 §3 makes document teardown the most safety-critical routine in
-// the engine, and "not while script is on the stack" is the first rule of it.
-// So the engine takes this after the turn ends.
-struct PendingSubmit {
-  dom::Element* form = nullptr;
-  // The button that submitted, or null. It decides `formaction`, `formmethod`
-  // and which submit control appears in the form data set.
-  dom::Element* submitter = nullptr;
-};
-
-// One pointer act, as the thing that saw it describes it. The coordinates are
-// CSS pixels: `client` is measured from the viewport and `page` from the top of
-// the document, and they differ by the scroll offset -- which is why both are
-// here rather than one plus a subtraction a caller might forget.
-struct PointerInput {
-  float client_x = 0.0f;
-  float client_y = 0.0f;
-  float page_x = 0.0f;
-  float page_y = 0.0f;
-  // The DOM's numbering: 0 is the primary button, and `buttons` is the bitmask
-  // of what is still held.
-  std::uint8_t button = 0;
-  std::uint16_t buttons = 0;
-  bool control = false;
-  bool shift = false;
-  bool alt = false;
-  bool meta = false;
-};
-
-// One key press or release, as the thing that saw it describes it.
-//
-// Three strings rather than one, and ADR 0017 §1 is where the reasoning is: a
-// game reads `code` because WASD is a shape on the keyboard, a shortcut reads
-// `key` because Ctrl+C is a letter, and an editor reads `text` because a dead
-// key produces nothing until the next one. This struct is deliberately not
-// `ipc::KeyInputMessage`: this module cannot see `ipc`, and the engine
-// translating one into the other at the seam is what keeps it that way.
-struct KeyInput {
-  bool down = true;
-  std::string code;
-  std::string key;
-  std::string text;
-  bool control = false;
-  bool shift = false;
-  bool alt = false;
-  bool meta = false;
-  bool repeat = false;
-};
 
 // Gives a script a document to act on.
 //
@@ -391,9 +337,9 @@ class DomBindings {
   // `popstate` carries a state and `hashchange` carries two URLs, and neither
   // can be added after the listeners have run.
   bool DispatchAtWindowWith(const char* type, const js::Value& event);
-  // Puts `composedPath()` on an event, over the path dispatch already built.
-  // Stored rather than recomputed, because the path is fixed before any handler
-  // runs -- a handler that reparents the target must not change it.
+  // Gives an event the propagation path `Event.prototype.composedPath` reads.
+  // Fixed before any handler runs -- one that reparents the target must not
+  // change it -- and empty is how dispatch says it is over.
   void InstallComposedPath(const js::Value& event, const std::vector<js::Value>& path);
   void SetReadyState(const char* state);
   // `DOMTokenList`, in TokenList.cpp. The interface is shared and installed
@@ -843,6 +789,10 @@ class DomBindings {
   void InstallTreeWalkers(const js::Value& document);
   void InstallRange();  // boundary points; RangeContents.cpp has the tree surgery
   void InstallRangeContents(const js::Value& range_interface);
+  // Two boundary points with none of the liveness. Beside Range because they
+  // share the slot names, and separate because they are opposites: a Range is
+  // pinned to the tree and a StaticRange is a record of where two points were.
+  void InstallStaticRange();
 
   // --- DOM Parsing and Serialization, in HtmlParsing.cpp / DomParsing.cpp ---
   // Markup becoming nodes and back, and in every one of them the *context* is

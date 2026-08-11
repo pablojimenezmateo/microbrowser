@@ -536,7 +536,43 @@ void DomBindings::EnsureInterfaces() {
     split.object->Set(kOwnerSlot, PointerValue(this));
     text_interface.object->Set("splitText", split);
   }
-  MakeInterface("Comment", character_data);
+  // `wholeText`: this node's data plus that of every Text node **contiguous**
+  // with it. A parser is free to split a run of text across nodes wherever it
+  // likes -- an entity reference or a CDATA boundary is enough -- so a page
+  // that wants the text a user would see between two elements has to ask for
+  // the run rather than for one node. It stops at anything that is not a Text
+  // node, which is the difference between it and the parent's `textContent`.
+  if (const Value whole = interpreter_->NewNativeValue(
+          "wholeText",
+          [](js::NativeCall& call) -> Value {
+            dom::Node* self = NodeOf(call.self);
+            if (self == nullptr || !self->IsText()) {
+              return Value::Undefined();
+            }
+            dom::Node* parent = self->Parent();
+            if (parent == nullptr) {
+              return Value::String(static_cast<dom::Text&>(*self).Data());
+            }
+            const auto& children = parent->Children();
+            std::size_t index = 0;
+            while (index < children.size() && children[index].get() != self) {
+              ++index;
+            }
+            std::size_t first = index;
+            while (first > 0 && children[first - 1]->IsText()) {
+              --first;
+            }
+            std::string out;
+            for (std::size_t i = first; i < children.size() && children[i]->IsText(); ++i) {
+              out += static_cast<const dom::Text&>(*children[i]).Data();
+            }
+            return Value::String(std::move(out));
+          });
+      whole.IsObject() && text_interface.IsObject()) {
+    whole.object->Set(kOwnerSlot, PointerValue(this));
+    text_interface.object->DefineAccessor("wholeText", whole.object, nullptr);
+  }
+  const Value comment_interface = MakeInterface("Comment", character_data);
   // A CDATASection is XML-only, and this browser can now hold one: an XML
   // document -- `new Document()` or `implementation.createDocument(...)` --
   // answers `createCDATASection`, and an HTML document still throws
@@ -693,6 +729,68 @@ void DomBindings::EnsureInterfaces() {
     interpreter_->Global()->Set("Audio", audio);
     interpreter_->GlobalScope()->Declare("Audio", audio, false);
   }
+
+  // The four interfaces the DOM makes **constructible**, replacing the
+  // illegal-constructor stub every other one keeps. `new Text('x')` is not a
+  // convenience spelling of `createTextNode`: it is how the specification says
+  // such a node is made, and a page that reaches for it gets a TypeError from
+  // the stub rather than an absence it could feature-detect -- which is ADR
+  // 0012 read from the wrong side. The node document is this realm's, which is
+  // what `new Text().ownerDocument === document` asserts.
+  const auto constructible = [this](const char* name, const Value& prototype,
+                                    js::NativeFunction body) {
+    const Value constructor = interpreter_->NewNativeValue(name, std::move(body));
+    if (!constructor.IsObject() || !prototype.IsObject()) {
+      return;
+    }
+    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set("prototype", prototype);
+    prototype.object->Set("constructor", constructor);
+    // A binding rather than an own property on the global, for the reason
+    // MakeInterface gives: two spellings of one name is how a page's patch of
+    // `window.X` and the bare name `X` end up disagreeing.
+    interpreter_->GlobalScope()->Declare(name, constructor, false);
+  };
+  // `optional DOMString data = ""`, so *no* argument and an explicit
+  // `undefined` are both the empty string -- and `null` is the four-character
+  // string "null", because the IDL type is not nullable.
+  const auto character_data_argument = [](js::NativeCall& call, std::string& out) {
+    if (call.arguments.empty() || call.arguments[0].IsUndefined()) {
+      out.clear();
+      return true;
+    }
+    return ToDomString(call, call.arguments[0], out);
+  };
+  constructible("Text", text_interface,
+                [self, character_data_argument](js::NativeCall& call) -> Value {
+                  std::string data;
+                  if (!character_data_argument(call, data)) {
+                    return call.ThrownValue();
+                  }
+                  return self->CreateText(data, *self->document_);
+                });
+  constructible("Comment", comment_interface,
+                [self, character_data_argument](js::NativeCall& call) -> Value {
+                  std::string data;
+                  if (!character_data_argument(call, data)) {
+                    return call.ThrownValue();
+                  }
+                  return self->CreateComment(data, *self->document_);
+                });
+  constructible("DocumentFragment", fragment, [self](js::NativeCall&) -> Value {
+    return self->CreateDocumentFragment(*self->document_);
+  });
+  // An EventTarget is the one of the four that is not a node: a plain object
+  // whose prototype carries `addEventListener`, which is all an EventTarget
+  // *is*. The listeners live on the object itself, exactly as they do on a
+  // wrapper, so nothing in the dispatch path has to know which kind it has.
+  constructible("EventTarget", event_target, [event_target](js::NativeCall& call) -> Value {
+    const Value target = call.interpreter.NewObjectValue();
+    if (target.IsObject() && event_target.IsObject()) {
+      target.object->SetPrototype(event_target.object);
+    }
+    return target;
+  });
 
   // `HTMLUnknownElement`, which is the interface of a tag no specification
   // names. Nothing in this browser is given it: the table above is deliberately

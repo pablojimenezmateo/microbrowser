@@ -153,6 +153,14 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
         ListenerFlag(entry, kListenerCaptureSlot) != (pass == EventPhase::Capturing)) {
       continue;
     }
+    // Removed since the copy was taken, by an earlier listener or by an
+    // AbortSignal one of them aborted. The DOM's "removed" flag: the copy
+    // fixes *which* listeners this node considers, not that every one of them
+    // still exists. Without this, `controller.abort()` from inside a handler
+    // still ran every later listener the same controller was meant to cancel.
+    if (!ListenerStillRegistered(*listeners, entry)) {
+      continue;
+    }
     // Removed before it is called, not after: a `once` listener that dispatches
     // the same event again must not see itself still registered.
     if (ListenerFlag(entry, kListenerOnceSlot)) {
@@ -290,10 +298,12 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
                                EventPhase::Bubbling);
     }
   }
-  // Dispatch is over: `currentTarget` is null and the phase is NONE outside it,
-  // which is what a handler that stashed the event and reads it later sees.
+  // Dispatch is over: `currentTarget` is null, the phase is NONE and the
+  // propagation path is empty outside it, which is what a handler that stashed
+  // the event and reads it later sees.
   event.object->Set("currentTarget", Value::Null());
   event.object->Set("eventPhase", Value::Number(static_cast<double>(EventPhase::None)));
+  InstallComposedPath(event, {});
   // Handlers run as a turn of their own, so anything they queued settles
   // before the event is over -- the same rule a script gets.
   interpreter_->DrainMicrotasks();
@@ -499,35 +509,12 @@ void DomBindings::InstallComposedPath(const js::Value& event,
   if (interpreter_ == nullptr || !event.IsObject()) {
     return;
   }
-  // Stored on the event and handed back by a method, rather than computed when
-  // asked: the path is built before any handler runs -- a handler that reparents
-  // the target must not change it -- and `composedPath()` has to answer with that
-  // same path afterwards.
-  const Value stored = interpreter_->NewArrayValue(path);
-  event.object->SetHidden("#path", stored);
-  const Value method = interpreter_->NewNativeValue("composedPath", [](js::NativeCall& call) {
-    const Value* composed =
-        call.self.IsObject() ? call.self.object->GetOwn("composed") : nullptr;
-    const Value* stored_path =
-        call.self.IsObject() ? call.self.object->GetOwn("#path") : nullptr;
-    if (stored_path == nullptr || !stored_path->IsObject()) {
-      return call.interpreter.NewArrayValue({});
-    }
-    if (composed == nullptr || !js::ToBoolean(*composed)) {
-      // A non-composed event does not escape its tree, so its path stops at the
-      // root it was fired in. Answering with the full path would tell a listener
-      // outside about nodes the event never reached.
-      std::vector<Value> inside;
-      for (std::size_t i = 0; i < stored_path->object->ElementCount(); ++i) {
-        inside.push_back(stored_path->object->GetElement(i));
-      }
-      return call.interpreter.NewArrayValue(std::move(inside));
-    }
-    return *stored_path;
-  });
-  if (method.IsObject()) {
-    event.object->Set("composedPath", method);
-  }
+  // Stored on the event and read back by `Event.prototype.composedPath`: the
+  // path is built before any handler runs -- a handler that reparents the
+  // target must not change it -- and it exists **only** while the event is
+  // being dispatched. An empty vector is how dispatch says it is over, which
+  // is what makes `event.composedPath()` answer `[]` afterwards.
+  event.object->SetHidden("#path", interpreter_->NewArrayValue(path));
 }
 
 bool DomBindings::DispatchAtWindow(const char* type) {

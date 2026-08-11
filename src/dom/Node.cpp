@@ -217,12 +217,25 @@ std::unique_ptr<Node> Node::Detach(Node* child) {
 
 std::string Node::TextContent() const {
   std::string out;
-  // *This* node when it is text, and not only its descendants. A Text node has no
-  // children, so the descendant walk answered "" for one -- which is wrong twice
-  // over: the DOM says `textContent` on a Text node is its data, and a caller
-  // asking a node it did not have to type-check got a silent empty string.
-  if (IsText()) {
-    return static_cast<const Text&>(*this).Data();
+  // *This* node when it is character data, and not only its descendants. None
+  // of the three has children, so the descendant walk answered "" for one --
+  // which is wrong twice over: the DOM says `textContent` on a CharacterData
+  // node is its data, and a caller asking a node it did not have to type-check
+  // got a silent empty string.
+  //
+  // All three, not only Text. A Comment and a ProcessingInstruction are
+  // CharacterData too, and the rule is written on that interface rather than
+  // on Text -- so `comment.textContent` is the comment's own text, which is
+  // the one place a page can read a comment's contents at all.
+  switch (GetKind()) {
+    case Kind::Text:
+      return static_cast<const Text&>(*this).Data();
+    case Kind::Comment:
+      return static_cast<const Comment&>(*this).Data();
+    case Kind::ProcessingInstruction:
+      return static_cast<const ProcessingInstruction&>(*this).Data();
+    default:
+      break;
   }
   ForEachDescendant([&out](const Node& node) {
     if (node.IsText()) {
