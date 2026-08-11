@@ -142,11 +142,27 @@ void DomBindings::ScheduleObserverDelivery(const js::Value& observer) {
 void DomBindings::RecordMutation(dom::Node& node, const char* type, const std::string& name,
                                  const js::Value& old_value,
                                  const std::vector<dom::Node*>& added,
-                                 const std::vector<dom::Node*>& removed) {
+                                 const std::vector<dom::Node*>& removed,
+                                 std::string_view attribute_namespace) {
   const Value observers = ObserverList();
   if (!observers.IsObject() || observers.object->ElementCount() == 0) {
     return;  // nothing is watching, and this is the common case by a long way
   }
+  // Where the change happened, as the two siblings that bracket it. Read here
+  // rather than passed in because every caller is already standing at the one
+  // moment they are true: an insertion records *after* the nodes are in, a
+  // removal records *before* they leave, so in both cases the run is still
+  // sitting between these two.
+  //
+  // Not decoration -- `mutationobservers.js`, which every MutationObserver
+  // test in dom/nodes runs through, compares all eight record fields against a
+  // default of null. A record missing these answered `undefined`, so all six
+  // files failed on "previousSibling didn't match" before reaching what they
+  // were about, and each then hung to the harness timeout waiting for an
+  // async_test that could no longer finish.
+  const std::vector<dom::Node*>& run = added.empty() ? removed : added;
+  dom::Node* previous_sibling = run.empty() ? nullptr : PreviousSiblingOf(*run.front());
+  dom::Node* next_sibling = run.empty() ? nullptr : NextSiblingOf(*run.back());
   for (std::size_t i = 0; i < observers.object->ElementCount(); ++i) {
     const Value observer = observers.object->GetElement(i);
     if (!observer.IsObject()) {
@@ -194,6 +210,15 @@ void DomBindings::RecordMutation(dom::Node& node, const char* type, const std::s
       record.object->Set("target", WrapperFor(&node));
       record.object->Set("attributeName",
                          name.empty() ? Value::Null() : Value::String(name));
+      record.object->Set("attributeNamespace",
+                         attribute_namespace.empty()
+                             ? Value::Null()
+                             : Value::String(std::string(attribute_namespace)));
+      record.object->Set("previousSibling",
+                         previous_sibling == nullptr ? Value::Null()
+                                                     : WrapperFor(previous_sibling));
+      record.object->Set("nextSibling",
+                         next_sibling == nullptr ? Value::Null() : WrapperFor(next_sibling));
       // The old value only when it was asked for, because keeping it otherwise
       // is a copy of every attribute a page writes.
       const bool wants_old = OptionIsTrue(registration, "attributeOldValue") ||
@@ -260,21 +285,59 @@ void DomBindings::InstallMutationObserver() {
             return Value::Undefined();
           }
           registration.object->Set("node", target);
+          // The DOM distinguishes an option that is *present* and false from
+          // one that is absent, and the whole of `observe`'s argument checking
+          // turns on that. `{attributeOldValue: true}` alone watches
+          // attributes; `{attributes: false, attributeOldValue: true}` is a
+          // TypeError. A page that asks for old values and gets silence back
+          // has no way to tell which of the two it wrote.
+          const auto present = [&options](const char* key) {
+            if (!options.IsObject()) {
+              return false;
+            }
+            const Value* value = options.object->Get(key);
+            return value != nullptr && !value->IsUndefined();
+          };
+          const bool child_list = OptionIsTrue(options, "childList");
+          const bool attribute_old = OptionIsTrue(options, "attributeOldValue");
+          const bool character_old = OptionIsTrue(options, "characterDataOldValue");
+          const bool has_filter = present("attributeFilter");
+          // Steps 1 and 2: naming a filter or an old value implies watching the
+          // thing it qualifies, unless the page said otherwise outright. The
+          // test is *presence*, not truth -- `{attributeOldValue: false}` alone
+          // still watches attributes, because the page named the option.
+          const bool attributes =
+              (present("attributeOldValue") || has_filter) && !present("attributes")
+                  ? true
+                  : OptionIsTrue(options, "attributes");
+          const bool character_data =
+              present("characterDataOldValue") && !present("characterData")
+                  ? true
+                  : OptionIsTrue(options, "characterData");
+          // Steps 3 to 6, each of which is a page asking for a combination that
+          // cannot mean anything.
+          if (!child_list && !attributes && !character_data) {
+            return inner.Throw("TypeError",
+                               "observe needs childList, attributes or characterData");
+          }
+          if (!attributes && (attribute_old || has_filter)) {
+            return inner.Throw("TypeError",
+                               "attributeOldValue and attributeFilter need attributes");
+          }
+          if (!character_data && character_old) {
+            return inner.Throw("TypeError", "characterDataOldValue needs characterData");
+          }
           // Copied out rather than kept as a reference to the page's object,
           // which it is free to mutate afterwards -- the options are read at
           // `observe` time and a later edit must not change what is watched.
-          for (const char* key : {"childList", "attributes", "characterData", "subtree",
-                                  "attributeOldValue", "characterDataOldValue"}) {
-            registration.object->Set(key, Value::Bool(OptionIsTrue(options, key)));
-          }
-          if (options.IsObject()) {
-            if (const Value* filter = options.object->Get("attributeFilter")) {
-              registration.object->Set("attributeFilter", *filter);
-              // Naming a filter implies watching attributes, which is what the
-              // specification says and what a page that only sets the filter
-              // expects.
-              registration.object->Set("attributes", Value::Bool(true));
-            }
+          registration.object->Set("childList", Value::Bool(child_list));
+          registration.object->Set("attributes", Value::Bool(attributes));
+          registration.object->Set("characterData", Value::Bool(character_data));
+          registration.object->Set("subtree", Value::Bool(OptionIsTrue(options, "subtree")));
+          registration.object->Set("attributeOldValue", Value::Bool(attribute_old));
+          registration.object->Set("characterDataOldValue", Value::Bool(character_old));
+          if (has_filter) {
+            registration.object->Set("attributeFilter", *options.object->Get("attributeFilter"));
           }
           const Value* targets = inner.self.object->GetOwn(kTargetsSlot);
           if (targets != nullptr && targets->IsObject()) {

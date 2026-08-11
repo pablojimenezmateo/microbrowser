@@ -11833,7 +11833,6 @@ FAIL=Setting document.body to a new body element.
 FAIL=Setting document.body to a new frameset element.
 FAIL=Setting document.body to a string.
 FAIL=Setting document.body when there's no root element.
-FAIL=existing document's body
 [html/dom/documents/dom-tree-accessors/Document.currentScript.html]
 harness=TIMEOUT
 [html/dom/documents/dom-tree-accessors/document.embeds-document.plugins-01.html]
@@ -12054,7 +12053,6 @@ FAIL=An object name appears in a document's property names if the object is expo
 FAIL=document.__proto__ is not shadowed
 FAIL=document.constructor is not shadowed
 FAIL=document.currentScript is not shadowed
-FAIL=document.firstChild is not shadowed
 FAIL=document.foobar works (sanity check)
 FAIL=document.forms is not shadowed
 FAIL=document.isSameNode() is not shadowed
@@ -12278,7 +12276,17 @@ FAIL=Non-HTML elements inherit their parent's translation-enabled state
 [html/dom/elements/images/bypass-cache-revalidation.html]
 FAIL=Images can bypass no-cache
 [html/dom/elements/name-content-attribute-and-property.html]
-harness=TIMEOUT
+FAIL=a element's name property reflects its content attribute
+FAIL=embed element's name property reflects its content attribute
+FAIL=fieldset element's name property reflects its content attribute
+FAIL=frame element's name property reflects its content attribute
+FAIL=img element's name property reflects its content attribute
+FAIL=map element's name property reflects its content attribute
+FAIL=meta element's name property reflects its content attribute
+FAIL=object element's name property reflects its content attribute
+FAIL=output element's name property reflects its content attribute
+FAIL=param element's name property reflects its content attribute
+FAIL=slot element's name property reflects its content attribute
 [html/dom/elements/the-innertext-and-outertext-properties/dynamic-getter.html]
 FAIL=display: none applied to child element ("<div id='target'>abc<div id='child'>def")
 FAIL=display: none applied to parent element ("<div id='parent'>invisible<div id='target'>abc")

@@ -8223,7 +8223,7 @@ FAIL=Focus should cover assigned elements of an assigned slot, as well as elemen
 [shadow-dom/focus-navigation/focus-navigation-slot-shadow-in-slot.html]
 FAIL=Focus should cover assigned elements of an assigned slot, as well as elements that are directly assigned to a slot.
 [shadow-dom/focus-navigation/focus-navigation-slot-with-tabindex.html]
-harness=TIMEOUT
+FAIL=Slots tabindex should be considred in focus navigation.
 [shadow-dom/focus-navigation/focus-navigation-slots-in-slot.html]
 FAIL=Focus should cover assigned nodes of slot, especially for nested slots in slot scope.
 [shadow-dom/focus-navigation/focus-navigation-slots.html]
@@ -8265,7 +8265,9 @@ FAIL=Focus navigation should skip over other menuitems in menubars.
 [shadow-dom/focus-navigation/reading-flow/tentative/carousel-grid-order.html]
 FAIL=Grid items in carousel should follow grid-order reading flow
 [shadow-dom/focus-navigation/reading-flow/tentative/flex-flow.html]
-harness=TIMEOUT
+FAIL=Flex items in flexbox should follow flex-flow reading flow
+FAIL=Flex items in rtl flexbox should follow flex-flow reading flow
+FAIL=Flex items in vertical-lr flexbox should follow flex-flow reading flow
 [shadow-dom/focus-navigation/reading-flow/tentative/flex-visual-order.html]
 FAIL=Flex items in flexbox should follow flex-visual reading flow
 FAIL=Flex items in row-reverse and vertical-lr flexbox should follow flex-visual reading flow
@@ -8323,7 +8325,11 @@ FAIL=Grid items. Focus should be in DOM tabindexed-order.
 [shadow-dom/focus-navigation/reading-flow/tentative/source-order-invalid.html]
 FAIL=Inline elements. Focus should be in DOM tabindexed-order.
 [shadow-dom/focus-navigation/reading-flow/tentative/source-order-valid.html]
-harness=TIMEOUT
+FAIL=Block elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
+FAIL=Block inline elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
+FAIL=Flex elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
+FAIL=Flow root elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
+FAIL=Grid elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
 [shadow-dom/focus-navigation/tentative/focus-navigation-scroller-interactive-child.html]
 FAIL=While focusing a keyboard-focusable scroller, adding interactive content should not cancel focusability
 [shadow-dom/focus-navigation/tentative/focus-scroller-layout-update.html]

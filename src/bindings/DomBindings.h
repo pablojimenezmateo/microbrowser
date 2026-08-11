@@ -469,6 +469,8 @@ class DomBindings {
   // no type yet, and the `initEvent` that gives it one.
   js::Value CreateLegacyEvent(const char* interface);
   void InstallMutationMethods(const js::Value& wrapper);
+  // The ParentNode/ChildNode mixins: one shared algorithm, in NodeMixins.cpp.
+  void InstallNodeMixins(const js::Value& wrapper);
   // `data`, `length` and the shared behaviour Text and Comment inherit.
   void InstallCharacterData(const js::Value& target);
   // The interfaces, installed once each onto a prototype rather than once per
@@ -521,10 +523,11 @@ class DomBindings {
   void ScheduleObserverDelivery(const js::Value& observer);
   // Records a mutation against every observer watching `node`. `type` is
   // "childList", "attributes" or "characterData", and is also the option name
-  // an observer had to have asked for.
+  // an observer had to have asked for; an empty namespace is the record's null.
   void RecordMutation(dom::Node& node, const char* type, const std::string& name,
                       const js::Value& old_value, const std::vector<dom::Node*>& added,
-                      const std::vector<dom::Node*>& removed);
+                      const std::vector<dom::Node*>& removed,
+                      std::string_view attribute_namespace = {});
   // Text/Comment data write, with a characterData mutation record. Polymer's
   // ASAP scheduler (and youtube's lazy-list autofill) depends on observing a
   // detached text node and seeing every `textContent`/`data` bump.
@@ -547,9 +550,10 @@ class DomBindings {
   void RemoveElementAttributeNS(dom::Element& element, const dom::NamespaceRef& name_space,
                                 std::string_view local_name);
   // What both writes do after the element changed: the media-source attach,
-  // the custom-element reaction and the mutation record.
+  // the custom-element reaction and the mutation record (in that namespace).
   void AfterAttributeWrite(dom::Element& element, const std::string& name,
-                           const js::Value& old_value, const js::Value& new_value);
+                           const js::Value& old_value, const js::Value& new_value,
+                           std::string_view attribute_namespace = {});
   // The IDL attributes that reflect content attributes, as get/set pairs on
   // the interface each belongs to. `el.value = 'x'` and `setAttribute('value',
   // 'x')` are the same act; before this they were not.
@@ -878,7 +882,12 @@ class DomBindings {
   // operation: one childList record for the batch, and an upgrade and a
   // connection reaction for each node that arrived. Shared with `appendChild`
   // of a DocumentFragment, which is the same insertion by another name.
-  void InsertFragmentChildren(dom::Node& parent, dom::Node& fragment, dom::Node* reference);
+  // `record` here and on the three below is the DOM's "suppress observers"
+  // flag -- on InsertNodeBefore it covers the *insertion* record only, since a
+  // node taken from another parent still announces leaving it. See
+  // TreeMutation.cpp's `replaceChild` for what one combined record buys.
+  void InsertFragmentChildren(dom::Node& parent, dom::Node& fragment, dom::Node* reference,
+                              bool record = true);
   // Upgrades every custom element in a subtree. The parser makes elements and
   // knows nothing about a registry, so a subtree that arrived through the
   // parser has to be walked once before it is announced as connected.
@@ -889,8 +898,8 @@ class DomBindings {
   // Runs connected or disconnected reactions over `node` and its subtree. The
   // subtree matters: appending a detached tree connects everything in it.
   void NotifyConnection(dom::Node& node, bool connected);
-  js::Value AdoptInto(dom::Node& parent, dom::Node* child);
-  js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference);
+  js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference,
+                             bool record = true);
   // Detaches `child` and keeps it alive for the life of the document.
   //
   // This is the whole reason removal was not in the first slice. A wrapper
@@ -899,8 +908,8 @@ class DomBindings {
   // second of the two fixes ADR 0008 names -- it leaks a removed subtree until
   // navigation, which for a browser that navigates away from a page is a
   // bounded leak rather than an unbounded one.
-  bool DetachFromTree(dom::Node& child);
-  void ClearChildren(dom::Node& parent);
+  bool DetachFromTree(dom::Node& child, bool record = true);
+  void ClearChildren(dom::Node& parent, bool record = true);
   js::Value AdoptClone(std::unique_ptr<dom::Node> clone, dom::Document& node_document);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 

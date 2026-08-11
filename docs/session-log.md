@@ -4714,3 +4714,127 @@ namespace:
   479,500, because the two previous hand-merges updated rows and not the total. It is recomputed
   from the merged table now, which is why the aggregate moves further than this session's +1,982
   subtests would explain.
+
+## 2026-08-11 — C4, third pass: the mutation algorithms, and the records nobody was queuing
+
+**Status:** in_progress — C4's title is "mutation algorithms, node comparison, adoption,
+ownerDocument", and this is the mutation-algorithm half. The 85% check did not land and §Left
+says why it cannot until J1 does.
+**Check:** `microbrowser_wpt dom/` — **54.2% → 56.1%** (3850 of 7098 → 4025 of 7176 subtests),
+**zero regressions**: all ten unexpected results in the verifying run were a PASS where a FAIL was
+recorded or a harness that used to TIMEOUT and now runs. `dom/nodes` 62.2% → **64.5%**
+(3389 of 5451 → 3567 of 5529 subtests), and its timeouts 85 → 79.
+Re-measured for regressions because the change touches every insertion in the browser:
+`shadow-dom/`, `custom-elements/`, `domparsing/` and `html/dom/` were run and recorded with it,
+and every difference there is an improvement too. `microbrowser_tests` 2078/2078.
+
+**The expectation diff is 29 deletions against 11 insertions, and all eleven insertions are the
+same thing**: `Range.insertNode`/`deleteContents`/`extractContents`/`surroundContents` in the two
+MutationObserver files, which were invisible while those files timed out. They are **C5**, not a
+regression. Two shadow-dom focus tests swapped `harness=TIMEOUT` for a named `FAIL` and back —
+both are `promise_test`s awaiting `testdriver`, which this browser does not implement (task **B5**),
+so which of the two statuses they land on depends only on how far their setup gets before it hits
+the wall. Neither passes either way.
+
+**The bug behind the whole session was a hang, and it was reachable from any page.**
+`el.append(el)` built a **cycle** in the document tree. Not a wrong tree — a hang: every walk from
+the root loops forever, and the process never comes back. Three files in `dom/nodes`
+(`ParentNode-append`, `ParentNode-prepend`, `ParentNode-replaceChildren`) ran the runner to its
+wall-clock budget and reported **no subtest at all**, which is why the area's ranking never showed
+them: a test that reports nothing has no failing subtests to count.
+
+The cause is that six methods — `append`, `prepend`, `replaceChildren`, `before`, `after`,
+`replaceWith` — inserted their arguments one at a time and validated nothing, while
+`appendChild`/`insertBefore`/`replaceChild` had gone through `PreInsertionError` since C1. The
+DOM does not define them that way and the difference is not cosmetic: all six begin with
+**"converting nodes into a node"** (§4.2.6), which turns `(Node or DOMString)...` into *one* node
+— the single argument when there is one, a DocumentFragment holding all of them otherwise — and
+then **pre-inserts** it. One node means one validity check and one atomic insertion, so
+`doc.append(a, b)` on a document that already has an element throws and changes nothing, where
+before it half-succeeded.
+
+The fragment that algorithm needs is a **stack** object, which is the one place in `src/bindings`
+that a node is not registered in `unattached_`. It is never handed to script — inserting a
+fragment inserts its children and leaves it empty — so registering it would be a per-call
+allocation that lives until navigation, and `list.replaceChildren()` is how a page clears a list.
+Two things follow and both are written where the code is: a refused insertion drains it into
+`detached_` first, because script holds wrappers for what is inside it; and it goes in through
+`InsertFragmentChildren` rather than `InsertNodeBefore`, because the latter answers
+`WrapperFor(child)` and the wrapper cache is keyed by address — a wrapper for a stack fragment
+would be a dangling entry that the next node allocated at that address would inherit.
+
+**MutationObserver was failing on a field it never wrote, and that hid six whole files.**
+`mutationobservers.js` — which every MutationObserver test in `dom/nodes` runs through — compares
+all eight record fields against a default of `null`. Records carried no `previousSibling`,
+`nextSibling` or `attributeNamespace`, so every one of those files failed on
+`previousSibling didn't match` before reaching what it was about, and then hung to the harness
+timeout waiting on an `async_test` that could no longer finish. 42 subtests in
+`MutationObserver-attributes` alone, 0 passing. The two siblings are computed inside
+`RecordMutation` rather than passed in, because every caller is already standing at the one moment
+they are true: an insertion records *after* the nodes are in, a removal records *before* they
+leave, so the run is still sitting between them either way.
+
+**And a replacement is one record, not two.** `replaceChild`, `replaceChildren` and
+`textContent =` each queued a removal record and then an insertion record; the DOM queues **one**
+carrying `addedNodes` *and* `removedNodes`, and an observer that saw two would have to guess they
+were related. That needed the specification's "suppress observers" flag, threaded as a `bool
+record` parameter through `ClearChildren`, `DetachFromTree`, `InsertNodeBefore` and
+`InsertFragmentChildren` — a parameter rather than a member, because that is how the specification
+threads it.
+
+**The ordering inside a replacement is observable, and WPT is where it was pinned down.** The
+incoming node leaves its old parent *before* the outgoing child is removed, and that removal keeps
+its own record. Two tests state the two directions:
+`parent.replaceChild(parent.lastChild, parent.firstChild)` must report the last child leaving
+*while the first is still beside it* (`previousSibling` is the first child, which is only true if
+nothing has been removed yet), and `parent.replaceChild(x, x)` must report a removal and then an
+insertion rather than one record replacing `x` with itself. Reading the spec's steps in the
+other order produces a browser that passes neither, and the note in its step 11 — "the above can
+only be false if child is node" — is the sentence that only parses under the right one.
+
+**Landed.** `src/bindings/NodeMixins.cpp` (new): the six mixin methods and the conversion they
+share. `PreInsertionError` moved to `BindingSupport.h` so both translation units can ask it, with
+`ChildrenOf`, `InsertedNodesOf` and `PreviousSiblingOf` beside it. `Node.normalize()`, which did
+not exist at all — iterative with an explicit stack, because the depth is a page's tree depth and
+ADR 0009 exists because that number can be 100,000. `MutationObserver.observe()`'s argument
+checking: the four TypeErrors, and the rule that naming `attributeOldValue` or `attributeFilter`
+implies watching attributes — *presence*, not truth, so `{attributeOldValue: false}` still watches
+them. `removeAttribute` on an attribute that is not there is no longer a mutation. Inserting a
+fragment now queues the record its own observers are owed for being emptied.
+
+**The instrument grew again, and it was needed within minutes.** `--verbose` now prints the
+subtests behind a non-OK harness. The expectation format deliberately records one line for a
+timeout — what is behind one is not yet a fact — but a session diagnosing 85 of them could see
+`23 of 38 passed` in the summary and nothing about the fifteen. Every cause above came off that
+list. This is the same argument the harness-message line won a session ago, and it is now two for
+two.
+
+**Two budgets fired and both were right.** `TreeMutation.cpp` went past the module's translation
+unit cap, and the split it was asking for is the file above: the six mixin methods are one
+specification section, not six methods, and keeping them together is what stops the next
+`moveBefore` from being a seventh copy of the conversion. `DomBindings.h` went past its cap for
+the *fifth* time; the four `bool record` parameters bought it back by deleting `AdoptInto`, which
+had no callers anywhere in the tree. The manifest's own comment still reads true and is now five
+raises old: **what is owed is a split of the class.**
+
+**Left, and it is now three named things rather than a guess.**
+
+- **`Attr` as a real node.** `attributes.html` (39), `attributes-namednodemap` (6), `Attr-prefix`
+  (6), `Document-createAttribute.html` (a harness ERROR), and the last two failures in
+  `MutationObserver-attributes` — `element.attributes[0].value = x` has to write through. It is
+  the largest reachable item in the area and it has not moved for two sessions.
+- **The Range mutation methods** — `insertNode`, `deleteContents`, `extractContents`,
+  `surroundContents`. Seven of the eleven remaining failures in `MutationObserver-childList` are
+  these, and they are **C5**, not C4. ADR 0012 lists the content-mutation half of Range as
+  deliberately absent; it is now the thing measurably in the way.
+- **`innerHTML` and `outerHTML` still queue two records where the DOM queues one.**
+  `MutationObserver-inner-outer.html` names all three subtests. The fix is the same "replace all"
+  this session built for `replaceChildren` and `textContent`, but `InsertParsedHtml` makes its
+  fragment internally so the caller cannot see the added nodes, and `DomBindings.h` had no line
+  left to widen it with. It is a one-parameter change on the far side of the class split above.
+
+**And the ceiling has not moved.** `dom/nodes` cannot reach C4's 85% from here: 390 of
+`Document-createElementNS.html`'s 400 subtests, all 98 of `Document-createElement.html`'s, the 654
+in the two `Document-characterSet-normalization` files, and roughly twenty-five `.xhtml`/`.svg`
+files run inside an `<iframe>` or in an XML document. That is **J1**, and the honest reading is
+that C4's target needs revising with that reason rather than another session of chasing it.

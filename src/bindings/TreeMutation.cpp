@@ -30,161 +30,6 @@ namespace microbrowser::bindings {
 using js::NativeCall;
 using js::Value;
 
-namespace {
-
-// DOM §4.2.3, "ensure pre-insertion validity": the WebIDL error name this
-// insertion must be refused with, or null when it is allowed.
-//
-// One function for all three of `appendChild`, `insertBefore` and
-// `replaceChild`, because the specification has one and three copies is three
-// chances to disagree. Before this the checks were absent: appending a document
-// to an element, or anything at all to a text node, quietly built a tree no
-// other browser would produce -- and the *reason* a page cares is that the DOM
-// answers these with an exception it can catch, not with a corrupt tree it
-// cannot see.
-// `replacing` is null for an insertion and the outgoing child for a
-// `replaceChild`. The DOM states the two algorithms separately and they differ
-// in exactly that: every "does the parent already have one" question below
-// must not count the node that is on its way out.
-const char* PreInsertionError(const dom::Node& parent, const dom::Node& node,
-                              const dom::Node* reference, const dom::Node* replacing = nullptr) {
-  // 1. Only these three can have children.
-  switch (parent.GetKind()) {
-    case dom::Node::Kind::Document:
-    case dom::Node::Kind::DocumentFragment:
-    case dom::Node::Kind::Element:
-      break;
-    case dom::Node::Kind::DocumentType:
-    case dom::Node::Kind::Text:
-    case dom::Node::Kind::Comment:
-    case dom::Node::Kind::ProcessingInstruction:
-      return "HierarchyRequestError";
-  }
-  // 2. A node cannot be inserted into itself or into its own descendant. The
-  // walk is up from the parent, which is bounded by the tree's depth -- and it
-  // is the check that stops a page turning its document into a cycle.
-  for (const dom::Node* walk = &parent; walk != nullptr; walk = walk->Parent()) {
-    if (walk == &node) {
-      return "HierarchyRequestError";
-    }
-  }
-  // 3. The reference node has to be a child of this parent. `null` means
-  // "append", which is always in range.
-  if (reference != nullptr && reference->Parent() != &parent) {
-    return "NotFoundError";
-  }
-  // 4. And only these four kinds can be inserted at all.
-  switch (node.GetKind()) {
-    case dom::Node::Kind::DocumentFragment:
-    case dom::Node::Kind::DocumentType:
-    case dom::Node::Kind::Element:
-    case dom::Node::Kind::Text:
-    case dom::Node::Kind::Comment:
-    case dom::Node::Kind::ProcessingInstruction:
-      break;
-    case dom::Node::Kind::Document:
-      return "HierarchyRequestError";
-  }
-  // 5. Text does not belong directly in a document, and a doctype belongs
-  // nowhere else.
-  const bool parent_is_document = parent.GetKind() == dom::Node::Kind::Document;
-  if (node.IsText() && parent_is_document) {
-    return "HierarchyRequestError";
-  }
-  if (node.GetKind() == dom::Node::Kind::DocumentType && !parent_is_document) {
-    return "HierarchyRequestError";
-  }
-  if (!parent_is_document) {
-    return nullptr;
-  }
-  // 6. **A document has at most one element child and at most one doctype, and
-  // the doctype comes first.** These were left out until 2026-08-11 on the
-  // argument that "a page that reaches them is doing something no page does",
-  // and the suite priced that at 41 subtests across Node-insertBefore.html and
-  // Node-replaceChild.html. They are also the constraints that keep
-  // `document.documentElement` a question with one answer.
-  //
-  // `replacing` is the child being replaced, which is excluded from every count
-  // below: `replaceChild(newHtml, oldHtml)` is legal precisely because the
-  // element that is in the way is the one going out.
-  const auto has_child = [&parent, replacing](dom::Node::Kind kind, const dom::Node* except) {
-    for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
-      if (child.get() != except && child.get() != replacing && child->GetKind() == kind) {
-        return true;
-      }
-    }
-    return false;
-  };
-  // "A doctype is following `child`" / "an element is preceding `child`".
-  const auto sibling_of_kind = [&parent, reference](dom::Node::Kind kind, bool after) {
-    bool seen_reference = false;
-    for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
-      if (child.get() == reference) {
-        seen_reference = true;
-        continue;
-      }
-      if (child->GetKind() == kind && seen_reference == after) {
-        return true;
-      }
-    }
-    return false;
-  };
-  // "child is a doctype, or a doctype is following child" -- the first half of
-  // which is an *insertion* rule only: when `child` is being replaced it is on
-  // its way out and cannot be in the way of anything.
-  const auto doctype_is_in_the_way = [&sibling_of_kind, reference, replacing]() {
-    if (reference == nullptr) {
-      return false;
-    }
-    if (replacing == nullptr && reference->GetKind() == dom::Node::Kind::DocumentType) {
-      return true;
-    }
-    return sibling_of_kind(dom::Node::Kind::DocumentType, true);
-  };
-  switch (node.GetKind()) {
-    case dom::Node::Kind::DocumentFragment: {
-      std::size_t elements = 0;
-      for (const std::unique_ptr<dom::Node>& child : node.Children()) {
-        if (child->IsElement()) {
-          ++elements;
-        } else if (child->IsText()) {
-          return "HierarchyRequestError";
-        }
-      }
-      if (elements > 1) {
-        return "HierarchyRequestError";
-      }
-      if (elements == 1 && (has_child(dom::Node::Kind::Element, nullptr) ||
-                            doctype_is_in_the_way())) {
-        return "HierarchyRequestError";
-      }
-      return nullptr;
-    }
-    case dom::Node::Kind::Element:
-      if (has_child(dom::Node::Kind::Element, nullptr) || doctype_is_in_the_way()) {
-        return "HierarchyRequestError";
-      }
-      return nullptr;
-    case dom::Node::Kind::DocumentType:
-      if (has_child(dom::Node::Kind::DocumentType, nullptr)) {
-        return "HierarchyRequestError";
-      }
-      if (reference == nullptr ? has_child(dom::Node::Kind::Element, nullptr)
-                               : sibling_of_kind(dom::Node::Kind::Element, false)) {
-        return "HierarchyRequestError";
-      }
-      return nullptr;
-    case dom::Node::Kind::Text:
-    case dom::Node::Kind::Comment:
-    case dom::Node::Kind::ProcessingInstruction:
-    case dom::Node::Kind::Document:
-      return nullptr;
-  }
-  return nullptr;
-}
-
-}  // namespace
-
 // A copy of `node`, with its children when `deep`.
 //
 // Copied rather than shared: a clone is a new node, and two parents pointing
@@ -303,9 +148,21 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
           owner->SetCharacterData(self, text);
           return Value::Undefined();
         }
-        owner->ClearChildren(*self);
+        // "String replace all", which is "replace all" with a Text node --
+        // one record carrying the old children and the new node together, for
+        // the reason `replaceChild` states. An empty string replaces with
+        // *nothing*, so a cleared element's record has no addedNodes rather
+        // than one empty text node.
+        const std::vector<dom::Node*> removed = ChildrenOf(*self);
+        owner->ClearChildren(*self, false);
+        std::vector<dom::Node*> added;
         if (!text.empty()) {
-          owner->AppendTextTo(*self, text);
+          if (dom::Node* node = NodeOf(owner->AppendTextTo(*self, text))) {
+            added.push_back(node);
+          }
+        }
+        if (!added.empty() || !removed.empty()) {
+          owner->RecordMutation(*self, "childList", {}, Value::Null(), added, removed);
         }
         return Value::Undefined();
       });
@@ -359,6 +216,64 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     // appends it somewhere else, and that only works because it is alive.
     return wrapper_for_child;
   }, 1);
+  // DOM "normalize": in this subtree, every run of adjacent Text nodes becomes
+  // one, and an empty Text node disappears. It is the operation a page runs
+  // after building text by hand, and it was simply absent -- which is not a
+  // missing convenience, because `foo.normalize()` on a browser that has no
+  // such method is a TypeError that stops the script.
+  //
+  // Iterative rather than recursive, with an explicit stack: the depth here is
+  // a page's tree depth, which is attacker-controlled, and this module's own
+  // parse-depth bound (ADR 0009) exists because that number can be 100,000.
+  method("normalize", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "normalize called on a non-node");
+    }
+    std::vector<dom::Node*> pending{self};
+    while (!pending.empty()) {
+      dom::Node* node = pending.back();
+      pending.pop_back();
+      for (std::size_t i = 0; i < node->Children().size();) {
+        dom::Node* child = node->Children()[i].get();
+        if (!child->IsText()) {
+          ++i;
+          continue;
+        }
+        if (static_cast<const dom::Text*>(child)->Data().empty()) {
+          // "If length is zero, then remove node" -- and do not advance, since
+          // the removal moved the next child into this slot.
+          owner->DetachFromTree(*child);
+          continue;
+        }
+        // The data of every contiguous Text sibling after it, appended in one
+        // write, and only then are those siblings removed. One record each for
+        // the removals, which is what the specification queues and what an
+        // observer counting them is written against.
+        std::string merged = static_cast<const dom::Text*>(child)->Data();
+        std::vector<dom::Node*> absorbed;
+        for (std::size_t j = i + 1;
+             j < node->Children().size() && node->Children()[j]->IsText(); ++j) {
+          absorbed.push_back(node->Children()[j].get());
+          merged += static_cast<const dom::Text*>(node->Children()[j].get())->Data();
+        }
+        if (!absorbed.empty()) {
+          owner->SetCharacterData(child, std::move(merged));
+          for (dom::Node* gone : absorbed) {
+            owner->DetachFromTree(*gone);
+          }
+        }
+        ++i;
+      }
+      for (const std::unique_ptr<dom::Node>& child : node->Children()) {
+        if (!child->IsText()) {
+          pending.push_back(child.get());
+        }
+      }
+    }
+    return Value::Undefined();
+  });
   method("remove", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
@@ -422,9 +337,30 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     if (reference == fresh) {
       reference = NextSiblingOf(*fresh);
     }
+    // One record for the swap, not one for each half: the DOM's replace does
+    // both removal and insertion with its "suppress observers" flag set and
+    // queues a single record carrying `addedNodes` *and* `removedNodes`. An
+    // observer that saw two would have to guess they were related.
+    //
+    // The incoming node leaves its old parent **first**, and that removal does
+    // get its own record -- the DOM removes it before it removes `child`, not
+    // as part of the insertion afterwards. The order is observable in both
+    // directions: `parent.replaceChild(parent.lastChild, parent.firstChild)`
+    // must report the last child leaving while the first is still beside it,
+    // and `parent.replaceChild(x, x)` must report a removal and an insertion
+    // rather than one record replacing `x` with itself.
+    const std::vector<dom::Node*> added = InsertedNodesOf(*fresh);
     const Value removed = owner->WrapperFor(stale);
-    owner->DetachFromTree(*stale);
-    owner->InsertNodeBefore(*self, fresh, reference);
+    if (fresh->Parent() != nullptr) {
+      owner->DetachFromTree(*fresh);
+    }
+    std::vector<dom::Node*> removed_nodes;
+    if (stale->Parent() != nullptr) {
+      removed_nodes.push_back(stale);
+      owner->DetachFromTree(*stale, false);
+    }
+    owner->InsertNodeBefore(*self, fresh, reference, false);
+    owner->RecordMutation(*self, "childList", {}, Value::Null(), added, removed_nodes);
     return removed;
   }, 2);
 
@@ -444,156 +380,15 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     return owner->InsertNodeBefore(*self, child, nullptr);
   }, 1);
 
-  // ParentNode: `append`, `prepend`, and `replaceChildren`. reddit's
-  // `ac-render-template` hoists `<template for="…">` markup with
-  // `target.replaceChildren(template.content.cloneNode(true))` -- without
-  // `replaceChildren` the call throws, the template never moves, and the feed
-  // stays empty while the sidebar card (server-rendered elsewhere) still paints.
-  const auto insert_argument = [this](dom::Node& parent, dom::Node* reference,
-                                      const js::Value& argument) {
-    if (dom::Node* child = NodeOf(argument)) {
-      (void)InsertNodeBefore(parent, child, reference);
-      return;
-    }
-    const js::Value text = CreateText(js::ToString(argument), NodeDocumentOf(parent));
-    if (dom::Node* node = NodeOf(text)) {
-      (void)InsertNodeBefore(parent, node, reference);
-    }
-  };
-  method("append", [insert_argument](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", "append called on a non-node");
-    }
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      insert_argument(*self, nullptr, Argument(call.arguments, i));
-    }
-    return Value::Undefined();
-  });
-  method("prepend", [insert_argument](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", "prepend called on a non-node");
-    }
-    dom::Node* reference = self->FirstChild();
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      insert_argument(*self, reference, Argument(call.arguments, i));
-    }
-    return Value::Undefined();
-  });
-  method("replaceChildren", [this, insert_argument](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", "replaceChildren called on a non-node");
-    }
-    ClearChildren(*self);
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      insert_argument(*self, nullptr, Argument(call.arguments, i));
-    }
-    return Value::Undefined();
-  });
-  // ChildNode: `before` and `after`, which insert siblings.
-  //
-  // The DOM defines both against a *viable* sibling -- the nearest one that is
-  // not itself in the argument list -- and that is not a detail: `x.after(y)`
-  // where `y` is already the next sibling has to insert after `y`'s old
-  // position, not before it, or the call is a no-op that looks like a bug in
-  // the page. Both were simply absent, which cost 90 subtests across
-  // ChildNode-before.html and ChildNode-after.html.
-  const auto is_argument = [](const NativeCall& call, const dom::Node* node) {
-    for (const js::Value& argument : call.arguments) {
-      if (NodeOf(argument) == node) {
-        return true;
-      }
-    }
-    return false;
-  };
-  method("before", [insert_argument, is_argument](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", "before called on a non-node");
-    }
-    dom::Node* parent = self->Parent();
-    if (parent == nullptr) {
-      // "If parent is null, then return" -- the same rule replaceWith follows.
-      return Value::Undefined();
-    }
-    // The DOM's "viable previous sibling", then insert before *its next
-    // sibling* -- which is the first child when there is no viable one.
-    const std::vector<std::unique_ptr<dom::Node>>& children = parent->Children();
-    std::size_t reference_index = 0;
-    for (std::size_t i = 0; i < children.size(); ++i) {
-      if (children[i].get() == self) {
-        break;
-      }
-      if (!is_argument(call, children[i].get())) {
-        reference_index = i + 1;
-      }
-    }
-    dom::Node* reference =
-        reference_index < children.size() ? children[reference_index].get() : nullptr;
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      insert_argument(*parent, reference, Argument(call.arguments, i));
-    }
-    return Value::Undefined();
-  });
-  method("after", [insert_argument, is_argument](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", "after called on a non-node");
-    }
-    dom::Node* parent = self->Parent();
-    if (parent == nullptr) {
-      return Value::Undefined();
-    }
-    // The viable next sibling is the reference to insert before.
-    dom::Node* reference = nullptr;
-    bool past_self = false;
-    for (const std::unique_ptr<dom::Node>& child : parent->Children()) {
-      if (child.get() == self) {
-        past_self = true;
-        continue;
-      }
-      if (past_self && !is_argument(call, child.get())) {
-        reference = child.get();
-        break;
-      }
-    }
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      insert_argument(*parent, reference, Argument(call.arguments, i));
-    }
-    return Value::Undefined();
-  });
-  // ChildNode: swap this node out for one or more nodes in the same parent.
-  method("replaceWith", [insert_argument](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", "replaceWith called on a non-node");
-    }
-    dom::Node* parent = self->Parent();
-    if (parent == nullptr) {
-      // DOM §"replace this with nodes": "If parent is null, then return." Not
-      // an exception -- this threw a NotFoundError until the specification was
-      // read next to it, and a page that calls `replaceWith` on a node it has
-      // already detached is doing something ordinary.
-      return Value::Undefined();
-    }
-    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
-      insert_argument(*parent, self, Argument(call.arguments, i));
-    }
-    owner->DetachFromTree(*self);
-    return Value::Undefined();
-  });
-
+  // The ParentNode and ChildNode mixins -- `append`, `prepend`,
+  // `replaceChildren`, `before`, `after`, `replaceWith` -- are their own
+  // translation unit, NodeMixins.cpp. They are one specification section
+  // ("converting nodes into a node" plus the two mixins built on it) and they
+  // are the half of this file that grew past the module cap.
+  InstallNodeMixins(wrapper);
 }
 
-void DomBindings::ClearChildren(dom::Node& parent) {
+void DomBindings::ClearChildren(dom::Node& parent, bool record) {
   // Detached rather than destroyed, one at a time from the front, for the
   // reason every removal here is: script may still hold a wrapper for any of
   // them.
@@ -616,7 +411,9 @@ void DomBindings::ClearChildren(dom::Node& parent) {
   for (dom::Node* child : removed) {
     NotifyConnection(*child, false);
   }
-  RecordMutation(parent, "childList", {}, Value::Null(), {}, removed);
+  if (record) {
+    RecordMutation(parent, "childList", {}, Value::Null(), {}, removed);
+  }
   while (parent.FirstChild() != nullptr) {
     std::unique_ptr<dom::Node> owned = parent.Detach(parent.FirstChild());
     if (owned == nullptr) {
@@ -635,7 +432,7 @@ js::Value DomBindings::AdoptClone(std::unique_ptr<dom::Node> clone,
   return AdoptUnattached(std::move(clone), node_document);
 }
 
-bool DomBindings::DetachFromTree(dom::Node& child) {
+bool DomBindings::DetachFromTree(dom::Node& child, bool record) {
   dom::Node* parent = child.Parent();
   if (parent == nullptr) {
     return false;
@@ -644,7 +441,9 @@ bool DomBindings::DetachFromTree(dom::Node& child) {
   // is on its way out, and asking whether it is in the document has to be
   // asked while the answer is still yes.
   NotifyConnection(child, false);
-  RecordMutation(*parent, "childList", {}, Value::Null(), {}, {&child});
+  if (record) {
+    RecordMutation(*parent, "childList", {}, Value::Null(), {}, {&child});
+  }
   std::unique_ptr<dom::Node> owned = parent->Detach(&child);
   if (owned == nullptr) {
     return false;
@@ -654,7 +453,7 @@ bool DomBindings::DetachFromTree(dom::Node& child) {
 }
 
 js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
-                                        dom::Node* reference) {
+                                        dom::Node* reference, bool record) {
   // "If reference child is node, then set reference child to node's next
   // sibling" -- DOM pre-insert step 3. Without it, `a.insertBefore(b, b)`
   // detaches `b`, finds its reference gone, and appends: the node *moves*, to
@@ -678,7 +477,7 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // that assembled its subtree in a fragment -- which is the whole reason to
   // use one -- got neither.
   if (child != nullptr && child->IsDocumentFragment()) {
-    InsertFragmentChildren(parent, *child, reference);
+    InsertFragmentChildren(parent, *child, reference, record);
     return WrapperFor(child);
   }
   // A node with a parent is moved rather than refused, now that detaching is
@@ -746,7 +545,9 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   }
   // The record goes to observers of the *parent*, because childList is about
   // a node's children changing rather than about the child.
-  RecordMutation(parent, "childList", {}, Value::Null(), {child}, {});
+  if (record) {
+    RecordMutation(parent, "childList", {}, Value::Null(), {child}, {});
+  }
   return WrapperFor(child);
 }
 
@@ -772,21 +573,5 @@ void DomBindings::NotifyConnection(dom::Node& node, bool connected) {
     NotifyConnection(*child, connected);
   }
 }
-
-js::Value DomBindings::AdoptInto(dom::Node& parent, dom::Node* child) {
-  for (std::size_t i = 0; i < unattached_.size(); ++i) {
-    if (unattached_[i].get() != child) {
-      continue;
-    }
-    std::unique_ptr<dom::Node> owned = std::move(unattached_[i]);
-    unattached_.erase(unattached_.begin() + static_cast<std::ptrdiff_t>(i));
-    parent.Append(std::move(owned));
-    return WrapperFor(child);
-  }
-  // Not one of ours to give away. Appending it would mean taking it from its
-  // current owner, which is the detach this slice deliberately cannot do.
-  return Value::Null();
-}
-
 
 }  // namespace microbrowser::bindings

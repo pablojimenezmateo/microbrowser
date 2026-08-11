@@ -84,7 +84,7 @@ void DomBindings::UpgradeSubtree(dom::Node& node) {
 }
 
 void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
-                                         dom::Node* reference) {
+                                         dom::Node* reference, bool record) {
   // Upgraded first, while the nodes are still in the fragment and therefore
   // still out of the document. Two things depend on that order: a
   // `connectedCallback` is a method of the upgraded class, so an element that
@@ -104,6 +104,14 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
     }
   } else {
     util::AddPerformanceCounter(util::PerfCounterId::DomTemplateContentUpgradeSkips);
+  }
+  // The fragment loses its children, and an observer of the *fragment* is owed
+  // that. The DOM queues this record inside "insert" regardless of the suppress
+  // observers flag, which only covers the record for the receiving parent --
+  // the fragment being emptied is not part of the replacement the flag is
+  // hiding. `record` is deliberately not consulted here.
+  if (const std::vector<dom::Node*> emptied = ChildrenOf(fragment); !emptied.empty()) {
+    RecordMutation(fragment, "childList", {}, Value::Null(), {}, emptied);
   }
   std::vector<dom::Node*> added;
   while (dom::Node* first = fragment.FirstChild()) {
@@ -130,7 +138,9 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
   // One record for the batch rather than one per node, which is what the
   // specification's "insert a node" produces for a fragment and what an
   // observer counting childList records is written against.
-  RecordMutation(parent, "childList", {}, Value::Null(), added, {});
+  if (record) {
+    RecordMutation(parent, "childList", {}, Value::Null(), added, {});
+  }
 }
 
 void DomBindings::InsertParsedHtml(std::string_view context_tag_name, dom::Node& parent,

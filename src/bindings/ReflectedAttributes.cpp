@@ -169,10 +169,11 @@ void DomBindings::SetElementAttributeNS(dom::Element& element, dom::NamespaceRef
   const dom::Attribute* previous = element.GetAttributeNS(name_space, local);
   const Value old_value = previous == nullptr ? Value::Null() : Value::String(previous->value);
   const std::string local_name(local);
+  const std::string uri(name_space.Uri());
   element.SetAttributeNS(std::move(name_space), qualified_name, prefix_length, value);
   // The reaction and the record are told the *local* name, which is what the
   // specification hands `attributeChangedCallback` beside the namespace.
-  AfterAttributeWrite(element, local_name, old_value, Value::String(value));
+  AfterAttributeWrite(element, local_name, old_value, Value::String(value), uri);
 }
 
 void DomBindings::RemoveElementAttributeNS(dom::Element& element,
@@ -184,13 +185,15 @@ void DomBindings::RemoveElementAttributeNS(dom::Element& element,
   }
   const Value old_value = Value::String(previous->value);
   const std::string name(local_name);
+  const std::string uri(name_space.Uri());
   element.RemoveAttributeNS(name_space, local_name);
   RunAttributeReaction(element, name, old_value, Value::Null());
-  RecordMutation(element, "attributes", name, old_value, {}, {});
+  RecordMutation(element, "attributes", name, old_value, {}, {}, uri);
 }
 
 void DomBindings::AfterAttributeWrite(dom::Element& element, const std::string& name,
-                                      const js::Value& old_value, const js::Value& new_value) {
+                                      const js::Value& old_value, const js::Value& new_value,
+                                      std::string_view attribute_namespace) {
   const std::string value = new_value.IsString() ? *new_value.string : std::string();
   // **A media element's `src` set to an object URL is an *attach*, not a fetch.** This is the one path
   // by which a `MediaSource` reaches an element -- `video.src = URL.createObjectURL(source)` -- and it
@@ -208,12 +211,18 @@ void DomBindings::AfterAttributeWrite(dom::Element& element, const std::string& 
   if (!IsTemplateBindingToken(value)) {
     RunAttributeReaction(element, name, old_value, new_value);
   }
-  RecordMutation(element, "attributes", name, old_value, {}, {});
+  RecordMutation(element, "attributes", name, old_value, {}, {}, attribute_namespace);
 }
 
 void DomBindings::RemoveElementAttribute(dom::Element& element, const std::string& name) {
   const std::string* previous = element.GetAttribute(name);
-  const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
+  if (previous == nullptr) {
+    // "If attr is null, then return" -- removing an attribute that is not
+    // there is not a mutation, and an observer told about it counts one record
+    // where the specification says none. The NS form already returned here.
+    return;
+  }
+  const Value old_value = Value::String(*previous);
   element.RemoveAttribute(name);
   // The reaction is told the new value is null, which is how a class
   // distinguishes "set to empty" from "gone".

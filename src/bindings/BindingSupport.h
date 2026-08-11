@@ -324,6 +324,206 @@ inline dom::Node* NextSiblingOf(const dom::Node& node) {
   }
   return nullptr;
 }
+// The node before `node`, on the same terms. The pair is what a MutationRecord
+// reports as `previousSibling`/`nextSibling`, which is how an observer places
+// a change without walking the tree the change already moved.
+inline dom::Node* PreviousSiblingOf(const dom::Node& node) {
+  const dom::Node* parent = node.Parent();
+  if (parent == nullptr) {
+    return nullptr;
+  }
+  const std::vector<std::unique_ptr<dom::Node>>& children = parent->Children();
+  for (std::size_t i = 1; i < children.size(); ++i) {
+    if (children[i].get() == &node) {
+      return children[i - 1].get();
+    }
+  }
+  return nullptr;
+}
+// DOM S4.2.3, "ensure pre-insertion validity": the WebIDL error name this
+// insertion must be refused with, or null when it is allowed.
+//
+// One function for all three of `appendChild`, `insertBefore` and
+// `replaceChild`, because the specification has one and three copies is three
+// chances to disagree. Before this the checks were absent: appending a document
+// to an element, or anything at all to a text node, quietly built a tree no
+// other browser would produce -- and the *reason* a page cares is that the DOM
+// answers these with an exception it can catch, not with a corrupt tree it
+// cannot see.
+// `replacing` is null for an insertion and the outgoing child for a
+// `replaceChild`. The DOM states the two algorithms separately and they differ
+// in exactly that: every "does the parent already have one" question below
+// must not count the node that is on its way out.
+// `replacing_all` is `replaceChildren`, which empties the parent *before* it
+// inserts and so must not be refused by what is on its way out: a document
+// already holding a doctype and an element still accepts
+// `doc.replaceChildren(el)`. whatwg/dom#1045 is the issue, and
+// ParentNode-replaceChildren.html states all three cases.
+inline const char* PreInsertionError(const dom::Node& parent, const dom::Node& node,
+                                     const dom::Node* reference,
+                                     const dom::Node* replacing = nullptr,
+                                     bool replacing_all = false) {
+  // 1. Only these three can have children.
+  switch (parent.GetKind()) {
+    case dom::Node::Kind::Document:
+    case dom::Node::Kind::DocumentFragment:
+    case dom::Node::Kind::Element:
+      break;
+    case dom::Node::Kind::DocumentType:
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
+      return "HierarchyRequestError";
+  }
+  // 2. A node cannot be inserted into itself or into its own descendant. The
+  // walk is up from the parent, which is bounded by the tree's depth -- and it
+  // is the check that stops a page turning its document into a cycle.
+  for (const dom::Node* walk = &parent; walk != nullptr; walk = walk->Parent()) {
+    if (walk == &node) {
+      return "HierarchyRequestError";
+    }
+  }
+  // 3. The reference node has to be a child of this parent. `null` means
+  // "append", which is always in range.
+  if (reference != nullptr && reference->Parent() != &parent) {
+    return "NotFoundError";
+  }
+  // 4. And only these four kinds can be inserted at all.
+  switch (node.GetKind()) {
+    case dom::Node::Kind::DocumentFragment:
+    case dom::Node::Kind::DocumentType:
+    case dom::Node::Kind::Element:
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
+      break;
+    case dom::Node::Kind::Document:
+      return "HierarchyRequestError";
+  }
+  // 5. Text does not belong directly in a document, and a doctype belongs
+  // nowhere else.
+  const bool parent_is_document = parent.GetKind() == dom::Node::Kind::Document;
+  if (node.IsText() && parent_is_document) {
+    return "HierarchyRequestError";
+  }
+  if (node.GetKind() == dom::Node::Kind::DocumentType && !parent_is_document) {
+    return "HierarchyRequestError";
+  }
+  if (!parent_is_document) {
+    return nullptr;
+  }
+  // 6. **A document has at most one element child and at most one doctype, and
+  // the doctype comes first.** These were left out until 2026-08-11 on the
+  // argument that "a page that reaches them is doing something no page does",
+  // and the suite priced that at 41 subtests across Node-insertBefore.html and
+  // Node-replaceChild.html. They are also the constraints that keep
+  // `document.documentElement` a question with one answer.
+  //
+  // `replacing` is the child being replaced, which is excluded from every count
+  // below: `replaceChild(newHtml, oldHtml)` is legal precisely because the
+  // element that is in the way is the one going out.
+  const auto has_child = [&parent, replacing, replacing_all](dom::Node::Kind kind,
+                                                            const dom::Node* except) {
+    if (replacing_all) {
+      return false;
+    }
+    for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
+      if (child.get() != except && child.get() != replacing && child->GetKind() == kind) {
+        return true;
+      }
+    }
+    return false;
+  };
+  // "A doctype is following `child`" / "an element is preceding `child`".
+  const auto sibling_of_kind = [&parent, reference](dom::Node::Kind kind, bool after) {
+    bool seen_reference = false;
+    for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
+      if (child.get() == reference) {
+        seen_reference = true;
+        continue;
+      }
+      if (child->GetKind() == kind && seen_reference == after) {
+        return true;
+      }
+    }
+    return false;
+  };
+  // "child is a doctype, or a doctype is following child" -- the first half of
+  // which is an *insertion* rule only: when `child` is being replaced it is on
+  // its way out and cannot be in the way of anything.
+  const auto doctype_is_in_the_way = [&sibling_of_kind, reference, replacing]() {
+    if (reference == nullptr) {
+      return false;
+    }
+    if (replacing == nullptr && reference->GetKind() == dom::Node::Kind::DocumentType) {
+      return true;
+    }
+    return sibling_of_kind(dom::Node::Kind::DocumentType, true);
+  };
+  switch (node.GetKind()) {
+    case dom::Node::Kind::DocumentFragment: {
+      std::size_t elements = 0;
+      for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+        if (child->IsElement()) {
+          ++elements;
+        } else if (child->IsText()) {
+          return "HierarchyRequestError";
+        }
+      }
+      if (elements > 1) {
+        return "HierarchyRequestError";
+      }
+      if (elements == 1 && (has_child(dom::Node::Kind::Element, nullptr) ||
+                            doctype_is_in_the_way())) {
+        return "HierarchyRequestError";
+      }
+      return nullptr;
+    }
+    case dom::Node::Kind::Element:
+      if (has_child(dom::Node::Kind::Element, nullptr) || doctype_is_in_the_way()) {
+        return "HierarchyRequestError";
+      }
+      return nullptr;
+    case dom::Node::Kind::DocumentType:
+      if (has_child(dom::Node::Kind::DocumentType, nullptr)) {
+        return "HierarchyRequestError";
+      }
+      if (reference == nullptr ? has_child(dom::Node::Kind::Element, nullptr)
+                               : sibling_of_kind(dom::Node::Kind::Element, false)) {
+        return "HierarchyRequestError";
+      }
+      return nullptr;
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
+    case dom::Node::Kind::Document:
+      return nullptr;
+  }
+  return nullptr;
+}
+
+// The children of `parent`, as raw pointers, for the moment before they are
+// removed. A mutation record's `removedNodes` is exactly this, taken while the
+// answer is still true.
+inline std::vector<dom::Node*> ChildrenOf(const dom::Node& parent) {
+  std::vector<dom::Node*> children;
+  children.reserve(parent.Children().size());
+  for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
+    children.push_back(child.get());
+  }
+  return children;
+}
+
+// What inserting `node` will actually put into a parent: a DocumentFragment
+// contributes its children and everything else contributes itself. The DOM
+// calls this "nodes" and every mutation record's `addedNodes` is it, which is
+// why it has to be taken *before* the insertion empties the fragment.
+inline std::vector<dom::Node*> InsertedNodesOf(dom::Node& node) {
+  if (node.IsDocumentFragment()) {
+    return ChildrenOf(node);
+  }
+  return {&node};
+}
 std::string CharacterDataOf(const dom::Node* node);
 
 // Polymer / Lit binding tokens left in attribute values until effects replace

@@ -909,20 +909,6 @@ FAIL=Comment.replaceData() splitting and creating surrogate pairs
 FAIL=Text.deleteData() splitting and creating surrogate pairs
 FAIL=Text.insertData() splitting and creating surrogate pairs
 FAIL=Text.replaceData() splitting and creating surrogate pairs
-[dom/nodes/ChildNode-before.html]
-FAIL=Comment.before() with all siblings of child as arguments.
-FAIL=Comment.before() with some siblings of child as arguments; no changes in tree.
-FAIL=Comment.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Element.before() with all siblings of child as arguments.
-FAIL=Element.before() with some siblings of child as arguments; no changes in tree.
-FAIL=Element.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Text.before() with all siblings of child as arguments.
-FAIL=Text.before() with some siblings of child as arguments; no changes in tree.
-FAIL=Text.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-[dom/nodes/ChildNode-replaceWith.html]
-FAIL=Comment.replaceWith() with one sibling of child and child itself as arguments.
-FAIL=Element.replaceWith() with one sibling of child and child itself as arguments.
-FAIL=Text.replaceWith() with one sibling of child and child itself as arguments.
 [dom/nodes/Comment-constructor.html]
 harness=TIMEOUT
 [dom/nodes/DOMImplementation-createDocument.html]
@@ -1683,9 +1669,18 @@ harness=TIMEOUT
 [dom/nodes/MutationObserver-callback-arguments.html]
 FAIL=Callback is invoked with |this| value of MutationObserver and two arguments
 [dom/nodes/MutationObserver-characterData.html]
-harness=TIMEOUT
+FAIL=characterData Range.deleteContents: child and data removal mutation
+FAIL=characterData Range.deleteContents: child and data removal mutation (2)
+FAIL=characterData Range.extractContents: child and data removal mutation
+FAIL=characterData Range.extractContents: child and data removal mutation (2)
 [dom/nodes/MutationObserver-childList.html]
-harness=TIMEOUT
+FAIL=childList Range.deleteContents: child and data removal mutation
+FAIL=childList Range.deleteContents: child removal mutation
+FAIL=childList Range.extractContents: child and data removal mutation
+FAIL=childList Range.extractContents: child removal mutation
+FAIL=childList Range.insertNode: child insertion mutation
+FAIL=childList Range.insertNode: children insertion mutation
+FAIL=childList Range.surroundContents: children removal and addition mutation
 [dom/nodes/MutationObserver-cross-realm-callback-report-exception.html]
 harness=TIMEOUT
 [dom/nodes/MutationObserver-document.html]
@@ -1696,10 +1691,6 @@ FAIL=removal of parent during parsing
 FAIL=innerHTML mutation
 FAIL=innerHTML with 2 children mutation
 FAIL=outerHTML mutation
-[dom/nodes/MutationObserver-sanity.html]
-harness=TIMEOUT
-[dom/nodes/MutationObserver-takeRecords.html]
-FAIL=All records present
 [dom/nodes/MutationObserver-textContent.html]
 harness=TIMEOUT
 [dom/nodes/Node-appendChild-cereactions-vs-script.window.html]
@@ -1804,9 +1795,6 @@ FAIL=Comment.nodeValue
 FAIL=ProcessingInstruction.nodeValue
 FAIL=Text.nodeValue
 [dom/nodes/Node-normalize.html]
-FAIL=Empty text nodes
-FAIL=Empty text nodes separated by a non-empty text node
-FAIL=Node.normalize()
 FAIL=Non-text nodes with empty textContent values.
 [dom/nodes/Node-parentElement.html]
 FAIL=When the parent is a document, parentElement should be null (comment)
@@ -1854,12 +1842,8 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/NodeList-static-length-getter-tampered-indexOf-3.html]
 harness=TIMEOUT
-[dom/nodes/ParentNode-append.html]
-harness=TIMEOUT
 [dom/nodes/ParentNode-children.html]
 FAIL=ParentNode.children should be a live collection
-[dom/nodes/ParentNode-prepend.html]
-harness=TIMEOUT
 [dom/nodes/ParentNode-querySelector-All-xht.xht]
 harness=TIMEOUT
 [dom/nodes/ParentNode-querySelector-All.html]
@@ -1876,8 +1860,6 @@ FAIL="spaces" should match with "#spac\\65\r\ns"
 FAIL=querySelector with :scope
 FAIL=querySelectorAll with :scope
 [dom/nodes/ParentNode-querySelectors-namespaces.html]
-harness=TIMEOUT
-[dom/nodes/ParentNode-replaceChildren.html]
 harness=TIMEOUT
 [dom/nodes/ProcessingInstruction-escapes-1.xhtml]
 harness=TIMEOUT
