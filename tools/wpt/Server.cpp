@@ -807,13 +807,26 @@ void Server::Serve(int stop_after_idle_ms) {
       }
     }
 
+    // How many connections `descriptors` describes. It has to be taken *now*,
+    // because `Accept` below appends to `connections_` and a connection that
+    // arrived this instant has no entry in an array built before it existed.
+    //
+    // Indexing past that entry is a heap-buffer-overflow, and AddressSanitizer
+    // caught it as one: a `READ of size 2` -- a `revents` field -- six bytes
+    // past the end. The consequence was worse than the read. Every freshly
+    // accepted connection was serviced against whatever those two bytes held,
+    // so a request could be read from, written to, or *closed* on garbage, at
+    // random, in the server that is this project's primary correctness signal.
+    // A new connection waits for the next poll instead, which costs it one
+    // timeout-bounded turn and nothing else.
+    std::size_t polled_connections = descriptors.size() - listeners_.size();
     for (std::size_t index = 0; index < listeners_.size(); ++index) {
       if ((descriptors[index].revents & POLLIN) != 0) {
         while (Accept(listeners_[index], listener_ports_[index])) {
         }
       }
     }
-    for (std::size_t index = 0; index < connections_.size();) {
+    for (std::size_t index = 0; index < polled_connections;) {
       Connection& connection = *connections_[index];
       const pollfd& state = descriptors[listeners_.size() + index];
       bool alive = true;
@@ -826,6 +839,9 @@ void Server::Serve(int stop_after_idle_ms) {
       if (!alive && connection.written >= connection.output.size()) {
         ::close(connection.descriptor);
         connections_.erase(connections_.begin() + static_cast<std::ptrdiff_t>(index));
+        // The erase shifts every later connection down, and their descriptor
+        // entries with them, so the bound moves too.
+        --polled_connections;
         continue;
       }
       ++index;

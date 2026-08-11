@@ -130,6 +130,18 @@ first script error was computed, escaped, sent down the pipe and discarded. It
 prints now. Both are the founding bug of this ADR in a new place — the browser
 was fine and the reporting path was not.
 
+**Run the harness under AddressSanitizer, not only the browser.** The same
+session found a heap-buffer-overflow in `Server::Serve`: the `pollfd` array is
+built from the connection list, then `Accept` appends to that list, and the loop
+below indexed the array by the *new* list's positions — so every freshly
+accepted connection was serviced against two bytes past the end of a heap
+allocation. Whatever those bytes held decided whether the connection was read
+from, written to, or closed. A test server that drops a request at random is
+indistinguishable, from the outside, from a browser that failed to make one, and
+this is the tool the whole project's correctness signal is measured with. It had
+been there since the server was written and no amount of running the *browser*
+under a sanitizer would have found it.
+
 ### 5. Expectations record failures, never passes
 
 `tests/wpt/expectations/<area>.txt` lists only what does *not* pass. The default
