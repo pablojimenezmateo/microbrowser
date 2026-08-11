@@ -1,5 +1,8 @@
 /build/
 /build-*/
+# Agent worktrees. `git worktree add` puts a whole checkout here, and a bare
+# `git add -A` will happily stage it as an embedded repository.
+/.claude/worktrees/
 /.idea/
 /.vscode/
 *.swp
