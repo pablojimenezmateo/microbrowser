@@ -847,8 +847,16 @@ class DomBindings {
   // Runs connected or disconnected reactions over `node` and its subtree. The
   // subtree matters: appending a detached tree connects everything in it.
   void NotifyConnection(dom::Node& node, bool connected);
+  // `preserve` is `moveBefore`'s atomic move: the node stays connected across
+  // it, so neither reaction runs. Without the flag a move is a disconnect
+  // followed by a connect, which is exactly the state loss the method exists
+  // to avoid.
   js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference,
-                             bool record = true);
+                             bool record = true, bool preserve = false);
+  // `moveBefore` on a ParentNode: the insertion above with the two reactions
+  // taken away. Installed from InstallParentQueries and defined beside the
+  // insertion, because it *is* the insertion.
+  void InstallAtomicMove(const js::Value& target);
   // Detaches `child` and keeps it alive for the life of the document.
   //
   // This is the whole reason removal was not in the first slice. A wrapper

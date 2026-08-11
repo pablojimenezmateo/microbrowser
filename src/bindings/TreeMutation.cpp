@@ -2,6 +2,7 @@
 #include "bindings/DomBindings.h"
 #include "bindings/LiveRanges.h"
 #include "bindings/NodeIterators.h"
+#include "dom/FlatTree.h"
 #include "bindings/WebIdl.h"
 
 #include <algorithm>
@@ -31,6 +32,30 @@ namespace microbrowser::bindings {
 
 using js::NativeCall;
 using js::Value;
+
+namespace {
+
+// The root a node's tree hangs from, crossing every shadow boundary through
+// the host. `moveBefore` is the caller: "the same tree" is what makes an
+// atomic move possible, and a shadow root has no parent -- deliberately,
+// ADR 0019 §2 -- so a plain parent walk stops one level too early and calls
+// two nodes in one component's tree strangers.
+const dom::Node* ShadowIncludingRootOf(const dom::Node& node) {
+  const dom::Node* walk = &node;
+  for (;;) {
+    if (walk->Parent() != nullptr) {
+      walk = walk->Parent();
+      continue;
+    }
+    const dom::Element* host = dom::ShadowHostOf(*walk);
+    if (host == nullptr) {
+      return walk;
+    }
+    walk = host;
+  }
+}
+
+}  // namespace
 
 // A copy of `node`, with its children when `deep`.
 //
@@ -487,7 +512,7 @@ bool DomBindings::DetachFromTree(dom::Node& child, bool record) {
 }
 
 js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
-                                        dom::Node* reference, bool record) {
+                                        dom::Node* reference, bool record, bool preserve) {
   // "If reference child is node, then set reference child to node's next
   // sibling" -- DOM pre-insert step 3. Without it, `a.insertBefore(b, b)`
   // detaches `b`, finds its reference gone, and appends: the node *moves*, to
@@ -521,7 +546,7 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // `disconnectedCallback` and the same childList record a `removeChild` owes -- before the
   // detach, while "is this in the document" still answers yes. Reactions are script and script can
   // move the node again, so where it lives is re-read afterwards rather than remembered.
-  if (child->Parent() != nullptr) {
+  if (child->Parent() != nullptr && !preserve) {
     NotifyConnection(*child, false);
   }
   std::unique_ptr<dom::Node> owned;
@@ -563,7 +588,9 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   // Connected now, if this put it in the document. The subtree as well as the
   // node: appending a detached tree connects everything in it, and a custom
   // element three levels down is as connected as the root is.
-  NotifyConnection(*child, true);
+  if (!preserve) {
+    NotifyConnection(*child, true);
+  }
   if (child->IsElement()) {
     const auto& element = static_cast<const dom::Element&>(*child);
     if (element.TagName() == "script") {
@@ -613,5 +640,93 @@ void DomBindings::NotifyConnection(dom::Node& node, bool connected) {
     NotifyConnection(*child, connected);
   }
 }
+
+
+// `moveBefore`, and it is here rather than beside the other ParentNode queries
+// because it is a *mutation*: it is the insertion below with two things taken
+// away.
+void DomBindings::InstallAtomicMove(const js::Value& target) {
+  // `moveBefore`: an **atomic move**, and the whole difference from
+  // `insertBefore` is what it refuses and what it does not run. A node moved
+  // this way never leaves the document, so no `disconnectedCallback` and no
+  // `connectedCallback` fire -- which is the point, because a reconnect is
+  // where a custom element loses whatever it had built.
+  //
+  // Buying that costs refusals. Both ends must already be connected and in the
+  // same tree, and only an Element or CharacterData may move: everything the
+  // method promises to preserve depends on there being nothing to tear down,
+  // and a node crossing a document boundary has to be torn down.
+  //
+  // On ParentNode rather than Node -- `"moveBefore" in textNode` is false --
+  // for the reason every other ParentNode method is here.
+  const Value native = interpreter_->NewNativeValue(
+      "moveBefore", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    // `moveBefore(Node node, Node? child)`: two required arguments, the second
+    // nullable rather than optional. A missing reference is a TypeError and
+    // not an append -- the same rule `insertBefore` follows.
+    if (!RequireArguments(call, "Node", "moveBefore", 2)) {
+      return call.ThrownValue();
+    }
+    dom::Node* child = NodeOf(call.arguments[0]);
+    if (owner == nullptr || self == nullptr || child == nullptr) {
+      return call.Throw("TypeError", "moveBefore requires a node");
+    }
+    const Value reference_argument = call.arguments[1];
+    dom::Node* reference = NodeOf(reference_argument);
+    if (reference == nullptr && !reference_argument.IsNull() &&
+        !reference_argument.IsUndefined()) {
+      return call.Throw("TypeError", "moveBefore's reference must be a Node or null");
+    }
+    // Pre-move validity, step 2: **the same shadow-including root**, which is
+    // the check that makes the move atomic and which every later step assumes.
+    //
+    // Not "both connected", which is the obvious reading and is wrong in both
+    // directions: two disconnected nodes under one detached root move fine,
+    // and a connected node and a disconnected one never share a root. Being in
+    // the document is a consequence of the rule rather than the rule.
+    if (ShadowIncludingRootOf(*self) != ShadowIncludingRootOf(*child)) {
+      return ThrowDom(call, "HierarchyRequestError",
+                      "moveBefore needs both nodes in the same tree");
+    }
+    // Step 5: only an Element or CharacterData. A doctype or a fragment has
+    // state this method cannot promise anything about.
+    switch (child->GetKind()) {
+      case dom::Node::Kind::Element:
+      case dom::Node::Kind::Text:
+      case dom::Node::Kind::Comment:
+      case dom::Node::Kind::ProcessingInstruction:
+        break;
+      case dom::Node::Kind::Document:
+      case dom::Node::Kind::DocumentType:
+      case dom::Node::Kind::DocumentFragment:
+        return ThrowDom(call, "HierarchyRequestError",
+                        "only an Element or CharacterData can be moved");
+    }
+    // Steps 3, 4, 6 and 7 are the ordinary pre-insertion validity: the parent
+    // must be able to have children, the node must not contain the parent, the
+    // reference must be this parent's child, and a document's one element child
+    // and one doctype still hold.
+    if (const char* refusal = PreInsertionError(*self, *child, reference); refusal != nullptr) {
+      return ThrowDom(call, refusal, "moveBefore would not produce a valid tree");
+    }
+    owner->InsertNodeBefore(*self, child, reference, /*record=*/true, /*preserve=*/true);
+    return Value::Undefined();
+  });
+  if (!native.IsObject()) {
+    return;
+  }
+  native.object->Set(kOwnerSlot, PointerValue(this));
+  target.object->Set("moveBefore", native);
+  // **`moveBefore.length` is 2, and it is load-bearing rather than cosmetic.**
+  // WPT's shared pre-insertion helper branches on it -- `parent[method].length
+  // > 1` decides whether to pass the reference at all, because passing null
+  // blindly would move nodes before the validation it is testing. A length of
+  // 0 sent every one of those cases down the one-argument path and got a
+  // TypeError where the test wanted a HierarchyRequestError.
+  SetFunctionLength(native, 2);
+}
+
 
 }  // namespace microbrowser::bindings

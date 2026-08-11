@@ -491,6 +491,11 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     }
   };
 
+  // `moveBefore`, the atomic move, in TreeMutation.cpp -- which is where
+  // every other thing that changes the tree lives, and where the insertion it
+  // is written in terms of already is.
+  InstallAtomicMove(target);
+
   // --- Searching within a subtree -------------------------------------------
   //
   // The same selector support the document-level versions have, and

@@ -756,13 +756,6 @@ FAIL=createCDATASection("a -- b")
 FAIL=createCDATASection("a-")
 FAIL=createCDATASection(null)
 FAIL=createCDATASection(undefined)
-[dom/nodes/Document-createComment.html]
-FAIL=createComment("-b")
-FAIL=createComment("\v")
-FAIL=createComment("a -- b")
-FAIL=createComment("a-")
-FAIL=createComment(null)
-FAIL=createComment(undefined)
 [dom/nodes/Document-createElement-namespace.html]
 harness=TIMEOUT
 [dom/nodes/Document-createElement.html]
@@ -1310,9 +1303,6 @@ FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "AU+d7" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+b7A" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
-[dom/nodes/Document-createTreeWalker.html]
-FAIL=Optional arguments to createTreeWalker should be optional (1 passed).
-FAIL=Optional arguments to createTreeWalker should be optional (2 passed).
 [dom/nodes/Document-getElementById.html]
 FAIL=Calling document.getElementById with an empty string argument.
 FAIL=changing attribute's value via `Attr` gotten from `Element.attribute`.
@@ -1511,12 +1501,6 @@ FAIL=ProcessingInstruction.nodeValue
 FAIL=Text.nodeValue
 [dom/nodes/Node-normalize.html]
 FAIL=Non-text nodes with empty textContent values.
-[dom/nodes/Node-parentElement.html]
-FAIL=When the parent is a document, parentElement should be null (comment)
-FAIL=When the parent is a document, parentElement should be null (doctype)
-FAIL=parentElement should return null for children of DocumentFragments (text)
-FAIL=parentElement should work correctly in disconnected subtrees (text)
-FAIL=parentElement should work correctly with DocumentFragments (text)
 [dom/nodes/Node-parentNode.html]
 harness=TIMEOUT
 [dom/nodes/Node-properties.html]
@@ -1595,8 +1579,6 @@ FAIL=<?xml?> is not a ProcessingInstruction
 FAIL=ProcessingInstruction literals
 [dom/nodes/Text-constructor.html]
 harness=TIMEOUT
-[dom/nodes/Text-wholeText.html]
-FAIL=wholeText returns text of all Text nodes logically adjacent to the node, in document order.
 [dom/nodes/adoption.window.html]
 FAIL=adoptNode() and DocumentFragment with host
 FAIL=appendChild() and DocumentFragment with host
@@ -1739,37 +1721,9 @@ FAIL=Removing steps (replaceChildren): script does not run synchronously during 
 [dom/nodes/insertion-removing-steps/insertion-removing-steps-script.window.html]
 FAIL=Script execution happens after all batched DOM insertions complete through post-connection steps
 [dom/nodes/moveBefore/Node-moveBefore.html]
-FAIL=If node is a DocumentFragment with an element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is a document with an element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is a document with another doctype, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is not a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a host-including inclusive ancestor of parent, then throw a HierarchyRequestError DOMException.
-FAIL=If node is an Element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is not a DocumentFragment, DocumentType, Element, Text, ProcessingInstruction, or Comment node, then throw a HierarchyRequestError DOMException.
-FAIL=Invalid node hierarchy with null old parent does not crash
-FAIL=Move disconnected iframe does not crash
-FAIL=Moving a node before itself should not move the node
-FAIL=Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds
-FAIL=Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds,also across shadow-roots
-FAIL=Moving a node from a disconnected container to a disconnected new parent without a shared ancestor throws a HIERARCHY_REQUEST_ERR
-FAIL=Moving a node from connected->disconnected throws a HIERARCHY_REQUEST_ERR
-FAIL=Moving a node from disconnected->connected throws a HIERARCHY_REQUEST_ERR
-FAIL=No custom element callbacks are run during disconnected moveBefore()
-FAIL=moveBefore on a paragraph's Text node child
-FAIL=moveBefore with an Element or CharacterData succeeds
-FAIL=moveBefore with reference child whose parent is NOT the destination parent (context node) throws a NotFoundError.
 FAIL=moveBefore() CharacterData into a Document
 FAIL=moveBefore() into a Document throws a HierarchyRequestError
 FAIL=moveBefore() on a cross-document target node throws a HierarchyRequestError
-FAIL=moveBefore() on disconnected parent throws a HierarchyRequestError
-FAIL=moveBefore() returns undefined
-FAIL=moveBefore() with a non-{Element, CharacterData} throws a HierarchyRequestError
-FAIL=moveBefore() with disconnected target node throws a HierarchyRequestError
-FAIL=moveBefore() with node being an inclusive ancestor of parent throws a HierarchyRequestError
-[dom/nodes/moveBefore/child-style-preserve.html]
-FAIL=child-style-preserve
 [dom/nodes/moveBefore/continue-css-animation-left.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/continue-css-animation-transform.html]
@@ -1791,7 +1745,7 @@ harness=TIMEOUT
 [dom/nodes/moveBefore/css-transition-to-disconnected-document.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/css-transition-trigger.html]
-FAIL=Node.moveBefore should trigger CSS transition state (left) if needed
+harness=TIMEOUT
 [dom/nodes/moveBefore/custom-element-move-reactions.html]
 FAIL=Reactions to atomic move are called in order of element, not in order of operation
 FAIL=When connectedCallback is not defined, no crash
@@ -1807,7 +1761,6 @@ FAIL=Neither 'blur' nor 'focusout' is fired on a focused <input type=date> child
 [dom/nodes/moveBefore/fire-focusin-focusout.html]
 FAIL=Don't fire focusin and then correct when moving to a tree that is made inert using style
 FAIL=Don't fire focusin and then correct when moving to an inert subtree
-FAIL=Don't fire focusin/out when moving to the same parent
 FAIL=Don't fire focusin/out when reparenting an element that has focus within
 FAIL=Don't fire focusin/out when reparenting focused element directly
 [dom/nodes/moveBefore/focus-preserve.html]
@@ -1828,14 +1781,14 @@ FAIL=Element loses hover when moved to different position
 FAIL=Hover works immediately after moved
 [dom/nodes/moveBefore/iframe-document-preserve.window.html]
 harness=TIMEOUT
-[dom/nodes/moveBefore/listed-form-element-reset.html]
-FAIL=Listed form element form owner is reset when a new form is moved closer before the listed element
 [dom/nodes/moveBefore/live-range-updates.html]
 FAIL=moveBefore still causes range endContainer to snap up to parent, when endContainer ancestor is moved
 FAIL=moveBefore still causes range startContainer to snap up to parent, when startContainer ancestor is moved
 FAIL=moveBefore still results in range startContainer snapping up to parent when startContainer is moved
 [dom/nodes/moveBefore/modal-dialog.html]
 FAIL=when reparenting a modal dialog, the dialog should stay modal
+[dom/nodes/moveBefore/moveBefore-as-flex-item.html]
+harness=FAIL
 [dom/nodes/moveBefore/moveBefore-dir.html]
 FAIL=moveBefore() correctly updates the computed dir for moved nodes
 [dom/nodes/moveBefore/moveBefore-from-light-to-shadow.html]
@@ -1843,7 +1796,6 @@ FAIL=moveBefore-from-light-to-shadow
 [dom/nodes/moveBefore/moveBefore-id-map.html]
 FAIL=moveBefore() correctly updates id map when moving between shadow roots
 FAIL=moveBefore() correctly updates id map when moving into shadow root
-FAIL=moveBefore() correctly updates id map when swapping elements with duplicate ids
 FAIL=moveBefore() correctly updates window map when moving id-mapped element into shadow root
 [dom/nodes/moveBefore/moveBefore-lang.html]
 FAIL=moveBefore() correctly updates the computed lang for moved nodes
@@ -1851,8 +1803,6 @@ FAIL=moveBefore() correctly updates the computed lang for moved nodes
 FAIL=moveBefore() correctly updates name map ordering in document
 FAIL=moveBefore() correctly updates name map when moving into shadow root
 FAIL=moveBefore() correctly updates window map
-[dom/nodes/moveBefore/moveBefore-nodeiterator.html]
-FAIL=moveBefore() runs NodeIterator pre-remove steps
 [dom/nodes/moveBefore/moveBefore-option-recalc-style.html]
 FAIL=moveBefore() of an option element between two selects
 [dom/nodes/moveBefore/moveBefore-selector-matching.html]
@@ -1865,7 +1815,6 @@ FAIL=moveBefore() is allowed in ShadowRoots (i.e., connected DocumentFragments)
 FAIL=moveBefore() between different size containers invalidates target
 [dom/nodes/moveBefore/mutation-observer.html]
 FAIL=[Connected move] MutationObserver removal + insertion is tracked by moveBefore()
-FAIL=[Disconnected move] MutationObserver removal + insertion is tracked by moveBefore()
 [dom/nodes/moveBefore/nonce.html]
 FAIL=Element nonce content attribute is not cleared after move
 [dom/nodes/moveBefore/object-crash-regression.html]
@@ -1875,14 +1824,11 @@ FAIL=Pointer capture should not be released when moving
 [dom/nodes/moveBefore/popover-preserve.html]
 FAIL=when reparenting an open popover, it shouldn't be closed automatically
 [dom/nodes/moveBefore/preserve-render-blocking-style.html]
-harness=TIMEOUT
+FAIL=A moved script should keep its render-blocking state
 [dom/nodes/moveBefore/relevant-mutations.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/role-updates-after-move.html]
 FAIL=header elements role should become sectionheader when moved into a section
-[dom/nodes/moveBefore/script-move-before.html]
-FAIL=Synchronous script execution in HTMLScriptElement during moveBefore should be blocked
-FAIL=Synchronous script execution in SVGScriptElement during moveBefore should be blocked
 [dom/nodes/moveBefore/select-option-optgroup.html]
 FAIL=Moving options between select elements.
 FAIL=Option selectedness is updated on option and optgroup DOM moves
@@ -1898,8 +1844,6 @@ FAIL=Moving a slot runs the assign slottables algorithm
 FAIL=Moving a slottable into and out out of a custom element fires 'slotchange' event
 FAIL=Moving default content into a slot fires 'slotchange' event
 FAIL=Moving default content out of a slot fires 'slotchange' event
-[dom/nodes/moveBefore/style-applies.html]
-FAIL=Moving a style inside the document should not affect whether it's applied
 [dom/nodes/moveBefore/throws-exception.html]
 FAIL=moveBefore() on a cross-document target node
 [dom/nodes/name-validation.html]
