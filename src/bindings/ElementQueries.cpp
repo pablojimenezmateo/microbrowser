@@ -40,6 +40,39 @@ void EachDescendantElement(dom::Node& root,
   }
 }
 
+// One attribute, as a page sees it.
+//
+// Not a `Node` -- an `Attr` in the DOM is one, with an `ownerElement` and a
+// writable `value` that reaches the element, and this is a record of what the
+// attribute said when it was read. That gap is written down rather than hidden:
+// `attributes[0].value = 'x'` sets a property on this object and does not touch
+// the tree. It is one function because it used to be two, and they disagreed --
+// `getAttributeNode` answered a `localName` that was the whole qualified name.
+js::Value MakeAttr(js::Interpreter& interpreter, const dom::Attribute& attribute) {
+  const js::Value entry = interpreter.NewObjectValue();
+  if (!entry.IsObject()) {
+    return entry;
+  }
+  entry.object->Set("name", js::Value::String(attribute.name));
+  entry.object->Set("value", js::Value::String(attribute.value));
+  // `nodeName` is an Attr's qualified name, which is the same string as `name`.
+  entry.object->Set("nodeName", js::Value::String(attribute.name));
+  entry.object->Set("nodeValue", js::Value::String(attribute.value));
+  entry.object->Set("localName", js::Value::String(std::string(attribute.LocalName())));
+  entry.object->Set("prefix", attribute.Prefix().empty()
+                                  ? js::Value::Null()
+                                  : js::Value::String(std::string(attribute.Prefix())));
+  entry.object->Set("namespaceURI",
+                    attribute.name_space.IsNone()
+                        ? js::Value::Null()
+                        : js::Value::String(std::string(attribute.name_space.Uri())));
+  // Every attribute in this tree came from markup or from a call; there is no
+  // DTD to default one, so `specified` is true for all of them -- which is what
+  // the DOM now says unconditionally anyway.
+  entry.object->Set("specified", js::Value::Bool(true));
+  return entry;
+}
+
 // The element siblings either side of `node`, since `nextSibling` gives
 // whatever is next including a text node.
 dom::Node* ElementSibling(dom::Node* node, int step) {
@@ -63,6 +96,71 @@ dom::Node* ElementSibling(dom::Node* node, int step) {
     }
   }
   return nullptr;
+}
+
+// The element a namespace lookup starts from: the node itself, its document
+// element, or its parent element.
+//
+// The DOM states this per node type -- a Document looks at its document
+// element, a DocumentType or a parentless DocumentFragment looks at nothing,
+// and everything else walks up. Null means "no namespace, whatever was asked",
+// which is why a lookup on a fragment answers null for every prefix.
+const dom::Element* NamespaceLookupRoot(const dom::Node* node) {
+  if (node == nullptr) {
+    return nullptr;
+  }
+  switch (node->GetKind()) {
+    case dom::Node::Kind::Element:
+      return static_cast<const dom::Element*>(node);
+    case dom::Node::Kind::Document:
+      return static_cast<const dom::Document*>(node)->DocumentElement();
+    case dom::Node::Kind::DocumentType:
+    case dom::Node::Kind::DocumentFragment:
+      return nullptr;
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+      break;
+  }
+  for (const dom::Node* at = node->Parent(); at != nullptr; at = at->Parent()) {
+    if (at->IsElement()) {
+      return static_cast<const dom::Element*>(at);
+    }
+  }
+  return nullptr;
+}
+
+// "Locate a namespace" for `prefix`, walking up from `element`.
+//
+// The element's own namespace answers when its prefix is the one asked for,
+// and otherwise its `xmlns` declarations do: `xmlns="…"` for the null prefix
+// and `xmlns:p="…"` for the prefix `p`. An empty declaration
+// (`xmlns=""`) is a real answer of *no* namespace, which is why this returns a
+// `NamespaceRef` and a found flag rather than an empty string that could mean
+// either.
+bool LocateNamespace(const dom::Element* element, std::string_view prefix,
+                     dom::NamespaceRef& found) {
+  for (const dom::Element* at = element; at != nullptr;) {
+    if (at->Prefix() == prefix && !at->Namespace().IsNone()) {
+      found = at->Namespace();
+      return true;
+    }
+    for (const dom::Attribute& attribute : at->Attributes()) {
+      const bool declares_prefix = attribute.name_space == dom::NamespaceRef::kXmlns &&
+                                   attribute.Prefix() == "xmlns" &&
+                                   attribute.LocalName() == prefix;
+      const bool declares_default = attribute.name_space == dom::NamespaceRef::kXmlns &&
+                                    attribute.Prefix().empty() &&
+                                    attribute.LocalName() == "xmlns" && prefix.empty();
+      if (declares_prefix || declares_default) {
+        found = dom::NamespaceRef(attribute.value);
+        return true;
+      }
+    }
+    const dom::Node* parent = at->Parent();
+    at = parent != nullptr && parent->IsElement() ? static_cast<const dom::Element*>(parent)
+                                                  : nullptr;
+  }
+  return false;
 }
 
 bool IsInclusiveDescendant(const dom::Node* candidate, const dom::Node* root) {
@@ -120,6 +218,61 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
     dom::Node* self = NodeOf(call.self);
     return Value::Bool(owner != nullptr && self != nullptr &&
                        self->OwnerDocument() == owner->document_);
+  });
+
+  // The three namespace lookups. They are Node methods rather than Element
+  // ones because the question a comment inside an XML subtree asks -- "what
+  // does `p:` mean here?" -- is about where it *is*, not about what it is.
+  method("lookupNamespaceURI", [](NativeCall& call) {
+    const Value argument = Argument(call.arguments, 0);
+    // "" is normalised to null, so `lookupNamespaceURI('')` asks about the
+    // default namespace rather than about a prefix that cannot exist.
+    const std::string prefix =
+        argument.IsNull() || argument.IsUndefined() ? std::string() : js::ToString(argument);
+    dom::NamespaceRef found;
+    if (!LocateNamespace(NamespaceLookupRoot(NodeOf(call.self)), prefix, found) ||
+        found.IsNone()) {
+      return Value::Null();
+    }
+    return Value::String(std::string(found.Uri()));
+  });
+  method("isDefaultNamespace", [](NativeCall& call) {
+    const Value argument = Argument(call.arguments, 0);
+    const dom::NamespaceRef wanted(
+        argument.IsNull() || argument.IsUndefined() ? std::string() : js::ToString(argument));
+    dom::NamespaceRef found;
+    (void)LocateNamespace(NamespaceLookupRoot(NodeOf(call.self)), "", found);
+    return Value::Bool(found == wanted);
+  });
+  // The mirror: which prefix, here, means this namespace. Null for the default
+  // one, because "" is not a prefix -- an element in the default namespace has
+  // no prefix at all, and answering "" would be a name a page could paste into
+  // a qualified name and produce `:local`.
+  method("lookupPrefix", [](NativeCall& call) {
+    const Value argument = Argument(call.arguments, 0);
+    if (argument.IsNull() || argument.IsUndefined()) {
+      return Value::Null();
+    }
+    const dom::NamespaceRef wanted(js::ToString(argument));
+    if (wanted.IsNone()) {
+      return Value::Null();
+    }
+    for (const dom::Element* at = NamespaceLookupRoot(NodeOf(call.self)); at != nullptr;) {
+      if (at->Namespace() == wanted && !at->Prefix().empty()) {
+        return Value::String(std::string(at->Prefix()));
+      }
+      for (const dom::Attribute& attribute : at->Attributes()) {
+        if (attribute.name_space == dom::NamespaceRef::kXmlns &&
+            attribute.Prefix() == "xmlns" && dom::NamespaceRef(attribute.value) == wanted) {
+          return Value::String(std::string(attribute.LocalName()));
+        }
+      }
+      const dom::Node* parent = at->Parent();
+      at = parent != nullptr && parent->IsElement()
+               ? static_cast<const dom::Element*>(parent)
+               : nullptr;
+    }
+    return Value::Null();
   });
 }
 
@@ -186,11 +339,27 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     dom::Node* self = NodeOf(call.self);
     std::vector<Value> found;
     if (owner != nullptr && self != nullptr) {
-      const std::string wanted = LowerCase(js::ToString(Argument(call.arguments, 0)));
+      // `*` means every element, which is what a walk over "all of them" is
+      // written as. Everything else goes through MatchesTagName, where the
+      // HTML-element-matches-case-insensitively rule lives.
+      const std::string wanted = js::ToString(Argument(call.arguments, 0));
+      const std::string lowered = LowerCase(wanted);
       EachDescendantElement(*self, [&](dom::Element& element) {
-        // `*` means every element, which is what a walk over "all of them"
-        // is written as.
-        if (wanted == "*" || element.TagName() == wanted) {
+        if (MatchesTagName(element, wanted, lowered)) {
+          found.push_back(owner->WrapperFor(&element));
+        }
+      });
+    }
+    return call.interpreter.NewArrayValue(std::move(found));
+  });
+  method("getElementsByTagNameNS", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    std::vector<Value> found;
+    if (owner != nullptr && self != nullptr) {
+      const NamespaceQuery wanted(Argument(call.arguments, 0), Argument(call.arguments, 1));
+      EachDescendantElement(*self, [&](dom::Element& element) {
+        if (wanted.Matches(element)) {
           found.push_back(owner->WrapperFor(&element));
         }
       });
@@ -324,35 +493,36 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
-  // The tag without a namespace prefix. The same as `tagName` lowercased here,
-  // because this parser produces no prefixed names -- written out because the
-  // two are different in a document with XML in it, and a reader should not
-  // have to guess whether that was considered.
+  // The three halves of an element's name that `tagName` is not. They are read
+  // off the element rather than derived from the tag name, because deriving is
+  // exactly the bug: `<xml:lang>` in an HTML document is one element whose
+  // whole local name contains a colon, and a `prefix` found by looking for one
+  // would answer `xml` about an element that has no prefix at all.
   accessor("localName", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
       return Value::Undefined();
     }
-    return Value::String(static_cast<dom::Element*>(self)->TagName());
+    return Value::String(std::string(static_cast<dom::Element*>(self)->LocalName()));
   });
-  // `prefix` and `namespaceURI`, and both are constants here for the same
-  // reason `localName` above is `tagName` lowercased: this DOM holds exactly
-  // one kind of element. `src/html` builds no foreign content, `createElementNS`
-  // discards the namespace it validated, and SVG is rendered from its own
-  // decoder rather than becoming elements -- so every element in this tree
-  // really is an HTML element with no prefix, and answering so is a fact rather
-  // than a placeholder. When elements carry a namespace (task C4), these two
-  // are where it surfaces.
   accessor("prefix", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
-    return self == nullptr || !self->IsElement() ? Value::Undefined() : Value::Null();
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Undefined();
+    }
+    const std::string_view prefix = static_cast<dom::Element*>(self)->Prefix();
+    // Null rather than "" for no prefix: a page writes `if (el.prefix)`, and
+    // an empty string would answer the same -- but `assert_equals(el.prefix,
+    // null)` is what the DOM says and what every other engine reports.
+    return prefix.empty() ? Value::Null() : Value::String(std::string(prefix));
   });
   accessor("namespaceURI", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
       return Value::Undefined();
     }
-    return Value::String(std::string("http://www.w3.org/1999/xhtml"));
+    const dom::NamespaceRef& name_space = static_cast<dom::Element*>(self)->Namespace();
+    return name_space.IsNone() ? Value::Null() : Value::String(std::string(name_space.Uri()));
   });
   // A method, not an accessor: `el.hasAttributes()` is a call.
   method("hasAttributes", [](NativeCall& call) {
@@ -383,20 +553,6 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     }
     map.object->Set(kNodeSlot, PointerValue(&element));
 
-    const auto make_attr = [](js::Interpreter& interpreter,
-                              const dom::Attribute& attribute) {
-      const Value entry = interpreter.NewObjectValue();
-      if (entry.IsObject()) {
-        entry.object->Set("name", Value::String(attribute.name));
-        entry.object->Set("value", Value::String(attribute.value));
-        // Attr's historical aliases. Cheap, and stops a page that probes
-        // `nodeName` after getNamedItem from seeing undefined.
-        entry.object->Set("nodeName", Value::String(attribute.name));
-        entry.object->Set("localName", Value::String(attribute.name));
-      }
-      return entry;
-    };
-
     const Value length = call.interpreter.NewNativeValue("length", [](NativeCall& inner) {
       dom::Node* node = NodeOf(inner.self);
       if (node == nullptr || !node->IsElement()) {
@@ -410,7 +566,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
       map.object->DefineAccessor("length", length.object, nullptr);
     }
 
-    const Value item = call.interpreter.NewNativeValue("item", [make_attr](NativeCall& inner) {
+    const Value item = call.interpreter.NewNativeValue("item", [](NativeCall& inner) {
       dom::Node* node = NodeOf(inner.self);
       if (node == nullptr || !node->IsElement()) {
         return Value::Null();
@@ -420,7 +576,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
       if (!(index >= 0) || index >= static_cast<double>(attributes.size())) {
         return Value::Null();
       }
-      return make_attr(inner.interpreter, attributes[static_cast<std::size_t>(index)]);
+      return MakeAttr(inner.interpreter, attributes[static_cast<std::size_t>(index)]);
     });
     if (item.IsObject()) {
       item.object->Set(kOwnerSlot, PointerValue(owner));
@@ -428,16 +584,17 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     }
 
     const Value get_named =
-        call.interpreter.NewNativeValue("getNamedItem", [make_attr](NativeCall& inner) {
+        call.interpreter.NewNativeValue("getNamedItem", [](NativeCall& inner) {
           dom::Node* node = NodeOf(inner.self);
           if (node == nullptr || !node->IsElement()) {
             return Value::Null();
           }
-          const std::string name = js::ToString(Argument(inner.arguments, 0));
-          for (const dom::Attribute& attribute :
-               static_cast<dom::Element*>(node)->Attributes()) {
+          auto& named = static_cast<dom::Element&>(*node);
+          const std::string name =
+              AttributeNameFor(named, js::ToString(Argument(inner.arguments, 0)));
+          for (const dom::Attribute& attribute : named.Attributes()) {
             if (attribute.name == name) {
-              return make_attr(inner.interpreter, attribute);
+              return MakeAttr(inner.interpreter, attribute);
             }
           }
           return Value::Null();
@@ -447,24 +604,45 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
       map.object->Set("getNamedItem", get_named);
     }
 
+    const Value get_named_ns =
+        call.interpreter.NewNativeValue("getNamedItemNS", [](NativeCall& inner) -> Value {
+          dom::Node* node = NodeOf(inner.self);
+          if (node == nullptr || !node->IsElement()) {
+            return Value::Null();
+          }
+          dom::NamespaceRef name_space;
+          std::string local;
+          if (!ToNamespaceAndLocalName(inner, Argument(inner.arguments, 0),
+                                       Argument(inner.arguments, 1), name_space, local)) {
+            return inner.ThrownValue();
+          }
+          const dom::Attribute* found =
+              static_cast<dom::Element*>(node)->GetAttributeNS(name_space, local);
+          return found == nullptr ? Value::Null() : MakeAttr(inner.interpreter, *found);
+        });
+    if (get_named_ns.IsObject()) {
+      get_named_ns.object->Set(kOwnerSlot, PointerValue(owner));
+      map.object->Set("getNamedItemNS", get_named_ns);
+    }
+
     // Indexed Attrs for `attributes[0]` and for Closure's length-based
     // fallback iterator when Symbol.iterator is missing. Snapshot of this
     // read; getNamedItem/item re-read.
     const auto& attributes = element.Attributes();
     for (std::size_t i = 0; i < attributes.size(); ++i) {
-      map.object->Set(std::to_string(i), make_attr(call.interpreter, attributes[i]));
+      map.object->Set(std::to_string(i), MakeAttr(call.interpreter, attributes[i]));
     }
 
     // `for (const attr of element.attributes)` and Closure's `_.A(map)`,
     // which prefers Symbol.iterator over the length fallback.
     const Value iterate =
-        call.interpreter.NewNativeValue("[Symbol.iterator]", [make_attr](NativeCall& inner) {
+        call.interpreter.NewNativeValue("[Symbol.iterator]", [](NativeCall& inner) {
           dom::Node* node = NodeOf(inner.self);
           std::vector<Value> out;
           if (node != nullptr && node->IsElement()) {
             for (const dom::Attribute& attribute :
                  static_cast<dom::Element*>(node)->Attributes()) {
-              out.push_back(make_attr(inner.interpreter, attribute));
+              out.push_back(MakeAttr(inner.interpreter, attribute));
             }
           }
           const Value entries = inner.interpreter.NewArrayValue(std::move(out));
@@ -494,20 +672,30 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
     if (self == nullptr || !self->IsElement()) {
       return Value::Null();
     }
-    const std::string name = js::ToString(Argument(call.arguments, 0));
-    for (const dom::Attribute& attribute : static_cast<dom::Element*>(self)->Attributes()) {
+    auto& element = static_cast<dom::Element&>(*self);
+    const std::string name =
+        AttributeNameFor(element, js::ToString(Argument(call.arguments, 0)));
+    for (const dom::Attribute& attribute : element.Attributes()) {
       if (attribute.name == name) {
-        const Value entry = call.interpreter.NewObjectValue();
-        if (entry.IsObject()) {
-          entry.object->Set("name", Value::String(attribute.name));
-          entry.object->Set("value", Value::String(attribute.value));
-          entry.object->Set("nodeName", Value::String(attribute.name));
-          entry.object->Set("localName", Value::String(attribute.name));
-        }
-        return entry;
+        return MakeAttr(call.interpreter, attribute);
       }
     }
     return Value::Null();
+  });
+  method("getAttributeNodeNS", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Null();
+    }
+    dom::NamespaceRef name_space;
+    std::string local;
+    if (!ToNamespaceAndLocalName(call, Argument(call.arguments, 0),
+                                 Argument(call.arguments, 1), name_space, local)) {
+      return call.ThrownValue();
+    }
+    const dom::Attribute* found =
+        static_cast<dom::Element*>(self)->GetAttributeNS(name_space, local);
+    return found == nullptr ? Value::Null() : MakeAttr(call.interpreter, *found);
   });
 }
 

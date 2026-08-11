@@ -59,11 +59,25 @@ void DomBindings::Install() {
   });
   method("getElementsByTagName", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
-    const std::string wanted = LowerCase(js::ToString(Argument(call.arguments, 0)));
+    const std::string wanted = js::ToString(Argument(call.arguments, 0));
+    const std::string lowered = LowerCase(wanted);
     std::vector<Value> found;
     if (owner != nullptr) {
       ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
-        if (wanted == "*" || element.TagName() == wanted) {
+        if (MatchesTagName(element, wanted, lowered)) {
+          found.push_back(owner->WrapperFor(&element));
+        }
+      });
+    }
+    return call.interpreter.NewArrayValue(std::move(found));
+  });
+  method("getElementsByTagNameNS", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    const NamespaceQuery wanted(Argument(call.arguments, 0), Argument(call.arguments, 1));
+    std::vector<Value> found;
+    if (owner != nullptr) {
+      ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
+        if (wanted.Matches(element)) {
           found.push_back(owner->WrapperFor(&element));
         }
       });
@@ -141,52 +155,26 @@ void DomBindings::Install() {
     // become an `<input>`, which is exactly what a locale-aware fold would do.
     return owner->CreateElement(LowerCase(name));
   });
-  // The namespace is *validated* and then ignored, which is the honest shape
-  // for this parser: it produces one tree with no foreign content in it, so
-  // `createElementNS(HTML_NS, 'div')` and `createElement('div')` describe the
-  // same element. What the validation buys is the half a page can actually
-  // observe -- a qualified name with an empty prefix, or a prefix with no
-  // namespace to put it in, is a refusal rather than an element with a colon
-  // in its tag name that nothing downstream can match. The other half -- an
-  // element that *remembers* its namespace and prefix, so `namespaceURI` and
-  // `localName` differ from what an HTML element answers -- is docs/wpt-plan.md
-  // task C4, and it is a change to `dom::Element` rather than to this file.
+  // The namespace is kept, and with it the prefix. **Nothing is lower-cased**:
+  // `createElement` folds a name because an HTML document's element names are
+  // case-insensitive, and `createElementNS` does not, because
+  // `createElementNS(SVG_NS, 'linearGradient')` names an element that only
+  // exists spelled that way. That difference is most of what `dom/nodes/case.html`
+  // tests, and it is why these two are not one method with a defaulted
+  // argument.
   method("createElementNS", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     if (!RequireArguments(call, "Document", "createElementNS", 2)) {
       return call.ThrownValue();
     }
-    bool namespace_is_null = false;
-    std::string namespace_uri;
-    std::string qualified;
-    if (!ToNullableDomString(call, call.arguments[0], namespace_is_null, namespace_uri) ||
-        !ToDomString(call, call.arguments[1], qualified)) {
-      return call.ThrownValue();
-    }
-    if (namespace_uri.empty()) {
-      namespace_is_null = true;  // step 1: an empty namespace *is* no namespace
-    }
-    std::string prefix;
-    std::string local;
-    if (!ValidateAndExtract(call, namespace_is_null, namespace_uri, qualified, NameKind::Element,
-                            prefix, local)) {
+    QualifiedName name;
+    if (!ToQualifiedName(call, call.arguments[0], call.arguments[1], NameKind::Element, name)) {
       return call.ThrownValue();
     }
     if (owner == nullptr) {
       return Value::Null();
     }
-    // The *qualified* name is what is stored, not the local name that was just
-    // extracted -- and that is a deliberate choice between two wrong answers
-    // while an element cannot carry a prefix. `dom::Element` has one name, and
-    // it feeds both `tagName` (the qualified name, upper-cased) and
-    // `localName` (the local part). Storing the qualified name makes the first
-    // right and the second wrong; storing the local name makes the second
-    // right and the first wrong, and also loses the name
-    // `getElementsByTagName("x:b")` has to match on. So: qualified, until an
-    // element remembers its prefix (task C4), at which point neither is a
-    // choice any more.
-    (void)prefix;
-    return owner->CreateElement(LowerCase(qualified));
+    return owner->CreateElementNS(std::move(name));
   });
   method("createDocumentFragment", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);

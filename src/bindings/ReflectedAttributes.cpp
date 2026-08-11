@@ -155,6 +155,43 @@ void DomBindings::SetElementAttribute(dom::Element& element, const std::string& 
   const std::string* previous = element.GetAttribute(name);
   const Value old_value = previous == nullptr ? Value::Null() : Value::String(*previous);
   element.SetAttribute(name, value);
+  AfterAttributeWrite(element, name, old_value, Value::String(value));
+}
+
+void DomBindings::SetElementAttributeNS(dom::Element& element, dom::NamespaceRef name_space,
+                                        const std::string& qualified_name,
+                                        std::uint32_t prefix_length, const std::string& value) {
+  const std::string_view local =
+      std::string_view(qualified_name)
+          .substr(prefix_length == 0 || prefix_length >= qualified_name.size()
+                      ? 0
+                      : prefix_length + 1);
+  const dom::Attribute* previous = element.GetAttributeNS(name_space, local);
+  const Value old_value = previous == nullptr ? Value::Null() : Value::String(previous->value);
+  const std::string local_name(local);
+  element.SetAttributeNS(std::move(name_space), qualified_name, prefix_length, value);
+  // The reaction and the record are told the *local* name, which is what the
+  // specification hands `attributeChangedCallback` beside the namespace.
+  AfterAttributeWrite(element, local_name, old_value, Value::String(value));
+}
+
+void DomBindings::RemoveElementAttributeNS(dom::Element& element,
+                                           const dom::NamespaceRef& name_space,
+                                           std::string_view local_name) {
+  const dom::Attribute* previous = element.GetAttributeNS(name_space, local_name);
+  if (previous == nullptr) {
+    return;
+  }
+  const Value old_value = Value::String(previous->value);
+  const std::string name(local_name);
+  element.RemoveAttributeNS(name_space, local_name);
+  RunAttributeReaction(element, name, old_value, Value::Null());
+  RecordMutation(element, "attributes", name, old_value, {}, {});
+}
+
+void DomBindings::AfterAttributeWrite(dom::Element& element, const std::string& name,
+                                      const js::Value& old_value, const js::Value& new_value) {
+  const std::string value = new_value.IsString() ? *new_value.string : std::string();
   // **A media element's `src` set to an object URL is an *attach*, not a fetch.** This is the one path
   // by which a `MediaSource` reaches an element -- `video.src = URL.createObjectURL(source)` -- and it
   // has to be noticed here, at the write, because that is where every spelling of it converges:
@@ -169,7 +206,7 @@ void DomBindings::SetElementAttribute(dom::Element& element, const std::string& 
   // annotation parsing, but do not deliver attributeChangedCallback — that
   // path JSON.parses Array/Object types and is what hung youtube (TD-0017).
   if (!IsTemplateBindingToken(value)) {
-    RunAttributeReaction(element, name, old_value, Value::String(value));
+    RunAttributeReaction(element, name, old_value, new_value);
   }
   RecordMutation(element, "attributes", name, old_value, {}, {});
 }

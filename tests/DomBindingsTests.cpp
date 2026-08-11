@@ -3232,12 +3232,48 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "NamespaceError");
     ExpectScript(kPage, "try { document.createElementNS(null, ':foo'); } catch (err) { err.name }",
                  "InvalidCharacterError");
-    // The qualified name is what is stored while an element cannot carry a
-    // prefix, so `tagName` is right and `localName` is not. See the comment in
-    // DocumentBindings.cpp: the choice is between those two, and this is the
-    // half a `getElementsByTagName` can still find.
+    // An element in a namespace is four separate answers, and this used to be
+    // one field guessed at twice. `tagName` is the qualified name **as
+    // written** -- not upper-cased, because upper-casing is what an HTML
+    // element in an HTML document gets and this is not one.
     ExpectScript(kPage,
-                 "document.createElementNS('http://example.org/', 'a:b').tagName", "A:B");
+                 "document.createElementNS('http://example.org/', 'a:b').tagName", "a:b");
+    ExpectScript(kPage,
+                 "document.createElementNS('http://example.org/', 'a:b').localName", "b");
+    ExpectScript(kPage,
+                 "document.createElementNS('http://example.org/', 'a:b').prefix", "a");
+    ExpectScript(kPage, "document.createElementNS('http://example.org/', 'a:b').namespaceURI",
+                 "http://example.org/");
+    // And the HTML element beside it, which is where the upper-casing lives.
+    ExpectScript(kPage, "document.createElement('div').tagName", "DIV");
+    ExpectScript(kPage, "document.createElement('div').namespaceURI",
+                 "http://www.w3.org/1999/xhtml");
+    // `createElementNS` does not fold case; `createElement` does. An SVG
+    // `linearGradient` only exists spelled that way.
+    ExpectScript(kPage,
+                 "document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')"
+                 ".localName",
+                 "linearGradient");
+    // The attribute half: a name is lower-cased for an HTML element and left
+    // alone for one that is not, which is the same rule from the other side.
+    ExpectScript(kPage,
+                 "const h = document.createElement('div'); h.setAttribute('FOO', '1');"
+                 "h.getAttributeNames().join()",
+                 "foo");
+    ExpectScript(kPage,
+                 "const f = document.createElementNS('http://example.org/', 'a');"
+                 "f.setAttribute('FOO', '1'); f.getAttributeNames().join()",
+                 "FOO");
+    // `setAttribute` matches on the qualified name whatever namespace it is
+    // in; `setAttributeNS` matches on (namespace, local name). So an element
+    // can carry both, and neither call can silently overwrite the other.
+    ExpectScript(kPage,
+                 "const g = document.createElement('div');"
+                 "g.setAttributeNS('http://example.org/', 'x:a', '1');"
+                 "g.setAttributeNS(null, 'a', '2');"
+                 "g.getAttributeNames().join() + '|' + g.getAttribute('a') + '|' +"
+                 "g.getAttributeNS('http://example.org/', 'a')",
+                 "x:a,a|2|1");
     // An attribute name may not contain `=`, which is what separates it from
     // its value in the markup. An element name may.
     ExpectScript(kPage, "const e = document.createElement('div');"

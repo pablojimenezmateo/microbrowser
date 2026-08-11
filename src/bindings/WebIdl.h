@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+#include "dom/Namespaces.h"
 #include "js/Heap.h"
 #include "js/Value.h"
 
@@ -110,6 +111,38 @@ bool IsValidLocalName(std::string_view name, NameKind kind);
 bool ValidateAndExtract(js::NativeCall& call, bool namespace_is_null,
                         std::string_view namespace_uri, const std::string& qualified,
                         NameKind kind, std::string& prefix_out, std::string& local_out);
+
+// What an element or an attribute is actually named: the namespace it is in,
+// the qualified name as written, and how much of that name is the prefix.
+//
+// Three fields rather than a (namespace, prefix, local) triple, because the
+// qualified name is the one the tree stores and the other two are views into
+// it -- and because keeping the prefix as a *length* is what lets an attribute
+// whose whole name is `xml:lang` with no prefix exist, which is what the HTML
+// parser produces and what `Attr-prefix.html` is about.
+struct QualifiedName {
+  dom::NamespaceRef name_space;
+  std::string qualified;
+  std::uint32_t prefix_length = 0;
+
+  std::string_view LocalName() const {
+    return std::string_view(qualified).substr(prefix_length == 0 ? 0 : prefix_length + 1);
+  }
+};
+
+// The first two arguments of `createElementNS` / `setAttributeNS` /
+// `createAttributeNS`: a nullable namespace and a qualified name, converted,
+// validated and split. False means it threw.
+bool ToQualifiedName(js::NativeCall& call, const js::Value& namespace_argument,
+                     const js::Value& name_argument, NameKind kind, QualifiedName& out);
+
+// The first two arguments of the `…NS` *lookups* -- `getAttributeNS`,
+// `hasAttributeNS`, `removeAttributeNS`. Deliberately not the above: a lookup
+// takes a *local* name rather than a qualified one and validates nothing,
+// because asking about an attribute that could not exist is not an error.
+bool ToNamespaceAndLocalName(js::NativeCall& call, const js::Value& namespace_argument,
+                             const js::Value& name_argument, dom::NamespaceRef& name_space,
+                             std::string& local_name);
 
 // The DOM's string offsets are UTF-16 code units, because a DOMString is a
 // sequence of them. `data.length`, every CharacterData offset and every Range

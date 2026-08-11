@@ -220,6 +220,35 @@ bool SummaryAccumulator::SaveState(const std::string& path, std::string* error) 
 
 bool SummaryAccumulator::Write(const std::string& path, const std::string& revision,
                                std::string* error) const {
+  // **Refuse to describe less than the document already does.**
+  //
+  // This file is written from the accumulator alone, so a run whose
+  // `--summary-state` does not already cover every area produces a document
+  // about only the areas it ran -- complete-looking, correctly formatted, and
+  // missing two hundred rows. That has now happened three times, twice caught
+  // by a reader noticing and once not, and every time the state file was in
+  // `/tmp` and had been left behind by a session that measured a handful of
+  // areas. Counting the rows already there is the cheapest possible guard, and
+  // it turns a silent truncation into a refusal that says what to do.
+  if (std::ifstream existing(path); existing) {
+    std::size_t rows = 0;
+    std::string line;
+    while (std::getline(existing, line)) {
+      if (line.rfind("| `", 0) == 0) {
+        ++rows;
+      }
+    }
+    if (rows > areas_.size()) {
+      if (error != nullptr) {
+        *error = path + " already describes " + std::to_string(rows) + " areas and this run has " +
+                 std::to_string(areas_.size()) +
+                 "; pass --summary-state pointing at a state file that covers the rest, or "
+                 "re-measure everything. Writing would delete the areas this run did not touch.";
+      }
+      return false;
+    }
+  }
+
   std::ofstream stream(path, std::ios::trunc);
   if (!stream) {
     if (error != nullptr) {
@@ -264,6 +293,12 @@ bool SummaryAccumulator::Write(const std::string& path, const std::string& revis
             "next run overwrites it, and that overwrite is the point -- the diff of this file is\n"
             "what a session moved. The argument for the instrument is `docs/adr/0040`; the work it\n"
             "sequences is `docs/wpt-plan.md`.\n\n"
+         << "This file is written from `--summary-state` alone. **A run whose state file does\n"
+            "not already describe every area would produce a document about only the areas it\n"
+            "ran** -- complete-looking and wrong -- so the writer now refuses when the document\n"
+            "already has more rows than the run does, and says so. A per-area re-measurement is\n"
+            "therefore a hand-merge of its rows into this table until one full run has written a\n"
+            "state file that covers everything (plan task B6).\n\n"
          << "WPT revision: `" << revision << "`\n\n";
 
   std::snprintf(buffer, sizeof(buffer), "%.1f%%", Percent(subtests_passed, subtests_total));

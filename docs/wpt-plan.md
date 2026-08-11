@@ -229,6 +229,7 @@ the others, and it is one long machine run plus one session of reading.
 | B3 | Harness gaps: which areas are unrunnable and why (`.py` handlers, `testdriver.js`, https) | B1 | ADR 0040 amendment |
 | B4 | Per-area pass-rate table, committed, regenerable | B1 | `docs/wpt-baseline.md` |
 | B5 | `testdriver.js`: decide how a test synthesises input | B3 | ADR 0040 amendment |
+| B6 | One full run writing `--summary-state` into the repository | B1 | `tests/wpt/summary-state.tsv` |
 
 **Why B2 is a whole session.** The first run of `dom/` produced 132 unexpected
 results in the first 150 tests, and the interesting quantity is not that number
@@ -244,6 +245,15 @@ testharness half — and buys an expectation file that F2 rewrites in full,
 because an exact-pixel comparison against a reference rendered by the same
 rasterizer calls antialiasing noise a difference. `ctest` already excludes them.
 F2 is what brings the other 20,923 tests into the number.
+
+**Why B6 exists, and it is not tidiness.** `--summary` writes
+`docs/wpt-baseline.md` from `--summary-state` alone, and that state file has
+lived in `/tmp`. Three sessions running have now regenerated the document from
+a state describing only the areas they ran, producing a correctly formatted,
+complete-looking table with a fifth of the rows — twice caught by a reader, once
+not. `SummaryAccumulator::Write` refuses to write fewer rows than the document
+already has, which turns the silent truncation into a message; B6 is the one
+long machine run that makes the refusal unnecessary.
 
 **Exit:** every area has a committed expectation file for its testharness tests
 and a line in the table; `ctest` is green against them.
@@ -286,7 +296,17 @@ Known causes already visible from 150 tests:
 C1 and C2 are the two that unblock the rest of the suite and should be done
 first, by one agent, in that order. C4–C10 are parallel after them.
 
-**C1, C2 and C3 are done. `dom/` is at 44.0%, from 11.6% at the baseline.**
+**C1, C2 and C3 are done, and C4's namespace half landed on 2026-08-11. `dom/` is at 52.1%,
+from 11.6% at the baseline.** `dom::Element` and `dom::Attribute` carry a namespace and a prefix
+length now, so `tagName`, `localName`, `prefix` and `namespaceURI` are four answers rather than
+two guesses at one field — `dom/nodes` 49.4% → 58.6%, `dom/lists` 67.3% → 76.2%,
+`custom-elements/parser` 10.0% → 35.0%. **C4 is still open**, and what is left of it is three
+things the task title does not name: the *node document* (`ownerDocument` on a node script made,
+which the DOM assigns at creation and which no walk can derive), `Attr` as a real node, and XML
+documents — the last of which is J1 and accounts for 390 subtests of the two `createElement*`
+files on its own. `docs/wpt-tasks.json` has the detail.
+
+**C1, C2 and C3's lesson, unchanged:**
 C3's lesson is worth reading before starting C4–C10, because it applies to
 every one of them: the *ability* the task names was not where the subtests
 were. Writing the conversion layer moved almost nothing on its own; what moved

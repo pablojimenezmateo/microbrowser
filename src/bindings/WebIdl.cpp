@@ -261,6 +261,43 @@ bool ValidateAndExtract(NativeCall& call, bool namespace_is_null, std::string_vi
   return true;
 }
 
+bool ToQualifiedName(NativeCall& call, const js::Value& namespace_argument,
+                     const js::Value& name_argument, NameKind kind, QualifiedName& out) {
+  bool namespace_is_null = false;
+  std::string namespace_uri;
+  std::string qualified;
+  if (!ToNullableDomString(call, namespace_argument, namespace_is_null, namespace_uri) ||
+      !ToDomString(call, name_argument, qualified)) {
+    return false;
+  }
+  if (namespace_uri.empty()) {
+    namespace_is_null = true;  // step 1: an empty namespace *is* no namespace
+  }
+  std::string prefix;
+  std::string local;
+  if (!ValidateAndExtract(call, namespace_is_null, namespace_uri, qualified, kind, prefix,
+                          local)) {
+    return false;
+  }
+  out.name_space = namespace_is_null ? dom::NamespaceRef() : dom::NamespaceRef(namespace_uri);
+  out.prefix_length = static_cast<std::uint32_t>(prefix.size());
+  out.qualified = std::move(qualified);
+  return true;
+}
+
+bool ToNamespaceAndLocalName(NativeCall& call, const js::Value& namespace_argument,
+                             const js::Value& name_argument, dom::NamespaceRef& name_space,
+                             std::string& local_name) {
+  bool namespace_is_null = false;
+  std::string namespace_uri;
+  if (!ToNullableDomString(call, namespace_argument, namespace_is_null, namespace_uri) ||
+      !ToDomString(call, name_argument, local_name)) {
+    return false;
+  }
+  name_space = namespace_is_null ? dom::NamespaceRef() : dom::NamespaceRef(namespace_uri);
+  return true;
+}
+
 std::size_t DomStringLength(std::string_view text) { return js::Utf16Length(text); }
 
 std::string DomSubstring(std::string_view text, std::size_t begin, std::size_t end) {

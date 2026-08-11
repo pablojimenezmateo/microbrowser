@@ -103,6 +103,7 @@ void RegisterStrokerTests(std::vector<TestCase>& tests);
 void RegisterStyleResolverTests(std::vector<TestCase>& tests);
 void RegisterTextShaperTests(std::vector<TestCase>& tests);
 void RegisterTokenizerTests(std::vector<TestCase>& tests);
+void RegisterNamespaceTests(std::vector<TestCase>& tests);
 void RegisterTreeBuilderTests(std::vector<TestCase>& tests);
 void RegisterUrlEncodedTests(std::vector<TestCase>& tests);
 void RegisterUrlTests(std::vector<TestCase>& tests);
@@ -274,6 +275,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterStyleResolverTests(tests);
   microbrowser::tests::RegisterTextShaperTests(tests);
   microbrowser::tests::RegisterTokenizerTests(tests);
+  microbrowser::tests::RegisterNamespaceTests(tests);
   microbrowser::tests::RegisterTreeBuilderTests(tests);
   microbrowser::tests::RegisterUrlEncodedTests(tests);
   microbrowser::tests::RegisterUrlTests(tests);

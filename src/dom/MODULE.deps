@@ -13,7 +13,7 @@ purpose: The document tree. Nodes, elements, text; ownership and traversal.
 # docs/adr/0008-dom-bindings.md says what the two acceptable fixes are.
 allow: util
 
-public: Node.h FlatTree.h
+public: Node.h FlatTree.h Namespaces.h
 
 extern:
 
@@ -48,9 +48,30 @@ budget: Node     header_lines=140 public_methods=22 members=3
 # and have nowhere to put a second type. Before it, a template's markup was its
 # children: the cascade styled it, layout laid it out and the loader fetched its
 # images, which is the opposite of what the element means.
-budget: Element      header_lines=125 public_methods=22 members=7
+# +6 public methods and +2 members for the namespace an element is in
+# (task C4). LocalName/Prefix/Namespace and the three `…NS` attribute
+# operations are the surface; `namespace_` and `prefix_length_` are the
+# storage, and they sit in padding the two fragment pointers already left --
+# measured, sizeof(Element) is 136 either way, so an element that remembers its
+# namespace is the same size as one that did not. The pair is what lets `tagName`, `localName`, `prefix` and
+# `namespaceURI` be four different answers instead of two guesses at one
+# field.
+budget: Element      header_lines=175 public_methods=28 members=9
 # +1 AttrVersion / attr_version_: style-cache provenance so an attribute write
 # on one host does not flush every other element's cascade (TD-0021).
+# The namespace an element or attribute is in, as a counted handle rather than
+# a URI string. Its size is the point: four bytes against thirty-two, and an
+# integer compare where getElementsByTagNameNS would otherwise do a string one.
+# Measured: sizeof(Element) is 136 before and after, because the handle and the
+# prefix length landed in padding the two fragment pointers already left;
+# sizeof(Attribute) went 64 -> 72. Most of the header is the argument for the
+# reference counting, which is what keeps a page's ten million one-off
+# namespaces from being a leak.
+budget: NamespaceRef header_lines=55 public_methods=13 members=1
+# An attribute's qualified name, value, namespace and prefix length. Four
+# members because the last two are what make `localName`, `prefix` and
+# `namespaceURI` three different answers instead of one guess.
+budget: Attribute    header_lines=30 public_methods=2  members=4
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
 budget: DocumentType header_lines=25 public_methods=6  members=1

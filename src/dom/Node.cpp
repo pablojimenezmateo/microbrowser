@@ -238,9 +238,66 @@ void Element::SetAttribute(std::string name, std::string value) {
       return;
     }
   }
-  attributes_.push_back(Attribute{std::move(name), std::move(value)});
+  // No namespace and no prefix: that is what "set an attribute" by qualified
+  // name creates, and what every attribute the HTML parser produces is.
+  attributes_.push_back(Attribute{std::move(name), std::move(value), NamespaceRef(), 0});
   ++attr_version_;
   NoteMutation();
+}
+
+const Attribute* Element::GetAttributeNS(const NamespaceRef& name_space,
+                                         std::string_view local_name) const {
+  for (const Attribute& attribute : attributes_) {
+    if (attribute.name_space == name_space && attribute.LocalName() == local_name) {
+      return &attribute;
+    }
+  }
+  return nullptr;
+}
+
+void Element::SetAttributeNS(NamespaceRef name_space, std::string qualified_name,
+                             std::uint32_t prefix_length, std::string value) {
+  if (prefix_length >= qualified_name.size()) {
+    prefix_length = 0;
+  }
+  const std::string_view local =
+      std::string_view(qualified_name)
+          .substr(prefix_length == 0 ? 0 : prefix_length + 1);
+  for (Attribute& attribute : attributes_) {
+    if (attribute.name_space == name_space && attribute.LocalName() == local) {
+      // The existing attribute keeps its place in the list and takes the new
+      // prefix: "set an attribute value" changes the qualified name of the one
+      // already there rather than appending a second attribute that the `…NS`
+      // getters could never tell apart.
+      attribute.name = std::move(qualified_name);
+      attribute.prefix_length = prefix_length;
+      attribute.value = std::move(value);
+      ++attr_version_;
+      NoteMutation();
+      return;
+    }
+  }
+  attributes_.push_back(Attribute{std::move(qualified_name), std::move(value),
+                                  std::move(name_space), prefix_length});
+  ++attr_version_;
+  NoteMutation();
+}
+
+bool Element::RemoveAttributeNS(const NamespaceRef& name_space,
+                                std::string_view local_name) {
+  const auto found =
+      std::find_if(attributes_.begin(), attributes_.end(),
+                   [&name_space, local_name](const Attribute& attribute) {
+                     return attribute.name_space == name_space &&
+                            attribute.LocalName() == local_name;
+                   });
+  if (found == attributes_.end()) {
+    return false;
+  }
+  attributes_.erase(found);
+  ++attr_version_;
+  NoteMutation();
+  return true;
 }
 
 bool Element::RemoveAttribute(std::string_view name) {
@@ -281,12 +338,23 @@ bool Element::SetState(ElementState state, bool on) {
 }
 
 Element::Element(std::string tag_name)
-    : Node(Kind::Element), tag_name_(std::move(tag_name)) {
+    : Element(NamespaceRef::kHtml, std::move(tag_name), 0) {}
+
+Element::Element(NamespaceRef name_space, std::string qualified_name,
+                 std::uint32_t prefix_length)
+    : Node(Kind::Element),
+      tag_name_(std::move(qualified_name)),
+      prefix_length_(prefix_length < tag_name_.size() ? prefix_length : 0),
+      namespace_(std::move(name_space)) {
   // Every `<template>` has its contents fragment from the moment it exists,
   // including one script made with `createElement`: a template whose `content`
   // appeared only when the parser filled it would be a different object
   // depending on where the element came from.
-  if (tag_name_ == "template") {
+  //
+  // In the HTML namespace only: `createElementNS('http://FOO', 'template')` is
+  // not a template, and giving it inert contents would hide its children from
+  // the tree that a page put them in.
+  if (namespace_.IsHtml() && tag_name_ == "template") {
     content_ = std::make_unique<DocumentFragment>();
     content_->SetTemplateContent(true);
   }

@@ -249,6 +249,7 @@ microbrowser_module(csp
 microbrowser_module(dom
   SOURCES
     src/dom/FlatTree.cpp
+    src/dom/Namespaces.cpp
     src/dom/Node.cpp
   DEPS microbrowser_util)
 
@@ -728,6 +729,7 @@ add_executable(microbrowser_tests
   tests/StyleResolverTests.cpp
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp
+  tests/NamespaceTests.cpp
   tests/TreeBuilderTests.cpp
   tests/UrlEncodedTests.cpp
   tests/UrlTests.cpp

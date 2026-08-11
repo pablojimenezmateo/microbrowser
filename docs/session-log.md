@@ -4630,3 +4630,87 @@ names every browser accepts — `0`, `~`, `'`, `"`, `invalid^Name`, all of which
 tag, so only the characters that would break the markup are refused. Getting that backwards is a
 page whose `setAttribute` throws where no other browser's does, and it was caught by one subtest
 named "Basic functionality should be intact."
+
+## 2026-08-11 — C4, first half: an element that knows which namespace it is in
+
+**Status:** in_progress — the namespace half of C4 landed; the task's 85% check did not, and §Left
+says exactly what stands between the two.
+**Check:** `microbrowser_wpt dom/` — **44.2% → 52.1%** (3471 of 6660 subtests), 15 unexpected
+results and **every one of them an improvement** (a PASS where a FAIL was recorded, or a harness
+that used to ERROR and now runs). `dom/nodes` **49.4% → 58.6%**, and `dom/lists` 67.3% → **76.2%**
+on a denominator that grew from 49 to 189 subtests, because a test file that used to die on
+`createElementNS` now runs to the end. `ctest -E microbrowser_wpt` 24/24 green.
+Also measured for regressions, since the change touches every element in the tree:
+`custom-elements/parser` 10.0 → **35.0**, `custom-elements/reactions` 15.3 → **21.0**,
+`shadow-dom/leaktests` 40.0 → 46.7, `css/selectors` 24.4 → 24.7, `html/dom` +16 subtests. No area
+went down. A second full pass over the same seven areas after recording reported **0 unexpected
+results**, which is what says the six `TIMEOUT`s the first pass showed were the machine and not
+the change — every one of them passes when run alone.
+
+**Landed.** `src/dom/Namespaces.h`/`.cpp` (new): `dom::NamespaceRef`. `dom::Element` and
+`dom::Attribute` each carry one plus a prefix *length*, so `tagName`, `localName`, `prefix` and
+`namespaceURI` are four answers instead of two guesses at one field. `createElementNS` keeps what
+it validates; `setAttributeNS`/`getAttributeNS`/`hasAttributeNS`/`removeAttributeNS`/
+`getAttributeNodeNS`/`getNamedItemNS` match on (namespace, local name); `getElementsByTagNameNS`
+is new and `getElementsByTagName` learned the case rule; `lookupNamespaceURI`, `lookupPrefix` and
+`isDefaultNamespace` exist. `getAttributeNames` and `toggleAttribute` landed with them.
+`tests/NamespaceTests.cpp` (new).
+
+**Left.** Three things stand between `dom/nodes` at 58.6% and C4's 85%, and none of them is a
+namespace:
+
+- **The node document.** `ownerDocument` answers `document_` unconditionally, and a node script
+  made has no document at all until something appends it. The DOM's "node document" is assigned at
+  *creation* and survives detachment, so it is not derivable by the walk `Node::OwnerDocument`
+  does. `DOMImplementation-createDocumentType.html` (81 subtests) is entirely gated on it —
+  every one of its cases asserts `doctype.ownerDocument === aDocument` — and so are adoption,
+  `importNode` and `node-creation-realm`. Deciding *where* it lives is the work: a `Document*` on
+  every `dom::Node` is 8 bytes on the base class and a second invariant across every subtree move,
+  which `src/dom/MODULE.deps` already argues against for `OwnerDocument`.
+- **`Attr` as a real node.** `element.attributes[0]` is a record of what the attribute said when it
+  was read, not a node with an `ownerElement` and a value that writes through. `attributes.html`'s
+  remaining failures are `setAttributeNode`, `removeAttributeNode`, `InUseAttributeError` and the
+  NamedNodeMap own-property names, all of which need the type.
+- **XML documents.** 390 of `Document-createElement.html`'s and `Document-createElementNS.html`'s
+  subtests run "in XML document" and "in XHTML document" — they load `/common/dummy.xml` in an
+  iframe. That is task J1, not this one, and it is why those two files stay near the top of the
+  failing-subtest ranking however good the namespace model gets.
+
+**Found — four things a diff does not say.**
+
+1. **Ranking the area's test files first paid again, and it pointed somewhere the task title did
+   not.** C4 is "dom/nodes — mutation algorithms, node comparison, adoption, ownerDocument". One
+   `python3` over `tests/wpt/expectations/dom.txt` put `Document-createElementNS.html` (485),
+   `case.html` (254) and `Document-createElement.html` (98) at the top, none of which is a
+   mutation algorithm, and all three of which are the one `dom::Element` name field the C3 session
+   wrote down as a choice between two wrong answers. The mutation algorithms are further down the
+   list than their billing.
+
+2. **The prefix has to be a stored length, not a search for a colon.** An HTML parser meeting
+   `<xml:lang>` in an HTML document produces one element whose *whole local name* contains a colon,
+   with no prefix and no namespace — and `createElementNS(ns, 'f:o:o')` splits at the **first**
+   colon into prefix `f` and local name `o:o`. Deriving the prefix would get both wrong in opposite
+   directions. Same for attributes, which is what `Attr-prefix.html` is about.
+
+3. **An intern table for namespaces is a memory leak a page can drive, and that is why
+   `NamespaceRef` is a class.** Six URIs cover every real page, so the obvious design is an enum
+   plus an append-only table for the rest. `for (i = 0; i < 1e7; i++)
+   document.createElementNS('u' + i, 'a')` then leaks ten million entries the collector can never
+   reach, because the elements holding them are long gone and nothing else refers to the table. The
+   entries are reference counted and the slots are reused; `Namespaces/AnUnknownUriIsInternedAndThenReclaimed`
+   is the test that says so, and `dom::InternedNamespaceCount` exists for it and for nothing else.
+
+4. **`docs/wpt-baseline.md` was silently truncated from 297 area rows to 61, by exactly the trap
+   its own header warns about, and the warning was not enough.** `--summary` writes the document
+   from `--summary-state` alone; the state file lived in `/tmp`, and the one left there by the
+   previous session covered **38 areas**, not all of them. Regenerating after a seven-area run
+   therefore produced a correctly formatted, complete-looking document about a fifth of the suite.
+   It was caught by counting rows in the diff, which is not a thing a reader should have to
+   remember to do — so `SummaryAccumulator::Write` now **refuses** to overwrite a document that
+   already describes more areas than the run does, and says what to pass instead. The table below
+   it is still a hand-merge until one full run writes a state file that covers everything, which is
+   now plan task **B6**. The hand-merge also turned up that the aggregate line above the table had
+  been stale since M-B: the rows summed to 54,589 of 479,554 while the sentence said 53,220 of
+  479,500, because the two previous hand-merges updated rows and not the total. It is recomputed
+  from the merged table now, which is why the aggregate moves further than this session's +1,982
+  subtests would explain.

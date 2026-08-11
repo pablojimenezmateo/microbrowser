@@ -25,7 +25,7 @@ when it does not is a generated document that looks complete and is not. **The s
 belongs in the repository beside this one.** Until it is there: keep it, or re-measure
 everything, and check the row count before committing a regenerated summary.
 
-53220 of 479500 subtests pass (11.1%) over 21265 tests.
+55202 of 479620 subtests pass (11.5%) over 21265 tests.
 
 **Do not quote that number.** Subtests are not comparable across areas: `encoding/legacy-mb-japanese` alone is 24% of every subtest here.
 A suite that tests one index table entry per code point counts differently from
@@ -141,24 +141,24 @@ it is a page that never reported, which almost always means something threw befo
 | `css/css-writing-modes` | 82 | 72 | 2 | 8 | 0 | 298 | 63 | 21.1 |
 | `css/cssom` | 190 | 149 | 5 | 36 | 0 | 1435 | 708 | 49.3 |
 | `css/cssom-view` | 225 | 187 | 0 | 38 | 0 | 1349 | 365 | 27.1 |
-| `css/selectors` | 277 | 210 | 10 | 57 | 0 | 1367 | 334 | 24.4 |
-| `custom-elements` | 44 | 25 | 0 | 19 | 0 | 549 | 105 | 19.1 |
+| `css/selectors` | 277 | 210 | 10 | 57 | 0 | 1353 | 334 | 24.7 |
+| `custom-elements` | 44 | 25 | 0 | 19 | 0 | 549 | 108 | 19.7 |
 | `custom-elements/form-associated` | 18 | 14 | 3 | 1 | 0 | 103 | 1 | 1.0 |
 | `custom-elements/htmlconstructor` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
-| `custom-elements/parser` | 11 | 8 | 0 | 3 | 0 | 20 | 2 | 10.0 |
-| `custom-elements/reactions` | 57 | 26 | 0 | 31 | 0 | 372 | 57 | 15.3 |
+| `custom-elements/parser` | 11 | 8 | 0 | 3 | 0 | 20 | 7 | 35.0 |
+| `custom-elements/reactions` | 57 | 26 | 0 | 31 | 0 | 372 | 78 | 21.0 |
 | `custom-elements/registries` | 40 | 28 | 2 | 10 | 0 | 2207 | 225 | 10.2 |
 | `custom-elements/state` | 5 | 4 | 1 | 0 | 0 | 28 | 1 | 3.6 |
 | `custom-elements/upgrading` | 7 | 2 | 0 | 5 | 0 | 7 | 1 | 14.3 |
-| `dom` | 10 | 9 | 0 | 1 | 0 | 125 | 66 | 52.8 |
+| `dom` | 10 | 10 | 0 | 0 | 0 | 125 | 66 | 52.8 |
 | `dom/abort` | 10 | 6 | 0 | 4 | 0 | 37 | 10 | 27.0 |
 | `dom/collections` | 10 | 10 | 0 | 0 | 0 | 53 | 7 | 13.2 |
-| `dom/events` | 178 | 85 | 1 | 92 | 0 | 549 | 157 | 28.6 |
-| `dom/lists` | 5 | 4 | 1 | 0 | 0 | 49 | 33 | 67.3 |
-| `dom/nodes` | 327 | 233 | 7 | 86 | 1 | 5221 | 2580 | 49.4 |
+| `dom/events` | 178 | 85 | 1 | 92 | 0 | 540 | 157 | 29.1 |
+| `dom/lists` | 5 | 5 | 0 | 0 | 0 | 189 | 144 | 76.2 |
+| `dom/nodes` | 327 | 233 | 7 | 86 | 1 | 5177 | 3036 | 58.6 |
 | `dom/observable` | 52 | 25 | 0 | 27 | 0 | 242 | 0 | 0.0 |
 | `dom/ranges` | 57 | 32 | 24 | 1 | 0 | 242 | 21 | 8.7 |
-| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 56 | 30 | 53.6 |
+| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 55 | 30 | 54.5 |
 | `domparsing` | 34 | 21 | 3 | 10 | 0 | 245 | 77 | 31.4 |
 | `domparsing/tentative` | 26 | 17 | 0 | 9 | 0 | 905 | 28 | 3.1 |
 | `domxpath` | 32 | 24 | 0 | 8 | 0 | 87 | 1 | 1.1 |
@@ -202,7 +202,7 @@ it is a page that never reported, which almost always means something threw befo
 | `html/cross-origin-embedder-policy` | 88 | 45 | 5 | 38 | 0 | 345 | 15 | 4.3 |
 | `html/cross-origin-opener-policy` | 114 | 90 | 2 | 22 | 0 | 583 | 2 | 0.3 |
 | `html/document-isolation-policy` | 38 | 35 | 1 | 2 | 0 | 150 | 0 | 0.0 |
-| `html/dom` | 264 | 238 | 1 | 25 | 0 | 59930 | 21434 | 35.8 |
+| `html/dom` | 264 | 239 | 0 | 25 | 0 | 59930 | 21450 | 35.8 |
 | `html/editing` | 115 | 58 | 0 | 57 | 0 | 614 | 39 | 6.4 |
 | `html/embedded-content` | 1 | 1 | 0 | 0 | 0 | 2 | 0 | 0.0 |
 | `html/infrastructure` | 65 | 35 | 0 | 29 | 1 | 463 | 45 | 9.7 |
@@ -251,7 +251,7 @@ it is a page that never reported, which almost always means something threw befo
 | `shadow-dom/declarative` | 56 | 40 | 4 | 12 | 0 | 7647 | 5 | 0.1 |
 | `shadow-dom/focus` | 37 | 31 | 1 | 5 | 0 | 78 | 5 | 6.4 |
 | `shadow-dom/focus-navigation` | 45 | 45 | 0 | 0 | 0 | 89 | 2 | 2.2 |
-| `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 15 | 6 | 40.0 |
+| `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 15 | 7 | 46.7 |
 | `shadow-dom/reference-target` | 15 | 14 | 0 | 1 | 0 | 768 | 0 | 0.0 |
 | `shadow-dom/untriaged` | 54 | 52 | 0 | 2 | 0 | 248 | 157 | 63.3 |
 | `storage` | 28 | 11 | 0 | 17 | 0 | 23 | 0 | 0.0 |
@@ -268,15 +268,15 @@ it is a page that never reported, which almost always means something threw befo
 | `subresource-integrity/signatures` | 15 | 14 | 0 | 1 | 0 | 177 | 43 | 24.3 |
 | `subresource-integrity/unencoded-digest` | 9 | 6 | 0 | 3 | 0 | 84 | 28 | 33.3 |
 | `svg` | 3 | 3 | 0 | 0 | 0 | 70 | 45 | 64.3 |
-| `svg/animations` | 289 | 251 | 1 | 37 | 0 | 282 | 4 | 1.4 |
+| `svg/animations` | 289 | 251 | 1 | 37 | 0 | 280 | 4 | 1.4 |
 | `svg/coordinate-systems` | 8 | 7 | 0 | 1 | 0 | 39 | 0 | 0.0 |
 | `svg/embedded` | 2 | 1 | 0 | 1 | 0 | 2 | 0 | 0.0 |
 | `svg/extensibility` | 7 | 5 | 0 | 2 | 0 | 5 | 3 | 60.0 |
 | `svg/fonts` | 3 | 3 | 0 | 0 | 0 | 3 | 0 | 0.0 |
 | `svg/geometry` | 61 | 12 | 0 | 49 | 0 | 283 | 27 | 9.5 |
 | `svg/import` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
-| `svg/interact` | 33 | 14 | 0 | 19 | 0 | 97 | 46 | 47.4 |
-| `svg/linking` | 18 | 5 | 0 | 13 | 0 | 34 | 0 | 0.0 |
+| `svg/interact` | 33 | 14 | 0 | 19 | 0 | 96 | 46 | 47.9 |
+| `svg/linking` | 18 | 5 | 0 | 13 | 0 | 31 | 0 | 0.0 |
 | `svg/painting` | 70 | 6 | 0 | 64 | 0 | 283 | 0 | 0.0 |
 | `svg/path` | 41 | 29 | 0 | 12 | 0 | 208 | 0 | 0.0 |
 | `svg/pservers` | 12 | 3 | 0 | 9 | 0 | 11 | 0 | 0.0 |

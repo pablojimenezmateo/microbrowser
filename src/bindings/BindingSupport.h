@@ -182,6 +182,67 @@ js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect);
 // forty call sites in this module and `util::` on each of them buys nothing.
 inline std::string LowerCase(std::string_view text) { return util::AsciiLowerCase(text); }
 
+// The name `setAttribute`, `getAttribute`, `hasAttribute`, `removeAttribute`
+// and `toggleAttribute` actually look for.
+//
+// The DOM lower-cases the argument when "the element is in the HTML namespace
+// and its node document is an HTML document" -- and both halves matter: every
+// document here is an HTML one, but `createElementNS('http://FOO', 'a')` is
+// not an HTML element, and `setAttribute('X', …)` on it must create an
+// attribute called `X`. Lower-casing unconditionally is what made
+// `getAttribute('X')` on a foreign element answer about a different attribute.
+inline std::string AttributeNameFor(const dom::Element& element, std::string_view name) {
+  return element.Namespace().IsHtml() ? util::AsciiLowerCase(name) : std::string(name);
+}
+
+// The `(namespace, localName)` pair `getElementsByTagNameNS` filters on, read
+// off a call once rather than per element.
+//
+// `"*"` is a wildcard in either position, and it is not the same as null:
+// `getElementsByTagNameNS("*", "a")` finds an `a` in any namespace, and
+// `getElementsByTagNameNS(null, "a")` finds only one in none. Collapsing the
+// two is the mistake this class exists to make impossible.
+class NamespaceQuery {
+ public:
+  NamespaceQuery(const js::Value& namespace_argument, const js::Value& local_name_argument)
+      : any_namespace_(namespace_argument.IsString() && *namespace_argument.string == "*"),
+        any_local_name_(local_name_argument.IsString() &&
+                        *local_name_argument.string == "*"),
+        local_name_(js::ToString(local_name_argument)) {
+    if (!any_namespace_ && !namespace_argument.IsNull() &&
+        !namespace_argument.IsUndefined()) {
+      name_space_ = dom::NamespaceRef(js::ToString(namespace_argument));
+    }
+  }
+
+  bool Matches(const dom::Element& element) const {
+    return (any_namespace_ || element.Namespace() == name_space_) &&
+           (any_local_name_ || element.LocalName() == local_name_);
+  }
+
+ private:
+  bool any_namespace_ = false;
+  bool any_local_name_ = false;
+  dom::NamespaceRef name_space_;
+  std::string local_name_;
+};
+
+// Whether `element` answers to `getElementsByTagName(qualified)`.
+//
+// The rule reads oddly and is worth stating once: in an HTML document an HTML
+// element matches case-insensitively and everything else matches exactly, so
+// one document can hold an `<a>` that `getElementsByTagName('A')` finds and an
+// `<A>` in a foreign namespace that it does not. `lowered` is the caller's
+// lower-cased copy, hoisted because the walk asks this per element.
+inline bool MatchesTagName(const dom::Element& element, std::string_view qualified,
+                           std::string_view lowered) {
+  if (qualified == "*") {
+    return true;
+  }
+  return element.Namespace().IsHtml() ? element.TagName() == lowered
+                                      : element.TagName() == qualified;
+}
+
 // What a node calls itself: `nodeName`, and for an element `tagName` too.
 //
 // **They are the same string, and this exists because they were not.**

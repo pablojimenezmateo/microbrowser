@@ -401,38 +401,70 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (self == nullptr || !self->IsElement()) {
       return call.Throw("TypeError", "getAttribute called on a non-element");
     }
-    const std::string* value = static_cast<dom::Element*>(self)->GetAttribute(
-        LowerCase(js::ToString(Argument(call.arguments, 0))));
+    auto& element = static_cast<dom::Element&>(*self);
+    const std::string* value = element.GetAttribute(
+        AttributeNameFor(element, js::ToString(Argument(call.arguments, 0))));
     // Null rather than undefined for an absent attribute, which is what
     // `el.getAttribute('x') === null` tests for. Binding tokens like
     // `[[items]]` are real attribute values until Polymer replaces them --
     // hiding them blocked dom-repeat and every other attribute binding.
     return value == nullptr ? Value::Null() : Value::String(*value);
   });
-  // Namespace accepted and ignored, for the same reason as createElementNS:
-  // this tree is HTML-only. youtube's player calls setAttributeNS(null, ...)
-  // during bootstrap; without the name the call throws and #container stays
-  // empty.
-  method("getAttributeNS", [](NativeCall& call) {
+  // The `…NS` half matches on (namespace, local name) rather than on the
+  // qualified name, which is a different question and not a stricter one: an
+  // element can carry both `foo` in no namespace and `x:foo` in one, and only
+  // this half can tell them apart. Nothing is lower-cased here -- the DOM
+  // lower-cases a *qualified* name argument and never a local one.
+  method("getAttributeNS", [](NativeCall& call) -> Value {
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
       return call.Throw("TypeError", "getAttributeNS called on a non-element");
     }
-    const std::string* value = static_cast<dom::Element*>(self)->GetAttribute(
-        LowerCase(js::ToString(Argument(call.arguments, 1))));
-    return value == nullptr ? Value::Null() : Value::String(*value);
+    dom::NamespaceRef name_space;
+    std::string local;
+    if (!ToNamespaceAndLocalName(call, Argument(call.arguments, 0),
+                                 Argument(call.arguments, 1), name_space, local)) {
+      return call.ThrownValue();
+    }
+    const dom::Attribute* found =
+        static_cast<dom::Element*>(self)->GetAttributeNS(name_space, local);
+    return found == nullptr ? Value::Null() : Value::String(found->value);
   });
   method("hasAttribute", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
-    return Value::Bool(self != nullptr && self->IsElement() &&
-                       static_cast<dom::Element*>(self)->HasAttribute(
-                           LowerCase(js::ToString(Argument(call.arguments, 0)))));
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Bool(false);
+    }
+    auto& element = static_cast<dom::Element&>(*self);
+    return Value::Bool(element.HasAttribute(
+        AttributeNameFor(element, js::ToString(Argument(call.arguments, 0)))));
   });
-  method("hasAttributeNS", [](NativeCall& call) {
+  method("hasAttributeNS", [](NativeCall& call) -> Value {
     dom::Node* self = NodeOf(call.self);
-    return Value::Bool(self != nullptr && self->IsElement() &&
-                       static_cast<dom::Element*>(self)->HasAttribute(
-                           LowerCase(js::ToString(Argument(call.arguments, 1)))));
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Bool(false);
+    }
+    dom::NamespaceRef name_space;
+    std::string local;
+    if (!ToNamespaceAndLocalName(call, Argument(call.arguments, 0),
+                                 Argument(call.arguments, 1), name_space, local)) {
+      return call.ThrownValue();
+    }
+    return Value::Bool(static_cast<dom::Element*>(self)->GetAttributeNS(name_space, local) !=
+                       nullptr);
+  });
+  // Every qualified name on the element, in order. A page uses it to copy an
+  // element's attributes without a NamedNodeMap, and a serializer needs the
+  // order to be the insertion one.
+  method("getAttributeNames", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    std::vector<Value> names;
+    if (self != nullptr && self->IsElement()) {
+      for (const dom::Attribute& attribute : static_cast<dom::Element*>(self)->Attributes()) {
+        names.push_back(Value::String(attribute.name));
+      }
+    }
+    return call.interpreter.NewArrayValue(std::move(names));
   });
   method("removeAttribute", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -446,11 +478,12 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     // One implementation of "an attribute changed", shared with the reflected
     // properties: two would be two chances to forget the custom-element
     // reaction or the mutation record.
-    owner->RemoveElementAttribute(*static_cast<dom::Element*>(self),
-                                  LowerCase(js::ToString(Argument(call.arguments, 0))));
+    auto& element = static_cast<dom::Element&>(*self);
+    owner->RemoveElementAttribute(
+        element, AttributeNameFor(element, js::ToString(Argument(call.arguments, 0))));
     return Value::Undefined();
   });
-  method("removeAttributeNS", [](NativeCall& call) {
+  method("removeAttributeNS", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
@@ -459,9 +492,52 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (owner == nullptr) {
       return Value::Undefined();
     }
-    owner->RemoveElementAttribute(*static_cast<dom::Element*>(self),
-                                  LowerCase(js::ToString(Argument(call.arguments, 1))));
+    dom::NamespaceRef name_space;
+    std::string local;
+    if (!ToNamespaceAndLocalName(call, Argument(call.arguments, 0),
+                                 Argument(call.arguments, 1), name_space, local)) {
+      return call.ThrownValue();
+    }
+    owner->RemoveElementAttributeNS(static_cast<dom::Element&>(*self), name_space, local);
     return Value::Undefined();
+  });
+  // `toggleAttribute(name, force?)`. Returns whether the attribute is present
+  // afterwards, which is what makes the one-argument form usable as a flip.
+  method("toggleAttribute", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return call.Throw("TypeError", "toggleAttribute called on a non-element");
+    }
+    if (!RequireArguments(call, "Element", "toggleAttribute", 1)) {
+      return call.ThrownValue();
+    }
+    std::string name;
+    if (!ToDomString(call, call.arguments[0], name)) {
+      return call.ThrownValue();
+    }
+    if (!IsValidLocalName(name, NameKind::Attribute)) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "'" + name + "' is not a valid attribute name");
+    }
+    if (owner == nullptr) {
+      return Value::Undefined();
+    }
+    auto& element = static_cast<dom::Element&>(*self);
+    const std::string wanted = AttributeNameFor(element, name);
+    const bool present = element.HasAttribute(wanted);
+    // `force` is a *supplied* boolean rather than a truthy one: the two-argument
+    // form pins the outcome, and the one-argument form flips. An absent
+    // argument and an explicit `undefined` are the same thing here, which is
+    // what WebIDL's optional-without-a-default means.
+    const bool forced = call.arguments.size() > 1 && !call.arguments[1].IsUndefined();
+    const bool wanted_present = forced ? js::ToBoolean(call.arguments[1]) : !present;
+    if (wanted_present && !present) {
+      owner->SetElementAttribute(element, wanted, std::string());
+    } else if (!wanted_present && present) {
+      owner->RemoveElementAttribute(element, wanted);
+    }
+    return Value::Bool(wanted_present);
   });
   method("matches", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
@@ -577,26 +653,33 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
       return ThrowDom(call, "InvalidCharacterError",
                       "'" + name + "' is not a valid attribute name");
     }
-    owner->SetElementAttribute(*static_cast<dom::Element*>(self), LowerCase(name), value);
+    auto& element = static_cast<dom::Element&>(*self);
+    owner->SetElementAttribute(element, AttributeNameFor(element, name), value);
     return Value::Undefined();
   });
-  method("setAttributeNS", [](NativeCall& call) {
+  method("setAttributeNS", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     if (self == nullptr || !self->IsElement()) {
       return call.Throw("TypeError", "setAttributeNS called on a non-element");
     }
+    if (!RequireArguments(call, "Element", "setAttributeNS", 3)) {
+      return call.ThrownValue();
+    }
+    QualifiedName name;
+    if (!ToQualifiedName(call, call.arguments[0], call.arguments[1], NameKind::Attribute,
+                         name)) {
+      return call.ThrownValue();
+    }
+    std::string value;
+    if (!CoerceToString(call, Argument(call.arguments, 2), value)) {
+      return call.ThrownValue();
+    }
     if (owner == nullptr) {
       return Value::Undefined();
     }
-    // Namespace ignored; see getAttributeNS above.
-    std::string name;
-    std::string value;
-    if (!CoerceToString(call, Argument(call.arguments, 1), name) ||
-        !CoerceToString(call, Argument(call.arguments, 2), value)) {
-      return call.ThrownValue();
-    }
-    owner->SetElementAttribute(*static_cast<dom::Element*>(self), LowerCase(name), value);
+    owner->SetElementAttributeNS(static_cast<dom::Element&>(*self), name.name_space,
+                                 name.qualified, name.prefix_length, value);
     return Value::Undefined();
   });
 }

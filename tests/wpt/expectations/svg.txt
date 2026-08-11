@@ -378,7 +378,7 @@ FAIL=Test 'to' animation of SVGBoolean.
 [svg/animations/svgboolean-animation-invalid-value-1.html]
 FAIL=Test SVGBoolean animation with invalid value: String values in from and to attributes.
 [svg/animations/svgcolor-animation-invalid-value-1.html]
-FAIL=
+FAIL:esc=\n  Test SVGColor animation with invalid value: Invalid color string in from attribute\n
 [svg/animations/svgenum-animation-1.html]
 FAIL=Test SVGUnitTypes enumeration animations
 [svg/animations/svgenum-animation-10.html]

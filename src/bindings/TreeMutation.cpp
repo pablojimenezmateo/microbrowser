@@ -107,9 +107,16 @@ std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep) {
   switch (node.GetKind()) {
     case dom::Node::Kind::Element: {
       const auto& element = static_cast<const dom::Element&>(node);
-      auto made = std::make_unique<dom::Element>(element.TagName());
+      // Namespace, prefix and every attribute's namespace travel with the
+      // copy. A clone that lost them would be a different element that
+      // serialized the same -- and `importNode` is how a template's stamped
+      // content reaches the document, so the loss would be permanent.
+      auto made = std::make_unique<dom::Element>(element.Namespace(), element.TagName(),
+                                                 static_cast<std::uint32_t>(
+                                                     element.Prefix().size()));
       for (const dom::Attribute& attribute : element.Attributes()) {
-        made->SetAttribute(attribute.name, attribute.value);
+        made->SetAttributeNS(attribute.name_space, attribute.name, attribute.prefix_length,
+                             attribute.value);
       }
       copy = std::move(made);
       break;
@@ -568,10 +575,21 @@ js::Value DomBindings::AdoptInto(dom::Node& parent, dom::Node* child) {
 }
 
 js::Value DomBindings::CreateElement(const std::string& tag_name) {
+  // `createElement` in an HTML document makes an HTML element with no prefix,
+  // which is the only kind this parser produces too.
+  QualifiedName name;
+  name.name_space = dom::NamespaceRef::kHtml;
+  name.qualified = tag_name;
+  return CreateElementNS(std::move(name));
+}
+
+js::Value DomBindings::CreateElementNS(QualifiedName name) {
+  const std::string tag_name = name.qualified;
   if (tag_name.empty()) {
     return Value::Null();
   }
-  auto element = std::make_unique<dom::Element>(tag_name);
+  auto element = std::make_unique<dom::Element>(std::move(name.name_space),
+                                                std::move(name.qualified), name.prefix_length);
   dom::Element* raw = element.get();
   // Held here rather than handed to script, because a node's owner is its
   // parent and this one has none yet. Script gets the wrapper; the node stays
@@ -582,14 +600,20 @@ js::Value DomBindings::CreateElement(const std::string& tag_name) {
   // trusted before it is inserted. YouTube's player loader (`GXC`) does
   // createElement → set src → appendChild; marking only at append missed the
   // create half when the append's trust bit had already dropped (TD-0024).
-  if (tag_name == "script" && InTrustedScriptContext()) {
+  if (tag_name == "script" && raw->Namespace().IsHtml() && InTrustedScriptContext()) {
     MarkCspTrustedScript(*raw);
   }
   // Upgraded here rather than on insertion, because the specification says a
   // custom element is constructed when it is created -- a page that does
   // `document.createElement('my-thing')` and reads a property its constructor
   // set expects it to be there before anything is appended.
-  UpgradeElement(*raw);
+  //
+  // HTML namespace only: a custom element is an HTML element, and
+  // `createElementNS('http://FOO', 'my-thing')` is a foreign element that
+  // happens to have a hyphen in its name.
+  if (raw->Namespace().IsHtml()) {
+    UpgradeElement(*raw);
+  }
   return wrapper;
 }
 

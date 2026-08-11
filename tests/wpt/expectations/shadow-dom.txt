@@ -8520,7 +8520,6 @@ harness=TIMEOUT
 [shadow-dom/leaktests/get-elements.html]
 FAIL=getElementsById() should not leak nodes in shadow tree
 FAIL=getElementsByName() should not leak nodes in shadow tree
-FAIL=getElementsByTagNameNS() should not leak nodes in shadow tree
 [shadow-dom/leaktests/html-collection.html]
 FAIL=document.all should not contain shadow nodes
 FAIL=document.anchors should not contain shadow nodes

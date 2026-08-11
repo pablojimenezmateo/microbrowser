@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include "dom/Namespaces.h"
+
 namespace microbrowser::dom {
 
 class Document;
@@ -163,8 +165,27 @@ class Node {
 };
 
 struct Attribute {
+  // The *qualified* name: `prefix:local` when there is a prefix, `local`
+  // otherwise. This is what `getAttribute` matches on and what serializes.
   std::string name;
   std::string value;
+  // The namespace, and how many bytes of `name` are the prefix -- 0 for no
+  // prefix, which is almost every attribute on almost every page.
+  //
+  // The length is stored rather than derived from the first colon, because the
+  // two are different facts: an HTML parser that meets `<a xml:lang=x>` in an
+  // HTML document produces an attribute whose *whole qualified name* is
+  // `xml:lang` with no prefix and no namespace, and `attr.localName` must say
+  // so. Deriving would call the `xml` part a prefix and answer `lang`.
+  NamespaceRef name_space;
+  std::uint32_t prefix_length = 0;
+
+  std::string_view LocalName() const {
+    return std::string_view(name).substr(prefix_length == 0 ? 0 : prefix_length + 1);
+  }
+  std::string_view Prefix() const {
+    return std::string_view(name).substr(0, prefix_length);
+  }
 
   friend bool operator==(const Attribute&, const Attribute&) = default;
 };
@@ -224,10 +245,30 @@ inline constexpr ElementState kStoredElementStates =
 
 class Element : public Node {
  public:
+  // An HTML element with no prefix, which is what the parser and
+  // `createElement` both produce.
   explicit Element(std::string tag_name);
+  // A namespaced element. `prefix_length` is how many bytes of the qualified
+  // name are the prefix, 0 for none -- see Attribute for why it is stored
+  // rather than found by looking for a colon.
+  Element(NamespaceRef name_space, std::string qualified_name, std::uint32_t prefix_length);
   ~Element() override;
 
+  // The qualified name, as created: `svg` for an HTML `<svg>`, `x:b` for
+  // `createElementNS(ns, 'x:b')`. Lower-cased for anything the HTML parser or
+  // `createElement` made, and case-preserving for `createElementNS`.
+  //
+  // Every match in the engine -- the cascade, the box tree, hit testing --
+  // is against this. `tagName` in a page is this upper-cased, which is the
+  // binding layer's job rather than the tree's.
   const std::string& TagName() const { return tag_name_; }
+  std::string_view LocalName() const {
+    return std::string_view(tag_name_).substr(prefix_length_ == 0 ? 0 : prefix_length_ + 1);
+  }
+  std::string_view Prefix() const {
+    return std::string_view(tag_name_).substr(0, prefix_length_);
+  }
+  const NamespaceRef& Namespace() const { return namespace_; }
 
   // The template contents of a `<template>`, and null on every other element.
   //
@@ -265,10 +306,23 @@ class Element : public Node {
 
   const std::vector<Attribute>& Attributes() const { return attributes_; }
 
+  // By *qualified* name, which is what `getAttribute` matches on: two
+  // attributes in different namespaces can share a local name, and the first
+  // in tree order with this qualified name is the answer.
   const std::string* GetAttribute(std::string_view name) const;
   bool HasAttribute(std::string_view name) const { return GetAttribute(name) != nullptr; }
   void SetAttribute(std::string name, std::string value);
   bool RemoveAttribute(std::string_view name);
+
+  // By namespace and *local* name, which is what the `…NS` half matches on.
+  // Setting keeps an existing attribute's position and replaces its value and
+  // its prefix, because that is what the DOM says and because the order
+  // `getAttributeNames` reports is observable.
+  const Attribute* GetAttributeNS(const NamespaceRef& name_space,
+                                  std::string_view local_name) const;
+  void SetAttributeNS(NamespaceRef name_space, std::string qualified_name,
+                      std::uint32_t prefix_length, std::string value);
+  bool RemoveAttributeNS(const NamespaceRef& name_space, std::string_view local_name);
 
   // Bumped on SetAttribute / RemoveAttribute only. Paired with Document::
   // StructureVersion for the style cache of TD-0021: an attribute write on one
@@ -290,8 +344,6 @@ class Element : public Node {
  private:
   std::string tag_name_;
   std::vector<Attribute> attributes_;
-  ElementState state_ = ElementState::None;
-  std::uint32_t attr_version_ = 0;
   // Allocated only for `<template>`. A pointer on every element rather than a
   // subclass, because the parser and the bindings both create elements by tag
   // name and neither has anywhere to put a second type.
@@ -300,6 +352,14 @@ class Element : public Node {
   // bindings both make elements by tag name and neither has anywhere to put a
   // second type.
   std::unique_ptr<DocumentFragment> shadow_;
+  // The four small fields are together at the end deliberately: they pack into
+  // the padding the two pointers above already leave, so an element that
+  // remembers its namespace and its prefix is the same size as one that did
+  // not.
+  std::uint32_t prefix_length_ = 0;
+  std::uint32_t attr_version_ = 0;
+  NamespaceRef namespace_ = NamespaceRef::kHtml;
+  ElementState state_ = ElementState::None;
   bool shadow_open_ = true;
 };
 

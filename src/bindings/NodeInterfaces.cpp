@@ -86,8 +86,16 @@ const char* InterfaceForTag(std::string_view tag) {
 
 std::string NodeNameOf(const dom::Node& node) {
   switch (node.GetKind()) {
-    case dom::Node::Kind::Element:
-      return util::AsciiUpperCase(static_cast<const dom::Element&>(node).TagName());
+    case dom::Node::Kind::Element: {
+      // Upper case for an HTML element in an HTML document, and *as written*
+      // for anything else: `createElementNS(SVG_NS, 'linearGradient').tagName`
+      // is `linearGradient`, and upper-casing it would name an element that
+      // does not exist. Every document here is an HTML document, so the
+      // element's namespace is the whole of the condition.
+      const auto& element = static_cast<const dom::Element&>(node);
+      return element.Namespace().IsHtml() ? util::AsciiUpperCase(element.TagName())
+                                          : element.TagName();
+    }
     case dom::Node::Kind::Text:
       return "#text";
     case dom::Node::Kind::Comment:

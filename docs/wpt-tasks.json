@@ -71,6 +71,13 @@
     },
 
     {
+      "id": "B6", "milestone": "M-B", "title": "a summary state file that covers every area", "area": "",
+      "scope": "One full --testharness-only run writing --summary-state into the repository, so a per-area re-measurement can regenerate docs/wpt-baseline.md instead of hand-merging its rows into it.",
+      "check": "tests/wpt/summary-state.tsv is committed, describes every area in tests/wpt/areas.txt, and `microbrowser_wpt --summary docs/wpt-baseline.md --summary-state tests/wpt/summary-state.tsv <one area>` regenerates the document with every row intact.",
+      "depends": ["B1"], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "notes": "Found by C4, the third session in a row to trip over it. --summary writes the document from the state alone, the state file lived in /tmp, and the one left there covered 38 areas -- so regenerating after a seven-area run produced a complete-looking document with 61 rows instead of 297. SummaryAccumulator::Write now refuses to write fewer rows than the document already has, which turns the silent truncation into a message; this task is what makes the refusal unnecessary. It is one long machine run, not a design."
+    },
+    {
       "id": "C1", "milestone": "M-C", "title": "DOMException is a real type", "area": "dom/",
       "scope": "DOMException with name/code/message, thrown by every binding the spec says throws one; audit every throw in src/bindings.",
       "check": "assert_throws_dom passes in dom/nodes/Node-appendChild.html. Run 2026-08-10: 0 unexpected, 7 of 11 subtests, from 5.",
@@ -92,8 +99,10 @@
     {
       "id": "C4", "milestone": "M-C", "title": "dom/nodes", "area": "dom/nodes/",
       "scope": "Mutation algorithms, node comparison, adoption, ownerDocument.",
-      "check": "dom/nodes/ >= 85%.", "depends": ["C1"], "target": "85%",
-      "status": "in_progress", "agent": "wpt-c4", "adr": "", "notes": "\"cannot read property 'document' of undefined\" is the ownerDocument/defaultView chain -- `document.defaultView` landed with C3 and had simply never existed. What is left of this task's namespace half is now specific: dom::Element has one name field, so it cannot answer tagName (the qualified name), localName (the local part), prefix and namespaceURI independently. dom/nodes/case.html (285 subtests) and the non-throwing two thirds of Document-createElementNS.html are all waiting on that one field."
+      "check": "dom/nodes/ >= 85%. Run 2026-08-11 (namespaces): 49.4% -> 58.6%, dom/ as a whole 44.2% -> 52.1%, 0 regressions. Not yet 85%.",
+      "depends": ["C1"], "target": "85%",
+      "status": "in_progress", "agent": "wpt-c4", "adr": "",
+      "notes": "**The namespace half landed 2026-08-11; the task is not done.** dom::Element and dom::Attribute now carry a dom::NamespaceRef and a prefix *length*, so tagName/localName/prefix/namespaceURI are four answers rather than two guesses at one field -- the choice C3 wrote down as being between two wrong answers is no longer a choice. With it: createElementNS keeps what it validates and does not fold case, the six `...NS` attribute operations match on (namespace, local name), getElementsByTagNameNS exists, getElementsByTagName learned the HTML-elements-match-case-insensitively rule, and lookupNamespaceURI/lookupPrefix/isDefaultNamespace exist. getAttributeNames and toggleAttribute landed with them. The prefix is a stored length rather than a search for a colon because `<xml:lang>` is one element whose whole local name has a colon in it while createElementNS('f:o:o') splits at the first one. NamespaceRef is reference counted rather than an append-only intern table because `for (i=0;i<1e7;i++) createElementNS('u'+i,'a')` would otherwise leak every entry. **What stands between 58.6% and 85% is three things, and none is a namespace:** (1) the node document -- ownerDocument answers the one document unconditionally and a created node has none, which is not derivable by Node::OwnerDocument's walk because the DOM assigns it at creation and it survives detachment; DOMImplementation-createDocumentType.html (81 subtests) is entirely gated on it, as are adoption and importNode. Deciding where it lives is the work: a Document* on every dom::Node is 8 bytes on the base class and a second invariant across every subtree move, which src/dom/MODULE.deps already argues against. (2) Attr as a real node with an ownerElement and a value that writes through -- attributes.html's remaining failures are setAttributeNode/removeAttributeNode/InUseAttributeError and the NamedNodeMap own-property names. (3) XML documents: 390 subtests of Document-createElement.html and Document-createElementNS.html run in an iframe loading /common/dummy.xml, which is J1. Also newly visible: dom/lists/DOMTokenList-coverage-for-attributes.html stopped erroring and now reports 140 subtests, 43 of which fail because classList is not defined on an element outside the HTML namespace."
     },
     {
       "id": "C5", "milestone": "M-C", "title": "traversal and ranges", "area": "dom/ranges/",

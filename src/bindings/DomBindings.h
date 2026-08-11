@@ -19,6 +19,7 @@
 #include "bindings/Sockets.h"
 #include "bindings/Storage.h"
 #include "bindings/Waapi.h"
+#include "bindings/WebIdl.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
 #include "js/StructuredClone.h"
@@ -339,6 +340,10 @@ class DomBindings {
   // alternative, handing script a node it owns, would put a raw pointer's
   // lifetime in a page's hands.
   js::Value CreateElement(const std::string& tag_name);
+  // The same for a namespaced element; `CreateElement` is this with the HTML
+  // namespace filled in, so one place owns the unattached list, the CSP trust
+  // mark and the upgrade.
+  js::Value CreateElementNS(QualifiedName name);
   js::Value CreateText(const std::string& text);
   // A comment node. A framework uses one as a placeholder marker far more
   // often than a page author writes one.
@@ -534,6 +539,19 @@ class DomBindings {
   void SetElementAttribute(dom::Element& element, const std::string& name,
                            const std::string& value);
   void RemoveElementAttribute(dom::Element& element, const std::string& name);
+  // The same two by namespace and local name, which match *differently*:
+  // `setAttribute` finds the first attribute with a qualified name whatever
+  // namespace it is in, and `setAttributeNS` finds the one in this namespace
+  // with this local name -- so an element can carry both.
+  void SetElementAttributeNS(dom::Element& element, dom::NamespaceRef name_space,
+                             const std::string& qualified_name, std::uint32_t prefix_length,
+                             const std::string& value);
+  void RemoveElementAttributeNS(dom::Element& element, const dom::NamespaceRef& name_space,
+                                std::string_view local_name);
+  // What both writes do after the element changed: the media-source attach,
+  // the custom-element reaction and the mutation record.
+  void AfterAttributeWrite(dom::Element& element, const std::string& name,
+                           const js::Value& old_value, const js::Value& new_value);
   // The IDL attributes that reflect content attributes, as get/set pairs on
   // the interface each belongs to. `el.value = 'x'` and `setAttribute('value',
   // 'x')` are the same act; before this they were not.
