@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "css/CssText.h"
-#include "text/Bidi.h"
+#include "css/SelectorPredicates.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceCounters.h"
 
@@ -157,46 +157,6 @@ std::string PresentationalAlignValue(std::string_view tag_name, std::string_view
   return {};
 }
 
-// P2 over an element's own text: true when the first strong character is right-to-left.
-//
-// This is `dir="auto"`, and the walk is the specification's rather than a simplification of it: it
-// skips a descendant that has its own `dir`, skips `<bdi>` (which is its own paragraph by
-// definition), and skips `<script>` and `<style>` (whose text is not text). Bounded at 4,096 bytes,
-// because the answer is decided by the *first* strong character and a page that puts none in the
-// first four kilobytes of a comment is a page whose direction nobody can infer either.
-bool DirectionFromContent(const dom::Element& element) {
-  std::string collected;
-  const auto walk = [&collected](const dom::Node& node, auto& self) -> void {
-    for (const std::unique_ptr<dom::Node>& child : node.Children()) {
-      if (collected.size() >= 4096) {
-        return;
-      }
-      if (child->IsText()) {
-        collected += static_cast<const dom::Text&>(*child).Data();
-        continue;
-      }
-      if (!child->IsElement()) {
-        continue;
-      }
-      const auto* child_element = static_cast<const dom::Element*>(child.get());
-      const std::string_view child_tag = child_element->TagName();
-      if (child_tag == "script" || child_tag == "style" || child_tag == "bdi" ||
-          child_element->GetAttribute("dir") != nullptr) {
-        continue;
-      }
-      self(*child_element, self);
-    }
-  };
-  walk(element, walk);
-  std::vector<std::uint32_t> code_points;
-  std::size_t at = 0;
-  std::uint32_t code = 0;
-  while (util::DecodeUtf8(collected, at, code)) {
-    code_points.push_back(code);
-  }
-  return text::ParagraphLevel(code_points) == 1;
-}
-
 // The declarations an element's presentational attributes stand for.
 std::vector<Declaration> PresentationalDeclarations(const dom::Element& element) {
   const std::string_view tag = element.TagName();
@@ -233,7 +193,7 @@ std::vector<Declaration> PresentationalDeclarations(const dom::Element& element)
   if (lowered == "rtl" || lowered == "ltr") {
     add("direction", lowered);
   } else if (lowered == "auto" || (dir == nullptr && tag == "bdi")) {
-    add("direction", DirectionFromContent(element) ? "rtl" : "ltr");
+    add("direction", AutoDirectionIsRtl(element) ? "rtl" : "ltr");
   }
 
   if (tag == "table") {
@@ -316,32 +276,6 @@ bool PropertyAffectsLayout(std::string_view property) {
          std::end(kPaintOnly);
 }
 
-void StyleInvalidation::AddRule(const Selector& selector,
-                                const std::vector<Declaration>& declarations) {
-  const dom::ElementState states = selector.DynamicStates();
-  if (!Any(states)) {
-    return;
-  }
-  AddPerformanceCounter(PerfCounterId::CssDynamicRulesIndexed);
-  depends_ |= states;
-  for (const Declaration& declaration : declarations) {
-    if (PropertyAffectsLayout(declaration.property)) {
-      layout_ |= states;
-      return;
-    }
-  }
-}
-
-StyleChangeEffect StyleInvalidation::EffectOf(dom::ElementState changed) const {
-  if (Any(changed & layout_)) {
-    return StyleChangeEffect::Layout;
-  }
-  if (Any(changed & depends_)) {
-    return StyleChangeEffect::Paint;
-  }
-  return StyleChangeEffect::None;
-}
-
 namespace {
 
 // Where a rule is filed, so that an element can find it without every element
@@ -402,7 +336,19 @@ Bucket BucketFor(const Selector& selector) {
       case SelectorPart::Kind::Where:
       case SelectorPart::Kind::Not:
       case SelectorPart::Kind::Nth:
-        // None of these narrows to a name the element carries. `:is(.a, .b)`
+      case SelectorPart::Kind::Scope:
+      case SelectorPart::Kind::Lang:
+      case SelectorPart::Kind::Dir:
+      case SelectorPart::Kind::Has:
+        // None of these narrows to a name the element carries. `:has()` is the
+        // one that costs something: a rule whose subject says nothing but
+        // `:has(...)` lands in the universal bucket and is therefore asked of
+        // every element on the page, each answer walking a subtree. That is the
+        // 32x row in `bench/CssBenchmarks.cpp` and the reason
+        // `kMaxHasCandidates` exists -- the index cannot help a selector that
+        // states nothing about its own subject.
+        //
+        // `:is(.a, .b)`
         // could be split across two buckets and is not: a rule filed in two
         // places is a rule that can be collected twice, and the declaration
         // would then be applied twice at the same specificity.

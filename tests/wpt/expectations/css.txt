@@ -79085,7 +79085,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/selectors/attribute-selectors/attribute-case/value-case-sensitivity-svg.html]
 FAIL=Empty-namespace element matches legacy attribute value case-sensitively.
-FAIL=HTML element matches legacy attribute value case-insensitively.
 [css/selectors/attribute-selectors/style-attribute-selector.html]
 FAIL=Dynamically change style with Element.setAttribute
 FAIL=Dynamically change style with Element.style
@@ -79105,33 +79104,12 @@ FAIL=:nth-last-child(1) against an element still being parsed
 FAIL=:nth-last-of-type(1) against an element still being parsed
 FAIL=:only-child against an element still being parsed
 FAIL=:only-of-type against an element still being parsed
-[css/selectors/dir-pseudo-on-bdi-element.html]
-FAIL=bdi element with dir=auto content attribute
-FAIL=bdi element with dir=ltr content attribute
-FAIL=bdi element with dir=rtl content attribute
-FAIL=bdi element with invalid dir content attribute
-FAIL=bdi element without dir content attribute
 [css/selectors/dir-pseudo-on-input-element.html]
-FAIL=dynamic changes to type of input elements affect whether value is used for dir=auto
 FAIL=input element whose type attribute is in the button state
-FAIL=input element whose type attribute is in the checkbox state
-FAIL=input element whose type attribute is in the color state
-FAIL=input element whose type attribute is in the date state
-FAIL=input element whose type attribute is in the email state
 FAIL=input element whose type attribute is in the hidden state
-FAIL=input element whose type attribute is in the image state
-FAIL=input element whose type attribute is in the number state
-FAIL=input element whose type attribute is in the password state
-FAIL=input element whose type attribute is in the radio state
-FAIL=input element whose type attribute is in the range state
 FAIL=input element whose type attribute is in the reset state
-FAIL=input element whose type attribute is in the search state
 FAIL=input element whose type attribute is in the submit state
-FAIL=input element whose type attribute is in the telephone state
 FAIL=input element whose type attribute is in the telephone state in a RTL block
-FAIL=input element whose type attribute is in the text state
-FAIL=input element whose type attribute is in the time state
-FAIL=input element whose type attribute is in the url state
 [css/selectors/dir-selector-auto.html]
 harness=TIMEOUT
 [css/selectors/dir-selector-querySelector.html]
@@ -79319,15 +79297,6 @@ harness=TIMEOUT
 FAIL=:has(#a) matches expected elements
 [css/selectors/has-focus-display-change.html]
 FAIL=:has(:focus) doesn't cause focusability to be lost
-[css/selectors/has-matches-to-uninserted-elements.html]
-FAIL=:has(*) matches expectedly
-FAIL=:has(+ direct_sibling) matches expectedly
-FAIL=:has(> *) matches expectedly
-FAIL=:has(> child) matches expectedly
-FAIL=:has(child) matches expectedly
-FAIL=:has(descendant) matches expectedly
-FAIL=:has(~ direct_sibling) matches expectedly
-FAIL=:has(~ indirect_sibling) matches expectedly
 [css/selectors/has-relative-argument.html]
 harness=TIMEOUT
 [css/selectors/has-specificity.html]
@@ -79378,42 +79347,8 @@ harness=TIMEOUT
 FAIL=Hovering inside a modal dialog should not propagate :hover beyond the dialog.
 FAIL=Hovering inside a popover should not propagate :hover beyond the popover.
 FAIL=With nested top layer elements, :hover should stop at the innermost top layer boundary.
-[css/selectors/i18n/css3-selectors-lang-001.html]
-FAIL=A :lang value that matches an identical lang attribute value on the same element will produce styling.
-[css/selectors/i18n/css3-selectors-lang-002.html]
-FAIL=A :lang value that matches an identical lang attribute value on a parent element will produce styling.
-[css/selectors/i18n/css3-selectors-lang-004.html]
-FAIL=A :lang value will match a lang attribute value regardless of case differences.
-[css/selectors/i18n/css3-selectors-lang-005.html]
-FAIL=A :lang value will match a lang attribute value when the latter contains additional subtags.
-[css/selectors/i18n/css3-selectors-lang-006.html]
-FAIL=A :lang value will NOT match a lang attribute value when the former contains more subtags.
-[css/selectors/i18n/css3-selectors-lang-007.html]
-FAIL=When the :lang value uses a single subtag, it will NOT match against an attribute value where it appears in a different position.
-[css/selectors/i18n/css3-selectors-lang-008.html]
-FAIL=A :lang value with language and region subtags will match a lang attribute value with the same subtags.
-[css/selectors/i18n/css3-selectors-lang-009.html]
-FAIL=A :lang value with a multiple subtags will match a lang attribute value with multiple subtags as long as the first part is the same.
-[css/selectors/i18n/css3-selectors-lang-010.html]
-FAIL=A :lang value and a lang attribute value will NOT match if their region subtags differ.
-[css/selectors/i18n/css3-selectors-lang-011.html]
-FAIL=A :lang value with language, script and region subtags will match a lang attribute value with the same language, script and region subtags.
-[css/selectors/i18n/css3-selectors-lang-012.html]
-FAIL=A :lang value with language, script and region subtags will NOT match a lang attribute value with the script subtag missing.
-[css/selectors/i18n/css3-selectors-lang-014.html]
-FAIL=A :lang value with language and region subtags will match a lang attribute value with language, script and region subtags under CSS Selectors 4, but not Selectors 3.
-[css/selectors/i18n/css3-selectors-lang-015.html]
-FAIL=A :lang value will match a lang attribute value regardless of case differences in the script tag.
 [css/selectors/i18n/css3-selectors-lang-016.html]
 FAIL=A :lang value that matches an identical xml:lang attribute value will NOT produce styling in pages served as HTML.
-[css/selectors/i18n/css3-selectors-lang-024.html]
-FAIL=A lang|= value will match a lang attribute value regardless of case differences.
-[css/selectors/i18n/css3-selectors-lang-035.html]
-FAIL=A lang|= value will match a lang attribute value regardless of case differences in the script tag.
-[css/selectors/i18n/css3-selectors-lang-044.html]
-FAIL=A lang= value will match a lang attribute value regardless of case differences.
-[css/selectors/i18n/css3-selectors-lang-055.html]
-FAIL=A lang= value will match a lang attribute value regardless of case differences in the script tag.
 [css/selectors/i18n/lang-pseudo-class-disconnected.html]
 FAIL=:lang pseudo class should work in a disconnected subtree
 [css/selectors/i18n/lang-pseudo-class-empty-attribute.xhtml]
@@ -79441,13 +79376,6 @@ FAIL=Test :has() invalidation with :defined pseudo-class
 [css/selectors/invalidation/defined.html]
 FAIL=:defined selector is effective
 [css/selectors/invalidation/empty-pseudo-in-has-display-none.html]
-FAIL=:not(:empty) - Visible after inserting element into #child2
-FAIL=:not(:empty) - Visible after inserting text into #child2
-FAIL=:not(:empty) - Visible again after inserting text into #child2
-FAIL=Hidden after inserting empty element into #child
-FAIL=Hidden again after clearing text from #child
-FAIL=Hidden again after removing all children from #child
-FAIL=Initially hidden because #child is :empty
 FAIL=Visible after inserting non-empty element into #child
 FAIL=Visible after inserting text into #child
 FAIL=Visible after inserting text into empty #child
@@ -79889,7 +79817,6 @@ FAIL=":focus:not(:focus-visible)" should be a valid selector
 FAIL="a:focus-visible" should be a valid selector
 [css/selectors/parsing/parse-has-disallow-nesting-has-inside-has.html]
 FAIL=".a:has(.b:has(.c))" should be an invalid selector
-FAIL=CSS Selectors: The relational pseudo-class (disallow nesting :has() inside :has())
 [css/selectors/parsing/parse-has-forgiving-selector.html]
 FAIL=":has(:is(.a, 123))" should be a valid selector
 FAIL=":has(:is(:has(*)))" should be a valid selector
@@ -80165,19 +80092,8 @@ FAIL=CSS Selectors Test: :placeholder-shown matching 6
 [css/selectors/pseudo-enabled-disabled.html]
 FAIL=:enabeld should match to enabled controls
 FAIL=:not(:disabled) should match to enabled controls and non-controls
-[css/selectors/quirks-mode-import.html]
-FAIL=Importing quirks mode element into standards mode document
 [css/selectors/scope-selector.html]
 FAIL=querySelector() with ":scope" should return the document element, if present in the subtree
-[css/selectors/selectors-4/lang-singleton-subtag-matching.html]
-FAIL=:lang(cocoa-1) matches lang="cocoa-1-bar" (singleton "1" matches)
-FAIL=:lang(cocoa-a) matches lang="cocoa-a-bar" (singleton "a" matches)
-FAIL=:lang(en-x) matches lang="en-x-private" (private-use singleton)
-FAIL=:lang(fr) does not match lang="fr-ninechars" (subtag exceeds 8-char limit)
-FAIL=:lang(fr-standard) only matches lang="fr-standard" (not lang="fr-x-standard")
-FAIL=:lang(fr-x) matches lang="fr-x" and lang="fr-x-standard" (singleton "x" matches)
-FAIL=:lang(fr-x) matches the correct elements
-FAIL=:lang(zh-x) matches both lang="zh-x" and lang="zh-x-foobar"
 [css/selectors/selectors-case-sensitive-001.html]
 harness=TIMEOUT
 [css/selectors/toplayer-transition-001.html]

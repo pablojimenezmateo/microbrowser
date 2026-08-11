@@ -260,7 +260,11 @@ microbrowser_module(css
     src/css/Declarations.cpp
     src/css/MediaQuery.cpp
     src/css/SelectorMatch.cpp
+    src/css/SelectorNth.cpp
     src/css/SelectorParse.cpp
+    src/css/SelectorPredicates.cpp
+    src/css/SelectorRelational.cpp
+    src/css/StyleInvalidation.cpp
     src/css/StyleResolver.cpp
     src/css/UserAgentStyleSheet.cpp
     src/css/Animation.cpp
@@ -653,6 +657,7 @@ add_executable(microbrowser_tests
   tests/BlitterTests.cpp
   tests/CanvasTests.cpp
   tests/CssTests.cpp
+  tests/SelectorTests.cpp
   tests/GeometryQueryTests.cpp
   tests/ImageSelectionTests.cpp
   tests/MediaQueryTests.cpp

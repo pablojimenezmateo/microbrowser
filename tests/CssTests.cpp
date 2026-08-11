@@ -182,8 +182,8 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
   AddTest(tests, "CssParser/DropsARuleWhoseSelectorItCannotParse", [] {
     // Applying the declarations to something else would be worse than losing
     // them, which is why an unparsable selector drops the whole rule.
-    // `::before` parses now; `:has()` is still refused.
-    const StyleSheet sheet = ParseStyleSheet("p:has(span) { color: red } a { color: blue }");
+    // `::before` and `:has()` both parse now; `:nth-col()` does not.
+    const StyleSheet sheet = ParseStyleSheet("p:nth-col(2) { color: red } a { color: blue }");
     ExpectEqInt(static_cast<long long>(sheet.rules.size()), 1, "only the parsable rule remains");
     ExpectEqString(sheet.rules.at(0).selectors.at(0).compounds.at(0).parts.at(0).name, "a",
                    "and it is the right one");
@@ -483,15 +483,18 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     for (const std::string_view text : {
              "li:nth-child()", "li:nth-child(2n 1)", "li:nth-child(+ n)", "li:nth-child(n+)",
              "li:nth-child(2n+)", "li:nth-child(an+b)", "li:nth-child(2.5n)", "li:nth-child(1.5)",
-             "li:nth-child(2n+1 extra)", "li:nth-child(2n of .x)", "li:nth-child(99999999999)",
+             "li:nth-child(2n+1 extra)", "li:nth-child(99999999999)",
              "li:nth-child(2n-)", "li:nth-child(odd even)",
+             // `of S` is only on the `-child` forms: `:nth-of-type()` already
+             // says which sequence it counts over, and two answers is not a
+             // grammar.
+             "li:nth-of-type(2n of .x)", "li:nth-child(2n of)", "li:nth-child(2n of !)",
          }) {
       Expect(!SelectorParses(text), std::string("must not parse: ") + std::string(text));
     }
-    // And the functional pseudo-classes this engine does not implement go the
-    // same way rather than becoming a stub that feature detection believes.
-    Expect(!SelectorParses("div:has(p)"), ":has() is priced separately by ADR 0016");
-    Expect(!SelectorParses("p:lang(en)"), ":lang() is not implemented");
+    // And the functional pseudo-classes this engine still does not implement go
+    // the same way rather than becoming a stub that feature detection believes.
+    Expect(!SelectorParses("p:nth-col(2)"), ":nth-col() is not implemented");
     Expect(!SelectorParses("p:not(!)"), "an argument that is not a selector invalidates :not()");
   });
 

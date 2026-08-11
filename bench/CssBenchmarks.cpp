@@ -62,7 +62,7 @@ std::string SyntheticStyleSheet() {
   return css;
 }
 
-Page BuildPage() {
+Page BuildPage(std::string_view extra_rules = {}) {
   static constexpr const char* kTags[] = {"div", "p", "span", "a", "li", "td"};
   static constexpr const char* kClasses[] = {"box",  "row",   "cell",  "title", "meta",
                                              "link", "byline", "body", "note",  "tag"};
@@ -106,8 +106,48 @@ Page BuildPage() {
 
   page.resolver.AddStyleSheet(css::ParseStyleSheet(std::string(css::UserAgentStyleSheet()), {}),
                               css::Origin::UserAgent);
-  page.resolver.AddStyleSheet(css::ParseStyleSheet(SyntheticStyleSheet(), {}),
-                              css::Origin::Author);
+  page.resolver.AddStyleSheet(
+      css::ParseStyleSheet(SyntheticStyleSheet() + std::string(extra_rules), {}),
+      css::Origin::Author);
+  return page;
+}
+
+// The same element count, arranged as a *spine*: forty nested wrappers, each
+// carrying a hundred leaves.
+//
+// This exists because the wide page above cannot price `:has()` at all. A
+// descendant search costs the size of the subtree it walks, so on a tree where
+// almost every element is a leaf it costs nothing -- the four `:has()` rows
+// over `BuildPage()` come out inside the noise of the plain cascade. The cost
+// is a function of the *sum of subtree sizes*, which is the element count times
+// the average depth, and that is what a real page's div nesting supplies.
+// Forty is roughly youtube's depth.
+Page BuildDeepPage(std::string_view extra_rules = {}) {
+  Page page;
+  page.document = std::make_unique<dom::Document>();
+  auto& root = static_cast<dom::Element&>(
+      page.document->Append(std::make_unique<dom::Element>("html")));
+  auto* spine = &static_cast<dom::Element&>(root.Append(std::make_unique<dom::Element>("body")));
+  page.elements = 2;
+  for (std::size_t level = 0; level < 40; ++level) {
+    auto& wrapper =
+        static_cast<dom::Element&>(spine->Append(std::make_unique<dom::Element>("div")));
+    wrapper.SetAttribute("class", "box" + std::to_string(level % 24));
+    ++page.elements;
+    for (std::size_t leaf = 0; leaf < 100; ++leaf) {
+      auto& child =
+          static_cast<dom::Element&>(wrapper.Append(std::make_unique<dom::Element>("span")));
+      child.SetAttribute("class", "cell" + std::to_string(leaf % 24));
+      child.Append(std::make_unique<dom::Text>("content"));
+      ++page.elements;
+    }
+    spine = &wrapper;
+  }
+  page.resolver.AddStyleSheet(css::ParseStyleSheet(std::string(css::UserAgentStyleSheet()), {}),
+                              css::Origin::UserAgent);
+  page.resolver.AddStyleSheet(
+      css::ParseStyleSheet(SyntheticStyleSheet() + std::string(extra_rules), {}),
+      css::Origin::Author);
   return page;
 }
 
@@ -115,21 +155,89 @@ Page BuildPage() {
 
 void RegisterCssBenchmarks(std::vector<Benchmark>& benchmarks) {
   static const Page page = BuildPage();
+  static const Page deep = BuildDeepPage();
 
   // Per *element*, not per call: what the browser does more of when a page gets
   // bigger is resolve one more style, and the number that has to come down is
   // the cost of one.
-  AddBenchmark(benchmarks, "css/cascade-document", page.elements, "element", [] {
-    std::size_t resolved = 0;
-    page.resolver.ForEachStyledElement(
-        *page.document, [&resolved](const dom::Element&, const css::ComputedStyle&) {
-          ++resolved;
-        });
-    // Read the count back so the whole walk cannot be optimised away.
-    if (resolved == 0) {
-      std::abort();
-    }
-  });
+  //
+  // **Read this before adding a row here.** `StyleResolver::StyleFor` caches a
+  // computed style per element (TD-0021), keyed on the cascade generation, the
+  // document's structure version, the element's attribute version and state,
+  // and its parent's style id. None of those change between two iterations of
+  // this benchmark, so **every iteration after the first is a cache hit** and
+  // this row has not measured the cascade since that cache landed. It is still
+  // a useful row -- resolving a cached style is what a repeated layout actually
+  // does -- but a change to *matching* will not move it, which is why the
+  // selector rows below exist and are written against `Selector::Matches`
+  // rather than against the resolver.
+  const auto cascade = [&benchmarks](const char* name, const Page& subject) {
+    AddBenchmark(benchmarks, name, subject.elements, "element", [&subject] {
+      std::size_t resolved = 0;
+      subject.resolver.ForEachStyledElement(
+          *subject.document, [&resolved](const dom::Element&, const css::ComputedStyle&) {
+            ++resolved;
+          });
+      // Read the count back so the whole walk cannot be optimised away.
+      if (resolved == 0) {
+        std::abort();
+      }
+    });
+  };
+  cascade("css/cascade-document", page);
+
+  // What one selector costs, asked of every element -- which is what the
+  // cascade does for a rule the index cannot narrow.
+  //
+  // ADR 0016 §1 said `:has()` should land "behind a measurement, and if it is
+  // expensive it stays behind one". These rows are that measurement, and
+  // `css::kMaxHasCandidates` is what came of it. Two things the numbers say
+  // that reading the code does not:
+  //
+  //  * The **shape of the tree** decides, not the element count. The wide page
+  //    and the deep page hold the same 4,400 elements; a descendant search
+  //    costs the sum of the subtree sizes, which is the element count times the
+  //    average depth, so the deep page costs an order of magnitude more for the
+  //    identical selector.
+  //  * A **failing** `:has()` is the expensive one. A match stops at the first
+  //    candidate; a miss visits every one of them. So the rule that costs the
+  //    most is the rule that is doing nothing, which is the opposite of the
+  //    intuition, and is why the bound is on candidates rather than on matches.
+  //
+  // The recorded numbers are beside `css::kMaxHasCandidates`, and so is the
+  // warning that goes with them: **compare rows within one run**. This machine
+  // is shared and every row moves by 3x between a quiet run and a loaded one,
+  // together -- so `deep-has-miss` against `deep-class` from the same run is a
+  // measurement, and either against a figure written down an hour ago is not.
+  const auto match_all = [&benchmarks](const char* name, const Page& subject,
+                                       std::string_view selector_text) {
+    // Owned by the closure rather than by a container that could reallocate
+    // under the closures registered before it, which is a segfault and was one.
+    const auto selectors =
+        std::make_shared<std::vector<css::Selector>>(css::ParseSelectorList(selector_text));
+    AddBenchmark(benchmarks, name, subject.elements, "element", [&subject, selectors] {
+      std::size_t matched = 0;
+      subject.document->ForEachDescendant([&](const dom::Node& node) {
+        if (!node.IsElement()) {
+          return;
+        }
+        for (const css::Selector& selector : *selectors) {
+          matched += selector.Matches(static_cast<const dom::Element&>(node)) ? std::size_t{1}
+                                                                             : std::size_t{0};
+        }
+      });
+      // Read the count back so the whole walk cannot be optimised away.
+      if (matched == ~std::size_t{0}) {
+        std::abort();
+      }
+    });
+  };
+  match_all("css/selector-class", page, ".cell0");
+  match_all("css/selector-has-hit", page, ":has(.cell0)");
+  match_all("css/selector-has-miss", page, ":has(.no-element-has-this-class)");
+  match_all("css/selector-deep-class", deep, ".cell0");
+  match_all("css/selector-deep-has-hit", deep, ":has(.cell0)");
+  match_all("css/selector-deep-has-miss", deep, ":has(.no-element-has-this-class)");
 }
 
 }  // namespace microbrowser::bench

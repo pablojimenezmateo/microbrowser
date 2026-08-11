@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -50,7 +51,26 @@ struct SelectorPart {
     Is,          // :is(a, b)
     Where,       // :where(a, b)
     Not,         // :not(a, b)
-    Nth,         // :nth-child(An+B), and its three siblings
+    Nth,         // :nth-child(An+B [of S]), and its three siblings
+    // `:has(rel)`, the one selector whose truth depends on a *subtree* rather
+    // than on an ancestor chain. Its arguments are *relative* selectors: the
+    // leftmost compound of each carries the combinator that relates it to the
+    // element being matched (`Combinator::None` meaning descendant), which is
+    // the only place in this model where compound zero's combinator is read.
+    // ADR 0016 §1 priced it separately; `bench/CssBenchmarks.cpp` took the
+    // measurement and `kMaxHasCandidates` below is what came of it.
+    Has,
+    // `:scope`. Inside a `:has()` argument it is the element the `:has()` is
+    // being asked about; everywhere else it is the document element, which is
+    // what a scopeless match is defined to mean.
+    Scope,
+    // `:lang(en, fr-*)`. The ranges live in `value`, comma-separated, folded to
+    // lower case at parse time -- a list rather than a nested selector list, so
+    // it costs no member of its own.
+    Lang,
+    // `:dir(ltr)` / `:dir(rtl)`, with the argument in `value`. Any other ident
+    // parses and matches nothing, which is what the grammar says.
+    Dir,
     // `:host` and `:host(sel)`, which only mean anything in a sheet that belongs
     // to a shadow root: they match the root's *host*, which is an element in a
     // different tree. Matched by the resolver rather than by the matcher, because
@@ -79,11 +99,31 @@ struct SelectorPart {
     Substring,    // *=
   };
 
+  // The `i` and `s` flags of `[att=val i]`. `Default` is neither written, and
+  // is *not* a synonym for `Sensitive`: HTML defines a list of attributes whose
+  // values are matched ASCII case-insensitively in an HTML document, and the
+  // difference between "the author said nothing" and "the author said `s`" is
+  // the only thing that can tell those two apart.
+  enum class AttributeCase : std::uint8_t { Default, Insensitive, Sensitive };
+
+  // The namespace part written before a `|` on a type or attribute selector.
+  // `Default` is no `|` at all -- which means *any* namespace for a type
+  // selector (this engine declares no default namespace) and *no* namespace for
+  // an attribute, since an unprefixed attribute is in none. A named prefix
+  // (`svg|rect`) needs an `@namespace` rule to resolve, and this engine has
+  // none, so the parser rejects the selector rather than guessing at a URI --
+  // matching a prefix it could not resolve would style elements the author
+  // never named.
+  enum class NamespaceMatch : std::uint8_t { Default, Any, None };
+
   Kind kind = Kind::Universal;
   std::string name;
   std::string value;
   AttributeMatch match = AttributeMatch::Exists;
-  // The argument list of `Is`, `Where` and `Not`. Empty for every other kind.
+  AttributeCase attribute_case = AttributeCase::Default;
+  NamespaceMatch name_space = NamespaceMatch::Default;
+  // The argument list of `Is`, `Where`, `Not` and `Has`, and the `of S` of
+  // `:nth-child(An+B of S)`. Empty for every other kind.
   std::vector<Selector> arguments;
   NthPattern nth;
 
@@ -138,6 +178,66 @@ struct Specificity {
 // `:is(:is(.breadcrumbs li) a):not(:hover)`. Eight is four times the observed
 // maximum, and far below the stack a recursive descent needs.
 inline constexpr int kMaxSelectorNestingDepth = 8;
+
+// How many elements one `:has()` evaluation may look at before it gives up and
+// answers "no".
+//
+// ADR 0016 §1 said `:has()` "lands last of the five, behind a measurement, and
+// if it is expensive it stays behind one". This is that measurement.
+// `bench/CssBenchmarks.cpp`, perf build, one selector asked of every element of
+// a 4,400-element document, minimum of three runs:
+//
+//     tree      selector                          ns/element   vs a class
+//     wide      `.cell0`                                42.2        1.0x
+//     wide      `:has(.cell0)`          (matches)       199.3        4.7x
+//     wide      `:has(.absent)`         (no match)      175.8        4.2x
+//     deep      `.cell0`                                36.8        1.0x
+//     deep      `:has(.cell0)`          (matches)        27.1        0.7x
+//     deep      `:has(.absent)`         (no match)     1122.3       30.5x
+//
+// **Read the ratio column, not the nanoseconds.** This machine is shared, and
+// the absolute figures move by 3x between a quiet run and a loaded one; the six
+// rows of one run all move together, so the ratio between them is the durable
+// half of the measurement. (Take the numbers from one run for the same reason:
+// comparing a row measured now against a row measured an hour ago compares two
+// machine loads.)
+//
+// Three things in that table, and none of them was the expected one:
+//
+//  1. **The shape of the tree decides, not the element count.** Both documents
+//     hold 4,400 elements; the wide one is 60x12x6 and the deep one is a spine
+//     of 40 wrappers. A descendant search costs the *sum of the subtree sizes*,
+//     which is the element count times the average depth -- so the same
+//     selector is 30x an ordinary class selector on one document and *cheaper*
+//     than one on the other.
+//  2. **A failing `:has()` is the expensive one.** A match stops at the first
+//     candidate; a miss visits every one. The rule that costs the most is the
+//     rule that is doing nothing, which is backwards from the intuition and is
+//     why the bound below counts candidates rather than matches.
+//  3. **The cascade never sees any of this**, because
+//     `StyleResolver::CandidateRules` only offers a rule the elements whose
+//     subject compound could match it. A `:has()` written as `.sidebar:has(img)`
+//     is asked of the elements with that class and nothing else. Only a subject
+//     that states no id, class or tag -- a bare `:has(...)` -- lands in the
+//     universal bucket and is asked of the whole document.
+//
+// So the honest answer is that `:has()` is affordable and needs no performance
+// bound: 30x a class selector, on the rule shape a page has to go out of its
+// way to write, is not the "too expensive to ship" case the ADR left room for.
+// What it does need is a **security** bound, in the sense ADR 0009 uses: a
+// stylesheet is attacker-controlled input and a walk with no ceiling on it is a
+// hang waiting for a large enough document.
+//
+// 100,000 is that ceiling and is deliberately far above every real page --
+// wikipedia's article DOM is about 19,000 elements and youtube's about 5,000,
+// so the largest possible subtree on either is a fifth of it. A bound a real
+// page reaches would be a *rendering* difference, and one that changes what a
+// page looks like to buy speed is the wrong trade in a project whose priority
+// order starts with correctness. Exceeding it answers **no match**, which is
+// what an author gets from a selector that finds nothing rather than from one
+// that finds everything, and `css.has_bound_hit` counts it -- a silent bound is
+// a rendering difference nobody can see from outside.
+inline constexpr std::size_t kMaxHasCandidates = 100000;
 
 // Which generated box a selector's subject names, if any. `None` is an ordinary
 // element rule; `Before`/`After` are `::before`/`::after`. Layout asks, and the

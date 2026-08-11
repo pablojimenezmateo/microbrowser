@@ -1621,7 +1621,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Element-matches-namespaced-elements.html]
 FAIL=empty string namespace, webkitMatchesSelector
-FAIL=has a namespace, *|, matches
 FAIL=has a namespace, *|, webkitMatchesSelector
 FAIL=has a namespace, webkitMatchesSelector
 [dom/nodes/Element-matches.html]
@@ -1813,9 +1812,6 @@ FAIL=ParentNode.children should be a live collection
 harness=TIMEOUT
 [dom/nodes/ParentNode-querySelector-All.html]
 harness=TIMEOUT
-[dom/nodes/ParentNode-querySelector-case-insensitive.html]
-FAIL=querySelector
-FAIL=querySelectorAll
 [dom/nodes/ParentNode-querySelector-escapes.html]
 FAIL="U+fffd" should match with "#\u0000"
 FAIL="abU+fffdc" should match with "#ab\u0000c"

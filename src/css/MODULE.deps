@@ -15,7 +15,13 @@ max_tu_lines: 900
 # The scanner counts the nested `enum class Kind` as a class of its own. Useful
 # rather than a false positive: it is the spec's token list, and a token kind
 # added without a parser branch for it is a silent gap.
-budget: Kind             header_lines=35 public_methods=0  members=0
+# 35 -> 55 for the four kinds D5 added -- `Has`, `Scope`, `Lang` and `Dir` --
+# and their reasoning. Each is a *different shape* of selector rather than one
+# more name: `:has()` is the only one that searches a subtree, `:scope` the only
+# one whose answer depends on what the match was asked about, and `:lang()`/
+# `:dir()` the only two that ask about content rather than tree shape. A kind
+# per shape is what keeps the matcher a switch the compiler checks.
+budget: Kind             header_lines=55 public_methods=0  members=0
 # One member for `has_sign`: whether a numeric token was written with an
 # explicit sign. The An+B microsyntax of `:nth-child()` is the one CSS grammar
 # where `+3` and `3` are not the same token, and the difference cannot be
@@ -29,7 +35,16 @@ budget: Token            header_lines=75 public_methods=2  members=8
 # Two more kinds for ADR 0019: `:host`/`:host(sel)` and `::slotted(sel)`, which
 # are the only two selectors that reach out of the tree they were written in.
 # +1 kind for `::before`/`::after` generated content (youtube thumbnail aspect hack).
-budget: SelectorPart header_lines=70 public_methods=2 members=8
+# 70 -> 105 and 8 members for D5. The two new members are the `i`/`s` flag of
+# `[att=val i]` and the namespace constraint of `*|att`, and both are *three*
+# valued rather than boolean, which is the point: "the author wrote `s`" and
+# "the author wrote nothing" are different, because HTML matches a list of
+# attribute values case-insensitively by default and only `s` turns that off.
+# Folding them into one packed byte would have kept the count and lost the
+# names, which is the wrong trade in the struct the whole cascade reads.
+# `:has()` and `:lang()` added no member: the first reuses `arguments`, the
+# second packs its ranges into `value`.
+budget: SelectorPart header_lines=105 public_methods=2 members=8
 budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3

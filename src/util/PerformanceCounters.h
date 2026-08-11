@@ -198,6 +198,16 @@ namespace microbrowser::util {
   /* on a given page.                                                          */ \
   X(CssDynamicRulesIndexed, "css.dynamic_rules_indexed")                         \
   X(CssSupportsQueries, "css.supports_queries")                                   \
+  /* Elements one `:has()` evaluation looked at. This is *the* number for the  */ \
+  /* relational pseudo-class: it is the only selector whose cost is a subtree  */ \
+  /* rather than an ancestor chain, so a page where it reads in the millions   */ \
+  /* is a page paying quadratically for one rule (ADR 0016 §1).                */ \
+  X(CssHasCandidatesVisited, "css.has_candidates_visited")                        \
+  /* Times a `:has()` hit `kMaxHasCandidates` and answered "no" without        */ \
+  /* finishing. Non-zero means this browser is rendering something a spec-     */ \
+  /* complete engine would not, and a silent bound is a rendering difference   */ \
+  /* nobody can see from outside -- so it is counted.                          */ \
+  X(CssHasBoundHit, "css.has_bound_hit")                                          \
   X(CssEscapeCalls, "css.escape_calls")                                           \
   /* A dynamic state bit that actually flipped on an element. Counted apart    */ \
   /* from the moves that flipped nothing, because a pointer crossing a page    */ \

@@ -4,6 +4,8 @@
 #include <string_view>
 #include <vector>
 
+#include "css/SelectorMatchInternal.h"
+#include "css/SelectorPredicates.h"
 #include "css/StyleSheet.h"
 #include "dom/Node.h"
 #include "util/StringUtil.h"
@@ -92,8 +94,11 @@ Specificity Selector::ComputeSpecificity() const {
           ++result.classes;
           break;
         case SelectorPart::Kind::Nth:
-          // A functional pseudo-class still counts as a pseudo-class.
+          // A functional pseudo-class still counts as a pseudo-class, plus --
+          // for `:nth-child(An+B of S)` -- the specificity of its most specific
+          // `of` argument.
           ++result.classes;
+          AddSpecificity(result, MostSpecific(part.arguments));
           break;
         case SelectorPart::Kind::Host:
           // `:host` is a pseudo-class, and `:host(sel)` adds its argument's
@@ -113,7 +118,16 @@ Specificity Selector::ComputeSpecificity() const {
           break;
         case SelectorPart::Kind::Is:
         case SelectorPart::Kind::Not:
+        case SelectorPart::Kind::Has:
+          // `:has()` takes its argument's specificity and adds nothing of its
+          // own, exactly as `:is()` does -- so `.baz` and `:has(.foo)` tie and
+          // the later rule wins, which is what `has-specificity.html` asserts.
           AddSpecificity(result, MostSpecific(part.arguments));
+          break;
+        case SelectorPart::Kind::Scope:
+        case SelectorPart::Kind::Lang:
+        case SelectorPart::Kind::Dir:
+          ++result.classes;  // ordinary pseudo-classes
           break;
         case SelectorPart::Kind::Where:
           break;  // zero, by definition, and the whole point of `:where()`
@@ -147,37 +161,40 @@ PseudoElement Selector::SubjectPseudoElement() const {
 }
 
 bool operator==(const SelectorPart& a, const SelectorPart& b) {
+  // Every field, including the two D5 added: `[a=b i]` and `[a=b]` select
+  // different elements, so a comparison that called them equal would be a
+  // comparison nothing could trust.
   return a.kind == b.kind && a.name == b.name && a.value == b.value && a.match == b.match &&
+         a.attribute_case == b.attribute_case && a.name_space == b.name_space &&
          a.arguments == b.arguments && a.nth == b.nth;
 }
 
 namespace {
 
-bool AttributeMatches(const SelectorPart& part, const dom::Element& element) {
-  const std::string* value = element.GetAttribute(part.name);
-  if (value == nullptr) {
+// The context a *nested* list is evaluated in: the same scope, no anchor. An
+// argument of `:is()` or `:not()` inside a `:has()` is an ordinary selector
+// asked about an ordinary element -- `:has(:is(.a .b))` does not mean the `.a`
+// has to be the anchor -- so the anchor is dropped exactly here and nowhere
+// else.
+MatchContext Unanchored(MatchContext context) {
+  context.anchor = nullptr;
+  return context;
+}
+
+// Whether any selector in a list matches, which is what every nested list
+// means. The context is passed on with its anchor cleared by the caller where
+// the specification says the argument is not relative.
+bool MatchesAnyOf(const std::vector<Selector>& selectors, const dom::Element& element,
+                  MatchContext context) {
+  if (context.depth > kMaxSelectorNestingDepth) {
     return false;
   }
-  switch (part.match) {
-    case SelectorPart::AttributeMatch::Exists:
+  ++context.depth;
+  for (const Selector& selector : selectors) {
+    if (!selector.compounds.empty() &&
+        MatchesFrom(selector.compounds, selector.compounds.size() - 1, element, context)) {
       return true;
-    case SelectorPart::AttributeMatch::Equals:
-      return *value == part.value;
-    case SelectorPart::AttributeMatch::Includes:
-      return ContainsWord(*value, part.value);
-    case SelectorPart::AttributeMatch::DashMatch:
-      return *value == part.value ||
-             (value->size() > part.value.size() &&
-              value->compare(0, part.value.size(), part.value) == 0 &&
-              (*value)[part.value.size()] == '-');
-    case SelectorPart::AttributeMatch::Prefix:
-      return !part.value.empty() && value->size() >= part.value.size() &&
-             value->compare(0, part.value.size(), part.value) == 0;
-    case SelectorPart::AttributeMatch::Suffix:
-      return !part.value.empty() && value->size() >= part.value.size() &&
-             value->compare(value->size() - part.value.size(), part.value.size(), part.value) == 0;
-    case SelectorPart::AttributeMatch::Substring:
-      return !part.value.empty() && value->find(part.value) != std::string::npos;
+    }
   }
   return false;
 }
@@ -221,26 +238,36 @@ bool HasFollowingElementSibling(const dom::Element& element, std::string_view ta
   return false;
 }
 
-// The element's 1-based position among its parent's element children, counting
-// only same-tag siblings for the of-type family and from the end for the
-// `-last-` family. Zero when there is no position to speak of.
-std::int64_t SiblingIndex(const dom::Element& element, const NthPattern& nth) {
+// The element's 1-based position in the sequence `:nth-child()` counts over:
+// its parent's element children, narrowed to same-tag siblings for the of-type
+// family, or to the ones matching `of S` when the author wrote one, and counted
+// from the end for the `-last-` family. Zero when there is no position to speak
+// of -- which includes an element that is not itself in the `of S` sequence,
+// because `:nth-child(1 of .a)` selects the first `.a` and never a `.b`.
+std::int64_t SiblingIndex(const dom::Element& element, const SelectorPart& part,
+                          const MatchContext& context) {
+  const NthPattern& nth = part.nth;
   const dom::Node* parent = element.Parent();
   if (parent == nullptr) {
     // An element with no parent is its own only sibling, which is the same
     // assumption `:first-child` makes two functions up.
-    return 1;
+    return part.arguments.empty() || MatchesAnyOf(part.arguments, element, context) ? 1 : 0;
   }
   const std::string_view filter = nth.of_type ? std::string_view(element.TagName())
                                               : std::string_view();
   std::int64_t total = 0;
   std::int64_t position = 0;
   for (const std::unique_ptr<dom::Node>& sibling : parent->Children()) {
-    if (ElementMatchesTagFilter(*sibling, filter)) {
-      ++total;
-      if (sibling.get() == &element) {
-        position = total;
-      }
+    if (!ElementMatchesTagFilter(*sibling, filter)) {
+      continue;
+    }
+    if (!part.arguments.empty() &&
+        !MatchesAnyOf(part.arguments, static_cast<const dom::Element&>(*sibling), context)) {
+      continue;
+    }
+    ++total;
+    if (sibling.get() == &element) {
+      position = total;
     }
   }
   if (position == 0) {
@@ -344,13 +371,51 @@ bool EmptyPseudoClassMatches(const dom::Element& element) {
   return true;
 }
 
-bool MatchesCompound(const CompoundSelector& compound, const dom::Element& element) {
+// The document element of whatever tree `element` sits in, which is what
+// `:scope` falls back to when nothing scoped the match.
+const dom::Element* RootElementOf(const dom::Element& element) {
+  const dom::Node* at = &element;
+  while (at->Parent() != nullptr && at->Parent()->IsElement()) {
+    at = at->Parent();
+  }
+  return at->IsElement() ? static_cast<const dom::Element*>(at) : nullptr;
+}
+
+bool MatchesCompound(const CompoundSelector& compound, const dom::Element& element,
+                     const MatchContext& context) {
   for (const SelectorPart& part : compound.parts) {
     switch (part.kind) {
       case SelectorPart::Kind::Universal:
+        if (part.name_space == SelectorPart::NamespaceMatch::None &&
+            !element.Namespace().IsNone()) {
+          return false;  // `|*`
+        }
         break;
       case SelectorPart::Kind::Type:
-        if (element.TagName() != part.name) {
+        if (!TypeSelectorMatches(part, element)) {
+          return false;
+        }
+        break;
+      case SelectorPart::Kind::Has:
+        if (!HasMatches(part, element, context)) {
+          return false;
+        }
+        break;
+      case SelectorPart::Kind::Scope: {
+        const dom::Element* scope =
+            context.scope != nullptr ? context.scope : RootElementOf(element);
+        if (scope != &element) {
+          return false;
+        }
+        break;
+      }
+      case SelectorPart::Kind::Lang:
+        if (!LangSelectorMatches(element, part.value)) {
+          return false;
+        }
+        break;
+      case SelectorPart::Kind::Dir:
+        if (!DirSelectorMatches(element, part.value)) {
           return false;
         }
         break;
@@ -382,7 +447,7 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
         break;
       }
       case SelectorPart::Kind::Attribute:
-        if (!AttributeMatches(part, element)) {
+        if (!AttributeSelectorMatches(part, element)) {
           return false;
         }
         break;
@@ -390,15 +455,10 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
       case SelectorPart::Kind::Where: {
         // Matches if *any* argument matches. The arguments are complex
         // selectors, so each one walks up from this element on its own; that
-        // is what makes `:is(.a .b, .c > .d)` mean what it says.
-        bool any = false;
-        for (const Selector& argument : part.arguments) {
-          if (argument.Matches(element)) {
-            any = true;
-            break;
-          }
-        }
-        if (!any) {
+        // is what makes `:is(.a .b, .c > .d)` mean what it says. An empty list
+        // is a valid `:is()` that matches nothing -- which is what the parser's
+        // forgiving mode leaves behind when every argument was unrecognised.
+        if (!MatchesAnyOf(part.arguments, element, Unanchored(context))) {
           return false;
         }
         break;
@@ -409,14 +469,12 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
         // `:not()` of it always does. For `:not(:hover)` that is the right
         // answer — nothing is hovered — and for `:not(:checked)` it is wrong
         // until ADR 0016 §2 makes that state a bit on the element.
-        for (const Selector& argument : part.arguments) {
-          if (argument.Matches(element)) {
-            return false;
-          }
+        if (MatchesAnyOf(part.arguments, element, Unanchored(context))) {
+          return false;
         }
         break;
       case SelectorPart::Kind::Nth: {
-        const std::int64_t index = SiblingIndex(element, part.nth);
+        const std::int64_t index = SiblingIndex(element, part, Unanchored(context));
         if (index < 1 || !part.nth.MatchesIndex(index)) {
           return false;
         }
@@ -509,16 +567,23 @@ bool MatchesCompound(const CompoundSelector& compound, const dom::Element& eleme
   return true;
 }
 
+}  // namespace
+
 // Matches right to left, which is what every engine does: starting from the
 // element and walking up is bounded by the tree depth, where starting from the
 // leftmost compound would search the whole subtree.
 bool MatchesFrom(const std::vector<CompoundSelector>& compounds, std::size_t index,
-                 const dom::Element& element) {
-  if (!MatchesCompound(compounds[index], element)) {
+                 const dom::Element& element, MatchContext context) {
+  if (!MatchesCompound(compounds[index], element, context)) {
     return false;
   }
   if (index == 0) {
-    return true;
+    // The leftmost compound. In an ordinary selector there is nothing left to
+    // check; in a *relative* one -- a `:has()` argument -- what is left is the
+    // relation to the anchor, and it is the only thing that makes
+    // `:has(> .b)` different from `:has(.b)`.
+    return context.anchor == nullptr ||
+           AnchoredBy(element, compounds[0].combinator, *context.anchor);
   }
 
   const CompoundSelector& current = compounds[index];
@@ -528,7 +593,7 @@ bool MatchesFrom(const std::vector<CompoundSelector>& compounds, std::size_t ind
     case Combinator::Descendant: {
       for (const dom::Node* at = parent; at != nullptr; at = at->Parent()) {
         if (at->IsElement() &&
-            MatchesFrom(compounds, index - 1, static_cast<const dom::Element&>(*at))) {
+            MatchesFrom(compounds, index - 1, static_cast<const dom::Element&>(*at), context)) {
           return true;
         }
       }
@@ -536,7 +601,7 @@ bool MatchesFrom(const std::vector<CompoundSelector>& compounds, std::size_t ind
     }
     case Combinator::Child: {
       return parent != nullptr && parent->IsElement() &&
-             MatchesFrom(compounds, index - 1, static_cast<const dom::Element&>(*parent));
+             MatchesFrom(compounds, index - 1, static_cast<const dom::Element&>(*parent), context);
     }
     case Combinator::NextSibling:
     case Combinator::LaterSibling: {
@@ -551,14 +616,14 @@ bool MatchesFrom(const std::vector<CompoundSelector>& compounds, std::size_t ind
         if (sibling->IsElement()) {
           const dom::Element* candidate = static_cast<const dom::Element*>(sibling.get());
           if (current.combinator == Combinator::LaterSibling &&
-              MatchesFrom(compounds, index - 1, *candidate)) {
+              MatchesFrom(compounds, index - 1, *candidate, context)) {
             return true;
           }
           previous = candidate;
         }
       }
       if (current.combinator == Combinator::NextSibling) {
-        return previous != nullptr && MatchesFrom(compounds, index - 1, *previous);
+        return previous != nullptr && MatchesFrom(compounds, index - 1, *previous, context);
       }
       return false;
     }
@@ -566,13 +631,11 @@ bool MatchesFrom(const std::vector<CompoundSelector>& compounds, std::size_t ind
   return false;
 }
 
-}  // namespace
-
 bool Selector::Matches(const dom::Element& element) const {
   if (compounds.empty()) {
     return false;
   }
-  return MatchesFrom(compounds, compounds.size() - 1, element);
+  return MatchesFrom(compounds, compounds.size() - 1, element, MatchContext{});
 }
 
 namespace {

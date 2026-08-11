@@ -14,12 +14,34 @@
 
 namespace microbrowser::css {
 
+// What a nested selector list is allowed to be, which is not the same question
+// at every call site.
+//
+// `relative` admits a leading combinator (`> .b`), which only `:has()` may
+// write; everywhere else `> .b` is a syntax error rather than a selector whose
+// first combinator nothing reads. `inside_has` forbids a second `:has()`, which
+// the specification disallows at any depth, and it is a flag rather than a
+// depth count because `:has(:is(:has(x)))` is just as forbidden as the direct
+// spelling.
+struct SelectorParseMode {
+  // Nesting inside functional pseudo-classes, bounded by
+  // `kMaxSelectorNestingDepth`. A caller starting from text passes zero.
+  int depth = 0;
+  bool relative = false;
+  bool inside_has = false;
+};
+
 // Parses a selector list out of `tokens[from, to)`. Returns empty on anything
 // it does not understand, so the whole rule is dropped rather than applied to
-// elements it was never written for. `depth` counts selector lists nested
-// inside functional pseudo-classes and is what `kMaxSelectorNestingDepth`
-// bounds; a caller starting from text passes zero.
+// elements it was never written for.
 std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size_t from,
-                                     std::size_t to, int depth = 0);
+                                     std::size_t to, SelectorParseMode mode = {});
+
+// The `An+B` of `:nth-child()`, over `tokens[from, to)`. Sets only `a` and `b`;
+// which sequence they count over was decided by the function name, and the
+// `of S` half is split off by the caller. Lives in `SelectorNth.cpp` -- see the
+// note there for why it is a translation unit of its own.
+bool ParseAnPlusB(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                  NthPattern& out);
 
 }  // namespace microbrowser::css
