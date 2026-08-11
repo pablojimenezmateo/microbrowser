@@ -28,6 +28,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/NodeIterators.h"
 
 namespace microbrowser::bindings {
 
@@ -39,15 +40,18 @@ namespace {
 // Where a cursor keeps what it is walking. `#node` already means "the node
 // this wrapper stands for" and a cursor is not a node, so these are their own
 // names rather than a second meaning for that one.
-constexpr const char* kRootSlot = "#walkRoot";
-constexpr const char* kCurrentSlot = "#walkCurrent";
-constexpr const char* kShowSlot = "#walkShow";
-constexpr const char* kFilterSlot = "#walkFilter";
+// Declared in NodeIterators.h, because the removal fixup there has to read the
+// same cursor this file writes -- two spellings of one slot name is how a
+// repair silently repairs nothing.
+constexpr const char* kRootSlot = kWalkRootSlot;
+constexpr const char* kCurrentSlot = kWalkCurrentSlot;
+constexpr const char* kShowSlot = kWalkShowSlot;
+constexpr const char* kFilterSlot = kWalkFilterSlot;
 // A NodeIterator's `nextNode` and `previousNode` are defined against a
 // *reference node* and a "before or after it" flag rather than against a
 // current node, which is the whole difference between the two objects: an
 // iterator survives its reference node being removed and a walker does not.
-constexpr const char* kBeforeSlot = "#walkBefore";
+constexpr const char* kBeforeSlot = kWalkBeforeSlot;
 
 // What `whatToShow` bit each node kind answers to. The numbering is
 // `1 << (nodeType - 1)`, which is the specification's and is why SHOW_ELEMENT
@@ -121,12 +125,27 @@ Verdict Filter(NativeCall& call, dom::Node& node) {
   Value callee = *filter;
   Value receiver = Value::Undefined();
   if (!callee.object->IsCallable()) {
-    const js::Value* accept = filter->object->Get("acceptNode");
-    if (accept == nullptr || !accept->IsObject() || !accept->object->IsCallable()) {
-      return Verdict::Accept;
+    // **A real [[Get]], on every traverse.** WebIDL looks a callback interface
+    // up each time it is invoked, and a page can write `acceptNode` as a
+    // getter -- so this cannot be a value read once, and it cannot be
+    // `Object::Get`, which answers nullptr for an accessor and made a
+    // getter-backed filter read as "no filter at all". A throw out of the
+    // getter is the filter's throw and travels the way its return does.
+    js::Result abrupt = js::Result::Normal(Value::Undefined());
+    const Value accept = call.interpreter.GetPropertyOrThrow(*filter, "acceptNode", abrupt);
+    if (abrupt.completion == js::Completion::Throw) {
+      call.ThrowValue(abrupt.value);
+      return Verdict::Threw;
+    }
+    // Not callable and not absent: a TypeError, because what the page passed
+    // is not a NodeFilter. Answering Accept instead turned a mistyped filter
+    // into a walk over everything, silently.
+    if (!accept.IsObject() || !accept.object->IsCallable()) {
+      call.Throw("TypeError", "the NodeFilter's acceptNode is not callable");
+      return Verdict::Threw;
     }
     receiver = *filter;
-    callee = *accept;
+    callee = accept;
   }
   const js::Result answer =
       call.interpreter.CallFunction(callee, receiver, {owner->WrapperFor(&node)});
@@ -225,6 +244,13 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
     node_filter.object->Set("SHOW_ATTRIBUTE", Value::Number(0x2));
     node_filter.object->Set("SHOW_TEXT", Value::Number(0x4));
     node_filter.object->Set("SHOW_CDATA_SECTION", Value::Number(0x8));
+    // The two the DOM kept from DOM Level 2 for nodes that no longer exist.
+    // They are still on the interface and a page can still name them, and a
+    // mask assembled from a name that is `undefined` becomes NaN -- so leaving
+    // them out is not "we have no entity references", it is a `whatToShow` a
+    // page computed that shows nothing.
+    node_filter.object->Set("SHOW_ENTITY_REFERENCE", Value::Number(0x10));
+    node_filter.object->Set("SHOW_ENTITY", Value::Number(0x20));
     node_filter.object->Set("SHOW_PROCESSING_INSTRUCTION", Value::Number(0x40));
     node_filter.object->Set("SHOW_COMMENT", Value::Number(0x80));
     node_filter.object->Set("SHOW_DOCUMENT", Value::Number(0x100));
@@ -259,6 +285,21 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
     if (!cursor.IsObject()) {
       return Value::Undefined();
     }
+    // The interface object and the prototype behind it -- so `x instanceof
+    // TreeWalker` answers, and so `Object.prototype.toString.call(x)` says
+    // `[object TreeWalker]` rather than `[object Object]`. That string is the
+    // only way a page can name this type without `instanceof`, and it is what
+    // `assert_class_string` reads. The methods below stay own properties of the
+    // cursor: they close over the cursor's own state, and moving them to the
+    // prototype is a refactor rather than a fix.
+    const char* interface = iterator ? "NodeIterator" : "TreeWalker";
+    const Value prototype = owner->MakeInterface(interface, Value::Undefined());
+    if (prototype.IsObject()) {
+      cursor.object->SetPrototype(prototype.object);
+      if (js::Object* tag = call.interpreter.SymbolToStringTag()) {
+        prototype.object->Set(js::PropertyKey::Symbol(tag), Value::String(interface));
+      }
+    }
     const Value show = Argument(call.arguments, 1);
     // ToUint32 rather than a cast: `whatToShow` is an `unsigned long` in the
     // interface, and -1 is how a page spells SHOW_ALL when it does not want to
@@ -268,11 +309,36 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
     cursor.object->SetHidden(kRootSlot, PointerValue(root));
     cursor.object->SetHidden(kCurrentSlot, PointerValue(root));
     cursor.object->SetHidden(kShowSlot, Value::Number(mask));
-    cursor.object->SetHidden(kFilterSlot, Argument(call.arguments, 2));
+    // `NodeFilter? filter`: undefined and null are both "no filter", and the
+    // attribute reads back as **null** either way -- a page that stores it and
+    // passes it to a second `createTreeWalker` must not turn null into
+    // undefined halfway along.
+    const Value given_filter = Argument(call.arguments, 2);
+    const Value filter = given_filter.IsUndefined() ? Value::Null() : given_filter;
+    cursor.object->SetHidden(kFilterSlot, filter);
     cursor.object->SetHidden(kBeforeSlot, Value::Bool(true));
-    cursor.object->Set("root", owner->WrapperFor(root));
-    cursor.object->Set("whatToShow", Value::Number(mask));
-    cursor.object->Set("filter", Argument(call.arguments, 2));
+    // The three are `readonly attribute` in the interface, so they are getters
+    // over the slots rather than data properties: a page that assigns to
+    // `walker.root` must not be able to make the object disagree with the walk
+    // it performs.
+    const auto readonly = [&call, &cursor](const char* name, const Value& answer) {
+      const Value stored = answer;
+      const Value getter =
+          call.interpreter.NewNativeValue(name, [stored](NativeCall&) { return stored; });
+      if (getter.IsObject()) {
+        cursor.object->DefineAccessor(name, getter.object, nullptr);
+      }
+    };
+    readonly("root", owner->WrapperFor(root));
+    readonly("whatToShow", Value::Number(mask));
+    readonly("filter", filter);
+    if (iterator) {
+      // Only a NodeIterator is tracked. A TreeWalker's `currentNode` is
+      // whatever a page last set or the walk last reached, and the
+      // specification leaves it pointing at a detached subtree -- an iterator
+      // holds a *position in a sequence*, which a removal has to move.
+      RegisterNodeIterator(call.interpreter, cursor);
+    }
 
     // `currentNode` is readable *and writable* on a TreeWalker -- a page
     // positions the walk by assigning to it, and every implementation of
@@ -283,12 +349,19 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
       dom::Node* at = PointerSlot(inner.self, kCurrentSlot);
       return bindings == nullptr ? Value::Null() : bindings->WrapperFor(at);
     });
-    const Value set_current = call.interpreter.NewNativeValue("currentNode", [](NativeCall& inner) {
-      if (dom::Node* node = NodeOf(Argument(inner.arguments, 0))) {
-        SetCurrent(inner.self, node);
-      }
-      return Value::Undefined();
-    });
+    const Value set_current =
+        call.interpreter.NewNativeValue("currentNode", [](NativeCall& inner) -> Value {
+          dom::Node* node = NodeOf(Argument(inner.arguments, 0));
+          // `attribute Node currentNode` is not nullable and not optional, so
+          // anything that is not a node is a TypeError. Ignoring it left the
+          // walker where it was and told the page nothing, which is how a
+          // walker ends up traversing from a position its owner never set.
+          if (node == nullptr) {
+            return inner.Throw("TypeError", "currentNode must be a Node");
+          }
+          SetCurrent(inner.self, node);
+          return Value::Undefined();
+        });
     if (get_current.IsObject() && set_current.IsObject()) {
       get_current.object->Set(kOwnerSlot, PointerValue(this));
       set_current.object->Set(kOwnerSlot, PointerValue(this));

@@ -906,6 +906,15 @@ class Interpreter {
   Value GetPropertyValue(const Value& base, const PropertyKey& key) {
     return GetProperty(base, key);
   }
+  // The same read, with the throw. A host that reads a property of an object a
+  // page handed it -- a `NodeFilter`'s `acceptNode`, an init dictionary's
+  // member -- has to see a getter that throws rather than swallow it into
+  // `undefined`, which is a wrong answer wearing a plausible one. The
+  // three-argument form above is private because the *inside* of an evaluation
+  // must always propagate; this is the door for callers outside one.
+  Value GetPropertyOrThrow(const Value& base, const PropertyKey& key, Result& abrupt) {
+    return GetProperty(base, key, &abrupt);
+  }
   // And the write, for the same reason and a sharper one: `Object.assign` used
   // `object->Set` directly, which stores a slot and skips a setter on the
   // prototype chain and a proxy's `set` trap. The specification says assign

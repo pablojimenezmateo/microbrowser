@@ -2794,42 +2794,11 @@ FAIL=Event order: OpaqueRange updates between beforeinput and input (textarea).
 [dom/ranges/tentative/OpaqueRange-validation.html]
 FAIL=createValueRange handles all range types correctly: forward, backwards, and out-of-bounds.
 FAIL=createValueRange throws IndexSizeError for out-of-bounds offsets.
-[dom/traversal/NodeFilter-constants.html]
-FAIL=Constants for whatToShow on NodeFilter interface object.
 [dom/traversal/NodeIterator-removal-during-filtering.html]
 FAIL=Removing an ancestor of the in-flight position during filtering, pointer before it, with no following node within root
 FAIL=Removing the accepted node during its own filtering retargets the reference and returns the filtered node
-[dom/traversal/NodeIterator-removal.html]
-FAIL=Removing an inclusive ancestor of reference, pointer before reference is true, with a following node within root
-FAIL=Removing an inclusive ancestor of reference, pointer before reference is true, with no following node within root
-FAIL=Test removing node comment
-FAIL=Test removing node detachedPara1
-FAIL=Test removing node detachedPara1.firstChild
-FAIL=Test removing node detachedPara2
-FAIL=Test removing node detachedPara2.firstChild
-FAIL=Test removing node doctype
-FAIL=Test removing node foreignComment
-FAIL=Test removing node foreignDoctype
-FAIL=Test removing node foreignPara1
-FAIL=Test removing node foreignPara1.firstChild
-FAIL=Test removing node foreignPara2
-FAIL=Test removing node foreignTextNode
-FAIL=Test removing node paras[0]
-FAIL=Test removing node paras[0].firstChild
-FAIL=Test removing node paras[1]
-FAIL=Test removing node paras[1].firstChild
-FAIL=Test removing node paras[5].firstChild
-FAIL=Test removing node processingInstruction
-FAIL=Test removing node testDiv
-FAIL=Test removing node xmlComment
-FAIL=Test removing node xmlDoctype
-FAIL=Test removing node xmlElement
-FAIL=Test removing node xmlTextNode
 [dom/traversal/NodeIterator.html]
 FAIL=Recursive filters need to throw
-FAIL=createNodeIterator() parameter defaults
-FAIL=createNodeIterator() with null as arguments
-FAIL=createNodeIterator() with undefined as arguments
 [dom/traversal/TreeWalker-acceptNode-filter-cross-realm-null-browsing-context.html]
 harness=TIMEOUT
 [dom/traversal/TreeWalker-acceptNode-filter-cross-realm.html]
@@ -2838,18 +2807,8 @@ FAIL=NodeFilter is cross-realm non-callable revoked Proxy
 FAIL=NodeFilter is cross-realm plain object with non-callable 'acceptNode' property
 FAIL=NodeFilter is cross-realm plain object with revoked Proxy as 'acceptNode' property
 FAIL=NodeFilter is cross-realm plain object without 'acceptNode' property
-[dom/traversal/TreeWalker-acceptNode-filter.html]
-FAIL=Testing with object lacking acceptNode property
-FAIL=Testing with object with non-function acceptNode property
-FAIL=performs `Get` on every traverse
-FAIL=rethrows errors when getting `acceptNode`
-[dom/traversal/TreeWalker-basic.html]
-FAIL=Construct a TreeWalker by document.createTreeWalker(root).
-FAIL=Construct a TreeWalker by document.createTreeWalker(root, null, null).
-FAIL=Construct a TreeWalker by document.createTreeWalker(root, undefined, undefined).
 [dom/traversal/TreeWalker-currentNode.html]
 FAIL=Test how we handle the case when the traversed to node is within the root, but the currentElement is not.
-FAIL=Test that setting currentNode to non-Node values throws.
 FAIL=Test that we handle setting the currentNode to arbitrary nodes not under the root element.
 [dom/traversal/TreeWalker-nextNode-detached-currentNode.window.html]
 FAIL=nextNode() returns null after exhausting a detached subtree

@@ -1,6 +1,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/LiveRanges.h"
+#include "bindings/NodeIterators.h"
 #include "bindings/WebIdl.h"
 
 #include <algorithm>
@@ -439,6 +440,7 @@ void DomBindings::ClearChildren(dom::Node& parent, bool record) {
   }
   while (parent.FirstChild() != nullptr) {
     RangesWillRemove(*interpreter_, *parent.FirstChild());
+    NodeIteratorsWillRemove(*interpreter_, *parent.FirstChild());
     std::unique_ptr<dom::Node> owned = parent.Detach(parent.FirstChild());
     if (owned == nullptr) {
       break;
@@ -472,6 +474,10 @@ bool DomBindings::DetachFromTree(dom::Node& child, bool record) {
   // it is about to leave. Before the detach, because the fixup needs the index
   // the node still has.
   RangesWillRemove(*interpreter_, child);
+  // And a NodeIterator whose reference is inside it moves to the gap, which is
+  // the other half of the same rule and has to be asked before the detach for
+  // the same reason. See NodeIterators.h.
+  NodeIteratorsWillRemove(*interpreter_, child);
   std::unique_ptr<dom::Node> owned = parent->Detach(&child);
   if (owned == nullptr) {
     return false;
@@ -523,6 +529,7 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
     RecordMutation(*old_parent, "childList", {}, Value::Null(), {}, {child});
     // A move is a removal followed by an insertion for live ranges too.
     RangesWillRemove(*interpreter_, *child);
+    NodeIteratorsWillRemove(*interpreter_, *child);
     owned = old_parent->Detach(child);
   } else {
     for (std::size_t i = 0; i < unattached_.size(); ++i) {
