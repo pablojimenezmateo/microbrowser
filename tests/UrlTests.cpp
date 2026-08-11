@@ -97,9 +97,11 @@ void RegisterUrlTests(std::vector<TestCase>& tests) {
     ExpectRejected("http://[1::2::3]/");
     ExpectRejected("http://256.256.256.256/");
     ExpectRejected("http://999999999999/");
-    // A non-ASCII host is rejected rather than passed through, because the
-    // host that gets connected to must be the host that was checked.
-    ExpectRejected("http://exämple.org/");
+    // A non-ASCII host is *converted* rather than passed through, because the host that gets
+    // connected to must be the host that was checked -- and the conversion is the only way to have
+    // one string for both. This used to be a rejection, which was the honest answer while there
+    // was no IDNA; see src/text/Idna.h.
+    ExpectSerializes("http://exämple.org/", "http://xn--exmple-cua.org/");
   });
 
   AddTest(tests, "Url/ResolvesRelativeReferences", [] {

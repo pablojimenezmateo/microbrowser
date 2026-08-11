@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdio>
 
+#include "text/Idna.h"
 #include "util/PercentEncoding.h"
 
 namespace microbrowser::url {
@@ -44,10 +45,6 @@ bool IsForbiddenDomainCodePoint(char c) {
          static_cast<unsigned char>(c) == 0x7F;
 }
 
-char ToLower(char c) {
-  return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c;
-}
-
 int HexValue(char c) {
   if (c >= '0' && c <= '9') {
     return c - '0';
@@ -61,6 +58,51 @@ int HexValue(char c) {
   return -1;
 }
 
+// The URL Standard's "domain to ASCII", which is UTS #46's ToASCII plus two rules the web needs
+// and Unicode does not state.
+//
+// The first is the ASCII fast path, and it is not an optimisation: **an all-ASCII domain is
+// lowercased and returned whatever UTS #46 thinks of it.** `xn--a` is invalid Punycode -- it
+// decodes to U+0080, a control -- and every browser reaches it anyway, because a name that has been
+// in DNS for a decade does not stop existing when a table changes. The standard says so in as many
+// words, with `xn--8i7caa` as the example of why refusing after a *successful* decode is not enough
+// either. The rule has a sharp edge worth stating: `xn--a.ß` **does** fail, because one non-ASCII
+// code point anywhere puts the whole domain back on the full path.
+//
+// The second is the forbidden-domain-code-point check, which happens *after* the mapping. A code
+// point that maps to `/` has to be caught as a slash rather than as whatever it was written as --
+// that is the whole class of bug where the host that is checked and the host that is reached are
+// two different strings.
+std::optional<std::string> DomainToAscii(std::string_view domain) {
+  const bool is_ascii = std::all_of(domain.begin(), domain.end(), [](char c) {
+    return static_cast<unsigned char>(c) <= 0x7F;
+  });
+  std::string result;
+  if (is_ascii) {
+    result.reserve(domain.size());
+    for (const char c : domain) {
+      result.push_back(c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c);
+    }
+  } else {
+    // `be_strict` is false: STD3 rules and DNS length are the resolver's business, and refusing
+    // here would reject hosts every other browser reaches.
+    const std::optional<std::string> converted = text::UnicodeToAscii(domain, false);
+    if (!converted.has_value()) {
+      return std::nullopt;
+    }
+    result = *converted;
+  }
+  if (result.empty()) {
+    return std::nullopt;
+  }
+  for (const char c : result) {
+    if (IsForbiddenDomainCodePoint(c)) {
+      return std::nullopt;
+    }
+  }
+  return result;
+}
+
 // One dotted part of an IPv4 address. The three radixes are not a quirk to be
 // tolerated but part of the format: `0x7f.1` and `2130706433` and `127.0.0.1`
 // are the same address, and any code that decides whether an address is private
@@ -68,6 +110,11 @@ int HexValue(char c) {
 struct Ipv4Number {
   std::uint64_t value = 0;
   bool valid = false;
+  // Set when the digits are a number the standard would parse and this cannot hold. It is not the
+  // same as invalid, and the difference decides whether `http://0xffffffff1` is a *failure* or a
+  // host named "0xffffffff1": the standard's number parser is unbounded, so a too-large number
+  // still makes the domain "end in a number", and the range check that follows is what rejects it.
+  bool too_large = false;
 };
 
 Ipv4Number ParseIpv4Number(std::string_view input) {
@@ -94,11 +141,14 @@ Ipv4Number ParseIpv4Number(std::string_view input) {
     if (digit < 0 || digit >= radix) {
       return result;
     }
+    // Bounded as it accumulates rather than after. A host of five hundred digits must not spend
+    // five hundred multiplications wrapping around -- it stops counting and says so.
+    if (result.too_large) {
+      continue;
+    }
     value = value * static_cast<std::uint64_t>(radix) + static_cast<std::uint64_t>(digit);
-    // Bounded as it accumulates rather than after. A host of five hundred
-    // digits must not spend five hundred multiplications wrapping around.
     if (value > 0xFFFFFFFFull) {
-      return result;
+      result.too_large = true;
     }
   }
   result.value = value;
@@ -141,7 +191,7 @@ std::optional<std::uint32_t> ParseIpv4(std::string_view input) {
       return std::nullopt;
     }
     const Ipv4Number number = ParseIpv4Number(part);
-    if (!number.valid) {
+    if (!number.valid || number.too_large) {
       return std::nullopt;
     }
     parts[count++] = number.value;
@@ -285,9 +335,10 @@ std::optional<std::array<std::uint16_t, 8>> ParseIpv6(std::string_view input) {
         if (numbers == 2 || numbers == 4) {
           ++piece_index;
         }
-        if (numbers == 4) {
-          break;
-        }
+        // Deliberately no early exit at four: the standard's loop runs to the
+        // end of the input, so `[::1.2.3.4x]` and `[::127.0.0.1.]` are
+        // failures rather than an address with something ignored after it.
+        // Stopping at four is how a URL comes to mean two things.
       }
       if (numbers != 4) {
         return std::nullopt;
@@ -418,28 +469,13 @@ std::optional<Host> Host::Parse(std::string_view input, bool is_special) {
   }
 
   const std::string decoded = util::PercentDecode(input);
-  std::string ascii;
-  ascii.reserve(decoded.size());
-  for (const char c : decoded) {
-    // No IDNA. A non-ASCII domain is rejected rather than passed through,
-    // because passing it through would mean the host that gets connected to is
-    // not the host that was checked — which is the shape of every homograph
-    // and every origin-confusion bug. Unicode domains need Punycode plus UTS
-    // #46 mapping, and that lands with the rest of the Unicode tables.
-    if (static_cast<unsigned char>(c) > 0x7F) {
-      return std::nullopt;
-    }
-    if (IsForbiddenDomainCodePoint(c)) {
-      return std::nullopt;
-    }
-    ascii.push_back(ToLower(c));
-  }
-  if (ascii.empty()) {
+  const std::optional<std::string> ascii = DomainToAscii(decoded);
+  if (!ascii.has_value()) {
     return std::nullopt;
   }
 
-  if (EndsInNumber(ascii)) {
-    const auto address = ParseIpv4(ascii);
+  if (EndsInNumber(*ascii)) {
+    const auto address = ParseIpv4(*ascii);
     if (!address.has_value()) {
       return std::nullopt;
     }
@@ -450,7 +486,7 @@ std::optional<Host> Host::Parse(std::string_view input, bool is_special) {
   }
 
   host.kind_ = Kind::Domain;
-  host.serialized_ = std::move(ascii);
+  host.serialized_ = *ascii;
   return host;
 }
 

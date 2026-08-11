@@ -76,7 +76,48 @@ Value MakePair(js::Interpreter& interpreter, std::string name, std::string value
   return interpreter.NewArrayValue({Value::String(std::move(name)), Value::String(std::move(value))});
 }
 
+std::string SerializePairs(const Value& self) {
+  std::vector<util::QueryPair> pairs;
+  for (const Value& pair : ReadPairs(self)) {
+    pairs.emplace_back(PairPart(pair, 0), PairPart(pair, 1));
+  }
+  return util::SerializeUrlEncoded(pairs);
+}
+
 }  // namespace
+
+js::Value DomBindings::MakeUrlSearchParams(const std::string& search) {
+  const Value* prototype = interfaces_.IsObject() ? interfaces_.object->GetOwn("URLSearchParams")
+                                                  : nullptr;
+  const Value made = interpreter_->NewObjectValue();
+  if (!made.IsObject()) {
+    return Value::Undefined();
+  }
+  if (prototype != nullptr && prototype->IsObject()) {
+    made.object->SetPrototype(prototype->object);
+  }
+  ResetUrlSearchParams(made, search);
+  return made;
+}
+
+// Refills the list from a query string. Used when a setter on the owning URL moves the query out
+// from under a params object a page is still holding: the two are one query, so the object has to
+// change rather than be replaced -- a page that kept a reference would otherwise read a list that
+// stopped tracking its URL.
+void DomBindings::ResetUrlSearchParams(const js::Value& params, const std::string& search) {
+  if (!params.IsObject()) {
+    return;
+  }
+  std::string_view text = search;
+  if (!text.empty() && text.front() == '?') {
+    text.remove_prefix(1);
+  }
+  std::vector<Value> pairs;
+  for (const util::QueryPair& pair : util::ParseUrlEncoded(std::string(text))) {
+    pairs.push_back(MakePair(*interpreter_, pair.first, pair.second));
+  }
+  params.object->SetHidden(kPairsSlot, interpreter_->NewArrayValue(std::move(pairs)));
+}
 
 void DomBindings::InstallUrlSearchParams() {
   EnsureInterfaces();
@@ -88,6 +129,16 @@ void DomBindings::InstallUrlSearchParams() {
     return;
   }
   interfaces_.object->Set("URLSearchParams", prototype);
+
+  // Every mutation ends here: if this list is the `searchParams` of a URL, that URL's query is
+  // rewritten from it. The two objects are one query, and a page that appended a parameter and then
+  // read `url.href` would otherwise get the URL from before its own write.
+  const auto WriteBack = [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner != nullptr) {
+      owner->WriteBackUrlSearchParams(call.self, SerializePairs(call.self));
+    }
+  };
 
   const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
@@ -127,14 +178,15 @@ void DomBindings::InstallUrlSearchParams() {
     }
     return Value::Bool(false);
   });
-  method("append", [](NativeCall& call) {
+  method("append", [WriteBack](NativeCall& call) {
     std::vector<Value> pairs = ReadPairs(call.self);
     pairs.push_back(MakePair(call.interpreter, js::ToString(Argument(call.arguments, 0)),
                              js::ToString(Argument(call.arguments, 1))));
     SetPairs(call.self, call.interpreter, std::move(pairs));
+    WriteBack(call);
     return Value::Undefined();
   });
-  method("set", [](NativeCall& call) {
+  method("set", [WriteBack](NativeCall& call) {
     // Replaces the *first* match in place and drops the rest, rather than
     // appending at the end. The distinction is observable through `toString`,
     // and a page that builds a URL by setting a parameter it already has
@@ -157,9 +209,10 @@ void DomBindings::InstallUrlSearchParams() {
       kept.push_back(MakePair(call.interpreter, name, value));
     }
     SetPairs(call.self, call.interpreter, std::move(kept));
+    WriteBack(call);
     return Value::Undefined();
   });
-  method("delete", [](NativeCall& call) {
+  method("delete", [WriteBack](NativeCall& call) {
     const std::string name = js::ToString(Argument(call.arguments, 0));
     std::vector<Value> kept;
     for (const Value& pair : ReadPairs(call.self)) {
@@ -168,9 +221,10 @@ void DomBindings::InstallUrlSearchParams() {
       }
     }
     SetPairs(call.self, call.interpreter, std::move(kept));
+    WriteBack(call);
     return Value::Undefined();
   });
-  method("sort", [](NativeCall& call) {
+  method("sort", [WriteBack](NativeCall& call) {
     // By name, stably, which is what the specification says: two values under
     // one name keep the order they were appended in.
     std::vector<Value> pairs = ReadPairs(call.self);
@@ -178,6 +232,7 @@ void DomBindings::InstallUrlSearchParams() {
       return PairPart(a, 0) < PairPart(b, 0);
     });
     SetPairs(call.self, call.interpreter, std::move(pairs));
+    WriteBack(call);
     return Value::Undefined();
   });
   method("forEach", [](NativeCall& call) {
@@ -296,7 +351,13 @@ void DomBindings::InstallUrlSearchParams() {
                                      value == nullptr ? std::string() : js::ToString(*value)));
           }
         } else if (init.type != js::ValueType::Undefined && init.type != js::ValueType::Null) {
-          for (const util::QueryPair& pair : util::ParseUrlEncoded(js::ToString(init))) {
+          // A single leading "?" is removed, so `new URLSearchParams(location.search)` and
+          // `new URLSearchParams(location.search.slice(1))` are the same list.
+          std::string text = js::ToString(init);
+          if (!text.empty() && text.front() == '?') {
+            text.erase(0, 1);
+          }
+          for (const util::QueryPair& pair : util::ParseUrlEncoded(text)) {
             pairs.push_back(MakePair(call.interpreter, pair.first, pair.second));
           }
         }

@@ -68,26 +68,10 @@ void DomBindings::InstallWindow() {
       return owner == nullptr ? std::string() : owner->url_;
     };
 
-    // Parts live on the prototype as accessors over `#href`, so
-    // `WriteLocationFields` only has to refresh one slot and cannot drift from
-    // `SplitHref` the way duplicated own properties could.
-    const auto install_part = [this, &location_prototype, href_of](const char* name, auto pick) {
-      const Value get = interpreter_->NewNativeValue(name, [href_of, pick](NativeCall& call) {
-        return Value::String(pick(SplitHref(href_of(call))));
-      });
-      if (get.IsObject()) {
-        get.object->Set(kOwnerSlot, PointerValue(this));
-        location_prototype.object->DefineAccessor(name, get.object, nullptr);
-      }
-    };
-    install_part("protocol", [](const HrefParts& p) { return p.protocol; });
-    install_part("host", [](const HrefParts& p) { return p.host; });
-    install_part("hostname", [](const HrefParts& p) { return p.hostname; });
-    install_part("port", [](const HrefParts& p) { return p.port; });
-    install_part("pathname", [](const HrefParts& p) { return p.pathname; });
-    install_part("search", [](const HrefParts& p) { return p.search; });
-    install_part("hash", [](const HrefParts& p) { return p.hash; });
-    install_part("origin", [](const HrefParts& p) { return p.origin; });
+    // The components live on the prototype as accessors over `#href`, so `WriteLocationFields`
+    // only has to refresh one slot and no component can drift from the address bar. They are in
+    // UrlObject.cpp because `URL` and `<a>` answer the same eleven questions, over the same parser.
+    InstallLocationParts(location_prototype);
 
     const Value to_string = interpreter_->NewNativeValue("toString", [href_of](NativeCall& call) {
       return Value::String(href_of(call));
@@ -233,87 +217,6 @@ void DomBindings::WriteLocationFields(const js::Value& location) {
       document->object->Set("URL", Value::String(url_));
     }
   }
-}
-
-void DomBindings::InstallUrlConstructor() {
-  // `new URL(href[, base])`, and the properties `location` already reports.
-  //
-  // It exists because `URL.createObjectURL` has to hang off something (ADR 0028 §3, session 28) and a
-  // `URL` object that was not constructible would be the stub ADR 0012 forbids. The parse is *not*
-  // here: it goes through `NetworkSource::ResolveUrl` to the one parser in `src/url`, and only the
-  // splitting of the canonical result happens in this module -- the same division of labour, and for
-  // the same reason, as `SplitHref` (BindingSupport.h / HrefParts.cpp).
-  if (interpreter_ == nullptr || network_ == nullptr) {
-    // No network source means no resolver, and a `URL` that could not parse would answer about
-    // nothing. Absent instead.
-    return;
-  }
-  if (const Value* existing = interpreter_->Global()->Get("URL");
-      existing != nullptr && existing->IsObject()) {
-    return;  // Already installed: this is called from two places and must be idempotent.
-  }
-  const Value prototype = interpreter_->NewObjectValue();
-  const Value constructor = interpreter_->NewNativeValue("URL", [this, prototype](NativeCall& call) {
-    // Must coerce through `toString`: `js::ToString(location)` is
-    // "[object Object]", which then resolves as a path against the document
-    // base — `https://www.youtube.com/[object%20Object]` — and that string is
-    // what youtube put in consent.youtube.com's `continue=` parameter.
-    std::string relative;
-    if (!CoerceToString(call, Argument(call.arguments, 0), relative)) {
-      return call.ThrownValue();
-    }
-    const Value base_argument = Argument(call.arguments, 1);
-    // An absent base means the document's own address, which is what a relative URL is relative to.
-    std::string base = url_;
-    if (!base_argument.IsUndefined()) {
-      if (!CoerceToString(call, base_argument, base)) {
-        return call.ThrownValue();
-      }
-    }
-    const std::string resolved = network_->ResolveUrl(relative, base);
-    if (resolved.empty()) {
-      // The specification throws `TypeError` for a URL that does not parse, and pages depend on it:
-      // `try { new URL(s) } catch { /* not a URL */ }` is the idiomatic validity test.
-      return call.Throw("TypeError", "Failed to construct URL: invalid URL");
-    }
-    const Value object = call.interpreter.NewObjectValue();
-    if (!object.IsObject()) {
-      return Value::Undefined();
-    }
-    if (prototype.IsObject()) {
-      object.object->SetPrototype(prototype.object);
-    }
-    const HrefParts address = SplitHref(resolved);
-    object.object->Set("href", Value::String(resolved));
-    object.object->Set("protocol", Value::String(address.protocol));
-    object.object->Set("host", Value::String(address.host));
-    object.object->Set("hostname", Value::String(address.hostname));
-    object.object->Set("port", Value::String(address.port));
-    object.object->Set("pathname", Value::String(address.pathname));
-    object.object->Set("search", Value::String(address.search));
-    object.object->Set("hash", Value::String(address.hash));
-    object.object->Set("origin", Value::String(address.origin));
-    return object;
-  });
-  if (!constructor.IsObject()) {
-    return;
-  }
-  constructor.object->Set(kOwnerSlot, PointerValue(this));
-  if (prototype.IsObject()) {
-    // `toString` and `toJSON` both answer with `href`, which is what makes a URL usable everywhere a
-    // string is -- `fetch(new URL(...))` is the common case and it goes through ToString.
-    const Value to_string = interpreter_->NewNativeValue("toString", [](NativeCall& inner) {
-      const Value* href = inner.self.IsObject() ? inner.self.object->GetOwn("href") : nullptr;
-      return href == nullptr ? Value::String("") : *href;
-    });
-    if (to_string.IsObject()) {
-      prototype.object->Set("toString", to_string);
-      prototype.object->Set("toJSON", to_string);
-    }
-    constructor.object->Set("prototype", prototype);
-  }
-  interpreter_->Global()->Set("URL", constructor);
-  interpreter_->GlobalScope()->Declare("URL", constructor, false);
 }
 
 void DomBindings::SetDocumentUrl(std::string url) {

@@ -5,7 +5,14 @@ purpose: URL, origin, site, and the partition key. The bottom of the web stack.
 # identity types are built out of URLs, which would otherwise be net's material.
 # A dependency on anything above would recreate the cycle this module exists to
 # remove.
-allow: util
+# `text` is here for IDNA, and it is the one dependency this module has ever taken on. It does not
+# recreate the cycle above: `src/text` may see only `util` either, so nothing that depends on this
+# module becomes reachable from it. What it buys is that a host written in a human script becomes
+# ASCII through UTS #46 -- one implementation, over the Unicode tables `src/text` already generates
+# for the bidirectional algorithm. The alternative was a second copy of the bidi classes and the
+# normalization tables inside this module, and two answers to "are these the same host" is a
+# security bug rather than a duplication. See src/text/Idna.h.
+allow: util text
 
 public: Host.h Url.h Origin.h PublicSuffixList.h PartitionKey.h
 
@@ -14,7 +21,19 @@ extern:
 max_tu_lines: 800
 
 budget: Host         header_lines=45 public_methods=14 members=3
-budget: Url          header_lines=70 public_methods=30 members=11
+# Raised from 70/30 for the `URL` object's own getters and setters. That is 19 methods, and the
+# argument for putting them here rather than in `src/bindings` is the one this module exists for:
+# `url.host`, `url.pathname` and `url.origin` are *defined by the URL Standard*, over components
+# only this class holds, and a second implementation of them written against those components is a
+# second answer to "what does this URL mean". There was one -- a string cut in the binding layer --
+# and `<a href>` and `location` disagreed with the parser for every input the cut did not consider.
+# The members did not move, which is the number to watch: this is not the class taking on state, it
+# is the standard's own vocabulary arriving at the only place that can answer it.
+budget: Url          header_lines=140 public_methods=50 members=11
+# The basic URL parser (§4.4). Its `State` enum is public because the setters are defined in terms
+# of it -- "basic URL parse with hostname state as state override" is the standard's own wording --
+# so the states are this module's vocabulary rather than one file's detail.
+budget: UrlParser    header_lines=60 public_methods=6 members=8
 budget: Origin       header_lines=45 public_methods=14 members=5
 budget: Site         header_lines=35 public_methods=12 members=4
 budget: ContainerId  header_lines=30 public_methods=10 members=2

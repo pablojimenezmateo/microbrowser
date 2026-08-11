@@ -371,10 +371,15 @@ class DomBindings {
   void InstallScroll(const js::Value& element_interface);
   void InstallWindowScroll();
   void InstallWindow();
-  // `URLSearchParams`, in UrlSearchParams.cpp. A collection with no node in it,
-  // built on the one urlencoded implementation in `util` -- which is what
-  // stops it and the engine's form data set from disagreeing about a byte.
+  // `URLSearchParams`, in UrlSearchParams.cpp. Built on the one urlencoded implementation in
+  // `util`, which is what stops it and the engine's form data set disagreeing about a byte.
   void InstallUrlSearchParams();
+  // Both directions of `url.searchParams` (UrlSearchParams.cpp, UrlObject.cpp): a URL and its
+  // params are one query, so a mutation of either has to reach the other.
+  js::Value MakeUrlSearchParams(const std::string& search);
+  void ResetUrlSearchParams(const js::Value& params, const std::string& search);
+  void WriteBackUrlSearchParams(const js::Value& params, const std::string& serialized);
+  void RefreshUrlSearchParams(const js::Value& url_object);
   // `document.forms`, `form.elements` with `namedItem`, `submit` and
   // `requestSubmit`, and `control.form`. In FormBindings.cpp.
   void InstallFormApis();
@@ -441,9 +446,12 @@ class DomBindings {
   // by the install and by a same-document navigation, so the two cannot come to
   // disagree about which parts a page can read.
   void WriteLocationFields(const js::Value& location);
-  // `new URL(...)`, over the one parser. See WindowBindings.cpp; installed from InstallObjectUrls
-  // because that is what needs it, and idempotent because it may be reached twice.
+  // `new URL(...)`, `location`'s components and the decomposition attributes on `<a>`/`<area>` --
+  // all in UrlObject.cpp, over the one parser. `DocumentBaseUrl` recomputes from the tree every
+  // call: `<base href>` is an attribute a script can rewrite between two link resolutions.
   void InstallUrlConstructor();
+  void InstallLocationParts(const js::Value& location_prototype);
+  std::string DocumentBaseUrl(const dom::Document* document) const;
   // --- Focus, in FocusBindings.cpp ------------------------------------------
   // `focus()` and `blur()` on HTMLElement, and `document.activeElement`.
   void InstallFocus(const js::Value& target);
@@ -554,10 +562,9 @@ class DomBindings {
   void AfterAttributeWrite(dom::Element& element, const std::string& name,
                            const js::Value& old_value, const js::Value& new_value,
                            std::string_view attribute_namespace = {});
-  // The IDL attributes that reflect content attributes, as get/set pairs on
-  // the interface each belongs to. `el.value = 'x'` and `setAttribute('value',
-  // 'x')` are the same act; before this they were not.
-  void InstallReflections();  // also InstallHyperlinkElementUtils (HTMLAnchorElement URL parts)
+  // The IDL attributes that reflect content attributes, as get/set pairs on the interface each
+  // belongs to. `el.value = 'x'` and `setAttribute('value', 'x')` are the same act; they were not.
+  void InstallReflections();  // also InstallHyperlinkElementUtils, which is in UrlObject.cpp
   void InstallHyperlinkElementUtils();
 
   // --- Geometry, in GeometryBindings.cpp ------------------------------------
