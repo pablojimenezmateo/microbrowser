@@ -182,9 +182,6 @@ FAIL=Set HTMLFrameSetElement.onscroll
 FAIL=First parameter to initCustomEvent should be mandatory.
 FAIL=initCustomEvent's default parameter values.
 [dom/events/Event-cancelBubble.html]
-FAIL=Event.cancelBubble=false must have no effect during event propagation.
-FAIL=Event.cancelBubble=false must have no effect.
-FAIL=Initializing an event must set cancelBubble to false.
 FAIL=cancelBubble must be false after an event has been dispatched.
 [dom/events/Event-constructors.any.html]
 FAIL=Event constructors
@@ -199,8 +196,6 @@ harness=TIMEOUT
 [dom/events/Event-defaultPrevented-after-dispatch.html]
 FAIL=Default prevention via preventDefault
 FAIL=Default prevention via returnValue
-[dom/events/Event-defaultPrevented.html]
-FAIL=initEvent should unset defaultPrevented.
 [dom/events/Event-dispatch-bubble-canceled.html]
 FAIL=Setting cancelBubble=true prior to dispatchEvent()
 [dom/events/Event-dispatch-bubbles-false.html]
@@ -220,18 +215,12 @@ FAIL=attached to shadow dom checkbox should emit input and change events on clic
 FAIL=attached to shadow dom checkbox should emit input and change events on dispatchEvent(new MouseEvent('click')).
 FAIL=attached to shadow dom radio should emit input and change events on click().
 FAIL=attached to shadow dom radio should emit input and change events on dispatchEvent(new MouseEvent('click')).
-[dom/events/Event-dispatch-handlers-changed.html]
-FAIL:esc= Dispatch additional events inside an event listener 
-[dom/events/Event-dispatch-listener-order.window.html]
-FAIL=Event-dispatch-listener-order
 [dom/events/Event-dispatch-multiple-cancelBubble.html]
 FAIL=Multiple dispatchEvent() and cancelBubble
 [dom/events/Event-dispatch-multiple-stopPropagation.html]
 FAIL:esc= Multiple dispatchEvent() and stopPropagation() 
 [dom/events/Event-dispatch-on-disabled-elements.html]
 harness=TIMEOUT
-[dom/events/Event-dispatch-order-at-target.html]
-FAIL=Listeners are invoked in correct order (AT_TARGET phase)
 [dom/events/Event-dispatch-other-document.html]
 FAIL=Custom event on an element in another document
 [dom/events/Event-dispatch-propagation-stopped.html]
@@ -372,10 +361,6 @@ FAIL=Calling initKeyboardEvent while dispatching.
 FAIL=Calling initMouseEvent while dispatching.
 FAIL=Calling initUIEvent while dispatching.
 [dom/events/Event-initEvent.html]
-FAIL=Calling initEvent during propagation.
-FAIL=Calling initEvent must not have an effect during dispatching.
-FAIL=Calling initEvent must unset the stop propagation flag.
-FAIL=First parameter to initEvent should be mandatory.
 FAIL=Properties of initEvent(type, false, false)
 FAIL=Properties of initEvent(type, false, true)
 FAIL=Properties of initEvent(type, true, false)
@@ -386,59 +371,15 @@ harness=TIMEOUT
 FAIL=After cancelBubble=true
 FAIL=After stopImmediatePropagation()
 FAIL=After stopPropagation()
-[dom/events/Event-returnValue.html]
-FAIL=When an event is created, returnValue should be initialized to true.
-FAIL=initEvent should unset returnValue.
-FAIL=preventDefault() should change returnValue if cancelable is true.
-FAIL=preventDefault() should not change returnValue if cancelable is false.
-FAIL=returnValue=false should have no effect if cancelable is false.
-FAIL=returnValue=true should have no effect once the canceled flag was set.
 [dom/events/Event-stopPropagation-cancel-bubbling.html]
 FAIL=Event-stopPropagation-cancel-bubbling
 [dom/events/Event-subclasses-constructors.html]
-FAIL=CompositionEvent constructor (argument with default values)
-FAIL=CompositionEvent constructor (argument with non-default values)
-FAIL=CompositionEvent constructor (empty argument)
-FAIL=CompositionEvent constructor (no argument)
-FAIL=CompositionEvent constructor (null argument)
-FAIL=CompositionEvent constructor (undefined argument)
-FAIL=FocusEvent constructor (argument with default values)
-FAIL=FocusEvent constructor (argument with non-default values)
-FAIL=FocusEvent constructor (empty argument)
-FAIL=FocusEvent constructor (no argument)
-FAIL=FocusEvent constructor (null argument)
-FAIL=FocusEvent constructor (undefined argument)
-FAIL=KeyboardEvent constructor (argument with default values)
-FAIL=KeyboardEvent constructor (argument with non-default values)
-FAIL=KeyboardEvent constructor (empty argument)
-FAIL=KeyboardEvent constructor (no argument)
-FAIL=KeyboardEvent constructor (null argument)
-FAIL=KeyboardEvent constructor (undefined argument)
-FAIL=MouseEvent constructor (argument with default values)
-FAIL=MouseEvent constructor (argument with non-default values)
-FAIL=MouseEvent constructor (empty argument)
-FAIL=MouseEvent constructor (no argument)
-FAIL=MouseEvent constructor (null argument)
-FAIL=MouseEvent constructor (undefined argument)
 FAIL=SubclassedEvent constructor (argument with default values)
 FAIL=SubclassedEvent constructor (argument with non-default values)
 FAIL=SubclassedEvent constructor (empty argument)
 FAIL=SubclassedEvent constructor (no argument)
 FAIL=SubclassedEvent constructor (null argument)
 FAIL=SubclassedEvent constructor (undefined argument)
-FAIL=UIEvent constructor (argument with default values)
-FAIL=UIEvent constructor (argument with non-default values)
-FAIL=UIEvent constructor (empty argument)
-FAIL=UIEvent constructor (no argument)
-FAIL=UIEvent constructor (null argument)
-FAIL=UIEvent constructor (undefined argument)
-FAIL=UIEvent constructor (view argument with wrong type)
-FAIL=WheelEvent constructor (argument with default values)
-FAIL=WheelEvent constructor (argument with non-default values)
-FAIL=WheelEvent constructor (empty argument)
-FAIL=WheelEvent constructor (no argument)
-FAIL=WheelEvent constructor (null argument)
-FAIL=WheelEvent constructor (undefined argument)
 [dom/events/Event-timestamp-cross-realm-getter.html]
 harness=TIMEOUT
 [dom/events/Event-timestamp-high-resolution.html]
@@ -487,32 +428,13 @@ FAIL=A constructed EventTarget implements dispatch correctly
 FAIL=EventTarget can be subclassed
 [dom/events/EventTarget-constructible.any.worker.html]
 harness=TIMEOUT
-[dom/events/EventTarget-dispatchEvent-returnvalue.html]
-FAIL=Return value of EventTarget.dispatchEvent() affected by preventDefault().
-FAIL=Return value of EventTarget.dispatchEvent() affected by returnValue.
 [dom/events/EventTarget-dispatchEvent.html]
-FAIL=Capturing event listeners should be called before non-capturing ones
-FAIL=If the event's dispatch flag is set, an InvalidStateError must be thrown.
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (BeforeUnloadEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (CompositionEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (CustomEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DeviceMotionEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DeviceOrientationEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DragEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (Event).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (Events).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (FocusEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (HTMLEvents).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (HashChangeEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (KeyboardEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (MessageEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (MouseEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (MouseEvents).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (SVGEvents).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (StorageEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (TextEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (UIEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (UIEvents).
 [dom/events/EventTarget-removeEventListener.any.worker.html]
 harness=TIMEOUT
 [dom/events/EventTarget-this-of-listener.html]
@@ -646,39 +568,6 @@ FAIL=Synthetic touchstart event with interface Event is not cancelable
 FAIL=Synthetic touchstart event with interface TouchEvent is not cancelable
 FAIL=Synthetic wheel event with interface Event is not cancelable
 FAIL=Synthetic wheel event with interface WheelEvent is not cancelable
-[dom/events/passive-by-default.html]
-FAIL=mousewheel listener is passive by default for Document
-FAIL=mousewheel listener is passive by default for HTMLBodyElement
-FAIL=mousewheel listener is passive by default for HTMLHtmlElement
-FAIL=mousewheel listener is passive by default for Window
-FAIL=mousewheel listener is passive with {passive:undefined} for Document
-FAIL=mousewheel listener is passive with {passive:undefined} for HTMLBodyElement
-FAIL=mousewheel listener is passive with {passive:undefined} for HTMLHtmlElement
-FAIL=mousewheel listener is passive with {passive:undefined} for Window
-FAIL=touchmove listener is passive by default for Document
-FAIL=touchmove listener is passive by default for HTMLBodyElement
-FAIL=touchmove listener is passive by default for HTMLHtmlElement
-FAIL=touchmove listener is passive by default for Window
-FAIL=touchmove listener is passive with {passive:undefined} for Document
-FAIL=touchmove listener is passive with {passive:undefined} for HTMLBodyElement
-FAIL=touchmove listener is passive with {passive:undefined} for HTMLHtmlElement
-FAIL=touchmove listener is passive with {passive:undefined} for Window
-FAIL=touchstart listener is passive by default for Document
-FAIL=touchstart listener is passive by default for HTMLBodyElement
-FAIL=touchstart listener is passive by default for HTMLHtmlElement
-FAIL=touchstart listener is passive by default for Window
-FAIL=touchstart listener is passive with {passive:undefined} for Document
-FAIL=touchstart listener is passive with {passive:undefined} for HTMLBodyElement
-FAIL=touchstart listener is passive with {passive:undefined} for HTMLHtmlElement
-FAIL=touchstart listener is passive with {passive:undefined} for Window
-FAIL=wheel listener is passive by default for Document
-FAIL=wheel listener is passive by default for HTMLBodyElement
-FAIL=wheel listener is passive by default for HTMLHtmlElement
-FAIL=wheel listener is passive by default for Window
-FAIL=wheel listener is passive with {passive:undefined} for Document
-FAIL=wheel listener is passive with {passive:undefined} for HTMLBodyElement
-FAIL=wheel listener is passive with {passive:undefined} for HTMLHtmlElement
-FAIL=wheel listener is passive with {passive:undefined} for Window
 [dom/events/pointer-event-document-move.html]
 FAIL=Moving a node to new document should move the registered event listeners together
 [dom/events/preventDefault-during-activation-behavior.html]

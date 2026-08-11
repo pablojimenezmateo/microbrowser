@@ -734,24 +734,30 @@ int main(int argc, char** argv) {
       if (report.harness != "OK" && !report.harness_message.empty()) {
         std::printf("  %s: %s\n", report.harness.c_str(), report.harness_message.c_str());
       }
-      // And its subtests, which the comparison below cannot show: a harness
-      // status that is not OK subsumes them in the expectation format, so a
-      // file that reported 23 of 38 and then timed out prints one line saying
-      // TIMEOUT and nothing about the fifteen. Those fifteen are the work.
-      // The expectation file is deliberately still one line -- what is behind a
-      // timeout is not yet a fact (see tests/wpt/expectations/README.md) -- but
-      // a session diagnosing one has to be able to read them without rebuilding
-      // the runner, which is the same argument the harness message above won.
-      if (report.harness != "OK") {
-        for (const auto& [name, status] : report.subtests) {
-          if (status == "PASS") {
-            continue;
-          }
-          const auto message = report.messages.find(name);
-          std::printf("  %s=%s%s%s\n", status.c_str(), name.c_str(),
-                      message == report.messages.end() || message->second.empty() ? "" : " -- ",
-                      message == report.messages.end() ? "" : message->second.c_str());
+      // And every subtest that did not pass, with the message that says why.
+      //
+      // The comparison below cannot show these, and it is the *expected*
+      // failures that a session working an area needs: they are the work. Two
+      // separate holes were behind that. A harness status that is not OK
+      // subsumes its subtests in the expectation format, so a file that
+      // reported 23 of 38 and then timed out printed one line saying TIMEOUT
+      // and nothing about the fifteen. And a file whose harness is OK prints
+      // only its *disagreements*, so a fully-expected 3-of-25 printed `ok` and
+      // stopped -- which is a green light on the exact file you opened the
+      // runner to read.
+      //
+      // The expectation file is still one line for a timeout, and still records
+      // only failures (tests/wpt/expectations/README.md); this is the runner
+      // being readable, not the format changing. Same argument the harness
+      // message above won, and it is now three for three.
+      for (const auto& [name, status] : report.subtests) {
+        if (status == "PASS") {
+          continue;
         }
+        const auto message = report.messages.find(name);
+        std::printf("  %s=%s%s%s\n", status.c_str(), name.c_str(),
+                    message == report.messages.end() || message->second.empty() ? "" : " -- ",
+                    message == report.messages.end() ? "" : message->second.c_str());
       }
       for (const std::string& line : comparison.lines) {
         std::printf("%s\n", line.c_str());

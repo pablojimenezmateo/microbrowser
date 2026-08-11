@@ -73,6 +73,68 @@ bool Option(const Value& options, const char* name) {
   return found != nullptr && js::ToBoolean(*found);
 }
 
+// "Set the canceled flag", which is `preventDefault`'s whole rule, in one
+// place. `returnValue = false` is the same act by another name, and a second
+// copy of the rule is how one of them comes to forget `cancelable` -- which is
+// exactly what happened when the two were written separately.
+//
+// Two things stop it. An event that is not cancelable cannot be cancelled, so a
+// handler never believes it stopped something it did not. And a passive
+// listener cannot cancel at all: that is the entire content of
+// `{passive: true}` -- the page promised not to, the browser is entitled to
+// have already started scrolling, and honouring the call afterwards would make
+// the promise worthless.
+void SetCanceledFlag(const Value& event) {
+  if (!event.IsObject()) {
+    return;
+  }
+  const Value* cancelable = event.object->Get("cancelable");
+  const Value* in_passive = event.object->GetOwn(kEventInPassiveSlot);
+  const bool passive = in_passive != nullptr && js::ToBoolean(*in_passive);
+  if (!passive && cancelable != nullptr && js::ToBoolean(*cancelable)) {
+    event.object->Set("defaultPrevented", Value::Bool(true));
+  }
+}
+
+// The DOM's "dispatch flag" and "initialized flag", as slots on the event.
+// Both exist to be *refused* on: see `dispatchEvent`.
+constexpr const char* kEventDispatchingSlot = "#dispatching";
+constexpr const char* kEventUninitialisedSlot = "#uninitialised";
+
+// The dispatch flag, cleared however the dispatch ends. A listener is a page's
+// own code and may throw, and an event stuck with its dispatch flag set could
+// never be dispatched again -- so this is RAII rather than two assignments.
+class DispatchFlag {
+ public:
+  explicit DispatchFlag(const Value& event) : event_(event) {
+    if (event_.IsObject()) {
+      event_.object->Set(kEventDispatchingSlot, Value::Bool(true));
+    }
+  }
+  ~DispatchFlag() {
+    if (event_.IsObject()) {
+      event_.object->Set(kEventDispatchingSlot, Value::Bool(false));
+    }
+  }
+  DispatchFlag(const DispatchFlag&) = delete;
+  DispatchFlag& operator=(const DispatchFlag&) = delete;
+
+ private:
+  Value event_;
+};
+
+// Whether a dictionary member was *given*, as against given as false. WebIDL
+// treats an `undefined` member as absent, and `passive` is the one option here
+// where the difference is observable: omitted means "let the browser decide"
+// and `false` means "I will cancel this, do not start scrolling without me".
+bool OptionGiven(const Value& options, const char* name) {
+  if (!options.IsObject()) {
+    return false;
+  }
+  const Value* found = options.object->Get(name);
+  return found != nullptr && !found->IsUndefined();
+}
+
 // `addEventListener(type, fn, true)` and `addEventListener(type, fn, {capture:
 // true})` mean the same thing, and the third argument is a boolean far more
 // often than it is an object.
@@ -82,6 +144,146 @@ bool CaptureOption(const Value& options) {
   }
   return js::ToBoolean(options);
 }
+
+// The body element of `document`: the first `body` or `frameset` child of the
+// document element. HTML's own definition, and the reason it is not "the first
+// body anywhere" is that a `<body>` nested in a template or a foreign element
+// is not the document's body.
+const dom::Element* BodyElementOf(const dom::Document& document) {
+  const dom::Element* root = document.DocumentElement();
+  if (root == nullptr) {
+    return nullptr;
+  }
+  for (const std::unique_ptr<dom::Node>& child : root->Children()) {
+    if (!child->IsElement()) {
+      continue;
+    }
+    const auto& element = static_cast<const dom::Element&>(*child);
+    if (element.Namespace().IsHtml() &&
+        (element.LocalName() == "body" || element.LocalName() == "frameset")) {
+      return &element;
+    }
+  }
+  return nullptr;
+}
+
+// DOM §2.7, "default passive value": what `passive` means when a page did not
+// say. For the four scroll-blocking event types, on the four targets a page
+// registers a global scroll handler on, it is **true**.
+//
+// This is not a nicety and it is not an optimisation this browser has yet
+// earned. It is observable: a listener that is passive by default has its
+// `preventDefault()` ignored, so `event.defaultPrevented` stays false and
+// `dispatchEvent` answers true. Thirty-one subtests in passive-by-default.html
+// assert exactly that, and a page that relies on the platform *not* letting it
+// cancel a wheel event on `window` behaves differently here without it.
+//
+// The rule is per (type, target) rather than per listener, which is why it
+// lives here rather than in the dispatch loop: by the time the event runs, the
+// listener has to already know what it promised.
+bool DefaultPassiveValue(std::string_view type, const Value& target, const js::Object* global) {
+  if (type != "touchstart" && type != "touchmove" && type != "wheel" &&
+      type != "mousewheel") {
+    return false;
+  }
+  if (target.IsObject() && target.object == global) {
+    return true;  // the Window
+  }
+  const dom::Node* node = NodeOf(target);
+  if (node == nullptr) {
+    return false;
+  }
+  const dom::Document* document = node->NodeDocument();
+  if (document == nullptr) {
+    return false;
+  }
+  return node == document || node == document->DocumentElement() ||
+         node == BodyElementOf(*document);
+}
+
+
+// The name an event interface's prototype carries, so a constructed event can
+// walk its own chain and find every init dictionary it inherits.
+constexpr const char* kEventInterfaceSlot = "#interface";
+
+// **Every event interface's init dictionary, as one table.**
+//
+// One table rather than a branch per interface, because the branches overlap:
+// `ctrlKey` is in MouseEventInit and in KeyboardEventInit, `isComposing` is in
+// KeyboardEventInit and InputEventInit, and two copies of a member is two
+// chances to disagree about its default. Before this there were two branches --
+// `keyboard` and `mouseish` -- and between them they left `view`, `detail`,
+// `relatedTarget`, `deltaX`, `isComposing` and every PointerEvent member with
+// no value at all, which is 43 subtests in Event-subclasses-constructors.html
+// and, on a real page, a handler reading `e.relatedTarget` on a `mouseout` it
+// synthesised and getting undefined.
+//
+// The table is walked along the *inheritance* chain, base first, so a
+// MouseEvent gets UIEvent's members without naming them again.
+enum class InitKind : std::uint8_t { Bool, Number, String, Object, Any };
+struct InitMember {
+  const char* interface;
+  const char* member;
+  InitKind kind;
+  double fallback;
+};
+constexpr InitMember kEventInitMembers[] = {
+    {"UIEvent", "view", InitKind::Object, 0.0},
+    {"UIEvent", "detail", InitKind::Number, 0.0},
+    {"FocusEvent", "relatedTarget", InitKind::Object, 0.0},
+    {"MouseEvent", "screenX", InitKind::Number, 0.0},
+    {"MouseEvent", "screenY", InitKind::Number, 0.0},
+    {"MouseEvent", "clientX", InitKind::Number, 0.0},
+    {"MouseEvent", "clientY", InitKind::Number, 0.0},
+    // Not in MouseEventInit, but every page reads them off a mouse event and a
+    // synthesised one that answered undefined would take the other branch.
+    {"MouseEvent", "offsetX", InitKind::Number, 0.0},
+    {"MouseEvent", "offsetY", InitKind::Number, 0.0},
+    {"MouseEvent", "pageX", InitKind::Number, 0.0},
+    {"MouseEvent", "pageY", InitKind::Number, 0.0},
+    {"MouseEvent", "movementX", InitKind::Number, 0.0},
+    {"MouseEvent", "movementY", InitKind::Number, 0.0},
+    {"MouseEvent", "ctrlKey", InitKind::Bool, 0.0},
+    {"MouseEvent", "shiftKey", InitKind::Bool, 0.0},
+    {"MouseEvent", "altKey", InitKind::Bool, 0.0},
+    {"MouseEvent", "metaKey", InitKind::Bool, 0.0},
+    {"MouseEvent", "button", InitKind::Number, 0.0},
+    {"MouseEvent", "buttons", InitKind::Number, 0.0},
+    {"MouseEvent", "relatedTarget", InitKind::Object, 0.0},
+    {"WheelEvent", "deltaX", InitKind::Number, 0.0},
+    {"WheelEvent", "deltaY", InitKind::Number, 0.0},
+    {"WheelEvent", "deltaZ", InitKind::Number, 0.0},
+    {"WheelEvent", "deltaMode", InitKind::Number, 0.0},
+    {"DragEvent", "dataTransfer", InitKind::Object, 0.0},
+    {"PointerEvent", "pointerId", InitKind::Number, 0.0},
+    {"PointerEvent", "width", InitKind::Number, 1.0},
+    {"PointerEvent", "height", InitKind::Number, 1.0},
+    {"PointerEvent", "pressure", InitKind::Number, 0.0},
+    {"PointerEvent", "tangentialPressure", InitKind::Number, 0.0},
+    {"PointerEvent", "tiltX", InitKind::Number, 0.0},
+    {"PointerEvent", "tiltY", InitKind::Number, 0.0},
+    {"PointerEvent", "twist", InitKind::Number, 0.0},
+    {"PointerEvent", "pointerType", InitKind::String, 0.0},
+    {"PointerEvent", "isPrimary", InitKind::Bool, 0.0},
+    {"KeyboardEvent", "key", InitKind::String, 0.0},
+    {"KeyboardEvent", "code", InitKind::String, 0.0},
+    {"KeyboardEvent", "location", InitKind::Number, 0.0},
+    {"KeyboardEvent", "ctrlKey", InitKind::Bool, 0.0},
+    {"KeyboardEvent", "shiftKey", InitKind::Bool, 0.0},
+    {"KeyboardEvent", "altKey", InitKind::Bool, 0.0},
+    {"KeyboardEvent", "metaKey", InitKind::Bool, 0.0},
+    {"KeyboardEvent", "repeat", InitKind::Bool, 0.0},
+    {"KeyboardEvent", "isComposing", InitKind::Bool, 0.0},
+    // Legacy, and 0 is the platform's own answer for a synthesised event.
+    {"KeyboardEvent", "charCode", InitKind::Number, 0.0},
+    {"KeyboardEvent", "keyCode", InitKind::Number, 0.0},
+    {"KeyboardEvent", "which", InitKind::Number, 0.0},
+    {"InputEvent", "data", InitKind::Object, 0.0},
+    {"InputEvent", "isComposing", InitKind::Bool, 0.0},
+    {"InputEvent", "inputType", InitKind::String, 0.0},
+    {"CompositionEvent", "data", InitKind::String, 0.0},
+    {"CustomEvent", "detail", InitKind::Any, 0.0},
+};
 
 }  // namespace
 
@@ -113,13 +315,17 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
       // being fatal.
       return Value::Undefined();
     }
-    const std::string slot = "#on:" + js::ToString(Argument(call.arguments, 0));
+    const std::string type = js::ToString(Argument(call.arguments, 0));
+    const std::string slot = "#on:" + type;
     // The flags are a wrapper around the function rather than fields beside it,
     // so the list stays one array and removal stays identity on the function.
     // A listener with no flags -- which is most of them -- is stored as itself.
     const Value options = Argument(call.arguments, 2);
     const bool capture = CaptureOption(options);
-    const bool passive = Option(options, "passive");
+    // Omitted is not the same as false here -- see DefaultPassiveValue.
+    const bool passive = OptionGiven(options, "passive")
+                             ? Option(options, "passive")
+                             : DefaultPassiveValue(type, target, call.interpreter.Global());
     const bool once = Option(options, "once");
     Value entry = handler;
     if (capture || passive || once) {
@@ -150,6 +356,23 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
     if (owner == nullptr || !event.IsObject()) {
       return call.Throw("TypeError", "dispatchEvent needs an event");
     }
+    // The DOM's two refusals, and both are a page catching its own mistake
+    // rather than a browser being strict. An event that is already being
+    // dispatched cannot be dispatched again -- re-entering would give it two
+    // `currentTarget`s and one `stopPropagation` flag. And an event
+    // `createEvent` made has no type until `initEvent` gives it one;
+    // dispatching it would run the listeners for the empty string, which is a
+    // silent no-op wherever the page expected an exception.
+    if (const Value* dispatching = event.object->GetOwn(kEventDispatchingSlot);
+        dispatching != nullptr && js::ToBoolean(*dispatching)) {
+      return ThrowDom(call, "InvalidStateError", "the event is already being dispatched");
+    }
+    if (const Value* uninitialised = event.object->GetOwn(kEventUninitialisedSlot);
+        uninitialised != nullptr && js::ToBoolean(*uninitialised)) {
+      return ThrowDom(call, "InvalidStateError",
+                      "the event has not been initialised by initEvent");
+    }
+    const DispatchFlag in_flight(event);
     if (self == nullptr) {
       // A target that is not a node -- `window`. There is no tree to walk, so
       // the event reaches its listeners and stops.
@@ -261,6 +484,9 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     }
   }
   interfaces_.object->Set(name, prototype);
+  // The interface's own name, so a constructed event can walk this chain and
+  // find every init dictionary it inherits. Hidden, like every other `#` slot.
+  prototype.object->Set(kEventInterfaceSlot, Value::String(name));
 
   if (parent == nullptr) {
     // The three ways to stop an event, installed once here rather than on
@@ -274,21 +500,10 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
             if (!call.self.IsObject()) {
               return Value::Undefined();
             }
-            // `preventDefault` on an event that is not cancelable does
-            // nothing, which is the rule and is what keeps a handler from
-            // believing it stopped something it did not.
-            //
-            // Nor does it do anything inside a passive listener. That is the
-            // whole content of `{passive: true}`: the page promised not to
-            // cancel, the browser is entitled to have already started, and
-            // honouring the call afterwards would make the promise meaningless.
-            const Value* is_cancelable = call.self.object->Get("cancelable");
-            const Value* in_passive = call.self.object->GetOwn(kEventInPassiveSlot);
-            const bool passive = in_passive != nullptr && js::ToBoolean(*in_passive);
-            const bool allowed =
-                !guard_cancelable ||
-                (!passive && is_cancelable != nullptr && js::ToBoolean(*is_cancelable));
-            if (allowed) {
+            // The canceled flag has rules; the propagation flag has none.
+            if (guard_cancelable) {
+              SetCanceledFlag(call.self);
+            } else {
               call.self.object->Set(field, Value::Bool(true));
             }
             if (immediate) {
@@ -304,8 +519,58 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
       }
     };
     flag("preventDefault", "defaultPrevented", true, false);
-    flag("stopPropagation", "cancelBubble", false, false);
-    flag("stopImmediatePropagation", "cancelBubble", false, true);
+    flag("stopPropagation", "#stopPropagation", false, false);
+    flag("stopImmediatePropagation", "#stopPropagation", false, true);
+
+    // `returnValue` and `cancelBubble`: the two IE-era aliases the DOM kept,
+    // and it kept them as *accessors* with one-way setters. Both were plain
+    // data properties here, which is wrong in a way a page can see rather than
+    // merely incomplete.
+    //
+    // `returnValue` is the canceled flag inverted: reading it answers
+    // `!defaultPrevented`, and writing **false** cancels while writing true
+    // does nothing. A page that saves and restores it -- `const r =
+    // e.returnValue; …; e.returnValue = r` -- must not be able to un-cancel an
+    // event, and with a data property it could.
+    //
+    // `cancelBubble` is the stop-propagation flag, and setting it to false
+    // likewise does nothing: `e.cancelBubble = true` then `e.cancelBubble =
+    // false` leaves propagation stopped. That one-way rule is why the flag now
+    // lives in `#stopPropagation` rather than in the property itself -- a
+    // property a page can write is not a flag the dispatcher can trust.
+    const auto legacy_alias = [this, &prototype](const char* alias, const char* field,
+                                                 bool inverted) {
+      const Value getter =
+          interpreter_->NewNativeValue(alias, [field, inverted](NativeCall& call) {
+            if (!call.self.IsObject()) {
+              return Value::Undefined();
+            }
+            const Value* raised = call.self.object->Get(field);
+            const bool set = raised != nullptr && js::ToBoolean(*raised);
+            return Value::Bool(inverted ? !set : set);
+          });
+      const Value setter =
+          interpreter_->NewNativeValue(alias, [field, inverted](NativeCall& call) {
+            // One-way: only the value that *raises* the flag has an effect.
+            if (!call.self.IsObject() ||
+                js::ToBoolean(Argument(call.arguments, 0)) != !inverted) {
+              return Value::Undefined();
+            }
+            // `returnValue = false` is `preventDefault()`, rules and all;
+            // `cancelBubble = true` is `stopPropagation()`, which has none.
+            if (inverted) {
+              SetCanceledFlag(call.self);
+            } else {
+              call.self.object->Set(field, Value::Bool(true));
+            }
+            return Value::Undefined();
+          });
+      if (getter.IsObject() && setter.IsObject()) {
+        prototype.object->DefineAccessor(alias, getter.object, setter.object);
+      }
+    };
+    legacy_alias("returnValue", "defaultPrevented", true);
+    legacy_alias("cancelBubble", "#stopPropagation", false);
 
     // The phase constants, on the interface a page reads them from. A handler
     // that compares `e.eventPhase === Event.CAPTURING_PHASE` needs both halves
@@ -319,13 +584,9 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
   // A constructor, so the name resolves and `Event.prototype` is reachable --
   // which is what a polyfill patches and what `instanceof` needs.
   DomBindings* self = this;
-  const std::string interface(name);
-  const bool custom = interface == "CustomEvent";
-  const bool keyboard = interface == "KeyboardEvent";
-  const bool mouseish = interface == "MouseEvent" || interface == "PointerEvent" ||
-                        interface == "WheelEvent" || interface == "DragEvent";
+  const bool custom = std::string(name) == "CustomEvent";
   const Value constructor =
-      interpreter_->NewNativeValue(name, [self, custom, keyboard, mouseish, prototype](NativeCall& call) {
+      interpreter_->NewNativeValue(name, [self, custom, prototype](NativeCall& call) -> Value {
     const std::string type = js::ToString(Argument(call.arguments, 0));
     const Value options = Argument(call.arguments, 1);
     const auto option = [&options](const char* key) {
@@ -335,26 +596,13 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
       const Value* found = options.object->Get(key);
       return found != nullptr && js::ToBoolean(*found);
     };
-    const auto copy_string = [&options](js::Object& into, const char* key, const char* fallback = "") {
-      if (!options.IsObject()) {
-        into.Set(key, Value::String(fallback));
-        return;
-      }
-      const Value* found = options.object->Get(key);
-      into.Set(key, Value::String(found == nullptr ? fallback : js::ToString(*found)));
-    };
-    const auto copy_number = [&options](js::Object& into, const char* key, double fallback = 0.0) {
-      if (!options.IsObject()) {
-        into.Set(key, Value::Number(fallback));
-        return;
-      }
-      const Value* found = options.object->Get(key);
-      into.Set(key, Value::Number(found == nullptr ? fallback : js::ToNumber(*found)));
-    };
     // Untrusted: a page made it. Returning the object is what makes this work
     // under `new` -- the receiver a construct call builds is discarded in
     // favour of an object the native returns.
     const Value event = self->MakeEvent(type, option("bubbles"), option("cancelable"), false);
+    if (!event.IsObject()) {
+      return event;
+    }
     // **Its own prototype, not Event's.** MakeEvent gives every event
     // `Event.prototype`, because that is right for the ones the browser makes
     // and hands to a listener -- but a constructed one has to be an instance of
@@ -362,49 +610,67 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     // above existed and nothing was ever an instance of any of it:
     // `new CustomEvent('x') instanceof CustomEvent` was false, which is the
     // check a page makes before reading `.detail`.
-    if (event.IsObject() && prototype.IsObject()) {
+    if (prototype.IsObject()) {
       event.object->SetPrototype(prototype.object);
     }
-    if (event.IsObject() && custom) {
-      const Value* detail = options.IsObject() ? options.object->Get("detail") : nullptr;
-      event.object->Set("detail", detail == nullptr ? Value::Undefined() : *detail);
+    // The init dictionary, base first: this interface's chain, outermost last,
+    // so a derived member overwrites the base's default rather than the other
+    // way round.
+    std::vector<js::Object*> chain;
+    for (js::Object* level = prototype.IsObject() ? prototype.object : nullptr;
+         level != nullptr; level = level->Prototype()) {
+      chain.push_back(level);
     }
-    // KeyboardEventInit / MouseEventInit. Without these, `new KeyboardEvent(
-    // 'keydown', { key: 'Enter', code: 'Enter' })` produced an event whose
-    // `.key` and `.code` were undefined — and a handler that branches on them
-    // took the wrong arm (TD-0026). Constructed events are untrusted; legacy
-    // `keyCode`/`which` are whatever the page passed, else 0 (the platform
-    // value for a synthesised event).
-    if (event.IsObject() && keyboard) {
-      copy_string(*event.object, "key");
-      copy_string(*event.object, "code");
-      copy_number(*event.object, "keyCode");
-      copy_number(*event.object, "which");
-      copy_number(*event.object, "location");
-      copy_number(*event.object, "charCode");
-      event.object->Set("repeat", Value::Bool(option("repeat")));
-      event.object->Set("ctrlKey", Value::Bool(option("ctrlKey")));
-      event.object->Set("shiftKey", Value::Bool(option("shiftKey")));
-      event.object->Set("altKey", Value::Bool(option("altKey")));
-      event.object->Set("metaKey", Value::Bool(option("metaKey")));
+    for (std::size_t i = chain.size(); i-- > 0;) {
+      const Value* named = chain[i]->GetOwn(kEventInterfaceSlot);
+      if (named == nullptr || !named->IsString()) {
+        continue;
+      }
+      for (const InitMember& member : kEventInitMembers) {
+        if (*named->string != member.interface) {
+          continue;
+        }
+        const Value* given = options.IsObject() ? options.object->Get(member.member) : nullptr;
+        if (given != nullptr && given->IsUndefined()) {
+          given = nullptr;  // WebIDL: an undefined member is an absent one
+        }
+        switch (member.kind) {
+          case InitKind::Bool:
+            event.object->Set(member.member,
+                              Value::Bool(given != nullptr && js::ToBoolean(*given)));
+            break;
+          case InitKind::Number:
+            event.object->Set(member.member, Value::Number(given == nullptr
+                                                               ? member.fallback
+                                                               : js::ToNumber(*given)));
+            break;
+          case InitKind::String:
+            event.object->Set(member.member,
+                              Value::String(given == nullptr ? std::string()
+                                                             : js::ToString(*given)));
+            break;
+          case InitKind::Object:
+            // An interface-typed member: an object or null, and nothing else.
+            // `new UIEvent('x', {view: 7})` is a TypeError rather than an
+            // event with a 7 in it, which is the one case in this table a page
+            // can tell apart from a default.
+            if (given != nullptr && !given->IsObject() && !given->IsNull()) {
+              return call.Throw("TypeError", std::string(member.member) +
+                                                 " must be an object or null");
+            }
+            event.object->Set(member.member,
+                              given == nullptr || given->IsNull() ? Value::Null() : *given);
+            break;
+          case InitKind::Any:
+            event.object->Set(member.member, given == nullptr ? Value::Null() : *given);
+            break;
+        }
+      }
     }
-    if (event.IsObject() && mouseish) {
-      copy_number(*event.object, "clientX");
-      copy_number(*event.object, "clientY");
-      copy_number(*event.object, "screenX");
-      copy_number(*event.object, "screenY");
-      copy_number(*event.object, "offsetX");
-      copy_number(*event.object, "offsetY");
-      copy_number(*event.object, "pageX");
-      copy_number(*event.object, "pageY");
-      copy_number(*event.object, "button");
-      copy_number(*event.object, "buttons");
-      copy_number(*event.object, "movementX");
-      copy_number(*event.object, "movementY");
-      event.object->Set("ctrlKey", Value::Bool(option("ctrlKey")));
-      event.object->Set("shiftKey", Value::Bool(option("shiftKey")));
-      event.object->Set("altKey", Value::Bool(option("altKey")));
-      event.object->Set("metaKey", Value::Bool(option("metaKey")));
+    if (custom && !options.IsObject()) {
+      // `new CustomEvent('x')` with no dictionary at all still has a `detail`,
+      // and it is null rather than absent.
+      event.object->Set("detail", Value::Null());
     }
     return event;
   });
@@ -439,7 +705,7 @@ js::Value DomBindings::MakeEvent(const std::string& type, bool bubbles, bool can
   event.object->Set("bubbles", Value::Bool(bubbles));
   event.object->Set("cancelable", Value::Bool(cancelable));
   event.object->Set("defaultPrevented", Value::Bool(false));
-  event.object->Set("cancelBubble", Value::Bool(false));
+  event.object->Set("#stopPropagation", Value::Bool(false));
   event.object->Set("target", Value::Null());
   event.object->Set("currentTarget", Value::Null());
   event.object->Set("eventPhase", Value::Number(static_cast<double>(EventPhase::None)));
@@ -518,6 +784,9 @@ void DomBindings::InstallEventConstructors() {
   // declared here with the rest so there is one list.
   EventPrototype("FocusEvent", "UIEvent");
   EventPrototype("InputEvent", "UIEvent");
+  // Absent entirely until now, which is six subtests reporting
+  // "undefined is not a constructor" rather than anything about events.
+  EventPrototype("CompositionEvent", "UIEvent");
   // The three that extend MouseEvent, and the reason the chain matters: a
   // handler bound to both `click` and `wheel` reads `e.clientX` off either, and
   // that only works if a WheelEvent *is* a MouseEvent.
@@ -617,6 +886,9 @@ js::Value DomBindings::CreateLegacyEvent(const char* interface) {
   if (!event.IsObject()) {
     return Value::Undefined();
   }
+  // Uninitialised until `initEvent` says otherwise -- the flag `dispatchEvent`
+  // refuses on.
+  event.object->Set(kEventUninitialisedSlot, Value::Bool(true));
   // The prototype the *named* interface has, not Event's. `createEvent` is
   // documented by its return type, and a page that asks for a MouseEvent and
   // gets something that is not one takes the branch written for browsers that
@@ -632,6 +904,22 @@ js::Value DomBindings::CreateLegacyEvent(const char* interface) {
     if (!call.self.IsObject()) {
       return Value::Undefined();
     }
+    // "If this's dispatch flag is set, then return" -- an event cannot be
+    // re-initialised mid-flight, and the specification returns rather than
+    // throwing, so a listener that calls it sees its own event unchanged.
+    if (const Value* dispatching = call.self.object->GetOwn(kEventDispatchingSlot);
+        dispatching != nullptr && js::ToBoolean(*dispatching)) {
+      return Value::Undefined();
+    }
+    if (!RequireArguments(call, "Event", "initEvent", 1)) {
+      return call.ThrownValue();
+    }
+    // "Initialize" clears both flags as well as setting the three fields: an
+    // event re-initialised after a dispatch that stopped propagation or called
+    // preventDefault starts again as if new.
+    call.self.object->Set(kEventUninitialisedSlot, Value::Bool(false));
+    call.self.object->Set("#stopPropagation", Value::Bool(false));
+    call.self.object->Set("defaultPrevented", Value::Bool(false));
     call.self.object->Set("type", Value::String(js::ToString(Argument(call.arguments, 0))));
     call.self.object->Set("bubbles", Value::Bool(js::ToBoolean(Argument(call.arguments, 1))));
     call.self.object->Set("cancelable", Value::Bool(js::ToBoolean(Argument(call.arguments, 2))));
@@ -646,6 +934,13 @@ js::Value DomBindings::CreateLegacyEvent(const char* interface) {
           if (!call.self.IsObject()) {
             return Value::Undefined();
           }
+          if (const Value* dispatching = call.self.object->GetOwn(kEventDispatchingSlot);
+              dispatching != nullptr && js::ToBoolean(*dispatching)) {
+            return Value::Undefined();
+          }
+          call.self.object->Set(kEventUninitialisedSlot, Value::Bool(false));
+          call.self.object->Set("#stopPropagation", Value::Bool(false));
+          call.self.object->Set("defaultPrevented", Value::Bool(false));
           call.self.object->Set("type", Value::String(js::ToString(Argument(call.arguments, 0))));
           call.self.object->Set("bubbles", Value::Bool(js::ToBoolean(Argument(call.arguments, 1))));
           call.self.object->Set("cancelable",

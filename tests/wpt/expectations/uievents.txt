@@ -30,10 +30,8 @@ FAIL=MouseEvent.getModifierState('Shift') reflects shiftKey in isolation
 FAIL=MouseEvent.getModifierState() reports every modifier when all are set
 FAIL=MouseEvent.getModifierState() returns false for every modifier when none are set
 [uievents/constructors/inputevent-constructor.html]
-FAIL=InputEvent constructor without InputEventInit.
 FAIL=InputEvent construtor with InputEventInit where data is empty string
 FAIL=InputEvent construtor with InputEventInit where data is non empty string
-FAIL=InputEvent construtor with InputEventInit where data is null
 [uievents/idlharness.window.html]
 FAIL=idl_test setup
 [uievents/interface/click-event.htm]

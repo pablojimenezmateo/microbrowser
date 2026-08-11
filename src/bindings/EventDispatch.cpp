@@ -78,7 +78,7 @@ void ForgetListener(const Value& listeners, const Value& entry) {
 }  // namespace
 
 bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event,
-                                 const std::string& slot, EventPhase phase) {
+                                 const std::string& slot, EventPhase phase, EventPhase pass) {
   if (!holder.IsObject() || !event.IsObject()) {
     return false;
   }
@@ -90,11 +90,14 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
   // property runs before the registered listeners, which is an approximation:
   // the specification registers it in the position it was first assigned.
   //
-  // It is a bubble-phase listener, so the capture pass does not see it. An
-  // `onclick` that fired on the way *down* would run before the handlers of
-  // every element it contains.
+  // It is a non-capture listener, so only the bubbling *pass* sees it. An
+  // `onclick` that fired on the way down would run before the handlers of every
+  // element it contains -- and the test is `pass` rather than `phase`, because
+  // the target is on both passes reporting AT_TARGET on each, so keying off the
+  // phase would run a page's `onclick` twice for every click on the element
+  // that carries it.
   const Value* attribute =
-      (type == nullptr || phase == EventPhase::Capturing)
+      (type == nullptr || pass == EventPhase::Capturing)
           ? nullptr
           : holder.object->Get("on" + js::ToString(*type));
   if ((listeners == nullptr || !listeners->IsObject()) &&
@@ -122,7 +125,7 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
     }
   }
   if (listeners == nullptr || !listeners->IsObject()) {
-    const Value* stopped_here = event.object->GetOwn("cancelBubble");
+    const Value* stopped_here = event.object->GetOwn("#stopPropagation");
     return stopped_here != nullptr && js::ToBoolean(*stopped_here);
   }
 
@@ -133,11 +136,21 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
     handlers.push_back(listeners->object->GetElement(i));
   }
   for (const Value& entry : handlers) {
-    // At the target both kinds run, in the order they were registered. That is
-    // the specification and it is not a corner: a page that registers a capture
-    // listener on the element it clicks expects it to run.
-    if (phase != EventPhase::AtTarget &&
-        ListenerFlag(entry, kListenerCaptureSlot) != (phase == EventPhase::Capturing)) {
+    // Which listeners this pass runs, decided by `pass` -- the *direction* --
+    // and never by `phase`, which is only what the page reads back.
+    //
+    // The two are different at the target and that is the whole reason the
+    // parameter exists. The target is on both passes, reporting AT_TARGET on
+    // each, and each still keeps only its own kind: capture listeners on the
+    // way down, non-capture on the way up. Filtering by `phase` instead ran
+    // both kinds at the target in registration order, which no ordering of
+    // registrations can make match the DOM's own case -- capture,
+    // non-capture, capture must run 1, 3, 2.
+    //
+    // `AtTarget` *as a pass* means "both", which is what a lone target with no
+    // tree around it gets: an AbortSignal, an XHR, a slot.
+    if (pass != EventPhase::AtTarget &&
+        ListenerFlag(entry, kListenerCaptureSlot) != (pass == EventPhase::Capturing)) {
       continue;
     }
     // Removed before it is called, not after: a `once` listener that dispatches
@@ -170,7 +183,7 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
       break;
     }
   }
-  const Value* stopped = event.object->GetOwn("cancelBubble");
+  const Value* stopped = event.object->GetOwn("#stopPropagation");
   return stopped != nullptr && js::ToBoolean(*stopped);
 }
 
@@ -247,16 +260,34 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
   // Down, then at, then up: the three phases, in the one place every event goes
   // through. ADR 0017 §2 -- two events with two dispatch paths is how a browser
   // ends up with a `preventDefault` that works on links and not on forms.
+  //
+  // **The target is on both passes**, and that is not a rounding error in the
+  // model. A listener registered on the target with `capture: true` runs in the
+  // *capturing* pass and one registered with `capture: false` runs in the
+  // bubbling pass, both reporting `eventPhase === AT_TARGET`. Before this the
+  // target was visited once, in a pass that kept only non-capture listeners, so
+  // `el.addEventListener('x', f, true)` followed by `el.dispatchEvent(...)`
+  // never called `f` at all -- and the DOM's own ordering test
+  // (`[1, 3, 2]` for capture, non-capture, capture) cannot be satisfied by any
+  // single pass, whichever way it filters.
+  //
+  // The bubbling pass runs at the target even for an event that does not
+  // bubble: `bubbles` decides whether propagation continues *past* the target,
+  // not whether the target's own listeners run.
   bool stopped = false;
-  for (std::size_t i = path.size(); i-- > 1 && !stopped;) {
-    stopped = RunListenersOn(path[i], event, slot, EventPhase::Capturing);
+  for (std::size_t i = path.size(); i-- > 0 && !stopped;) {
+    stopped = RunListenersOn(path[i], event, slot,
+                             i == 0 ? EventPhase::AtTarget : EventPhase::Capturing,
+                             EventPhase::Capturing);
   }
   if (!stopped) {
-    stopped = RunListenersOn(path.front(), event, slot, EventPhase::AtTarget);
+    stopped = RunListenersOn(path.front(), event, slot, EventPhase::AtTarget,
+                             EventPhase::Bubbling);
   }
   if (!stopped && propagates) {
     for (std::size_t i = 1; i < path.size() && !stopped; ++i) {
-      stopped = RunListenersOn(path[i], event, slot, EventPhase::Bubbling);
+      stopped = RunListenersOn(path[i], event, slot, EventPhase::Bubbling,
+                               EventPhase::Bubbling);
     }
   }
   // Dispatch is over: `currentTarget` is null and the phase is NONE outside it,

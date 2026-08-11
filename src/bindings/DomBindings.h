@@ -427,10 +427,10 @@ class DomBindings {
   // Runs the listeners for `event`'s type on `target` and, when it bubbles, on
   // each ancestor. True when one called `preventDefault`.
   bool DispatchEventTo(dom::Node& target, const js::Value& event);
-  // Runs the listeners in `slot` registered on one object -- a node's wrapper
-  // or the window -- for one phase. True when one stopped propagation.
+  // Listeners in `slot` on one object. `phase` is what the page reads; `pass`
+  // is which run -- capture, non-capture, or (AtTarget) both. True when stopped.
   bool RunListenersOn(const js::Value& holder, const js::Value& event, const std::string& slot,
-                      EventPhase phase);
+                      EventPhase phase, EventPhase pass = EventPhase::AtTarget);
   // The `isTrusted` getter, one per answer for the whole process. A getter and
   // not a field, because ADR 0017 §3 requires there to be no way to set it.
   js::Value TrustedGetter(bool trusted);
